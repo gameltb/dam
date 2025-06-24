@@ -8,9 +8,10 @@ from dam.models import Entity
 from dam.models.content_hash_component import ContentHashComponent
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
+from dam.models.image_perceptual_hash_component import ImagePerceptualHashComponent # Added
 from dam.core.config import settings # For ASSET_STORAGE_PATH
 
-from .file_operations import store_file_locally # For simulated storage
+from .file_operations import store_file_locally, generate_perceptual_hashes # Added generate_perceptual_hashes
 
 def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
     """
@@ -142,5 +143,28 @@ def add_asset_file(
         )
         session.add(flc)
         print(f"New Entity ID {entity.id} created for file '{original_filename}'.")
+
+    # After entity creation or retrieval, if it's an image, add perceptual hashes
+    if mime_type and mime_type.startswith("image/"):
+        # Check if perceptual hashes already exist for this entity for common types, to avoid duplicates if re-processing
+        # This is a simple check; a more robust system might update existing hashes or handle versioning.
+        existing_phashes_stmt = select(ImagePerceptualHashComponent.hash_type).where(
+            ImagePerceptualHashComponent.entity_id == entity.id
+        )
+        existing_phash_types = set(session.execute(existing_phashes_stmt).scalars().all())
+
+        perceptual_hashes = generate_perceptual_hashes(filepath_on_disk)
+        for phash_type, phash_value in perceptual_hashes.items():
+            if phash_type not in existing_phash_types:
+                iphc = ImagePerceptualHashComponent(
+                    entity_id=entity.id, # type: ignore
+                    entity=entity,       # type: ignore
+                    hash_type=phash_type,
+                    hash_value=phash_value
+                )
+                session.add(iphc)
+                print(f"Added {phash_type} '{phash_value}' for Entity ID {entity.id}.")
+            # else:
+                # print(f"{phash_type} already exists for Entity ID {entity.id}.") # Optional: log if hash already exists
 
     return entity, created_new_entity

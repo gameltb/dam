@@ -30,6 +30,18 @@ dependencies = [
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
+    # ImageHash and Pillow moved to optional-dependencies
+]
+
+[project.optional-dependencies]
+image = [
+    "ImageHash",
+    "Pillow"
+]
+dev = [ # Example for dev/test dependencies
+    "pytest",
+    # "ruff", # Already configured via [tool.ruff]
+    # "mypy"  # Already configured via [tool.mypy]
 ]
 
 [project.urls]

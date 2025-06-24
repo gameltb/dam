@@ -65,6 +65,11 @@ ecs_dam_system/
     ```
     The `-e .` installs the package in editable mode.
 
+    For optional features like perceptual image hashing, install the extras:
+    ```bash
+    pip install -e ".[image]"
+    ```
+
 4.  **Set up environment variables:**
     *   Copy `.env.example` to `.env`:
         ```bash

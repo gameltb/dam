@@ -95,3 +95,62 @@ def store_file_locally(source_filepath: Path, storage_base_path: Path, content_h
 
 # Update services/__init__.py
 # No, this file itself is fine. The __init__.py for services will be updated later if needed.
+
+
+# Conditional imports for optional image hashing feature
+_imagehash_available = False
+_PIL_available = False
+try:
+    import imagehash
+    _imagehash_available = True
+    from PIL import Image
+    _PIL_available = True
+except ImportError:
+    # This warning can be made more prominent or logged if necessary
+    print("Warning: Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled.")
+
+
+def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
+    """
+    Generates various perceptual hashes for an image file if ImageHash and Pillow are installed.
+
+    Args:
+        image_filepath: Path to the image file.
+
+    Returns:
+        A dictionary with hash_type as key and hex hash string as value.
+        Example: {"phash": "...", "ahash": "...", "dhash": "..."}
+        Returns empty dict if dependencies are missing, or image cannot be processed.
+    """
+    hashes = {}
+    if not _imagehash_available or not _PIL_available:
+        # Dependencies were not available at import time of this module
+        return hashes
+
+    try:
+        img = Image.open(image_filepath)
+
+        # pHash (Perceptual Hash)
+        try:
+            hashes["phash"] = str(imagehash.phash(img))
+        except Exception as e_phash: # More specific exceptions could be caught
+            print(f"Warning: Could not generate pHash for {image_filepath.name}: {e_phash}")
+
+        # aHash (Average Hash)
+        try:
+            hashes["ahash"] = str(imagehash.average_hash(img))
+        except Exception as e_ahash:
+            print(f"Warning: Could not generate aHash for {image_filepath.name}: {e_ahash}")
+
+        # dHash (Difference Hash)
+        try:
+            hashes["dhash"] = str(imagehash.dhash(img))
+        except Exception as e_dhash:
+            print(f"Warning: Could not generate dHash for {image_filepath.name}: {e_dhash}")
+
+    except FileNotFoundError:
+        print(f"Warning: Image file not found at {image_filepath} for perceptual hashing.")
+    except Exception as e_open: # Catches PIL.UnidentifiedImageError etc.
+        print(f"Warning: Could not open or process image {image_filepath.name} for perceptual hashing: {e_open}")
+
+    return hashes
