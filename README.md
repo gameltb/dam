@@ -53,9 +53,9 @@ ecs_dam_system/
     cd ecs_dam_system
     ```
 
-2.  **Create and activate a virtual environment:**
+2.  **Create and activate a virtual environment (Python 3.12+ recommended):**
     ```bash
-    python -m venv venv
+    python3.12 -m venv venv  # Or python -m venv venv if your default python is 3.12+
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
