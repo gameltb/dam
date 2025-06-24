@@ -58,7 +58,7 @@ include = ["dam*"]
 exclude = ["tests*"]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I001"] # Enable common flake8 rules and isort

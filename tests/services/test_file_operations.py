@@ -1,10 +1,13 @@
-import pytest
 from pathlib import Path
-import tempfile
-import os
-import shutil # For creating test_data dir in fixture if needed
 
-from dam.services.file_operations import generate_perceptual_hashes, get_file_properties, calculate_sha256
+import pytest
+
+from dam.services.file_operations import (
+    calculate_sha256,
+    generate_perceptual_hashes,
+    get_file_properties,
+)
+
 
 # Fixture to provide paths to sample images
 @pytest.fixture(scope="module")
@@ -13,10 +16,9 @@ def test_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     Creates a temporary directory and populates it with test image files.
     This is better than relying on files in the repo for more hermetic tests.
     """
-    # Base64 encoded content for a 2x1 red-blue PNG (img_A.png)
-    img_a_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR42mNkgIL/DAwM/wUADgAB/vA/cQAAAABJRU5ErkJggg=="
-    # Base64 encoded content for a 1x1 blue PNG (img_B.png)
-    img_b_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg=="
+    # The base64 variables img_a_b64 and img_b_b64 were for creating files on the fly.
+    # Now that the files are static in tests/test_data (created by plan step),
+    # these variables are unused in this fixture.
 
     # Create a temporary directory for test data for this module
     # If using files from tests/test_data, this fixture would just return Path("tests/test_data")
@@ -25,7 +27,7 @@ def test_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
     # The previous step created files in "tests/test_data" relative to project root.
     # So, this fixture should construct the path to that directory.
-    project_root = Path(__file__).parent.parent.parent # Assuming tests/services/test_file_operations.py
+    project_root = Path(__file__).parent.parent.parent  # Assuming tests/services/test_file_operations.py
     data_dir = project_root / "tests" / "test_data"
 
     # Ensure it exists (it should from previous step)
@@ -43,13 +45,16 @@ def test_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
     return data_dir
 
+
 @pytest.fixture
 def sample_image_path_a(test_data_dir: Path) -> Path:
     return test_data_dir / "img_A.png"
 
+
 @pytest.fixture
 def sample_image_path_b(test_data_dir: Path) -> Path:
     return test_data_dir / "img_B.png"
+
 
 @pytest.fixture
 def non_image_file_path(tmp_path: Path) -> Path:
@@ -58,12 +63,13 @@ def non_image_file_path(tmp_path: Path) -> Path:
     txt_file.write_text("This is not an image.")
     return txt_file
 
+
 def test_generate_perceptual_hashes_valid_image(sample_image_path_a: Path):
     """Test with a valid image, check for expected hash types."""
     # Ensure ImageHash and Pillow are available for this test to run meaningfully
     try:
-        import imagehash
-        from PIL import Image
+        import imagehash  # noqa: F401
+        from PIL import Image  # noqa: F401
     except ImportError:
         pytest.skip("ImageHash or Pillow not installed, skipping perceptual hash generation test.")
 
@@ -84,11 +90,14 @@ def test_generate_perceptual_hashes_valid_image(sample_image_path_a: Path):
     # Example: Known hash for a very specific image if available (hard to maintain)
     # assert hashes["phash"] == "expected_phash_value_for_img_a"
 
-def test_generate_perceptual_hashes_different_images_produce_different_hashes(sample_image_path_a: Path, sample_image_path_b: Path):
+
+def test_generate_perceptual_hashes_different_images_produce_different_hashes(
+    sample_image_path_a: Path, sample_image_path_b: Path
+):
     """Test that two different images produce different perceptual hashes."""
     try:
-        import imagehash
-        from PIL import Image
+        import imagehash  # noqa: F401
+        from PIL import Image  # noqa: F401
     except ImportError:
         pytest.skip("ImageHash or Pillow not installed, skipping perceptual hash comparison test.")
 
@@ -96,8 +105,9 @@ def test_generate_perceptual_hashes_different_images_produce_different_hashes(sa
     hashes_b = generate_perceptual_hashes(sample_image_path_b)
 
     # Ensure all keys were generated for both, otherwise comparison is moot
-    if not all(k in hashes_a for k in ["phash", "ahash", "dhash"]) or \
-       not all(k in hashes_b for k in ["phash", "ahash", "dhash"]):
+    if not all(k in hashes_a for k in ["phash", "ahash", "dhash"]) or not all(
+        k in hashes_b for k in ["phash", "ahash", "dhash"]
+    ):
         pytest.skip("Not all hash types generated for one or both sample images, cannot compare.")
 
     assert hashes_a["phash"] != hashes_b["phash"], "pHashes should differ for different images"
@@ -116,8 +126,11 @@ def test_generate_perceptual_hashes_non_image_file(non_image_file_path: Path, ca
     # Example warning: "Warning: Could not open or process image {non_image_file_path.name} for perceptual hashing: ..."
     # The exact message depends on PIL's error and your function's print statement.
     # This assertion is a bit brittle if the warning message changes.
-    assert "Warning: Could not open or process image" in captured.out or \
-           "Warning: Could not open or process image" in captured.err # Check both stdout and stderr for the warning
+    assert (
+        "Warning: Could not open or process image" in captured.out
+        or "Warning: Could not open or process image" in captured.err
+    )  # Check both stdout and stderr for the warning
+
 
 def test_generate_perceptual_hashes_missing_file(tmp_path: Path, capsys):
     """Test with a non-existent file path."""
@@ -126,14 +139,18 @@ def test_generate_perceptual_hashes_missing_file(tmp_path: Path, capsys):
     assert hashes == {}
 
     captured = capsys.readouterr()
-    assert f"Warning: Image file not found at {non_existent_file}" in captured.out or \
-           f"Warning: Image file not found at {non_existent_file}" in captured.err
+    assert (
+        f"Warning: Image file not found at {non_existent_file}" in captured.out
+        or f"Warning: Image file not found at {non_existent_file}" in captured.err
+    )
+
 
 # Test for conditional import (harder to test directly without manipulating sys.modules or environments)
 # One way is to check the _imagehash_available flags if they were made accessible for testing,
 # or by mocking the import statement.
 # For now, the function's internal check `if not _imagehash_available...` covers this.
 # A test could be added if we make those flags importable or have a helper.
+
 
 # Example test for calculate_sha256 (already exists but good to have tests for all ops)
 def test_calculate_sha256_simple_file(tmp_path: Path):
@@ -147,6 +164,7 @@ def test_calculate_sha256_simple_file(tmp_path: Path):
     expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
     assert calculate_sha256(test_file) == expected_hash
 
+
 # Example test for get_file_properties
 def test_get_file_properties_simple_file(tmp_path: Path):
     file_content = b"some data"
@@ -156,4 +174,4 @@ def test_get_file_properties_simple_file(tmp_path: Path):
     name, size, mime = get_file_properties(test_file)
     assert name == "props_test.dat"
     assert size == len(file_content)
-    assert mime == "application/octet-stream" # Default for .dat or unknown
+    assert mime == "application/octet-stream"  # Default for .dat or unknown

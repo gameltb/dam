@@ -67,8 +67,8 @@ This section walks through the process of adding a new component to the DAM syst
 First, create a new Python file for your component in the `dam/models/` directory. For our example, this would be `dam/models/tag_component.py`.
 
 The component class should:
-- Inherit from `BaseComponent` (which provides `id`, `entity_id`, timestamps, and the `entity` relationship).
-- Be decorated with `@dataclass(kw_only=True)`. This ensures keyword-only initialization, which helps manage argument order for `__init__` methods, especially with inheritance.
+- Inherit from `BaseComponent`.
+- Be decorated with `@dataclass`. The `kw_only=True` behavior (requiring keyword arguments for `__init__`) is automatically inherited from the main `Base` class (`dam.models.base_class.Base`), which is configured with `kw_only=True` globally for all model dataclasses. This helps manage argument order for `__init__` methods, especially with inheritance.
 - Define a `__tablename__` for the database table.
 - Define its specific data fields using `Mapped` type hints and SQLAlchemy's `mapped_column`.
 
@@ -82,7 +82,7 @@ from sqlalchemy import String, UniqueConstraint
 from .base_component import BaseComponent
 # Note: Base is inherited via BaseComponent
 
-@dataclass(kw_only=True) # Explicitly set kw_only=True here
+@dataclass # kw_only=True is inherited from the main Base class
 class TagComponent(BaseComponent):
     __tablename__ = "tags" # Choose a suitable table name
 

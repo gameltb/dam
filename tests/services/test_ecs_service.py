@@ -1,18 +1,23 @@
+from unittest.mock import MagicMock  # Moved import to top
+
 import pytest
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError # For testing constraint violations
-from unittest.mock import MagicMock # Moved import to top
 
-from dam.models import Entity, FileLocationComponent, BaseComponent # Combined BaseComponent import
+from dam.models import (
+    BaseComponent,
+    Entity,
+    FileLocationComponent,
+)  # Combined BaseComponent import
 from dam.services.ecs_service import (
     add_component_to_entity,
-    get_entity,
     create_entity,
+    delete_entity,
     get_component,
     get_components,
+    get_entity,
     remove_component,
-    delete_entity
 )
+
 
 # Fixture to create a sample entity, relies on db_session from conftest.py
 @pytest.fixture
@@ -20,8 +25,9 @@ def sample_entity(db_session: Session) -> Entity:
     entity = Entity()
     db_session.add(entity)
     db_session.commit()
-    db_session.refresh(entity) # Ensure it has its ID etc.
+    db_session.refresh(entity)  # Ensure it has its ID etc.
     return entity
+
 
 def test_add_component_to_entity_success(db_session: Session, sample_entity: Entity):
     """Test successfully adding a new component to an existing entity."""
@@ -118,22 +124,23 @@ def test_add_component_to_entity_success(db_session: Session, sample_entity: Ent
         entity_id=sample_entity.id,
         entity=sample_entity,
         filepath="/path/to/file.txt",
-        storage_type="test_local"
+        storage_type="test_local",
     )
 
     # The service will re-set entity_id and entity, which is fine.
     added_component = add_component_to_entity(db_session, sample_entity.id, component_to_add)
-    db_session.commit() # Commit after service call
+    db_session.commit()  # Commit after service call
 
     assert added_component is not None
-    assert added_component.id is not None # Should have an ID after flush in service
+    assert added_component.id is not None  # Should have an ID after flush in service
     assert added_component.entity_id == sample_entity.id
-    assert added_component.entity == sample_entity # Relationship should be set
+    assert added_component.entity == sample_entity  # Relationship should be set
 
     retrieved_component = db_session.get(FileLocationComponent, added_component.id)
     assert retrieved_component is not None
     assert retrieved_component.filepath == "/path/to/file.txt"
     assert retrieved_component.storage_type == "test_local"
+
 
 def test_add_component_to_non_existent_entity(db_session: Session):
     """Test adding a component to a non-existent entity raises ValueError."""
@@ -160,8 +167,6 @@ def test_add_component_to_non_existent_entity(db_session: Session):
     # we can pass something that satisfies the type hint for component_instance.
     # This is a weakness in the test if component creation itself fails.
 
-    from unittest.mock import MagicMock # Ensure this import is at the top of the file or accessible
-
     # The service calls get_entity(entity_id) first. If that fails, component_instance isn't used much.
     # We use a mock that satisfies the BaseComponent type hint.
     mock_component = MagicMock(spec=BaseComponent)
@@ -169,10 +174,11 @@ def test_add_component_to_non_existent_entity(db_session: Session):
     with pytest.raises(ValueError, match=f"Entity with ID {non_existent_entity_id} not found."):
         add_component_to_entity(db_session, non_existent_entity_id, mock_component)
 
+
 def test_create_entity(db_session: Session):
     """Test creating a new entity."""
     entity = create_entity(db_session)
-    db_session.commit() # Commit to make it queryable through normal means if needed
+    db_session.commit()  # Commit to make it queryable through normal means if needed
 
     assert entity is not None
     assert entity.id is not None
@@ -180,21 +186,24 @@ def test_create_entity(db_session: Session):
     assert retrieved_entity is not None
     assert retrieved_entity.id == entity.id
 
+
 def test_get_entity_non_existent(db_session: Session):
     """Test getting a non-existent entity returns None."""
     retrieved_entity = get_entity(db_session, 99999)
     assert retrieved_entity is None
 
+
 def test_get_component_single(db_session: Session, sample_entity: Entity):
     """Test getting a single component that exists."""
     # Add a FilePropertiesComponent (which should be unique per entity in current setup)
     from dam.models import FilePropertiesComponent
+
     fpc_data = FilePropertiesComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
         original_filename="test.jpg",
         file_size_bytes=1024,
-        mime_type="image/jpeg"
+        mime_type="image/jpeg",
     )
     add_component_to_entity(db_session, sample_entity.id, fpc_data)
     db_session.commit()
@@ -204,16 +213,31 @@ def test_get_component_single(db_session: Session, sample_entity: Entity):
     assert retrieved_fpc.id == fpc_data.id
     assert retrieved_fpc.original_filename == "test.jpg"
 
+
 def test_get_component_single_non_existent(db_session: Session, sample_entity: Entity):
     """Test getting a single component that does not exist for an entity."""
-    from dam.models import FilePropertiesComponent # Ensure it's a different component type or not added
+    from dam.models import (
+        FilePropertiesComponent,
+    )  # Ensure it's a different component type or not added
+
     retrieved_fpc = get_component(db_session, sample_entity.id, FilePropertiesComponent)
     assert retrieved_fpc is None
 
+
 def test_get_components_multiple(db_session: Session, sample_entity: Entity):
     """Test getting multiple components of the same type for an entity."""
-    loc1 = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc1", storage_type="local")
-    loc2 = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc2", storage_type="local")
+    loc1 = FileLocationComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        filepath="/loc1",
+        storage_type="local",
+    )
+    loc2 = FileLocationComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        filepath="/loc2",
+        storage_type="local",
+    )
     add_component_to_entity(db_session, sample_entity.id, loc1)
     add_component_to_entity(db_session, sample_entity.id, loc2)
     db_session.commit()
@@ -224,14 +248,21 @@ def test_get_components_multiple(db_session: Session, sample_entity: Entity):
     assert "/loc1" in filepaths
     assert "/loc2" in filepaths
 
+
 def test_get_components_empty(db_session: Session, sample_entity: Entity):
     """Test getting components when none of that type exist for an entity."""
     retrieved_locs = get_components(db_session, sample_entity.id, FileLocationComponent)
     assert len(retrieved_locs) == 0
 
+
 def test_remove_component(db_session: Session, sample_entity: Entity):
     """Test removing a component from an entity."""
-    loc = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/to_delete", storage_type="local")
+    loc = FileLocationComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        filepath="/to_delete",
+        storage_type="local",
+    )
     add_component_to_entity(db_session, sample_entity.id, loc)
     db_session.commit()
     component_id_to_delete = loc.id
@@ -239,19 +270,31 @@ def test_remove_component(db_session: Session, sample_entity: Entity):
     # Verify it exists
     assert db_session.get(FileLocationComponent, component_id_to_delete) is not None
 
-    from dam.services.ecs_service import remove_component # Import for test
     remove_component(db_session, loc)
-    db_session.commit() # Commit deletion
+    db_session.commit()  # Commit deletion
 
     assert db_session.get(FileLocationComponent, component_id_to_delete) is None
 
+
 def test_delete_entity_cascades_components(db_session: Session, sample_entity: Entity):
     """Test that deleting an entity also deletes its associated components."""
-    from dam.models import ContentHashComponent # Using another component type for variety
+    from dam.models import (
+        ContentHashComponent,
+    )  # Using another component type for variety
 
     # Add some components
-    loc = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc_del", storage_type="local")
-    chc = ContentHashComponent(entity_id=sample_entity.id, entity=sample_entity, hash_type="sha256", hash_value="testhash_del")
+    loc = FileLocationComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        filepath="/loc_del",
+        storage_type="local",
+    )
+    chc = ContentHashComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        hash_type="sha256",
+        hash_value="testhash_del",
+    )
 
     add_component_to_entity(db_session, sample_entity.id, loc)
     add_component_to_entity(db_session, sample_entity.id, chc)
@@ -265,7 +308,6 @@ def test_delete_entity_cascades_components(db_session: Session, sample_entity: E
     assert db_session.get(FileLocationComponent, loc_id) is not None
     assert db_session.get(ContentHashComponent, chc_id) is not None
 
-    from dam.services.ecs_service import delete_entity # Import for test
     deleted = delete_entity(db_session, entity_id_to_delete)
     db_session.commit()
 
@@ -274,11 +316,13 @@ def test_delete_entity_cascades_components(db_session: Session, sample_entity: E
     assert db_session.get(FileLocationComponent, loc_id) is None
     assert db_session.get(ContentHashComponent, chc_id) is None
 
+
 def test_delete_non_existent_entity(db_session: Session):
     """Test deleting a non-existent entity returns False."""
-    from dam.services.ecs_service import delete_entity # Import for test
+
     deleted = delete_entity(db_session, 99998)
     assert deleted is False
+
 
 # Could add a test for IntegrityError if a component has a unique constraint
 # (e.g., adding FilePropertiesComponent twice to the same entity if it has unique on entity_id)

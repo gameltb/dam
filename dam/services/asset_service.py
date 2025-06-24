@@ -1,18 +1,28 @@
 from pathlib import Path
 from typing import Optional, Tuple
 
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from dam.core.config import settings  # For ASSET_STORAGE_PATH
 from dam.models import Entity
 from dam.models.content_hash_component import ContentHashComponent
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
-from dam.models.image_perceptual_hash_component import ImagePerceptualHashComponent # Added
-from dam.core.config import settings # For ASSET_STORAGE_PATH
+from dam.models.image_perceptual_hash_component import (
+    ImagePerceptualHashComponent,
+)  # Added
 
-from .file_operations import store_file_locally, generate_perceptual_hashes # Added generate_perceptual_hashes
-from .ecs_service import create_entity, add_component_to_entity, get_components # Added ECS functions
+from .ecs_service import (
+    add_component_to_entity,
+    create_entity,
+    get_components,
+)  # Added ECS functions
+from .file_operations import (
+    generate_perceptual_hashes,
+    store_file_locally,
+)  # Added generate_perceptual_hashes
+
 
 def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
     """
@@ -35,15 +45,16 @@ def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: st
     result = session.execute(stmt).scalar_one_or_none()
     return result
 
+
 def add_asset_file(
     session: Session,
-    filepath_on_disk: Path, # The actual path of the source file
+    filepath_on_disk: Path,  # The actual path of the source file
     original_filename: str,
     mime_type: str,
     size_bytes: int,
     content_hash: str,
-    hash_type: str = "sha256" # Assuming SHA256 for content hash
-) -> Tuple[Entity, bool]: # Returns (Entity, created_new_entity_flag)
+    hash_type: str = "sha256",  # Assuming SHA256 for content hash
+) -> Tuple[Entity, bool]:  # Returns (Entity, created_new_entity_flag)
     """
     Adds an asset file to the DAM system.
     - Checks if an entity with the given content_hash already exists.
@@ -86,7 +97,7 @@ def add_asset_file(
                 entity_id=entity.id,
                 entity=entity,
                 filepath=filepath_on_disk.as_posix(),
-                storage_type="local_source_link" # Indicate it's a new link to existing content
+                storage_type="local_source_link",  # Indicate it's a new link to existing content
             )
             add_component_to_entity(session, entity.id, new_location_component)
             print(f"New file location '{filepath_on_disk}' linked to existing Entity ID {entity.id}.")
@@ -94,7 +105,7 @@ def add_asset_file(
             print(f"File location '{filepath_on_disk}' already known for Entity ID {entity.id}.")
     else:
         created_new_entity = True
-        entity = create_entity(session) # Use ECS service; session.flush() is done inside
+        entity = create_entity(session)  # Use ECS service; session.flush() is done inside
         print(f"New Entity ID {entity.id} created for file '{original_filename}'.")
 
         # Content Hash Component
@@ -102,7 +113,7 @@ def add_asset_file(
             entity_id=entity.id,
             entity=entity,
             hash_type=hash_type,
-            hash_value=content_hash
+            hash_value=content_hash,
         )
         add_component_to_entity(session, entity.id, chc)
 
@@ -112,7 +123,7 @@ def add_asset_file(
             entity=entity,
             original_filename=original_filename,
             file_size_bytes=size_bytes,
-            mime_type=mime_type
+            mime_type=mime_type,
         )
         add_component_to_entity(session, entity.id, fpc)
 
@@ -122,7 +133,7 @@ def add_asset_file(
             entity_id=entity.id,
             entity=entity,
             filepath=filepath_on_disk.as_posix(),
-            storage_type="local_source_initial"
+            storage_type="local_source_initial",
         )
         add_component_to_entity(session, entity.id, flc)
 
@@ -139,7 +150,7 @@ def add_asset_file(
                     entity_id=entity.id,
                     entity=entity,
                     hash_type=phash_type,
-                    hash_value=phash_value
+                    hash_value=phash_value,
                 )
                 add_component_to_entity(session, entity.id, iphc)
                 print(f"Added {phash_type} '{phash_value}' for Entity ID {entity.id}.")

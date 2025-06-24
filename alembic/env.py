@@ -1,9 +1,10 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+from dam.core.config import settings  # Import your settings
+from dam.models import Base  # Import your Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -16,8 +17,9 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from dam.models import Base  # Import your Base
-from dam.core.config import settings # Import your settings
+# from dam.core.config import settings  # Moved to top
+# from dam.models import Base  # Moved to top
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -40,7 +42,7 @@ def run_migrations_offline() -> None:
     """
     # Use DATABASE_URL from settings
     config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-    url = settings.DATABASE_URL # Or config.get_main_option("sqlalchemy.url") after setting
+    url = settings.DATABASE_URL  # Or config.get_main_option("sqlalchemy.url") after setting
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -70,9 +72,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

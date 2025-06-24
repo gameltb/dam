@@ -1,8 +1,9 @@
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from dam.models import Base # Assuming this is your SQLAlchemy declarative base
+from dam.models import Base  # Assuming this is your SQLAlchemy declarative base
+
 
 @pytest.fixture(scope="session")
 def engine():
@@ -11,6 +12,7 @@ def engine():
     The engine is created once per test session.
     """
     return create_engine("sqlite:///:memory:")
+
 
 @pytest.fixture(scope="function")
 def db_session(engine):

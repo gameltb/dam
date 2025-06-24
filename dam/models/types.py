@@ -1,7 +1,7 @@
-from typing import Annotated
 from datetime import datetime
+from typing import Annotated
 
-from sqlalchemy import text, DateTime
+from sqlalchemy import DateTime, text
 from sqlalchemy.orm import mapped_column
 
 # Timestamp for creation, defaults to the current time on the database side

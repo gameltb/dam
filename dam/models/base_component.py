@@ -1,16 +1,21 @@
 from dataclasses import dataclass, field
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr, relationship
+from datetime import datetime  # Added import
 
-from .base_class import Base # Updated import for Base
-from datetime import datetime # Added import
-from sqlalchemy import DateTime, ForeignKey # text removed, func added
-from sqlalchemy.sql import func # Added for func.now()
 # PkId is still used by @declared_attr id, Timestamp types are not used here anymore
-from .types import PkId
-# Import Entity for ForeignKey relationship typing, will resolve with __future__.annotations if needed
-# or by making it a string literal if type checking issues arise before full model setup.
+# Import Entity for ForeignKey relationship typing, will resolve with
+# __future__.annotations if needed or by making it a string literal if type
+# checking issues arise before full model setup.
 from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    DateTime,  # text removed, func added
+    ForeignKey,
+)
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
+from sqlalchemy.sql import func  # Added for func.now()
+
+from .base_class import Base  # Updated import for Base
+
 if TYPE_CHECKING:
     from .entity import Entity
 
@@ -18,17 +23,19 @@ if TYPE_CHECKING:
 # No need for @Base.mapped_as_dataclass here
 # kw_only=True should now be inherited from Base
 @dataclass
-class BaseComponent(Base): # Inherit from the new Base
+class BaseComponent(Base):  # Inherit from the new Base
     """
     Abstract base class for all components.
     Provides common fields like id, entity_id (linking to an Entity),
     and timestamps.
     """
-    __abstract__ = True # This class will not be mapped to its own table
+
+    __abstract__ = True  # This class will not be mapped to its own table
 
     # Using declared_attr for fields that might need table-specific context,
-    # though for simple fields like id, created_at, updated_at, direct Mapped annotation is fine.
-    # For entity_id, declared_attr ensures it's correctly set up for each subclass's table.
+    # though for simple fields like id, created_at, updated_at, direct Mapped
+    # annotation is fine. For entity_id, declared_attr ensures it's correctly
+    # set up for each subclass's table.
 
     # Attributes that are __init__ parameters should come first.
     entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False)
@@ -38,25 +45,27 @@ class BaseComponent(Base): # Inherit from the new Base
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(), # Changed to func.now()
+        server_default=func.now(),  # Changed to func.now()
         nullable=False,
-        init=False
+        init=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(), # Changed to func.now()
-        onupdate=func.now(),      # Changed to func.now()
+        server_default=func.now(),  # Changed to func.now()
+        onupdate=func.now(),  # Changed to func.now()
         nullable=False,
-        init=False
+        init=False,
     )
 
     # To guide dataclass for __init__ (init=False) and repr (repr=False)
     entity: Mapped["Entity"] = field(init=False, repr=False)
 
     @declared_attr
-    def entity(cls) -> Mapped["Entity"]: # SQLAlchemy uses this for the relationship property
+    def entity(  # noqa: F811 (Intentional redefinition for SQLAlchemy/dataclass pattern)
+        cls,
+    ) -> Mapped["Entity"]:  # SQLAlchemy uses this for the relationship property
         """Relationship to the parent Entity."""
-        return relationship("Entity", repr=False) # repr=False here is for SQLAlchemy's default repr
+        return relationship("Entity", repr=False)  # repr=False here is for SQLAlchemy's default repr
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"

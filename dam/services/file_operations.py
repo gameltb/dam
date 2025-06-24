@@ -1,7 +1,7 @@
 import hashlib
-import os
 from pathlib import Path
 from typing import Tuple
+
 
 def calculate_sha256(filepath: Path) -> str:
     """
@@ -53,13 +53,15 @@ def get_file_properties(filepath: Path) -> Tuple[str, int, str]:
 
     # Basic MIME type detection using mimetypes module
     import mimetypes
+
     mime_type, _ = mimetypes.guess_type(filepath)
     if mime_type is None:
         # Fallback or default if mimetypes can't guess
         # For example, use a generic type or raise an error
-        mime_type = "application/octet-stream" # Generic binary type
+        mime_type = "application/octet-stream"  # Generic binary type
 
     return original_filename, file_size_bytes, mime_type
+
 
 # Placeholder for simulated file storage
 def store_file_locally(source_filepath: Path, storage_base_path: Path, content_hash: str) -> Path:
@@ -87,7 +89,10 @@ def store_file_locally(source_filepath: Path, storage_base_path: Path, content_h
     # import shutil
     # shutil.copy2(source_filepath, simulated_path)
 
-    print(f"[SIMULATED STORAGE] File '{source_filepath.name}' with hash '{content_hash}' would be stored at '{simulated_path}'.")
+    print(
+        f"[SIMULATED STORAGE] File '{source_filepath.name}' with hash '{content_hash}' "
+        f"would be stored at '{simulated_path}'."
+    )
 
     # Return a relative path from the storage_base_path for the FileLocationComponent
     return simulated_path.relative_to(storage_base_path)
@@ -102,12 +107,16 @@ _imagehash_available = False
 _PIL_available = False
 try:
     import imagehash
+
     _imagehash_available = True
     from PIL import Image
+
     _PIL_available = True
 except ImportError:
     # This warning can be made more prominent or logged if necessary
-    print("Warning: Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled.")
+    print(
+        "Warning: Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled."
+    )
 
 
 def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
@@ -133,7 +142,7 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
         # pHash (Perceptual Hash)
         try:
             hashes["phash"] = str(imagehash.phash(img))
-        except Exception as e_phash: # More specific exceptions could be caught
+        except Exception as e_phash:  # More specific exceptions could be caught
             print(f"Warning: Could not generate pHash for {image_filepath.name}: {e_phash}")
 
         # aHash (Average Hash)
@@ -150,7 +159,7 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
 
     except FileNotFoundError:
         print(f"Warning: Image file not found at {image_filepath} for perceptual hashing.")
-    except Exception as e_open: # Catches PIL.UnidentifiedImageError etc.
+    except Exception as e_open:  # Catches PIL.UnidentifiedImageError etc.
         print(f"Warning: Could not open or process image {image_filepath.name} for perceptual hashing: {e_open}")
 
     return hashes

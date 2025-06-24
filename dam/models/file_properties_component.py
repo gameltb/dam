@@ -1,10 +1,13 @@
-from dataclasses import dataclass, field
-from sqlalchemy import String, Integer, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from dataclasses import dataclass
 from typing import Optional
 
+from sqlalchemy import Integer, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
 from .base_component import BaseComponent
+
 # Base is inherited via BaseComponent
+
 
 # kw_only=True should now be inherited from Base
 @dataclass
@@ -16,6 +19,7 @@ class FilePropertiesComponent(BaseComponent):
     though variations could exist (e.g., for different versions or renditions).
     For now, assuming one per entity via unique constraint.
     """
+
     __tablename__ = "file_properties"
 
     # id, entity_id, created_at, updated_at are inherited from BaseComponent

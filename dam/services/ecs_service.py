@@ -1,13 +1,23 @@
-from typing import Type, TypeVar, Optional, List
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from typing import List, Optional, Type, TypeVar
 
-from dam.models import Entity, BaseComponent
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from dam.models import (  # Moved from below for delete_entity
+    BaseComponent,
+    ContentHashComponent,
+    Entity,
+    FileLocationComponent,
+    FilePropertiesComponent,
+    # Add other component types here as they are created
+    ImagePerceptualHashComponent,
+)
 
 # Define a generic type variable for component types
-T = TypeVar('T', bound=BaseComponent)
+T = TypeVar("T", bound=BaseComponent)
 
 # Placeholder for future ECS service functions.
+
 
 def create_entity(session: Session) -> Entity:
     """
@@ -20,20 +30,18 @@ def create_entity(session: Session) -> Entity:
     Returns:
         The newly created Entity instance (with an ID assigned after flush).
     """
-    entity = Entity() # kw_only=True means no args needed if all fields are init=False
+    entity = Entity()  # kw_only=True means no args needed if all fields are init=False
     session.add(entity)
-    session.flush() # Assigns ID to entity
+    session.flush()  # Assigns ID to entity
     return entity
+
 
 def get_entity(session: Session, entity_id: int) -> Optional[Entity]:
     """Retrieves an entity by its ID."""
     return session.get(Entity, entity_id)
 
-def add_component_to_entity(
-    session: Session,
-    entity_id: int,
-    component_instance: T
-) -> T:
+
+def add_component_to_entity(session: Session, entity_id: int, component_instance: T) -> T:
     """
     Adds a component instance to a specified entity.
 
@@ -67,10 +75,10 @@ def add_component_to_entity(
     session.add(component_instance)
 
     try:
-        session.flush() # Flushes to DB to get component ID and catch constraint violations
+        session.flush()  # Flushes to DB to get component ID and catch constraint violations
     except Exception as e:
         # session.rollback() # Rollback might be too aggressive here, caller should manage transaction
-        raise e # Re-raise after potential logging or specific error handling
+        raise e  # Re-raise after potential logging or specific error handling
 
     return component_instance
 
@@ -91,6 +99,7 @@ def get_component(session: Session, entity_id: int, component_type: Type[T]) -> 
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     return session.execute(stmt).scalar_one_or_none()
 
+
 def get_components(session: Session, entity_id: int, component_type: Type[T]) -> List[T]:
     """
     Retrieves all components of a specific type for a given entity.
@@ -105,6 +114,7 @@ def get_components(session: Session, entity_id: int, component_type: Type[T]) ->
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     return session.execute(stmt).scalars().all()
+
 
 def remove_component(session: Session, component: BaseComponent) -> None:
     """
@@ -122,7 +132,9 @@ def remove_component(session: Session, component: BaseComponent) -> None:
     """
     if not isinstance(component, BaseComponent) or component.id is None:
         # Or handle more gracefully depending on how strict we want to be
-        raise ValueError("Invalid component instance provided for removal. Must be a session-managed BaseComponent with an ID.")
+        raise ValueError(
+            "Invalid component instance provided for removal. Must be a session-managed BaseComponent with an ID."
+        )
 
     # Ensure the component is part of the session if it's detached
     # Though usually, one would pass an object that was just fetched.
@@ -130,20 +142,14 @@ def remove_component(session: Session, component: BaseComponent) -> None:
         # This can happen if component was created, committed, and then session closed & reopened.
         # Re-attaching might be needed, or fetching it first. For simplicity, assume it's managed.
         # A more robust version might try session.get(type(component), component.id) first.
-        pass # Assuming component is already part of the current session or will be handled by delete
+        pass  # Assuming component is already part of the current session or will be handled by delete
 
     session.delete(component)
     # No flush here, let caller manage transaction boundaries unless specified.
     # session.flush()
 
+
 # Import all known component types for delete_entity
-from dam.models import (
-    ContentHashComponent,
-    ImagePerceptualHashComponent,
-    FileLocationComponent,
-    FilePropertiesComponent
-    # Add other component types here as they are created
-)
 
 # List of all component types to iterate over when deleting an entity
 ALL_COMPONENT_TYPES = [
@@ -175,7 +181,7 @@ def delete_entity(session: Session, entity_id: int) -> bool:
     for component_type in ALL_COMPONENT_TYPES:
         components_to_delete = get_components(session, entity_id, component_type)
         for component in components_to_delete:
-            remove_component(session, component) # Uses session.delete(component)
+            remove_component(session, component)  # Uses session.delete(component)
 
     # Delete the entity itself
     session.delete(entity)

@@ -1,9 +1,9 @@
-import pytest
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError # For potential future tests
 from datetime import datetime
 
+from sqlalchemy.orm import Session
+
 from dam.models.entity import Entity
+
 
 def test_create_entity_instance():
     """Test basic instantiation of an Entity (not in DB yet)."""
@@ -13,6 +13,7 @@ def test_create_entity_instance():
     # For MappedAsDataclass with field(init=False), they won't be in __init__.
     assert entity is not None
     # We can't assert entity.id here as it's init=False and DB-generated.
+
 
 def test_add_and_retrieve_entity(db_session: Session):
     """Test adding an Entity to the DB and retrieving it."""
@@ -28,6 +29,7 @@ def test_add_and_retrieve_entity(db_session: Session):
     assert retrieved_entity is not None
     assert retrieved_entity.id == entity.id
     assert retrieved_entity.created_at == entity.created_at
+
 
 def test_update_entity_timestamps(db_session: Session):
     """Test that updated_at timestamp changes on modification."""
@@ -54,19 +56,20 @@ def test_update_entity_timestamps(db_session: Session):
     # For now, just ensure commit() doesn't break and updated_at is still valid.
     # A true test of onupdate would require a schema change or a different testing strategy.
     db_session.add(entity)
-    db_session.commit() # Commit again
+    db_session.commit()  # Commit again
     db_session.refresh(entity)
 
     # This assertion depends heavily on DB and SQLAlchemy behavior for server_onupdate
     # without actual data change. A more reliable test would involve changing a field.
     # For now, we expect it to be at least the same or newer.
     assert entity.updated_at >= original_updated_at
-    assert isinstance(entity.updated_at, datetime) # Ensure it's still a datetime
+    assert isinstance(entity.updated_at, datetime)  # Ensure it's still a datetime
 
     # A better test if we had a mutable field 'name':
     # entity.name = "New Name"
     # db_session.commit()
     # assert entity.updated_at > original_updated_at
+
 
 def test_delete_entity(db_session: Session):
     """Test deleting an Entity from the DB."""
@@ -81,6 +84,7 @@ def test_delete_entity(db_session: Session):
     db_session.commit()
 
     assert db_session.get(Entity, entity_id) is None
+
 
 # Future: Add tests for cascading deletes if relationships are added to Entity
 # that require such behavior (e.g., entity.delete() should delete its components).

@@ -1,4 +1,4 @@
-#Placeholder for file storage service logic.
+# Placeholder for file storage service logic.
 
 # This module will contain functions or classes related to:
 # - Storing asset files (e.g., on local disk, cloud storage)
