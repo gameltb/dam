@@ -3,9 +3,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError # For testing constraint violations
 from unittest.mock import MagicMock # Moved import to top
 
-from dam.models import Entity, FileLocationComponent # Using FileLocation as a sample component
-from dam.services.ecs_service import add_component_to_entity, get_entity
-from dam.models.base_component import BaseComponent # For type hinting
+from dam.models import Entity, FileLocationComponent, BaseComponent # Combined BaseComponent import
+from dam.services.ecs_service import (
+    add_component_to_entity,
+    get_entity,
+    create_entity,
+    get_component,
+    get_components,
+    remove_component,
+    delete_entity
+)
 
 # Fixture to create a sample entity, relies on db_session from conftest.py
 @pytest.fixture
@@ -162,6 +169,116 @@ def test_add_component_to_non_existent_entity(db_session: Session):
     with pytest.raises(ValueError, match=f"Entity with ID {non_existent_entity_id} not found."):
         add_component_to_entity(db_session, non_existent_entity_id, mock_component)
 
+def test_create_entity(db_session: Session):
+    """Test creating a new entity."""
+    entity = create_entity(db_session)
+    db_session.commit() # Commit to make it queryable through normal means if needed
+
+    assert entity is not None
+    assert entity.id is not None
+    retrieved_entity = get_entity(db_session, entity.id)
+    assert retrieved_entity is not None
+    assert retrieved_entity.id == entity.id
+
+def test_get_entity_non_existent(db_session: Session):
+    """Test getting a non-existent entity returns None."""
+    retrieved_entity = get_entity(db_session, 99999)
+    assert retrieved_entity is None
+
+def test_get_component_single(db_session: Session, sample_entity: Entity):
+    """Test getting a single component that exists."""
+    # Add a FilePropertiesComponent (which should be unique per entity in current setup)
+    from dam.models import FilePropertiesComponent
+    fpc_data = FilePropertiesComponent(
+        entity_id=sample_entity.id,
+        entity=sample_entity,
+        original_filename="test.jpg",
+        file_size_bytes=1024,
+        mime_type="image/jpeg"
+    )
+    add_component_to_entity(db_session, sample_entity.id, fpc_data)
+    db_session.commit()
+
+    retrieved_fpc = get_component(db_session, sample_entity.id, FilePropertiesComponent)
+    assert retrieved_fpc is not None
+    assert retrieved_fpc.id == fpc_data.id
+    assert retrieved_fpc.original_filename == "test.jpg"
+
+def test_get_component_single_non_existent(db_session: Session, sample_entity: Entity):
+    """Test getting a single component that does not exist for an entity."""
+    from dam.models import FilePropertiesComponent # Ensure it's a different component type or not added
+    retrieved_fpc = get_component(db_session, sample_entity.id, FilePropertiesComponent)
+    assert retrieved_fpc is None
+
+def test_get_components_multiple(db_session: Session, sample_entity: Entity):
+    """Test getting multiple components of the same type for an entity."""
+    loc1 = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc1", storage_type="local")
+    loc2 = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc2", storage_type="local")
+    add_component_to_entity(db_session, sample_entity.id, loc1)
+    add_component_to_entity(db_session, sample_entity.id, loc2)
+    db_session.commit()
+
+    retrieved_locs = get_components(db_session, sample_entity.id, FileLocationComponent)
+    assert len(retrieved_locs) == 2
+    filepaths = {loc.filepath for loc in retrieved_locs}
+    assert "/loc1" in filepaths
+    assert "/loc2" in filepaths
+
+def test_get_components_empty(db_session: Session, sample_entity: Entity):
+    """Test getting components when none of that type exist for an entity."""
+    retrieved_locs = get_components(db_session, sample_entity.id, FileLocationComponent)
+    assert len(retrieved_locs) == 0
+
+def test_remove_component(db_session: Session, sample_entity: Entity):
+    """Test removing a component from an entity."""
+    loc = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/to_delete", storage_type="local")
+    add_component_to_entity(db_session, sample_entity.id, loc)
+    db_session.commit()
+    component_id_to_delete = loc.id
+
+    # Verify it exists
+    assert db_session.get(FileLocationComponent, component_id_to_delete) is not None
+
+    from dam.services.ecs_service import remove_component # Import for test
+    remove_component(db_session, loc)
+    db_session.commit() # Commit deletion
+
+    assert db_session.get(FileLocationComponent, component_id_to_delete) is None
+
+def test_delete_entity_cascades_components(db_session: Session, sample_entity: Entity):
+    """Test that deleting an entity also deletes its associated components."""
+    from dam.models import ContentHashComponent # Using another component type for variety
+
+    # Add some components
+    loc = FileLocationComponent(entity_id=sample_entity.id, entity=sample_entity, filepath="/loc_del", storage_type="local")
+    chc = ContentHashComponent(entity_id=sample_entity.id, entity=sample_entity, hash_type="sha256", hash_value="testhash_del")
+
+    add_component_to_entity(db_session, sample_entity.id, loc)
+    add_component_to_entity(db_session, sample_entity.id, chc)
+    db_session.commit()
+
+    loc_id = loc.id
+    chc_id = chc.id
+    entity_id_to_delete = sample_entity.id
+
+    # Verify components exist
+    assert db_session.get(FileLocationComponent, loc_id) is not None
+    assert db_session.get(ContentHashComponent, chc_id) is not None
+
+    from dam.services.ecs_service import delete_entity # Import for test
+    deleted = delete_entity(db_session, entity_id_to_delete)
+    db_session.commit()
+
+    assert deleted is True
+    assert db_session.get(Entity, entity_id_to_delete) is None
+    assert db_session.get(FileLocationComponent, loc_id) is None
+    assert db_session.get(ContentHashComponent, chc_id) is None
+
+def test_delete_non_existent_entity(db_session: Session):
+    """Test deleting a non-existent entity returns False."""
+    from dam.services.ecs_service import delete_entity # Import for test
+    deleted = delete_entity(db_session, 99998)
+    assert deleted is False
 
 # Could add a test for IntegrityError if a component has a unique constraint
 # (e.g., adding FilePropertiesComponent twice to the same entity if it has unique on entity_id)

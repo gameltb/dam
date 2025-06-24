@@ -6,11 +6,25 @@
 from . import file_operations
 from . import asset_service
 from . import ecs_service
-from .ecs_service import add_component_to_entity # Expose specific function
+from .ecs_service import (
+    add_component_to_entity,
+    create_entity,
+    delete_entity,
+    get_entity,
+    get_component,
+    get_components,
+    remove_component
+)
 
 __all__ = [
     "file_operations",
     "asset_service",
     "ecs_service",
     "add_component_to_entity",
+    "create_entity",
+    "delete_entity",
+    "get_entity",
+    "get_component",
+    "get_components",
+    "remove_component",
 ]

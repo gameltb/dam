@@ -12,6 +12,7 @@ from dam.models.image_perceptual_hash_component import ImagePerceptualHashCompon
 from dam.core.config import settings # For ASSET_STORAGE_PATH
 
 from .file_operations import store_file_locally, generate_perceptual_hashes # Added generate_perceptual_hashes
+from .ecs_service import create_entity, add_component_to_entity, get_components # Added ECS functions
 
 def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
     """
@@ -68,103 +69,79 @@ def add_asset_file(
 
     if existing_entity:
         entity = existing_entity
+        entity = existing_entity
         # Check if this specific filepath is already known for this entity
-        stmt_loc = (
-            select(FileLocationComponent)
-            .where(FileLocationComponent.entity_id == entity.id)
-            .where(FileLocationComponent.filepath == filepath_on_disk.as_posix()) # Store as string
-        )
-        existing_location = session.execute(stmt_loc).scalar_one_or_none()
-        if not existing_location:
-            # Simulate storage and get relative path for component
-            # For simulation, storage_base_path is from settings.
-            # The actual 'filepath' stored in component should be relative to some root
-            # or an identifier that can be resolved later.
-            # For local simulation, store_file_locally can return a path relative to settings.ASSET_STORAGE_PATH
+        # Use get_components from ecs_service
+        existing_locations = get_components(session, entity.id, FileLocationComponent)
+        found_location = False
+        for loc in existing_locations:
+            if loc.filepath == filepath_on_disk.as_posix():
+                found_location = True
+                break
 
-            # This simulation needs a base path. Let's assume settings.ASSET_STORAGE_PATH
-            # is the root for our simulated storage.
-            # The component should store a path that makes sense within the DAM's context,
-            # not necessarily the absolute source path.
-
-            # For now, let's assume the 'filepath' in FileLocationComponent is the *original* source path
-            # until proper storage simulation that returns a "managed path" is implemented.
-            # This is a simplification for the current step.
-            # A better approach: store_file_locally would return a "managed relative path".
+        if not found_location:
             _ = store_file_locally(filepath_on_disk, Path(settings.ASSET_STORAGE_PATH), content_hash)
-            # The path stored in FileLocationComponent should be the one within our managed storage.
-            # For now, using original_filename as a placeholder for the stored path, or a hash-based one.
-            # Let's use the original path as "where it was found" for now.
-            new_location = FileLocationComponent(
-                entity_id=entity.id, # type: ignore
-                entity=entity,       # type: ignore
-                filepath=filepath_on_disk.as_posix(), # Storing the original path for now
-                storage_type="local_source" # Indicating it's the source path
+            new_location_component = FileLocationComponent(
+                # entity_id and entity are required by __init__ due to BaseComponent kw_only
+                entity_id=entity.id,
+                entity=entity,
+                filepath=filepath_on_disk.as_posix(),
+                storage_type="local_source_link" # Indicate it's a new link to existing content
             )
-            session.add(new_location)
+            add_component_to_entity(session, entity.id, new_location_component)
             print(f"New file location '{filepath_on_disk}' linked to existing Entity ID {entity.id}.")
         else:
             print(f"File location '{filepath_on_disk}' already known for Entity ID {entity.id}.")
     else:
         created_new_entity = True
-        # Create new Entity and all components
-        entity = Entity()
-        session.add(entity)
-        # Must flush to get entity.id for components if not passing entity object directly
-        session.flush()
+        entity = create_entity(session) # Use ECS service; session.flush() is done inside
+        print(f"New Entity ID {entity.id} created for file '{original_filename}'.")
 
         # Content Hash Component
         chc = ContentHashComponent(
-            entity_id=entity.id, # type: ignore
-            entity=entity,       # type: ignore
+            entity_id=entity.id,
+            entity=entity,
             hash_type=hash_type,
             hash_value=content_hash
         )
-        session.add(chc)
+        add_component_to_entity(session, entity.id, chc)
 
         # File Properties Component
         fpc = FilePropertiesComponent(
-            entity_id=entity.id, # type: ignore
-            entity=entity,       # type: ignore
+            entity_id=entity.id,
+            entity=entity,
             original_filename=original_filename,
             file_size_bytes=size_bytes,
             mime_type=mime_type
         )
-        session.add(fpc)
+        add_component_to_entity(session, entity.id, fpc)
 
-        # File Location Component (after simulated storage)
-        # See notes above about what path to store. Using original path for now.
+        # File Location Component
         _ = store_file_locally(filepath_on_disk, Path(settings.ASSET_STORAGE_PATH), content_hash)
         flc = FileLocationComponent(
-            entity_id=entity.id, # type: ignore
-            entity=entity,       # type: ignore
-            filepath=filepath_on_disk.as_posix(), # Storing the original path
-            storage_type="local_source"
+            entity_id=entity.id,
+            entity=entity,
+            filepath=filepath_on_disk.as_posix(),
+            storage_type="local_source_initial"
         )
-        session.add(flc)
-        print(f"New Entity ID {entity.id} created for file '{original_filename}'.")
+        add_component_to_entity(session, entity.id, flc)
 
     # After entity creation or retrieval, if it's an image, add perceptual hashes
     if mime_type and mime_type.startswith("image/"):
-        # Check if perceptual hashes already exist for this entity for common types, to avoid duplicates if re-processing
-        # This is a simple check; a more robust system might update existing hashes or handle versioning.
-        existing_phashes_stmt = select(ImagePerceptualHashComponent.hash_type).where(
-            ImagePerceptualHashComponent.entity_id == entity.id
-        )
-        existing_phash_types = set(session.execute(existing_phashes_stmt).scalars().all())
+        # Get existing perceptual hash types for this entity
+        existing_phash_components = get_components(session, entity.id, ImagePerceptualHashComponent)
+        existing_phash_types = {comp.hash_type for comp in existing_phash_components}
 
         perceptual_hashes = generate_perceptual_hashes(filepath_on_disk)
         for phash_type, phash_value in perceptual_hashes.items():
             if phash_type not in existing_phash_types:
                 iphc = ImagePerceptualHashComponent(
-                    entity_id=entity.id, # type: ignore
-                    entity=entity,       # type: ignore
+                    entity_id=entity.id,
+                    entity=entity,
                     hash_type=phash_type,
                     hash_value=phash_value
                 )
-                session.add(iphc)
+                add_component_to_entity(session, entity.id, iphc)
                 print(f"Added {phash_type} '{phash_value}' for Entity ID {entity.id}.")
-            # else:
-                # print(f"{phash_type} already exists for Entity ID {entity.id}.") # Optional: log if hash already exists
 
     return entity, created_new_entity
