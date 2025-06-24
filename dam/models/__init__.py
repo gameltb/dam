@@ -8,6 +8,8 @@ from .entity import Entity
 from .base_component import BaseComponent
 from .content_hash_component import ContentHashComponent
 from .image_perceptual_hash_component import ImagePerceptualHashComponent
+from .file_location_component import FileLocationComponent
+from .file_properties_component import FilePropertiesComponent
 
 # Optionally, define an __all__ for explicit public API of the models package
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "BaseComponent",
     "ContentHashComponent",
     "ImagePerceptualHashComponent",
+    "FileLocationComponent",
+    "FilePropertiesComponent",
 ]

@@ -6,7 +6,7 @@ from .base_component import BaseComponent
 from .base_class import Base # Updated import for Base
 
 # No need for @Base.mapped_as_dataclass
-@dataclass
+@dataclass(kw_only=True)
 class ImagePerceptualHashComponent(BaseComponent): # BaseComponent already inherits from Base
     """
     Stores perceptual hashes for an image entity (e.g., pHash, aHash, dHash).

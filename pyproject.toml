@@ -28,7 +28,8 @@ dependencies = [
     "alembic",
     "typer[all]", # Using [all] for rich tracebacks and shell completion
     "python-dotenv",
-    "pydantic", # For dataclass-like models, often used with SQLAlchemy
+    "pydantic",
+    "pydantic-settings", # For settings management
 ]
 
 [project.urls]

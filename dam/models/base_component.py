@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 # No need for @Base.mapped_as_dataclass here
-@dataclass
+@dataclass(kw_only=True)
 class BaseComponent(Base): # Inherit from the new Base
     """
     Abstract base class for all components.
@@ -29,15 +29,11 @@ class BaseComponent(Base): # Inherit from the new Base
     # though for simple fields like id, created_at, updated_at, direct Mapped annotation is fine.
     # For entity_id, declared_attr ensures it's correctly set up for each subclass's table.
 
-    @declared_attr
-    def id(cls) -> Mapped[PkId]: # PkId type carries primary_key=True etc.
-        return mapped_column(init=False) # init=False is the dataclass control part
+    # Attributes that are __init__ parameters should come first.
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False)
 
-    @declared_attr
-    def entity_id(cls) -> Mapped[int]:
-        # Note: ForeignKey uses the actual table name and column name.
-        # This field should be an __init__ arg for subclasses, so no init=False.
-        return mapped_column(ForeignKey("entities.id"), index=True, nullable=False)
+    # Attributes that are NOT __init__ parameters.
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -53,10 +49,13 @@ class BaseComponent(Base): # Inherit from the new Base
         init=False
     )
 
+    # To guide dataclass for __init__ (init=False) and repr (repr=False)
+    entity: Mapped["Entity"] = field(init=False, repr=False)
+
     @declared_attr
-    def entity(cls) -> Mapped["Entity"]:
+    def entity(cls) -> Mapped["Entity"]: # SQLAlchemy uses this for the relationship property
         """Relationship to the parent Entity."""
-        return relationship("Entity", repr=False)
+        return relationship("Entity", repr=False) # repr=False here is for SQLAlchemy's default repr
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"

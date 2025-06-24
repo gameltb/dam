@@ -6,7 +6,7 @@ from .base_component import BaseComponent
 from .base_class import Base # Updated import for Base
 
 # No need for @Base.mapped_as_dataclass
-@dataclass
+@dataclass(kw_only=True)
 class ContentHashComponent(BaseComponent): # BaseComponent already inherits from Base
     """
     Stores content-based hashes for an entity (e.g., SHA256, MD5).
