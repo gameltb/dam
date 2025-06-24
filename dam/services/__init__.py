@@ -2,3 +2,15 @@
 
 # You can import service functions or classes here for easier access, e.g.:
 # from .file_storage import store_file, retrieve_file_path
+
+from . import file_operations
+from . import asset_service
+from . import ecs_service
+from .ecs_service import add_component_to_entity # Expose specific function
+
+__all__ = [
+    "file_operations",
+    "asset_service",
+    "ecs_service",
+    "add_component_to_entity",
+]
