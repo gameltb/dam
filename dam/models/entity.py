@@ -7,7 +7,8 @@ from .base_class import Base # Updated import for Base
 # from .types import PkId, TimestampCreated, TimestampUpdated # Commented out as not directly used by Entity now
 
 # No need for @Base.mapped_as_dataclass here, as Base itself includes MappedAsDataclass
-@dataclass(kw_only=True)
+# kw_only=True should now be inherited from Base
+@dataclass
 class Entity(Base): # Inherit from the new Base
     """
     Represents a unique digital asset in the system.

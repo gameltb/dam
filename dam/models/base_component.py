@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 
 
 # No need for @Base.mapped_as_dataclass here
-@dataclass(kw_only=True)
+# kw_only=True should now be inherited from Base
+@dataclass
 class BaseComponent(Base): # Inherit from the new Base
     """
     Abstract base class for all components.

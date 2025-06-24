@@ -6,7 +6,8 @@ from typing import Optional
 from .base_component import BaseComponent
 # Base is inherited via BaseComponent
 
-@dataclass(kw_only=True)
+# kw_only=True should now be inherited from Base
+@dataclass
 class FilePropertiesComponent(BaseComponent):
     """
     Stores basic properties of an asset's file, such as original name,

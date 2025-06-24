@@ -1,8 +1,8 @@
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 
-class Base(MappedAsDataclass, DeclarativeBase):
+class Base(MappedAsDataclass, DeclarativeBase, kw_only=True):
     """
     Base class for SQLAlchemy declarative models that are also dataclasses.
+    kw_only=True is applied globally by passing it in the inheritance list.
     """
-    # __dataclass_args__ removed, kw_only will be applied per model
     pass

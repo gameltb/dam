@@ -6,7 +6,8 @@ from .base_component import BaseComponent
 from .base_class import Base # For MappedAsDataclass decorator if needed explicitly
                              # BaseComponent already brings Base via inheritance.
 
-@dataclass(kw_only=True)
+# kw_only=True should now be inherited from Base
+@dataclass
 class FileLocationComponent(BaseComponent): # BaseComponent inherits from Base(MappedAsDataclass)
     """
     Stores the location of an asset's file.
