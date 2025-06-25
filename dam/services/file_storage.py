@@ -1,28 +1,25 @@
 import hashlib
-import logging  # Import logging module
+import logging
 import os
 from pathlib import Path
 from typing import Optional
 
-from dam.core.config import settings
+from dam.core.config import WorldConfig, settings
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
-def _get_storage_path(file_hash: str, base_path: Optional[Path] = None) -> Path:
+def _get_storage_path_for_world(file_hash: str, world_config: WorldConfig) -> Path:
     """
-    Constructs the full path for a given file hash using a nested directory structure.
-    Example: <base_path>/ab/cd/ef123456...
+    Constructs the full path for a given file hash using a nested directory structure,
+    specific to the asset storage path defined in the world_config.
+    Example: <world_asset_storage_path>/ab/cd/ef123456...
     """
-    if base_path is None:
-        base_path = Path(settings.ASSET_STORAGE_PATH)
+    base_path = Path(world_config.ASSET_STORAGE_PATH)
 
     if not file_hash or len(file_hash) < 4:
-        raise ValueError("File hash must be at least 4 characters long.")
+        raise ValueError("File hash must be at least 4 characters long for storage path generation.")
 
-    # Use the first 4 characters of the hash to create two levels of subdirectories
-    # e.g., hash "abcdef123..." -> path "<base_path>/ab/cd/ef123..."
-    # The actual file will be named by its full hash.
     sub_dir_1 = file_hash[:2]
     sub_dir_2 = file_hash[2:4]
     file_name = file_hash
@@ -30,38 +27,55 @@ def _get_storage_path(file_hash: str, base_path: Optional[Path] = None) -> Path:
     return base_path / sub_dir_1 / sub_dir_2 / file_name
 
 
-def store_file(file_content: bytes, original_filename: Optional[str] = None) -> str:
+def store_file(
+    file_content: bytes,
+    world_config: WorldConfig, # Changed from world_name
+    original_filename: Optional[str] = None,
+) -> str:
     """
-    Stores the given file content using a content-addressable scheme (SHA256 hash).
-    The file is stored in a nested directory structure derived from its hash.
+    Stores the given file content using a content-addressable scheme (SHA256 hash)
+    into the specified world's asset storage, using the provided WorldConfig.
 
     Args:
         file_content: The binary content of the file to store.
+        world_config: The configuration of the world to store the file in.
         original_filename: The original name of the file (optional, not used for storage path).
 
     Returns:
         The SHA256 hash of the file content, which serves as its unique identifier.
     """
+    # world_config is now passed directly
     file_hash = hashlib.sha256(file_content).hexdigest()
-    storage_path = _get_storage_path(file_hash)
+    storage_path = _get_storage_path_for_world(file_hash, world_config)
 
-    # Create the directory structure if it doesn't exist
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write the file if it doesn't already exist (content-addressable storage)
+    # Use world_config.DATABASE_URL or a name from world_config if available for logging,
+    # or pass world_name if still needed for logging. For now, simplify log.
+    log_world_identifier = world_config.DATABASE_URL # Example identifier from config
+
     if not storage_path.exists():
         with open(storage_path, "wb") as f:
             f.write(file_content)
+        logger.info(
+            f"Stored file {original_filename or file_hash} to {storage_path} in world (config: {log_world_identifier})"
+        )
+    else:
+        logger.debug(
+            f"File {original_filename or file_hash} (hash: {file_hash}) already exists at {storage_path} in world (config: {log_world_identifier})"
+        )
 
     return file_hash
 
 
-def get_file_path(file_identifier: str) -> Optional[Path]:
+def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]: # Changed from world_name
     """
-    Returns the absolute path to the file identified by file_identifier (SHA256 hash).
+    Returns the absolute path to the file identified by file_identifier (SHA256 hash)
+    from the specified world's asset storage, using the provided WorldConfig.
 
     Args:
         file_identifier: The SHA256 hash of the file.
+        world_config: The configuration of the world to get the file from.
 
     Returns:
         The absolute Path object to the file if it exists, otherwise None.
@@ -69,43 +83,56 @@ def get_file_path(file_identifier: str) -> Optional[Path]:
     if not file_identifier:
         return None
 
+    # world_config is now passed directly
     try:
-        storage_path = _get_storage_path(file_identifier)
+        storage_path = _get_storage_path_for_world(file_identifier, world_config)
         if storage_path.exists() and storage_path.is_file():
             return storage_path.resolve()
         return None
-    except ValueError:  # Raised by _get_storage_path for short identifiers
+    except ValueError:  # Raised by _get_storage_path_for_world for short identifiers
+        logger.warning(f"Invalid file identifier format: {file_identifier}")
         return None
 
 
-def delete_file(file_identifier: str) -> bool:
+def delete_file(file_identifier: str, world_config: WorldConfig) -> bool: # Changed from world_name
     """
-    Deletes the file identified by file_identifier (SHA256 hash).
+    Deletes the file identified by file_identifier (SHA256 hash) from the
+    specified world's asset storage, using the provided WorldConfig.
     Also attempts to remove empty parent directories.
 
     Args:
         file_identifier: The SHA256 hash of the file.
+        world_config: The configuration of the world to delete the file from.
 
     Returns:
         True if the file was deleted, False otherwise.
     """
-    file_path = get_file_path(file_identifier)
-    if file_path and file_path.exists():
-        try:
-            os.remove(file_path)
+    actual_file_path = get_file_path(file_identifier, world_config) # world_config passed directly
 
-            # Attempt to remove parent directories if they are empty
-            parent_dir = file_path.parent
+    log_world_identifier = world_config.DATABASE_URL # Using a generic identifier from world_config for now.
+
+    if actual_file_path and actual_file_path.exists():
+        try:
+            os.remove(actual_file_path)
+            logger.info(f"Deleted file {actual_file_path} from world (config: {log_world_identifier})")
+
+            parent_dir = actual_file_path.parent
             try:
-                os.rmdir(parent_dir)
-                # Attempt to remove grandparent directory
-                grandparent_dir = parent_dir.parent
-                os.rmdir(grandparent_dir)
-            except OSError:
-                # Directory not empty or other error, which is fine.
-                pass
+                if not any(parent_dir.iterdir()):  # Check if directory is empty
+                    os.rmdir(parent_dir)
+                    logger.info(f"Removed empty directory {parent_dir} from world (config: {log_world_identifier})")
+                    grandparent_dir = parent_dir.parent
+                    if not any(grandparent_dir.iterdir()):  # Check if directory is empty
+                        os.rmdir(grandparent_dir)
+                        logger.info(f"Removed empty directory {grandparent_dir} from world (config: {log_world_identifier})")
+            except OSError as e:
+                logger.debug(
+                    f"Could not remove parent directory for {actual_file_path} in world (config: {log_world_identifier}): {e} (possibly not empty or permission issue)"
+                )
             return True
         except OSError as e:
-            logger.error(f"Error deleting file {file_path}: {e}", exc_info=True)
+            logger.error(f"Error deleting file {actual_file_path} from world (config: {log_world_identifier}): {e}", exc_info=True)
             return False
-    return False
+    else:
+        logger.warning(f"File with identifier {file_identifier} not found in world (config: {log_world_identifier}) for deletion.")
+        return False

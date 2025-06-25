@@ -77,54 +77,81 @@ def _create_dummy_image(filepath: Path, color_name: str, size=(10, 10)):
             f.write(f"dummy_image_{color_name}".encode())
 
 
+import json # For dumping worlds config
+import tempfile # For creating temp dirs for each world
+
+# This fixture will now align with conftest.py's settings_override
+# It will set up the environment for multi-world CLI testing.
 @pytest.fixture(scope="function", autouse=True)
-def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path):
-    # 1. Configure temporary paths for assets and DB
-    temp_storage_path = tmp_path / "dam_cli_asset_storage"
-    temp_storage_path.mkdir(parents=True, exist_ok=True)
+def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path, test_worlds_config_data: dict):
+    # test_worlds_config_data comes from conftest.py
 
-    db_file = tmp_path / "test_cli_dam.db"
-    test_db_url = f"sqlite:///{db_file}"
+    temp_storage_dirs = {}
+    cli_test_worlds_config = {}
 
-    # 2. Set environment variables (Pydantic settings will pick these up)
-    monkeypatch.setenv("DAM_ASSET_STORAGE_PATH", str(temp_storage_path))
-    monkeypatch.setenv("DAM_DATABASE_URL", test_db_url)
+    # Create temp storage for each world defined in test_worlds_config_data
+    # and update their ASSET_STORAGE_PATH
+    for world_name, config in test_worlds_config_data.items():
+        # Create a unique db file for each world to ensure isolation even if :memory: is tricky across processes/threads
+        db_file = tmp_path / f"test_cli_{world_name}.db"
+        test_db_url = f"sqlite:///{db_file}"
+
+        temp_dir = tmp_path / f"dam_cli_asset_storage_{world_name}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_storage_dirs[world_name] = temp_dir
+
+        cli_test_worlds_config[world_name] = {
+            "DATABASE_URL": test_db_url, # Use per-world DB file
+            "ASSET_STORAGE_PATH": str(temp_dir),
+        }
+
+    default_cli_test_world = "test_world_alpha" # Matches conftest.py default
+
+    # Set environment variables that dam.core.config.Settings will load
+    monkeypatch.setenv("DAM_WORLDS_CONFIG", json.dumps(cli_test_worlds_config))
+    monkeypatch.setenv("DAM_DEFAULT_WORLD_NAME", default_cli_test_world)
     monkeypatch.setenv("TESTING_MODE", "True")
 
-    # 3. Import settings and core database module AFTER env vars are set
-    #    and monkeypatch the live settings instance for good measure.
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    # Crucially, we need to ensure that when dam.cli (and its imports like
+    # dam.core.config.settings and dam.core.database.db_manager) are imported by
+    # the test_app fixture, they pick up these new environment variables.
+    # Pytest's monkeypatch.setenv should handle this for the scope of the test.
+    # We also need to ensure that the db_manager re-initializes if it's a global singleton
+    # or that a fresh one is used. The test_db_manager fixture in conftest.py
+    # already handles creating a fresh DatabaseManager with overridden settings.
+    # For CLI tests, dam.cli will import dam.core.database.db_manager which is
+    # initialized when database.py is first imported.
+    # This means we need to force a reload or ensure db_manager uses the patched settings.
 
-    from dam.core import database as app_database
-    from dam.core.config import settings as app_settings  # Reloads settings based on new env vars
+    # One way to handle the db_manager is to ensure it's re-instantiated after settings are patched.
+    # The current `db_manager = DatabaseManager(global_app_settings)` in database.py
+    # uses `global_app_settings` which is `dam.core.config.settings`.
+    # If `dam.core.config.settings` is reloaded/patched effectively by `monkeypatch.setenv`
+    # before `dam.core.database` is imported by `dam.cli`, this might work.
+    # To be absolutely sure, we can explicitly re-initialize the global db_manager
+    # after settings are known to be patched.
 
-    monkeypatch.setattr(app_settings, "ASSET_STORAGE_PATH", str(temp_storage_path))
-    monkeypatch.setattr(app_settings, "DATABASE_URL", test_db_url)
-    monkeypatch.setattr(app_settings, "TESTING_MODE", True)
+    from dam.core.config import Settings as AppSettings
+    from dam.core import config as app_config_module
+    from dam.core import database as app_db_module
+    from dam.models.base_class import Base # For create_all
 
-    # 4. Create a new engine with the temporary DB URL and patch it into app_database
-    new_engine = create_engine(app_settings.DATABASE_URL, connect_args={"check_same_thread": False})
-    monkeypatch.setattr(app_database, "engine", new_engine)
+    # Create a new settings instance based on env vars
+    # This ensures model_validator runs and populates settings.worlds correctly
+    new_cli_settings = AppSettings()
+    monkeypatch.setattr(app_config_module, "settings", new_cli_settings)
 
-    # 5. Create a new SessionLocal bound to the new engine and patch it
-    new_session_local = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-    monkeypatch.setattr(app_database, "SessionLocal", new_session_local)
+    # Re-initialize the global db_manager with the new settings
+    # This is a bit of a forceful way to handle global singletons in tests.
+    new_db_manager = app_db_module.DatabaseManager(new_cli_settings)
+    monkeypatch.setattr(app_db_module, "db_manager", new_db_manager)
 
-    # 6. Ensure all models are loaded into Base.metadata before creating tables
-    import dam.models  # noqa: F401 to ensure models are registered
-    from dam.models.file_properties_component import (
-        FilePropertiesComponent as ModelFPC,
-    )  # Explicit import for assertion
+    # Create tables for all configured test worlds for the CLI tests
+    for world_name_cli in new_db_manager.get_all_world_names():
+        engine = new_db_manager.get_engine(world_name_cli)
+        Base.metadata.create_all(bind=engine)
 
-    # Verify __tablename__ for a key component that was changed
-    assert ModelFPC.__tablename__ == "component_file_properties"
-
-    app_database.create_db_and_tables()  # Uses the patched app_database.engine
-
-    # 7. Create physical test files in a temporary "source" location (within tmp_path)
-    #    These are the files that will be "added" to the DAM.
-    #    The DAM itself will store them in `temp_storage_path` based on content.
+    # Create physical test files in a temporary "source" location
     source_files_dir = tmp_path / "source_files"
     source_files_dir.mkdir(exist_ok=True)
 
@@ -181,7 +208,8 @@ def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path):
     _FIXTURE_MP4_FILE = mp4_path
 
     # 8. Add assets to the temporary database
-    db = new_session_local()  # Use the patched SessionLocal
+    # Use the new_db_manager (which is app_db_module.db_manager after patching)
+    db = app_db_module.db_manager.get_db_session(default_cli_test_world)
     try:
         asset_service.add_asset_file(
             session=db,
@@ -609,19 +637,28 @@ def test_add_asset_directory(test_app, tmp_path):
     assert f"Processing directory: {source_dir}" in result.stdout
     assert "Found 2 file(s) to process." in result.stdout
     # Check for individual file processing messages without relying on order or exact count string
-    assert "Processing file " in result.stdout # General check
+    assert "Processing file " in result.stdout  # General check
     assert "file1.txt" in result.stdout
     assert "file2.txt" in result.stdout
-    assert "Successfully added new asset." in result.stdout # Should appear twice
-    assert result.stdout.count("Successfully added new asset.") >= 2 # More robust check
+    assert "Successfully added new asset." in result.stdout  # Should appear twice
+    assert result.stdout.count("Successfully added new asset.") >= 2  # More robust check
     assert "New assets added: 2" in result.stdout
 
     # Verify in DB
     db = app_database.SessionLocal()
     try:
-        from dam.models import FilePropertiesComponent # Import directly
-        file1_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file1.txt").one_or_none()
-        file2_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file2.txt").one_or_none()
+        from dam.models import FilePropertiesComponent  # Import directly
+
+        file1_props = (
+            db.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "file1.txt")
+            .one_or_none()
+        )
+        file2_props = (
+            db.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "file2.txt")
+            .one_or_none()
+        )
         assert file1_props is not None, "file1.txt not found in DB"
         assert file2_props is not None, "file2.txt not found in DB"
     finally:
@@ -644,16 +681,25 @@ def test_add_asset_directory_recursive(test_app, tmp_path):
         print(f"CLI Error Output for test_add_asset_directory_recursive:\n{result.output}")
     assert result.exit_code == 0
     assert f"Processing directory: {source_dir}" in result.stdout
-    assert "Found 2 file(s) to process." in result.stdout # file1.txt and sub/file2.txt
+    assert "Found 2 file(s) to process." in result.stdout  # file1.txt and sub/file2.txt
     assert "file1.txt" in result.stdout
     assert "file2.txt" in result.stdout
     assert "New assets added: 2" in result.stdout
 
     db = app_database.SessionLocal()
     try:
-        from dam.models import FilePropertiesComponent # Import directly
-        file1_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file1.txt").one_or_none()
-        file2_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file2.txt").one_or_none()
+        from dam.models import FilePropertiesComponent  # Import directly
+
+        file1_props = (
+            db.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "file1.txt")
+            .one_or_none()
+        )
+        file2_props = (
+            db.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "file2.txt")
+            .one_or_none()
+        )
         assert file1_props is not None, "file1.txt from root not found"
         assert file2_props is not None, "sub/file2.txt not found"
     finally:
@@ -676,18 +722,21 @@ def test_add_asset_no_copy(test_app, tmp_path):
     # and file_identifier is the original path
     db = app_database.SessionLocal()
     try:
-        from dam.models import FileLocationComponent, FilePropertiesComponent
-
         # DEBUG: List tables
         from sqlalchemy import inspect as sqlalchemy_inspect_func
-        inspector = sqlalchemy_inspect_func(app_database.engine) # Use the patched engine
+
+        from dam.models import FileLocationComponent, FilePropertiesComponent
+
+        inspector = sqlalchemy_inspect_func(app_database.engine)  # Use the patched engine
         print(f"DEBUG: Tables in DB for test_add_asset_no_copy: {inspector.get_table_names()}")
 
         # DEBUGGING: List all FPCs
         all_fpcs = db.query(FilePropertiesComponent).all()
         print(f"DEBUG: Found {len(all_fpcs)} FilePropertiesComponents in test_add_asset_no_copy.")
         for fpc_debug in all_fpcs:
-            print(f"DEBUG: FPC ID: {fpc_debug.id}, Filename: {fpc_debug.original_filename}, Entity ID: {fpc_debug.entity_id}")
+            print(
+                f"DEBUG: FPC ID: {fpc_debug.id}, Filename: {fpc_debug.original_filename}, Entity ID: {fpc_debug.entity_id}"
+            )
 
         fpc = db.query(FilePropertiesComponent).filter_by(original_filename="no_copy_test.txt").one()
         flc = db.query(FileLocationComponent).filter_by(entity_id=fpc.entity_id).one()
@@ -698,6 +747,7 @@ def test_add_asset_no_copy(test_app, tmp_path):
         # Check that the file was NOT copied to asset storage
         # The asset_storage path is derived from settings.ASSET_STORAGE_PATH
         from dam.core.config import settings
+
         asset_storage_path = Path(settings.ASSET_STORAGE_PATH)
         file_hash = get_file_sha256(source_file)
         # Construct expected path in CAS (content-addressable storage)
@@ -706,6 +756,7 @@ def test_add_asset_no_copy(test_app, tmp_path):
 
     finally:
         db.close()
+
 
 def test_add_asset_directory_no_copy(test_app, tmp_path):
     """Tests adding a directory with --no-copy option."""
@@ -719,7 +770,6 @@ def test_add_asset_directory_no_copy(test_app, tmp_path):
     file2.write_text("content_dir_nc2")
     file2_abs_path_str = str(file2.resolve())
 
-
     result = runner.invoke(test_app, ["add-asset", str(source_dir), "--no-copy"])
     if result.exit_code != 0:
         print(f"CLI Error Output for test_add_asset_directory_no_copy:\n{result.output}")
@@ -728,8 +778,9 @@ def test_add_asset_directory_no_copy(test_app, tmp_path):
 
     db = app_database.SessionLocal()
     try:
-        from dam.models import FileLocationComponent, FilePropertiesComponent
         from dam.core.config import settings
+        from dam.models import FileLocationComponent, FilePropertiesComponent
+
         asset_storage_path = Path(settings.ASSET_STORAGE_PATH)
 
         # File 1 checks
@@ -751,3 +802,203 @@ def test_add_asset_directory_no_copy(test_app, tmp_path):
         assert not expected_cas_path2.exists()
     finally:
         db.close()
+
+
+# --- Tests for DB-to-DB Merge and Split CLI commands ---
+
+
+def _count_entities_in_world(world_name: str) -> int:
+    """Helper to count entities in a given world's DB."""
+    session = app_database.db_manager.get_db_session(world_name)
+    try:
+        from dam.models import Entity  # Local import to use within this function context
+
+        return session.query(Entity).count()
+    finally:
+        session.close()
+
+
+def _get_entity_by_filename(world_name: str, filename: str) -> any:
+    session = app_database.db_manager.get_db_session(world_name)
+    try:
+        from dam.models import Entity, FilePropertiesComponent  # Local import
+
+        fpc = session.query(FilePropertiesComponent).filter_by(original_filename=filename).first()
+        if fpc:
+            return session.query(Entity).filter_by(id=fpc.entity_id).first()
+        return None
+    finally:
+        session.close()
+
+
+def test_cli_merge_worlds_db(test_app, settings_override, tmp_path):  # settings_override to setup worlds
+    """Test 'merge-worlds-db' CLI command."""
+    # Ensure conftest.py's test_worlds_config_data includes these worlds
+    # For this test, source_world_name and target_world_name will be test_world_alpha and test_world_beta
+    # as they are setup by default test_db_manager via settings_override
+    source_world_cli = "test_world_alpha"
+    target_world_cli = "test_world_beta"
+
+    # Populate source world (alpha)
+    source_session_alpha = app_database.db_manager.get_db_session(source_world_cli)
+
+    # Use existing fixtures for files, but ensure they are unique for this test if needed
+    # For simplicity, create new dummy files for this merge test
+    s_img_file = tmp_path / "s_img_merge.png"
+    _create_dummy_image(s_img_file, "red", size=(5, 5))
+    s_txt_file = tmp_path / "s_txt_merge.txt"
+    s_txt_file.write_text("Source text for merge")
+
+    from tests.services.test_world_service_advanced import _populate_world_with_assets as populate_helper
+
+    populate_helper(source_session_alpha, source_world_cli, s_img_file, s_txt_file)
+    source_session_alpha.close()
+
+    assert _count_entities_in_world(source_world_cli) == 2
+    assert _count_entities_in_world(target_world_cli) == 0  # Target should be empty
+
+    result = runner.invoke(test_app, ["merge-worlds-db", source_world_cli, target_world_cli])
+    print(f"CLI merge-worlds-db output:\n{result.output}")  # For debugging
+    assert result.exit_code == 0
+    assert f"Successfully merged world '{source_world_cli}' into '{target_world_cli}'" in result.stdout
+
+    assert _count_entities_in_world(target_world_cli) == 2
+    assert _count_entities_in_world(source_world_cli) == 2  # Source unchanged by 'add_new'
+
+
+def test_cli_split_world_db(test_app, settings_override, tmp_path):
+    """Test 'split-world-db' CLI command."""
+    # conftest.py's test_worlds_config_data must include these:
+    source_world_cli_split = "test_world_alpha"  # Re-use alpha, it's reset per function
+    selected_target_cli = "test_world_beta"
+    remaining_target_cli = "test_world_gamma"  # Ensure this is in conftest.py
+
+    # Populate source world (alpha)
+    source_session_s = app_database.db_manager.get_db_session(source_world_cli_split)
+
+    s_img_png = tmp_path / "s_split_img.png"
+    _create_dummy_image(s_img_png, "red", size=(5, 5))  # Will be image/png
+
+    s_img_jpg = tmp_path / "s_split_img.jpg"  # Create a jpg
+    _create_dummy_image(s_img_jpg, "blue", size=(6, 6))  # Will be image/png by default, mime needs to be "image/jpeg"
+
+    s_txt_split = tmp_path / "s_split_txt.txt"
+    s_txt_split.write_text("Source text for split")
+
+    # Add assets to source world
+    from dam.services import asset_service  # local import for clarity
+
+    img_png_props = asset_service.file_operations.get_file_properties(s_img_png)
+    asset_service.add_asset_file(
+        source_session_s, s_img_png, "split_image.png", "image/png", img_png_props[1], world_name=source_world_cli_split
+    )
+
+    img_jpg_props = asset_service.file_operations.get_file_properties(s_img_jpg)
+    asset_service.add_asset_file(
+        source_session_s,
+        s_img_jpg,
+        "split_image.jpg",
+        "image/jpeg",
+        img_jpg_props[1],
+        world_name=source_world_cli_split,
+    )
+
+    txt_split_props = asset_service.file_operations.get_file_properties(s_txt_split)
+    asset_service.add_asset_file(
+        source_session_s,
+        s_txt_split,
+        "split_text.txt",
+        "text/plain",
+        txt_split_props[1],
+        world_name=source_world_cli_split,
+    )
+    source_session_s.commit()
+    source_session_s.close()
+
+    assert _count_entities_in_world(source_world_cli_split) == 3
+    assert _count_entities_in_world(selected_target_cli) == 0
+    assert _count_entities_in_world(remaining_target_cli) == 0
+
+    # Split by mime_type == "image/png"
+    cmd = [
+        "split-world-db",
+        source_world_cli_split,
+        selected_target_cli,
+        remaining_target_cli,
+        "--component-name",
+        "FilePropertiesComponent",
+        "--attribute",
+        "mime_type",
+        "--value",
+        "image/png",
+        "--operator",
+        "eq",
+    ]
+    result = runner.invoke(test_app, cmd)
+    print(f"CLI split-world-db output:\n{result.output}")
+    assert result.exit_code == 0
+    assert (
+        f"Split complete: 1 entities to '{selected_target_cli}', 2 entities to '{remaining_target_cli}'."
+        in result.stdout
+    )
+
+    assert _count_entities_in_world(selected_target_cli) == 1  # PNG image
+    assert _count_entities_in_world(remaining_target_cli) == 2  # JPG image and TXT file
+    assert _count_entities_in_world(source_world_cli_split) == 3  # Source unchanged (default)
+
+    # Verify content of selected world
+    png_entity_selected = _get_entity_by_filename(selected_target_cli, "split_image.png")
+    assert png_entity_selected is not None
+
+    # Verify content of remaining world
+    jpg_entity_remaining = _get_entity_by_filename(remaining_target_cli, "split_image.jpg")
+    txt_entity_remaining = _get_entity_by_filename(remaining_target_cli, "split_text.txt")
+    assert jpg_entity_remaining is not None
+    assert txt_entity_remaining is not None
+
+
+def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path):
+    """Test 'split-world-db' CLI command with --delete-from-source."""
+    source_world_del = "test_world_alpha_del_split"  # From conftest
+    selected_target_del = "test_world_beta_del_split"
+    remaining_target_del = "test_world_gamma_del_split"
+
+    # Populate source world
+    source_session_del = app_database.db_manager.get_db_session(source_world_del)
+    s_img_del = tmp_path / "s_del_img.png"
+    _create_dummy_image(s_img_del, "green")
+    s_txt_del = tmp_path / "s_del_txt.txt"
+    s_txt_del.write_text("Delete me after split")
+    from tests.services.test_world_service_advanced import _populate_world_with_assets as populate_helper_del
+
+    populate_helper_del(source_session_del, source_world_del, s_img_del, s_txt_del)
+    source_session_del.close()
+
+    assert _count_entities_in_world(source_world_del) == 2
+
+    cmd_del = [
+        "split-world-db",
+        source_world_del,
+        selected_target_del,
+        remaining_target_del,
+        "--component-name",
+        "FilePropertiesComponent",
+        "--attribute",
+        "mime_type",
+        "--value",
+        "image/png",
+        "--delete-from-source",
+    ]
+    # Provide 'yes' to the confirmation prompt
+    result_del = runner.invoke(test_app, cmd_del, input="yes\n")
+    print(f"CLI split-world-db --delete-from-source output:\n{result_del.output}")
+    assert result_del.exit_code == 0
+    assert (
+        f"Split complete: 1 entities to '{selected_target_del}', 1 entities to '{remaining_target_del}'."
+        in result_del.stdout
+    )
+    assert f"Entities deleted from source world '{source_world_del}'." in result_del.stdout
+
+    assert _count_entities_in_world(source_world_del) == 0  # Source should be empty
+    assert _count_entities_in_world(selected_target_del) == 1
+    assert _count_entities_in_world(remaining_target_del) == 1

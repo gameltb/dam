@@ -1,71 +1,47 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Type
+from typing import Any, Optional, Tuple, Type  # Removed List
 
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Session, joinedload
 
-from dam.models.base_component import BaseComponent
+# Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
+from dam.models.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.models.entity import Entity
 from dam.services import ecs_service
 
+# No longer need db_manager here if session is always passed in.
+# from dam.core.database import db_manager
+
 logger = logging.getLogger(__name__)
 
-ALL_COMPONENT_TYPES: list[Type[BaseComponent]] = []  # To be populated
-
-
-def register_component_type(component_class: Type[BaseComponent]):
-    """Registers a component type for serialization/deserialization."""
-    if component_class not in ALL_COMPONENT_TYPES:
-        ALL_COMPONENT_TYPES.append(component_class)
+# The global ALL_COMPONENT_TYPES and manual registration functions are removed.
+# We will rely on REGISTERED_COMPONENT_TYPES from dam.models.base_component.
+# _populate_component_types_for_serialization is also removed for the same reason.
 
 
 def get_all_component_classes() -> list[Type[BaseComponent]]:
     """
-    Dynamically discovers all Component classes inheriting from BaseComponent.
-    This is a more robust way than manual registration if models are well-defined.
+    Returns all discovered Component classes that are registered.
+    Relies on REGISTERED_COMPONENT_TYPES being populated by metaclass or __init_subclass__ logic.
     """
-    if ALL_COMPONENT_TYPES:  # Use cache if populated by manual registration
-        return ALL_COMPONENT_TYPES
-
-    # Fallback to dynamic discovery if not manually registered
-    # This requires models to be imported somewhere for BaseComponent.__subclasses__() to work
-    # For now, let's assume manual registration or a more sophisticated discovery mechanism if needed.
-    # If we rely on BaseComponent.__subclasses__(), ensure all component model files are imported
-    # e.g., in dam.models.__init__.py
-
-    # Example: If we had a central place where all components are imported:
-    # import dam.models # This would trigger imports in dam/models/__init__.py
-    # return BaseComponent.__subclasses__()
-    # For now, this function will return the manually registered types.
-    # We will populate ALL_COMPONENT_TYPES manually or by iterating through dam.models modules.
-    # This part needs to be more robust.
-
-    # Let's try a more dynamic approach for now, assuming models are imported.
-    # Ensure dam.models.__init__ imports all component types for this to work.
-    discovered_types = []
-    # Iterating through subclasses recursively might be too broad if there are intermediate bases
-    for subclass in BaseComponent.__subclasses__():
-        # Check if it's a direct or indirect subclass that is a concrete component table
-        mapper = sqlalchemy_inspect(subclass, raiseerr=False)
-        if mapper and hasattr(subclass, "__tablename__"):
-            if subclass not in discovered_types:
-                discovered_types.append(subclass)
-
-    # If manual registration happened, merge and deduplicate
-    for comp_type in ALL_COMPONENT_TYPES:
-        if comp_type not in discovered_types:
-            discovered_types.append(comp_type)
-
-    logger.debug(f"Discovered/registered component types: {[c.__name__ for c in discovered_types]}")
-    return discovered_types
+    if not REGISTERED_COMPONENT_TYPES:
+        logger.warning(
+            "REGISTERED_COMPONENT_TYPES is empty. "
+            "Ensure component models are imported and BaseComponent's registration mechanism is active."
+        )
+    return REGISTERED_COMPONENT_TYPES
 
 
-def export_ecs_world_to_json(session: Session, filepath: Path) -> None:
+def export_ecs_world_to_json(session: Session, filepath: Path, world_name_for_log: Optional[str] = "current") -> None:
     """
-    Exports all entities and their components to a JSON file.
+    Exports all entities and their components from the given session to a JSON file.
     Each entity will have its ID and a list of its components.
+    Args:
+        session: The SQLAlchemy session for the world to be exported.
+        filepath: The path to the JSON file where the world data will be saved.
+        world_name_for_log: Name of the world, for logging purposes.
     """
     world_data: dict[str, Any] = {"entities": []}
     component_classes = get_all_component_classes()
@@ -131,9 +107,11 @@ def export_ecs_world_to_json(session: Session, filepath: Path) -> None:
         raise
 
 
-def import_ecs_world_from_json(session: Session, filepath: Path, merge: bool = False) -> None:
+def import_ecs_world_from_json(
+    session: Session, filepath: Path, merge: bool = False, world_name_for_log: Optional[str] = "current"
+) -> None:
     """
-    Imports entities and components from a JSON file.
+    Imports entities and components from a JSON file into the given session.
     If merge is False (default), it expects a clean database or will raise an error if entities conflict.
     If merge is True, it will try to update existing entities or add new ones. (Merge logic is complex)
     """
@@ -211,7 +189,7 @@ def import_ecs_world_from_json(session: Session, filepath: Path, merge: bool = F
             # Original IDs from JSON are not preserved directly with auto-incrementing keys.
             # A more complex system would map old IDs to new IDs.
             logger.info(f"Creating new entity for data originally ID'd as {entity_id} in JSON.")
-            entity_to_update = ecs_service.create_entity(session) # Let DB assign ID
+            entity_to_update = ecs_service.create_entity(session)  # Let DB assign ID
             # If an ID was provided in JSON, log that it's not being used directly to set the new ID.
             # The entity_id from JSON is still useful for deciding if it's a "new" vs "existing" entity for merge logic.
             if entity_id:
@@ -220,7 +198,7 @@ def import_ecs_world_from_json(session: Session, filepath: Path, merge: bool = F
                     f"Data was from JSON entity originally ID'd {entity_id}. "
                     "Direct ID setting during import is not supported for auto-incrementing keys; new ID assigned."
                 )
-            session.flush() # Ensure entity_to_update has its new ID available for component linking
+            session.flush()  # Ensure entity_to_update has its new ID available for component linking
 
         # Process components for the entity
         components_data = entity_data.get("components", {})
@@ -275,119 +253,292 @@ def import_ecs_world_from_json(session: Session, filepath: Path, merge: bool = F
 
 # --- Placeholder functions for more advanced operations ---
 
+# The old JSON-based merge_ecs_worlds is removed as it's unused and import_ecs_world_from_json covers its functionality.
 
-def merge_ecs_worlds(session: Session, source_filepath: Path, target_session: Session):
+
+def merge_ecs_worlds_db_to_db(
+    source_session: Session,
+    target_session: Session,
+    source_world_name_for_log: Optional[str] = "source",
+    target_world_name_for_log: Optional[str] = "target",
+    strategy: str = "add_new",  # Currently only 'add_new' is implemented
+) -> None:
     """
-    Merges an ECS world from a source (e.g., JSON file) into a target database session.
-    This is essentially `import_ecs_world_from_json` with `merge=True`.
+    Merges entities and components from a source database session to a target database session.
+    Strategy 'add_new': All source entities are treated as new in the target.
     """
-    logger.info(f"Starting merge of ECS world from {source_filepath} into target session.")
-    # Assuming import_ecs_world_from_json handles the merge logic when merge=True
-    # and operates on the 'session' passed to it.
-    # If source_filepath is a live DB, we'd need a different approach.
-    # For now, source is a JSON file.
-    import_ecs_world_from_json(session=target_session, filepath=source_filepath, merge=True)
-    logger.info("Merge operation completed (or attempted). Check logs for details.")
+    logger.info(
+        f"Starting DB-to-DB merge from world '{source_world_name_for_log}' to '{target_world_name_for_log}' "
+        f"with strategy '{strategy}'."
+    )
+
+    if strategy != "add_new":
+        logger.error(f"Merge strategy '{strategy}' is not yet implemented. Only 'add_new' is supported.")
+        raise NotImplementedError(f"Merge strategy '{strategy}' is not yet implemented.")
+
+    all_component_types = get_all_component_classes()
+    source_entities = source_session.query(Entity).all()
+    source_entity_count = len(source_entities)
+    logger.info(f"Found {source_entity_count} entities in source world '{source_world_name_for_log}'.")
+
+    processed_count = 0
+    for src_entity in source_entities:
+        processed_count += 1
+        logger.debug(f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge...")
+
+        # Strategy 'add_new': Create a new entity in the target world
+        tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
+
+        # Copy components
+        for ComponentClass in all_component_types:
+            # Get all components of this type for the source entity
+            src_components = ecs_service.get_components(source_session, src_entity.id, ComponentClass)
+
+            for src_comp_instance in src_components:
+                # Create a new component instance for the target entity
+                # Copy attribute values, excluding 'id', 'entity_id', and 'entity' relationship
+                comp_data = {
+                    attr.key: getattr(src_comp_instance, attr.key)
+                    for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
+                    if attr.key not in ["id", "entity_id"]  # These will be set by new association
+                }
+
+                # Add entity_id and entity for the new target entity
+                # Note: kw_only=True on BaseComponent means these must be provided if not default
+                # The ComponentClass(**comp_data) will implicitly use BaseComponent's __init__
+                # which expects entity_id and entity if they are not init=False or have defaults.
+                # We need to ensure ComponentClass can be instantiated with comp_data,
+                # and then add_component_to_entity will correctly link it.
+                # The current BaseComponent requires entity_id at init.
+
+                # Let's create component with new entity_id and entity, then add
+                comp_data_for_new = comp_data.copy()
+                comp_data_for_new["entity_id"] = tgt_entity.id
+                comp_data_for_new["entity"] = tgt_entity  # For relationship
+
+                try:
+                    new_comp_instance = ComponentClass(**comp_data_for_new)
+                    # Add component to the new target entity. Pass flush=False as we commit at the end.
+                    ecs_service.add_component_to_entity(target_session, tgt_entity.id, new_comp_instance, flush=False)
+                    logger.debug(
+                        f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} "
+                        f"to tgt_entity {tgt_entity.id}."
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to copy component {ComponentClass.__name__} for src_entity {src_entity.id} "
+                        f"to tgt_entity {tgt_entity.id}: {e}",
+                        exc_info=True,
+                    )
+                    # Decide on error handling: rollback transaction, skip component, or skip entity?
+                    # For now, log and continue. Transaction commit at the end will either succeed or fail all.
+
+    try:
+        target_session.commit()
+        logger.info(
+            f"Successfully merged {source_entity_count} entities from world '{source_world_name_for_log}' "
+            f"to '{target_world_name_for_log}' using 'add_new' strategy."
+        )
+    except Exception as e:
+        target_session.rollback()
+        logger.error(f"Error committing merged data to target world '{target_world_name_for_log}': {e}", exc_info=True)
+        raise
 
 
-def split_ecs_world(session: Session, criteria: Any, output_filepath_selected: Path, output_filepath_remaining: Path):
+def split_ecs_world(  # Renamed from placeholder
+    source_session: Session,
+    criteria: Any,  # This will need to be more specific, e.g. a callable or a structured query
+    target_session_selected: Session,
+    target_session_remaining: Session,
+    source_world_name_for_log: Optional[str] = "source",
+    target_selected_world_name_for_log: Optional[str] = "target_selected",
+    target_remaining_world_name_for_log: Optional[str] = "target_remaining",
+    criteria_component_name: Optional[str] = None,
+    criteria_component_attr: Optional[str] = None,
+    criteria_value: Optional[Any] = None,
+    criteria_op: str = "eq",  # Supported: eq, ne, contains, startswith, endswith (for str); gt, lt, ge, le (for numeric/date)
+    delete_from_source: bool = False,
+) -> Tuple[int, int]:  # Returns (count_selected, count_remaining)
     """
-    Splits an ECS world into two based on some criteria.
-    (This is a complex operation and this is a very basic placeholder)
-
-    Criteria could be:
-    - A list of entity IDs to select.
-    - Entities possessing a certain component type.
-    - Entities matching a component property query.
+    Splits entities from a source session into two target sessions based on component criteria.
+    Copies entities and their components. Does not delete from source by default.
     """
-    logger.warning("split_ecs_world is a placeholder and not fully implemented.")
-    # 1. Query entities matching criteria (selected)
-    # 2. Query entities NOT matching criteria (remaining)
-    # 3. Export selected entities to output_filepath_selected
-    # 4. Export remaining entities to output_filepath_remaining
-    # (Optionally, delete selected/remaining entities from the source session)
-
-    # This is highly dependent on the nature of 'criteria'.
-    # For example, if criteria is a list of entity IDs:
-    # selected_entities = session.query(Entity).filter(Entity.id.in_(criteria_entity_ids)).all()
-    # remaining_entities = session.query(Entity).filter(not_(Entity.id.in_(criteria_entity_ids))).all()
-
-    # Then, adapt export_ecs_world_to_json to take a list of entities instead of querying all.
-    raise NotImplementedError("split_ecs_world is not yet implemented.")
-
-
-def _populate_component_types_for_serialization():
-    """
-    Helper to ensure all component types are registered for get_all_component_classes.
-    This should be called once, e.g. at application startup or before first export/import.
-    It iterates through modules in dam.models and registers component classes.
-    """
-    if ALL_COMPONENT_TYPES:  # Already populated
-        return
-
-    import importlib
-    import inspect
-    import pkgutil
-
-    import dam.models
-
-    logger.debug("Attempting to auto-register component types from dam.models...")
-
-    package = dam.models
-    prefix = package.__name__ + "."
-
-    for importer, modname, ispkg in pkgutil.walk_packages(package.__path__, prefix):
-        try:
-            module = importlib.import_module(modname)
-            for name, obj in inspect.getmembers(module):
-                if inspect.isclass(obj) and issubclass(obj, BaseComponent) and obj is not BaseComponent:
-                    # Further check if it's a mapped SQLAlchemy class with a tablename
-                    mapper = sqlalchemy_inspect(obj, raiseerr=False)
-                    if mapper and hasattr(obj, "__tablename__"):
-                        if obj not in ALL_COMPONENT_TYPES:
-                            logger.debug(f"Auto-registering component type: {obj.__name__} from {modname}")
-                            register_component_type(obj)  # type: ignore
-        except Exception as e:
-            logger.warning(f"Could not import or inspect module {modname} for components: {e}", exc_info=True)
-
-    if not ALL_COMPONENT_TYPES:
-        logger.warning(
-            "No component types were auto-registered. Manual registration might be needed or check model imports."
+    logger.info(
+        f"Starting DB-to-DB split from world '{source_world_name_for_log}' "
+        f"to selected='{target_selected_world_name_for_log}', remaining='{target_remaining_world_name_for_log}'."
+    )
+    if criteria_component_name and criteria_component_attr and criteria_value is not None:
+        logger.info(
+            f"Split criteria: Component='{criteria_component_name}', Attribute='{criteria_component_attr}', "
+            f"Operator='{criteria_op}', Value='{criteria_value}'"
         )
     else:
-        logger.info(f"Successfully auto-registered {len(ALL_COMPONENT_TYPES)} component types.")
+        logger.warning("No split criteria provided. All entities will go to 'remaining' target.")
+        # Or raise error, or handle as "select none"
+
+    all_component_types = get_all_component_classes()
+    source_entities = source_session.query(Entity).all()
+    source_entity_count = len(source_entities)
+    logger.info(f"Found {source_entity_count} entities in source world '{source_world_name_for_log}'.")
+
+    # Find the criteria component class
+    CriteriaComponentClass: Optional[Type[BaseComponent]] = None
+    if criteria_component_name:
+        for comp_class in all_component_types:
+            if comp_class.__name__ == criteria_component_name:
+                CriteriaComponentClass = comp_class
+                break
+        if not CriteriaComponentClass:
+            logger.error(f"Criteria component class '{criteria_component_name}' not found.")
+            raise ValueError(f"Criteria component class '{criteria_component_name}' not found.")
+        if criteria_component_attr and not hasattr(CriteriaComponentClass, criteria_component_attr):
+            logger.error(
+                f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
+            )
+            raise ValueError(
+                f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
+            )
+
+    count_selected = 0
+    count_remaining = 0
+
+    for src_entity in source_entities:
+        matches_criteria = False
+        if CriteriaComponentClass and criteria_component_attr and criteria_value is not None:
+            # Get the specific component instances for the source entity
+            # Assuming single component instance for criteria for simplicity now.
+            # If multiple components of this type can exist, logic needs to decide (any match? all match?)
+            src_criteria_comp_instance = ecs_service.get_component(
+                source_session, src_entity.id, CriteriaComponentClass
+            )
+            if src_criteria_comp_instance:
+                actual_value = getattr(src_criteria_comp_instance, criteria_component_attr, None)
+                if actual_value is not None:
+                    # Perform comparison based on criteria_op
+                    if criteria_op == "eq":
+                        matches_criteria = actual_value == criteria_value
+                    elif criteria_op == "ne":
+                        matches_criteria = actual_value != criteria_value
+                    elif criteria_op == "contains" and isinstance(actual_value, str):
+                        matches_criteria = criteria_value in actual_value
+                    elif criteria_op == "startswith" and isinstance(actual_value, str):
+                        matches_criteria = actual_value.startswith(criteria_value)
+                    elif criteria_op == "endswith" and isinstance(actual_value, str):
+                        matches_criteria = actual_value.endswith(criteria_value)
+                    # Basic numeric/date ops (assuming criteria_value is already correct type or castable)
+                    elif criteria_op == "gt":
+                        matches_criteria = actual_value > criteria_value
+                    elif criteria_op == "lt":
+                        matches_criteria = actual_value < criteria_value
+                    elif criteria_op == "ge":
+                        matches_criteria = actual_value >= criteria_value
+                    elif criteria_op == "le":
+                        matches_criteria = actual_value <= criteria_value
+                    else:
+                        logger.warning(f"Unsupported criteria operator '{criteria_op}'. Defaulting to no match.")
+
+        target_session_for_copy = target_session_selected if matches_criteria else target_session_remaining
+        target_world_log_name = (
+            target_selected_world_name_for_log if matches_criteria else target_remaining_world_name_for_log
+        )
+
+        if matches_criteria:
+            count_selected += 1
+        else:
+            count_remaining += 1
+
+        logger.debug(
+            f"Entity {src_entity.id}: Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
+        )
+
+        # Create new entity in the chosen target session
+        tgt_entity = ecs_service.create_entity(target_session_for_copy)  # Flushes session
+
+        # Copy components (same logic as merge_ecs_worlds_db_to_db)
+        for ComponentClassToCopy in all_component_types:
+            src_components_to_copy = ecs_service.get_components(source_session, src_entity.id, ComponentClassToCopy)
+            for src_comp_instance in src_components_to_copy:
+                comp_data = {
+                    attr.key: getattr(src_comp_instance, attr.key)
+                    for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
+                    if attr.key not in ["id", "entity_id"]
+                }
+                comp_data_for_new = comp_data.copy()
+                comp_data_for_new["entity_id"] = tgt_entity.id
+                comp_data_for_new["entity"] = tgt_entity
+
+                try:
+                    new_comp_instance = ComponentClassToCopy(**comp_data_for_new)
+                    ecs_service.add_component_to_entity(
+                        target_session_for_copy, tgt_entity.id, new_comp_instance, flush=False
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to copy component {ComponentClassToCopy.__name__} for src_entity {src_entity.id} "
+                        f"to tgt_entity {tgt_entity.id} in world '{target_world_log_name}': {e}",
+                        exc_info=True,
+                    )
+
+        if delete_from_source:
+            logger.debug(f"Deleting entity {src_entity.id} from source world '{source_world_name_for_log}'.")
+            # Pass flush=False as we'll commit source_session at the end.
+            ecs_service.delete_entity(source_session, src_entity.id, flush=False)
+
+    try:
+        target_session_selected.commit()
+        logger.info(
+            f"Committed {count_selected} entities to target_selected world '{target_selected_world_name_for_log}'."
+        )
+    except Exception as e:
+        target_session_selected.rollback()
+        logger.error(
+            f"Error committing to target_selected world '{target_selected_world_name_for_log}': {e}", exc_info=True
+        )
+        # Potentially raise or handle so remaining isn't committed either if atomicity is desired across all targets
+        raise
+
+    try:
+        target_session_remaining.commit()
+        logger.info(
+            f"Committed {count_remaining} entities to target_remaining world '{target_remaining_world_name_for_log}'."
+        )
+    except Exception as e:
+        target_session_remaining.rollback()
+        logger.error(
+            f"Error committing to target_remaining world '{target_remaining_world_name_for_log}': {e}", exc_info=True
+        )
+        raise
+
+    if delete_from_source:
+        try:
+            source_session.commit()
+            logger.info(
+                f"Committed deletions of {source_entity_count} entities from source world '{source_world_name_for_log}'."
+            )
+        except Exception as e:
+            source_session.rollback()
+            logger.error(
+                f"Error committing deletions from source world '{source_world_name_for_log}': {e}", exc_info=True
+            )
+            # This is problematic as entities might already be copied.
+            # Full transactional split across DBs is very hard.
+            raise
+
+    logger.info(
+        f"Split complete: {count_selected} entities to '{target_selected_world_name_for_log}', "
+        f"{count_remaining} entities to '{target_remaining_world_name_for_log}'."
+    )
+    return count_selected, count_remaining
 
 
-# Call this once, e.g. when the module is first imported.
-# Or explicitly call it from an application setup routine.
-_populate_component_types_for_serialization()
+# Removed _populate_component_types_for_serialization as REGISTERED_COMPONENT_TYPES should be sufficient.
 
-# Example of how to manually register if needed:
-# from dam.models.file_properties_component import FilePropertiesComponent
-# register_component_type(FilePropertiesComponent)
-# ... and so on for all component types ...
-
-# Add this new service to __init__.py
-# In dam/services/__init__.py:
-# from . import world_service
-# __all__ = [..., "world_service"]
-
-# Also need to add CLI commands for these operations.
-# These would go into dam/cli.py.
-# Example for export:
-# @app.command(name="export-world")
-# def cli_export_world(
-#     filepath_str: Annotated[str, typer.Argument(..., help="Path to export JSON file.")],
-# ):
-#     db = SessionLocal()
-#     try:
-#         world_service.export_ecs_world_to_json(db, Path(filepath_str))
-#         typer.secho(f"World exported to {filepath_str}", fg=typer.colors.GREEN)
-#     except Exception as e:
-#         typer.secho(f"Error exporting world: {e}", fg=typer.colors.RED)
-#         raise typer.Exit(code=1)
-#     finally:
-#         db.close()
-
-# Similar CLI command for import.
-# Splitting/merging are more complex and might need more thought on CLI exposure.
+# CLI command examples removed as they will be handled in cli.py.
+# Ensure that when these services are called, the correct session for the intended world is passed.
+# For example, a CLI command might look like:
+# world_name = ctx.obj.world_name # Get from CLI context
+# db_session = db_manager.get_db_session(world_name)
+# try:
+#     world_service.export_ecs_world_to_json(db_session, export_path, world_name_for_log=world_name)
+# finally:
+#     db_session.close()

@@ -3,98 +3,71 @@ from typing import List, Optional, Type, TypeVar
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from dam.models import (  # Moved from below for delete_entity
-    BaseComponent,
-    Entity,
-    # Specific component imports no longer needed here for ALL_COMPONENT_TYPES
-    # as it will be dynamically populated.
-)
-
-# REGISTERED_COMPONENT_TYPES is now defined in and imported from dam.models.base_component
+from dam.models import BaseComponent, Entity
 from dam.models.base_component import REGISTERED_COMPONENT_TYPES
+
+# No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
 
 # Define a generic type variable for component types
 T = TypeVar("T", bound=BaseComponent)
 
-# Placeholder for future ECS service functions.
+# Note: All functions in this service now require a `session: Session` argument.
+# The caller (e.g., CLI command, another service) is responsible for obtaining
+# the correct session for the desired ECS world using `db_manager.get_db_session(world_name)`.
 
 
 def create_entity(session: Session) -> Entity:
     """
-    Creates a new Entity instance, adds it to the session, and flushes.
+    Creates a new Entity instance in the given session, adds it, and flushes.
     The caller is responsible for committing the session.
-
-    Args:
-        session: The SQLAlchemy session.
-
-    Returns:
-        The newly created Entity instance (with an ID assigned after flush).
     """
-    entity = Entity()  # kw_only=True means no args needed if all fields are init=False
+    entity = Entity()
     session.add(entity)
     session.flush()  # Assigns ID to entity
     return entity
 
 
 def get_entity(session: Session, entity_id: int) -> Optional[Entity]:
-    """Retrieves an entity by its ID."""
+    """Retrieves an entity by its ID from the given session."""
     return session.get(Entity, entity_id)
 
 
-def add_component_to_entity(session: Session, entity_id: int, component_instance: T) -> T:
+def add_component_to_entity(session: Session, entity_id: int, component_instance: T, flush: bool = True) -> T:
     """
-    Adds a component instance to a specified entity.
+    Adds a component instance to a specified entity in the given session.
 
     Args:
-        session: The SQLAlchemy session.
+        session: The SQLAlchemy session for the target world.
         entity_id: The ID of the entity to add the component to.
         component_instance: An instance of a class inheriting from BaseComponent.
-                            The instance should have its specific fields already populated.
+        flush: Whether to flush the session after adding. Defaults to True.
 
     Returns:
-        The added component instance, now associated with the entity and session.
-
+        The added component instance.
     Raises:
-        ValueError: If the entity with the given entity_id is not found.
+        ValueError: If the entity is not found.
     """
     entity = get_entity(session, entity_id)
     if not entity:
-        raise ValueError(f"Entity with ID {entity_id} not found.")
+        raise ValueError(f"Entity with ID {entity_id} not found in the provided session.")
 
-    # Associate component with the entity
-    # These fields are kw_only in BaseComponent's effective __init__
-    # For direct instantiation, both entity and entity_id are now expected by tests
-    # However, for adding an *existing* component instance, we just set them.
     component_instance.entity_id = entity.id
-
-    # The `entity` relationship attribute on BaseComponent is set up to
-    # load based on entity_id. Explicitly setting component_instance.entity = entity
-    # links them in the ORM session immediately.
-    component_instance.entity = entity
+    component_instance.entity = entity  # Link in ORM
 
     session.add(component_instance)
 
-    try:
-        session.flush()  # Flushes to DB to get component ID and catch constraint violations
-    except Exception as e:
-        # session.rollback() # Rollback might be too aggressive here, caller should manage transaction
-        raise e  # Re-raise after potential logging or specific error handling
-
+    if flush:
+        try:
+            session.flush()  # Flushes to DB, assigns component ID, checks constraints
+        except Exception as e:
+            # Caller should manage transaction (commit/rollback)
+            raise e
     return component_instance
 
 
 def get_component(session: Session, entity_id: int, component_type: Type[T]) -> Optional[T]:
     """
-    Retrieves a single component of a specific type for a given entity.
-    Assumes the component is unique for the entity (e.g., FilePropertiesComponent).
-
-    Args:
-        session: The SQLAlchemy session.
-        entity_id: The ID of the entity.
-        component_type: The class of the component to retrieve (e.g., FilePropertiesComponent).
-
-    Returns:
-        The component instance if found, otherwise None.
+    Retrieves a single component of a specific type for an entity from the given session.
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     return session.execute(stmt).scalar_one_or_none()
@@ -102,66 +75,44 @@ def get_component(session: Session, entity_id: int, component_type: Type[T]) -> 
 
 def get_components(session: Session, entity_id: int, component_type: Type[T]) -> List[T]:
     """
-    Retrieves all components of a specific type for a given entity.
-
-    Args:
-        session: The SQLAlchemy session.
-        entity_id: The ID of the entity.
-        component_type: The class of the component to retrieve (e.g., FileLocationComponent).
-
-    Returns:
-        A list of component instances, which may be empty.
+    Retrieves all components of a specific type for an entity from the given session.
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     return session.execute(stmt).scalars().all()
 
 
-def remove_component(session: Session, component: BaseComponent) -> None:
+def remove_component(session: Session, component: BaseComponent, flush: bool = False) -> None:
     """
-    Deletes a specific component instance from the database.
+    Deletes a specific component instance from the database via the given session.
     The caller is responsible for committing the session.
 
     Args:
-        session: The SQLAlchemy session.
+        session: The SQLAlchemy session for the target world.
         component: The component instance to delete.
-                   It must be an instance already associated with the session
-                   (e.g., retrieved from the DB or added and flushed).
-
+        flush: Whether to flush the session after deletion. Defaults to False.
     Raises:
-        ValueError: If the component is not a valid instance or not found in session for deletion.
+        ValueError: If the component is invalid.
     """
     if not isinstance(component, BaseComponent) or component.id is None:
-        # Or handle more gracefully depending on how strict we want to be
-        raise ValueError(
-            "Invalid component instance provided for removal. Must be a session-managed BaseComponent with an ID."
-        )
-
-    # Ensure the component is part of the session if it's detached
-    # Though usually, one would pass an object that was just fetched.
-    if component not in session:
-        # This can happen if component was created, committed, and then session closed & reopened.
-        # Re-attaching might be needed, or fetching it first. For simplicity, assume it's managed.
-        # A more robust version might try session.get(type(component), component.id) first.
-        pass  # Assuming component is already part of the current session or will be handled by delete
-
+        raise ValueError("Invalid component instance for removal. Must be a session-managed BaseComponent with an ID.")
+    # No need to check `if component not in session` if it's fetched via the same session.
+    # If it could be from another session, then `session.merge(component)` might be needed before delete.
+    # For simplicity, assume it's from the current session or attached.
     session.delete(component)
-    # No flush here, let caller manage transaction boundaries unless specified.
-    # session.flush()
+    if flush:
+        session.flush()
 
 
-# ALL_COMPONENT_TYPES list is now removed.
-# REGISTERED_COMPONENT_TYPES will be used instead.
-
-
-def delete_entity(session: Session, entity_id: int) -> bool:
+def delete_entity(session: Session, entity_id: int, flush: bool = True) -> bool:
     """
-    Deletes an entity and all its associated components.
+    Deletes an entity and all its associated components from the given session.
     The caller is responsible for committing the session.
 
     Args:
-        session: The SQLAlchemy session.
+        session: The SQLAlchemy session for the target world.
         entity_id: The ID of the entity to delete.
-
+        flush: Whether to flush the session after deletions. Defaults to True.
+                 Set to False if part of a larger operation to be flushed later.
     Returns:
         True if the entity was found and deleted, False otherwise.
     """
@@ -169,19 +120,25 @@ def delete_entity(session: Session, entity_id: int) -> bool:
     if not entity:
         return False
 
-    # Delete all associated components by iterating through the dynamically populated list
+    # Delete all associated components
+    # REGISTERED_COMPONENT_TYPES should be populated correctly (e.g., in world_service or models.__init__)
+    if not REGISTERED_COMPONENT_TYPES:
+        # This might be a critical error or warning depending on application structure
+        # For now, we proceed, but ideally, this list is always populated.
+        print("Warning: REGISTERED_COMPONENT_TYPES is empty. Components may not be deleted with entity.")
+
     for component_type in REGISTERED_COMPONENT_TYPES:
-        # Ensure the component_type is a concrete mapped class, not an abstract one.
-        # SQLAlchemy's inspection might be useful here if BaseComponent itself (abstract)
-        # somehow got into the list, though __init_subclass__ should prevent that.
-        # For now, assume REGISTERED_COMPONENT_TYPES only contains mapped subclasses.
         components_to_delete = get_components(session, entity_id, component_type)
         for component in components_to_delete:
-            remove_component(session, component)  # Uses session.delete(component)
+            # Pass flush=False as we'll do a single flush at the end if requested
+            remove_component(session, component, flush=False)
 
-    # Delete the entity itself
     session.delete(entity)
-    # No flush here, let caller manage transaction.
-    # session.flush()
 
+    if flush:
+        try:
+            session.flush()
+        except Exception as e:
+            # Caller should manage transaction
+            raise e
     return True
