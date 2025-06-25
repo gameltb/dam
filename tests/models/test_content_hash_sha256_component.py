@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from dam.models.content_hash_component import ContentHashComponent
+from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.entity import Entity
 
 
@@ -15,44 +15,39 @@ def test_entity(db_session: Session) -> Entity:
     return entity
 
 
-def test_create_content_hash_component_instance(test_entity: Entity):
-    """Test basic instantiation of a ContentHashComponent."""
-    chc = ContentHashComponent(
+def test_create_content_hash_sha256_component_instance(test_entity: Entity):
+    """Test basic instantiation of a ContentHashSHA256Component."""
+    chc = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",
         hash_value="a_very_long_hash_string_representing_sha256",
     )
     assert chc.entity_id == test_entity.id
-    assert chc.hash_type == "sha256"
     assert chc.hash_value == "a_very_long_hash_string_representing_sha256"
 
 
-def test_add_and_retrieve_content_hash_component(db_session: Session, test_entity: Entity):
-    """Test adding and retrieving a ContentHashComponent."""
-    chc = ContentHashComponent(
+def test_add_and_retrieve_content_hash_sha256_component(db_session: Session, test_entity: Entity):
+    """Test adding and retrieving a ContentHashSHA256Component."""
+    chc = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",
         hash_value="hash123",
     )
     db_session.add(chc)
     db_session.commit()
 
     assert chc.id is not None
-    retrieved_chc = db_session.get(ContentHashComponent, chc.id)
+    retrieved_chc = db_session.get(ContentHashSHA256Component, chc.id)
     assert retrieved_chc is not None
     assert retrieved_chc.entity_id == test_entity.id
-    assert retrieved_chc.hash_type == "sha256"
     assert retrieved_chc.hash_value == "hash123"
 
 
-def test_content_hash_component_relationship_to_entity(db_session: Session, test_entity: Entity):
+def test_content_hash_sha256_component_relationship_to_entity(db_session: Session, test_entity: Entity):
     """Test the relationship from the component back to the entity."""
-    chc = ContentHashComponent(
+    chc = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",
         hash_value="hash_for_relation_test",
     )
     db_session.add(chc)
@@ -64,72 +59,67 @@ def test_content_hash_component_relationship_to_entity(db_session: Session, test
     assert chc.entity == test_entity  # Should be the same object if session is consistent
 
 
-def test_content_hash_component_unique_constraint(db_session: Session, test_entity: Entity):
-    """Test the unique constraint (entity_id, hash_type)."""
-    chc1 = ContentHashComponent(
+def test_content_hash_sha256_component_unique_constraint(db_session: Session, test_entity: Entity):
+    """Test the unique constraint (entity_id, hash_value)."""
+    chc1 = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",
         hash_value="first_hash_value",
     )
     db_session.add(chc1)
     db_session.commit()
 
-    chc2 = ContentHashComponent(
+    chc2 = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",  # Same entity_id and hash_type
-        hash_value="second_hash_value_but_should_fail",
+        hash_value="first_hash_value",  # Same entity_id and hash_value
     )
     db_session.add(chc2)
     with pytest.raises(IntegrityError):
         db_session.commit()
     db_session.rollback()  # Important to rollback after expected error
 
-    # Verify that a different hash_type for the same entity is allowed
-    chc3 = ContentHashComponent(
+    # Verify that a different hash_value for the same entity is allowed
+    chc3 = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="md5",  # Different hash_type
-        hash_value="md5_hash_value",
+        hash_value="another_sha256_hash_value",
     )
     db_session.add(chc3)
     db_session.commit()
     assert chc3.id is not None
 
-    # Verify that same hash_type for a different entity is allowed
+    # Verify that same hash_value for a different entity is allowed
     another_entity = Entity()
     db_session.add(another_entity)
     db_session.commit()
 
-    chc4 = ContentHashComponent(
+    chc4 = ContentHashSHA256Component(
         entity_id=another_entity.id,  # type: ignore
         entity=another_entity,  # Added entity object
-        hash_type="sha256",  # Same hash_type as chc1 but different entity
-        hash_value="another_entity_sha256_hash",
+        hash_value="first_hash_value",  # Same hash_value as chc1 but different entity
     )
     db_session.add(chc4)
     db_session.commit()
     assert chc4.id is not None
 
 
-def test_delete_content_hash_component(db_session: Session, test_entity: Entity):
-    """Test deleting a ContentHashComponent."""
-    chc = ContentHashComponent(
+def test_delete_content_hash_sha256_component(db_session: Session, test_entity: Entity):
+    """Test deleting a ContentHashSHA256Component."""
+    chc = ContentHashSHA256Component(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_type="sha256",
         hash_value="hash_to_delete",
     )
     db_session.add(chc)
     db_session.commit()
 
     component_id = chc.id
-    assert db_session.get(ContentHashComponent, component_id) is not None
+    assert db_session.get(ContentHashSHA256Component, component_id) is not None
 
     db_session.delete(chc)
     db_session.commit()
-    assert db_session.get(ContentHashComponent, component_id) is None
+    assert db_session.get(ContentHashSHA256Component, component_id) is None
 
 
 # Note on type: ignore for entity_id:

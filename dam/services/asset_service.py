@@ -7,11 +7,17 @@ from sqlalchemy.orm import Session
 
 # from dam.core.config import settings # No longer needed directly here for ASSET_STORAGE_PATH
 from dam.models import Entity
-from dam.models.content_hash_component import ContentHashComponent
+from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
-from dam.models.image_perceptual_hash_component import (
-    ImagePerceptualHashComponent,
+from dam.models.image_perceptual_hash_ahash_component import (
+    ImagePerceptualAHashComponent,
+)
+from dam.models.image_perceptual_hash_dhash_component import (
+    ImagePerceptualDHashComponent,
+)
+from dam.models.image_perceptual_hash_phash_component import (
+    ImagePerceptualPHashComponent,
 )
 
 from . import file_storage  # Import the new file storage service
@@ -28,9 +34,9 @@ from .file_operations import (
 logger = logging.getLogger(__name__)  # Initialize logger at module level
 
 
-def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
+def find_entity_by_content_hash(session: Session, hash_value: str) -> Optional[Entity]:
     """
-    Finds an entity by its content hash.
+    Finds an entity by its SHA256 content hash.
 
     Args:
         session: SQLAlchemy session.
@@ -42,9 +48,8 @@ def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: st
     """
     stmt = (
         select(Entity)
-        .join(ContentHashComponent, Entity.id == ContentHashComponent.entity_id)
-        .where(ContentHashComponent.hash_type == hash_type)
-        .where(ContentHashComponent.hash_value == hash_value)
+        .join(ContentHashSHA256Component, Entity.id == ContentHashSHA256Component.entity_id)
+        .where(ContentHashSHA256Component.hash_value == hash_value)
     )
     result = session.execute(stmt).scalar_one_or_none()
     return result
@@ -92,9 +97,8 @@ def add_asset_file(
     # original_filename is passed to store_file for context, though not used for path generation
     file_identifier = file_storage.store_file(file_content, original_filename=original_filename)
     # The file_identifier is the SHA256 content hash
-    content_hash_type = "sha256"
 
-    existing_entity = find_entity_by_content_hash(session, file_identifier, content_hash_type)
+    existing_entity = find_entity_by_content_hash(session, file_identifier)
 
     if existing_entity:
         entity = existing_entity
@@ -128,17 +132,15 @@ def add_asset_file(
     else:
         created_new_entity = True
         entity = create_entity(session)  # session.flush() is done inside
-        logger.info(
-            f"New Entity ID {entity.id} for '{original_filename}' (Hash: {file_identifier[:12]}...).")
+        logger.info(f"New Entity ID {entity.id} for '{original_filename}' (Hash: {file_identifier[:12]}...).")
 
-        # Content Hash Component (Primary identifier of the content)
-        chc = ContentHashComponent(
+        # Content Hash Component (Primary identifier of the content - SHA256)
+        chc_sha256 = ContentHashSHA256Component(
             entity_id=entity.id,
             entity=entity,
-            hash_type=content_hash_type,
-            hash_value=file_identifier,
+            hash_value=file_identifier, # This is the SHA256 hash
         )
-        add_component_to_entity(session, entity.id, chc)
+        add_component_to_entity(session, entity.id, chc_sha256)
 
         # File Properties Component (Descriptive metadata)
         fpc = FilePropertiesComponent(
@@ -162,22 +164,41 @@ def add_asset_file(
 
     # After entity creation or retrieval, if it's an image, add perceptual hashes
     if mime_type and mime_type.startswith("image/"):
-        existing_phash_components = get_components(session, entity.id, ImagePerceptualHashComponent)
-        existing_phash_types = {comp.hash_type for comp in existing_phash_components}
+        # Get existing perceptual hashes for each type
+        existing_phashes = {
+            comp.hash_value
+            for comp in get_components(session, entity.id, ImagePerceptualPHashComponent)
+        }
+        existing_ahashes = {
+            comp.hash_value
+            for comp in get_components(session, entity.id, ImagePerceptualAHashComponent)
+        }
+        existing_dhashes = {
+            comp.hash_value
+            for comp in get_components(session, entity.id, ImagePerceptualDHashComponent)
+        }
 
-        # Perceptual hashes are generated from the source file path
         perceptual_hashes = generate_perceptual_hashes(filepath_on_disk)
-        for phash_type_val, phash_value in perceptual_hashes.items():
-            if phash_type_val not in existing_phash_types:
-                iphc = ImagePerceptualHashComponent(
-                    entity_id=entity.id,
-                    entity=entity,
-                    hash_type=phash_type_val,
-                    hash_value=phash_value,
-                )
-                add_component_to_entity(session, entity.id, iphc)
-                logger.info(
-                    f"Added {phash_type_val} perceptual hash '{phash_value[:12]}...' for Entity ID {entity.id}."
-                )
+
+        if "phash" in perceptual_hashes and perceptual_hashes["phash"] not in existing_phashes:
+            iphc = ImagePerceptualPHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"]
+            )
+            add_component_to_entity(session, entity.id, iphc)
+            logger.info(f"Added phash '{perceptual_hashes['phash'][:12]}...' for Entity ID {entity.id}.")
+
+        if "ahash" in perceptual_hashes and perceptual_hashes["ahash"] not in existing_ahashes:
+            iahc = ImagePerceptualAHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"]
+            )
+            add_component_to_entity(session, entity.id, iahc)
+            logger.info(f"Added ahash '{perceptual_hashes['ahash'][:12]}...' for Entity ID {entity.id}.")
+
+        if "dhash" in perceptual_hashes and perceptual_hashes["dhash"] not in existing_dhashes:
+            idhc = ImagePerceptualDHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"]
+            )
+            add_component_to_entity(session, entity.id, idhc)
+            logger.info(f"Added dhash '{perceptual_hashes['dhash'][:12]}...' for Entity ID {entity.id}.")
 
     return entity, created_new_entity
