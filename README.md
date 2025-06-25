@@ -75,11 +75,9 @@ ecs_dam_system/
     # uv pip install -e ".[dev]" # For development dependencies
     ```
 
-    For optional features like perceptual image hashing, install the extras:
-    ```bash
-    pip install -e ".[image]" # Using pip
-    # Or see uv examples above
-    ```
+    For optional features like perceptual image hashing and multimedia metadata extraction:
+    - Image Hashing: `pip install -e ".[image]"` or `uv pip install -e ".[image]"`
+    - The system uses `hachoir` for basic multimedia metadata extraction, which is included in the main dependencies.
 
 4.  **Set up environment variables:**
     *   Copy `.env.example` to `.env`:
@@ -122,15 +120,34 @@ dam-cli --help
     dam-cli setup-db
     ```
 
-*   **`add-asset <filepath>`**: Adds a new asset file to the DAM system. It calculates content hashes (SHA256, MD5) and perceptual hashes (for images: pHash, aHash, dHash). If the content already exists, it links the new filename to the existing asset.
+*   **`add-asset <filepath>`**: Adds a new asset file to the DAM system.
+    *   Calculates content hashes (SHA256, MD5).
+    *   For images, videos, and GIFs, extracts and stores width/height dimensions using `ImageDimensionsComponent`.
+    *   For images, it also calculates perceptual hashes (pHash, aHash, dHash).
+    *   For videos, it's now conceptualized as a combination of visual frames and audio:
+        *   Visual aspects (frame count, frame rate, duration) are stored in `FramePropertiesComponent`.
+        *   Audio track details (codec, duration, sample rate) are stored in `AudioPropertiesComponent`.
+    *   For animated GIFs, frame count and animation details are stored in `FramePropertiesComponent`.
+    *   For standalone audio files, metadata (duration, codec, sample rate) is stored in `AudioPropertiesComponent`.
+    *   If the content already exists (based on SHA256 hash), it links the new filename to the existing asset.
     ```bash
     dam-cli add-asset /path/to/your/image.jpg
+    dam-cli add-asset /path/to/your/video.mp4
+    dam-cli add-asset /path/to/your/audio.mp3
+    dam-cli add-asset /path/to/your/animated.gif
     dam-cli add-asset /path/to/your/document.pdf
     ```
 
-*   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash.
-    *   `--hash-type <type>`: Specify the hash type (e.g., `sha256`, `md5`). Defaults to `sha256`.
-    *   `--file <filepath>` or `-f <filepath>`: Calculate the hash of the given file and use that for searching.
+*   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash and displays its properties. This includes:
+    *   Basic file properties (name, size, MIME type).
+    *   Content hashes (MD5, SHA256).
+    *   Image dimensions (width, height) for visual assets.
+    *   Frame properties (frame count, rate, duration) for videos and animated GIFs.
+    *   Audio properties (codec, duration, sample rate) for audio files and audio tracks within videos.
+    *   Perceptual hashes for images.
+    *   Options:
+        *   `--hash-type <type>`: Specify the hash type (e.g., `sha256`, `md5`). Defaults to `sha256`.
+        *   `--file <filepath>` or `-f <filepath>`: Calculate the hash of the given file and use that for searching.
     ```bash
     # Find by providing SHA256 hash directly
     dam-cli find-file-by-hash "a1b2c3d4..."

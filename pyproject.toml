@@ -28,12 +28,20 @@ dependencies = [
     "pydantic",
     "pydantic-settings", # For settings management
     # ImageHash and Pillow moved to optional-dependencies
+    "hachoir", # For metadata extraction
+    # "ffmpeg-python", # Alternative, more powerful but requires ffmpeg installed
 ]
 
 [project.optional-dependencies]
 image = [
     "ImageHash",
     "Pillow"
+]
+video = [ # For video processing, could include ffmpeg-python if made optional
+    # "ffmpeg-python"
+]
+audio = [ # For audio processing
+    # "mutagen", # Good for audio tags
 ]
 dev = [ # Example for dev/test dependencies
     "pytest",

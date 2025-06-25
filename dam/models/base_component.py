@@ -82,10 +82,9 @@ class BaseComponent(Base):  # Inherit from the new Base
         """
         super().__init_subclass__(**kwargs)
         # Avoid registering BaseComponent itself or other abstract classes if any
-        print(
-            f"DEBUG: BaseComponent.__init_subclass__ called for: {cls.__name__}, abstract: {cls.__dict__.get('__abstract__', False)}"
-        )
-        if not cls.__dict__.get("__abstract__", False):
+        is_abstract = cls.__dict__.get("__abstract__", False)
+        print(f"DEBUG: BaseComponent.__init_subclass__ called for: {cls.__name__}, abstract: {is_abstract}")
+        if not is_abstract:
             # Now appends to the list in this module, no service import needed here.
             if cls not in REGISTERED_COMPONENT_TYPES:
                 REGISTERED_COMPONENT_TYPES.append(cls)
