@@ -13,7 +13,7 @@ class FileLocationComponent(BaseComponent):  # BaseComponent inherits from Base(
     An entity can have multiple file locations.
     """
 
-    __tablename__ = "file_locations"
+    __tablename__ = "component_file_location"
 
     # id, entity_id, created_at, updated_at are inherited from BaseComponent
 

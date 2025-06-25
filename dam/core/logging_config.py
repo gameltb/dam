@@ -96,7 +96,7 @@ if __name__ == "__main__":
     logging.getLogger("dam").handlers.clear()
     print("\nTesting with specific string level 'WARNING'...")
     setup_logging(level="WARNING")
-    effective_level_name = logging.getLevelName(logging.getLogger('dam').getEffectiveLevel())
+    effective_level_name = logging.getLevelName(logging.getLogger("dam").getEffectiveLevel())
     logger.info(f"Test log at WARNING. Effective: {effective_level_name}. Info should not appear.")
     logger.warning("This warning message should be seen.")
 

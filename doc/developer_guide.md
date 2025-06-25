@@ -13,10 +13,10 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 -   **Implementation**: In our system, Entities are represented by the `dam.models.entity.Entity` SQLAlchemy model, which primarily provides a unique `id`.
 
 ### 2.2. Components
--   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. For example, a `FileLocationComponent` stores where an asset's file is located, while a `ContentHashComponent` stores its content hash.
+-   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. For example, a `FileLocationComponent` stores where an asset's file is located. Content hash components like `ContentHashSHA256Component` store specific types of content hashes (e.g., SHA256). Similarly, perceptual hashes for images are stored in specific components like `ImagePerceptualPHashComponent` (for pHash), `ImagePerceptualAHashComponent` (for aHash), etc.
 -   **Implementation**:
     -   Components are implemented as Python dataclasses that also serve as SQLAlchemy models. This is achieved by inheriting from `dam.models.base_component.BaseComponent`, which itself inherits from `dam.models.base_class.Base` (configured with `MappedAsDataclass`).
-    -   Each component is defined in its own file within the `dam/models/` directory (e.g., `dam/models/content_hash_component.py`).
+    -   Each component is defined in its own file within the `dam/models/` directory (e.g., `dam/models/content_hash_sha256_component.py`, `dam/models/image_perceptual_phash_component.py`).
     -   `MappedAsDataclass` from SQLAlchemy allows us to define models using dataclass syntax, making them concise and type-hint friendly.
     -   All components typically have an `entity_id` foreign key linking them back to an `Entity`.
 
@@ -41,7 +41,7 @@ A brief overview of the key directories:
 
 -   `dam/`: Main package for the DAM system.
     -   `core/`: Core functionalities like database session management (`database.py`) and application configuration (`config.py`).
-    -   `models/`: Contains all SQLAlchemy model definitions, where each component is typically in its own file (e.g., `entity.py`, `base_component.py`, `content_hash_component.py`).
+    -   `models/`: Contains all SQLAlchemy model definitions, where each component is typically in its own file (e.g., `entity.py`, `base_component.py`, `content_hash_sha256_component.py`, `image_perceptual_phash_component.py`).
         -   `base_class.py`: Defines the ultimate `Base` for SQLAlchemy models, configured with `MappedAsDataclass`.
         -   `types.py`: Custom SQLAlchemy type annotations (e.g., for timestamps).
     -   `services/`: Houses the business logic (Systems/Services) that operate on entities and components.
@@ -72,7 +72,7 @@ The DAM employs a content-addressable storage strategy for asset files, managed 
     5.  Returning the SHA256 hash (file identifier).
     -   If a file with the same content (and thus the same hash) is stored again, it will not create a duplicate; the existing file is effectively reused. The `original_filename` is not used for the storage path itself but can be stored in metadata components (like `FileLocationComponent`).
 -   **`get_file_path` Function**: The `dam.services.file_storage.get_file_path(file_identifier: str) -> Path | None` function reconstructs the absolute path to a stored file given its `file_identifier` (SHA256 hash).
--   **`FileLocationComponent`**: This component (defined in `dam.models.file_location_component`) stores how to locate an asset's content.
+-   **`FileLocationComponent`**: This component (defined in `dam.models.file_location_component`, table name `component_file_location`) stores how to locate an asset's content.
     -   `file_identifier`: Stores the SHA256 hash returned by `store_file`.
     -   `storage_type`: Set to `"local_content_addressable"` for files managed by this strategy.
     -   `original_filename`: Can store the original name of the file as ingested, providing context.
@@ -111,7 +111,7 @@ from .base_component import BaseComponent
 
 # No @dataclass decorator needed here; it's inherited from Base via BaseComponent
 class TagComponent(BaseComponent):
-    __tablename__ = "tags" # Choose a suitable table name
+    __tablename__ = "component_tag" # Table names follow component_[name] convention
 
     # Inherited fields: id, entity_id, created_at, updated_at, entity relationship
 
@@ -131,7 +131,7 @@ class TagComponent(BaseComponent):
 **Key points:**
 - **Inheritance**: `class TagComponent(BaseComponent):`
 - **Dataclass Behavior**: Inherited automatically from `Base` (which is a `MappedAsDataclass` configured with `kw_only=True`). No explicit `@dataclass` decorator is needed on `TagComponent` itself.
-- **Table Name**: `__tablename__ = "tags"`
+- **Table Name**: `__tablename__ = "component_tag"` (following the `component_[name]` convention).
 - **Custom Fields**: `tag_name: Mapped[str] = mapped_column(...)` defines the actual data this component holds. We've added `index=True` as tags are likely to be queried.
 - **Constraints**: `__table_args__` can define `UniqueConstraint`, `Index`, etc. Here, we prevent duplicate tags per entity.
 
@@ -169,7 +169,7 @@ Whenever you add or modify a model (which translates to a database table), you n
     Open the newly generated migration file. It should contain Python code using `op.create_table()` for your new component and `op.drop_table()` in the `downgrade()` function. Verify that the columns, constraints, and indexes match your model definition.
     ```python
     # Example content in the generated migration script's upgrade() function:
-    # op.create_table('tags',
+    # op.create_table('component_tag',  # Reflects new table name convention
     #     sa.Column('entity_id', sa.Integer(), nullable=False),
     #     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     #     # ... created_at, updated_at columns from BaseComponent ...
@@ -178,8 +178,8 @@ Whenever you add or modify a model (which translates to a database table), you n
     #     sa.PrimaryKeyConstraint('id'),
     #     sa.UniqueConstraint('entity_id', 'tag_name', name='uq_tag_entity_name')
     # )
-    # op.create_index(op.f('ix_tags_entity_id'), 'tags', ['entity_id'], unique=False)
-    # op.create_index(op.f('ix_tags_tag_name'), 'tags', ['tag_name'], unique=False)
+    # op.create_index(op.f('ix_component_tag_entity_id'), 'component_tag', ['entity_id'], unique=False) # Index name reflects table
+    # op.create_index(op.f('ix_component_tag_tag_name'), 'component_tag', ['tag_name'], unique=False) # Index name reflects table
     ```
     **Note**: If autogeneration fails or produces an incorrect script (especially with complex model changes or custom types), you may need to manually edit the script or write it from scratch, similar to how the initial project migration was created. Refer to `alembic/versions/3e7c6290c313_manual_create_initial_schema.py` for an example of a manually written migration.
 
@@ -338,9 +338,11 @@ The project uses `pytest` for testing.
     -   Run type checker: `mypy .`
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
-    -   Models: `PascalCase` (e.g., `FileLocationComponent`)
-    -   Tables: `snake_case` (e.g., `file_locations`)
-    -   Functions/Methods/Variables: `snake_case`
+    -   Models: `PascalCase` (e.g., `FileLocationComponent`).
+    -   Entity Table: `entities`.
+    -   Component Tables: Generally `component_[component_name]` (e.g., `component_file_location`, `component_tag`).
+    -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).
+    -   Functions/Methods/Variables: `snake_case`.
 
 Adhering to these practices helps maintain a clean, consistent, and understandable codebase.
 
