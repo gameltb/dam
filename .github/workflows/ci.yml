@@ -21,8 +21,9 @@ jobs:
       run: |
         uv venv .venv
         source .venv/bin/activate
+        # pytest-cov will be installed via pyproject.toml dev dependencies
         uv pip install -e ".[image,dev]"
-    - name: Test with pytest
+    - name: Test with pytest and generate coverage report
       run: |
         source .venv/bin/activate
-        pytest
+        pytest --cov=dam --cov-report=term-missing
