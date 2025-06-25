@@ -1,11 +1,10 @@
-import logging  # Import logging module
+import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# from dam.core.config import settings # No longer needed directly here for ASSET_STORAGE_PATH
 from dam.models import Entity
 from dam.models.audio_properties_component import AudioPropertiesComponent
 from dam.models.content_hash_md5_component import ContentHashMD5Component
@@ -13,20 +12,12 @@ from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
 from dam.models.frame_properties_component import FramePropertiesComponent
+from dam.models.image_dimensions_component import ImageDimensionsComponent
+from dam.models.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
+from dam.models.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
+from dam.models.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 
-# from dam.models.video_properties_component import VideoPropertiesComponent # Removed
-from dam.models.image_dimensions_component import ImageDimensionsComponent  # Added
-from dam.models.image_perceptual_hash_ahash_component import (
-    ImagePerceptualAHashComponent,
-)
-from dam.models.image_perceptual_hash_dhash_component import (
-    ImagePerceptualDHashComponent,
-)
-from dam.models.image_perceptual_hash_phash_component import (
-    ImagePerceptualPHashComponent,
-)
-
-# Conditional import for imagehash for type hinting and direct use
+# Conditional import for imagehash
 try:
     import imagehash
 except ImportError:
@@ -99,11 +90,10 @@ def add_asset_file(
     original_filename: str,  # User-provided original filename
     mime_type: str,
     size_bytes: int,
-    # content_hash: str, # This will be derived by file_storage.store_file
-    # hash_type: str = "sha256", # Assumed sha256 by file_storage.store_file
+    world_name: Optional[str] = None,  # Added world_name for file_storage
 ) -> Tuple[Entity, bool]:  # Returns (Entity, created_new_entity_flag)
     """
-    Adds an asset file to the DAM system using content-addressable storage.
+    Adds an asset file to the DAM system using content-addressable storage for a specific world.
     - Reads file content from filepath_on_disk.
     - Stores the file using file_storage.store_file, which returns a file_identifier (SHA256 hash).
     - Checks if an entity with this file_identifier (content_hash) already exists.
@@ -127,13 +117,13 @@ def add_asset_file(
     try:
         file_content = filepath_on_disk.read_bytes()
     except IOError:
-        # Handle file reading errors appropriately (e.g., log and raise or return error)
-        logger.exception(f"Error reading file {filepath_on_disk}")  # Use logger.exception to include stack trace
+        logger.exception(f"Error reading file {filepath_on_disk}")
         raise
 
-    # Store the file using the new service; this also calculates the hash (file_identifier)
-    # original_filename is passed to store_file for context, though not used for path generation
-    file_identifier = file_storage.store_file(file_content, original_filename=original_filename)
+    # Store the file using the new service, passing world_name
+    file_identifier = file_storage.store_file(
+        file_content, world_name=world_name, original_filename=original_filename
+    )
     # The file_identifier is the SHA256 content hash
 
     # Try to find an existing entity using the SHA256 hash first
@@ -353,7 +343,9 @@ def add_asset_file(
             logger.info(f"Added dhash '{perceptual_hashes['dhash'][:12]}...' for Entity ID {entity.id}.")
 
     # Add multimedia specific components
-    _add_multimedia_components(session, entity, filepath_on_disk, mime_type)
+    # Pass world_name for logging consistency within _add_multimedia_components
+    _add_multimedia_components(session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name)
+
 
     return entity, created_new_entity
 
@@ -364,9 +356,10 @@ def add_asset_reference(
     original_filename: str,
     mime_type: str,
     size_bytes: int,
+    world_name: Optional[str] = None,  # Added world_name for logging consistency
 ) -> Tuple[Entity, bool]:
     """
-    Adds an asset by referencing an existing file on disk, without copying it
+    Adds an asset by referencing an existing file on disk for a specific world,
     to the content-addressable storage.
     - Calculates content hashes (SHA256, MD5) from the referenced file.
     - Checks if an entity with this content (SHA256 hash) already exists.
@@ -536,18 +529,19 @@ def add_asset_reference(
             )
             add_component_to_entity(session, entity.id, idhc)
 
-    _add_multimedia_components(session, entity, filepath_on_disk, mime_type)
+    _add_multimedia_components(session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name)
 
     return entity, created_new_entity
 
 
-def _add_multimedia_components(session: Session, entity: Entity, filepath: Path, mime_type: str):
+def _add_multimedia_components(
+    session: Session, entity: Entity, filepath: Path, mime_type: str, world_name_for_log: Optional[str] = "current"
+):
     """
-    Extracts and adds multimedia specific components (video, audio, animated frames)
-    to an entity using Hachoir.
+    Extracts and adds multimedia specific components to an entity for a specific world.
     """
     if not createParser or not extractMetadata:
-        logger.warning("Hachoir library not available. Cannot extract multimedia metadata.")
+        logger.warning(f"Hachoir not available. Cannot extract multimedia metadata for world '{world_name_for_log}'.")
         return
 
     parser = createParser(str(filepath))

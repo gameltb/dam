@@ -1,355 +1,194 @@
 import json
 from pathlib import Path
+
 import pytest
 from sqlalchemy.orm import Session
 
-from dam.core import database as app_database # For SessionLocal and test setup
+# Fixtures `db_session` and `settings_override` will be used from conftest.py
+from dam.core.database import db_manager
+from dam.core.config import settings as app_settings # To get current world name for service calls
 from dam.models import (
     Entity,
     FilePropertiesComponent,
     ContentHashSHA256Component,
-    # Import other components as needed for testing specific export/import
+    FileLocationComponent, # Added for import test
 )
 from dam.services import world_service, asset_service, ecs_service
-
-# Use the same test data dir and image creation helpers if needed, or create new ones.
-# For world export/import, we primarily need entities and components in the DB.
-
-@pytest.fixture(scope="function")
-def populated_db_session(setup_test_environment_for_world_service) -> Session:
-    """
-    Provides a test database session populated with some entities and components.
-    Relies on a setup fixture similar to test_cli.py's setup_test_environment.
-    """
-    db = app_database.SessionLocal() # Uses patched SessionLocal from setup
-
-    # Add some assets to create entities and components
-    # Using _FIXTURE_IMG_A, _FIXTURE_TXT_FILE from conftest or similar setup if available
-    # For simplicity here, let's create some dummy files directly if those globals aren't set up for this module.
-
-    source_files_dir = setup_test_environment_for_world_service # This fixture now returns the source_files_dir
-    img_a_path = source_files_dir / "ws_img_A.png"
-        # Use source_files_dir, not the fixture 'source_dir' which is a FixtureFunctionDefinition here
-        txt_file_path = source_files_dir / "ws_sample.txt"
-
-    if not img_a_path.exists():
-        from tests.test_cli import _create_dummy_image # Re-use or adapt
-        _create_dummy_image(img_a_path, "red", size=(5,5)) # Smaller for speed
-    if not txt_file_path.exists():
-        txt_file_path.write_text("world service test content")
-
-    try:
-        # Entity 1: Image
-        e1, _ = asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=img_a_path,
-            original_filename="ws_img_A.png",
-            mime_type="image/png",
-            size_bytes=img_a_path.stat().st_size,
-        )
-
-        # Entity 2: Text file
-        e2, _ = asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=txt_file_path,
-            original_filename="ws_sample.txt",
-            mime_type="text/plain",
-            size_bytes=txt_file_path.stat().st_size,
-        )
-
-        # Entity 3: Entity with no FileProperties/Location, but maybe other components later
-        e3 = ecs_service.create_entity(db)
-        # Example: Add a SHA256 hash component directly to e3 for testing diverse components
-        # This is artificial for testing component export diversity.
-        sha_comp_e3 = ContentHashSHA256Component(entity_id=e3.id, entity=e3, hash_value="manual_hash_for_e3")
-        ecs_service.add_component_to_entity(db, e3.id, sha_comp_e3)
-
-        db.commit()
-
-        # Store IDs for assertions later, as IDs might change if DB is reset per test
-        # However, for export/import, we assume IDs are preserved or mapped.
-        # For this test, we'll rely on the export containing these.
-
-    except Exception as e:
-        db.rollback()
-        pytest.fail(f"Failed to populate DB for world service tests: {e}")
-    finally:
-        # db.close() # Session is yielded, test function will close it.
-        pass
-
-    return db
+from dam.services import file_operations # Import for get_file_properties
 
 
 @pytest.fixture(scope="function")
-def setup_test_environment_for_world_service(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def source_files_for_world_service(tmp_path: Path) -> Path:
     """
-    Sets up a minimal test environment (DB, asset storage) for world_service tests.
-    Similar to setup_test_environment in test_cli.py but tailored if needed.
-    Returns the path to a temporary 'source_files' directory for test assets.
+    Creates a temporary 'source_files' directory and populates it with
+    dummy files for world_service tests.
     """
-    # This is largely a copy of the setup from test_cli.py, simplified.
-    # Consider refactoring into a shared conftest.py if it grows more complex.
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from dam.core import database as app_db_module # aliased to avoid conflict
-    from dam.core.config import settings as app_settings
-
-    temp_storage_path = tmp_path / "ws_asset_storage"
-    temp_storage_path.mkdir(parents=True, exist_ok=True)
-    db_file = tmp_path / "test_ws_dam.db"
-    test_db_url = f"sqlite:///{db_file}"
-
-    monkeypatch.setenv("DAM_ASSET_STORAGE_PATH", str(temp_storage_path))
-    monkeypatch.setenv("DAM_DATABASE_URL", test_db_url)
-    monkeypatch.setenv("TESTING_MODE", "True")
-
-    # Reload settings and patch
-    app_settings.ASSET_STORAGE_PATH = str(temp_storage_path) # type: ignore
-    app_settings.DATABASE_URL = test_db_url # type: ignore
-    app_settings.TESTING_MODE = True # type: ignore
-
-    new_engine = create_engine(app_settings.DATABASE_URL, connect_args={"check_same_thread": False})
-    monkeypatch.setattr(app_db_module, "engine", new_engine)
-    new_session_local = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
-    monkeypatch.setattr(app_db_module, "SessionLocal", new_session_local)
-
-    import dam.models # Ensure models are registered
-    app_db_module.create_db_and_tables()
-
     source_files_dir = tmp_path / "ws_source_files"
     source_files_dir.mkdir(exist_ok=True)
 
-    # Call the component registration function from world_service to ensure types are loaded
-    # This is important because tests might run in isolation where app startup doesn't happen.
-    world_service._populate_component_types_for_serialization()
+    img_a_path = source_files_dir / "ws_img_A.png"
+    txt_file_path = source_files_dir / "ws_sample.txt"
+
+    if not img_a_path.exists():
+        try:
+            from tests.test_cli import _create_dummy_image # Assumes this helper is available
+            _create_dummy_image(img_a_path, "red", size=(5,5))
+        except ImportError: # Fallback if _create_dummy_image is not found or PIL is missing
+            img_a_path.write_text("dummy image content")
+
+    if not txt_file_path.exists():
+        txt_file_path.write_text("world service test content for import/export")
 
     return source_files_dir
 
 
-def test_export_ecs_world(populated_db_session: Session, tmp_path: Path):
-    db = populated_db_session
+@pytest.fixture(scope="function")
+def populated_db_session_for_export(db_session: Session, source_files_for_world_service: Path, settings_override) -> Session:
+    """
+    Provides the default test world session (from db_session fixture) populated
+    with some assets for export testing.
+    Relies on settings_override being active.
+    """
+    current_world_name = app_settings.DEFAULT_WORLD_NAME
+    if not current_world_name:
+        pytest.fail("Default test world name not set in settings_override for populated_db_session_for_export.")
+
+    img_a_path = source_files_for_world_service / "ws_img_A.png"
+    txt_file_path = source_files_for_world_service / "ws_sample.txt"
+
+    try:
+        img_props = file_operations.get_file_properties(img_a_path)
+        asset_service.add_asset_file(
+            session=db_session, filepath_on_disk=img_a_path, original_filename="ws_img_A.png",
+            mime_type=img_props[2], size_bytes=img_props[1], world_name=current_world_name
+        )
+        txt_props = file_operations.get_file_properties(txt_file_path)
+        asset_service.add_asset_file(
+            session=db_session, filepath_on_disk=txt_file_path, original_filename="ws_sample.txt",
+            mime_type=txt_props[2], size_bytes=txt_props[1], world_name=current_world_name
+        )
+        e3 = ecs_service.create_entity(db_session)
+        sha_comp_e3 = ContentHashSHA256Component(entity_id=e3.id, entity=e3, hash_value="manual_hash_for_e3")
+        ecs_service.add_component_to_entity(db_session, e3.id, sha_comp_e3)
+        db_session.commit()
+    except Exception as e:
+        db_session.rollback()
+        pytest.fail(f"Failed to populate DB for world service export tests: {e}")
+
+    return db_session
+
+
+def test_export_ecs_world(populated_db_session_for_export: Session, tmp_path: Path, settings_override):
+    db_session = populated_db_session_for_export
+    current_world_name = app_settings.DEFAULT_WORLD_NAME
     export_file = tmp_path / "world_export.json"
 
-    world_service.export_ecs_world_to_json(db, export_file)
+    world_service.export_ecs_world_to_json(db_session, export_file, world_name_for_log=current_world_name)
     assert export_file.exists()
 
     with open(export_file, "r") as f:
         data = json.load(f)
 
     assert "entities" in data
-    assert len(data["entities"]) >= 3 # We created at least 3 entities
+    assert len(data["entities"]) == 3
 
-    # Find data for our specific entities (original filenames are good identifiers for test)
-    img_entity_data = next((e for e in data["entities"] if
-                            "FilePropertiesComponent" in e["components"] and
-                            any(fpc.get("original_filename") == "ws_img_A.png" for fpc in e["components"]["FilePropertiesComponent"])), None)
-    txt_entity_data = next((e for e in data["entities"] if
-                            "FilePropertiesComponent" in e["components"] and
-                            any(fpc.get("original_filename") == "ws_sample.txt" for fpc in e["components"]["FilePropertiesComponent"])), None)
-    manual_hash_entity_data = next((e for e in data["entities"] if
-                                    "ContentHashSHA256Component" in e["components"] and
-                                    any(csha.get("hash_value") == "manual_hash_for_e3" for csha in e["components"]["ContentHashSHA256Component"])), None)
+    img_entity_data = next((e for e in data["entities"] if "FilePropertiesComponent" in e["components"] and any(fpc.get("original_filename") == "ws_img_A.png" for fpc in e["components"]["FilePropertiesComponent"])), None)
+    txt_entity_data = next((e for e in data["entities"] if "FilePropertiesComponent" in e["components"] and any(fpc.get("original_filename") == "ws_sample.txt" for fpc in e["components"]["FilePropertiesComponent"])), None)
+    manual_hash_entity_data = next((e for e in data["entities"] if "ContentHashSHA256Component" in e["components"] and any(csha.get("hash_value") == "manual_hash_for_e3" for csha in e["components"]["ContentHashSHA256Component"])), None)
 
     assert img_entity_data is not None
     assert "FilePropertiesComponent" in img_entity_data["components"]
     assert "ContentHashSHA256Component" in img_entity_data["components"]
-    # Potentially ImageDimensionsComponent, perceptual hashes etc. if image processing was complete.
-
     assert txt_entity_data is not None
     assert "FilePropertiesComponent" in txt_entity_data["components"]
-
     assert manual_hash_entity_data is not None
     assert "ContentHashSHA256Component" in manual_hash_entity_data["components"]
-    assert not manual_hash_entity_data["components"].get("FilePropertiesComponent") # Should not have this one
+    assert "FilePropertiesComponent" not in manual_hash_entity_data["components"]
 
-    # Check component structure (example for FilePropertiesComponent on image)
     fp_comp_data = img_entity_data["components"]["FilePropertiesComponent"][0]
     assert fp_comp_data["__component_type__"] == "FilePropertiesComponent"
     assert fp_comp_data["original_filename"] == "ws_img_A.png"
-    assert "entity_id" not in fp_comp_data # Should be excluded by export logic
-
-    db.close()
+    assert "entity_id" not in fp_comp_data
 
 
-def test_import_ecs_world_clean_db(setup_test_environment_for_world_service, tmp_path: Path):
-    # setup_test_environment_for_world_service creates a clean DB
-    db = app_database.SessionLocal() # New session to the clean DB
+@pytest.fixture
+def clean_db_session_for_import(another_db_session: Session, settings_override) -> Session:
+    # settings_override ensures the app_settings.DEFAULT_WORLD_NAME is patched if needed,
+    # and test_db_manager (used by another_db_session) is correctly initialized.
+    # another_db_session is for "test_world_beta"
+    return another_db_session
 
-    source_files_dir = setup_test_environment_for_world_service # to get path for dummy files
-    img_a_path = source_files_dir / "ws_img_A.png" # Ensure this matches filename in JSON
-    txt_file_path = source_files_dir / "ws_sample.txt"
-    if not img_a_path.exists(): # Create if not existing from fixture (e.g. if test run in isolation)
-         from tests.test_cli import _create_dummy_image
-         _create_dummy_image(img_a_path, "red", size=(5,5))
-    if not txt_file_path.exists():
-        txt_file_path.write_text("world service test content for import")
+def test_import_ecs_world_clean_db(clean_db_session_for_import: Session, source_files_for_world_service: Path, tmp_path: Path):
+    db_session = clean_db_session_for_import
+    # The world name for another_db_session is "test_world_beta"
+    current_world_name_for_log = "test_world_beta"
 
+    img_a_path = source_files_for_world_service / "ws_img_A.png"
 
-    # Create a dummy export file
     export_data = {
         "entities": [
-            {
-                "id": 101, # Using distinct IDs for test
-                "components": {
-                    "FilePropertiesComponent": [{
-                        "__component_type__": "FilePropertiesComponent",
-                        "original_filename": "ws_img_A.png",
-                        "file_size_bytes": 100,
-                        "mime_type": "image/png"
-                    }],
-                    "ContentHashSHA256Component": [{
-                        "__component_type__": "ContentHashSHA256Component",
-                        "hash_value": "fake_sha256_for_import_img"
-                    }],
-                    # Assume FileLocationComponent would also be here for a real asset.
-                    # For --no-copy assets, this path would need to exist if we were fully testing asset_service.
-                    # For world import, it just imports component data.
-                    "FileLocationComponent": [{
-                        "__component_type__": "FileLocationComponent",
-                        "file_identifier": str(img_a_path.resolve()), # Dummy path
-                        "storage_type": "referenced_local_file", # Or "local_content_addressable"
-                        "original_filename": "ws_img_A.png"
-                    }]
-                }
-            },
-            {
-                "id": 102,
-                "components": {
-                     "ContentHashSHA256Component": [{
-                        "__component_type__": "ContentHashSHA256Component",
-                        "hash_value": "fake_sha256_for_import_manual"
-                    }]
-                }
-            }
+            {"id": 101, "components": {
+                "FilePropertiesComponent": [{"__component_type__": "FilePropertiesComponent", "original_filename": "ws_img_A.png", "file_size_bytes": 100, "mime_type": "image/png"}],
+                "ContentHashSHA256Component": [{"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_img"}],
+                "FileLocationComponent": [{"__component_type__": "FileLocationComponent", "file_identifier": str(img_a_path.resolve()), "storage_type": "referenced_local_file", "original_filename": "ws_img_A.png"}]
+            }},
+            {"id": 102, "components": {
+                 "ContentHashSHA256Component": [{"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_manual"}]
+            }}
         ]
     }
     import_file = tmp_path / "world_import_test.json"
-    with open(import_file, "w") as f:
-        json.dump(export_data, f)
+    with open(import_file, "w") as f: json.dump(export_data, f)
 
-    # Perform import
-    # Note: The import logic for Entity IDs is simplified and may have issues with auto-incrementing PKs
-    # if not importing into a truly empty table or if IDs are not sequential.
-    # For SQLite, setting ID on insert works if table is empty or ID doesn't exist.
-    world_service.import_ecs_world_from_json(db, import_file, merge=False)
+    world_service.import_ecs_world_from_json(db_session, import_file, merge=False, world_name_for_log=current_world_name_for_log)
 
-    # Verify imported data
-    # Query by unique data since IDs are auto-assigned and won't match JSON IDs 101, 102.
+    imported_img_props = db_session.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "ws_img_A.png").one_or_none()
+    assert imported_img_props is not None
+    img_entity_id = imported_img_props.entity_id
+    assert ecs_service.get_component(db_session, img_entity_id, ContentHashSHA256Component).hash_value == "fake_sha256_for_import_img"
 
-    # Find entity originally 101 (ws_img_A.png)
-    imported_img_entity_props = db.query(FilePropertiesComponent).filter(
-        FilePropertiesComponent.original_filename == "ws_img_A.png"
-    ).one_or_none()
-    assert imported_img_entity_props is not None, "Imported image entity (ws_img_A.png) not found by filename."
-    imported_img_entity_id = imported_img_entity_props.entity_id
-
-    fp_comp_img = ecs_service.get_components(db, imported_img_entity_id, FilePropertiesComponent)
-    assert len(fp_comp_img) == 1
-    assert fp_comp_img[0].original_filename == "ws_img_A.png"
-    sha_comp_img = ecs_service.get_components(db, imported_img_entity_id, ContentHashSHA256Component)
-    assert len(sha_comp_img) == 1
-    assert sha_comp_img[0].hash_value == "fake_sha256_for_import_img"
-
-    # Find entity originally 102 (manual hash)
-    imported_manual_hash_entity_sha = db.query(ContentHashSHA256Component).filter(
-        ContentHashSHA256Component.hash_value == "fake_sha256_for_import_manual"
-    ).one_or_none()
-    assert imported_manual_hash_entity_sha is not None, "Imported manual hash entity not found by hash value."
-    imported_manual_hash_entity_id = imported_manual_hash_entity_sha.entity_id
-
-    sha_comp_manual = ecs_service.get_components(db, imported_manual_hash_entity_id, ContentHashSHA256Component)
-    assert len(sha_comp_manual) == 1
-    assert sha_comp_manual[0].hash_value == "fake_sha256_for_import_manual"
-    fp_comp_manual = ecs_service.get_components(db, imported_manual_hash_entity_id, FilePropertiesComponent)
-    assert len(fp_comp_manual) == 0 # Entity from JSON ID 102 had no FileProperties
-
-    db.close()
+    manual_hash_comp = db_session.query(ContentHashSHA256Component).filter(ContentHashSHA256Component.hash_value == "fake_sha256_for_import_manual").one_or_none()
+    assert manual_hash_comp is not None
+    assert not ecs_service.get_component(db_session, manual_hash_comp.entity_id, FilePropertiesComponent)
 
 
-def test_import_ecs_world_with_merge(populated_db_session: Session, tmp_path: Path):
-    db = populated_db_session # DB already has some data
+def test_import_ecs_world_with_merge(populated_db_session_for_export: Session, tmp_path: Path, settings_override):
+    db_session = populated_db_session_for_export
+    current_world_name_for_log = app_settings.DEFAULT_WORLD_NAME # Should be "test_world_alpha"
 
-    # Get an existing entity's ID and details to try to merge/update
-    existing_txt_entity_props = db.query(FilePropertiesComponent).filter(
-        FilePropertiesComponent.original_filename == "ws_sample.txt"
-    ).one()
+    existing_txt_entity_props = db_session.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "ws_sample.txt").one()
     existing_txt_entity_id = existing_txt_entity_props.entity_id
 
-    # Create an import file that updates this entity and adds a new one
     updated_txt_filename = "ws_sample_updated.txt"
     new_sha_for_txt = "merged_sha_for_txt"
+    new_entity_json_id = 201
 
     export_data_for_merge = {
         "entities": [
-            { # Update existing entity (ws_sample.txt)
-                "id": existing_txt_entity_id,
-                "components": {
-                    "FilePropertiesComponent": [{ # This should replace existing FPC
-                        "__component_type__": "FilePropertiesComponent",
-                        "original_filename": updated_txt_filename, # Changed filename
-                        "file_size_bytes": 999, # Changed size
-                        "mime_type": "text/merged" # Changed mime
-                    }],
-                    "ContentHashSHA256Component": [{ # This should replace existing SHA256
-                        "__component_type__": "ContentHashSHA256Component",
-                        "hash_value": new_sha_for_txt
-                    }]
-                    # Assume other components for this entity are removed if not in JSON (merge strategy)
-                }
-            },
-            { # Add a new entity
-                "id": 201,
-                "components": {
-                     "ContentHashSHA256Component": [{
-                        "__component_type__": "ContentHashSHA256Component",
-                        "hash_value": "new_entity_hash_for_merge"
-                    }]
-                }
-            }
+            {"id": existing_txt_entity_id, "components": {
+                "FilePropertiesComponent": [{"__component_type__": "FilePropertiesComponent", "original_filename": updated_txt_filename, "file_size_bytes": 999, "mime_type": "text/merged"}],
+                "ContentHashSHA256Component": [{"__component_type__": "ContentHashSHA256Component", "hash_value": new_sha_for_txt}]
+            }},
+            {"id": new_entity_json_id, "components": {
+                 "ContentHashSHA256Component": [{"__component_type__": "ContentHashSHA256Component", "hash_value": "new_entity_hash_for_merge"}]
+            }}
         ]
     }
     merge_import_file = tmp_path / "world_merge_import_test.json"
-    with open(merge_import_file, "w") as f:
-        json.dump(export_data_for_merge, f)
+    with open(merge_import_file, "w") as f: json.dump(export_data_for_merge, f)
 
-    world_service.import_ecs_world_from_json(db, merge_import_file, merge=True)
+    world_service.import_ecs_world_from_json(db_session, merge_import_file, merge=True, world_name_for_log=current_world_name_for_log)
 
-    # Verify Entity existing_txt_entity_id
-    updated_entity = db.get(Entity, existing_txt_entity_id)
-    assert updated_entity is not None
+    updated_fpc = ecs_service.get_component(db_session, existing_txt_entity_id, FilePropertiesComponent)
+    assert updated_fpc.original_filename == updated_txt_filename and updated_fpc.file_size_bytes == 999
+    updated_sha = ecs_service.get_component(db_session, existing_txt_entity_id, ContentHashSHA256Component)
+    assert updated_sha.hash_value == new_sha_for_txt
 
-    fp_comps = ecs_service.get_components(db, existing_txt_entity_id, FilePropertiesComponent)
-    assert len(fp_comps) == 1 # Should have replaced, not added
-    assert fp_comps[0].original_filename == updated_txt_filename
-    assert fp_comps[0].file_size_bytes == 999
+    newly_added_entity_sha_comp = db_session.query(ContentHashSHA256Component).filter(ContentHashSHA256Component.hash_value == "new_entity_hash_for_merge").one_or_none()
+    assert newly_added_entity_sha_comp is not None
+    assert newly_added_entity_sha_comp.entity_id != new_entity_json_id
+    assert db_session.get(Entity, newly_added_entity_sha_comp.entity_id) is not None
 
-    sha_comps = ecs_service.get_components(db, existing_txt_entity_id, ContentHashSHA256Component)
-    assert len(sha_comps) == 1
-    assert sha_comps[0].hash_value == new_sha_for_txt
-
-    # Verify new Entity 201
-    new_merged_entity = db.get(Entity, 201)
-    assert new_merged_entity is not None
-    new_sha_comps = ecs_service.get_components(db, 201, ContentHashSHA256Component)
-    assert len(new_sha_comps) == 1
-    assert new_sha_comps[0].hash_value == "new_entity_hash_for_merge"
-
-    db.close()
-
-# TODO: Add tests for error conditions in import:
-# - File not found
-# - Invalid JSON
-# - Missing 'entities' key
-# - Conflicting entity ID when merge=False (if import logic is changed to raise error)
-# - Unknown component type in JSON
-# - Failure to create entity with specified ID (if that becomes a hard error)
-
-# Note: `merge_ecs_worlds` and `split_ecs_world` are placeholders and marked
-#       with NotImplementedError, so direct tests for them are deferred until implementation.
-#       `test_import_ecs_world_with_merge` covers the merge flag of `import_ecs_world_from_json`.
-
-# Need to define source_dir for populated_db_session
-# The `monkeypatch` fixture is provided by pytest automatically.
-@pytest.fixture
-def source_dir(setup_test_environment_for_world_service: Path) -> Path:
-    return setup_test_environment_for_world_service
+# The old source_dir fixture and setup_test_environment_for_world_service are removed.
+# All tests now rely on conftest.py fixtures (settings_override, db_session, another_db_session, test_db_manager)
+# and the local source_files_for_world_service fixture for creating test files.
