@@ -36,77 +36,147 @@ def main_callback(ctx: typer.Context):
 
 @app.command(name="add-asset")
 def cli_add_asset(
-    filepath_str: Annotated[
+    path_str: Annotated[
         str,
         typer.Argument(
             ...,
-            help="Path to the asset file.",
+            help="Path to the asset file or directory of asset files.",
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            # file_okay=True, # Handled by custom logic
+            # dir_okay=True,  # Handled by custom logic
             readable=True,
+            resolve_path=True,  # Resolve to absolute path
         ),
     ],
+    no_copy: Annotated[
+        bool,
+        typer.Option(
+            "--no-copy",
+            help="Add asset(s) by reference, without copying to DAM storage. "
+            "The original file path will be stored. "
+            "Note: Hash calculation and metadata extraction will still occur.",
+        ),
+    ] = False,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "-r",
+            "--recursive",
+            help="If path is a directory, process files in subdirectories recursively.",
+        ),
+    ] = False,
 ):
     """
-    Adds a new asset file to the DAM system.
-    Calculates its SHA256 hash and checks for existing assets with the same content.
+    Adds new asset file(s) to the DAM system.
+    Calculates content hashes and checks for existing assets with the same content.
+    Can process a single file or all files in a directory.
     """
-    filepath = Path(filepath_str)
-    typer.echo(f"Processing file: {filepath.name}")
+    input_path = Path(path_str)
+    files_to_process: list[Path] = []
 
-    try:
-        original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
-        typer.echo(f"Properties: Name='{original_filename}', Size={size_bytes} bytes, MIME='{mime_type}'")
-
-        content_hash = file_operations.calculate_sha256(filepath)
-        typer.echo(f"SHA256 Hash: {content_hash}")
-
-    except FileNotFoundError:
-        typer.secho(f"Error: File not found at {filepath}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    except IOError as e:
-        typer.secho(f"Error reading file {filepath}: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        typer.secho(
-            f"An unexpected error occurred during file processing: {e}",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(code=1)
-
-    db = SessionLocal()
-    try:
-        entity, created_new = asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=filepath,
-            original_filename=original_filename,
-            mime_type=mime_type,
-            size_bytes=size_bytes,
-            # content_hash is now derived by add_asset_file internally
-        )
-        db.commit()
-        if created_new:
-            typer.secho(
-                f"Successfully added new asset. Entity ID: {entity.id}",
-                fg=typer.colors.GREEN,
-            )
+    if input_path.is_file():
+        files_to_process.append(input_path)
+    elif input_path.is_dir():
+        typer.echo(f"Processing directory: {input_path}")
+        if recursive:
+            for item in input_path.rglob("*"):  # rglob for recursive
+                if item.is_file():
+                    files_to_process.append(item)
         else:
-            typer.secho(
-                f"Asset content already exists. Linked to Entity ID: {entity.id}",
-                fg=typer.colors.YELLOW,
-            )
-
-    except Exception as e:
-        db.rollback()
-        # More detailed error logging for debugging
-        import traceback
-
-        typer.secho(f"Database error in cli_add_asset: {type(e).__name__} - {e}", fg=typer.colors.RED)
-        typer.secho(f"Traceback: {traceback.format_exc()}", fg=typer.colors.RED)
+            for item in input_path.iterdir():
+                if item.is_file():
+                    files_to_process.append(item)
+        if not files_to_process:
+            typer.secho(f"No files found in directory {input_path}", fg=typer.colors.YELLOW)
+            raise typer.Exit()
+    else:
+        typer.secho(f"Error: Path {input_path} is not a file or directory.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        db.close()
+
+    total_files = len(files_to_process)
+    typer.echo(f"Found {total_files} file(s) to process.")
+
+    processed_count = 0
+    added_count = 0
+    linked_count = 0
+    error_count = 0
+
+    for filepath in files_to_process:
+        processed_count += 1
+        typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name} (from {filepath.parent})")
+
+        try:
+            original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
+            typer.echo(f"  Properties: Name='{original_filename}', Size={size_bytes} bytes, MIME='{mime_type}'")
+
+            # SHA256 hash is calculated within add_asset_file or add_asset_reference
+            # We might display it here for user feedback if needed, but it's also logged by asset_service.
+
+        except FileNotFoundError:  # Should not happen due to exists=True and path resolution
+            typer.secho(f"  Error: File not found at {filepath}", fg=typer.colors.RED)
+            error_count += 1
+            continue
+        except IOError as e:
+            typer.secho(f"  Error reading file {filepath}: {e}", fg=typer.colors.RED)
+            error_count += 1
+            continue
+        except Exception as e:
+            typer.secho(
+                f"  An unexpected error occurred during file property gathering for {filepath}: {e}",
+                fg=typer.colors.RED,
+            )
+            error_count += 1
+            continue
+
+        db = SessionLocal()
+        try:
+            if no_copy:
+                entity, created_new = asset_service.add_asset_reference(
+                    session=db,
+                    filepath_on_disk=filepath,  # This is the original path
+                    original_filename=original_filename,
+                    mime_type=mime_type,
+                    size_bytes=size_bytes,
+                )
+            else:
+                entity, created_new = asset_service.add_asset_file(
+                    session=db,
+                    filepath_on_disk=filepath,
+                    original_filename=original_filename,
+                    mime_type=mime_type,
+                    size_bytes=size_bytes,
+                )
+            db.commit()
+            if created_new:
+                added_count += 1
+                typer.secho(
+                    f"  Successfully added new asset. Entity ID: {entity.id}",
+                    fg=typer.colors.GREEN,
+                )
+            else:
+                linked_count += 1
+                typer.secho(
+                    f"  Asset content already exists or referenced. Linked to Entity ID: {entity.id}",
+                    fg=typer.colors.YELLOW,
+                )
+
+        except Exception as e:
+            db.rollback()
+
+            typer.secho(f"  Database error for {filepath.name}: {type(e).__name__} - {e}", fg=typer.colors.RED)
+            # typer.secho(f"  Traceback: {traceback.format_exc()}", fg=typer.colors.RED) # Optional: for more detail
+            error_count += 1
+        finally:
+            db.close()
+
+    typer.echo("\n--- Summary ---")
+    typer.echo(f"Total files processed: {processed_count}")
+    typer.echo(f"New assets added: {added_count}")
+    typer.echo(f"Existing assets linked: {linked_count}")
+    typer.echo(f"Errors encountered: {error_count}")
+    if error_count > 0:
+        typer.secho("Some files could not be processed. Please check the errors above.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @app.command(name="setup-db")
@@ -358,3 +428,93 @@ def cli_find_similar_images(
 
 if __name__ == "__main__":
     app()
+
+
+@app.command(name="export-world")
+def cli_export_world(
+    filepath_str: Annotated[
+        str,
+        typer.Argument(
+            ...,
+            help="Path to export the ECS world JSON file to.",
+            file_okay=True,
+            dir_okay=False,
+            writable=True,  # Ensures the directory is writable, not necessarily the file itself yet
+            resolve_path=True,
+        ),
+    ],
+):
+    """Exports the entire ECS world (entities and components) to a JSON file."""
+    export_path = Path(filepath_str)
+    if export_path.is_dir():
+        typer.secho(
+            f"Error: Export path {export_path} is a directory. Please specify a file path.", fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+    if export_path.exists():
+        overwrite = typer.confirm(f"File {export_path} already exists. Overwrite?", default=False)
+        if not overwrite:
+            typer.echo("Export cancelled.")
+            raise typer.Exit()
+
+    typer.echo(f"Exporting ECS world to: {export_path}")
+    db = SessionLocal()
+    try:
+        # Ensure world_service is imported
+        from dam.services import world_service
+
+        world_service.export_ecs_world_to_json(db, export_path)
+        typer.secho(f"ECS world successfully exported to {export_path}", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Error during ECS world export: {e}", fg=typer.colors.RED)
+        import traceback
+
+        typer.secho(f"Traceback: {traceback.format_exc()}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    finally:
+        db.close()
+
+
+@app.command(name="import-world")
+def cli_import_world(
+    filepath_str: Annotated[
+        str,
+        typer.Argument(
+            ...,
+            help="Path to the ECS world JSON file to import.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    merge: Annotated[
+        bool,
+        typer.Option(
+            "--merge",
+            help="Merge with existing data. If not set, import will fail if conflicting entity IDs exist.",
+        ),
+    ] = False,
+):
+    """Imports an ECS world (entities and components) from a JSON file."""
+    import_path = Path(filepath_str)
+    typer.echo(f"Importing ECS world from: {import_path}")
+    if merge:
+        typer.echo("Merge mode enabled: Existing entities with same IDs may be updated.")
+
+    db = SessionLocal()
+    try:
+        # Ensure world_service is imported
+        from dam.services import world_service
+
+        world_service.import_ecs_world_from_json(db, import_path, merge=merge)
+        typer.secho(f"ECS world successfully imported from {import_path}", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Error during ECS world import: {e}", fg=typer.colors.RED)
+        import traceback
+
+        typer.secho(f"Traceback: {traceback.format_exc()}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    finally:
+        db.close()

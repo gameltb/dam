@@ -590,3 +590,164 @@ def test_add_asset_generates_md5(test_app):  # test_app ensures setup_test_envir
     finally:
         temp_file_path.unlink(missing_ok=True)
         db_for_test.close()
+
+
+# Tests for "add-asset" command enhancements (directory and --no-copy)
+def test_add_asset_directory(test_app, tmp_path):
+    """Tests adding all files from a directory."""
+    source_dir = tmp_path / "test_add_dir"
+    source_dir.mkdir()
+    file1 = source_dir / "file1.txt"
+    file1.write_text("content1")
+    file2 = source_dir / "file2.txt"
+    file2.write_text("content2")
+
+    result = runner.invoke(test_app, ["add-asset", str(source_dir)])
+    if result.exit_code != 0:
+        print(f"CLI Error Output for test_add_asset_directory:\n{result.output}")
+    assert result.exit_code == 0
+    assert f"Processing directory: {source_dir}" in result.stdout
+    assert "Found 2 file(s) to process." in result.stdout
+    # Check for individual file processing messages without relying on order or exact count string
+    assert "Processing file " in result.stdout # General check
+    assert "file1.txt" in result.stdout
+    assert "file2.txt" in result.stdout
+    assert "Successfully added new asset." in result.stdout # Should appear twice
+    assert result.stdout.count("Successfully added new asset.") >= 2 # More robust check
+    assert "New assets added: 2" in result.stdout
+
+    # Verify in DB
+    db = app_database.SessionLocal()
+    try:
+        from dam.models import FilePropertiesComponent # Import directly
+        file1_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file1.txt").one_or_none()
+        file2_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file2.txt").one_or_none()
+        assert file1_props is not None, "file1.txt not found in DB"
+        assert file2_props is not None, "file2.txt not found in DB"
+    finally:
+        db.close()
+
+
+def test_add_asset_directory_recursive(test_app, tmp_path):
+    """Tests adding all files from a directory recursively."""
+    source_dir = tmp_path / "test_add_dir_recursive"
+    source_dir.mkdir()
+    sub_dir = source_dir / "sub"
+    sub_dir.mkdir()
+    file1 = source_dir / "file1.txt"
+    file1.write_text("content1_rec")
+    file2 = sub_dir / "file2.txt"
+    file2.write_text("content2_rec")
+
+    result = runner.invoke(test_app, ["add-asset", str(source_dir), "--recursive"])
+    if result.exit_code != 0:
+        print(f"CLI Error Output for test_add_asset_directory_recursive:\n{result.output}")
+    assert result.exit_code == 0
+    assert f"Processing directory: {source_dir}" in result.stdout
+    assert "Found 2 file(s) to process." in result.stdout # file1.txt and sub/file2.txt
+    assert "file1.txt" in result.stdout
+    assert "file2.txt" in result.stdout
+    assert "New assets added: 2" in result.stdout
+
+    db = app_database.SessionLocal()
+    try:
+        from dam.models import FilePropertiesComponent # Import directly
+        file1_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file1.txt").one_or_none()
+        file2_props = db.query(FilePropertiesComponent).filter(FilePropertiesComponent.original_filename == "file2.txt").one_or_none()
+        assert file1_props is not None, "file1.txt from root not found"
+        assert file2_props is not None, "sub/file2.txt not found"
+    finally:
+        db.close()
+
+
+def test_add_asset_no_copy(test_app, tmp_path):
+    """Tests adding an asset with --no-copy option."""
+    source_file = tmp_path / "no_copy_test.txt"
+    source_file.write_text("no_copy_content")
+    source_file_abs_path_str = str(source_file.resolve())
+
+    result = runner.invoke(test_app, ["add-asset", str(source_file), "--no-copy"])
+    if result.exit_code != 0:
+        print(f"CLI Error Output for test_add_asset_no_copy:\n{result.output}")
+    assert result.exit_code == 0
+    assert "Successfully added new asset." in result.stdout
+
+    # Verify in DB that FileLocationComponent has storage_type="referenced_local_file"
+    # and file_identifier is the original path
+    db = app_database.SessionLocal()
+    try:
+        from dam.models import FileLocationComponent, FilePropertiesComponent
+
+        # DEBUG: List tables
+        from sqlalchemy import inspect as sqlalchemy_inspect_func
+        inspector = sqlalchemy_inspect_func(app_database.engine) # Use the patched engine
+        print(f"DEBUG: Tables in DB for test_add_asset_no_copy: {inspector.get_table_names()}")
+
+        # DEBUGGING: List all FPCs
+        all_fpcs = db.query(FilePropertiesComponent).all()
+        print(f"DEBUG: Found {len(all_fpcs)} FilePropertiesComponents in test_add_asset_no_copy.")
+        for fpc_debug in all_fpcs:
+            print(f"DEBUG: FPC ID: {fpc_debug.id}, Filename: {fpc_debug.original_filename}, Entity ID: {fpc_debug.entity_id}")
+
+        fpc = db.query(FilePropertiesComponent).filter_by(original_filename="no_copy_test.txt").one()
+        flc = db.query(FileLocationComponent).filter_by(entity_id=fpc.entity_id).one()
+
+        assert flc.storage_type == "referenced_local_file"
+        assert flc.file_identifier == source_file_abs_path_str
+
+        # Check that the file was NOT copied to asset storage
+        # The asset_storage path is derived from settings.ASSET_STORAGE_PATH
+        from dam.core.config import settings
+        asset_storage_path = Path(settings.ASSET_STORAGE_PATH)
+        file_hash = get_file_sha256(source_file)
+        # Construct expected path in CAS (content-addressable storage)
+        expected_cas_path = asset_storage_path / file_hash[:2] / file_hash[2:4] / file_hash
+        assert not expected_cas_path.exists(), "File should not have been copied to CAS with --no-copy"
+
+    finally:
+        db.close()
+
+def test_add_asset_directory_no_copy(test_app, tmp_path):
+    """Tests adding a directory with --no-copy option."""
+    source_dir = tmp_path / "test_add_dir_no_copy"
+    source_dir.mkdir()
+    file1 = source_dir / "no_copy_dir_file1.txt"
+    file1.write_text("content_dir_nc1")
+    file1_abs_path_str = str(file1.resolve())
+
+    file2 = source_dir / "no_copy_dir_file2.txt"
+    file2.write_text("content_dir_nc2")
+    file2_abs_path_str = str(file2.resolve())
+
+
+    result = runner.invoke(test_app, ["add-asset", str(source_dir), "--no-copy"])
+    if result.exit_code != 0:
+        print(f"CLI Error Output for test_add_asset_directory_no_copy:\n{result.output}")
+    assert result.exit_code == 0
+    assert "New assets added: 2" in result.stdout
+
+    db = app_database.SessionLocal()
+    try:
+        from dam.models import FileLocationComponent, FilePropertiesComponent
+        from dam.core.config import settings
+        asset_storage_path = Path(settings.ASSET_STORAGE_PATH)
+
+        # File 1 checks
+        fpc1 = db.query(FilePropertiesComponent).filter_by(original_filename="no_copy_dir_file1.txt").one()
+        flc1 = db.query(FileLocationComponent).filter_by(entity_id=fpc1.entity_id).one()
+        assert flc1.storage_type == "referenced_local_file"
+        assert flc1.file_identifier == file1_abs_path_str
+        file1_hash = get_file_sha256(file1)
+        expected_cas_path1 = asset_storage_path / file1_hash[:2] / file1_hash[2:4] / file1_hash
+        assert not expected_cas_path1.exists()
+
+        # File 2 checks
+        fpc2 = db.query(FilePropertiesComponent).filter_by(original_filename="no_copy_dir_file2.txt").one()
+        flc2 = db.query(FileLocationComponent).filter_by(entity_id=fpc2.entity_id).one()
+        assert flc2.storage_type == "referenced_local_file"
+        assert flc2.file_identifier == file2_abs_path_str
+        file2_hash = get_file_sha256(file2)
+        expected_cas_path2 = asset_storage_path / file2_hash[:2] / file2_hash[2:4] / file2_hash
+        assert not expected_cas_path2.exists()
+    finally:
+        db.close()
