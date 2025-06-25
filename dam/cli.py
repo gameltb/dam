@@ -5,6 +5,7 @@ from sqlalchemy import select  # Added for SQLAlchemy 2.0 queries
 from typing_extensions import Annotated
 
 from dam.core.database import SessionLocal, create_db_and_tables
+from dam.core.logging_config import setup_logging  # Import the setup function
 from dam.models import (
     ContentHashComponent,
     FileLocationComponent,
@@ -15,11 +16,16 @@ from dam.services import asset_service, file_operations
 app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
     # A callback for the main app, can be used for global setup
-    # For now, just a placeholder
-    pass
+    # Initialize logging here
+    setup_logging()  # Use default level, or it will pick up DAM_LOG_LEVEL
+    # If no command is given, Typer will show help.
+    # We can add logic here if needed when no command is run.
+    if ctx.invoked_subcommand is None:
+        # typer.echo("Initializing DAM CLI application...") # Or some other startup message
+        pass
 
 
 @app.command(name="add-asset")
@@ -71,7 +77,7 @@ def cli_add_asset(
             original_filename=original_filename,
             mime_type=mime_type,
             size_bytes=size_bytes,
-            content_hash=content_hash,
+            # content_hash is now derived by add_asset_file internally
         )
         db.commit()
         if created_new:

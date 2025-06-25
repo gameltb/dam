@@ -146,8 +146,12 @@ cython_debug/
 
 # ECS DAM System specific
 /dam.db
+dam_storage/
 # If using a file-based DB for local dev, e.g. dam.db
 # Add other project specific ignores here
+
+# Poetry lock file (if user prefers not to commit it)
+poetry.lock
 
 # IDE / Editor specific
 .idea/
