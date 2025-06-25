@@ -5,12 +5,15 @@ from sqlalchemy.orm import Session
 
 from dam.models import (  # Moved from below for delete_entity
     BaseComponent,
-    ContentHashComponent,
+    ContentHashMD5Component,  # Replaced ContentHashComponent
+    ContentHashSHA256Component,  # Replaced ContentHashComponent
     Entity,
     FileLocationComponent,
     FilePropertiesComponent,
+    ImagePerceptualAHashComponent,  # Replaced ImagePerceptualHashComponent
+    ImagePerceptualDHashComponent,  # Replaced ImagePerceptualHashComponent
+    ImagePerceptualPHashComponent,  # Replaced ImagePerceptualHashComponent
     # Add other component types here as they are created
-    ImagePerceptualHashComponent,
 )
 
 # Define a generic type variable for component types
@@ -153,8 +156,11 @@ def remove_component(session: Session, component: BaseComponent) -> None:
 
 # List of all component types to iterate over when deleting an entity
 ALL_COMPONENT_TYPES = [
-    ContentHashComponent,
-    ImagePerceptualHashComponent,
+    ContentHashMD5Component,
+    ContentHashSHA256Component,
+    ImagePerceptualAHashComponent,
+    ImagePerceptualDHashComponent,
+    ImagePerceptualPHashComponent,
     FileLocationComponent,
     FilePropertiesComponent,
     # Add other component types here

@@ -175,6 +175,16 @@ dam-cli --help
     ```
 *   **Logging:** The system uses standard Python logging. Output is to stderr by default. Set the `DAM_LOG_LEVEL` environment variable (e.g., to `DEBUG`) for more detailed logs. See `doc/developer_guide.md` for more details.
 
+### Testing Notes
+
+*   **Creating Test Images for Similarity Search**: When testing image similarity features (e.g., `find-similar-images`), it's important to have test images that are distinct yet have known perceptual hash similarities. The `Pillow` library is useful for this.
+    *   To ensure images are treated as different assets by the DAM (i.e., have different SHA256 content hashes and thus different Entity IDs), even minor pixel changes are necessary. Simply copying a file will result in the same content hash.
+    *   For perceptual hash testing:
+        *   Create a base image.
+        *   Create variations by adding subtle changes (e.g., changing a few pixels, adding a small line or dot, slightly altering color).
+        *   The `imagehash` library can be used directly to calculate pHash, aHash, and dHash values and their Hamming distances to verify expected similarities before incorporating them into automated tests.
+    *   The test suite (`tests/test_cli.py`) includes a helper function `_create_dummy_image` that demonstrates creating simple, small PNG images with controlled variations for testing purposes.
+
 *   **Creating new database migrations (after changing SQLAlchemy models):**
     1.  Ensure your models are imported in a way that Alembic's `env.py` can see their metadata (e.g., via a common `Base` object).
     2.  Generate a new revision:

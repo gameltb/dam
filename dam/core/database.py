@@ -32,8 +32,14 @@ def create_db_and_tables():
     For CLI tools, it can be called explicitly by a setup command or checked on startup.
     """
     # This will create tables for all imported models that inherit from Base
+    # For testing, we might want to drop tables first to ensure a clean state.
+    # WARNING: This is destructive. Only use in a controlled test environment.
+    if "pytest" in settings.DATABASE_URL or "test" in settings.DATABASE_URL or settings.TESTING_MODE:  # Basic check
+        Base.metadata.drop_all(bind=engine)
+        print(f"Dropped all tables for {settings.DATABASE_URL} (testing mode)")
+
     Base.metadata.create_all(bind=engine)
-    print(f"Database tables created (if they didn't exist) for {settings.DATABASE_URL}")
+    print(f"Database tables created (if they didn't exist or were dropped) for {settings.DATABASE_URL}")
 
 
 def get_db_session():

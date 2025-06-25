@@ -123,7 +123,8 @@ def test_add_component_to_entity_success(db_session: Session, sample_entity: Ent
     component_to_add = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        filepath="/path/to/file.txt",
+        file_identifier="test_identifier_123",
+        original_filename="file.txt",
         storage_type="test_local",
     )
 
@@ -138,7 +139,9 @@ def test_add_component_to_entity_success(db_session: Session, sample_entity: Ent
 
     retrieved_component = db_session.get(FileLocationComponent, added_component.id)
     assert retrieved_component is not None
-    assert retrieved_component.filepath == "/path/to/file.txt"
+    # Assert based on the fields used during creation
+    assert retrieved_component.file_identifier == "test_identifier_123"
+    assert retrieved_component.original_filename == "file.txt"
     assert retrieved_component.storage_type == "test_local"
 
 
@@ -229,13 +232,15 @@ def test_get_components_multiple(db_session: Session, sample_entity: Entity):
     loc1 = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        filepath="/loc1",
+        file_identifier="id_loc1",
+        original_filename="loc1.txt",
         storage_type="local",
     )
     loc2 = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        filepath="/loc2",
+        file_identifier="id_loc2",
+        original_filename="loc2.txt",
         storage_type="local",
     )
     add_component_to_entity(db_session, sample_entity.id, loc1)
@@ -244,9 +249,12 @@ def test_get_components_multiple(db_session: Session, sample_entity: Entity):
 
     retrieved_locs = get_components(db_session, sample_entity.id, FileLocationComponent)
     assert len(retrieved_locs) == 2
-    filepaths = {loc.filepath for loc in retrieved_locs}
-    assert "/loc1" in filepaths
-    assert "/loc2" in filepaths
+    identifiers = {loc.file_identifier for loc in retrieved_locs}
+    original_filenames = {loc.original_filename for loc in retrieved_locs}
+    assert "id_loc1" in identifiers
+    assert "id_loc2" in identifiers
+    assert "loc1.txt" in original_filenames
+    assert "loc2.txt" in original_filenames
 
 
 def test_get_components_empty(db_session: Session, sample_entity: Entity):
@@ -260,7 +268,8 @@ def test_remove_component(db_session: Session, sample_entity: Entity):
     loc = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        filepath="/to_delete",
+        file_identifier="id_to_delete",
+        original_filename="to_delete.txt",
         storage_type="local",
     )
     add_component_to_entity(db_session, sample_entity.id, loc)
@@ -279,34 +288,35 @@ def test_remove_component(db_session: Session, sample_entity: Entity):
 def test_delete_entity_cascades_components(db_session: Session, sample_entity: Entity):
     """Test that deleting an entity also deletes its associated components."""
     from dam.models import (
-        ContentHashComponent,
+        ContentHashSHA256Component,  # Changed from ContentHashComponent
     )  # Using another component type for variety
 
     # Add some components
+
     loc = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        filepath="/loc_del",
+        file_identifier="id_loc_del",
+        original_filename="loc_del.txt",
         storage_type="local",
     )
-    chc = ContentHashComponent(
+    chc_sha256 = ContentHashSHA256Component(  # Changed to a specific component
         entity_id=sample_entity.id,
         entity=sample_entity,
-        hash_type="sha256",
-        hash_value="testhash_del",
+        hash_value="testhash_del_sha256",
     )
 
     add_component_to_entity(db_session, sample_entity.id, loc)
-    add_component_to_entity(db_session, sample_entity.id, chc)
+    add_component_to_entity(db_session, sample_entity.id, chc_sha256)  # Use the new variable
     db_session.commit()
 
     loc_id = loc.id
-    chc_id = chc.id
+    chc_id = chc_sha256.id  # Use the new variable
     entity_id_to_delete = sample_entity.id
 
     # Verify components exist
     assert db_session.get(FileLocationComponent, loc_id) is not None
-    assert db_session.get(ContentHashComponent, chc_id) is not None
+    assert db_session.get(ContentHashSHA256Component, chc_id) is not None  # Check specific component
 
     deleted = delete_entity(db_session, entity_id_to_delete)
     db_session.commit()
@@ -314,7 +324,7 @@ def test_delete_entity_cascades_components(db_session: Session, sample_entity: E
     assert deleted is True
     assert db_session.get(Entity, entity_id_to_delete) is None
     assert db_session.get(FileLocationComponent, loc_id) is None
-    assert db_session.get(ContentHashComponent, chc_id) is None
+    assert db_session.get(ContentHashSHA256Component, chc_id) is None  # Check specific component
 
 
 def test_delete_non_existent_entity(db_session: Session):

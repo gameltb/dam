@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # For file storage simulation (can be expanded later)
     ASSET_STORAGE_PATH: str = Field("./dam_storage", validation_alias="DAM_ASSET_STORAGE_PATH")
 
+    TESTING_MODE: bool = Field(False, validation_alias="TESTING_MODE")  # Added for testing
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

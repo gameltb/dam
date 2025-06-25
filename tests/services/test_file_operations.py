@@ -115,34 +115,43 @@ def test_generate_perceptual_hashes_different_images_produce_different_hashes(
     assert hashes_a["dhash"] != hashes_b["dhash"], "dHashes should differ for different images"
 
 
-def test_generate_perceptual_hashes_non_image_file(non_image_file_path: Path, capsys):
+def test_generate_perceptual_hashes_non_image_file(non_image_file_path: Path, caplog):  # This is the good one
     """Test with a non-image file, expect empty dict and warning."""
-    # No need to skip this based on ImageHash/Pillow, as it tests the non-image path
-
+    caplog.clear()
     hashes = generate_perceptual_hashes(non_image_file_path)
     assert hashes == {}
 
-    captured = capsys.readouterr()
-    # Example warning: "Warning: Could not open or process image {non_image_file_path.name} for perceptual hashing: ..."
-    # The exact message depends on PIL's error and your function's print statement.
-    # This assertion is a bit brittle if the warning message changes.
-    assert (
-        "Warning: Could not open or process image" in captured.out
-        or "Warning: Could not open or process image" in captured.err
-    )  # Check both stdout and stderr for the warning
+    assert len(caplog.records) > 0
+    found_log = False
+    for record in caplog.records:
+        # Check for part of the expected log message
+        if (
+            record.levelname == "WARNING"
+            and "Could not open or process image" in record.message
+            and non_image_file_path.name in record.message
+        ):
+            found_log = True
+            break
+    assert found_log, "Expected warning for non-image file not found in logs."
 
 
-def test_generate_perceptual_hashes_missing_file(tmp_path: Path, capsys):
+def test_generate_perceptual_hashes_missing_file(tmp_path: Path, caplog):
     """Test with a non-existent file path."""
     non_existent_file = tmp_path / "does_not_exist.png"
+
+    # Clear previous log captures if any from other tests or setups
+    caplog.clear()
+
     hashes = generate_perceptual_hashes(non_existent_file)
     assert hashes == {}
 
-    captured = capsys.readouterr()
-    assert (
-        f"Warning: Image file not found at {non_existent_file}" in captured.out
-        or f"Warning: Image file not found at {non_existent_file}" in captured.err
-    )
+    assert len(caplog.records) > 0
+    found_log = False
+    for record in caplog.records:
+        if record.levelname == "WARNING" and f"Image file not found at {non_existent_file}" in record.message:
+            found_log = True
+            break
+    assert found_log, "Expected warning for missing file not found in logs."
 
 
 # Test for conditional import (harder to test directly without manipulating sys.modules or environments)
