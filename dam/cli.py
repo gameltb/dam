@@ -203,43 +203,43 @@ def cli_add_asset(
             continue
 
         # Get session for the target world
-        db = db_manager.get_db_session(global_state.world_name)
         try:
-            if no_copy:
-                entity, created_new = asset_service.add_asset_reference(
-                    session=db,
-                    filepath_on_disk=filepath,
-                    original_filename=original_filename,
-                    mime_type=mime_type,
-                    size_bytes=size_bytes,
-                    world_name=global_state.world_name,  # Pass world_name for logging/consistency
-                )
-            else:
-                entity, created_new = asset_service.add_asset_file(
-                    session=db,
-                    filepath_on_disk=filepath,
-                    original_filename=original_filename,
-                    mime_type=mime_type,
-                    size_bytes=size_bytes,
-                    world_name=global_state.world_name,  # Pass world_name for file_storage
-                )
-            db.commit()
-            if created_new:
-                added_count += 1
-                typer.secho(f"  Successfully added new asset. Entity ID: {entity.id}", fg=typer.colors.GREEN)
-            else:
-                linked_count += 1
-                typer.secho(
-                    f"  Asset content already exists/referenced. Linked to Entity ID: {entity.id}",
-                    fg=typer.colors.YELLOW,
-                )
+            with db_manager.get_db_session(global_state.world_name) as db:
+                if no_copy:
+                    entity, created_new = asset_service.add_asset_reference(
+                        session=db,
+                        filepath_on_disk=filepath,
+                        original_filename=original_filename,
+                        mime_type=mime_type,
+                        size_bytes=size_bytes,
+                        world_name=global_state.world_name,  # Pass world_name for logging/consistency
+                    )
+                else:
+                    entity, created_new = asset_service.add_asset_file(
+                        session=db,
+                        filepath_on_disk=filepath,
+                        original_filename=original_filename,
+                        mime_type=mime_type,
+                        size_bytes=size_bytes,
+                        world_name=global_state.world_name,  # Pass world_name for file_storage
+                    )
+                db.commit()
+                if created_new:
+                    added_count += 1
+                    typer.secho(f"  Successfully added new asset. Entity ID: {entity.id}", fg=typer.colors.GREEN)
+                else:
+                    linked_count += 1
+                    typer.secho(
+                        f"  Asset content already exists/referenced. Linked to Entity ID: {entity.id}",
+                        fg=typer.colors.YELLOW,
+                    )
         except Exception as e:
-            db.rollback()
+            # db.rollback() will be handled by session exiting context manager if commit failed
             typer.secho(f"  Database error for {filepath.name}: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)  # More detailed traceback
             error_count += 1
-        finally:
-            db.close()
+        # finally:
+        #     db.close() # Handled by context manager
 
     typer.echo("\n--- Summary ---")
     typer.echo(f"World: '{global_state.world_name}'")
@@ -314,66 +314,66 @@ def cli_find_file_by_hash(
     typer.echo(
         f"Querying world '{global_state.world_name}' for asset with {actual_hash_type} hash: {actual_hash_value}"
     )
-    db = db_manager.get_db_session(global_state.world_name)
     try:
-        entity = asset_service.find_entity_by_content_hash(db, actual_hash_value, actual_hash_type)
-        if entity:
-            typer.secho(f"Found Entity ID: {entity.id} in world '{global_state.world_name}'", fg=typer.colors.CYAN)
-            # ... (rest of the display logic remains largely the same, ensure db is used for queries)
-            # Example for one component type:
-            fpc = ecs_service.get_component(db, entity.id, FilePropertiesComponent)  # Pass db
-            if fpc:
-                typer.echo(
-                    f"  File Properties: Name='{fpc.original_filename}', Size={fpc.file_size_bytes}, MIME='{fpc.mime_type}'"
-                )
-
-            # Display all known content hashes for the entity
-            typer.echo("  Content Hashes:")
-            sha256_comps = ecs_service.get_components(db, entity.id, ContentHashSHA256Component)
-            for ch_comp in sha256_comps:
-                typer.echo(f"    - Type: sha256, Value: {ch_comp.hash_value}")
-            md5_comps = ecs_service.get_components(db, entity.id, ContentHashMD5Component)
-            for ch_comp in md5_comps:
-                typer.echo(f"    - Type: md5, Value: {ch_comp.hash_value}")
-
-            locations = ecs_service.get_components(db, entity.id, FileLocationComponent)
-            if locations:
-                typer.echo("  File Locations:")
-                for loc in locations:
+        with db_manager.get_db_session(global_state.world_name) as db:
+            entity = asset_service.find_entity_by_content_hash(db, actual_hash_value, actual_hash_type)
+            if entity:
+                typer.secho(f"Found Entity ID: {entity.id} in world '{global_state.world_name}'", fg=typer.colors.CYAN)
+                # ... (rest of the display logic remains largely the same, ensure db is used for queries)
+                # Example for one component type:
+                fpc = ecs_service.get_component(db, entity.id, FilePropertiesComponent)  # Pass db
+                if fpc:
                     typer.echo(
-                        f"    - Orig Name: '{loc.original_filename}', ID: '{loc.file_identifier}', Storage: '{loc.storage_type}'"
+                        f"  File Properties: Name='{fpc.original_filename}', Size={fpc.file_size_bytes}, MIME='{fpc.mime_type}'"
                     )
 
-            dimensions_props = ecs_service.get_component(db, entity.id, ImageDimensionsComponent)
-            if dimensions_props:
-                typer.echo(f"  Image Dimensions: {dimensions_props.width_pixels}x{dimensions_props.height_pixels}px")
+                # Display all known content hashes for the entity
+                typer.echo("  Content Hashes:")
+                sha256_comps = ecs_service.get_components(db, entity.id, ContentHashSHA256Component)
+                for ch_comp in sha256_comps:
+                    typer.echo(f"    - Type: sha256, Value: {ch_comp.hash_value}")
+                md5_comps = ecs_service.get_components(db, entity.id, ContentHashMD5Component)
+                for ch_comp in md5_comps:
+                    typer.echo(f"    - Type: md5, Value: {ch_comp.hash_value}")
 
-            audio_props = ecs_service.get_component(db, entity.id, AudioPropertiesComponent)
-            if audio_props:
-                typer.echo("  Audio Properties:")
-                typer.echo(
-                    f"    Duration: {audio_props.duration_seconds}s, Codec: {audio_props.codec_name}, Rate: {audio_props.sample_rate_hz}Hz"
+                locations = ecs_service.get_components(db, entity.id, FileLocationComponent)
+                if locations:
+                    typer.echo("  File Locations:")
+                    for loc in locations:
+                        typer.echo(
+                            f"    - Orig Name: '{loc.original_filename}', ID: '{loc.file_identifier}', Storage: '{loc.storage_type}'"
+                        )
+
+                dimensions_props = ecs_service.get_component(db, entity.id, ImageDimensionsComponent)
+                if dimensions_props:
+                    typer.echo(f"  Image Dimensions: {dimensions_props.width_pixels}x{dimensions_props.height_pixels}px")
+
+                audio_props = ecs_service.get_component(db, entity.id, AudioPropertiesComponent)
+                if audio_props:
+                    typer.echo("  Audio Properties:")
+                    typer.echo(
+                        f"    Duration: {audio_props.duration_seconds}s, Codec: {audio_props.codec_name}, Rate: {audio_props.sample_rate_hz}Hz"
+                    )
+
+                frame_props = ecs_service.get_component(db, entity.id, FramePropertiesComponent)
+                if frame_props:
+                    typer.echo("  Animated Frame Properties:")
+                    typer.echo(
+                        f"    Frames: {frame_props.frame_count}, Rate: {frame_props.nominal_frame_rate}fps, Duration: {frame_props.animation_duration_seconds}s"
+                    )
+
+            else:
+                typer.secho(
+                    f"No asset found in world '{global_state.world_name}' with {actual_hash_type} hash: {actual_hash_value}",
+                    fg=typer.colors.YELLOW,
                 )
-
-            frame_props = ecs_service.get_component(db, entity.id, FramePropertiesComponent)
-            if frame_props:
-                typer.echo("  Animated Frame Properties:")
-                typer.echo(
-                    f"    Frames: {frame_props.frame_count}, Rate: {frame_props.nominal_frame_rate}fps, Duration: {frame_props.animation_duration_seconds}s"
-                )
-
-        else:
-            typer.secho(
-                f"No asset found in world '{global_state.world_name}' with {actual_hash_type} hash: {actual_hash_value}",
-                fg=typer.colors.YELLOW,
-            )
     except Exception as e:
         typer.secho(f"Error querying in world '{global_state.world_name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db:
-            db.close()
+    # finally:
+    #     if db: # Handled by context manager
+    #         db.close()
 
 
 @app.command(name="find-similar-images")
@@ -396,34 +396,34 @@ def cli_find_similar_images(
     image_filepath = Path(image_filepath_str)
     typer.echo(f"Finding images similar to: {image_filepath.name} in world '{global_state.world_name}'")
 
-    db = db_manager.get_db_session(global_state.world_name)
     try:
-        similar_entities_info = asset_service.find_entities_by_similar_image_hashes(
-            session=db,  # Pass the world-specific session
-            image_path=image_filepath,
-            phash_threshold=phash_threshold,
-            ahash_threshold=ahash_threshold,
-            dhash_threshold=dhash_threshold,
-            world_name=global_state.world_name,  # For logging within service
-        )
-        if similar_entities_info:
-            typer.secho(
-                f"Found {len(similar_entities_info)} similar image(s) in world '{global_state.world_name}':",
-                fg=typer.colors.CYAN,
+        with db_manager.get_db_session(global_state.world_name) as db:
+            similar_entities_info = asset_service.find_entities_by_similar_image_hashes(
+                session=db,  # Pass the world-specific session
+                image_path=image_filepath,
+                phash_threshold=phash_threshold,
+                ahash_threshold=ahash_threshold,
+                dhash_threshold=dhash_threshold,
+                world_name=global_state.world_name,  # For logging within service
             )
-            for info in similar_entities_info:
-                entity = info["entity"]
-                distance = info["distance"]
-                matched_hash_type = info["hash_type"]
-                typer.echo(f"\n  Entity ID: {entity.id} (Matched by {matched_hash_type}, Distance: {distance})")
-                fpc = ecs_service.get_component(db, entity.id, FilePropertiesComponent)  # Pass db
-                if fpc:
-                    typer.echo(
-                        f"    File: '{fpc.original_filename}', Size: {fpc.file_size_bytes}, MIME: '{fpc.mime_type}'"
-                    )
-                # ... (display other components as needed, using db session) ...
-        else:
-            typer.secho(f"No similar images found in world '{global_state.world_name}'.", fg=typer.colors.YELLOW)
+            if similar_entities_info:
+                typer.secho(
+                    f"Found {len(similar_entities_info)} similar image(s) in world '{global_state.world_name}':",
+                    fg=typer.colors.CYAN,
+                )
+                for info in similar_entities_info:
+                    entity = info["entity"]
+                    distance = info["distance"]
+                    matched_hash_type = info["hash_type"]
+                    typer.echo(f"\n  Entity ID: {entity.id} (Matched by {matched_hash_type}, Distance: {distance})")
+                    fpc = ecs_service.get_component(db, entity.id, FilePropertiesComponent)  # Pass db
+                    if fpc:
+                        typer.echo(
+                            f"    File: '{fpc.original_filename}', Size: {fpc.file_size_bytes}, MIME: '{fpc.mime_type}'"
+                        )
+                    # ... (display other components as needed, using db session) ...
+            else:
+                typer.secho(f"No similar images found in world '{global_state.world_name}'.", fg=typer.colors.YELLOW)
     except ValueError as ve:
         typer.secho(
             f"Error processing image for similarity search in world '{global_state.world_name}': {ve}",
@@ -436,9 +436,9 @@ def cli_find_similar_images(
         )
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db:
-            db.close()
+    # finally:
+    #     if db: # Handled by context manager
+    #         db.close()
 
 
 @app.command(name="export-world")
@@ -460,17 +460,17 @@ def cli_export_world(
         raise typer.Exit()
 
     typer.echo(f"Exporting ECS world '{global_state.world_name}' to: {export_path}")
-    db = db_manager.get_db_session(global_state.world_name)
     try:
-        world_service.export_ecs_world_to_json(db, export_path, world_name_for_log=global_state.world_name)
+        with db_manager.get_db_session(global_state.world_name) as db:
+            world_service.export_ecs_world_to_json(db, export_path, world_name_for_log=global_state.world_name)
         typer.secho(f"ECS world '{global_state.world_name}' exported to {export_path}", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error exporting world '{global_state.world_name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db:
-            db.close()
+    # finally:
+    #     if db: # Handled by context manager
+    #         db.close()
 
 
 @app.command(name="import-world")
@@ -491,19 +491,19 @@ def cli_import_world(
     if merge:
         typer.echo("Merge mode enabled.")
 
-    db = db_manager.get_db_session(global_state.world_name)
     try:
-        world_service.import_ecs_world_from_json(
-            db, import_path, merge=merge, world_name_for_log=global_state.world_name
-        )
+        with db_manager.get_db_session(global_state.world_name) as db:
+            world_service.import_ecs_world_from_json(
+                db, import_path, merge=merge, world_name_for_log=global_state.world_name
+            )
         typer.secho(f"ECS world imported into '{global_state.world_name}' from {import_path}", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error importing into world '{global_state.world_name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db:
-            db.close()
+    # finally:
+    #     if db: # Handled by context manager
+    #         db.close()
 
 
 # Remove placeholder command if no longer needed
@@ -534,32 +534,31 @@ def cli_merge_worlds_db(
         typer.secho("Error: Source and target worlds cannot be the same for merge operation.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    source_db = None
-    target_db = None
     try:
-        source_db = db_manager.get_db_session(source_world)
-        target_db = db_manager.get_db_session(target_world)
+        with db_manager.get_db_session(source_world) as source_db, \
+             db_manager.get_db_session(target_world) as target_db:
 
-        world_service.merge_ecs_worlds_db_to_db(
-            source_session=source_db,
-            target_session=target_db,
-            source_world_name_for_log=source_world,
-            target_world_name_for_log=target_world,
-            strategy="add_new",
-        )
-        # merge_ecs_worlds_db_to_db handles its own commit on target_db
-        typer.secho(f"Successfully merged world '{source_world}' into '{target_world}'.", fg=typer.colors.GREEN)
+            world_service.merge_ecs_worlds_db_to_db(
+                source_session=source_db,
+                target_session=target_db,
+                source_world_name_for_log=source_world,
+                target_world_name_for_log=target_world,
+                strategy="add_new",
+            )
+            # merge_ecs_worlds_db_to_db handles its own commit on target_db
+            typer.secho(f"Successfully merged world '{source_world}' into '{target_world}'.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during DB-to-DB merge: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         # Rollback target_db session if an error occurred before its commit in service
         # The service function should handle its own rollback on error before commit.
+        # Context managers will ensure sessions are closed.
         raise typer.Exit(code=1)
-    finally:
-        if source_db:
-            source_db.close()
-        if target_db:
-            target_db.close()
+    # finally: # Handled by context managers
+    #     if source_db:
+    #         source_db.close()
+    #     if target_db:
+    #         target_db.close()
 
 
 @app.command(name="split-world-db")
@@ -623,46 +622,46 @@ def cli_split_world_db(
     # might work for some types (e.g. int('10') == 10 is False, but int('10') > 5 is True)
     # This needs to be robust in the service or by knowing the type.
 
-    source_s, selected_s, remaining_s = None, None, None
     try:
-        source_s = db_manager.get_db_session(source_world)
-        selected_s = db_manager.get_db_session(selected_target_world)
-        remaining_s = db_manager.get_db_session(remaining_target_world)
+        with db_manager.get_db_session(source_world) as source_s, \
+             db_manager.get_db_session(selected_target_world) as selected_s, \
+             db_manager.get_db_session(remaining_target_world) as remaining_s:
 
-        count_selected, count_remaining = world_service.split_ecs_world(
-            source_session=source_s,
-            target_session_selected=selected_s,
-            target_session_remaining=remaining_s,
-            criteria_component_name=component_name,
-            criteria_component_attr=attribute_name,
-            criteria_value=typed_criteria_value,
-            criteria_op=operator,
-            delete_from_source=delete_from_source,
-            source_world_name_for_log=source_world,
-            target_selected_world_name_for_log=selected_target_world,
-            target_remaining_world_name_for_log=remaining_target_world,
-        )
-        # Service function handles its own commits for targets and source (if delete)
-        typer.secho(
-            f"Split complete: {count_selected} entities to '{selected_target_world}', "
-            f"{count_remaining} entities to '{remaining_target_world}'.",
-            fg=typer.colors.GREEN,
-        )
-        if delete_from_source:
-            typer.secho(f"Entities deleted from source world '{source_world}'.", fg=typer.colors.YELLOW)
+            count_selected, count_remaining = world_service.split_ecs_world(
+                source_session=source_s,
+                target_session_selected=selected_s,
+                target_session_remaining=remaining_s,
+                criteria_component_name=component_name,
+                criteria_component_attr=attribute_name,
+                criteria_value=typed_criteria_value,
+                criteria_op=operator,
+                delete_from_source=delete_from_source,
+                source_world_name_for_log=source_world,
+                target_selected_world_name_for_log=selected_target_world,
+                target_remaining_world_name_for_log=remaining_target_world,
+            )
+            # Service function handles its own commits for targets and source (if delete)
+            typer.secho(
+                f"Split complete: {count_selected} entities to '{selected_target_world}', "
+                f"{count_remaining} entities to '{remaining_target_world}'.",
+                fg=typer.colors.GREEN,
+            )
+            if delete_from_source:
+                typer.secho(f"Entities deleted from source world '{source_world}'.", fg=typer.colors.YELLOW)
 
     except Exception as e:
         typer.secho(f"Error during DB-to-DB split: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         # Service function should handle its own rollbacks.
+        # Context managers will ensure sessions are closed.
         raise typer.Exit(code=1)
-    finally:
-        if source_s:
-            source_s.close()
-        if selected_s:
-            selected_s.close()
-        if remaining_s:
-            remaining_s.close()
+    # finally: # Handled by context managers
+    #     if source_s:
+    #         source_s.close()
+    #     if selected_s:
+    #         selected_s.close()
+    #     if remaining_s:
+    #         remaining_s.close()
 
 
 if __name__ == "__main__":

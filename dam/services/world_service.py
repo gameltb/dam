@@ -114,6 +114,15 @@ def import_ecs_world_from_json(
     Imports entities and components from a JSON file into the given session.
     If merge is False (default), it expects a clean database or will raise an error if entities conflict.
     If merge is True, it will try to update existing entities or add new ones. (Merge logic is complex)
+
+    NOTE ON ENTITY IDs:
+    When importing entities, if an entity ID from the JSON file does not exist in the target database,
+    a new entity is created. This new entity will receive a new, auto-generated ID from the database.
+    The original ID from the JSON file is logged but NOT preserved as the primary key for the new entity,
+    to maintain compatibility with auto-incrementing primary key sequences.
+    If preserving original IDs or mapping them is critical (e.g., for systems requiring stable IDs across
+    different DAM instances or for restoring backups to specific ID states), a more sophisticated ID mapping
+    and import strategy would be required (see potential future enhancements outlined in comments below).
     """
     try:
         with open(filepath, "r") as f:
@@ -135,6 +144,44 @@ def import_ecs_world_from_json(
     component_name_to_class_map = {cls.__name__: cls for cls in get_all_component_classes()}
     if not component_name_to_class_map:
         logger.warning("No component types registered/discovered. Import may not restore components correctly.")
+
+    # --- Potential Future Enhancement: ID Mapping for Imports ---
+    # To implement robust ID preservation or mapping, especially when dealing with
+    # auto-incrementing primary keys or when needing to resolve ID conflicts more gracefully:
+    #
+    # 1. First Pass (Dry Run or Pre-Scan - Optional but Recommended):
+    #    - Iterate through all entity IDs in the JSON.
+    #    - Check their existence in the target database.
+    #    - Build a proposed `id_map: Dict[int_json_id, int_db_id]`.
+    #    - For new entities, the `int_db_id` would be a placeholder indicating it needs creation.
+    #    - For existing entities (if not merging or if merge strategy allows updates):
+    #        - `id_map[json_id] = existing_db_id`.
+    #    - This pass can also identify potential ID conflicts if not using auto-assignment for new IDs.
+    #
+    # 2. Entity Creation and ID Mapping Pass:
+    #    - Iterate through JSON entities again.
+    #    - If `json_id` is to be a new entity:
+    #        - `new_db_entity = ecs_service.create_entity(session)`
+    #        - `id_map[json_id] = new_db_entity.id`
+    #    - If `json_id` maps to an existing entity (and merging/updating):
+    #        - Fetch the entity using `id_map[json_id]`.
+    #
+    # 3. Component Processing Pass:
+    #    - Iterate through JSON entities and their components.
+    #    - Use `id_map[json_entity_id]` to get the correct `db_entity_id` for associating components.
+    #    - If components themselves have relationships to other entities (not currently the case in this model
+    #      where components are simple data containers tied to one entity), those entity ID references
+    #      would also need to be translated using the `id_map`.
+    #
+    # 4. Handling `entity_id` in Component Data:
+    #    - The `comp_data_cleaned["entity_id"]` would be set using the mapped `db_entity_id`.
+    #
+    # This approach decouples JSON IDs from database IDs, essential for auto-increment PKs,
+    # and provides a foundation for more complex import/merge strategies.
+    # It adds complexity, requiring multiple passes or holding more data in memory during import.
+    # The current simpler approach (new entities always get new DB-assigned IDs) is safer
+    # for general cases but lacks ID stability if that's a cross-system requirement.
+    # --- End of Future Enhancement Outline ---
 
     for entity_data in world_data["entities"]:
         entity_id = entity_data.get("id")
@@ -362,6 +409,19 @@ def split_ecs_world(  # Renamed from placeholder
     """
     Splits entities from a source session into two target sessions based on component criteria.
     Copies entities and their components. Does not delete from source by default.
+
+    TRANSACTION MANAGEMENT NOTE:
+    This operation involves multiple database sessions (source, target_selected, target_remaining).
+    Commits are performed sequentially for each session. Therefore, the entire split operation
+    is NOT ATOMIC across all involved databases.
+    - Operations on `target_session_selected` are committed together.
+    - Operations on `target_session_remaining` are committed together.
+    - If `delete_from_source` is True, deletions on `source_session` are committed together.
+    However, a failure in a later commit (e.g., committing deletions from source) will not
+    roll back earlier successful commits (e.g., additions to target worlds).
+    This can lead to an intermediate state (e.g., entities copied but not deleted from source).
+    Users should be aware of this, especially when using `delete_from_source=True`.
+    For critical operations, consider backups or manual verification steps.
     """
     logger.info(
         f"Starting DB-to-DB split from world '{source_world_name_for_log}' "

@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 from sqlalchemy.sql import func  # Added for func.now()
 
+import logging # Added import
 from .base_class import Base  # Updated import for Base
 
 if TYPE_CHECKING:
@@ -25,6 +26,9 @@ from typing import List, Type  # For List and Type hints
 # List to hold all registered component types that inherit from BaseComponent.
 # This list will be populated automatically by BaseComponent.__init_subclass__
 REGISTERED_COMPONENT_TYPES: List[Type["BaseComponent"]] = []
+
+# Initialize logger for this module
+logger = logging.getLogger(__name__)
 
 
 # No need for @Base.mapped_as_dataclass here
@@ -83,11 +87,11 @@ class BaseComponent(Base):  # Inherit from the new Base
         super().__init_subclass__(**kwargs)
         # Avoid registering BaseComponent itself or other abstract classes if any
         is_abstract = cls.__dict__.get("__abstract__", False)
-        print(f"DEBUG: BaseComponent.__init_subclass__ called for: {cls.__name__}, abstract: {is_abstract}")
+        logger.debug(f"BaseComponent.__init_subclass__ called for: {cls.__name__}, abstract: {is_abstract}")
         if not is_abstract:
             # Now appends to the list in this module, no service import needed here.
             if cls not in REGISTERED_COMPONENT_TYPES:
                 REGISTERED_COMPONENT_TYPES.append(cls)
-                print(f"DEBUG: Registered component: {cls.__name__}")
+                logger.debug(f"Registered component: {cls.__name__}")
         else:
-            print(f"DEBUG: Not registering abstract class: {cls.__name__}")
+            logger.debug(f"Not registering abstract class: {cls.__name__}")

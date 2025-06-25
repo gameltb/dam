@@ -16,6 +16,7 @@ from .image_dimensions_component import ImageDimensionsComponent  # Added
 from .image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
 from .image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from .image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
+from .original_source_info_component import OriginalSourceInfoComponent
 
 # Optionally, define an __all__ for explicit public API of the models package
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "AudioPropertiesComponent",
     "FramePropertiesComponent",
     "ImageDimensionsComponent",  # Added
+    "OriginalSourceInfoComponent",
 ]

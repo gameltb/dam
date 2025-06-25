@@ -23,19 +23,7 @@ try:
 except ImportError:
     imagehash = None
 
-# Hachoir for metadata extraction
-try:
-    from hachoir.core import config as HachoirConfig
-    from hachoir.metadata import extractMetadata
-    from hachoir.parser import createParser
-
-    HachoirConfig.quiet = True  # Suppress Hachoir's console output unless it's an error
-except ImportError:
-    createParser = None
-    extractMetadata = None
-
-
-from . import file_storage  # Import the new file storage service
+from . import file_storage, metadata_extractor # Import the new metadata_extractor service
 from .ecs_service import (
     add_component_to_entity,
     create_entity,
@@ -128,193 +116,104 @@ def add_asset_file(
 
     world_config_obj = app_settings.get_world_config(name_for_lookup)
 
-    # Store the file using the new service, passing the WorldConfig object
-    file_identifier = file_storage.store_file(
+    # Store the file using the new service, returns the SHA256 hash (content_hash)
+    # and the relative physical path suffix for CAS.
+    content_hash_sha256, physical_storage_path_suffix = file_storage.store_file( # Modified
         file_content, world_config=world_config_obj, original_filename=original_filename
     )
-    # The file_identifier is the SHA256 content hash
 
-    # Try to find an existing entity using the SHA256 hash first
-    existing_entity = find_entity_by_content_hash(session, file_identifier, "sha256")
+    # Try to find an existing entity using the SHA256 content hash
+    existing_entity = find_entity_by_content_hash(session, content_hash_sha256, "sha256")
 
     if existing_entity:
         entity = existing_entity
-        # If entity found by SHA256, ensure its MD5 hash is also stored if not already
-        # This handles cases where MD5 was added later or for older assets.
-        md5_hash_value = calculate_md5(filepath_on_disk)
+        logger.info(
+            f"Content (SHA256: {content_hash_sha256[:12]}...) for '{original_filename}' "
+            f"already exists as Entity ID {entity.id}. Linking original source."
+        )
+        # Ensure MD5 hash is also stored for this existing entity if not already present
+        # (This assumes FilePropertiesComponent and other core hashes are only added once per entity)
+        md5_hash_value = calculate_md5(filepath_on_disk) # Calculate MD5 for the source file
         existing_md5_components = get_components(session, entity.id, ContentHashMD5Component)
         if not any(comp.hash_value == md5_hash_value for comp in existing_md5_components):
-            chc_md5 = ContentHashMD5Component(
+            chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=md5_hash_value)
+            add_component_to_entity(session, entity.id, chc_md5)
+            logger.info(f"Added MD5 hash '{md5_hash_value}' to existing Entity ID {entity.id}.")
+
+        # Check if this specific CAS FileLocationComponent already exists (it should if entity was found by this hash)
+        # This is more of a sanity check or for cases where FLC might have been missed.
+        existing_cas_locations = get_components(session, entity.id, FileLocationComponent)
+        found_cas_location = False
+        for loc in existing_cas_locations:
+            if loc.storage_type == "local_cas" and loc.physical_path_or_key == physical_storage_path_suffix:
+                found_cas_location = True
+                logger.debug(f"CAS FileLocationComponent for {physical_storage_path_suffix} already exists for Entity {entity.id}.")
+                break
+        if not found_cas_location:
+            logger.warning(
+                f"Entity {entity.id} found by content hash {content_hash_sha256[:12]}, "
+                f"but no existing local_cas FileLocationComponent with path {physical_storage_path_suffix}. Adding one."
+            )
+            flc = FileLocationComponent(
                 entity_id=entity.id,
                 entity=entity,
-                hash_value=md5_hash_value,
+                content_identifier=content_hash_sha256,
+                storage_type="local_cas",
+                physical_path_or_key=physical_storage_path_suffix,
+                contextual_filename=original_filename, # Store original filename with this specific CAS location
             )
-            add_component_to_entity(session, entity.id, chc_md5)
-            logger.info(f"Added MD5 hash '{md5_hash_value}' to existing Entity ID {entity.id} (found by SHA256).")
+            add_component_to_entity(session, entity.id, flc)
 
-        # Check if a FileLocationComponent for this content (file_identifier) already exists for this entity.
-        # The UniqueConstraint is on (entity_id, file_identifier).
-        # If it exists, we don't add another FileLocationComponent for this content under this entity,
-        # even if original_filename is different. The entity is already linked to this content.
-        # We could potentially update the FilePropertiesComponent if the new original_filename is preferred,
-        # or store multiple original filenames in FilePropertiesComponent or a new component,
-        # but for now, we avoid duplicate FileLocationComponent for the same (entity, content_hash).
-
-        existing_location_for_content = False
-        existing_locations = get_components(session, entity.id, FileLocationComponent)
-        for loc in existing_locations:
-            if loc.file_identifier == file_identifier:
-                existing_location_for_content = True
-                # Optionally, log if the original_filename for this existing location is different
-                if loc.original_filename != original_filename:
-                    logger.info(
-                        f"Content (hash: {file_identifier[:12]}...) for Entity ID {entity.id} "
-                        f"already has a FileLocationComponent (original_filename: '{loc.original_filename}'). "
-                        f"New reference attempt with original_filename '{original_filename}' "
-                        "will not create a new FileLocationComponent."
-                    )
-                else:
-                    logger.info(
-                        f"FileLocationComponent for content (hash: {file_identifier[:12]}...) and "
-                        f"original_filename '{original_filename}' already exists for Entity ID {entity.id}."
-                    )
-                break
-
-        if not existing_location_for_content:
-            # This case should ideally not be hit if find_entity_by_content_hash found an entity,
-            # as that entity must have had a FileLocationComponent that led to its ContentHashSHA256Component.
-            # However, to be safe, or if logic changes, we add one.
-            # More likely, this block is for when the entity exists but somehow this specific
-            # file_identifier (content) wasn't linked via FileLocationComponent yet, which is unusual.
-            # The primary scenario for an existing entity is that it *does* have a FileLocationComponent
-            # for this file_identifier.
-            # This logic branch now primarily handles adding a FileLocationComponent if, hypothetically,
-            # an entity was created for a content hash but didn't get a FileLocationComponent.
-            # The more common case when `existing_entity` is true, is that
-            # `existing_location_for_content` will also be true.
-
-            # The original logic was: if a FileLocationComponent with this original_filename doesn't exist, add one.
-            # This conflicted with the UniqueConstraint on (entity_id, file_identifier).
-            # The new logic: if no FileLocationComponent for this file_identifier exists for this entity, add one.
-            # This should be rare if the entity was found via its content hash linked through a FileLocation.
-
-            # Let's stick to the original intent for differing original_filenames IF the constraint were different.
-            # Given the constraint `UniqueConstraint("entity_id", "file_identifier")`,
-            # we simply ensure one such component exists. If `find_entity_by_content_hash`
-            # returned an entity, it implies such a link (via ContentHashSHA256 -> Entity,
-            # and ContentHashSHA256 is typically added alongside FileLocationComponent)
-            # must exist.
-
-            # The previous code `if not found_location_for_original_name:` would attempt to add
-            # a new FileLocationComponent if the original_filename was different, leading to the IntegrityError.
-            # Now, if `existing_entity` is true, we assume the link is established.
-            # The critical part is that `file_storage.store_file` ensures content is stored once.
-            # `add_asset_file` ensures an Entity for that content exists once.
-            # The FileLocationComponent links this Entity to its stored content using file_identifier.
-            # The UniqueConstraint ensures this link (Entity <-> Content) is singular.
-            # The `original_filename` on FileLocationComponent is descriptive for that singular link.
-            # If multiple original filenames point to the same content, they should resolve to the same Entity,
-            # and that Entity will have one FileLocationComponent pointing to the stored content.
-            # The FilePropertiesComponent, however, *can* be different per original_filename if we choose,
-            # but currently, it's also one per entity.
-
-            # If the goal is to track every original_filename that pointed to the same content,
-            # FileLocationComponent would need its unique constraint changed to include original_filename,
-            # OR another component would track original filenames.
-            # With the current constraint, we assume the entity is known by its content, and one FileLocationComponent
-            # suffices. We log that we are not adding a duplicate FileLocation.
-            pass  # No action needed if existing_location_for_content is true.
-            # If it were false, it means the entity was found by hash, but no FLC for that hash.
-            # This is an inconsistency.
-            # For now, we assume if existing_entity, then existing_location_for_content is also true.
-            # The test failure indicates this assumption might be violated or the setup logic is tricky.
-
-            # Let's refine: if existing_entity is found, it *must* have a ContentHashSHA256Component.
-            # This component is added alongside a FileLocationComponent when an entity is first created.
-            # So, a FileLocationComponent with this file_identifier for this entity should exist.
-            # The only thing to check is if the user is trying to "add" the same content
-            # again but with a *different original_filename*.
-            # The current FileLocationComponent model can only store one original_filename for that link.
-            # We could choose to update it, or ignore the new original_filename.
-            # The previous code `if not found_location_for_original_name:` would add a new FLC, causing error.
-            #
-            # If we want to allow different original_filenames to be associated with the same content for an entity,
-            # the UniqueConstraint on FileLocationComponent must change to include `original_filename`.
-            # `UniqueConstraint("entity_id", "file_identifier", "original_filename", ...)`
-            #
-            # Assuming the current constraint `UniqueConstraint("entity_id", "file_identifier")` is intended:
-            # If an entity for this content already exists, we don't need to do anything with FileLocationComponent,
-            # as one should already exist. The `original_filename` on that existing component is what it is.
-            # We could log that an attempt was made to add the same content with a different original_filename.
-            if not existing_location_for_content:
-                # This path implies an inconsistency: entity found by content hash,
-                # but no FLC for that content.
-                # This might happen if an entity was created, ContentHash component added,
-                # but FLC creation failed/skipped.
-                # Or, if find_entity_by_content_hash joins through a different path not involving FLC directly.
-                # For robustness, if no FLC exists for this content_id and entity_id, create it.
-                logger.warning(
-                    f"Entity ID {entity.id} found for content {file_identifier[:12]}, "
-                    f"but no existing FileLocationComponent for this specific file_identifier. Adding one."
-                )
-                new_location_component = FileLocationComponent(
-                    entity_id=entity.id,
-                    entity=entity,
-                    file_identifier=file_identifier,
-                    storage_type="local_content_addressable",
-                    original_filename=original_filename,  # Use the current original_filename being processed
-                )
-                add_component_to_entity(session, entity.id, new_location_component)
-                logger.info(
-                    f"Added FileLocationComponent for '{original_filename}' (hash: {file_identifier[:12]}...) "
-                    f"to existing Entity ID {entity.id}."
-                )
-            # If existing_location_for_content is true, we've already logged it. No new FLC is added.
-
-    else:
+    else: # No existing entity for this content hash
         created_new_entity = True
-        entity = create_entity(session)  # session.flush() is done inside
-        logger.info(f"New Entity ID {entity.id} for '{original_filename}' (Hash: {file_identifier[:12]}...).")
-
-        # Content Hash Component (Primary identifier of the content - SHA256)
-        chc_sha256 = ContentHashSHA256Component(
-            entity_id=entity.id,
-            entity=entity,
-            hash_value=file_identifier,  # This is the SHA256 hash
+        entity = create_entity(session)
+        logger.info(
+            f"Creating new Entity ID {entity.id} for '{original_filename}' (SHA256: {content_hash_sha256[:12]}...)."
         )
+
+        # Core Components for new Entity
+        chc_sha256 = ContentHashSHA256Component(entity_id=entity.id, entity=entity, hash_value=content_hash_sha256)
         add_component_to_entity(session, entity.id, chc_sha256)
 
-        # MD5 Content Hash Component
         md5_hash_value = calculate_md5(filepath_on_disk)
-        chc_md5 = ContentHashMD5Component(
-            entity_id=entity.id,
-            entity=entity,
-            hash_value=md5_hash_value,
-        )
+        chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=md5_hash_value)
         add_component_to_entity(session, entity.id, chc_md5)
-        logger.info(f"Added MD5 hash '{md5_hash_value}' for new Entity ID {entity.id}.")
+        logger.info(f"Added SHA256 and MD5 hashes for new Entity ID {entity.id}.")
 
-        # File Properties Component (Descriptive metadata)
         fpc = FilePropertiesComponent(
             entity_id=entity.id,
             entity=entity,
-            original_filename=original_filename,  # This is the user-provided one
+            original_filename=original_filename, # This is the primary original filename for the entity
             file_size_bytes=size_bytes,
             mime_type=mime_type,
         )
         add_component_to_entity(session, entity.id, fpc)
 
-        # File Location Component (How to access this named instance of the content)
+        # File Location Component for the new CAS file
         flc = FileLocationComponent(
             entity_id=entity.id,
             entity=entity,
-            file_identifier=file_identifier,
-            storage_type="local_content_addressable",
-            original_filename=original_filename,
+            content_identifier=content_hash_sha256,
+            storage_type="local_cas", # Changed from "local_content_addressable"
+            physical_path_or_key=physical_storage_path_suffix,
+            contextual_filename=original_filename, # original_filename for this CAS location
         )
         add_component_to_entity(session, entity.id, flc)
 
+    # Always add OriginalSourceInfoComponent for this ingestion event
+    from dam.models.original_source_info_component import OriginalSourceInfoComponent # Import here
+    osi_comp = OriginalSourceInfoComponent(
+        entity_id=entity.id,
+        entity=entity,
+        original_filename=original_filename,
+        original_path=str(filepath_on_disk.resolve()),
+    )
+    add_component_to_entity(session, entity.id, osi_comp)
+    logger.info(f"Added OriginalSourceInfo for '{original_filename}' to Entity ID {entity.id}.")
+
+
     # After entity creation or retrieval, if it's an image, add perceptual hashes
+    # This logic remains the same, ensuring these components are added if not already present for the entity.
     if mime_type and mime_type.startswith("image/"):
         # Get existing perceptual hashes for each type
         existing_phashes = {
@@ -350,10 +249,10 @@ def add_asset_file(
             add_component_to_entity(session, entity.id, idhc)
             logger.info(f"Added dhash '{perceptual_hashes['dhash'][:12]}...' for Entity ID {entity.id}.")
 
-    # Add multimedia specific components
-    # Pass world_name for logging consistency within _add_multimedia_components
-    _add_multimedia_components(session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name)
-
+    # Add multimedia specific components using the new service
+    metadata_extractor.extract_and_add_multimedia_components(
+        session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name
+    )
 
     return entity, created_new_entity
 
@@ -418,51 +317,12 @@ def add_asset_reference(
             logger.info(f"Added MD5 hash '{content_hash_md5}' to existing Entity ID {entity.id} (found by SHA256).")
 
         # Check if a FileLocationComponent for this specific referenced path already exists
-        # for this entity. The unique constraint on FileLocationComponent is (entity_id, file_identifier).
-        # For referenced files, the `file_identifier` should be the absolute path to ensure uniqueness
-        # if the same content (hash) is referenced from different paths.
-        # However, our current FileLocationComponent uses file_identifier for content hash in CAS.
-        # We need to adapt.
-        # Option 1: Add a new component for referenced locations.
-        # Option 2: Adapt FileLocationComponent:
-        #   - For CAS, file_identifier is SHA256.
-        #   - For references, file_identifier could be the normalized absolute path.
-        #   - storage_type differentiates.
-        # Let's choose option 2 for now, but be mindful of the UniqueConstraint.
-        # The UniqueConstraint `UniqueConstraint("entity_id", "file_identifier")` means
-        # an entity can only have one FileLocationComponent with a given file_identifier.
-        # If file_identifier is SHA256 for CAS, and path for references, this might work.
-        # But if two different original files *have the same content hash* and are both added with --no-copy,
-        # they will resolve to the same entity. Then, if we use their paths as file_identifiers,
-        # we can store multiple FileLocationComponents for that entity, one for each path.
-        # This seems like the correct behavior.
-
-        # For referenced files, the file_identifier in FileLocationComponent will be the original path.
-        referenced_file_identifier = str(filepath_on_disk.resolve())
-
-        existing_location_for_this_path = False
-        existing_locations = get_components(session, entity.id, FileLocationComponent)
-        for loc in existing_locations:
-            if loc.storage_type == "referenced_local_file" and loc.file_identifier == referenced_file_identifier:
-                existing_location_for_this_path = True
-                logger.info(
-                    f"Reference to path '{referenced_file_identifier}' for Entity ID {entity.id} already exists."
-                )
-                break
-
-        if not existing_location_for_this_path:
-            flc = FileLocationComponent(
-                entity_id=entity.id,
-                entity=entity,
-                file_identifier=referenced_file_identifier,  # Store the actual path here
-                storage_type="referenced_local_file",
-                original_filename=original_filename,  # Can be different from filepath_on_disk.name
-            )
-            add_component_to_entity(session, entity.id, flc)
-            logger.info(
-                f"Added new FileLocationComponent (referenced) for path '{referenced_file_identifier}' "
-                f"to existing Entity ID {entity.id}."
-            )
+        # Ensure MD5 hash is also stored for this existing entity if not already present
+        existing_md5_components = get_components(session, entity.id, ContentHashMD5Component)
+        if not any(comp.hash_value == content_hash_md5 for comp in existing_md5_components):
+            chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=content_hash_md5)
+            add_component_to_entity(session, entity.id, chc_md5)
+            logger.info(f"Added MD5 hash '{content_hash_md5}' to existing Entity ID {entity.id} (found by SHA256).")
 
     else:  # No existing entity for this content hash
         created_new_entity = True
@@ -472,7 +332,7 @@ def add_asset_reference(
             f"(SHA256: {content_hash_sha256[:12]}...)."
         )
 
-        # Content Hash Components (SHA256 and MD5)
+        # Core Components for new Entity
         chc_sha256 = ContentHashSHA256Component(entity_id=entity.id, entity=entity, hash_value=content_hash_sha256)
         add_component_to_entity(session, entity.id, chc_sha256)
 
@@ -480,7 +340,8 @@ def add_asset_reference(
         add_component_to_entity(session, entity.id, chc_md5)
         logger.info(f"Added SHA256 and MD5 hashes for new Entity ID {entity.id}.")
 
-        # File Properties Component
+        # File Properties Component - only add if entity is new
+        # If entity existed, its FilePropertiesComponent should remain as is.
         fpc = FilePropertiesComponent(
             entity_id=entity.id,
             entity=entity,
@@ -490,22 +351,50 @@ def add_asset_reference(
         )
         add_component_to_entity(session, entity.id, fpc)
 
-        # File Location Component for the reference
-        referenced_file_identifier = str(filepath_on_disk.resolve())
+    # For both new and existing entities, manage FileLocationComponent for this specific reference
+    # and always add OriginalSourceInfoComponent.
+
+    resolved_original_path = str(filepath_on_disk.resolve())
+
+    # Check if a FileLocationComponent for this specific referenced path already exists for this entity.
+    # The unique constraint is now (entity_id, storage_type, physical_path_or_key).
+    existing_location_for_this_reference = False
+    existing_locations = get_components(session, entity.id, FileLocationComponent)
+    for loc in existing_locations:
+        if loc.storage_type == "local_reference" and loc.physical_path_or_key == resolved_original_path:
+            existing_location_for_this_reference = True
+            logger.info(
+                f"Reference FileLocationComponent for path '{resolved_original_path}' for Entity ID {entity.id} already exists."
+            )
+            break
+
+    if not existing_location_for_this_reference:
         flc = FileLocationComponent(
             entity_id=entity.id,
             entity=entity,
-            file_identifier=referenced_file_identifier,  # Store the actual path
-            storage_type="referenced_local_file",
-            original_filename=original_filename,
+            content_identifier=content_hash_sha256, # Link to the content
+            storage_type="local_reference", # Changed from "referenced_local_file"
+            physical_path_or_key=resolved_original_path, # The actual path being referenced
+            contextual_filename=original_filename, # Original filename for this reference
         )
         add_component_to_entity(session, entity.id, flc)
         logger.info(
-            f"Added FileLocationComponent (referenced) for path '{referenced_file_identifier}' "
-            f"to new Entity ID {entity.id}."
+            f"Added new FileLocationComponent (local_reference) for path '{resolved_original_path}' "
+            f"to Entity ID {entity.id}."
         )
 
-    # Add multimedia and perceptual hash components, regardless of whether new or existing entity
+    # Always add OriginalSourceInfoComponent for this ingestion event
+    from dam.models.original_source_info_component import OriginalSourceInfoComponent # Import here
+    osi_comp = OriginalSourceInfoComponent(
+        entity_id=entity.id,
+        entity=entity,
+        original_filename=original_filename,
+        original_path=resolved_original_path,
+    )
+    add_component_to_entity(session, entity.id, osi_comp)
+    logger.info(f"Added OriginalSourceInfo for '{original_filename}' (path: {resolved_original_path}) to Entity ID {entity.id}.")
+
+    # Add multimedia and perceptual hash components, regardless of whether new or existing entity.
     # This ensures that even if an entity was created by a non-image/video file first,
     # these components get added if a later reference *is* an image/video.
     if mime_type and mime_type.startswith("image/"):
@@ -537,175 +426,16 @@ def add_asset_reference(
             )
             add_component_to_entity(session, entity.id, idhc)
 
-    _add_multimedia_components(session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name)
+    # Add multimedia specific components using the new service
+    metadata_extractor.extract_and_add_multimedia_components(
+        session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name
+    )
 
     return entity, created_new_entity
 
 
-def _add_multimedia_components(
-    session: Session, entity: Entity, filepath: Path, mime_type: str, world_name_for_log: Optional[str] = "current"
-):
-    """
-    Extracts and adds multimedia specific components to an entity for a specific world.
-    """
-    if not createParser or not extractMetadata:
-        logger.warning(f"Hachoir not available. Cannot extract multimedia metadata for world '{world_name_for_log}'.")
-        return
-
-    parser = createParser(str(filepath))
-    if not parser:
-        logger.warning(f"Hachoir could not create a parser for file: {filepath}")
-        return
-
-    with parser:
-        try:
-            metadata = extractMetadata(parser)
-        except Exception as e:
-            logger.error(f"Hachoir failed to extract metadata for {filepath}: {e}", exc_info=True)
-            metadata = None
-
-    if not metadata:
-        logger.info(f"No metadata extracted by Hachoir for {filepath}")
-        return
-
-    def _has_metadata(md, key):
-        try:
-            return md.has(key)
-        except (KeyError, ValueError):  # Hachoir can raise these if key is truly absent
-            return False
-
-    def _get_metadata(md, key, default=None):
-        try:
-            if md.has(key):
-                return md.get(key)
-        except (KeyError, ValueError):
-            pass
-        return default
-
-    # --- Populate ImageDimensionsComponent for any visual media ---
-    if mime_type.startswith("image/") or mime_type.startswith("video/"):
-        if not get_components(session, entity.id, ImageDimensionsComponent):
-            width = _get_metadata(metadata, "width")
-            height = _get_metadata(metadata, "height")
-            if width is not None and height is not None:  # Only create if dimensions are found
-                dim_comp = ImageDimensionsComponent(
-                    entity_id=entity.id, entity=entity, width_pixels=width, height_pixels=height
-                )
-                add_component_to_entity(session, entity.id, dim_comp)
-                logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
-
-    # --- Heuristics for content type ---
-    is_video_heuristic = mime_type.startswith("video/") or (
-        _has_metadata(metadata, "duration")
-        and (_has_metadata(metadata, "width") or _has_metadata(metadata, "frame_rate"))
-    )
-
-    is_audio_file_heuristic = (
-        mime_type.startswith("audio/")
-        or (_has_metadata(metadata, "audio_codec") and not is_video_heuristic)
-        or (not is_video_heuristic and _has_metadata(metadata, "duration") and _has_metadata(metadata, "sample_rate"))
-    )
-
-    if is_audio_file_heuristic:  # Populate AudioPropertiesComponent for standalone audio files
-        if not get_components(
-            session, entity.id, AudioPropertiesComponent
-        ):  # Assuming one primary audio component for a file
-            audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
-            duration = _get_metadata(metadata, "duration")
-            if duration:
-                audio_comp.duration_seconds = duration.total_seconds()
-
-            audio_codec = _get_metadata(metadata, "audio_codec")
-            if not audio_codec:  # For some audio files, codec might be under 'compression'
-                audio_codec = _get_metadata(metadata, "compression")
-            audio_comp.codec_name = audio_codec
-
-            audio_comp.sample_rate_hz = _get_metadata(metadata, "sample_rate")
-            audio_comp.channels = _get_metadata(metadata, "nb_channel")
-            bit_rate_bps = _get_metadata(metadata, "bit_rate")
-            if bit_rate_bps:
-                audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-
-            add_component_to_entity(session, entity.id, audio_comp)
-            logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
-
-    if is_video_heuristic:
-        # Populate FramePropertiesComponent for video's visual stream
-        if not get_components(session, entity.id, FramePropertiesComponent):
-            # This assumes one primary visual stream for FrameProperties.
-            # More complex videos might need multiple such components or a different model.
-            video_frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
-            video_duration = _get_metadata(metadata, "duration")  # Overall duration
-
-            # Frame count might not be directly available for all video formats via hachoir's top level.
-            # If "nb_frames" (often for containers like AVI) or "frame_count" is there, use it.
-            nb_frames = _get_metadata(metadata, "nb_frames") or _get_metadata(metadata, "frame_count")
-            video_frame_comp.frame_count = nb_frames
-
-            video_frame_comp.nominal_frame_rate = _get_metadata(metadata, "frame_rate")
-
-            if video_duration:
-                video_frame_comp.animation_duration_seconds = video_duration.total_seconds()
-
-            # If frame rate and duration are known, frame count can be estimated if not directly available
-            if (
-                not video_frame_comp.frame_count
-                and video_frame_comp.nominal_frame_rate
-                and video_frame_comp.animation_duration_seconds
-            ):
-                video_frame_comp.frame_count = int(
-                    video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
-                )
-
-            add_component_to_entity(session, entity.id, video_frame_comp)
-            logger.info(f"Added FramePropertiesComponent for video Entity ID {entity.id}")
-
-        # Populate AudioPropertiesComponent for video's audio stream(s)
-        # Hachoir might give a general "audio_codec". For simplicity, one component for now.
-        if _has_metadata(metadata, "audio_codec"):
-            if not get_components(
-                session, entity.id, AudioPropertiesComponent
-            ):  # Check if already added (e.g. if it was also an audio file)
-                video_audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
-                video_duration = _get_metadata(metadata, "duration")
-                if video_duration:
-                    video_audio_comp.duration_seconds = video_duration.total_seconds()
-                video_audio_comp.codec_name = _get_metadata(metadata, "audio_codec")
-                video_audio_comp.sample_rate_hz = _get_metadata(
-                    metadata, "sample_rate"
-                )  # May not always be present with just audio_codec
-                video_audio_comp.channels = _get_metadata(metadata, "nb_channel")  # May not always be present
-                # Bit rate for audio within video might be harder to get consistently from top-level hachoir
-                add_component_to_entity(session, entity.id, video_audio_comp)
-                logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
-
-    # The is_audio_file_heuristic check at the beginning handles standalone audio files.
-    # The is_video_heuristic check handles audio embedded in videos.
-    # The redundant block below was removed.
-
-    # Frame properties (for animated images like GIFs)
-    if mime_type == "image/gif":  # This specific check for GIFs remains
-        if not get_components(session, entity.id, FramePropertiesComponent):
-            frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
-            # Try to get frame count, but create component even if not found by Hachoir
-            nb_frames = _get_metadata(metadata, "nb_frames") or _get_metadata(metadata, "frame_count")
-            frame_comp.frame_count = nb_frames
-
-            duration = _get_metadata(metadata, "duration")
-            # Only calculate animation duration and frame rate if we have a frame count > 1
-            if nb_frames and nb_frames > 1 and duration:
-                duration_sec = duration.total_seconds()
-                frame_comp.animation_duration_seconds = duration_sec
-                if duration_sec > 0:  # Avoid division by zero
-                    frame_comp.nominal_frame_rate = nb_frames / duration_sec
-
-            log_msg = (
-                f"GIF metadata: frame_count={frame_comp.frame_count}, "
-                f"animation_duration={frame_comp.animation_duration_seconds}"
-            )
-            logger.info(log_msg)
-            add_component_to_entity(session, entity.id, frame_comp)
-            logger.info(f"Added FramePropertiesComponent for Entity ID {entity.id} (GIF)")
+# The _add_multimedia_components function is now removed from this file.
+# Its functionality is in services.metadata_extractor.extract_and_add_multimedia_components
 
 
 def find_entities_by_similar_image_hashes(

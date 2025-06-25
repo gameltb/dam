@@ -29,9 +29,9 @@ def _get_storage_path_for_world(file_hash: str, world_config: WorldConfig) -> Pa
 
 def store_file(
     file_content: bytes,
-    world_config: WorldConfig, # Changed from world_name
+    world_config: WorldConfig,
     original_filename: Optional[str] = None,
-) -> str:
+) -> tuple[str, str]:
     """
     Stores the given file content using a content-addressable scheme (SHA256 hash)
     into the specified world's asset storage, using the provided WorldConfig.
@@ -42,12 +42,24 @@ def store_file(
         original_filename: The original name of the file (optional, not used for storage path).
 
     Returns:
-        The SHA256 hash of the file content, which serves as its unique identifier.
+        A tuple containing:
+            - The SHA256 hash of the file content (content_hash).
+            - The relative physical storage path suffix (e.g., "ab/cd/hashvalue").
     """
-    # world_config is now passed directly
-    file_hash = hashlib.sha256(file_content).hexdigest()
-    storage_path = _get_storage_path_for_world(file_hash, world_config)
+    content_hash = hashlib.sha256(file_content).hexdigest()
 
+    # Construct the relative path suffix for CAS based on the hash
+    # This logic is similar to _get_storage_path_for_world but only for the suffix part
+    if not content_hash or len(content_hash) < 4:
+        raise ValueError("Content hash must be at least 4 characters long for storage path generation.")
+    sub_dir_1 = content_hash[:2]
+    sub_dir_2 = content_hash[2:4]
+    file_name_in_cas = content_hash
+    # The physical_storage_path_suffix is the path relative to the CAS root for this file
+    physical_storage_path_suffix = str(Path(sub_dir_1) / sub_dir_2 / file_name_in_cas)
+
+    # Get the full absolute storage path using the existing helper
+    storage_path = _get_storage_path_for_world(content_hash, world_config)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Use world_config.DATABASE_URL or a name from world_config if available for logging,
@@ -58,14 +70,14 @@ def store_file(
         with open(storage_path, "wb") as f:
             f.write(file_content)
         logger.info(
-            f"Stored file {original_filename or file_hash} to {storage_path} in world (config: {log_world_identifier})"
+            f"Stored file {original_filename or content_hash} to {storage_path} in world (config: {log_world_identifier})"
         )
     else:
         logger.debug(
-            f"File {original_filename or file_hash} (hash: {file_hash}) already exists at {storage_path} in world (config: {log_world_identifier})"
+            f"File {original_filename or content_hash} (hash: {content_hash}) already exists at {storage_path} in world (config: {log_world_identifier})"
         )
 
-    return file_hash
+    return content_hash, physical_storage_path_suffix
 
 
 def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]: # Changed from world_name
