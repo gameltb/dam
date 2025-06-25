@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from dam.models import (
-    ImagePerceptualPHashComponent,
     ImagePerceptualAHashComponent,
     ImagePerceptualDHashComponent,
+    ImagePerceptualPHashComponent,
 )
 from dam.services import asset_service, file_operations
 
@@ -138,17 +138,36 @@ def test_add_existing_image_content_adds_missing_perceptual_hashes(
     db_session.commit()
 
     # Verify all 3 perceptual hashes are there initially
-    phashes_initial = db_session.execute(select(ImagePerceptualPHashComponent).where(ImagePerceptualPHashComponent.entity_id == entity1.id)).scalars().all()
-    ahashes_initial = db_session.execute(select(ImagePerceptualAHashComponent).where(ImagePerceptualAHashComponent.entity_id == entity1.id)).scalars().all()
-    dhashes_initial = db_session.execute(select(ImagePerceptualDHashComponent).where(ImagePerceptualDHashComponent.entity_id == entity1.id)).scalars().all()
+    phashes_initial = (
+        db_session.execute(
+            select(ImagePerceptualPHashComponent).where(ImagePerceptualPHashComponent.entity_id == entity1.id)
+        )
+        .scalars()
+        .all()
+    )
+    ahashes_initial = (
+        db_session.execute(
+            select(ImagePerceptualAHashComponent).where(ImagePerceptualAHashComponent.entity_id == entity1.id)
+        )
+        .scalars()
+        .all()
+    )
+    dhashes_initial = (
+        db_session.execute(
+            select(ImagePerceptualDHashComponent).where(ImagePerceptualDHashComponent.entity_id == entity1.id)
+        )
+        .scalars()
+        .all()
+    )
 
     # For the test to be meaningful, all hash types should be present initially.
     # The sample image is simple, so it should generate all.
     if not (phashes_initial and ahashes_initial and dhashes_initial):
-        pytest.skip(
+        msg = (
             "Initial add did not generate all expected hash types (phash, ahash, dhash), "
             "cannot accurately test missing hash addition."
         )
+        pytest.skip(msg)
 
     # --- Simulate missing one hash type (e.g., dhash) ---
     # We know dhashes_initial is not empty from the check above
@@ -157,7 +176,8 @@ def test_add_existing_image_content_adds_missing_perceptual_hashes(
     db_session.commit()
 
     # Verify it's gone
-    dhashes_after_delete = db_session.execute(select(ImagePerceptualDHashComponent).where(ImagePerceptualDHashComponent.entity_id == entity1.id)).scalars().all()
+    dhash_del_stmt = select(ImagePerceptualDHashComponent).where(ImagePerceptualDHashComponent.entity_id == entity1.id)
+    dhashes_after_delete = db_session.execute(dhash_del_stmt).scalars().all()
     assert len(dhashes_after_delete) == 0
 
     # --- Second add (same content, different file instance/path to simulate new discovery) ---
@@ -180,18 +200,29 @@ def test_add_existing_image_content_adds_missing_perceptual_hashes(
     assert entity2.id == entity1.id
 
     # Verify the 'dhash' is now present again
-    phashes_final = db_session.execute(select(ImagePerceptualPHashComponent).where(ImagePerceptualPHashComponent.entity_id == entity2.id)).scalars().all()
-    ahashes_final = db_session.execute(select(ImagePerceptualAHashComponent).where(ImagePerceptualAHashComponent.entity_id == entity2.id)).scalars().all()
-    dhashes_final = db_session.execute(select(ImagePerceptualDHashComponent).where(ImagePerceptualDHashComponent.entity_id == entity2.id)).scalars().all()
+    phash_final_stmt = select(ImagePerceptualPHashComponent).where(
+        ImagePerceptualPHashComponent.entity_id == entity2.id
+    )
+    phashes_final = db_session.execute(phash_final_stmt).scalars().all()
+
+    ahash_final_stmt = select(ImagePerceptualAHashComponent).where(
+        ImagePerceptualAHashComponent.entity_id == entity2.id
+    )
+    ahashes_final = db_session.execute(ahash_final_stmt).scalars().all()
+
+    dhash_final_stmt = select(ImagePerceptualDHashComponent).where(
+        ImagePerceptualDHashComponent.entity_id == entity2.id
+    )
+    dhashes_final = db_session.execute(dhash_final_stmt).scalars().all()
 
     assert len(dhashes_final) > 0  # dhash should be re-added
-    assert dhashes_final[0].hash_value == dhashes_initial[0].hash_value # ensure it's the same hash value
+    assert dhashes_final[0].hash_value == dhashes_initial[0].hash_value  # ensure it's the same hash value
 
     # Ensure other original hashes are still there and unchanged
     assert len(phashes_final) == len(phashes_initial)
-    if phashes_initial: # if it existed before
-      assert phashes_final[0].hash_value == phashes_initial[0].hash_value
+    if phashes_initial:  # if it existed before
+        assert phashes_final[0].hash_value == phashes_initial[0].hash_value
 
     assert len(ahashes_final) == len(ahashes_initial)
-    if ahashes_initial: # if it existed before
-      assert ahashes_final[0].hash_value == ahashes_initial[0].hash_value
+    if ahashes_initial:  # if it existed before
+        assert ahashes_final[0].hash_value == ahashes_initial[0].hash_value
