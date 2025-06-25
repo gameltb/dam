@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,8 +6,7 @@ from .base_component import BaseComponent
 
 
 # No need for @Base.mapped_as_dataclass
-# kw_only=True should now be inherited from Base
-@dataclass
+# kw_only=True and @dataclass behavior are inherited from Base
 class ImagePerceptualHashComponent(BaseComponent):  # BaseComponent already inherits from Base
     """
     Stores perceptual hashes for an image entity (e.g., pHash, aHash, dHash).

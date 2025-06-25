@@ -68,7 +68,7 @@ First, create a new Python file for your component in the `dam/models/` director
 
 The component class should:
 - Inherit from `BaseComponent`.
-- Be decorated with `@dataclass`. The `kw_only=True` behavior (requiring keyword arguments for `__init__`) is automatically inherited from the main `Base` class (`dam.models.base_class.Base`), which is configured with `kw_only=True` globally for all model dataclasses. This helps manage argument order for `__init__` methods, especially with inheritance.
+- **Not** be decorated with `@dataclass` directly. Dataclass behavior (including `kw_only=True` for `__init__` methods) is automatically inherited because `BaseComponent`'s ultimate ancestor, `dam.models.base_class.Base`, is configured as a `MappedAsDataclass` with `kw_only=True`.
 - Define a `__tablename__` for the database table.
 - Define its specific data fields using `Mapped` type hints and SQLAlchemy's `mapped_column`.
 
@@ -82,7 +82,7 @@ from sqlalchemy import String, UniqueConstraint
 from .base_component import BaseComponent
 # Note: Base is inherited via BaseComponent
 
-@dataclass # kw_only=True is inherited from the main Base class
+# No @dataclass decorator needed here; it's inherited from Base via BaseComponent
 class TagComponent(BaseComponent):
     __tablename__ = "tags" # Choose a suitable table name
 
@@ -103,7 +103,7 @@ class TagComponent(BaseComponent):
 
 **Key points:**
 - **Inheritance**: `class TagComponent(BaseComponent):`
-- **Dataclass**: `@dataclass` is used (with `kw_only=True` inherited from `Base`).
+- **Dataclass Behavior**: Inherited automatically from `Base` (which is a `MappedAsDataclass` configured with `kw_only=True`). No explicit `@dataclass` decorator is needed on `TagComponent` itself.
 - **Table Name**: `__tablename__ = "tags"`
 - **Custom Fields**: `tag_name: Mapped[str] = mapped_column(...)` defines the actual data this component holds. We've added `index=True` as tags are likely to be queried.
 - **Constraints**: `__table_args__` can define `UniqueConstraint`, `Index`, etc. Here, we prevent duplicate tags per entity.

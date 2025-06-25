@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime  # Added import
 
 from sqlalchemy import DateTime, func  # Added func
@@ -11,8 +10,7 @@ from .base_class import Base  # Updated import for Base
 
 
 # No need for @Base.mapped_as_dataclass here, as Base itself includes MappedAsDataclass
-# kw_only=True should now be inherited from Base
-@dataclass
+# kw_only=True and @dataclass behavior are inherited from Base
 class Entity(Base):  # Inherit from the new Base
     """
     Represents a unique digital asset in the system.

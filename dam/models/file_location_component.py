@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,8 +7,7 @@ from .base_component import BaseComponent
 # BaseComponent already brings Base via inheritance.
 
 
-# kw_only=True should now be inherited from Base
-@dataclass
+# kw_only=True and @dataclass behavior are inherited from Base
 class FileLocationComponent(BaseComponent):  # BaseComponent inherits from Base(MappedAsDataclass)
     """
     Stores the location of an asset's file.

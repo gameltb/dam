@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Optional
 
 from sqlalchemy import Integer, String, UniqueConstraint
@@ -9,8 +8,7 @@ from .base_component import BaseComponent
 # Base is inherited via BaseComponent
 
 
-# kw_only=True should now be inherited from Base
-@dataclass
+# kw_only=True and @dataclass behavior are inherited from Base
 class FilePropertiesComponent(BaseComponent):
     """
     Stores basic properties of an asset's file, such as original name,

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import datetime  # Added import
 
 # PkId is still used by @declared_attr id, Timestamp types are not used here anymore
@@ -21,8 +21,7 @@ if TYPE_CHECKING:
 
 
 # No need for @Base.mapped_as_dataclass here
-# kw_only=True should now be inherited from Base
-@dataclass
+# kw_only=True and @dataclass behavior are inherited from Base
 class BaseComponent(Base):  # Inherit from the new Base
     """
     Abstract base class for all components.
