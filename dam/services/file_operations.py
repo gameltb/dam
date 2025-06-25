@@ -34,6 +34,33 @@ def calculate_sha256(filepath: Path) -> str:
         raise IOError(f"Error reading file {filepath}: {e}")
 
 
+def calculate_md5(filepath: Path) -> str:
+    """
+    Calculates the MD5 hash of a file.
+
+    Args:
+        filepath: Path to the file.
+
+    Returns:
+        The hex digest of the MD5 hash.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        IOError: If there's an error reading the file.
+    """
+    if not filepath.is_file():
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    md5_hash = hashlib.md5()
+    try:
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                md5_hash.update(byte_block)
+        return md5_hash.hexdigest()
+    except IOError as e:
+        raise IOError(f"Error reading file {filepath}: {e}")
+
+
 def get_file_properties(filepath: Path) -> Tuple[str, int, str]:
     """
     Retrieves basic file properties.

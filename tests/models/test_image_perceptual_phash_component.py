@@ -51,7 +51,7 @@ def test_image_perceptual_phash_component_relationship_to_entity(db_session: Ses
     iphc = ImagePerceptualPHashComponent(
         entity_id=test_entity.id,  # type: ignore
         entity=test_entity,  # Added entity object
-        hash_value="ahash_for_relation_test", # This test will be specific to pHash, value can be generic
+        hash_value="ahash_for_relation_test",  # This test will be specific to pHash, value can be generic
     )
     db_session.add(iphc)
     db_session.commit()
