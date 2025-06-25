@@ -65,9 +65,27 @@ ecs_dam_system/
     ```
     The `-e .` installs the package in editable mode.
 
+    Alternatively, you can use [Poetry](https://python-poetry.org/) (which is used for managing dependencies in `pyproject.toml`):
+    ```bash
+    # Install poetry if you don't have it
+    # pip install poetry
+    poetry install --extras image # Installs main + image dependencies
+    # poetry install --extras dev # For development dependencies like pytest
+    ```
+    Or, using [uv](https://github.com/astral-sh/uv) (a fast Python package installer and resolver):
+    ```bash
+    # Install uv if you don't have it
+    # pip install uv
+    uv venv venv # Create virtual environment (if not already done)
+    source venv/bin/activate # Activate
+    uv pip install -e ".[image]" # Install main + image dependencies
+    # uv pip install -e ".[dev]" # For development dependencies
+    ```
+
     For optional features like perceptual image hashing, install the extras:
     ```bash
-    pip install -e ".[image]"
+    pip install -e ".[image]" # Using pip
+    # Or see Poetry/uv examples above
     ```
 
 4.  **Set up environment variables:**
@@ -128,6 +146,7 @@ dam-cli --help
     ```bash
     mypy .
     ```
+*   **Logging:** The system uses standard Python logging. Output is to stderr by default. Set the `DAM_LOG_LEVEL` environment variable (e.g., to `DEBUG`) for more detailed logs. See `doc/developer_guide.md` for more details.
 
 *   **Creating new database migrations (after changing SQLAlchemy models):**
     1.  Ensure your models are imported in a way that Alembic's `env.py` can see their metadata (e.g., via a common `Base` object).

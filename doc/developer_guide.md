@@ -56,6 +56,33 @@ A brief overview of the key directories:
 -   `.env.example`: Example environment variables file.
 -   `README.md`: Main project README.
 
+### 2.5. File Storage and Retrieval
+
+The DAM employs a content-addressable storage strategy for asset files, managed by the `dam.services.file_storage` module.
+
+-   **Content Hashing**: When a file is added, its content is read, and a SHA256 hash is computed. This hash serves as the primary identifier for the file's content.
+-   **Storage Path**: Files are stored in a nested directory structure derived from their SHA256 hash. The base storage directory is defined by `ASSET_STORAGE_PATH` in the application settings (see `dam.core.config.settings`).
+    -   For a file with hash `abcdef1234...`, it would be stored at a path like: `<ASSET_STORAGE_PATH>/ab/cd/abcdef1234...`.
+    -   This structure helps to avoid having too many files in a single directory, which can be inefficient for some filesystems.
+-   **`store_file` Function**: The `dam.services.file_storage.store_file(file_content: bytes, original_filename: str) -> str` function is responsible for:
+    1.  Calculating the SHA256 hash of the `file_content`.
+    2.  Determining the storage path based on this hash.
+    3.  Creating the nested directories if they don't exist.
+    4.  Writing the `file_content` to the path, using the full hash as the filename.
+    5.  Returning the SHA256 hash (file identifier).
+    -   If a file with the same content (and thus the same hash) is stored again, it will not create a duplicate; the existing file is effectively reused. The `original_filename` is not used for the storage path itself but can be stored in metadata components (like `FileLocationComponent`).
+-   **`get_file_path` Function**: The `dam.services.file_storage.get_file_path(file_identifier: str) -> Path | None` function reconstructs the absolute path to a stored file given its `file_identifier` (SHA256 hash).
+-   **`FileLocationComponent`**: This component (defined in `dam.models.file_location_component`) stores how to locate an asset's content.
+    -   `file_identifier`: Stores the SHA256 hash returned by `store_file`.
+    -   `storage_type`: Set to `"local_content_addressable"` for files managed by this strategy.
+    -   `original_filename`: Can store the original name of the file as ingested, providing context.
+-   **Benefits**:
+    -   **Deduplication**: Files with identical content are stored only once, saving storage space.
+    -   **Integrity**: The hash acts as a checksum; if the file on disk changes, its hash would no longer match the identifier.
+    -   **Permanent Identifiers**: The file identifier (hash) is based on content, not a mutable filename or path.
+
+This approach ensures that the actual asset files are managed robustly and efficiently. The `asset_service` uses these `file_storage` functions when adding new assets.
+
 ---
 
 ## 4. Guide: Adding a New Component
@@ -316,3 +343,43 @@ The project uses `pytest` for testing.
     -   Functions/Methods/Variables: `snake_case`
 
 Adhering to these practices helps maintain a clean, consistent, and understandable codebase.
+
+### 5.4. Logging
+
+The DAM system uses the standard Python `logging` module for operational messages, diagnostics, and error reporting.
+
+**Configuration:**
+- Logging is configured by the `dam.core.logging_config.setup_logging()` function.
+- This setup is automatically called when the CLI application starts (`dam.cli.py`).
+- By default, logs are output to `sys.stderr`.
+- The default log format is: `%(asctime)s - %(name)s - %(levelname)s - %(message)s`.
+- The default logging level is `INFO`.
+
+**Log Level Configuration:**
+- The logging level can be controlled via the `DAM_LOG_LEVEL` environment variable.
+- Supported values are standard Python logging level names (case-insensitive), e.g., `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.
+- If `DAM_LOG_LEVEL` is not set or is invalid, it defaults to `INFO`.
+  Example: `export DAM_LOG_LEVEL=DEBUG` (Linux/macOS) or `set DAM_LOG_LEVEL=DEBUG` (Windows).
+
+**Usage in Modules:**
+- To use logging within any module of the `dam` application, obtain a logger instance specific to that module:
+  ```python
+  import logging
+  logger = logging.getLogger(__name__)
+  ```
+- Then use the logger methods for output:
+  - `logger.debug("Detailed information, typically of interest only when diagnosing problems.")`
+  - `logger.info("Confirmation that things are working as expected.")`
+  - `logger.warning("An indication that something unexpected happened, or indicative of some problem in the near future (e.g. ‘disk space low’). The software is still working as expected.")`
+  - `logger.error("Due to a more serious problem, the software has not been able to perform some function.")`
+  - `logger.exception("Similar to error, but automatically includes traceback information. Use within an except block.")`
+  ```python
+  try:
+      # ... some operation ...
+  except Exception as e:
+      logger.exception(f"An error occurred during operation foo: {e}")
+  ```
+
+**Guideline:**
+- **Always prefer using the logging framework over `print()` statements** for any non-trivial diagnostic messages, operational status, warnings, or errors within the library/application code (i.e., in `dam/services`, `dam/core`, etc.).
+- `typer.echo()` and `typer.secho()` in `dam/cli.py` are acceptable for direct user feedback from CLI commands, as this is their intended purpose. Internal service logic, however, should use logging.
