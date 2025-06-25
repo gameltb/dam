@@ -37,7 +37,7 @@ from dam.services import asset_service, ecs_service, file_operations
 def test_add_image_asset_creates_perceptual_hashes(settings_override, db_session: Session, sample_image_a: Path):
     # settings_override ensures that the test runs with the correct multi-world config
     # db_session is for the default test world (e.g., "test_world_alpha")
-    current_world_name = app_settings.DEFAULT_WORLD_NAME  # Get current world from overridden settings
+    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
 
     try:
         import imagehash  # noqa: F401
@@ -68,7 +68,7 @@ def test_add_image_asset_creates_perceptual_hashes(settings_override, db_session
     assert dim_comp is not None and dim_comp.width_pixels == 2 and dim_comp.height_pixels == 1
 
     # Verify asset storage path corresponds to the world
-    world_config = app_settings.get_world_config(current_world_name)
+    world_config = settings_override.get_world_config(current_world_name) # Use patched settings
     sha256_comp = ecs_service.get_component(db_session, entity.id, ContentHashSHA256Component)
     assert sha256_comp is not None
     expected_file_path_fragment = (
@@ -92,12 +92,12 @@ def test_add_image_asset_creates_perceptual_hashes(settings_override, db_session
     assert str(expected_file_path_fragment) in str(reconstructed_path)
 
 
-def test_add_non_image_asset_no_perceptual_hashes(settings_override, db_session: Session, non_image_file: Path):
-    current_world_name = app_settings.DEFAULT_WORLD_NAME
-    props = file_operations.get_file_properties(non_image_file)
+def test_add_non_image_asset_no_perceptual_hashes(settings_override, db_session: Session, sample_text_file: Path):
+    current_world_name = settings_override.DEFAULT_WORLD_NAME # Use patched settings from fixture
+    props = file_operations.get_file_properties(sample_text_file)
     entity, created_new = asset_service.add_asset_file(
         session=db_session,
-        filepath_on_disk=non_image_file,
+        filepath_on_disk=sample_text_file,
         original_filename=props[0],
         mime_type=props[2],
         size_bytes=props[1],
@@ -111,7 +111,7 @@ def test_add_non_image_asset_no_perceptual_hashes(settings_override, db_session:
 def test_add_existing_image_content_adds_missing_hashes(
     settings_override, db_session: Session, sample_image_a: Path, tmp_path: Path
 ):
-    current_world_name = app_settings.DEFAULT_WORLD_NAME
+    current_world_name = settings_override.DEFAULT_WORLD_NAME # Use patched settings from fixture
     try:
         import imagehash  # noqa: F401
         from PIL import Image  # noqa
@@ -147,7 +147,7 @@ def test_add_existing_image_content_adds_missing_hashes(
 
 
 def test_add_video_asset_creates_multimedia_props(settings_override, db_session: Session, sample_video_file_placeholder: Path):
-    current_world_name = app_settings.DEFAULT_WORLD_NAME
+    current_world_name = settings_override.DEFAULT_WORLD_NAME # Use patched settings from fixture
     try:
         from hachoir.parser import createParser  # noqa
     except ImportError:
@@ -168,7 +168,7 @@ def test_add_video_asset_creates_multimedia_props(settings_override, db_session:
 
 
 def test_add_audio_asset_creates_audio_props(settings_override, db_session: Session, sample_audio_file_placeholder: Path):
-    current_world_name = app_settings.DEFAULT_WORLD_NAME
+    current_world_name = settings_override.DEFAULT_WORLD_NAME # Use patched settings from fixture
     try:
         from hachoir.parser import createParser  # noqa
     except ImportError:
@@ -185,7 +185,7 @@ def test_add_audio_asset_creates_audio_props(settings_override, db_session: Sess
 
 
 def test_add_gif_asset_creates_frame_and_image_props(settings_override, db_session: Session, sample_gif_file_placeholder: Path):
-    current_world_name = app_settings.DEFAULT_WORLD_NAME
+    current_world_name = settings_override.DEFAULT_WORLD_NAME # Use patched settings from fixture
     try:
         from hachoir.parser import createParser  # noqa
     except ImportError:
@@ -202,10 +202,11 @@ def test_add_gif_asset_creates_frame_and_image_props(settings_override, db_sessi
     frame_props = ecs_service.get_component(db_session, entity.id, FramePropertiesComponent)
     assert frame_props is not None
     if frame_props.frame_count is not None:
-        assert frame_props.frame_count >= 1
+        assert frame_props.frame_count >= 1 # The minimal GIF has 1 frame.
 
     dim_comp_gif = ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent)
-    assert dim_comp_gif is not None and dim_comp_gif.width_pixels == 10 and dim_comp_gif.height_pixels == 10
+    # The placeholder GIF in conftest.py is 1x1 pixel.
+    assert dim_comp_gif is not None and dim_comp_gif.width_pixels == 1 and dim_comp_gif.height_pixels == 1
 
 
 def test_asset_isolation_between_worlds(settings_override, test_db_manager, sample_image_a: Path):
@@ -227,7 +228,7 @@ def test_asset_isolation_between_worlds(settings_override, test_db_manager, samp
     assert sha256_alpha is not None
 
     # Verify asset's file exists in world_alpha's storage
-    world_alpha_config = app_settings.get_world_config("test_world_alpha")
+    world_alpha_config = settings_override.get_world_config("test_world_alpha") # Use patched settings
     from dam.services.file_storage import _get_storage_path_for_world  # internal access for test
 
     alpha_storage_path = _get_storage_path_for_world(sha256_alpha.hash_value, world_alpha_config)
@@ -243,7 +244,7 @@ def test_asset_isolation_between_worlds(settings_override, test_db_manager, samp
     assert beta_entity_by_hash is None
 
     # Verify asset's file does NOT exist in world_beta's storage
-    world_beta_config = app_settings.get_world_config("test_world_beta")
+    world_beta_config = settings_override.get_world_config("test_world_beta") # Use patched settings
     beta_storage_path = _get_storage_path_for_world(sha256_alpha.hash_value, world_beta_config)
     assert not beta_storage_path.exists()
 
@@ -272,7 +273,7 @@ def test_add_asset_reference_multi_world(settings_override, test_db_manager, sam
     assert flc_alpha_ref[0].file_identifier == str(referenced_file.resolve())
 
     # Ensure the actual file was NOT copied to alpha's CAS storage
-    world_alpha_config = app_settings.get_world_config("test_world_alpha")
+    world_alpha_config = settings_override.get_world_config("test_world_alpha") # Use patched settings
     sha256_comp = ecs_service.get_component(session_alpha, entity_ref_alpha.id, ContentHashSHA256Component)
     assert sha256_comp is not None
     from dam.services.file_storage import _get_storage_path_for_world
