@@ -56,7 +56,7 @@ def test_add_image_asset_creates_perceptual_hashes(db_session: Session, sample_i
         pytest.skip("ImageHash or Pillow not installed, skipping perceptual hash integration test.")
 
     original_filename, size_bytes, mime_type = file_operations.get_file_properties(sample_image_a)
-    content_hash = file_operations.calculate_sha256(sample_image_a)
+    # content_hash = file_operations.calculate_sha256(sample_image_a) # Unused
 
     entity, created_new = asset_service.add_asset_file(
         session=db_session,
@@ -64,7 +64,7 @@ def test_add_image_asset_creates_perceptual_hashes(db_session: Session, sample_i
         original_filename=original_filename,
         mime_type=mime_type,  # Should be 'image/png'
         size_bytes=size_bytes,
-        content_hash=content_hash,
+        # content_hash is no longer passed
     )
     db_session.commit()
 
@@ -94,7 +94,7 @@ def test_add_image_asset_creates_perceptual_hashes(db_session: Session, sample_i
 def test_add_non_image_asset_no_perceptual_hashes(db_session: Session, non_image_file: Path):
     """Test adding a non-image asset does not create ImagePerceptualHashComponents."""
     original_filename, size_bytes, mime_type = file_operations.get_file_properties(non_image_file)
-    content_hash = file_operations.calculate_sha256(non_image_file)
+    # content_hash = file_operations.calculate_sha256(non_image_file) # Unused
 
     entity, created_new = asset_service.add_asset_file(
         session=db_session,
@@ -102,7 +102,7 @@ def test_add_non_image_asset_no_perceptual_hashes(db_session: Session, non_image
         original_filename=original_filename,
         mime_type=mime_type,  # Should be 'text/plain' or 'application/octet-stream'
         size_bytes=size_bytes,
-        content_hash=content_hash,
+        # content_hash is no longer passed
     )
     db_session.commit()
 
@@ -133,8 +133,14 @@ def test_add_existing_image_content_adds_missing_perceptual_hashes(
 
     # --- First add ---
     props1 = file_operations.get_file_properties(sample_image_a)
-    chash1 = file_operations.calculate_sha256(sample_image_a)
-    entity1, _ = asset_service.add_asset_file(db_session, sample_image_a, props1[0], props1[2], props1[1], chash1)
+    # chash1 = file_operations.calculate_sha256(sample_image_a) # Not needed for add_asset_file call
+    entity1, _ = asset_service.add_asset_file(
+        session=db_session,
+        filepath_on_disk=sample_image_a,
+        original_filename=props1[0],
+        mime_type=props1[2],
+        size_bytes=props1[1],
+    )
     db_session.commit()
 
     # Verify all 3 perceptual hashes are there initially
@@ -188,11 +194,15 @@ def test_add_existing_image_content_adds_missing_perceptual_hashes(
     shutil.copy2(sample_image_a, copy_of_sample_image_a)
 
     props2 = file_operations.get_file_properties(copy_of_sample_image_a)
-    chash2 = file_operations.calculate_sha256(copy_of_sample_image_a)
-    assert chash1 == chash2  # Content hash must be the same
+    # chash2 = file_operations.calculate_sha256(copy_of_sample_image_a) # Not needed
+    # assert chash1 == chash2  # Content hash must be the same - checked by service logic
 
     entity2, created_new2 = asset_service.add_asset_file(
-        db_session, copy_of_sample_image_a, props2[0], props2[2], props2[1], chash2
+        session=db_session,
+        filepath_on_disk=copy_of_sample_image_a,
+        original_filename=props2[0],  # Could be a different original name too
+        mime_type=props2[2],
+        size_bytes=props2[1],
     )
     db_session.commit()
 

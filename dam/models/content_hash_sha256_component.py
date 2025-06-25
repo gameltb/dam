@@ -13,7 +13,12 @@ class ContentHashSHA256Component(BaseComponent):
 
     hash_value: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # SHA256 hashes are 64 chars
 
-    __table_args__ = (UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_sha256_entity_hash"),)
+    __table_args__ = (
+        UniqueConstraint("entity_id", name="uq_sha256_entity_id"),  # One SHA256 component per entity
+        UniqueConstraint(
+            "hash_value", name="uq_sha256_hash_value"
+        ),  # Hash values themselves are unique across all components
+    )
 
     def __repr__(self):
         return (

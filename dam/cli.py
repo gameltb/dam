@@ -95,7 +95,11 @@ def cli_add_asset(
 
     except Exception as e:
         db.rollback()
-        typer.secho(f"Database error: {e}", fg=typer.colors.RED)
+        # More detailed error logging for debugging
+        import traceback
+
+        typer.secho(f"Database error in cli_add_asset: {type(e).__name__} - {e}", fg=typer.colors.RED)
+        typer.secho(f"Traceback: {traceback.format_exc()}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     finally:
         db.close()
@@ -200,7 +204,13 @@ def cli_find_file_by_hash(
             if locations:
                 typer.echo("  File Locations:")
                 for loc in locations:
-                    typer.echo(f"    - Path: '{loc.filepath}', Storage: '{loc.storage_type}'")
+                    # FileLocationComponent does not have 'filepath'.
+                    # It has 'file_identifier' and 'original_filename'.
+                    # Displaying original_filename is more user-friendly here.
+                    typer.echo(
+                        f"    - Original Name: '{loc.original_filename}', "
+                        f"Identifier: '{loc.file_identifier}', Storage: '{loc.storage_type}'"
+                    )
             else:
                 typer.echo("  No file locations found for this entity.")
         else:
@@ -292,21 +302,24 @@ def cli_find_similar_images(
                 if locations:
                     typer.echo("    Locations:")
                     for loc in locations:
-                        typer.echo(f"      - Path: '{loc.filepath}', Storage: '{loc.storage_type}'")
+                        typer.echo(
+                            f"      - Original Name: '{loc.original_filename}', "
+                            f"Identifier: '{loc.file_identifier}', Storage: '{loc.storage_type}'"
+                        )
                 else:
                     typer.echo("    No file locations found for this entity.")
         else:
             typer.secho("No similar images found based on the criteria.", fg=typer.colors.YELLOW)
 
-    except FileNotFoundError:  # Should be caught by Typer's exists=True, but good practice
+    except FileNotFoundError:  # Should be caught by Typer's exists=True on the argument, but good as a fallback.
         typer.secho(f"Error: Image file not found at {image_filepath_str}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    except ValueError as ve:  # E.g. if image cannot be processed
-        typer.secho(f"Error processing image: {ve}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+    except ValueError as ve:  # Raised by asset_service if image processing fails for hashing
+        typer.secho(f"Error processing image for similarity search: {ve}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)  # Ensure failure exit code
     except Exception as e:
-        typer.secho(f"An unexpected error occurred: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        typer.secho(f"An unexpected error occurred during similarity search: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)  # Ensure failure exit code
     finally:
         db.close()
 
