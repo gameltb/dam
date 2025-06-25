@@ -220,7 +220,10 @@ def cli_find_file_by_hash(
             )
 
     except Exception as e:
-        typer.secho(f"Error during query: {e}", fg=typer.colors.RED)
+        import traceback
+
+        typer.secho(f"Error during query for find-file-by-hash: {type(e).__name__} - {e}", fg=typer.colors.RED)
+        typer.secho(f"Traceback: {traceback.format_exc()}", fg=typer.colors.RED)  # Add traceback
         raise typer.Exit(code=1)
     finally:
         db.close()

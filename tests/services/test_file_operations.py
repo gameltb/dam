@@ -22,26 +22,31 @@ def test_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
     # Create a temporary directory for test data for this module
     # If using files from tests/test_data, this fixture would just return Path("tests/test_data")
-    # For now, let's use actual files from tests/test_data as created in the previous step.
-    # This fixture can then just point to that static path.
+    data_dir = tmp_path_factory.mktemp("file_ops_test_data")
 
-    # The previous step created files in "tests/test_data" relative to project root.
-    # So, this fixture should construct the path to that directory.
-    project_root = Path(__file__).parent.parent.parent  # Assuming tests/services/test_file_operations.py
-    data_dir = project_root / "tests" / "test_data"
+    # Helper to create dummy image files locally for this module's tests
+    def _create_dummy_image_for_file_ops(filepath: Path, color_name: str, size=(10, 10)):
+        colors = {
+            "red": (255, 0, 0),
+            "blue": (0, 0, 255),
+        }
+        try:
+            from PIL import Image
 
-    # Ensure it exists (it should from previous step)
-    if not data_dir.exists():
-        # This indicates an issue with previous step or test setup assumption
-        # For robustness, could create them here if missing, but it's better if prior step ensures it.
-        # os.makedirs(data_dir, exist_ok=True)
-        # with open(data_dir / "img_A.png", "wb") as f_a:
-        #     import base64
-        #     f_a.write(base64.b64decode(img_a_b64))
-        # with open(data_dir / "img_B.png", "wb") as f_b:
-        #     import base64
-        #     f_b.write(base64.b64decode(img_b_b64))
-        pytest.fail(f"Test data directory {data_dir} not found. Please ensure it's created by the previous plan step.")
+            img = Image.new("RGB", size, color=colors[color_name])
+            if color_name == "blue":  # Make it slightly different from red for comparison tests
+                for i in range(size[0]):
+                    img.putpixel((i, i), (255, 255, 255))  # White diagonal line
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            img.save(filepath, "PNG")
+        except ImportError:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with open(filepath, "wb") as f:
+                f.write(f"dummy_image_{color_name}".encode())
+
+    _create_dummy_image_for_file_ops(data_dir / "img_A.png", "red")
+    _create_dummy_image_for_file_ops(data_dir / "img_B.png", "blue")
+    # Add any other files needed by tests in this module
 
     return data_dir
 

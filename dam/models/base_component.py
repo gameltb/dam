@@ -20,6 +20,13 @@ if TYPE_CHECKING:
     from .entity import Entity
 
 
+from typing import List, Type  # For List and Type hints
+
+# List to hold all registered component types that inherit from BaseComponent.
+# This list will be populated automatically by BaseComponent.__init_subclass__
+REGISTERED_COMPONENT_TYPES: List[Type["BaseComponent"]] = []
+
+
 # No need for @Base.mapped_as_dataclass here
 # kw_only=True and @dataclass behavior are inherited from Base
 class BaseComponent(Base):  # Inherit from the new Base
@@ -68,3 +75,20 @@ class BaseComponent(Base):  # Inherit from the new Base
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"
+
+    def __init_subclass__(cls, **kwargs):
+        """
+        Registers concrete component subclasses with the ecs_service.
+        """
+        super().__init_subclass__(**kwargs)
+        # Avoid registering BaseComponent itself or other abstract classes if any
+        print(
+            f"DEBUG: BaseComponent.__init_subclass__ called for: {cls.__name__}, abstract: {cls.__dict__.get('__abstract__', False)}"
+        )
+        if not cls.__dict__.get("__abstract__", False):
+            # Now appends to the list in this module, no service import needed here.
+            if cls not in REGISTERED_COMPONENT_TYPES:
+                REGISTERED_COMPONENT_TYPES.append(cls)
+                print(f"DEBUG: Registered component: {cls.__name__}")
+        else:
+            print(f"DEBUG: Not registering abstract class: {cls.__name__}")
