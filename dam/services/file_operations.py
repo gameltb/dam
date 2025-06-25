@@ -83,12 +83,41 @@ def get_file_properties(filepath: Path) -> Tuple[str, int, str]:
 
     # Basic MIME type detection using mimetypes module
     import mimetypes
+    import subprocess  # For using the 'file' command
 
-    mime_type, _ = mimetypes.guess_type(filepath)
-    if mime_type is None:
-        # Fallback or default if mimetypes can't guess
-        # For example, use a generic type or raise an error
-        mime_type = "application/octet-stream"  # Generic binary type
+    mime_type = None
+
+    # 1. Try using the 'file' command for more accurate MIME type detection
+    try:
+        # The '-b' option omits the filename from the output.
+        # The '--mime-type' option outputs only the MIME type string.
+        result = subprocess.run(
+            ["file", "-b", "--mime-type", str(filepath)], capture_output=True, text=True, check=True
+        )
+        mime_type = result.stdout.strip()
+        logger.debug(f"MIME type from 'file' command for {filepath.name}: {mime_type}")
+    except FileNotFoundError:
+        logger.warning("'file' command not found. Falling back to mimetypes module.")
+    except subprocess.CalledProcessError as e:
+        logger.warning(
+            f"'file' command failed for {filepath.name}: {e}. Output: {e.stderr}. Falling back to mimetypes."
+        )
+    except Exception as e:
+        logger.warning(
+            f"An unexpected error occurred while using 'file' command for {filepath.name}: {e}. "
+            "Falling back to mimetypes."
+        )
+
+    # 2. Fallback to mimetypes if 'file' command failed or is not available
+    if not mime_type:
+        mime_type_guess, _ = mimetypes.guess_type(filepath)
+        if mime_type_guess:
+            mime_type = mime_type_guess
+            logger.debug(f"MIME type from mimetypes for {filepath.name}: {mime_type}")
+        else:
+            # 3. Final fallback if mimetypes also fails
+            mime_type = "application/octet-stream"  # Generic binary type
+            logger.warning(f"mimetypes could not guess MIME type for {filepath.name}. Defaulting to {mime_type}.")
 
     return original_filename, file_size_bytes, mime_type
 

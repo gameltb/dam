@@ -188,4 +188,109 @@ def test_get_file_properties_simple_file(tmp_path: Path):
     name, size, mime = get_file_properties(test_file)
     assert name == "props_test.dat"
     assert size == len(file_content)
-    assert mime == "application/octet-stream"  # Default for .dat or unknown
+    # This will depend on whether 'file' command is available and its output
+    # For a .dat file, 'file' might also return application/octet-stream or something else
+    # If 'file' command is not present, it will fallback to mimetypes, then to application/octet-stream
+    # To make this test deterministic, we should mock subprocess.run
+    assert mime is not None # Check that a mime type is returned
+
+
+# Tests for MIME type detection in get_file_properties
+import subprocess # Import subprocess here
+
+@pytest.mark.parametrize(
+    "mock_file_output, mock_mimetypes_guess, expected_mime, file_ext",
+    [
+        # Scenario 1: 'file' command succeeds
+        ("image/png", None, "image/png", ".png"),
+        ("text/plain", None, "text/plain", ".txt"),
+        # Scenario 2: 'file' command fails (e.g., FileNotFoundError), fallback to mimetypes
+        (FileNotFoundError(), "image/jpeg", "image/jpeg", ".jpg"),
+        (FileNotFoundError(), None, "application/octet-stream", ".unknown"), # mimetypes also fails
+        # Scenario 3: 'file' command throws CalledProcessError, fallback to mimetypes
+        (subprocess.CalledProcessError(1, "file cmd"), "application/pdf", "application/pdf", ".pdf"),
+        # Scenario 4: 'file' command available but returns nothing useful (empty string), fallback to mimetypes
+        ("", "text/xml", "text/xml", ".xml"),
+         # Scenario 5: Both 'file' and mimetypes fail
+        (FileNotFoundError(), None, "application/octet-stream", ".dat"),
+        ("", None, "application/octet-stream", ".foo"),
+    ],
+)
+def test_get_file_properties_mime_detection_logic(
+    tmp_path: Path,
+    monkeypatch,
+    mock_file_output,
+    mock_mimetypes_guess,
+    expected_mime,
+    file_ext
+):
+    import subprocess # Import here for the CalledProcessError type
+    import mimetypes   # For monkeypatching
+
+    test_file = tmp_path / f"testfile{file_ext}"
+    test_file.write_text("dummy content")
+
+    mock_subprocess_run = None
+    if isinstance(mock_file_output, Exception):
+        def _mock_subprocess_run_exception(*args, **kwargs):
+            raise mock_file_output
+        mock_subprocess_run = _mock_subprocess_run_exception
+    else: # String output
+        def _mock_subprocess_run_success(*args, **kwargs):
+            # Simulate successful run of 'file' command
+            # args[0] should be ['file', '-b', '--mime-type', str(test_file)]
+            return subprocess.CompletedProcess(args[0], 0, stdout=mock_file_output, stderr="")
+        mock_subprocess_run = _mock_subprocess_run_success
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    monkeypatch.setattr(mimetypes, "guess_type", lambda path: (mock_mimetypes_guess, None))
+
+    _, _, mime_type = get_file_properties(test_file)
+    assert mime_type == expected_mime
+
+
+def test_get_file_properties_file_command_not_present_logs_warning(tmp_path: Path, monkeypatch, caplog):
+    """Ensure a warning is logged if 'file' command is not found."""
+    import mimetypes
+    import subprocess
+
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("content")
+
+    def mock_run_file_not_found(*args, **kwargs):
+        raise FileNotFoundError("'file' command not found")
+
+    monkeypatch.setattr(subprocess, "run", mock_run_file_not_found)
+    # Let mimetypes succeed
+    monkeypatch.setattr(mimetypes, "guess_type", lambda path: ("text/plain_fallback", None))
+    caplog.clear()
+
+    _, _, mime = get_file_properties(test_file)
+    assert mime == "text/plain_fallback"
+    assert any(
+        record.levelname == "WARNING" and "'file' command not found" in record.message
+        for record in caplog.records
+    ), "Warning for 'file' command not found was not logged."
+
+
+def test_get_file_properties_file_command_error_logs_warning(tmp_path: Path, monkeypatch, caplog):
+    """Ensure a warning is logged if 'file' command fails with CalledProcessError."""
+    import mimetypes
+    import subprocess
+
+    test_file = tmp_path / "test.err"
+    test_file.write_text("content")
+
+    def mock_run_called_process_error(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, "file", stderr="some error from file")
+
+    monkeypatch.setattr(subprocess, "run", mock_run_called_process_error)
+    monkeypatch.setattr(mimetypes, "guess_type", lambda path: ("application/octet-stream_fallback", None))
+    caplog.clear()
+
+    _, _, mime = get_file_properties(test_file)
+    assert mime == "application/octet-stream_fallback"
+    assert any(
+        record.levelname == "WARNING" and "'file' command failed" in record.message and "some error from file" in record.message
+        for record in caplog.records
+    ), "Warning for 'file' command failure was not logged correctly."

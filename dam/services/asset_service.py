@@ -358,6 +358,189 @@ def add_asset_file(
     return entity, created_new_entity
 
 
+def add_asset_reference(
+    session: Session,
+    filepath_on_disk: Path,  # Path to the original file, not to be copied
+    original_filename: str,
+    mime_type: str,
+    size_bytes: int,
+) -> Tuple[Entity, bool]:
+    """
+    Adds an asset by referencing an existing file on disk, without copying it
+    to the content-addressable storage.
+    - Calculates content hashes (SHA256, MD5) from the referenced file.
+    - Checks if an entity with this content (SHA256 hash) already exists.
+    - If not, creates a new Entity and associated components.
+    - If yes, links the new reference to the existing entity.
+    - The FileLocationComponent will store the original `filepath_on_disk` and a
+      special `storage_type` (e.g., "referenced_local_file").
+
+    Args:
+        session: SQLAlchemy session.
+        filepath_on_disk: Absolute path to the source file on disk.
+        original_filename: Original name of the file.
+        mime_type: MIME type of the file.
+        size_bytes: Size of the file in bytes.
+
+    Returns:
+        A tuple containing the Entity (new or existing) and a boolean indicating
+        if a new Entity was created.
+    """
+    created_new_entity = False
+
+    # Calculate content hashes from the existing file
+    try:
+        content_hash_sha256 = calculate_sha256(filepath_on_disk)
+        content_hash_md5 = calculate_md5(filepath_on_disk)
+    except IOError:
+        logger.exception(f"Error reading file for hashing: {filepath_on_disk}")
+        raise
+
+    # Try to find an existing entity using the SHA256 hash
+    existing_entity = find_entity_by_content_hash(session, content_hash_sha256, "sha256")
+
+    if existing_entity:
+        entity = existing_entity
+        logger.info(
+            f"Content (SHA256: {content_hash_sha256[:12]}...) for '{original_filename}' "
+            f"already exists as Entity ID {entity.id}. Adding new reference."
+        )
+        # Ensure MD5 hash is also stored for this existing entity if not already present
+        existing_md5_components = get_components(session, entity.id, ContentHashMD5Component)
+        if not any(comp.hash_value == content_hash_md5 for comp in existing_md5_components):
+            chc_md5 = ContentHashMD5Component(
+                entity_id=entity.id,
+                entity=entity,
+                hash_value=content_hash_md5,
+            )
+            add_component_to_entity(session, entity.id, chc_md5)
+            logger.info(f"Added MD5 hash '{content_hash_md5}' to existing Entity ID {entity.id} (found by SHA256).")
+
+        # Check if a FileLocationComponent for this specific referenced path already exists
+        # for this entity. The unique constraint on FileLocationComponent is (entity_id, file_identifier).
+        # For referenced files, the `file_identifier` should be the absolute path to ensure uniqueness
+        # if the same content (hash) is referenced from different paths.
+        # However, our current FileLocationComponent uses file_identifier for content hash in CAS.
+        # We need to adapt.
+        # Option 1: Add a new component for referenced locations.
+        # Option 2: Adapt FileLocationComponent:
+        #   - For CAS, file_identifier is SHA256.
+        #   - For references, file_identifier could be the normalized absolute path.
+        #   - storage_type differentiates.
+        # Let's choose option 2 for now, but be mindful of the UniqueConstraint.
+        # The UniqueConstraint `UniqueConstraint("entity_id", "file_identifier")` means
+        # an entity can only have one FileLocationComponent with a given file_identifier.
+        # If file_identifier is SHA256 for CAS, and path for references, this might work.
+        # But if two different original files *have the same content hash* and are both added with --no-copy,
+        # they will resolve to the same entity. Then, if we use their paths as file_identifiers,
+        # we can store multiple FileLocationComponents for that entity, one for each path.
+        # This seems like the correct behavior.
+
+        # For referenced files, the file_identifier in FileLocationComponent will be the original path.
+        referenced_file_identifier = str(filepath_on_disk.resolve())
+
+        existing_location_for_this_path = False
+        existing_locations = get_components(session, entity.id, FileLocationComponent)
+        for loc in existing_locations:
+            if loc.storage_type == "referenced_local_file" and loc.file_identifier == referenced_file_identifier:
+                existing_location_for_this_path = True
+                logger.info(
+                    f"Reference to path '{referenced_file_identifier}' for Entity ID {entity.id} already exists."
+                )
+                break
+
+        if not existing_location_for_this_path:
+            flc = FileLocationComponent(
+                entity_id=entity.id,
+                entity=entity,
+                file_identifier=referenced_file_identifier,  # Store the actual path here
+                storage_type="referenced_local_file",
+                original_filename=original_filename,  # Can be different from filepath_on_disk.name
+            )
+            add_component_to_entity(session, entity.id, flc)
+            logger.info(
+                f"Added new FileLocationComponent (referenced) for path '{referenced_file_identifier}' "
+                f"to existing Entity ID {entity.id}."
+            )
+
+    else:  # No existing entity for this content hash
+        created_new_entity = True
+        entity = create_entity(session)
+        logger.info(
+            f"Creating new Entity ID {entity.id} for referenced file '{original_filename}' "
+            f"(SHA256: {content_hash_sha256[:12]}...)."
+        )
+
+        # Content Hash Components (SHA256 and MD5)
+        chc_sha256 = ContentHashSHA256Component(entity_id=entity.id, entity=entity, hash_value=content_hash_sha256)
+        add_component_to_entity(session, entity.id, chc_sha256)
+
+        chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=content_hash_md5)
+        add_component_to_entity(session, entity.id, chc_md5)
+        logger.info(f"Added SHA256 and MD5 hashes for new Entity ID {entity.id}.")
+
+        # File Properties Component
+        fpc = FilePropertiesComponent(
+            entity_id=entity.id,
+            entity=entity,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+            mime_type=mime_type,
+        )
+        add_component_to_entity(session, entity.id, fpc)
+
+        # File Location Component for the reference
+        referenced_file_identifier = str(filepath_on_disk.resolve())
+        flc = FileLocationComponent(
+            entity_id=entity.id,
+            entity=entity,
+            file_identifier=referenced_file_identifier,  # Store the actual path
+            storage_type="referenced_local_file",
+            original_filename=original_filename,
+        )
+        add_component_to_entity(session, entity.id, flc)
+        logger.info(
+            f"Added FileLocationComponent (referenced) for path '{referenced_file_identifier}' "
+            f"to new Entity ID {entity.id}."
+        )
+
+    # Add multimedia and perceptual hash components, regardless of whether new or existing entity
+    # This ensures that even if an entity was created by a non-image/video file first,
+    # these components get added if a later reference *is* an image/video.
+    if mime_type and mime_type.startswith("image/"):
+        existing_phashes = {
+            comp.hash_value for comp in get_components(session, entity.id, ImagePerceptualPHashComponent)
+        }
+        existing_ahashes = {
+            comp.hash_value for comp in get_components(session, entity.id, ImagePerceptualAHashComponent)
+        }
+        existing_dhashes = {
+            comp.hash_value for comp in get_components(session, entity.id, ImagePerceptualDHashComponent)
+        }
+
+        perceptual_hashes = generate_perceptual_hashes(filepath_on_disk)
+
+        if "phash" in perceptual_hashes and perceptual_hashes["phash"] not in existing_phashes:
+            iphc = ImagePerceptualPHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"]
+            )
+            add_component_to_entity(session, entity.id, iphc)
+        if "ahash" in perceptual_hashes and perceptual_hashes["ahash"] not in existing_ahashes:
+            iahc = ImagePerceptualAHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"]
+            )
+            add_component_to_entity(session, entity.id, iahc)
+        if "dhash" in perceptual_hashes and perceptual_hashes["dhash"] not in existing_dhashes:
+            idhc = ImagePerceptualDHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"]
+            )
+            add_component_to_entity(session, entity.id, idhc)
+
+    _add_multimedia_components(session, entity, filepath_on_disk, mime_type)
+
+    return entity, created_new_entity
+
+
 def _add_multimedia_components(session: Session, entity: Entity, filepath: Path, mime_type: str):
     """
     Extracts and adds multimedia specific components (video, audio, animated frames)
