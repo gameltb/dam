@@ -86,10 +86,12 @@ def test_content_hash_sha256_component_unique_constraint(db_session: Session, te
         hash_value="another_sha256_hash_value",
     )
     db_session.add(chc3)
-    db_session.commit()
-    assert chc3.id is not None
+    # This should fail because test_entity.id is already associated with chc1
+    with pytest.raises(IntegrityError, match="UNIQUE constraint failed: component_content_hash_sha256.entity_id"):
+        db_session.commit()
+    db_session.rollback()
 
-    # Verify that same hash_value for a different entity is allowed
+    # Verify that same hash_value for a different entity also fails due to uq_sha256_hash_value
     another_entity = Entity()
     db_session.add(another_entity)
     db_session.commit()
@@ -97,11 +99,25 @@ def test_content_hash_sha256_component_unique_constraint(db_session: Session, te
     chc4 = ContentHashSHA256Component(
         entity_id=another_entity.id,  # type: ignore
         entity=another_entity,  # Added entity object
-        hash_value="first_hash_value",  # Same hash_value as chc1 but different entity
+        hash_value="first_hash_value",  # Same hash_value as chc1, should violate uq_sha256_hash_value
     )
     db_session.add(chc4)
+    with pytest.raises(IntegrityError, match="UNIQUE constraint failed: component_content_hash_sha256.hash_value"):
+        db_session.commit()
+    db_session.rollback()
+
+    # Verify that a new entity with a new hash is fine
+    yet_another_entity = Entity()
+    db_session.add(yet_another_entity)
     db_session.commit()
-    assert chc4.id is not None
+    chc5 = ContentHashSHA256Component(
+        entity_id=yet_another_entity.id,  # type: ignore
+        entity=yet_another_entity,
+        hash_value="completely_new_hash_value",
+    )
+    db_session.add(chc5)
+    db_session.commit()
+    assert chc5.id is not None
 
 
 def test_delete_content_hash_sha256_component(db_session: Session, test_entity: Entity):

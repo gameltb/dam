@@ -5,16 +5,13 @@ from sqlalchemy.orm import Session
 
 from dam.models import (  # Moved from below for delete_entity
     BaseComponent,
-    ContentHashMD5Component,  # Replaced ContentHashComponent
-    ContentHashSHA256Component,  # Replaced ContentHashComponent
     Entity,
-    FileLocationComponent,
-    FilePropertiesComponent,
-    ImagePerceptualAHashComponent,  # Replaced ImagePerceptualHashComponent
-    ImagePerceptualDHashComponent,  # Replaced ImagePerceptualHashComponent
-    ImagePerceptualPHashComponent,  # Replaced ImagePerceptualHashComponent
-    # Add other component types here as they are created
+    # Specific component imports no longer needed here for ALL_COMPONENT_TYPES
+    # as it will be dynamically populated.
 )
+
+# REGISTERED_COMPONENT_TYPES is now defined in and imported from dam.models.base_component
+from dam.models.base_component import REGISTERED_COMPONENT_TYPES
 
 # Define a generic type variable for component types
 T = TypeVar("T", bound=BaseComponent)
@@ -152,19 +149,8 @@ def remove_component(session: Session, component: BaseComponent) -> None:
     # session.flush()
 
 
-# Import all known component types for delete_entity
-
-# List of all component types to iterate over when deleting an entity
-ALL_COMPONENT_TYPES = [
-    ContentHashMD5Component,
-    ContentHashSHA256Component,
-    ImagePerceptualAHashComponent,
-    ImagePerceptualDHashComponent,
-    ImagePerceptualPHashComponent,
-    FileLocationComponent,
-    FilePropertiesComponent,
-    # Add other component types here
-]
+# ALL_COMPONENT_TYPES list is now removed.
+# REGISTERED_COMPONENT_TYPES will be used instead.
 
 
 def delete_entity(session: Session, entity_id: int) -> bool:
@@ -183,8 +169,12 @@ def delete_entity(session: Session, entity_id: int) -> bool:
     if not entity:
         return False
 
-    # Delete all associated components
-    for component_type in ALL_COMPONENT_TYPES:
+    # Delete all associated components by iterating through the dynamically populated list
+    for component_type in REGISTERED_COMPONENT_TYPES:
+        # Ensure the component_type is a concrete mapped class, not an abstract one.
+        # SQLAlchemy's inspection might be useful here if BaseComponent itself (abstract)
+        # somehow got into the list, though __init_subclass__ should prevent that.
+        # For now, assume REGISTERED_COMPONENT_TYPES only contains mapped subclasses.
         components_to_delete = get_components(session, entity_id, component_type)
         for component in components_to_delete:
             remove_component(session, component)  # Uses session.delete(component)

@@ -422,9 +422,8 @@ def find_entities_by_similar_image_hashes(
 
     potential_matches = []
 
-
     # Query for pHash
-    if input_phash_obj:
+    if input_phash_obj:  # Ensure this condition is not 'False and ...'
         all_phashes_stmt = select(ImagePerceptualPHashComponent)
         db_phashes_components = session.execute(all_phashes_stmt).scalars().all()
         logger.debug(f"Found {len(db_phashes_components)} pHash components in DB.")
@@ -457,26 +456,39 @@ def find_entities_by_similar_image_hashes(
             except Exception as e:
                 logger.warning(f"Error comparing pHash for entity {p_comp.entity_id}: {e}")
 
-    # Query for aHash (temporarily commented out for pHash debugging)
-    if False and input_ahash_obj:  # Temporarily disable
+    # Query for aHash
+    if input_ahash_obj:  # Ensure this condition is not 'False and ...'
         all_ahashes_stmt = select(ImagePerceptualAHashComponent)
-        for a_comp in session.execute(all_ahashes_stmt).scalars().all():
+        db_ahashes_components = session.execute(all_ahashes_stmt).scalars().all()  # Added db_ahashes_components
+        logger.debug(f"Found {len(db_ahashes_components)} aHash components in DB.")  # Added logger
+        for a_comp in db_ahashes_components:  # Iterate over new variable
             if source_entity_id and a_comp.entity_id == source_entity_id:
-                continue  # Skip self
+                logger.debug(f"Skipping source entity {a_comp.entity_id} for aHash")  # Added logger
+                continue
             try:
                 db_ahash_obj = imagehash.hex_to_hash(a_comp.hash_value)
                 distance = input_ahash_obj - db_ahash_obj
+                logger.debug(  # Added logger
+                    f"Entity {a_comp.entity_id}: Comparing aHash. "
+                    f"Input: {input_ahash_obj}, DB: {a_comp.hash_value}, Distance: {distance}, "
+                    f"Threshold: {ahash_threshold}"
+                )
                 if distance <= ahash_threshold:
                     entity = session.get(Entity, a_comp.entity_id)
                     if entity:
                         potential_matches.append(
                             {"entity": entity, "match_type": "ahash_match", "distance": distance, "hash_type": "ahash"}
                         )
+                        logger.debug(f"Entity {a_comp.entity_id}: aHash MATCHED.")  # Added logger
+                else:
+                    logger.debug(
+                        f"Entity {a_comp.entity_id}: aHash MISSED (dist {distance} > th {ahash_threshold})."
+                    )  # Added logger
             except Exception as e:
                 logger.warning(f"Error comparing aHash for entity {a_comp.entity_id}: {e}")
 
     # Query for dHash
-    if input_dhash_obj:
+    if input_dhash_obj:  # Ensure this condition is not 'False and ...'
         all_dhashes_stmt = select(ImagePerceptualDHashComponent)
         for d_comp in session.execute(all_dhashes_stmt).scalars().all():
             if source_entity_id and d_comp.entity_id == source_entity_id:

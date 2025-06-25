@@ -1,6 +1,5 @@
 import hashlib
 import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -8,35 +7,32 @@ import pytest
 from dam.core.config import settings
 from dam.services import file_storage
 
-# Use a temporary directory for tests that overrides the default settings.ASSET_STORAGE_PATH
-TEST_STORAGE_BASE_PATH = Path("./test_dam_storage")
+# TEST_STORAGE_BASE_PATH will now be managed by tmp_path fixture
 
 
 @pytest.fixture(autouse=True)
-def manage_test_storage_directory(monkeypatch):
+def manage_test_storage_directory(monkeypatch, tmp_path: Path):
     """
-    Fixture to create and clean up the test storage directory before and after each test.
-    Also, it patches settings.ASSET_STORAGE_PATH to use the test directory.
+    Fixture to use a pytest-managed temporary directory for asset storage for each test.
+    It patches settings.ASSET_STORAGE_PATH to use this test-specific directory.
+    Pytest handles the creation and cleanup of tmp_path.
     """
-    # Patch the ASSET_STORAGE_PATH for the duration of the test
-    monkeypatch.setattr(settings, "ASSET_STORAGE_PATH", str(TEST_STORAGE_BASE_PATH))
+    # tmp_path is unique for each test function.
+    test_storage_dir = tmp_path / "dam_file_storage"
+    test_storage_dir.mkdir(parents=True, exist_ok=True)
 
-    # Teardown: Clean up the directory after tests
-    if TEST_STORAGE_BASE_PATH.exists():
-        shutil.rmtree(TEST_STORAGE_BASE_PATH)
-    TEST_STORAGE_BASE_PATH.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(settings, "ASSET_STORAGE_PATH", str(test_storage_dir))
 
     yield  # Test runs here
-
-    # Teardown: Clean up the directory after tests
-    if TEST_STORAGE_BASE_PATH.exists():
-        shutil.rmtree(TEST_STORAGE_BASE_PATH)
+    # No explicit shutil.rmtree needed; pytest handles tmp_path cleanup.
 
 
-def test_get_storage_path_valid_hash():
+def test_get_storage_path_valid_hash(tmp_path: Path):  # Added tmp_path to reflect settings change
     """Tests the internal _get_storage_path function with a valid hash."""
+    # settings.ASSET_STORAGE_PATH is patched by manage_test_storage_directory
+    current_asset_storage_path = Path(settings.ASSET_STORAGE_PATH)
     test_hash = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-    expected_path = TEST_STORAGE_BASE_PATH / "ab" / "cd" / test_hash
+    expected_path = current_asset_storage_path / "ab" / "cd" / test_hash
     assert file_storage._get_storage_path(test_hash) == expected_path
 
 
@@ -231,5 +227,7 @@ def test_delete_file_leaves_non_empty_directories():
     except OSError:
         pass  # This is fine if they were already removed or other test cleanup did it
 
-    # Final check: the base test storage path should always exist
-    assert TEST_STORAGE_BASE_PATH.exists()
+    # Final check: the base test storage path (settings.ASSET_STORAGE_PATH) should always exist
+    # as it's managed by tmp_path for the test function's scope.
+    current_test_storage_base_path = Path(settings.ASSET_STORAGE_PATH)
+    assert current_test_storage_base_path.exists()
