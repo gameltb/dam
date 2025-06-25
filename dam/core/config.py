@@ -108,20 +108,27 @@ class Settings(BaseSettings):
         If world_name is None, returns the default world configuration.
         Raises ValueError if the world is not found.
         """
-        target_name = world_name or self.DEFAULT_WORLD_NAME
-        if not target_name:
-            if not self.worlds:
-                raise ValueError(
-                    "No worlds configured and no default world name set. "
-                    "Please configure DAM_WORLDS or DAM_DEFAULT_WORLD_NAME."
-                )
-            # This should ideally not happen if validation ensures a default or picks one.
-            # Fallback to the first available world if DEFAULT_WORLD_NAME is somehow unset but worlds exist.
-            target_name = next(iter(self.worlds))
+        effective_world_name: str
+        if world_name:
+            effective_world_name = world_name
+        elif self.DEFAULT_WORLD_NAME:
+            effective_world_name = self.DEFAULT_WORLD_NAME
+        elif self.worlds:
+            effective_world_name = next(iter(self.worlds))  # Fallback to the first world if no default
+        else:
+            raise ValueError(
+                "Cannot determine world: No specific world name provided, no default world name set, and no worlds configured."
+            )
 
-        if target_name not in self.worlds:
-            raise ValueError(f"World '{target_name}' not found in configuration.")
-        return self.worlds[target_name]
+        if effective_world_name not in self.worlds:
+            raise ValueError(
+                f"World '{effective_world_name}' not found in configuration. "
+                f"Attempted to find: '{effective_world_name}'. "
+                f"Provided world_name argument to get_world_config(): '{world_name}'. "
+                f"Current DEFAULT_WORLD_NAME: '{self.DEFAULT_WORLD_NAME}'. "
+                f"Available worlds: {list(self.worlds.keys())}"
+            )
+        return self.worlds[effective_world_name]
 
 
 # Create a single settings instance to be used throughout the application

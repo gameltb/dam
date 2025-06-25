@@ -120,9 +120,17 @@ def add_asset_file(
         logger.exception(f"Error reading file {filepath_on_disk}")
         raise
 
-    # Store the file using the new service, passing world_name
+    from dam.core.config import settings as app_settings # Import settings
+
+    name_for_lookup = world_name
+    if name_for_lookup is None:
+        name_for_lookup = app_settings.DEFAULT_WORLD_NAME
+
+    world_config_obj = app_settings.get_world_config(name_for_lookup)
+
+    # Store the file using the new service, passing the WorldConfig object
     file_identifier = file_storage.store_file(
-        file_content, world_name=world_name, original_filename=original_filename
+        file_content, world_config=world_config_obj, original_filename=original_filename
     )
     # The file_identifier is the SHA256 content hash
 
