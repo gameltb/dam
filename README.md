@@ -115,14 +115,48 @@ The primary way to interact with the DAM system is through its Command Line Inte
 dam-cli --help
 ```
 
-**(Placeholder for specific commands once implemented)**
-```bash
-# Example: Adding an asset
-# dam-cli add-asset /path/to/your/image.jpg --tags "photo,nature"
+### Available Commands
 
-# Example: Querying assets
-# dam-cli query --component DimensionsComponent --filter "width>1920"
-```
+*   **`setup-db`**: Initializes the database and creates all necessary tables. Run this once before using other commands if the database is new.
+    ```bash
+    dam-cli setup-db
+    ```
+
+*   **`add-asset <filepath>`**: Adds a new asset file to the DAM system. It calculates content hashes (SHA256, MD5) and perceptual hashes (for images: pHash, aHash, dHash). If the content already exists, it links the new filename to the existing asset.
+    ```bash
+    dam-cli add-asset /path/to/your/image.jpg
+    dam-cli add-asset /path/to/your/document.pdf
+    ```
+
+*   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash.
+    *   `--hash-type <type>`: Specify the hash type (e.g., `sha256`, `md5`). Defaults to `sha256`.
+    *   `--file <filepath>` or `-f <filepath>`: Calculate the hash of the given file and use that for searching.
+    ```bash
+    # Find by providing SHA256 hash directly
+    dam-cli find-file-by-hash "a1b2c3d4..."
+
+    # Find by providing MD5 hash directly
+    dam-cli find-file-by-hash "x1y2z3w4..." --hash-type md5
+
+    # Find by calculating SHA256 hash of a file
+    dam-cli find-file-by-hash --file /path/to/somefile.txt
+
+    # Find by calculating MD5 hash of a file
+    dam-cli find-file-by-hash --file /path/to/somefile.txt --hash-type md5
+    ```
+
+*   **`find-similar-images <image_filepath>`**: Finds images similar to the provided image based on perceptual hashes.
+    *   `--phash-threshold <int>`: Max Hamming distance for pHash (default: 4).
+    *   `--ahash-threshold <int>`: Max Hamming distance for aHash (default: 4).
+    *   `--dhash-threshold <int>`: Max Hamming distance for dHash (default: 4).
+    ```bash
+    dam-cli find-similar-images /path/to/query_image.png
+
+    dam-cli find-similar-images /path/to/query_image.png --phash-threshold 2 --ahash-threshold 2
+    ```
+
+*   **`query-assets-placeholder`**: (Placeholder, hidden) For future component-based queries.
+
 
 ## Development
 
