@@ -65,14 +65,7 @@ ecs_dam_system/
     ```
     The `-e .` installs the package in editable mode.
 
-    Alternatively, you can use [Poetry](https://python-poetry.org/) (which is used for managing dependencies in `pyproject.toml`):
-    ```bash
-    # Install poetry if you don't have it
-    # pip install poetry
-    poetry install --extras image # Installs main + image dependencies
-    # poetry install --extras dev # For development dependencies like pytest
-    ```
-    Or, using [uv](https://github.com/astral-sh/uv) (a fast Python package installer and resolver):
+    Alternatively, you can use [uv](https://github.com/astral-sh/uv) (a fast Python package installer and resolver):
     ```bash
     # Install uv if you don't have it
     # pip install uv
@@ -85,7 +78,7 @@ ecs_dam_system/
     For optional features like perceptual image hashing, install the extras:
     ```bash
     pip install -e ".[image]" # Using pip
-    # Or see Poetry/uv examples above
+    # Or see uv examples above
     ```
 
 4.  **Set up environment variables:**
