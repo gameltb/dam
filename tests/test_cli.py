@@ -310,6 +310,7 @@ def test_find_similar_images_input_file_not_exist():
     assert "Could not generate any perceptual hashes for non_existent_image.png" in result.stdout
 
 
+
 # Test for add-asset to ensure MD5s are added
 def test_add_asset_generates_md5():
     # This test will now directly call the service after fixture setup to check ID generation

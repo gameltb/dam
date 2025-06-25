@@ -422,6 +422,7 @@ def find_entities_by_similar_image_hashes(
 
     potential_matches = []
 
+
     # Query for pHash
     if input_phash_obj:
         all_phashes_stmt = select(ImagePerceptualPHashComponent)

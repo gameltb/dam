@@ -37,6 +37,7 @@ image = [
 ]
 dev = [ # Example for dev/test dependencies
     "pytest",
+    "pytest-cov",
     # "ruff", # Already configured via [tool.ruff]
     # "mypy"  # Already configured via [tool.mypy]
 ]
