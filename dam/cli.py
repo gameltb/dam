@@ -8,12 +8,16 @@ from typing_extensions import Annotated
 from dam.core.database import SessionLocal, create_db_and_tables
 from dam.core.logging_config import setup_logging  # Import the setup function
 from dam.models import (
+    AudioPropertiesComponent,  # New
     ContentHashMD5Component,  # Added for MD5
     ContentHashSHA256Component,  # Added for SHA256
     FileLocationComponent,
     FilePropertiesComponent,
+    FramePropertiesComponent,
+    ImageDimensionsComponent,  # Added
+    # VideoPropertiesComponent,  # Removed
 )  # Specific models for query
-from dam.services import asset_service, file_operations
+from dam.services import asset_service, ecs_service, file_operations  # Added ecs_service for get_component
 
 app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
 
@@ -213,6 +217,31 @@ def cli_find_file_by_hash(
                     )
             else:
                 typer.echo("  No file locations found for this entity.")
+
+            # Display multimedia components if they exist
+
+            dimensions_props = ecs_service.get_component(db, entity.id, ImageDimensionsComponent)
+            if dimensions_props:
+                typer.echo("  Image Dimensions:")
+                typer.echo(f"    Width: {dimensions_props.width_pixels}px")
+                typer.echo(f"    Height: {dimensions_props.height_pixels}px")
+
+            audio_props = ecs_service.get_component(db, entity.id, AudioPropertiesComponent)
+            if audio_props:  # This will show for standalone audio and audio part of video
+                typer.echo("  Audio Properties:")
+                typer.echo(f"    Duration: {audio_props.duration_seconds}s")
+                typer.echo(f"    Codec: {audio_props.codec_name}")
+                typer.echo(f"    Sample Rate: {audio_props.sample_rate_hz} Hz")
+                typer.echo(f"    Channels: {audio_props.channels}")
+                typer.echo(f"    Bit Rate: {audio_props.bit_rate_kbps} kbps")
+
+            frame_props = ecs_service.get_component(db, entity.id, FramePropertiesComponent)
+            if frame_props:
+                typer.echo("  Animated Frame Properties:")
+                typer.echo(f"    Frame Count: {frame_props.frame_count}")
+                typer.echo(f"    Nominal Frame Rate: {frame_props.nominal_frame_rate} fps")
+                typer.echo(f"    Animation Duration: {frame_props.animation_duration_seconds}s")
+
         else:
             typer.secho(
                 f"No asset found with {hash_type} hash: {hash_value}",

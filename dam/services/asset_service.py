@@ -7,10 +7,15 @@ from sqlalchemy.orm import Session
 
 # from dam.core.config import settings # No longer needed directly here for ASSET_STORAGE_PATH
 from dam.models import Entity
+from dam.models.audio_properties_component import AudioPropertiesComponent
 from dam.models.content_hash_md5_component import ContentHashMD5Component
 from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
+from dam.models.frame_properties_component import FramePropertiesComponent
+
+# from dam.models.video_properties_component import VideoPropertiesComponent # Removed
+from dam.models.image_dimensions_component import ImageDimensionsComponent  # Added
 from dam.models.image_perceptual_hash_ahash_component import (
     ImagePerceptualAHashComponent,
 )
@@ -26,6 +31,17 @@ try:
     import imagehash
 except ImportError:
     imagehash = None
+
+# Hachoir for metadata extraction
+try:
+    from hachoir.core import config as HachoirConfig
+    from hachoir.metadata import extractMetadata
+    from hachoir.parser import createParser
+
+    HachoirConfig.quiet = True  # Suppress Hachoir's console output unless it's an error
+except ImportError:
+    createParser = None
+    extractMetadata = None
 
 
 from . import file_storage  # Import the new file storage service
@@ -336,7 +352,175 @@ def add_asset_file(
             add_component_to_entity(session, entity.id, idhc)
             logger.info(f"Added dhash '{perceptual_hashes['dhash'][:12]}...' for Entity ID {entity.id}.")
 
+    # Add multimedia specific components
+    _add_multimedia_components(session, entity, filepath_on_disk, mime_type)
+
     return entity, created_new_entity
+
+
+def _add_multimedia_components(session: Session, entity: Entity, filepath: Path, mime_type: str):
+    """
+    Extracts and adds multimedia specific components (video, audio, animated frames)
+    to an entity using Hachoir.
+    """
+    if not createParser or not extractMetadata:
+        logger.warning("Hachoir library not available. Cannot extract multimedia metadata.")
+        return
+
+    parser = createParser(str(filepath))
+    if not parser:
+        logger.warning(f"Hachoir could not create a parser for file: {filepath}")
+        return
+
+    with parser:
+        try:
+            metadata = extractMetadata(parser)
+        except Exception as e:
+            logger.error(f"Hachoir failed to extract metadata for {filepath}: {e}", exc_info=True)
+            metadata = None
+
+    if not metadata:
+        logger.info(f"No metadata extracted by Hachoir for {filepath}")
+        return
+
+    def _has_metadata(md, key):
+        try:
+            return md.has(key)
+        except (KeyError, ValueError):  # Hachoir can raise these if key is truly absent
+            return False
+
+    def _get_metadata(md, key, default=None):
+        try:
+            if md.has(key):
+                return md.get(key)
+        except (KeyError, ValueError):
+            pass
+        return default
+
+    # --- Populate ImageDimensionsComponent for any visual media ---
+    if mime_type.startswith("image/") or mime_type.startswith("video/"):
+        if not get_components(session, entity.id, ImageDimensionsComponent):
+            width = _get_metadata(metadata, "width")
+            height = _get_metadata(metadata, "height")
+            if width is not None and height is not None:  # Only create if dimensions are found
+                dim_comp = ImageDimensionsComponent(
+                    entity_id=entity.id, entity=entity, width_pixels=width, height_pixels=height
+                )
+                add_component_to_entity(session, entity.id, dim_comp)
+                logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
+
+    # --- Heuristics for content type ---
+    is_video_heuristic = mime_type.startswith("video/") or (
+        _has_metadata(metadata, "duration")
+        and (_has_metadata(metadata, "width") or _has_metadata(metadata, "frame_rate"))
+    )
+
+    is_audio_file_heuristic = (
+        mime_type.startswith("audio/")
+        or (_has_metadata(metadata, "audio_codec") and not is_video_heuristic)
+        or (not is_video_heuristic and _has_metadata(metadata, "duration") and _has_metadata(metadata, "sample_rate"))
+    )
+
+    if is_audio_file_heuristic:  # Populate AudioPropertiesComponent for standalone audio files
+        if not get_components(
+            session, entity.id, AudioPropertiesComponent
+        ):  # Assuming one primary audio component for a file
+            audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
+            duration = _get_metadata(metadata, "duration")
+            if duration:
+                audio_comp.duration_seconds = duration.total_seconds()
+
+            audio_codec = _get_metadata(metadata, "audio_codec")
+            if not audio_codec:  # For some audio files, codec might be under 'compression'
+                audio_codec = _get_metadata(metadata, "compression")
+            audio_comp.codec_name = audio_codec
+
+            audio_comp.sample_rate_hz = _get_metadata(metadata, "sample_rate")
+            audio_comp.channels = _get_metadata(metadata, "nb_channel")
+            bit_rate_bps = _get_metadata(metadata, "bit_rate")
+            if bit_rate_bps:
+                audio_comp.bit_rate_kbps = bit_rate_bps // 1000
+
+            add_component_to_entity(session, entity.id, audio_comp)
+            logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
+
+    if is_video_heuristic:
+        # Populate FramePropertiesComponent for video's visual stream
+        if not get_components(session, entity.id, FramePropertiesComponent):
+            # This assumes one primary visual stream for FrameProperties.
+            # More complex videos might need multiple such components or a different model.
+            video_frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
+            video_duration = _get_metadata(metadata, "duration")  # Overall duration
+
+            # Frame count might not be directly available for all video formats via hachoir's top level.
+            # If "nb_frames" (often for containers like AVI) or "frame_count" is there, use it.
+            nb_frames = _get_metadata(metadata, "nb_frames") or _get_metadata(metadata, "frame_count")
+            video_frame_comp.frame_count = nb_frames
+
+            video_frame_comp.nominal_frame_rate = _get_metadata(metadata, "frame_rate")
+
+            if video_duration:
+                video_frame_comp.animation_duration_seconds = video_duration.total_seconds()
+
+            # If frame rate and duration are known, frame count can be estimated if not directly available
+            if (
+                not video_frame_comp.frame_count
+                and video_frame_comp.nominal_frame_rate
+                and video_frame_comp.animation_duration_seconds
+            ):
+                video_frame_comp.frame_count = int(
+                    video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
+                )
+
+            add_component_to_entity(session, entity.id, video_frame_comp)
+            logger.info(f"Added FramePropertiesComponent for video Entity ID {entity.id}")
+
+        # Populate AudioPropertiesComponent for video's audio stream(s)
+        # Hachoir might give a general "audio_codec". For simplicity, one component for now.
+        if _has_metadata(metadata, "audio_codec"):
+            if not get_components(
+                session, entity.id, AudioPropertiesComponent
+            ):  # Check if already added (e.g. if it was also an audio file)
+                video_audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
+                video_duration = _get_metadata(metadata, "duration")
+                if video_duration:
+                    video_audio_comp.duration_seconds = video_duration.total_seconds()
+                video_audio_comp.codec_name = _get_metadata(metadata, "audio_codec")
+                video_audio_comp.sample_rate_hz = _get_metadata(
+                    metadata, "sample_rate"
+                )  # May not always be present with just audio_codec
+                video_audio_comp.channels = _get_metadata(metadata, "nb_channel")  # May not always be present
+                # Bit rate for audio within video might be harder to get consistently from top-level hachoir
+                add_component_to_entity(session, entity.id, video_audio_comp)
+                logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
+
+    # The is_audio_file_heuristic check at the beginning handles standalone audio files.
+    # The is_video_heuristic check handles audio embedded in videos.
+    # The redundant block below was removed.
+
+    # Frame properties (for animated images like GIFs)
+    if mime_type == "image/gif":  # This specific check for GIFs remains
+        if not get_components(session, entity.id, FramePropertiesComponent):
+            frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
+            # Try to get frame count, but create component even if not found by Hachoir
+            nb_frames = _get_metadata(metadata, "nb_frames") or _get_metadata(metadata, "frame_count")
+            frame_comp.frame_count = nb_frames
+
+            duration = _get_metadata(metadata, "duration")
+            # Only calculate animation duration and frame rate if we have a frame count > 1
+            if nb_frames and nb_frames > 1 and duration:
+                duration_sec = duration.total_seconds()
+                frame_comp.animation_duration_seconds = duration_sec
+                if duration_sec > 0:  # Avoid division by zero
+                    frame_comp.nominal_frame_rate = nb_frames / duration_sec
+
+            log_msg = (
+                f"GIF metadata: frame_count={frame_comp.frame_count}, "
+                f"animation_duration={frame_comp.animation_duration_seconds}"
+            )
+            logger.info(log_msg)
+            add_component_to_entity(session, entity.id, frame_comp)
+            logger.info(f"Added FramePropertiesComponent for Entity ID {entity.id} (GIF)")
 
 
 def find_entities_by_similar_image_hashes(

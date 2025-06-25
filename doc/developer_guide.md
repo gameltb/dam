@@ -13,12 +13,25 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 -   **Implementation**: In our system, Entities are represented by the `dam.models.entity.Entity` SQLAlchemy model, which primarily provides a unique `id`.
 
 ### 2.2. Components
--   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. For example, a `FileLocationComponent` stores where an asset's file is located. Content hash components like `ContentHashSHA256Component` store specific types of content hashes (e.g., SHA256). Similarly, perceptual hashes for images are stored in specific components like `ImagePerceptualPHashComponent` (for pHash), `ImagePerceptualAHashComponent` (for aHash), etc.
+-   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. Examples include:
+    - `FileLocationComponent`: Stores where an asset's file is located (`component_file_location`).
+    - `FilePropertiesComponent`: Stores original filename, size, MIME type (`component_file_properties`).
+    - `ContentHashSHA256Component`: Stores SHA256 content hash (`component_content_hash_sha256`).
+    - `ImageDimensionsComponent`: Stores width and height for visual assets (`component_image_dimensions`).
+    - `ImagePerceptualPHashComponent`: Stores pHash for images (`component_image_perceptual_hash_phash`).
+    - `AudioPropertiesComponent`: Stores metadata for audio tracks (duration, codec, sample rate) (`component_audio_properties`).
+    - `FramePropertiesComponent`: Stores metadata for sequences of frames like animated GIFs or video tracks (frame count, duration, frame rate) (`component_frame_properties`).
+-   **Video Asset Conceptualization**: Videos are conceptualized as a combination of components:
+    - An `Entity` representing the video.
+    - `FileLocationComponent` and `FilePropertiesComponent` as standard.
+    - One `ImageDimensionsComponent` for the video's resolution.
+    - One `FramePropertiesComponent` for its visual track details (frame count, fps, visual duration).
+    - One or more `AudioPropertiesComponent` instances for its audio tracks.
+    - The dedicated `VideoPropertiesComponent` has been removed in favor of this composite model.
 -   **Implementation**:
-    -   Components are implemented as Python dataclasses that also serve as SQLAlchemy models. This is achieved by inheriting from `dam.models.base_component.BaseComponent`, which itself inherits from `dam.models.base_class.Base` (configured with `MappedAsDataclass`).
-    -   Each component is defined in its own file within the `dam/models/` directory (e.g., `dam/models/content_hash_sha256_component.py`, `dam/models/image_perceptual_phash_component.py`).
-    -   `MappedAsDataclass` from SQLAlchemy allows us to define models using dataclass syntax, making them concise and type-hint friendly.
-    -   All components typically have an `entity_id` foreign key linking them back to an `Entity`.
+    -   Components inherit from `dam.models.base_component.BaseComponent`. The `kw_only=True` dataclass behavior is inherited from `dam.models.base_class.Base` (which is a `MappedAsDataclass`), so components do not need the `@dataclass(kw_only=True)` decorator themselves.
+    -   Each component is defined in its own file within `dam/models/`.
+    -   Table names strictly follow the `component_[name]` convention (e.g., `ImageDimensionsComponent` maps to `component_image_dimensions`).
 
 ### 2.3. BaseComponent
 -   The `dam.models.base_component.BaseComponent` is an abstract base class that all concrete components should inherit from.
@@ -41,12 +54,14 @@ A brief overview of the key directories:
 
 -   `dam/`: Main package for the DAM system.
     -   `core/`: Core functionalities like database session management (`database.py`) and application configuration (`config.py`).
-    -   `models/`: Contains all SQLAlchemy model definitions, where each component is typically in its own file (e.g., `entity.py`, `base_component.py`, `content_hash_sha256_component.py`, `image_perceptual_phash_component.py`).
+    -   `models/`: Contains all SQLAlchemy model definitions, where each component is typically in its own file (e.g., `entity.py`, `base_component.py`, `component_content_hash_sha256.py`, `component_image_perceptual_hash_phash.py`).
         -   `base_class.py`: Defines the ultimate `Base` for SQLAlchemy models, configured with `MappedAsDataclass`.
         -   `types.py`: Custom SQLAlchemy type annotations (e.g., for timestamps).
+        -   `image_dimensions_component.py`, `audio_properties_component.py`, `frame_properties_component.py`: Components for multimedia and image metadata.
     -   `services/`: Houses the business logic (Systems/Services) that operate on entities and components.
+        - `asset_service.py`: Contains logic for adding assets, including extraction of image dimensions and multimedia metadata using `hachoir`.
     -   `cli.py`: Defines the Typer-based command-line interface for interacting with the DAM.
--   `alembic/`: Contains Alembic migration scripts and configuration for managing database schema changes.
+-   `alembic/`: Contains Alembic migration scripts and configuration for managing database schema changes. (Note: Current changes do not include new Alembic migrations as per task instructions).
 -   `doc/`: Project documentation, including this guide.
 -   `tests/`: Contains Pytest tests.
     -   `tests/models/`: Tests for individual component models.

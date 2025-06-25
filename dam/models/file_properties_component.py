@@ -18,7 +18,7 @@ class FilePropertiesComponent(BaseComponent):
     For now, assuming one per entity via unique constraint.
     """
 
-    __tablename__ = "component_file_properties"
+    __tablename__ = "component_file_properties"  # Adjusted to strict component_[name] convention
 
     # id, entity_id, created_at, updated_at are inherited from BaseComponent
 
