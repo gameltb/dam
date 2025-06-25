@@ -1,0 +1,147 @@
+import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from dam.models.content_hash_component import ContentHashComponent
+from dam.models.entity import Entity
+
+
+@pytest.fixture
+def test_entity(db_session: Session) -> Entity:
+    """Fixture to create and commit an entity for use in component tests."""
+    entity = Entity()
+    db_session.add(entity)
+    db_session.commit()
+    return entity
+
+
+def test_create_content_hash_component_instance(test_entity: Entity):
+    """Test basic instantiation of a ContentHashComponent."""
+    chc = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",
+        hash_value="a_very_long_hash_string_representing_sha256",
+    )
+    assert chc.entity_id == test_entity.id
+    assert chc.hash_type == "sha256"
+    assert chc.hash_value == "a_very_long_hash_string_representing_sha256"
+
+
+def test_add_and_retrieve_content_hash_component(db_session: Session, test_entity: Entity):
+    """Test adding and retrieving a ContentHashComponent."""
+    chc = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",
+        hash_value="hash123",
+    )
+    db_session.add(chc)
+    db_session.commit()
+
+    assert chc.id is not None
+    retrieved_chc = db_session.get(ContentHashComponent, chc.id)
+    assert retrieved_chc is not None
+    assert retrieved_chc.entity_id == test_entity.id
+    assert retrieved_chc.hash_type == "sha256"
+    assert retrieved_chc.hash_value == "hash123"
+
+
+def test_content_hash_component_relationship_to_entity(db_session: Session, test_entity: Entity):
+    """Test the relationship from the component back to the entity."""
+    chc = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",
+        hash_value="hash_for_relation_test",
+    )
+    db_session.add(chc)
+    db_session.commit()
+    db_session.refresh(chc)  # Ensure relationship is loaded
+
+    assert chc.entity is not None
+    assert chc.entity.id == test_entity.id
+    assert chc.entity == test_entity  # Should be the same object if session is consistent
+
+
+def test_content_hash_component_unique_constraint(db_session: Session, test_entity: Entity):
+    """Test the unique constraint (entity_id, hash_type)."""
+    chc1 = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",
+        hash_value="first_hash_value",
+    )
+    db_session.add(chc1)
+    db_session.commit()
+
+    chc2 = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",  # Same entity_id and hash_type
+        hash_value="second_hash_value_but_should_fail",
+    )
+    db_session.add(chc2)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()  # Important to rollback after expected error
+
+    # Verify that a different hash_type for the same entity is allowed
+    chc3 = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="md5",  # Different hash_type
+        hash_value="md5_hash_value",
+    )
+    db_session.add(chc3)
+    db_session.commit()
+    assert chc3.id is not None
+
+    # Verify that same hash_type for a different entity is allowed
+    another_entity = Entity()
+    db_session.add(another_entity)
+    db_session.commit()
+
+    chc4 = ContentHashComponent(
+        entity_id=another_entity.id,  # type: ignore
+        entity=another_entity,  # Added entity object
+        hash_type="sha256",  # Same hash_type as chc1 but different entity
+        hash_value="another_entity_sha256_hash",
+    )
+    db_session.add(chc4)
+    db_session.commit()
+    assert chc4.id is not None
+
+
+def test_delete_content_hash_component(db_session: Session, test_entity: Entity):
+    """Test deleting a ContentHashComponent."""
+    chc = ContentHashComponent(
+        entity_id=test_entity.id,  # type: ignore
+        entity=test_entity,  # Added entity object
+        hash_type="sha256",
+        hash_value="hash_to_delete",
+    )
+    db_session.add(chc)
+    db_session.commit()
+
+    component_id = chc.id
+    assert db_session.get(ContentHashComponent, component_id) is not None
+
+    db_session.delete(chc)
+    db_session.commit()
+    assert db_session.get(ContentHashComponent, component_id) is None
+
+
+# Note on type: ignore for entity_id:
+# BaseComponent.entity_id is Mapped[int]. When creating a component instance,
+# we pass test_entity.id which is also an int (or could be None before commit, but
+# test_entity fixture ensures it's committed and has an ID).
+# The type checker might be overly cautious or there might be a subtle typing nuance.
+# For practical purposes in these tests, test_entity.id is a valid integer ID.
+# If entity_id was `Mapped["Entity"]` then we'd pass `entity=test_entity`.
+# Since it's `Mapped[int]` and `ForeignKey("entities.id")`, passing the ID is correct.
+# The `type: ignore` is a pragmatic choice here if the type checker complains,
+# assuming the underlying logic is sound.
+# A cleaner way might be to define `entity: Mapped["Entity"]` in BaseComponent and use that
+# in the constructor, with `entity_id` being `mapped_column(ForeignKey(Entity.id))`.
+# However, the current `BaseComponent` is designed with `entity_id: Mapped[int]`.
