@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     Manages configurations for multiple ECS worlds.
     """
 
-    DAM_WORLDS_CONFIG_SOURCE: str = Field(
+    DAM_WORLDS_CONFIG: str = Field(  # Renamed from DAM_WORLDS_CONFIG_SOURCE
         default='{"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}',
-        validation_alias="DAM_WORLDS_CONFIG",
+        # validation_alias="DAM_WORLDS_CONFIG", # Alias removed
         description="Path to a JSON file or a JSON string defining world configurations.",
     )
 
@@ -54,13 +54,13 @@ class Settings(BaseSettings):
     @classmethod
     def _load_and_process_worlds_config(cls, values: Dict) -> Dict:
         """
-        Loads world configurations from the source specified by DAM_WORLDS_CONFIG_SOURCE.
+        Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
         This source can be a file path to a JSON file or a direct JSON string.
         """
-        config_source = values.get("DAM_WORLDS_CONFIG_SOURCE", values.get("dam_worlds_config_source"))
+        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config")) # Changed here
 
         if not config_source:
-            logger.warning("DAM_WORLDS_CONFIG_SOURCE not set, using default world configuration.")
+            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.") # Changed here
             config_source = '{"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}'
             # Ensure DEFAULT_WORLD_NAME reflects this if it wasn't explicitly set
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
