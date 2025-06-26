@@ -9,15 +9,17 @@ This project implements a Digital Asset Management system using an Entity-Compon
 *   **ECS Core Framework**:
     *   **Systems**: Logic that operates on entities with specific components. Implemented as functions decorated with `@system`, supporting asynchronous execution and stage-based processing (e.g., `METADATA_EXTRACTION`).
     *   **WorldScheduler**: Manages the execution of systems in defined stages or in response to events (event handling is planned).
-    *   **Dependency Injection**: Systems declare their dependencies (like `WorldSession`, `WorldConfig`, `Resource[T]`, `MarkedEntityList[MarkerComponent]`) using `typing.Annotated` type hints.
+    *   **Dependency Injection**: Systems declare their dependencies (like `WorldSession`, `WorldConfig`, `WorldContext`, `Resource[T]`, `MarkedEntityList[MarkerComponent]`) using `typing.Annotated` or direct type hints for common types like `WorldContext`.
     *   **Resources**: Shared services or utilities (e.g., `FileOperationsResource`) managed by a `ResourceManager` and injectable into systems.
     *   **Marker Components**: Special components (e.g., `NeedsMetadataExtractionComponent`) used to flag entities for processing by specific systems.
+    *   **Querying**: The `ecs_service` provides helper functions for common entity queries, such as finding entities by component attributes or combinations of components.
+    *   **Performance**: Internal optimizations have been implemented for efficient handling of entity processing based on marker components.
 *   **Modularity**: Components are defined in `dam/models/`. Systems are organized in `dam/systems/`.
 *   **Granular Components**: Assets are described by fine-grained data pieces (e.g., `FileLocationComponent`, `ImageDimensionsComponent`, hash components).
 *   **Content-Addressable Storage (CAS)**: Files are stored based on their content hash (SHA256), promoting de-duplication.
 *   **Metadata Extraction**: Perceptual hashes, dimensions, and other metadata are extracted by dedicated systems after initial asset ingestion.
 *   **CLI**: A Typer-based command-line interface (`dam/cli.py`) for user interaction.
-*   **Database Transactions**: Managed by the `WorldScheduler` per stage or by CLI commands for direct service calls.
+*   **Database Transactions**: Managed by the `WorldScheduler` per stage or event dispatch. Failures within these operations now raise specific exceptions (`StageExecutionError`, `EventHandlingError`) for clearer error reporting.
 
 ## Project Structure
 
@@ -207,7 +209,10 @@ dam-cli --help
     ```bash
     uv run mypy .
     ```
-*   **System Registration**: ECS Systems are registered automatically when their modules (e.g., `dam/systems/metadata_systems.py`) are imported. Ensure new system modules are imported by a part of the application that loads during startup (like `dam/cli.py` or `dam/systems/__init__.py` if `dam.systems` is imported).
+*   **System Registration & Execution**:
+    When Python imports modules containing system functions (decorated with `@system` or `@listens_for`), metadata about these systems is collected globally. For a system to actually run in a specific `World`, it must be explicitly registered with that `World` instance using `world.register_system(...)`.
+    Core systems are registered via `dam.core.world_registrar.register_core_systems()` when worlds are initialized by standard application entry points (like the CLI or tests). Developers adding new systems that should be part of this core set should add them to this registrar. For systems specific to certain operations or worlds, manual registration after world creation is appropriate.
+    The `WorldScheduler` then executes these registered systems at defined stages or in response to events.
 *   **Logging:** The system uses standard Python logging. Output is to stderr by default. Set the `DAM_LOG_LEVEL` environment variable (e.g., to `DEBUG`) for more detailed logs. See `doc/developer_guide.md` for more details.
 
 ### Testing Notes

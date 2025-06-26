@@ -1,3 +1,4 @@
+import asyncio  # E402: Moved to top
 import hashlib
 import logging  # Import logging module
 from pathlib import Path
@@ -121,24 +122,30 @@ def get_file_properties(filepath: Path) -> Tuple[str, int, str]:
 
     return original_filename, file_size_bytes, mime_type
 
+
 # --- Async Wrappers ---
-import asyncio
+# import asyncio # E402: Moved to top
+
 
 async def read_file_async(filepath: Path) -> bytes:
     """Asynchronously reads the entire content of a file."""
     return await asyncio.to_thread(filepath.read_bytes)
 
+
 async def calculate_sha256_async(filepath: Path) -> str:
     """Asynchronously calculates the SHA256 hash of a file."""
     return await asyncio.to_thread(calculate_sha256, filepath)
+
 
 async def calculate_md5_async(filepath: Path) -> str:
     """Asynchronously calculates the MD5 hash of a file."""
     return await asyncio.to_thread(calculate_md5, filepath)
 
+
 async def get_file_properties_async(filepath: Path) -> Tuple[str, int, str]:
     """Asynchronously retrieves basic file properties."""
     return await asyncio.to_thread(get_file_properties, filepath)
+
 
 # Conditional imports for optional image hashing feature
 _imagehash_available = False
@@ -203,6 +210,7 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
         )
 
     return hashes
+
 
 async def generate_perceptual_hashes_async(image_filepath: Path) -> dict[str, str]:
     """Asynchronously generates various perceptual hashes for an image file."""

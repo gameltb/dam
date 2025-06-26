@@ -1,15 +1,12 @@
 from pathlib import Path
-import asyncio # For running async event dispatch
 
 import pytest
 from sqlalchemy.orm import Session
 
+from dam.core.events import AssetFileIngestionRequested  # For dispatching
+from dam.core.world import get_world  # To get World instance
 from dam.models import Entity, FilePropertiesComponent
-from dam.services import ecs_service, world_service # Removed asset_service
-from dam.core.world import get_world, World # To get World instance
-from dam.core.events import AssetFileIngestionRequested # For dispatching
-from dam.services.file_storage_service import FileStorageService # May be needed if asset_service used it directly
-from dam.core.config import WorldConfig # For type hinting
+from dam.services import ecs_service, world_service  # Removed asset_service
 
 # Fixtures like settings_override, test_db_manager, db_session, another_db_session,
 # sample_image_a, sample_text_file etc. are expected from conftest.py or this file.
@@ -22,13 +19,13 @@ def sample_text_file(tmp_path: Path) -> Path:
     return file_path
 
 
-async def _populate_world_with_assets( # Made async
-    world_name: str, # Changed from world_name_for_service & session removed
+async def _populate_world_with_assets(  # Made async
+    world_name: str,  # Changed from world_name_for_service & session removed
     image_file: Path,
     text_file: Path,
 ):
     """Helper to populate a world with a couple of assets by dispatching events."""
-    from dam.services import file_operations as f_ops # Keep for get_file_properties
+    from dam.services import file_operations as f_ops  # Keep for get_file_properties
 
     world = get_world(world_name)
     if not world:
@@ -57,6 +54,7 @@ async def _populate_world_with_assets( # Made async
     await world.dispatch_event(txt_event)
     # Commits are handled by the event/system execution lifecycle.
 
+
 def count_entities_and_components(session: Session, component_class: type = None):
     entity_count = session.query(Entity).count()
     if component_class:
@@ -67,7 +65,7 @@ def count_entities_and_components(session: Session, component_class: type = None
 
 # --- Tests for merge_ecs_worlds_db_to_db ---
 @pytest.mark.asyncio
-async def test_merge_worlds_db_to_db_add_new( # Made async
+async def test_merge_worlds_db_to_db_add_new(  # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path
 ):
     source_world_name = "test_world_alpha"  # Default world from db_session fixture
@@ -77,7 +75,7 @@ async def test_merge_worlds_db_to_db_add_new( # Made async
     target_session = test_db_manager.get_db_session(target_world_name)
 
     # Populate source world
-    await _populate_world_with_assets(source_world_name, sample_image_a, sample_text_file) # Pass world_name, await
+    await _populate_world_with_assets(source_world_name, sample_image_a, sample_text_file)  # Pass world_name, await
     # After event dispatch, data might not be immediately queryable via source_session if events run in sep transactions.
     # For this test, let's assume event handlers complete and commit before proceeding.
     # To be robust, one might need to wait or use a post-event signal if the test relies on immediate consistency.
@@ -111,11 +109,11 @@ async def test_merge_worlds_db_to_db_add_new( # Made async
     assert src_fpc_count_after == src_fpc_count_before
 
     # Detailed check: Ensure components were copied and IDs are different
-    src_entities = source_session.query(Entity).all()
+    # src_entities = source_session.query(Entity).all() # F841: Unused
     tgt_entities = target_session.query(Entity).all()
 
-    src_entity_ids = {e.id for e in src_entities}
-    tgt_entity_ids = {e.id for e in tgt_entities}
+    # src_entity_ids = {e.id for e in src_entities} # F841: Unused
+    # tgt_entity_ids = {e.id for e in tgt_entities} # F841: Unused
     # assert not (src_entity_ids & tgt_entity_ids)  # Removed: This can fail with independent in-memory DBs starting IDs at 1.
     # The 'add_new' strategy ensures new rows in the target DB,
     # not necessarily globally unique IDs across separate DB instances.
@@ -133,7 +131,7 @@ async def test_merge_worlds_db_to_db_add_new( # Made async
 
 # --- Tests for split_ecs_world (DB-to-DB) ---
 @pytest.fixture
-async def source_world_for_split( # Made async
+async def source_world_for_split(  # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path
 ):
     world_name = "test_world_alpha"  # Source world
@@ -184,9 +182,9 @@ async def source_world_for_split( # Made async
 
 
 @pytest.mark.asyncio
-async def test_split_world_by_mimetype(settings_override, test_db_manager, source_world_for_split): # Made async
-    source_world, source_world_name = await source_world_for_split # Fixture is async, get world
-    source_session = source_world.get_db_session() # Get session from world
+async def test_split_world_by_mimetype(settings_override, test_db_manager, source_world_for_split):  # Made async
+    source_world, source_world_name = await source_world_for_split  # Fixture is async, get world
+    source_session = source_world.get_db_session()  # Get session from world
 
     selected_target_world_name = "test_world_beta"  # For selected (e.g. images)
     # remaining_target_world_name = "test_world_gamma" # This variable was unused, direct string below
@@ -268,7 +266,7 @@ async def test_split_world_by_mimetype(settings_override, test_db_manager, sourc
 
 
 @pytest.mark.asyncio
-async def test_split_world_delete_from_source( # Made async
+async def test_split_world_delete_from_source(  # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path
 ):
     # Setup a fresh source world for this test to avoid interference
@@ -284,7 +282,7 @@ async def test_split_world_delete_from_source( # Made async
     if not source_world_del:
         pytest.fail(f"Test setup error: World '{source_world_name_del}' not found for split_delete test.")
 
-    await _populate_world_with_assets(source_world_name_del, sample_image_a, sample_text_file) # Pass world_name
+    await _populate_world_with_assets(source_world_name_del, sample_image_a, sample_text_file)  # Pass world_name
 
     # Get session after population for count check
     source_session_del = source_world_del.get_db_session()
@@ -293,7 +291,6 @@ async def test_split_world_delete_from_source( # Made async
     source_session_del.close()
     # Re-get session for split_ecs_world as it expects an open session.
     source_session_del = source_world_del.get_db_session()
-
 
     selected_session_del = test_db_manager.get_db_session(selected_target_world_name_del)
     remaining_session_del = test_db_manager.get_db_session(remaining_target_world_name_del)

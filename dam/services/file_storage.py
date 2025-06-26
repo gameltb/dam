@@ -138,12 +138,9 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Cha
                     # This check is a bit simplistic; Path.is_relative_to (Python 3.9+) or
                     # checking common prefix would be more robust.
                     # For now, assume the structure is <base_path>/xx/yy/hash
-                    if grandparent_dir != Path(world_config.ASSET_STORAGE_PATH) and \
-                       not any(grandparent_dir.iterdir()):
+                    if grandparent_dir != Path(world_config.ASSET_STORAGE_PATH) and not any(grandparent_dir.iterdir()):
                         os.rmdir(grandparent_dir)
-                        logger.info(
-                            f"Removed empty directory {grandparent_dir} from world '{log_world_identifier}'"
-                        )
+                        logger.info(f"Removed empty directory {grandparent_dir} from world '{log_world_identifier}'")
             except OSError as e:
                 # This is not critical if directories cannot be removed (e.g., not empty, permissions)
                 logger.debug(

@@ -42,7 +42,7 @@ Resource = Annotated[R, "Resource"]
 #
 # The marker component type (e.g., `NeedsProcessingMarker`) must be a class that
 # inherits from `BaseComponent`.
-M = TypeVar("M", bound=Type[BaseComponent]) # Ensures M is a type of a component
+M = TypeVar("M", bound=Type[BaseComponent])  # Ensures M is a type of a component
 MarkedEntityList = Annotated[List[Entity], "MarkedEntityList", M]
 """
 Type alias for a list of Entities that are marked with a specific component.
@@ -63,6 +63,7 @@ The third argument in `Annotated` (M) specifies the marker component class.
 
 # --- World Context Object (used by WorldScheduler) ---
 
+
 class WorldContext:
     """
     A data class that bundles together world-specific contextual information
@@ -77,6 +78,7 @@ class WorldContext:
         world_name: The string name of the world being processed.
         world_config: The `WorldConfig` object containing settings for this world.
     """
+
     def __init__(self, session: Session, world_name: str, world_config: WorldConfig):
         self.session = session
         self.world_name = world_name

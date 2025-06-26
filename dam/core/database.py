@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from dam.models import Base
 
 # Import WorldConfig for type hinting
-from .config import WorldConfig, settings as global_app_settings # Keep global_app_settings for TESTING_MODE reference
+from .config import WorldConfig  # Keep global_app_settings for TESTING_MODE reference
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class DatabaseManager:
             testing_mode: Global testing mode flag, affects table dropping.
         """
         self.world_config = world_config
-        self.testing_mode = testing_mode # Store global testing_mode
+        self.testing_mode = testing_mode  # Store global testing_mode
         self._engine: Optional[Engine] = None
         self._session_local: Optional[sessionmaker[Session]] = None
         self._initialize_engine()
@@ -49,7 +49,9 @@ class DatabaseManager:
             # echo=True # Optional: for debugging SQL statements
         )
         self._session_local = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
-        logger.info(f"Initialized database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})")
+        logger.info(
+            f"Initialized database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+        )
 
     @property
     def engine(self) -> Engine:
@@ -106,10 +108,8 @@ class DatabaseManager:
                 f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
             )
         except Exception as e:
-            logger.error(
-                f"Error creating tables for world '{self.world_config.name}': {e}", exc_info=True
-            )
-            raise # Re-raise after logging, as this is a critical failure.
+            logger.error(f"Error creating tables for world '{self.world_config.name}': {e}", exc_info=True)
+            raise  # Re-raise after logging, as this is a critical failure.
 
     def get_world_name(self) -> str:
         """Returns the name of the world this manager is associated with."""

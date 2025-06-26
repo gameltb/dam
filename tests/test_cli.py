@@ -7,13 +7,12 @@ from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from dam.core import database as app_database  # For accessing patched SessionLocal
+from dam.core.world import get_world  # For event-driven setup
 
 # App is imported within a fixture to ensure patches are applied first
 # from dam.core.database import SessionLocal  # Avoid top-level import, get from patched module
 # from dam.services import asset_service # Removed
-from dam.services import ecs_service, file_operations # Keep these
-from dam.core.events import AssetFileIngestionRequested # For event-driven setup if chosen later
-from dam.core.world import get_world, World # For event-driven setup
+from dam.services import ecs_service, file_operations  # Keep these
 
 # Initialize a runner
 runner = CliRunner()
@@ -185,16 +184,23 @@ def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path, test_worlds
     db = app_db_module.db_manager.get_db_session(default_cli_test_world)
 
     world_instance = get_world(default_cli_test_world)
-    if not world_instance: # Should not happen if setup_test_environment is correctly patching settings
+    if not world_instance:  # Should not happen if setup_test_environment is correctly patching settings
         pytest.fail(f"CLI Test Setup: World '{default_cli_test_world}' not found after settings override.")
 
-    from dam.services.file_storage_service import FileStorageService as FSS_CLI_Setup # Alias for clarity
+    from dam.services.file_storage_service import FileStorageService as FSS_CLI_Setup  # Alias for clarity
+
     file_storage_svc_cli_setup = world_instance.get_resource(FSS_CLI_Setup)
 
     from dam.models import (
-        ContentHashMD5Component, ContentHashSHA256Component, FileLocationComponent,
-        FilePropertiesComponent, NeedsMetadataExtractionComponent, OriginalSourceInfoComponent,
-        ImagePerceptualAHashComponent, ImagePerceptualDHashComponent, ImagePerceptualPHashComponent,
+        ContentHashMD5Component,
+        ContentHashSHA256Component,
+        FileLocationComponent,
+        FilePropertiesComponent,
+        ImagePerceptualAHashComponent,
+        ImagePerceptualDHashComponent,
+        ImagePerceptualPHashComponent,
+        NeedsMetadataExtractionComponent,
+        OriginalSourceInfoComponent,
     )
 
     assets_to_populate = [
@@ -211,7 +217,7 @@ def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path, test_worlds
 
     try:
         for file_path, original_name, mime_val in assets_to_populate:
-            if not file_path.exists(): # Should already be checked by fixture creation, but defensive
+            if not file_path.exists():  # Should already be checked by fixture creation, but defensive
                 continue
 
             file_content = file_path.read_bytes()
@@ -224,35 +230,59 @@ def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path, test_worlds
             _, cas_path_suffix = file_storage_svc_cli_setup.store_file(file_content, original_filename=original_name)
 
             # Check if entity with this content hash already exists
-            entity = ecs_service.find_entity_by_content_hash(db, sha256_val) # Re-use existing ecs_service helper
+            entity = ecs_service.find_entity_by_content_hash(db, sha256_val)  # Re-use existing ecs_service helper
 
             if not entity:
                 entity = ecs_service.create_entity(db)
                 ecs_service.add_component_to_entity(db, entity.id, ContentHashSHA256Component(hash_value=sha256_val))
                 ecs_service.add_component_to_entity(db, entity.id, ContentHashMD5Component(hash_value=md5_val))
-                ecs_service.add_component_to_entity(db, entity.id, FilePropertiesComponent(
-                    original_filename=original_name, file_size_bytes=size_val, mime_type=mime_val
-                ))
+                ecs_service.add_component_to_entity(
+                    db,
+                    entity.id,
+                    FilePropertiesComponent(
+                        original_filename=original_name, file_size_bytes=size_val, mime_type=mime_val
+                    ),
+                )
                 # Add CAS location
-                ecs_service.add_component_to_entity(db, entity.id, FileLocationComponent(
-                    content_identifier=sha256_val, storage_type="local_cas",
-                    physical_path_or_key=cas_path_suffix, contextual_filename=original_name
-                ))
+                ecs_service.add_component_to_entity(
+                    db,
+                    entity.id,
+                    FileLocationComponent(
+                        content_identifier=sha256_val,
+                        storage_type="local_cas",
+                        physical_path_or_key=cas_path_suffix,
+                        contextual_filename=original_name,
+                    ),
+                )
 
             # Always add OriginalSourceInfo for this specific file "ingestion" during setup
-            ecs_service.add_component_to_entity(db, entity.id, OriginalSourceInfoComponent(
-                original_filename=original_name, original_path=str(file_path.resolve())
-            ))
+            ecs_service.add_component_to_entity(
+                db,
+                entity.id,
+                OriginalSourceInfoComponent(original_filename=original_name, original_path=str(file_path.resolve())),
+            )
 
             # Add perceptual hashes for images
             if mime_val.startswith("image/"):
                 p_hashes = file_operations.generate_perceptual_hashes(file_path)
-                if p_hashes.get("phash") and not ecs_service.get_component(db, entity.id, ImagePerceptualPHashComponent): # Add only if not present
-                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualPHashComponent(hash_value=p_hashes["phash"]))
-                if p_hashes.get("ahash") and not ecs_service.get_component(db, entity.id, ImagePerceptualAHashComponent):
-                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualAHashComponent(hash_value=p_hashes["ahash"]))
-                if p_hashes.get("dhash") and not ecs_service.get_component(db, entity.id, ImagePerceptualDHashComponent):
-                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualDHashComponent(hash_value=p_hashes["dhash"]))
+                if p_hashes.get("phash") and not ecs_service.get_component(
+                    db, entity.id, ImagePerceptualPHashComponent
+                ):  # Add only if not present
+                    ecs_service.add_component_to_entity(
+                        db, entity.id, ImagePerceptualPHashComponent(hash_value=p_hashes["phash"])
+                    )
+                if p_hashes.get("ahash") and not ecs_service.get_component(
+                    db, entity.id, ImagePerceptualAHashComponent
+                ):
+                    ecs_service.add_component_to_entity(
+                        db, entity.id, ImagePerceptualAHashComponent(hash_value=p_hashes["ahash"])
+                    )
+                if p_hashes.get("dhash") and not ecs_service.get_component(
+                    db, entity.id, ImagePerceptualDHashComponent
+                ):
+                    ecs_service.add_component_to_entity(
+                        db, entity.id, ImagePerceptualDHashComponent(hash_value=p_hashes["dhash"])
+                    )
 
             # Mark for metadata extraction (mimicking what add_asset_file used to do)
             if not ecs_service.get_component(db, entity.id, NeedsMetadataExtractionComponent):
@@ -287,6 +317,7 @@ def test_find_file_by_sha256_direct_hash(test_app):
 
     assert result.exit_code == 0
     from dam.cli import global_state  # Import for assertion
+
     assert f"Querying world '{global_state.world_name}' for asset with sha256 hash: {sha256_hash}" in result.stdout
     assert "Found Entity ID:" in result.stdout
     assert f"Value: {sha256_hash}" in result.stdout
@@ -340,6 +371,7 @@ def test_find_file_by_md5_direct_hash(test_app):
     result = runner.invoke(test_app, ["find-file-by-hash", md5_hash, "--hash-type", "md5"])
     assert result.exit_code == 0
     from dam.cli import global_state  # Import for assertion
+
     assert f"Querying world '{global_state.world_name}' for asset with md5 hash: {md5_hash}" in result.stdout
     assert "Found Entity ID:" in result.stdout
     assert f"Value: {md5_hash}" in result.stdout
@@ -439,9 +471,7 @@ def test_find_similar_images_ahash(test_app):
 
 
 def test_find_similar_images_dhash(test_app):
-    result = runner.invoke(
-        test_app, ["find-similar-images", str(_FIXTURE_IMG_A), "--dhash-threshold", "2"]
-    )
+    result = runner.invoke(test_app, ["find-similar-images", str(_FIXTURE_IMG_A), "--dhash-threshold", "2"])
     if result.exit_code != 0:
         print(f"Output for dhash test:\n{result.output}")
     assert result.exit_code == 0
@@ -509,9 +539,10 @@ def test_add_asset_generates_md5(test_app, setup_test_environment):
     from dam.cli import global_state
 
     cli_test_world_name = global_state.world_name if global_state.world_name else "test_world_alpha"
-    db_for_test = app_database.db_manager.get_db_session(cli_test_world_name) # Session for verification
+    db_for_test = app_database.db_manager.get_db_session(cli_test_world_name)  # Session for verification
 
-    from dam.models import ContentHashMD5Component, Entity, FilePropertiesComponent as ModelFilePropertiesComponent
+    from dam.models import ContentHashMD5Component
+    from dam.models import FilePropertiesComponent as ModelFilePropertiesComponent
 
     # Verify existing text file's MD5 from setup
     existing_txt_fpc = db_for_test.query(ModelFilePropertiesComponent).filter_by(original_filename=TXT_FILENAME).first()
@@ -524,7 +555,7 @@ def test_add_asset_generates_md5(test_app, setup_test_environment):
     assert md5_comp_existing.hash_value == txt_file_md5_expected, f"MD5 mismatch for existing {TXT_FILENAME}."
 
     # Test adding a new file via CLI
-    source_files_dir = _FIXTURE_TXT_FILE.parent # Reuse temp dir for new file
+    source_files_dir = _FIXTURE_TXT_FILE.parent  # Reuse temp dir for new file
     temp_file_path = source_files_dir / "temp_add_asset_for_md5_test.txt"
     temp_file_content = "Content for MD5 test in test_add_asset_generates_md5."
     temp_file_path.write_text(temp_file_content)
@@ -534,18 +565,21 @@ def test_add_asset_generates_md5(test_app, setup_test_environment):
         # Invoke CLI to add the new asset
         result = runner.invoke(test_app, ["add-asset", str(temp_file_path), "--world", cli_test_world_name])
         assert result.exit_code == 0, f"CLI add-asset failed: {result.output}"
-        assert "Dispatched AssetFileIngestionRequested" in result.output # Check for event dispatch message
+        assert "Dispatched AssetFileIngestionRequested" in result.output  # Check for event dispatch message
         assert "Post-ingestion systems completed" in result.output
 
-
         # Verify the new asset in DB
-        new_fpc = db_for_test.query(ModelFilePropertiesComponent).filter_by(original_filename=temp_file_path.name).first()
+        new_fpc = (
+            db_for_test.query(ModelFilePropertiesComponent).filter_by(original_filename=temp_file_path.name).first()
+        )
         assert new_fpc is not None, f"Newly added asset {temp_file_path.name} not found in DB."
 
         new_entity_id = new_fpc.entity_id
         md5_comp_new = ecs_service.get_component(db_for_test, new_entity_id, ContentHashMD5Component)
         assert md5_comp_new is not None, f"MD5 component for new asset {temp_file_path.name} not found."
-        assert md5_comp_new.hash_value == temp_file_md5_new_expected, f"MD5 mismatch for new asset {temp_file_path.name}."
+        assert md5_comp_new.hash_value == temp_file_md5_new_expected, (
+            f"MD5 mismatch for new asset {temp_file_path.name}."
+        )
 
     finally:
         temp_file_path.unlink(missing_ok=True)
@@ -727,8 +761,8 @@ def _get_entity_by_filename(world_name: str, filename: str) -> any:
         session.close()
 
 
-@pytest.mark.asyncio # Make async
-async def test_cli_merge_worlds_db(test_app, settings_override, tmp_path): # Make async
+@pytest.mark.asyncio  # Make async
+async def test_cli_merge_worlds_db(test_app, settings_override, tmp_path):  # Make async
     source_world_cli = "test_world_alpha"
     target_world_cli = "test_world_beta"
     # source_session_alpha = app_database.db_manager.get_db_session(source_world_cli) # Not needed before populate
@@ -738,7 +772,7 @@ async def test_cli_merge_worlds_db(test_app, settings_override, tmp_path): # Mak
     s_txt_file.write_text("Source text for merge")
     from tests.services.test_world_service_advanced import _populate_world_with_assets as populate_helper
 
-    await populate_helper(source_world_cli, s_img_file, s_txt_file) # Pass world_name, await
+    await populate_helper(source_world_cli, s_img_file, s_txt_file)  # Pass world_name, await
     # source_session_alpha.close() # Closed by helper or not needed before count
     assert _count_entities_in_world(source_world_cli) == 2
     assert _count_entities_in_world(target_world_cli) == 0
@@ -769,11 +803,16 @@ def test_cli_split_world_db(test_app, settings_override, tmp_path):
         pytest.fail(f"CLI Test Setup: World '{source_world_cli_split}' not found for split test.")
 
     from dam.services.file_storage_service import FileStorageService as FSS_CLI_Split_Setup
+
     fss_split = split_world_instance.get_resource(FSS_CLI_Split_Setup)
 
     from dam.models import (
-        ContentHashMD5Component, ContentHashSHA256Component, FileLocationComponent,
-        FilePropertiesComponent, NeedsMetadataExtractionComponent, OriginalSourceInfoComponent
+        ContentHashMD5Component,
+        ContentHashSHA256Component,
+        FileLocationComponent,
+        FilePropertiesComponent,
+        NeedsMetadataExtractionComponent,
+        OriginalSourceInfoComponent,
     )
 
     assets_for_split = [
@@ -790,18 +829,30 @@ def test_cli_split_world_db(test_app, settings_override, tmp_path):
         _, cas_path_f = fss_split.store_file(file_c, original_filename=orig_name)
 
         entity_s = ecs_service.create_entity(source_session_s)
-        ecs_service.add_component_to_entity(source_session_s, entity_s.id, ContentHashSHA256Component(hash_value=sha256_f))
+        ecs_service.add_component_to_entity(
+            source_session_s, entity_s.id, ContentHashSHA256Component(hash_value=sha256_f)
+        )
         ecs_service.add_component_to_entity(source_session_s, entity_s.id, ContentHashMD5Component(hash_value=md5_f))
-        ecs_service.add_component_to_entity(source_session_s, entity_s.id, FilePropertiesComponent(
-            original_filename=orig_name, file_size_bytes=size_f, mime_type=mime_t
-        ))
-        ecs_service.add_component_to_entity(source_session_s, entity_s.id, FileLocationComponent(
-            content_identifier=sha256_f, storage_type="local_cas",
-            physical_path_or_key=cas_path_f, contextual_filename=orig_name
-        ))
-        ecs_service.add_component_to_entity(source_session_s, entity_s.id, OriginalSourceInfoComponent(
-            original_filename=orig_name, original_path=str(file_p.resolve())
-        ))
+        ecs_service.add_component_to_entity(
+            source_session_s,
+            entity_s.id,
+            FilePropertiesComponent(original_filename=orig_name, file_size_bytes=size_f, mime_type=mime_t),
+        )
+        ecs_service.add_component_to_entity(
+            source_session_s,
+            entity_s.id,
+            FileLocationComponent(
+                content_identifier=sha256_f,
+                storage_type="local_cas",
+                physical_path_or_key=cas_path_f,
+                contextual_filename=orig_name,
+            ),
+        )
+        ecs_service.add_component_to_entity(
+            source_session_s,
+            entity_s.id,
+            OriginalSourceInfoComponent(original_filename=orig_name, original_path=str(file_p.resolve())),
+        )
         ecs_service.add_component_to_entity(source_session_s, entity_s.id, NeedsMetadataExtractionComponent())
 
     source_session_s.commit()
@@ -841,8 +892,8 @@ def test_cli_split_world_db(test_app, settings_override, tmp_path):
     assert txt_entity_remaining is not None
 
 
-@pytest.mark.asyncio # Make async
-async def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path): # Make async
+@pytest.mark.asyncio  # Make async
+async def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path):  # Make async
     source_world_del = "test_world_alpha_del_split"
     selected_target_del = "test_world_beta_del_split"
     remaining_target_del = "test_world_gamma_del_split"

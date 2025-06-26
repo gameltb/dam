@@ -6,10 +6,11 @@ marked with `NeedsMetadataExtractionComponent`) to extract and store detailed
 metadata such as dimensions, duration, frame counts, audio properties, etc.,
 using tools like the Hachoir library.
 """
+
 import asyncio
 import logging
 from pathlib import Path
-from typing import List, Annotated, Any # Added Any
+from typing import Annotated, Any, List  # Added Any
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.stages import SystemStage
@@ -86,9 +87,7 @@ async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | N
 async def extract_metadata_on_asset_ingested(
     session: WorldSession,
     world_config: CurrentWorldConfig,
-    entities_to_process: Annotated[
-        List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent
-    ],
+    entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
     if not createParser or not extractMetadata:
         logger.warning("Hachoir library not installed. Skipping metadata extraction system.")

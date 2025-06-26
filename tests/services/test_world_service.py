@@ -2,22 +2,22 @@ import json
 from pathlib import Path
 
 import pytest
-from sqlalchemy.orm import Session
+
+from dam.core.events import AssetFileIngestionRequested  # Added event import
 
 # Fixtures `db_session` and `settings_override` will be used from conftest.py
 from dam.core.stages import SystemStage  # Added import
-from dam.core.system_params import WorldContext  # Added import
+from dam.core.world import World  # Added for type hinting
 from dam.models import (
     ContentHashSHA256Component,
     Entity,
     FilePropertiesComponent,
 )
-from dam.services import ( # asset_service removed
+from dam.services import (  # asset_service removed
     ecs_service,
     file_operations,  # Import for get_file_properties
     world_service,
 )
-from dam.core.events import AssetFileIngestionRequested # Added event import
 
 
 @pytest.fixture(scope="function")
@@ -46,14 +46,10 @@ def source_files_for_world_service(tmp_path: Path) -> Path:
     return source_files_dir
 
 
-# Import World for type hinting
-from dam.core.world import World
-
-
 @pytest.fixture(scope="function")
 async def populated_world_for_export(
     test_world_alpha: World, source_files_for_world_service: Path
-) -> World: # Made async, depends on test_world_alpha
+) -> World:  # Made async, depends on test_world_alpha
     """
     Provides the 'test_world_alpha' World instance populated with some assets for export testing.
     """
@@ -72,7 +68,7 @@ async def populated_world_for_export(
         size_bytes=img_props[1],
         world_name=world.name,
     )
-    await world.dispatch_event(img_event) # world.dispatch_event handles its own session
+    await world.dispatch_event(img_event)  # world.dispatch_event handles its own session
 
     txt_props = file_operations.get_file_properties(txt_file_path)
     txt_event = AssetFileIngestionRequested(
@@ -110,7 +106,7 @@ async def test_export_ecs_world(populated_world_for_export: World, tmp_path: Pat
     # populated_world_for_export is now a World instance
     # settings_override is implicitly handled by the World fixture
 
-    export_world = await populated_world_for_export # Fixture is async
+    export_world = await populated_world_for_export  # Fixture is async
     export_file = tmp_path / "world_export.json"
 
     # world_service.export_ecs_world_to_json now takes a World object
@@ -179,10 +175,8 @@ def clean_world_for_import(test_world_beta: World) -> World:
     return test_world_beta
 
 
-def test_import_ecs_world_clean_db(
-    clean_world_for_import: World, source_files_for_world_service: Path, tmp_path: Path
-):
-    import_world = clean_world_for_import # World instance to import into
+def test_import_ecs_world_clean_db(clean_world_for_import: World, source_files_for_world_service: Path, tmp_path: Path):
+    import_world = clean_world_for_import  # World instance to import into
     # current_world_name_for_log = import_world.name # For logging if needed, but service handles it
 
     img_a_path = source_files_for_world_service / "ws_img_A.png"
@@ -222,21 +216,26 @@ def test_import_ecs_world_clean_db(
     export_data = {
         "entities": [
             {
-                "id": 101, # This ID might not be preserved if DB auto-increments
+                "id": 101,  # This ID might not be preserved if DB auto-increments
                 "components": {
                     "FilePropertiesComponent": [
-                        {"__component_type__": "FilePropertiesComponent", "original_filename": "ws_img_A.png", "file_size_bytes": 100, "mime_type": "image/png"}
+                        {
+                            "__component_type__": "FilePropertiesComponent",
+                            "original_filename": "ws_img_A.png",
+                            "file_size_bytes": 100,
+                            "mime_type": "image/png",
+                        }
                     ],
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_img"}
                     ],
-                    "FileLocationComponent": [ # Updated to reflect new model fields more directly
+                    "FileLocationComponent": [  # Updated to reflect new model fields more directly
                         {
                             "__component_type__": "FileLocationComponent",
-                            "content_identifier": "fake_sha256_for_import_img", # Typically the hash
-                            "physical_path_or_key": str(img_a_path.resolve()), # Actual path for reference
-                            "contextual_filename": "ws_img_A.png", # Original filename for this location
-                            "storage_type": "local_reference", # Changed from referenced_local_file
+                            "content_identifier": "fake_sha256_for_import_img",  # Typically the hash
+                            "physical_path_or_key": str(img_a_path.resolve()),  # Actual path for reference
+                            "contextual_filename": "ws_img_A.png",  # Original filename for this location
+                            "storage_type": "local_reference",  # Changed from referenced_local_file
                         }
                     ],
                 },
@@ -245,7 +244,10 @@ def test_import_ecs_world_clean_db(
                 "id": 102,
                 "components": {
                     "ContentHashSHA256Component": [
-                        {"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_manual"}
+                        {
+                            "__component_type__": "ContentHashSHA256Component",
+                            "hash_value": "fake_sha256_for_import_manual",
+                        }
                     ]
                 },
             },
@@ -267,7 +269,7 @@ def test_import_ecs_world_clean_db(
             .one_or_none()
         )
         assert imported_img_props is not None
-        img_entity_id = imported_img_props.entity_id # This ID is generated by the DB, not from JSON's id:101
+        img_entity_id = imported_img_props.entity_id  # This ID is generated by the DB, not from JSON's id:101
 
         retrieved_sha256_comp = ecs_service.get_component(session, img_entity_id, ContentHashSHA256Component)
         assert retrieved_sha256_comp is not None
@@ -290,7 +292,7 @@ def test_import_ecs_world_clean_db(
 async def test_import_ecs_world_with_merge(populated_world_for_export: World, tmp_path: Path):
     # populated_world_for_export is already a World instance
     # settings_override is implicitly handled
-    world_to_merge_into = await populated_world_for_export # Use the same populated world
+    world_to_merge_into = await populated_world_for_export  # Use the same populated world
 
     # Get a session to query initial state
     session = world_to_merge_into.get_db_session()
@@ -306,15 +308,20 @@ async def test_import_ecs_world_with_merge(populated_world_for_export: World, tm
 
     updated_txt_filename = "ws_sample_updated.txt"
     new_sha_for_txt = "merged_sha_for_txt"
-    new_entity_json_id = 201 # Original ID from JSON, will likely change on import
+    new_entity_json_id = 201  # Original ID from JSON, will likely change on import
 
     export_data_for_merge = {
         "entities": [
             {
-                "id": existing_txt_entity_id, # Try to merge with this existing entity
+                "id": existing_txt_entity_id,  # Try to merge with this existing entity
                 "components": {
                     "FilePropertiesComponent": [
-                        {"__component_type__": "FilePropertiesComponent", "original_filename": updated_txt_filename, "file_size_bytes": 999, "mime_type": "text/merged"}
+                        {
+                            "__component_type__": "FilePropertiesComponent",
+                            "original_filename": updated_txt_filename,
+                            "file_size_bytes": 999,
+                            "mime_type": "text/merged",
+                        }
                     ],
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": new_sha_for_txt}
@@ -322,7 +329,7 @@ async def test_import_ecs_world_with_merge(populated_world_for_export: World, tm
                 },
             },
             {
-                "id": new_entity_json_id, # This should be a new entity
+                "id": new_entity_json_id,  # This should be a new entity
                 "components": {
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": "new_entity_hash_for_merge"}

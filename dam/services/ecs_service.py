@@ -1,4 +1,5 @@
-from typing import List, Optional, Type, TypeVar
+import logging  # Added import
+from typing import Any, List, Optional, Type, TypeVar  # Added Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,14 +12,13 @@ from dam.models.base_component import REGISTERED_COMPONENT_TYPES
 # Define a generic type variable for component types
 T = TypeVar("T", bound=BaseComponent)
 
-import logging # Added import
 
 # Note: All functions in this service require a `session: Session` argument.
 # The caller (e.g., a system, another service, or a CLI command handler)
 # is responsible for obtaining the correct session for the desired ECS World,
 # typically by calling `world.get_db_session()`.
 
-logger = logging.getLogger(__name__) # Added logger
+logger = logging.getLogger(__name__)  # Added logger
 
 
 def create_entity(session: Session) -> Entity:
@@ -150,3 +150,63 @@ def delete_entity(session: Session, entity_id: int, flush: bool = True) -> bool:
             # Caller should manage transaction
             raise e
     return True
+
+
+# --- Query Helper Functions ---
+
+
+def find_entities_with_components(
+    session: Session, required_component_types: List[Type[BaseComponent]]
+) -> List[Entity]:
+    """
+    Finds entities that have ALL of the specified component types.
+    Entities are returned distinct.
+    """
+    if not required_component_types:
+        return []
+
+    stmt = select(Entity)
+    for i, comp_type in enumerate(required_component_types):
+        if not issubclass(comp_type, BaseComponent):
+            raise TypeError(f"Type {comp_type} is not a BaseComponent subclass.")
+        # Use aliasing if the same component type could be required multiple times with different criteria
+        # (not applicable here, but good practice if extending for attribute checks on each).
+        # For now, a simple join is fine. If a component could appear multiple times for an entity
+        # and we only care about its presence, distinct on entity_id from component or a subquery is safer.
+        # However, typical ECS components are one-per-entity or handled by systems aware of multiples.
+        # This join assumes we just need to ensure each type is present.
+        stmt = stmt.join(comp_type, Entity.id == comp_type.entity_id)
+
+    # Ensure distinct entities if multiple components of the same type or complex joins might cause duplicates
+    stmt = stmt.distinct()
+
+    result = session.execute(stmt).scalars().all()
+    return list(result)
+
+
+def find_entities_by_component_attribute_value(
+    session: Session,
+    component_type: Type[T],
+    attribute_name: str,
+    value: Any,
+    # TODO: Consider adding options for specific SQLAlchemy relationship loading for Entity (e.g. using options())
+    # to allow preloading other components of the found entities.
+) -> List[Entity]:
+    """
+    Finds entities that have a component of `component_type`
+    where `component_type.attribute_name == value`.
+    """
+    if not issubclass(component_type, BaseComponent):
+        raise TypeError(f"Type {component_type} is not a BaseComponent subclass.")
+    if not hasattr(component_type, attribute_name):
+        raise AttributeError(f"Component {component_type.__name__} has no attribute '{attribute_name}'.")
+
+    stmt = (
+        select(Entity)
+        .join(component_type, Entity.id == component_type.entity_id)
+        .where(getattr(component_type, attribute_name) == value)
+        .distinct()  # Ensure distinct entities are returned
+    )
+
+    result = session.execute(stmt).scalars().all()
+    return list(result)

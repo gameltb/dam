@@ -53,9 +53,10 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     *   Execution is typically organized into `SystemStage`s (see below). The scheduler runs all systems registered for a particular stage.
     *   (Future: Systems may also be triggered by events).
 -   **Dependency Injection**: The `WorldScheduler` automatically injects dependencies into systems based on their annotated parameters. Common injectable types include:
-    *   `WorldSession`: The active SQLAlchemy session for the current world.
-    *   `WorldName`: The string name of the current world.
-    *   `CurrentWorldConfig`: The `WorldConfig` object for the current world.
+    *   `WorldSession`: The active SQLAlchemy session for the current world (typically `Annotated[Session, "WorldSession"]`).
+    *   `WorldName`: The string name of the current world (typically `Annotated[str, "WorldName"]`).
+    *   `CurrentWorldConfig`: The `WorldConfig` object for the current world (typically `Annotated[WorldConfig, "CurrentWorldConfig"]`).
+    *   `WorldContext`: The entire `WorldContext` object, providing access to session, world name, and world config. Can be requested directly via `my_context: WorldContext`.
     *   `Resource[ResourceType]`: An instance of a registered shared resource (see Section 2.5).
     *   `MarkedEntityList[MarkerComponentType]`: A list of `Entity` objects that have the specified `MarkerComponentType` attached.
 
@@ -80,6 +81,107 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     *   Systems are registered to run at a specific stage using the `@system(stage=SystemStage.SOME_STAGE)` decorator.
     *   The `WorldScheduler.execute_stage(stage, world_context)` method executes all systems registered for that particular stage.
     *   This provides a way to order operations and manage dependencies between different processing steps.
+
+### 2.8. Querying Entities with `ecs_service`
+
+The `dam.services.ecs_service` module provides several helper functions to facilitate common queries for entities based on their components, reducing boilerplate and promoting optimized query patterns. These functions should be preferred for common query needs within systems or other services.
+
+*   **`find_entities_with_components`**
+    *   **Purpose**: Retrieves a list of distinct `Entity` objects that possess *all* of the specified component types.
+    *   **Signature**: `find_entities_with_components(session: Session, required_component_types: List[Type[BaseComponent]]) -> List[Entity]`
+    *   **Example**:
+        ```python
+        from dam.services import ecs_service
+        from dam.models import FilePropertiesComponent, ImageDimensionsComponent
+        from sqlalchemy.orm import Session # Assuming session is obtained
+
+        # session: Session = ... obtain session ...
+        image_entities = ecs_service.find_entities_with_components(
+            session,
+            [FilePropertiesComponent, ImageDimensionsComponent]
+        )
+        for entity in image_entities:
+            # This entity has both FilePropertiesComponent and ImageDimensionsComponent
+            pass
+        ```
+
+*   **`find_entities_by_component_attribute_value`**
+    *   **Purpose**: Retrieves a list of distinct `Entity` objects that have a specific component where a particular attribute of that component matches a given value.
+    *   **Signature**: `find_entities_by_component_attribute_value(session: Session, component_type: Type[T], attribute_name: str, value: Any) -> List[Entity]` (where `T` is a `BaseComponent` subclass)
+    *   **Example**:
+        ```python
+        from dam.services import ecs_service
+        from dam.models import FilePropertiesComponent
+        from sqlalchemy.orm import Session # Assuming session is obtained
+
+        # session: Session = ... obtain session ...
+        jpeg_entities = ecs_service.find_entities_by_component_attribute_value(
+            session,
+            FilePropertiesComponent,
+            "mime_type",
+            "image/jpeg"
+        )
+        for entity in jpeg_entities:
+            # This entity has a FilePropertiesComponent with mime_type 'image/jpeg'
+            pass
+        ```
+    *   **Performance Note**: For optimal performance with `find_entities_by_component_attribute_value`, ensure that attributes frequently used for querying (like `mime_type` in the example above) are indexed in their respective component model definitions (e.g., `mime_type: Mapped[Optional[str]] = mapped_column(String(128), index=True)`). An index has been added to `FilePropertiesComponent.mime_type` as part of recent optimizations.
+
+### 2.9. Error Handling in ECS Operations
+
+When systems are executed via `World.execute_stage(...)` or event handlers via `World.dispatch_event(...)`, failures within the systems/handlers or during the final database commit will now result in specific custom exceptions being raised. This allows calling code to more effectively respond to operational failures. These exceptions are defined in `dam.core.exceptions`.
+
+*   **`StageExecutionError(DamECSException)`**
+    *   Raised by `World.execute_stage(...)` if a system within the stage fails or if the session commit for the stage fails.
+    *   Key Attributes:
+        *   `message: str`: General error message.
+        *   `stage_name: str`: Name of the stage that failed.
+        *   `system_name: Optional[str]`: Name of the specific system that caused the failure, if applicable.
+        *   `original_exception: Optional[Exception]`: The underlying Python exception that was caught.
+
+*   **`EventHandlingError(DamECSException)`**
+    *   Raised by `World.dispatch_event(...)` if an event handler fails or if the session commit for the event dispatch fails.
+    *   Key Attributes:
+        *   `message: str`: General error message.
+        *   `event_type: str`: Name of the event type being handled.
+        *   `handler_name: Optional[str]`: Name of the specific handler function that failed, if applicable.
+        *   `original_exception: Optional[Exception]`: The underlying Python exception that was caught.
+
+*   **Example Usage**:
+    ```python
+    from dam.core.world import World # Assuming World object is available
+    from dam.core.stages import SystemStage
+    from dam.core.exceptions import StageExecutionError, EventHandlingError, DamECSException
+    import logging # For example logging
+
+    logger = logging.getLogger(__name__)
+
+    # my_world: World = get_world(...) # Obtain your world instance
+
+    async def run_my_stage(my_world: World):
+        try:
+            await my_world.execute_stage(SystemStage.METADATA_EXTRACTION)
+            logger.info(f"Stage {SystemStage.METADATA_EXTRACTION.name} completed successfully.")
+        except StageExecutionError as e:
+            logger.error(f"Stage execution failed: {e.message}")
+            logger.error(f"  Stage: {e.stage_name}")
+            if e.system_name:
+                logger.error(f"  Failing system: {e.system_name}")
+            if e.original_exception:
+                logger.error(f"  Original error: {type(e.original_exception).__name__}: {e.original_exception}")
+            # Add specific handling, e.g., retry logic, marking entities as failed, etc.
+        except DamECSException as e: # Catch other potential general ECS errors
+            logger.error(f"An ECS operation failed: {e}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+    ```
+*   This improved error propagation ensures that failures in scheduled ECS operations are not silent and can be handled appropriately by the parts of the application orchestrating these processes (e.g., CLI commands, service layers).
+
+### 2.10. Performance Considerations
+Internal optimizations have been implemented to enhance the performance of common ECS operations. Notably:
+-   Fetching entities based on `MarkedEntityList` dependencies in systems is now more efficient, using optimized database queries.
+-   The automatic removal of marker components by the `WorldScheduler` after system processing has been streamlined to reduce database overhead.
+-   Indexing has been added to certain component attributes (e.g., `FilePropertiesComponent.mime_type`) to speed up queries. Developers should continue to consider indexing for attributes frequently used in query conditions.
 
 ## 3. Project Structure
 
@@ -395,7 +497,11 @@ The project uses `pytest` for testing, preferably run via `uv`.
     -   Check for lint errors (without fixing): `uv run ruff check .`
 -   **Type Checking**: MyPy is configured (see `pyproject.toml` under `[tool.mypy]`).
     -   Run type checker: `uv run mypy .`
--   **System Registration**: ECS Systems are registered automatically when their Python modules (e.g., `dam/systems/metadata_systems.py`) are imported. Ensure new system modules are imported by a part of the application that loads during startup (like `dam/cli.py` or by importing the main `dam.systems` package if its `__init__.py` imports all system modules).
+-   **System Registration & Execution**:
+    System functions are defined with decorators (`@system` or `@listens_for`) which collect their metadata (parameters, target stage/event) globally when modules are imported. However, for a system to be active within a specific `World`, it must be explicitly registered to that `World`'s scheduler via `world.register_system(...)`.
+    The application's core systems are registered through the `dam.core.world_registrar.register_core_systems(world_instance)` helper function. This function is called when `World` instances are initialized, for example, by the CLI or in test setups. If you are developing a new system intended to be part of the standard set for all worlds, you should add its registration call to `register_core_systems`.
+    For systems that are highly specific to a particular workflow or a custom `World` setup not managed by the default initialization, you would call `world.register_system(...)` manually after obtaining or creating your `World` instance.
+    The `WorldScheduler` then executes these registered systems at defined stages or in response to events.
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
     -   Models: `PascalCase` (e.g., `FileLocationComponent`).
