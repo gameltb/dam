@@ -35,15 +35,21 @@ def get_all_component_classes() -> list[Type[BaseComponent]]:
     return REGISTERED_COMPONENT_TYPES
 
 
-def export_ecs_world_to_json(session: Session, filepath: Path, world_name_for_log: Optional[str] = "current") -> None:
+# Forward declaration for World type hint
+if False:
+    from dam.core.world import World
+
+
+def export_ecs_world_to_json(export_world: "World", filepath: Path) -> None:
     """
-    Exports all entities and their components from the given session to a JSON file.
+    Exports all entities and their components from the given World to a JSON file.
     Each entity will have its ID and a list of its components.
     Args:
-        session: The SQLAlchemy session for the world to be exported.
+        export_world: The World instance to be exported.
         filepath: The path to the JSON file where the world data will be saved.
-        world_name_for_log: Name of the world, for logging purposes.
     """
+    logger.info(f"Starting export of world '{export_world.name}' to {filepath}...")
+    session = export_world.get_db_session()
     world_data: dict[str, Any] = {"entities": []}
     component_classes = get_all_component_classes()
     if not component_classes:
@@ -90,33 +96,31 @@ def export_ecs_world_to_json(session: Session, filepath: Path, world_name_for_lo
 
     try:
         with open(filepath, "w") as f:
-            json.dump(world_data, f, indent=2, default=str)  # default=str for Path, datetime etc.
-        logger.info(f"ECS world successfully exported to {filepath}")
+            json.dump(world_data, f, indent=2, default=str)
+        logger.info(f"World '{export_world.name}' successfully exported to {filepath}")
     except IOError as e:
-        logger.error(f"Error writing ECS world to {filepath}: {e}")
+        logger.error(f"Error writing world '{export_world.name}' to {filepath}: {e}", exc_info=True)
         raise
     except Exception as e:
-        logger.error(f"An unexpected error occurred during JSON export: {e}")
+        logger.error(f"An unexpected error occurred during JSON export for world '{export_world.name}': {e}", exc_info=True)
         raise
+    finally:
+        session.close()
 
 
 def import_ecs_world_from_json(
-    session: Session, filepath: Path, merge: bool = False, world_name_for_log: Optional[str] = "current"
+    target_world: "World", filepath: Path, merge: bool = False
 ) -> None:
     """
-    Imports entities and components from a JSON file into the given session.
-    If merge is False (default), it expects a clean database or will raise an error if entities conflict.
-    If merge is True, it will try to update existing entities or add new ones. (Merge logic is complex)
+    Imports entities and components from a JSON file into the given target World.
+    If merge is False (default), it expects a clean database for the target World,
+    or will raise an error if entities conflict (behavior might depend on DB constraints).
+    If merge is True, it will try to update existing entities or add new ones.
 
-    NOTE ON ENTITY IDs:
-    When importing entities, if an entity ID from the JSON file does not exist in the target database,
-    a new entity is created. This new entity will receive a new, auto-generated ID from the database.
-    The original ID from the JSON file is logged but NOT preserved as the primary key for the new entity,
-    to maintain compatibility with auto-incrementing primary key sequences.
-    If preserving original IDs or mapping them is critical (e.g., for systems requiring stable IDs across
-    different DAM instances or for restoring backups to specific ID states), a more sophisticated ID mapping
-    and import strategy would be required (see potential future enhancements outlined in comments below).
+    NOTE ON ENTITY IDs: See notes in original function, behavior regarding new IDs remains.
     """
+    logger.info(f"Starting import to world '{target_world.name}' from {filepath} (merge={merge})...")
+    session = target_world.get_db_session()
     try:
         with open(filepath, "r") as f:
             world_data = json.load(f)
@@ -311,11 +315,13 @@ def import_ecs_world_from_json(
 
     try:
         session.commit()
-        logger.info(f"ECS world successfully imported from {filepath}")
+        logger.info(f"World '{target_world.name}' successfully imported from {filepath}")
     except Exception as e:
         session.rollback()
-        logger.error(f"Error committing imported ECS world from {filepath}: {e}", exc_info=True)
+        logger.error(f"Error committing imported data to world '{target_world.name}' from {filepath}: {e}", exc_info=True)
         raise
+    finally:
+        session.close()
 
 
 # --- Placeholder functions for more advanced operations ---
@@ -324,289 +330,243 @@ def import_ecs_world_from_json(
 
 
 def merge_ecs_worlds_db_to_db(
-    source_session: Session,
-    target_session: Session,
-    source_world_name_for_log: Optional[str] = "source",
-    target_world_name_for_log: Optional[str] = "target",
+    source_world: "World",
+    target_world: "World",
     strategy: str = "add_new",  # Currently only 'add_new' is implemented
 ) -> None:
     """
-    Merges entities and components from a source database session to a target database session.
+    Merges entities and components from a source World's database to a target World's database.
     Strategy 'add_new': All source entities are treated as new in the target.
     """
     logger.info(
-        f"Starting DB-to-DB merge from world '{source_world_name_for_log}' to '{target_world_name_for_log}' "
+        f"Starting DB-to-DB merge from world '{source_world.name}' to '{target_world.name}' "
         f"with strategy '{strategy}'."
     )
 
     if strategy != "add_new":
-        logger.error(f"Merge strategy '{strategy}' is not yet implemented. Only 'add_new' is supported.")
+        logger.error(f"Merge strategy '{strategy}' for worlds '{source_world.name}' -> '{target_world.name}' is not yet implemented. Only 'add_new' is supported.")
         raise NotImplementedError(f"Merge strategy '{strategy}' is not yet implemented.")
 
-    all_component_types = get_all_component_classes()
-    source_entities = source_session.query(Entity).all()
-    source_entity_count = len(source_entities)
-    logger.info(f"Found {source_entity_count} entities in source world '{source_world_name_for_log}'.")
-
-    processed_count = 0
-    for src_entity in source_entities:
-        processed_count += 1
-        logger.debug(f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge...")
-
-        # Strategy 'add_new': Create a new entity in the target world
-        tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
-
-        # Copy components
-        for ComponentClass in all_component_types:
-            # Get all components of this type for the source entity
-            src_components = ecs_service.get_components(source_session, src_entity.id, ComponentClass)
-
-            for src_comp_instance in src_components:
-                # Create a new component instance for the target entity
-                # Copy attribute values, excluding 'id', 'entity_id', and 'entity' relationship
-                comp_data = {
-                    attr.key: getattr(src_comp_instance, attr.key)
-                    for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                    if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
-                }
-
-                # Add entity_id and entity for the new target entity
-                # Note: kw_only=True on BaseComponent means these must be provided if not default
-                # The ComponentClass(**comp_data) will implicitly use BaseComponent's __init__
-                # which expects entity_id and entity if they are not init=False or have defaults.
-                # We need to ensure ComponentClass can be instantiated with comp_data,
-                # and then add_component_to_entity will correctly link it.
-                # The current BaseComponent requires entity_id at init.
-
-                # Let's create component with new entity_id and entity, then add
-                comp_data_for_new = comp_data.copy()
-                comp_data_for_new["entity_id"] = tgt_entity.id
-                comp_data_for_new["entity"] = tgt_entity  # For relationship
-
-                try:
-                    new_comp_instance = ComponentClass(**comp_data_for_new)
-                    # Add component to the new target entity. Pass flush=False as we commit at the end.
-                    ecs_service.add_component_to_entity(target_session, tgt_entity.id, new_comp_instance, flush=False)
-                    logger.debug(
-                        f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} "
-                        f"to tgt_entity {tgt_entity.id}."
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to copy component {ComponentClass.__name__} for src_entity {src_entity.id} "
-                        f"to tgt_entity {tgt_entity.id}: {e}",
-                        exc_info=True,
-                    )
-                    # Decide on error handling: rollback transaction, skip component, or skip entity?
-                    # For now, log and continue. Transaction commit at the end will either succeed or fail all.
+    source_session = source_world.get_db_session()
+    target_session = target_world.get_db_session()
 
     try:
+        all_component_types = get_all_component_classes()
+        source_entities = source_session.query(Entity).all()
+        source_entity_count = len(source_entities)
+        logger.info(f"Found {source_entity_count} entities in source world '{source_world.name}'.")
+
+        processed_count = 0
+        for src_entity in source_entities:
+            processed_count += 1
+            logger.debug(f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge to '{target_world.name}'...")
+
+            # Strategy 'add_new': Create a new entity in the target world
+            tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
+
+            # Copy components
+            for ComponentClass in all_component_types:
+                # Get all components of this type for the source entity
+                src_components = ecs_service.get_components(source_session, src_entity.id, ComponentClass)
+
+                for src_comp_instance in src_components:
+                    # Create a new component instance for the target entity
+                    # Copy attribute values, excluding 'id', 'entity_id', and 'entity' relationship
+                    comp_data = {
+                        attr.key: getattr(src_comp_instance, attr.key)
+                        for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
+                        if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
+                    }
+
+                    # Add entity_id and entity for the new target entity
+                    # Note: kw_only=True on BaseComponent means these must be provided if not default
+                    # The ComponentClass(**comp_data) will implicitly use BaseComponent's __init__
+                    # which expects entity_id and entity if they are not init=False or have defaults.
+                    # We need to ensure ComponentClass can be instantiated with comp_data,
+                    # and then add_component_to_entity will correctly link it.
+                    # The current BaseComponent requires entity_id at init.
+
+                    # Let's create component with new entity_id and entity, then add
+                    comp_data_for_new = comp_data.copy()
+                    comp_data_for_new["entity_id"] = tgt_entity.id
+                    comp_data_for_new["entity"] = tgt_entity  # For relationship
+
+                    try:
+                        new_comp_instance = ComponentClass(**comp_data_for_new)
+                        # Add component to the new target entity. Pass flush=False as we commit at the end.
+                        ecs_service.add_component_to_entity(target_session, tgt_entity.id, new_comp_instance, flush=False)
+                        logger.debug(
+                            f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} "
+                            f"to tgt_entity {tgt_entity.id}."
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to copy component {ComponentClass.__name__} for src_entity {src_entity.id} "
+                            f"to tgt_entity {tgt_entity.id}: {e}",
+                            exc_info=True,
+                        )
+                        # Decide on error handling: rollback transaction, skip component, or skip entity?
+                        # For now, log and continue. Transaction commit at the end will either succeed or fail all.
+
         target_session.commit()
         logger.info(
-            f"Successfully merged {source_entity_count} entities from world '{source_world_name_for_log}' "
-            f"to '{target_world_name_for_log}' using 'add_new' strategy."
+            f"Successfully merged {source_entity_count} entities from world '{source_world.name}' "
+            f"to '{target_world.name}' using 'add_new' strategy."
         )
     except Exception as e:
         target_session.rollback()
-        logger.error(f"Error committing merged data to target world '{target_world_name_for_log}': {e}", exc_info=True)
+        logger.error(f"Error committing merged data to target world '{target_world.name}': {e}", exc_info=True)
+        # Re-raise to indicate failure of the operation
         raise
+    finally:
+        source_session.close()
+        target_session.close()
 
 
-def split_ecs_world(  # Renamed from placeholder
-    source_session: Session,
-    # criteria: Any,  # This was a placeholder and not used; logic uses specific criteria_* args below
-    target_session_selected: Session,
-    target_session_remaining: Session,
-    source_world_name_for_log: Optional[str] = "source",
-    target_selected_world_name_for_log: Optional[str] = "target_selected",
-    target_remaining_world_name_for_log: Optional[str] = "target_remaining",
+def split_ecs_world(
+    source_world: "World",
+    target_world_selected: "World",
+    target_world_remaining: "World",
     criteria_component_name: Optional[str] = None,
     criteria_component_attr: Optional[str] = None,
     criteria_value: Optional[Any] = None,
-    criteria_op: str = "eq",  # Supported: eq, ne, contains, startswith, endswith (for str); gt, lt, ge, le (for numeric/date)
+    criteria_op: str = "eq",
     delete_from_source: bool = False,
-) -> Tuple[int, int]:  # Returns (count_selected, count_remaining)
+) -> Tuple[int, int]:
     """
-    Splits entities from a source session into two target sessions based on component criteria.
-    Copies entities and their components. Does not delete from source by default.
+    Splits entities from a source World into two target Worlds based on component criteria.
+    Copies entities and their components. Optionally deletes from source.
 
-    TRANSACTION MANAGEMENT NOTE:
-    This operation involves multiple database sessions (source, target_selected, target_remaining).
-    Commits are performed sequentially for each session. Therefore, the entire split operation
-    is NOT ATOMIC across all involved databases.
-    - Operations on `target_session_selected` are committed together.
-    - Operations on `target_session_remaining` are committed together.
-    - If `delete_from_source` is True, deletions on `source_session` are committed together.
-    However, a failure in a later commit (e.g., committing deletions from source) will not
-    roll back earlier successful commits (e.g., additions to target worlds).
-    This can lead to an intermediate state (e.g., entities copied but not deleted from source).
-    Users should be aware of this, especially when using `delete_from_source=True`.
-    For critical operations, consider backups or manual verification steps.
+    TRANSACTION MANAGEMENT NOTE: See original function's note. This behavior persists.
+    The function now manages sessions internally by acquiring them from the World objects.
     """
     logger.info(
-        f"Starting DB-to-DB split from world '{source_world_name_for_log}' "
-        f"to selected='{target_selected_world_name_for_log}', remaining='{target_remaining_world_name_for_log}'."
+        f"Starting DB-to-DB split from world '{source_world.name}' "
+        f"to selected='{target_world_selected.name}', remaining='{target_world_remaining.name}'."
     )
     if criteria_component_name and criteria_component_attr and criteria_value is not None:
         logger.info(
-            f"Split criteria: Component='{criteria_component_name}', Attribute='{criteria_component_attr}', "
-            f"Operator='{criteria_op}', Value='{criteria_value}'"
+            f"Split criteria for world '{source_world.name}': Component='{criteria_component_name}', "
+            f"Attribute='{criteria_component_attr}', Operator='{criteria_op}', Value='{criteria_value}'"
         )
     else:
         logger.warning("No split criteria provided. All entities will go to 'remaining' target.")
         # Or raise error, or handle as "select none"
 
-    all_component_types = get_all_component_classes()
-    source_entities = source_session.query(Entity).all()
-    source_entity_count = len(source_entities)
-    logger.info(f"Found {source_entity_count} entities in source world '{source_world_name_for_log}'.")
+        # Or raise error, or handle as "select none"
 
-    # Find the criteria component class
-    CriteriaComponentClass: Optional[Type[BaseComponent]] = None
-    if criteria_component_name:
-        for comp_class in all_component_types:
-            if comp_class.__name__ == criteria_component_name:
-                CriteriaComponentClass = comp_class
-                break
-        if not CriteriaComponentClass:
-            logger.error(f"Criteria component class '{criteria_component_name}' not found.")
-            raise ValueError(f"Criteria component class '{criteria_component_name}' not found.")
-        if criteria_component_attr and not hasattr(CriteriaComponentClass, criteria_component_attr):
-            logger.error(
-                f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
+    source_session = source_world.get_db_session()
+    target_session_selected_db = target_world_selected.get_db_session()
+    target_session_remaining_db = target_world_remaining.get_db_session()
+
+    try:
+        all_component_types = get_all_component_classes()
+        source_entities = source_session.query(Entity).all()
+        source_entity_count = len(source_entities)
+        logger.info(f"Found {source_entity_count} entities in source world '{source_world.name}'.")
+
+        # Find the criteria component class
+        CriteriaComponentClass: Optional[Type[BaseComponent]] = None
+        if criteria_component_name:
+            for comp_class in all_component_types:
+                if comp_class.__name__ == criteria_component_name:
+                    CriteriaComponentClass = comp_class
+                    break
+            if not CriteriaComponentClass:
+                logger.error(f"Criteria component class '{criteria_component_name}' not found for world '{source_world.name}'.")
+                raise ValueError(f"Criteria component class '{criteria_component_name}' not found.")
+            if criteria_component_attr and not hasattr(CriteriaComponentClass, criteria_component_attr):
+                logger.error(
+                    f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}' for world '{source_world.name}'."
+                )
+                raise ValueError(
+                    f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
+                )
+
+        count_selected = 0
+        count_remaining = 0
+
+        for src_entity in source_entities:
+            matches_criteria = False
+            if CriteriaComponentClass and criteria_component_attr and criteria_value is not None:
+                src_criteria_comp_instance = ecs_service.get_component(
+                    source_session, src_entity.id, CriteriaComponentClass
+                )
+                if src_criteria_comp_instance:
+                    actual_value = getattr(src_criteria_comp_instance, criteria_component_attr, None)
+                    if actual_value is not None:
+                        if criteria_op == "eq": matches_criteria = actual_value == criteria_value
+                        elif criteria_op == "ne": matches_criteria = actual_value != criteria_value
+                        elif criteria_op == "contains" and isinstance(actual_value, str): matches_criteria = criteria_value in actual_value
+                        elif criteria_op == "startswith" and isinstance(actual_value, str): matches_criteria = actual_value.startswith(criteria_value)
+                        elif criteria_op == "endswith" and isinstance(actual_value, str): matches_criteria = actual_value.endswith(criteria_value)
+                        elif criteria_op == "gt": matches_criteria = actual_value > criteria_value
+                        elif criteria_op == "lt": matches_criteria = actual_value < criteria_value
+                        elif criteria_op == "ge": matches_criteria = actual_value >= criteria_value
+                        elif criteria_op == "le": matches_criteria = actual_value <= criteria_value
+                        else: logger.warning(f"Unsupported criteria operator '{criteria_op}' for world '{source_world.name}'. Defaulting to no match.")
+
+            target_session_for_copy_db = target_session_selected_db if matches_criteria else target_session_remaining_db
+            target_world_log_name = target_world_selected.name if matches_criteria else target_world_remaining.name
+
+            if matches_criteria: count_selected += 1
+            else: count_remaining += 1
+
+            logger.debug(
+                f"Entity {src_entity.id} from world '{source_world.name}': Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
             )
-            raise ValueError(
-                f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
-            )
+            tgt_entity = ecs_service.create_entity(target_session_for_copy_db)
 
-    count_selected = 0
-    count_remaining = 0
+            for ComponentClassToCopy in all_component_types:
+                src_components_to_copy = ecs_service.get_components(source_session, src_entity.id, ComponentClassToCopy)
+                for src_comp_instance in src_components_to_copy:
+                    comp_data = {
+                        attr.key: getattr(src_comp_instance, attr.key)
+                        for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
+                        if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
+                    }
+                    comp_data_for_new = {**comp_data, "entity_id": tgt_entity.id, "entity": tgt_entity}
+                    try:
+                        new_comp_instance = ComponentClassToCopy(**comp_data_for_new)
+                        ecs_service.add_component_to_entity(
+                            target_session_for_copy_db, tgt_entity.id, new_comp_instance, flush=False
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to copy component {ComponentClassToCopy.__name__} for src_entity {src_entity.id} (world '{source_world.name}') "
+                            f"to tgt_entity {tgt_entity.id} in world '{target_world_log_name}': {e}",
+                            exc_info=True,
+                        )
+            if delete_from_source:
+                logger.debug(f"Deleting entity {src_entity.id} from source world '{source_world.name}'.")
+                ecs_service.delete_entity(source_session, src_entity.id, flush=False)
 
-    for src_entity in source_entities:
-        matches_criteria = False
-        if CriteriaComponentClass and criteria_component_attr and criteria_value is not None:
-            # Get the specific component instances for the source entity
-            # Assuming single component instance for criteria for simplicity now.
-            # If multiple components of this type can exist, logic needs to decide (any match? all match?)
-            src_criteria_comp_instance = ecs_service.get_component(
-                source_session, src_entity.id, CriteriaComponentClass
-            )
-            if src_criteria_comp_instance:
-                actual_value = getattr(src_criteria_comp_instance, criteria_component_attr, None)
-                if actual_value is not None:
-                    # Perform comparison based on criteria_op
-                    if criteria_op == "eq":
-                        matches_criteria = actual_value == criteria_value
-                    elif criteria_op == "ne":
-                        matches_criteria = actual_value != criteria_value
-                    elif criteria_op == "contains" and isinstance(actual_value, str):
-                        matches_criteria = criteria_value in actual_value
-                    elif criteria_op == "startswith" and isinstance(actual_value, str):
-                        matches_criteria = actual_value.startswith(criteria_value)
-                    elif criteria_op == "endswith" and isinstance(actual_value, str):
-                        matches_criteria = actual_value.endswith(criteria_value)
-                    # Basic numeric/date ops (assuming criteria_value is already correct type or castable)
-                    elif criteria_op == "gt":
-                        matches_criteria = actual_value > criteria_value
-                    elif criteria_op == "lt":
-                        matches_criteria = actual_value < criteria_value
-                    elif criteria_op == "ge":
-                        matches_criteria = actual_value >= criteria_value
-                    elif criteria_op == "le":
-                        matches_criteria = actual_value <= criteria_value
-                    else:
-                        logger.warning(f"Unsupported criteria operator '{criteria_op}'. Defaulting to no match.")
-
-        target_session_for_copy = target_session_selected if matches_criteria else target_session_remaining
-        target_world_log_name = (
-            target_selected_world_name_for_log if matches_criteria else target_remaining_world_name_for_log
-        )
-
-        if matches_criteria:
-            count_selected += 1
-        else:
-            count_remaining += 1
-
-        logger.debug(
-            f"Entity {src_entity.id}: Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
-        )
-
-        # Create new entity in the chosen target session
-        tgt_entity = ecs_service.create_entity(target_session_for_copy)  # Flushes session
-
-        # Copy components (same logic as merge_ecs_worlds_db_to_db)
-        for ComponentClassToCopy in all_component_types:
-            src_components_to_copy = ecs_service.get_components(source_session, src_entity.id, ComponentClassToCopy)
-            for src_comp_instance in src_components_to_copy:
-                comp_data = {
-                    attr.key: getattr(src_comp_instance, attr.key)
-                    for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                    if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
-                }
-                comp_data_for_new = comp_data.copy()
-                comp_data_for_new["entity_id"] = tgt_entity.id
-                comp_data_for_new["entity"] = tgt_entity
-
-                try:
-                    new_comp_instance = ComponentClassToCopy(**comp_data_for_new)
-                    ecs_service.add_component_to_entity(
-                        target_session_for_copy, tgt_entity.id, new_comp_instance, flush=False
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to copy component {ComponentClassToCopy.__name__} for src_entity {src_entity.id} "
-                        f"to tgt_entity {tgt_entity.id} in world '{target_world_log_name}': {e}",
-                        exc_info=True,
-                    )
+        # Commit target sessions first
+        target_session_selected_db.commit()
+        logger.info(f"Committed {count_selected} entities to target_selected world '{target_world_selected.name}'.")
+        target_session_remaining_db.commit()
+        logger.info(f"Committed {count_remaining} entities to target_remaining world '{target_world_remaining.name}'.")
 
         if delete_from_source:
-            logger.debug(f"Deleting entity {src_entity.id} from source world '{source_world_name_for_log}'.")
-            # Pass flush=False as we'll commit source_session at the end.
-            ecs_service.delete_entity(source_session, src_entity.id, flush=False)
-
-    try:
-        target_session_selected.commit()
-        logger.info(
-            f"Committed {count_selected} entities to target_selected world '{target_selected_world_name_for_log}'."
-        )
-    except Exception as e:
-        target_session_selected.rollback()
-        logger.error(
-            f"Error committing to target_selected world '{target_selected_world_name_for_log}': {e}", exc_info=True
-        )
-        # Potentially raise or handle so remaining isn't committed either if atomicity is desired across all targets
-        raise
-
-    try:
-        target_session_remaining.commit()
-        logger.info(
-            f"Committed {count_remaining} entities to target_remaining world '{target_remaining_world_name_for_log}'."
-        )
-    except Exception as e:
-        target_session_remaining.rollback()
-        logger.error(
-            f"Error committing to target_remaining world '{target_remaining_world_name_for_log}': {e}", exc_info=True
-        )
-        raise
-
-    if delete_from_source:
-        try:
             source_session.commit()
-            logger.info(
-                f"Committed deletions of {source_entity_count} entities from source world '{source_world_name_for_log}'."
-            )
-        except Exception as e:
-            source_session.rollback()
-            logger.error(
-                f"Error committing deletions from source world '{source_world_name_for_log}': {e}", exc_info=True
-            )
-            # This is problematic as entities might already be copied.
-            # Full transactional split across DBs is very hard.
-            raise
+            logger.info(f"Committed deletions of {source_entity_count} entities from source world '{source_world.name}'.")
+
+    except Exception as e: # Broad catch for issues during processing or commits
+        logger.error(f"Error during split operation initiated from source world '{source_world.name}': {e}", exc_info=True)
+        # Rollback all sessions involved if an error occurs before all commits are done
+        source_session.rollback()
+        target_session_selected_db.rollback()
+        target_session_remaining_db.rollback()
+        raise # Re-raise the exception
+    finally:
+        # Ensure all sessions are closed
+        source_session.close()
+        target_session_selected_db.close()
+        target_session_remaining_db.close()
 
     logger.info(
-        f"Split complete: {count_selected} entities to '{target_selected_world_name_for_log}', "
-        f"{count_remaining} entities to '{target_remaining_world_name_for_log}'."
+        f"Split from world '{source_world.name}' complete: {count_selected} entities to '{target_world_selected.name}', "
+        f"{count_remaining} entities to '{target_world_remaining.name}'."
     )
     return count_selected, count_remaining
 

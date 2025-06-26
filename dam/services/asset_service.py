@@ -80,10 +80,12 @@ def add_asset_file(
     original_filename: str,  # User-provided original filename
     mime_type: str,
     size_bytes: int,
-    world_name: Optional[str] = None,  # Added world_name for file_storage
-) -> Tuple[Entity, bool]:  # Returns (Entity, created_new_entity_flag)
+    # world_name: Optional[str] = None, # Removed: WorldConfig will be derived from a World object
+    world_config: "WorldConfig",  # Added: Pass WorldConfig directly
+) -> Tuple[Entity, bool]:
     """
-    Adds an asset file to the DAM system using content-addressable storage for a specific world.
+    Adds an asset file to the DAM system using content-addressable storage for a specific world,
+    using the provided WorldConfig for storage path.
     - Reads file content from filepath_on_disk.
     - Stores the file using file_storage.store_file, which returns a file_identifier (SHA256 hash).
     - Checks if an entity with this file_identifier (content_hash) already exists.
@@ -110,19 +112,19 @@ def add_asset_file(
         logger.exception(f"Error reading file {filepath_on_disk}")
         raise
 
-    # Dynamically import settings to ensure patched version is used in tests
-    from dam.core import config as app_config  # Changed import
+    # WorldConfig is now passed directly as an argument.
+    # from dam.core import config as app_config # No longer needed for this part
 
-    name_for_lookup = world_name
-    if name_for_lookup is None:
-        name_for_lookup = app_config.settings.DEFAULT_WORLD_NAME
+    # name_for_lookup = world_name # Removed
+    # if name_for_lookup is None: # Removed
+    #     name_for_lookup = app_config.settings.DEFAULT_WORLD_NAME # Removed
 
-    world_config_obj = app_config.settings.get_world_config(name_for_lookup)
+    # world_config_obj = app_config.settings.get_world_config(name_for_lookup) # Removed
 
     # Store the file using the new service, returns the SHA256 hash (content_hash)
     # and the relative physical path suffix for CAS.
-    content_hash_sha256, physical_storage_path_suffix = file_storage.store_file(  # Modified
-        file_content, world_config=world_config_obj, original_filename=original_filename
+    content_hash_sha256, physical_storage_path_suffix = file_storage.store_file(
+        file_content, world_config=world_config, original_filename=original_filename # Use passed world_config
     )
 
     # Try to find an existing entity using the SHA256 content hash
@@ -275,10 +277,10 @@ def add_asset_reference(
     original_filename: str,
     mime_type: str,
     size_bytes: int,
-    world_name: Optional[str] = None,  # Added world_name for logging consistency
+    # world_name: Optional[str] = None, # Removed: No longer needed, world context comes from session/World object
 ) -> Tuple[Entity, bool]:
     """
-    Adds an asset by referencing an existing file on disk for a specific world,
+    Adds an asset by referencing an existing file on disk.
     to the content-addressable storage.
     - Calculates content hashes (SHA256, MD5) from the referenced file.
     - Checks if an entity with this content (SHA256 hash) already exists.

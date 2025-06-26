@@ -1,9 +1,10 @@
 import asyncio
 import inspect
+import logging # Added logging
 from collections import defaultdict
-from typing import Annotated, Any, Callable, Dict, List, Type, get_args, get_origin, Optional # Added Optional
+from typing import Annotated, Any, Callable, Dict, List, Type, get_args, get_origin, Optional
 
-from dam.core.events import BaseEvent  # Import BaseEvent for type hinting
+from dam.core.events import BaseEvent
 from dam.core.resources import ResourceManager, ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_params import (
@@ -170,13 +171,14 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
                 for p_info in param_info.values()
             )
             if not found_by_direct_type:
-                 print(f"Warning: System {func.__name__} registered for event {event_type.__name__} "
+                 logger.warning(f"System {func.__name__} registered for event {event_type.__name__} "
                        f"but does not seem to have a parameter matching this event type. "
                        f"Ensure one parameter is typed as `{event_type.__name__}` or `Annotated[{event_type.__name__}, \"Event\"]`.")
 
         return func
     return decorator
 
+logger = logging.getLogger(__name__) # Module-level logger
 
 # --- World Scheduler ---
 
@@ -185,12 +187,14 @@ class WorldScheduler:
     Manages the execution of registered systems based on stages or events.
 
     The scheduler is responsible for:
-    - Identifying which systems to run for a given stage or event.
+    - Identifying which systems to run for a given stage or event from global registries.
     - Introspecting system function parameters to determine their dependencies.
-    - Injecting required dependencies (e.g., database session, world configuration,
-      resources from ResourceManager, lists of entities with specific markers, event objects).
+    - Injecting required dependencies (e.g., database session from WorldContext,
+      world configuration from WorldContext, resources from its own ResourceManager,
+      lists of entities with specific markers, event objects).
     - Executing systems, supporting both asynchronous and synchronous functions.
-    - Managing database session lifecycle (commit/rollback) per stage or per event dispatch group.
+    - Managing database session lifecycle (commit/rollback) per stage or per event dispatch group,
+      using the session provided in WorldContext.
     """
 
     def __init__(self, resource_manager: ResourceManager):
@@ -198,29 +202,40 @@ class WorldScheduler:
         Initializes the WorldScheduler.
 
         Args:
-            resource_manager: An instance of ResourceManager to provide access to shared resources.
+            resource_manager: An instance of ResourceManager specific to the World this
+                              scheduler will operate within. This provides access to
+                              world-specific shared resources.
         """
         self.resource_manager = resource_manager
+        # System and event registries are global, defining blueprints.
+        # The scheduler uses these blueprints but resolves resources against its own ResourceManager.
         self.system_registry = SYSTEM_REGISTRY
         self.event_handler_registry = EVENT_HANDLER_REGISTRY
         self.system_metadata = SYSTEM_METADATA
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}") # Scheduler instance logger
+
 
     async def _resolve_and_execute_system(
         self,
         system_func: Callable[..., Any],
         world_context: WorldContext,
-        event_object: Optional[BaseEvent] = None # Pass event if it's an event handler
+        event_object: Optional[BaseEvent] = None
     ):
-        """Helper to resolve dependencies and execute a single system (stage or event based)."""
+        """
+        Helper to resolve dependencies and execute a single system (stage or event based).
+        Dependencies are resolved using the provided world_context and the scheduler's resource_manager.
+        """
         metadata = self.system_metadata.get(system_func)
         if not metadata:
-            print(f"Warning: No metadata found for system {system_func.__name__}. Skipping.")
-            return False # Indicate failure or skip
+            self.logger.warning(f"No metadata found for system {system_func.__name__} in world '{world_context.world_name}'. Skipping.")
+            return False
 
         kwargs_to_inject = {}
         try:
             for param_name, param_meta in metadata["params"].items():
                 identity = param_meta["identity"]
+                param_type_hint = param_meta["type_hint"]
+
                 if identity == "WorldSession":
                     kwargs_to_inject[param_name] = world_context.session
                 elif identity == "WorldName":
@@ -229,18 +244,22 @@ class WorldScheduler:
                     kwargs_to_inject[param_name] = world_context.world_config
                 elif identity == "Resource":
                     try:
-                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_meta["type_hint"])
+                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
                     except ResourceNotFoundError as e:
-                        raise ValueError(
-                            f"System {system_func.__name__} requires resource {param_meta['type_hint'].__name__} which was not found: {e}"
+                        self.logger.error(
+                            f"System {system_func.__name__} in world '{world_context.world_name}' requires resource "
+                            f"{param_type_hint.__name__} which was not found: {e}", exc_info=True
                         )
+                        raise # Re-raise to indicate failure to resolve dependencies
                 elif identity == "MarkedEntityList":
                     marker_type = param_meta["marker_component_type"]
                     if not marker_type or not issubclass(marker_type, BaseComponent):
-                        raise ValueError(
-                            f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type."
-                        )
-                    from sqlalchemy import select as sql_select
+                        msg = (f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' "
+                               f"with invalid or missing marker component type in world '{world_context.world_name}'.")
+                        self.logger.error(msg)
+                        raise ValueError(msg)
+
+                    from sqlalchemy import select as sql_select # Keep local import for SQLAlchemy specifics
                     stmt = sql_select(marker_type.entity_id).distinct()
                     entity_ids_with_marker = world_context.session.execute(stmt).scalars().all()
                     entities_to_process = []
@@ -249,51 +268,58 @@ class WorldScheduler:
                             world_context.session.query(Entity).filter(Entity.id.in_(entity_ids_with_marker)).all()
                         )
                     kwargs_to_inject[param_name] = entities_to_process
-                    print(
-                        f"System {system_func.__name__} gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
+                    self.logger.debug(
+                        f"System {system_func.__name__} in world '{world_context.world_name}' gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
                     )
                 elif identity == "Event":
-                    # Check if the event_object provided matches the parameter's expected event type
                     expected_event_type = param_meta["event_type_hint"]
                     if event_object and isinstance(event_object, expected_event_type):
                         kwargs_to_inject[param_name] = event_object
-                    elif event_object: # Mismatch
-                        # This should ideally be caught by the dispatch logic that only calls compatible handlers
-                        print(f"Warning: System {system_func.__name__} expected event type {expected_event_type} "
-                              f"but received {type(event_object)}. Skipping injection for this param.")
-                    else: # No event object provided (e.g. if called from stage execution)
-                        # This indicates a system designed as an event handler was called in a non-event context
-                        # or an event handler is missing its event type hint properly.
-                        # For now, we allow it, but it might lead to errors if the system *requires* the event.
-                        # Better: raise error if param_meta["event_type_hint"] is not None and event_object is None
-                        if param_meta["event_type_hint"] is not None:
-                             raise ValueError(f"System {system_func.__name__} parameter '{param_name}' expects an event of type "
-                                              f"{param_meta['event_type_hint'].__name__} but none was provided (event_object is None).")
-
+                    elif event_object:
+                        self.logger.warning(
+                            f"System {system_func.__name__} in world '{world_context.world_name}' expected event type {expected_event_type} "
+                            f"but received {type(event_object)}. Skipping injection for this param."
+                        )
+                    elif param_meta["event_type_hint"] is not None:
+                        msg = (f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
+                               f"expects an event of type {param_meta['event_type_hint'].__name__} but none was provided.")
+                        self.logger.error(msg)
+                        raise ValueError(msg)
 
         except Exception as e:
-            print(f"Error preparing dependencies for system {system_func.__name__}: {e}")
-            return False # Indicate failure
+            self.logger.error(
+                f"Error preparing dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
+                exc_info=True
+            )
+            return False
 
-        print(
-            f"Executing system: {system_func.__name__} with args: {list(kwargs_to_inject.keys())}"
+        self.logger.debug(
+            f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
         )
-        if metadata["is_async"]:
-            await system_func(**kwargs_to_inject)
-        else:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+        try:
+            if metadata["is_async"]:
+                await system_func(**kwargs_to_inject)
+            else:
+                # Run synchronous system in a thread pool executor to avoid blocking async event loop
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+        except Exception as e:
+            self.logger.error(f"Error executing system {system_func.__name__} in world '{world_context.world_name}': {e}", exc_info=True)
+            return False # Indicate system execution failure
 
-        # Auto-remove marker component logic (applies if it was a stage system with MarkedEntityList)
-        if metadata.get("system_type") == "stage_system": # Only for stage systems
-            for param_name, param_meta in metadata["params"].items(): # Re-iterate to find MarkedEntityList
+
+        # Auto-remove marker component logic
+        if metadata.get("system_type") == "stage_system":
+            for param_name, param_meta in metadata["params"].items():
                  if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
                     marker_type_to_remove = param_meta["marker_component_type"]
-                    entities_processed = kwargs_to_inject.get(param_name, [])
+                    entities_processed = kwargs_to_inject.get(param_name, []) # Should be populated if system ran
                     if entities_processed and marker_type_to_remove:
-                        from dam.services import ecs_service  # Local import
-                        print(
-                            f"Scheduler: Removing {marker_type_to_remove.__name__} from {len(entities_processed)} entities after system {system_func.__name__}."
+                        # Local import to avoid circular dependencies if ecs_service imports systems
+                        from dam.services import ecs_service
+                        self.logger.debug(
+                            f"Scheduler for world '{world_context.world_name}': Removing {marker_type_to_remove.__name__} from "
+                            f"{len(entities_processed)} entities after system {system_func.__name__}."
                         )
                         for entity_obj in entities_processed:
                             comp_to_remove = ecs_service.get_component(
@@ -301,143 +327,175 @@ class WorldScheduler:
                             )
                             if comp_to_remove:
                                 ecs_service.remove_component(
-                                    world_context.session, comp_to_remove, flush=False
+                                    world_context.session, comp_to_remove, flush=False # Batch flush
                                 )
-                        world_context.session.flush() # Flush removals for this system's markers
-        return True # Indicate success
+                        world_context.session.flush() # Flush all marker removals for this system
+        return True
 
     async def execute_stage(self, stage: SystemStage, world_context: WorldContext):
         """
-        Executes all systems registered for a specific `SystemStage`.
-        Handles session commit/rollback for the entire stage.
+        Executes all systems registered for a specific `SystemStage` within the given `world_context`.
+        Handles session commit/rollback for the entire stage based on the success of its systems.
+        The session in `world_context.session` is used and managed.
         """
-        print(f"Executing stage: {stage.name} for world: {world_context.world_name}")
+        self.logger.info(f"Executing stage: {stage.name} for world: {world_context.world_name}")
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
-            print(f"No systems registered for stage {stage.name}")
+            self.logger.info(f"No systems registered for stage {stage.name} in world {world_context.world_name}")
             return
 
-        all_systems_succeeded = True
+        all_systems_succeeded_in_stage = True
         for system_func in systems_to_run:
-            success = await self._resolve_and_execute_system(system_func, world_context)
-            if not success:
-                all_systems_succeeded = False
-                # Decide if stage execution should stop on first system error, or try all.
-                # For now, let's try all, then rollback if any failed.
-                # Or, more strictly: stop and rollback on first error.
-                print(f"System {system_func.__name__} failed in stage {stage.name}. Stage will be rolled back.")
-                break # Stop on first error
+            system_success = await self._resolve_and_execute_system(system_func, world_context)
+            if not system_success:
+                all_systems_succeeded_in_stage = False
+                self.logger.error(
+                    f"System {system_func.__name__} failed in stage {stage.name} for world {world_context.world_name}. "
+                    "Stage execution will be rolled back."
+                )
+                break # Stop on first system error within the stage
 
-        if all_systems_succeeded:
+        if all_systems_succeeded_in_stage:
             try:
                 world_context.session.commit()
-                print(f"Committed session for stage {stage.name} in world {world_context.world_name}")
+                self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
             except Exception as e:
-                print(
-                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {e}. Rolling back."
+                self.logger.error(
+                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {e}. Rolling back.",
+                    exc_info=True
                 )
                 world_context.session.rollback()
-                raise # Re-raise commit error
+                # Consider re-raising to signal failure to the caller (e.g., the World object)
+                # raise StageExecutionError(...) from e
         else:
-            print(f"One or more systems failed in stage {stage.name}. Rolling back session for world {world_context.world_name}.")
+            self.logger.warning(
+                f"One or more systems failed in stage {stage.name}. Rolling back session for world {world_context.world_name}."
+            )
             world_context.session.rollback()
-            # Optionally raise an exception to signal stage failure to caller
-            # raise StageExecutionError(f"Stage {stage.name} failed due to system errors.")
+            # Optionally raise an exception to signal stage failure
+            # raise StageExecutionError(f"Stage {stage.name} failed due to system errors in world {world_context.world_name}.")
+
 
     async def dispatch_event(self, event: BaseEvent, world_context: WorldContext):
         """
-        Dispatches an event to all registered event handlers for its type.
+        Dispatches an event to all relevant event handlers within the given `world_context`.
         Handles session commit/rollback for the group of event handlers.
+        The session in `world_context.session` is used and managed.
         """
         event_type = type(event)
-        print(f"Dispatching event: {event_type.__name__} for world: {world_context.world_name}")
+        self.logger.info(f"Dispatching event: {event_type.__name__} for world: {world_context.world_name}")
 
         handlers_to_run = self.event_handler_registry.get(event_type, [])
         if not handlers_to_run:
-            print(f"No event handlers registered for event type {event_type.__name__}")
+            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {world_context.world_name}")
             return
 
         all_handlers_succeeded = True
         for handler_func in handlers_to_run:
-            # Ensure the handler is actually designed for this specific event type,
-            # though registration should ensure this.
-            # The _resolve_and_execute_system will match param type with event object type.
-            success = await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
-            if not success:
+            handler_success = await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
+            if not handler_success:
                 all_handlers_succeeded = False
-                print(f"Event handler {handler_func.__name__} failed for event {event_type.__name__}. Event processing will be rolled back.")
-                break # Stop on first error
+                self.logger.error(
+                    f"Event handler {handler_func.__name__} failed for event {event_type.__name__} "
+                    f"in world {world_context.world_name}. Event processing group will be rolled back."
+                )
+                break # Stop on first handler error for this event
 
         if all_handlers_succeeded:
             try:
                 world_context.session.commit()
-                print(f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}")
+                self.logger.info(f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}")
             except Exception as e:
-                print(
-                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {e}. Rolling back."
+                self.logger.error(
+                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {e}. Rolling back.",
+                    exc_info=True
                 )
                 world_context.session.rollback()
-                raise # Re-raise commit error
+                # raise EventHandlingError(...) from e
         else:
-            print(f"One or more handlers failed for event {event_type.__name__}. Rolling back session for world {world_context.world_name}.")
+            self.logger.warning(
+                f"One or more handlers failed for event {event_type.__name__}. Rolling back session for world {world_context.world_name}."
+            )
             world_context.session.rollback()
-            # Optionally raise an exception
-            # raise EventHandlingError(f"Event {event_type.__name__} handling failed.")
+            # raise EventHandlingError(f"Event {event_type.__name__} handling failed in world {world_context.world_name}.")
 
 
     async def run_all_stages(self, initial_world_context: WorldContext):
         """
-        Executes all registered stages in their defined order.
-        NOTE: This is a simplified sequential execution. A real app might have more complex logic
-        for when and how stages are run. Also, WorldContext might need to be refreshed (e.g. new session)
-        per stage or per group of stages depending on transaction semantics.
-        For now, we'll create a new session for each stage from the initial world_context's db_manager.
-        This implies db_manager needs to be part of WorldContext or accessible.
-        Let's assume initial_world_context has a way to get a new session.
+        Executes all registered stages in their defined order using the provided initial_world_context.
+
+        NOTE: This method is illustrative. In a real application, how sessions are managed
+        across multiple stages (e.g., one session per stage vs. one session for all stages)
+        would depend on transactional requirements. The current `execute_stage` method
+        commits/rolls back the session passed via `world_context`. If `run_all_stages` is
+        to manage a single session across all stages, `execute_stage` would need modification,
+        or this method would need to handle the overarching transaction.
+
+        For now, this method assumes that `initial_world_context.session` will be used
+        and potentially committed/rolled back by each call to `execute_stage`.
+        This means each stage effectively runs in its own transaction if `execute_stage`
+        is called sequentially with the same session that gets committed/rolled back.
+        A more robust `run_all_stages` would require careful session management strategy.
+        The `World` object's `execute_stage` method handles creating a new session per call
+        if one isn't provided, which is a safer default for isolated stage execution.
         """
-        # This needs a db_manager to create new sessions per stage.
-        # Let's assume WorldContext can provide a session factory or similar.
-        # For now, this is a placeholder for more robust multi-stage execution.
-        # The current execute_stage commits and closes session, so each stage needs a new one.
+        self.logger.info(f"Attempting to run all stages for world: {initial_world_context.world_name}")
 
-        # This part needs access to the db_manager to create new sessions for each stage.
-        # For now, this method is illustrative and not fully functional without that.
-        print("Running all stages - this part is illustrative and needs db_manager access for new sessions per stage.")
+        # This method is largely conceptual as session management across stages is complex.
+        # The World object provides a more direct way to call execute_stage, managing sessions per call.
+        # If this method were to be fully implemented, it would need to decide how to handle
+        # the session from initial_world_context across multiple stage executions.
+        # For example, does it pass the same session and expect execute_stage not to commit/close?
+        # Or does it get a new session for each stage from a db_manager in initial_world_context?
 
-        # A proper implementation would iterate through SystemStage enum values in order.
-        # ordered_stages = sorted(list(SystemStage), key=lambda s: s.value) # If Enum has implicit order
-        # For now, using the order they appear in the Enum definition (Python 3.6+ behavior)
-        # ordered_stages = list(SystemStage) # Unused variable
+        # For now, let's iterate through stages and call execute_stage, assuming
+        # the session in initial_world_context will be used by each.
+        # This implies that if a stage commits, subsequent stages operate on that committed state.
+        # If a stage rolls back, subsequent stages operate on the rolled-back state.
 
-        # This is a simplified loop. A real app would need a way to get a fresh session for each stage
-        # if the previous stage's session was closed.
-        # For now, this shows the intent but won't work correctly if sessions are closed by execute_stage.
-        # The execute_stage should probably NOT close the session if part of a larger run_all_stages flow,
-        # or run_all_stages must manage session lifecycle across stages.
+        ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
 
-        # Let's assume for now that `execute_stage` is called externally for each stage,
-        # and the caller manages the session for that stage.
-        # So, `run_all_stages` is more of a conceptual guide here.
-        pass
+        for stage in ordered_stages:
+            self.logger.info(f"Running stage {stage.name} as part of run_all_stages for world {initial_world_context.world_name}.")
+            # We use the initial_world_context, which carries the session.
+            # The execute_stage method will then use this session and commit/rollback.
+            await self.execute_stage(stage, initial_world_context)
+            # If a stage fails and rolls back, the session is now in a rolled-back state.
+            # Subsequent stages will operate on this. This might be desired or not.
+            # If strict atomicity across all stages is needed, this approach is insufficient.
+
+        self.logger.info(f"Finished running all stages for world: {initial_world_context.world_name}")
 
 
-# Example Usage (conceptual, would be in main application logic)
-# async def main():
-#     resource_mgr = ResourceManager()
-#     resource_mgr.add_resource(FileOperationsResource())
+# Example Usage (conceptual, actual usage would be via a World instance):
+# async def main_example_systems():
+#     # 1. Setup: Create a World instance (which sets up its ResourceManager, WorldScheduler)
+#     # This would typically happen at application startup or when a specific world is requested.
+#     # from dam.core.world import create_and_register_world
+#     # my_world = create_and_register_world("my_default_world_name") # Assuming config exists
 #
-#     scheduler = WorldScheduler(resource_mgr)
+#     # 2. Get a session for the world
+#     # db_session = my_world.get_db_session()
+#     # try:
+#     #     # 3. Create WorldContext
+#     #     world_ctx = WorldContext(session=db_session, world_name=my_world.name, world_config=my_world.config)
+#     #
+#     #     # 4. Execute a stage using the World's scheduler
+#     #     # await my_world.scheduler.execute_stage(SystemStage.INGESTION, world_ctx)
+#     #     # OR, more directly using the World's helper method:
+#     #     await my_world.execute_stage(SystemStage.INGESTION, session=db_session) # World handles context creation
+#     #
+#     #     # 5. Dispatch an event
+#     #     # from dam.core.events import SomeEventData, MyCustomEvent
+#     #     # my_event_data = SomeEventData(info="example")
+#     #     # an_event = MyCustomEvent(source="main_app", data=my_event_data)
+#     #     # await my_world.dispatch_event(an_event, session=db_session)
+#     #
+#     # except Exception as e:
+#     #     logger.error(f"An error occurred during system execution example: {e}", exc_info=True)
+#     #     # db_session.rollback() # World.execute_stage/dispatch_event handles this if session is managed by them
+#     # finally:
+#     #     db_session.close() # Important to close sessions obtained directly
 #
-#     # Assume db_manager is available and configured
-#     from dam.core.database import db_manager
-#     world_name = "my_world"
-#
-#     # For each stage execution, a new session and context would be created
-#     async with db_manager.get_db_session_async(world_name) as session: # Hypothetical async session
-#         world_ctx = WorldContext(session, world_name, db_manager.settings.get_world_config(world_name))
-#         await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_ctx)
-
-#     # Or if stages manage their own sessions via context:
-#     # await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_name)
-#     # where execute_stage internally gets session for that world.
-#     # The current execute_stage expects session in WorldContext.
+# # if __name__ == "__main__":
+# #     asyncio.run(main_example_systems())

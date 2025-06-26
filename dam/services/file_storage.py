@@ -62,19 +62,17 @@ def store_file(
     storage_path = _get_storage_path_for_world(content_hash, world_config)
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Use world_config.DATABASE_URL or a name from world_config if available for logging,
-    # or pass world_name if still needed for logging. For now, simplify log.
-    log_world_identifier = world_config.DATABASE_URL  # Example identifier from config
+    log_world_identifier = world_config.name
 
     if not storage_path.exists():
         with open(storage_path, "wb") as f:
             f.write(file_content)
         logger.info(
-            f"Stored file {original_filename or content_hash} to {storage_path} in world (config: {log_world_identifier})"
+            f"Stored file {original_filename or content_hash} to {storage_path} in world '{log_world_identifier}'"
         )
     else:
         logger.debug(
-            f"File {original_filename or content_hash} (hash: {content_hash}) already exists at {storage_path} in world (config: {log_world_identifier})"
+            f"File {original_filename or content_hash} (hash: {content_hash}) already exists at {storage_path} in world '{log_world_identifier}'"
         )
 
     return content_hash, physical_storage_path_suffix
@@ -119,39 +117,47 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Cha
     Returns:
         True if the file was deleted, False otherwise.
     """
-    actual_file_path = get_file_path(file_identifier, world_config)  # world_config passed directly
-
-    log_world_identifier = world_config.DATABASE_URL  # Using a generic identifier from world_config for now.
+    actual_file_path = get_file_path(file_identifier, world_config)
+    log_world_identifier = world_config.name
 
     if actual_file_path and actual_file_path.exists():
         try:
             os.remove(actual_file_path)
-            logger.info(f"Deleted file {actual_file_path} from world (config: {log_world_identifier})")
+            logger.info(f"Deleted file {actual_file_path} from world '{log_world_identifier}'")
 
+            # Attempt to remove empty parent directories
             parent_dir = actual_file_path.parent
             try:
                 if not any(parent_dir.iterdir()):  # Check if directory is empty
                     os.rmdir(parent_dir)
-                    logger.info(f"Removed empty directory {parent_dir} from world (config: {log_world_identifier})")
+                    logger.info(f"Removed empty directory {parent_dir} from world '{log_world_identifier}'")
+                    # Try to remove grandparent directory as well if it's now empty
                     grandparent_dir = parent_dir.parent
-                    if not any(grandparent_dir.iterdir()):  # Check if directory is empty
+                    # Ensure grandparent_dir is still within the world's asset storage path
+                    # to avoid accidentally trying to remove directories outside of it.
+                    # This check is a bit simplistic; Path.is_relative_to (Python 3.9+) or
+                    # checking common prefix would be more robust.
+                    # For now, assume the structure is <base_path>/xx/yy/hash
+                    if grandparent_dir != Path(world_config.ASSET_STORAGE_PATH) and \
+                       not any(grandparent_dir.iterdir()):
                         os.rmdir(grandparent_dir)
                         logger.info(
-                            f"Removed empty directory {grandparent_dir} from world (config: {log_world_identifier})"
+                            f"Removed empty directory {grandparent_dir} from world '{log_world_identifier}'"
                         )
             except OSError as e:
+                # This is not critical if directories cannot be removed (e.g., not empty, permissions)
                 logger.debug(
-                    f"Could not remove parent directory for {actual_file_path} in world (config: {log_world_identifier}): {e} (possibly not empty or permission issue)"
+                    f"Could not remove parent directory for {actual_file_path} in world '{log_world_identifier}': {e}"
                 )
             return True
         except OSError as e:
             logger.error(
-                f"Error deleting file {actual_file_path} from world (config: {log_world_identifier}): {e}",
+                f"Error deleting file {actual_file_path} from world '{log_world_identifier}': {e}",
                 exc_info=True,
             )
             return False
     else:
         logger.warning(
-            f"File with identifier {file_identifier} not found in world (config: {log_world_identifier}) for deletion."
+            f"File with identifier {file_identifier} not found in world '{log_world_identifier}' for deletion."
         )
         return False
