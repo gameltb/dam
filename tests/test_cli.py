@@ -10,7 +10,10 @@ from dam.core import database as app_database  # For accessing patched SessionLo
 
 # App is imported within a fixture to ensure patches are applied first
 # from dam.core.database import SessionLocal  # Avoid top-level import, get from patched module
-from dam.services import asset_service
+# from dam.services import asset_service # Removed
+from dam.services import ecs_service, file_operations # Keep these
+from dam.core.events import AssetFileIngestionRequested # For event-driven setup if chosen later
+from dam.core.world import get_world, World # For event-driven setup
 
 # Initialize a runner
 runner = CliRunner()
@@ -180,64 +183,87 @@ def setup_test_environment(monkeypatch: MonkeyPatch, tmp_path: Path, test_worlds
     _FIXTURE_MP4_FILE = mp4_path
 
     db = app_db_module.db_manager.get_db_session(default_cli_test_world)
+
+    world_instance = get_world(default_cli_test_world)
+    if not world_instance: # Should not happen if setup_test_environment is correctly patching settings
+        pytest.fail(f"CLI Test Setup: World '{default_cli_test_world}' not found after settings override.")
+
+    from dam.services.file_storage_service import FileStorageService as FSS_CLI_Setup # Alias for clarity
+    file_storage_svc_cli_setup = world_instance.get_resource(FSS_CLI_Setup)
+
+    from dam.models import (
+        ContentHashMD5Component, ContentHashSHA256Component, FileLocationComponent,
+        FilePropertiesComponent, NeedsMetadataExtractionComponent, OriginalSourceInfoComponent,
+        ImagePerceptualAHashComponent, ImagePerceptualDHashComponent, ImagePerceptualPHashComponent,
+    )
+
+    assets_to_populate = [
+        (_FIXTURE_IMG_A, IMG_A_FILENAME, "image/png"),
+        (_FIXTURE_IMG_A_SIMILAR, IMG_A_VERY_SIMILAR_FILENAME, "image/png"),
+        (_FIXTURE_IMG_B, IMG_C_DIFFERENT_FILENAME, "image/png"),
+        (_FIXTURE_TXT_FILE, TXT_FILENAME, "text/plain"),
+        (_FIXTURE_IMG_C_GREEN, "img_green_distinct.png", "image/png"),
+    ]
+    if _FIXTURE_GIF_FILE and _FIXTURE_GIF_FILE.exists():
+        assets_to_populate.append((_FIXTURE_GIF_FILE, GIF_FILENAME, "image/gif"))
+    if _FIXTURE_MP4_FILE and _FIXTURE_MP4_FILE.exists():
+        assets_to_populate.append((_FIXTURE_MP4_FILE, MP4_FILENAME, "video/mp4"))
+
     try:
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_IMG_A,
-            original_filename=IMG_A_FILENAME,
-            mime_type="image/png",
-            size_bytes=_FIXTURE_IMG_A.stat().st_size,
-        )
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_IMG_A_SIMILAR,
-            original_filename=IMG_A_VERY_SIMILAR_FILENAME,
-            mime_type="image/png",
-            size_bytes=_FIXTURE_IMG_A_SIMILAR.stat().st_size,
-        )
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_IMG_B,
-            original_filename=IMG_C_DIFFERENT_FILENAME,
-            mime_type="image/png",
-            size_bytes=_FIXTURE_IMG_B.stat().st_size,
-        )
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_TXT_FILE,
-            original_filename=TXT_FILENAME,
-            mime_type="text/plain",
-            size_bytes=_FIXTURE_TXT_FILE.stat().st_size,
-        )
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_IMG_C_GREEN,
-            original_filename="img_green_distinct.png",
-            mime_type="image/png",
-            size_bytes=_FIXTURE_IMG_C_GREEN.stat().st_size,
-        )
-        if _FIXTURE_GIF_FILE:
-            asset_service.add_asset_file(
-                session=db,
-                filepath_on_disk=_FIXTURE_GIF_FILE,
-                original_filename=GIF_FILENAME,
-                mime_type="image/gif",
-                size_bytes=_FIXTURE_GIF_FILE.stat().st_size,
-            )
-        asset_service.add_asset_file(
-            session=db,
-            filepath_on_disk=_FIXTURE_MP4_FILE,
-            original_filename=MP4_FILENAME,
-            mime_type="video/mp4",
-            size_bytes=_FIXTURE_MP4_FILE.stat().st_size,
-        )
+        for file_path, original_name, mime_val in assets_to_populate:
+            if not file_path.exists(): # Should already be checked by fixture creation, but defensive
+                continue
+
+            file_content = file_path.read_bytes()
+            size_val = file_path.stat().st_size
+
+            sha256_val = hashlib.sha256(file_content).hexdigest()
+            md5_val = hashlib.md5(file_content).hexdigest()
+
+            # Store file in CAS
+            _, cas_path_suffix = file_storage_svc_cli_setup.store_file(file_content, original_filename=original_name)
+
+            # Check if entity with this content hash already exists
+            entity = ecs_service.find_entity_by_content_hash(db, sha256_val) # Re-use existing ecs_service helper
+
+            if not entity:
+                entity = ecs_service.create_entity(db)
+                ecs_service.add_component_to_entity(db, entity.id, ContentHashSHA256Component(hash_value=sha256_val))
+                ecs_service.add_component_to_entity(db, entity.id, ContentHashMD5Component(hash_value=md5_val))
+                ecs_service.add_component_to_entity(db, entity.id, FilePropertiesComponent(
+                    original_filename=original_name, file_size_bytes=size_val, mime_type=mime_val
+                ))
+                # Add CAS location
+                ecs_service.add_component_to_entity(db, entity.id, FileLocationComponent(
+                    content_identifier=sha256_val, storage_type="local_cas",
+                    physical_path_or_key=cas_path_suffix, contextual_filename=original_name
+                ))
+
+            # Always add OriginalSourceInfo for this specific file "ingestion" during setup
+            ecs_service.add_component_to_entity(db, entity.id, OriginalSourceInfoComponent(
+                original_filename=original_name, original_path=str(file_path.resolve())
+            ))
+
+            # Add perceptual hashes for images
+            if mime_val.startswith("image/"):
+                p_hashes = file_operations.generate_perceptual_hashes(file_path)
+                if p_hashes.get("phash") and not ecs_service.get_component(db, entity.id, ImagePerceptualPHashComponent): # Add only if not present
+                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualPHashComponent(hash_value=p_hashes["phash"]))
+                if p_hashes.get("ahash") and not ecs_service.get_component(db, entity.id, ImagePerceptualAHashComponent):
+                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualAHashComponent(hash_value=p_hashes["ahash"]))
+                if p_hashes.get("dhash") and not ecs_service.get_component(db, entity.id, ImagePerceptualDHashComponent):
+                     ecs_service.add_component_to_entity(db, entity.id, ImagePerceptualDHashComponent(hash_value=p_hashes["dhash"]))
+
+            # Mark for metadata extraction (mimicking what add_asset_file used to do)
+            if not ecs_service.get_component(db, entity.id, NeedsMetadataExtractionComponent):
+                ecs_service.add_component_to_entity(db, entity.id, NeedsMetadataExtractionComponent())
+
         db.commit()
     except Exception as e:
         db.rollback()
         error_type = type(e).__name__
-        from dam.core import config as app_config  # Import for this specific exception handling
-        db_url = app_config.settings.DATABASE_URL
-        pytest.fail(f"Failed to setup initial assets in temporary DB: {e}. DB URL: {db_url}. Error: {error_type}")
+        # db_url can be fetched from new_cli_settings used above for clarity if needed
+        pytest.fail(f"Failed to setup initial assets in temporary DB for CLI tests: {e}. Error: {error_type}")
     finally:
         db.close()
 
@@ -483,44 +509,44 @@ def test_add_asset_generates_md5(test_app, setup_test_environment):
     from dam.cli import global_state
 
     cli_test_world_name = global_state.world_name if global_state.world_name else "test_world_alpha"
-    db_for_test = app_database.db_manager.get_db_session(cli_test_world_name)
-    from dam.models import ContentHashMD5Component, Entity
-    from dam.models import FilePropertiesComponent as ModelFilePropertiesComponent
+    db_for_test = app_database.db_manager.get_db_session(cli_test_world_name) # Session for verification
 
-    assert ModelFilePropertiesComponent.__tablename__ == "component_file_properties"
-    txt_entity = None
-    all_props = db_for_test.query(asset_service.FilePropertiesComponent).all()
-    for prop in all_props:
-        if prop.original_filename == TXT_FILENAME:
-            txt_entity = db_for_test.get(Entity, prop.entity_id)
-            break
-    assert txt_entity is not None, f"Entity for {TXT_FILENAME} not found in fixture DB."
-    txt_file_md5 = get_file_md5(_FIXTURE_TXT_FILE)
-    md5_components = (
-        db_for_test.query(ContentHashMD5Component).filter(ContentHashMD5Component.entity_id == txt_entity.id).all()
-    )
-    found_md5 = any(comp.hash_value == txt_file_md5 for comp in md5_components)
-    assert found_md5, f"MD5 component for {TXT_FILENAME} (Entity {txt_entity.id}) not found or mismatch."
-    source_files_dir = _FIXTURE_TXT_FILE.parent
+    from dam.models import ContentHashMD5Component, Entity, FilePropertiesComponent as ModelFilePropertiesComponent
+
+    # Verify existing text file's MD5 from setup
+    existing_txt_fpc = db_for_test.query(ModelFilePropertiesComponent).filter_by(original_filename=TXT_FILENAME).first()
+    assert existing_txt_fpc is not None, f"Pre-existing {TXT_FILENAME} not found."
+
+    txt_entity_id = existing_txt_fpc.entity_id
+    txt_file_md5_expected = get_file_md5(_FIXTURE_TXT_FILE)
+    md5_comp_existing = ecs_service.get_component(db_for_test, txt_entity_id, ContentHashMD5Component)
+    assert md5_comp_existing is not None, f"MD5 component for existing {TXT_FILENAME} not found."
+    assert md5_comp_existing.hash_value == txt_file_md5_expected, f"MD5 mismatch for existing {TXT_FILENAME}."
+
+    # Test adding a new file via CLI
+    source_files_dir = _FIXTURE_TXT_FILE.parent # Reuse temp dir for new file
     temp_file_path = source_files_dir / "temp_add_asset_for_md5_test.txt"
     temp_file_content = "Content for MD5 test in test_add_asset_generates_md5."
     temp_file_path.write_text(temp_file_content)
-    temp_file_md5_new = get_file_md5(temp_file_path)
+    temp_file_md5_new_expected = get_file_md5(temp_file_path)
+
     try:
-        entity_obj, created_new = asset_service.add_asset_file(
-            session=db_for_test,
-            filepath_on_disk=temp_file_path,
-            original_filename=temp_file_path.name,
-            mime_type="text/plain",
-            size_bytes=temp_file_path.stat().st_size,
-        )
-        db_for_test.commit()
-        assert created_new, "Service should have created a new entity for a new file."
-        new_md5_components = (
-            db_for_test.query(ContentHashMD5Component).filter(ContentHashMD5Component.entity_id == entity_obj.id).all()
-        )
-        new_found_md5 = any(comp.hash_value == temp_file_md5_new for comp in new_md5_components)
-        assert new_found_md5, f"MD5 component for newly added asset (Entity {entity_obj.id}) not found or mismatch."
+        # Invoke CLI to add the new asset
+        result = runner.invoke(test_app, ["add-asset", str(temp_file_path), "--world", cli_test_world_name])
+        assert result.exit_code == 0, f"CLI add-asset failed: {result.output}"
+        assert "Dispatched AssetFileIngestionRequested" in result.output # Check for event dispatch message
+        assert "Post-ingestion systems completed" in result.output
+
+
+        # Verify the new asset in DB
+        new_fpc = db_for_test.query(ModelFilePropertiesComponent).filter_by(original_filename=temp_file_path.name).first()
+        assert new_fpc is not None, f"Newly added asset {temp_file_path.name} not found in DB."
+
+        new_entity_id = new_fpc.entity_id
+        md5_comp_new = ecs_service.get_component(db_for_test, new_entity_id, ContentHashMD5Component)
+        assert md5_comp_new is not None, f"MD5 component for new asset {temp_file_path.name} not found."
+        assert md5_comp_new.hash_value == temp_file_md5_new_expected, f"MD5 mismatch for new asset {temp_file_path.name}."
+
     finally:
         temp_file_path.unlink(missing_ok=True)
         db_for_test.close()
@@ -701,18 +727,19 @@ def _get_entity_by_filename(world_name: str, filename: str) -> any:
         session.close()
 
 
-def test_cli_merge_worlds_db(test_app, settings_override, tmp_path):
+@pytest.mark.asyncio # Make async
+async def test_cli_merge_worlds_db(test_app, settings_override, tmp_path): # Make async
     source_world_cli = "test_world_alpha"
     target_world_cli = "test_world_beta"
-    source_session_alpha = app_database.db_manager.get_db_session(source_world_cli)
+    # source_session_alpha = app_database.db_manager.get_db_session(source_world_cli) # Not needed before populate
     s_img_file = tmp_path / "s_img_merge.png"
     _create_dummy_image(s_img_file, "red", size=(5, 5))
     s_txt_file = tmp_path / "s_txt_merge.txt"
     s_txt_file.write_text("Source text for merge")
     from tests.services.test_world_service_advanced import _populate_world_with_assets as populate_helper
 
-    populate_helper(source_session_alpha, source_world_cli, s_img_file, s_txt_file)
-    source_session_alpha.close()
+    await populate_helper(source_world_cli, s_img_file, s_txt_file) # Pass world_name, await
+    # source_session_alpha.close() # Closed by helper or not needed before count
     assert _count_entities_in_world(source_world_cli) == 2
     assert _count_entities_in_world(target_world_cli) == 0
     result = runner.invoke(test_app, ["merge-worlds-db", source_world_cli, target_world_cli])
@@ -734,30 +761,49 @@ def test_cli_split_world_db(test_app, settings_override, tmp_path):
     _create_dummy_image(s_img_jpg, "blue", size=(6, 6))
     s_txt_split = tmp_path / "s_split_txt.txt"
     s_txt_split.write_text("Source text for split")
-    from dam.services import asset_service
+    # from dam.services import asset_service # Removed
 
-    img_png_props = asset_service.file_operations.get_file_properties(s_img_png)
-    asset_service.add_asset_file(
-        source_session_s, s_img_png, "split_image.png", "image/png", img_png_props[1], world_name=source_world_cli_split
+    # Setup using ecs_service and FileStorageService directly
+    split_world_instance = get_world(source_world_cli_split)
+    if not split_world_instance:
+        pytest.fail(f"CLI Test Setup: World '{source_world_cli_split}' not found for split test.")
+
+    from dam.services.file_storage_service import FileStorageService as FSS_CLI_Split_Setup
+    fss_split = split_world_instance.get_resource(FSS_CLI_Split_Setup)
+
+    from dam.models import (
+        ContentHashMD5Component, ContentHashSHA256Component, FileLocationComponent,
+        FilePropertiesComponent, NeedsMetadataExtractionComponent, OriginalSourceInfoComponent
     )
-    img_jpg_props = asset_service.file_operations.get_file_properties(s_img_jpg)
-    asset_service.add_asset_file(
-        source_session_s,
-        s_img_jpg,
-        "split_image.jpg",
-        "image/jpeg",
-        img_jpg_props[1],
-        world_name=source_world_cli_split,
-    )
-    txt_split_props = asset_service.file_operations.get_file_properties(s_txt_split)
-    asset_service.add_asset_file(
-        source_session_s,
-        s_txt_split,
-        "split_text.txt",
-        "text/plain",
-        txt_split_props[1],
-        world_name=source_world_cli_split,
-    )
+
+    assets_for_split = [
+        (s_img_png, "split_image.png", "image/png"),
+        (s_img_jpg, "split_image.jpg", "image/jpeg"),
+        (s_txt_split, "split_text.txt", "text/plain"),
+    ]
+
+    for file_p, orig_name, mime_t in assets_for_split:
+        file_c = file_p.read_bytes()
+        size_f = file_p.stat().st_size
+        sha256_f = hashlib.sha256(file_c).hexdigest()
+        md5_f = hashlib.md5(file_c).hexdigest()
+        _, cas_path_f = fss_split.store_file(file_c, original_filename=orig_name)
+
+        entity_s = ecs_service.create_entity(source_session_s)
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, ContentHashSHA256Component(hash_value=sha256_f))
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, ContentHashMD5Component(hash_value=md5_f))
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, FilePropertiesComponent(
+            original_filename=orig_name, file_size_bytes=size_f, mime_type=mime_t
+        ))
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, FileLocationComponent(
+            content_identifier=sha256_f, storage_type="local_cas",
+            physical_path_or_key=cas_path_f, contextual_filename=orig_name
+        ))
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, OriginalSourceInfoComponent(
+            original_filename=orig_name, original_path=str(file_p.resolve())
+        ))
+        ecs_service.add_component_to_entity(source_session_s, entity_s.id, NeedsMetadataExtractionComponent())
+
     source_session_s.commit()
     source_session_s.close()
     assert _count_entities_in_world(source_world_cli_split) == 3
@@ -795,19 +841,21 @@ def test_cli_split_world_db(test_app, settings_override, tmp_path):
     assert txt_entity_remaining is not None
 
 
-def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path):
+@pytest.mark.asyncio # Make async
+async def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path): # Make async
     source_world_del = "test_world_alpha_del_split"
     selected_target_del = "test_world_beta_del_split"
     remaining_target_del = "test_world_gamma_del_split"
-    source_session_del = app_database.db_manager.get_db_session(source_world_del)
+    # source_session_del = app_database.db_manager.get_db_session(source_world_del) # Session managed by helper or later
     s_img_del = tmp_path / "s_del_img.png"
     _create_dummy_image(s_img_del, "green")
     s_txt_del = tmp_path / "s_del_txt.txt"
     s_txt_del.write_text("Delete me after split")
     from tests.services.test_world_service_advanced import _populate_world_with_assets as populate_helper_del
 
-    populate_helper_del(source_session_del, source_world_del, s_img_del, s_txt_del)
-    source_session_del.close()
+    # _populate_world_with_assets now takes world_name and is async
+    await populate_helper_del(source_world_del, s_img_del, s_txt_del)
+    # source_session_del.close() # Closed by helper or not needed before count
     assert _count_entities_in_world(source_world_del) == 2
     cmd_del = [
         "split-world-db",

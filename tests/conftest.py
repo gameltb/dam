@@ -112,17 +112,53 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
 
 def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     """Helper function to get/create and setup a world for testing."""
-    # settings_override_fixture has already patched global settings
-    # create_and_register_world will use these patched settings
-    world = create_and_register_world(world_name)
+    # settings_override_fixture is the specific Settings instance for tests.
+    # Pass it directly to world creation functions.
+    # The clear_world_registry() call is already present in settings_override fixture,
+    # but can be called here too for safety if _setup_world is called multiple times
+    # within a single settings_override scope (though typically it's 1-to-1).
+    # clear_world_registry() # Ensure clean state before creating this specific world
+    world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.create_db_and_tables() # Ensure tables are created for this world's DB
+
+    # Manually register systems for this test world, similar to CLI
+    from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
+    from dam.systems.asset_lifecycle_systems import (
+        handle_add_asset_file_event, # Corrected name
+        handle_add_asset_reference_event, # Corrected name
+        handle_find_entity_by_hash_query,
+        handle_find_similar_images_query,
+    )
+    from dam.core.events import (
+        AssetFileIngestionRequested,
+        AssetReferenceIngestionRequested,
+        FindEntityByHashQuery,
+        FindSimilarImagesQuery,
+    )
+    from dam.core.stages import SystemStage
+
+    # Stage-based systems
+    world.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
+
+    # Event-based systems from asset_lifecycle_systems
+    world.register_system(handle_add_asset_file_event, event_type=AssetFileIngestionRequested)
+    world.register_system(handle_add_asset_reference_event, event_type=AssetReferenceIngestionRequested)
+    world.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
+    world.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
+
+    # Note: The original asset_ingestion_systems might become obsolete or be removed.
+    # If they still contain other relevant systems, those would need to be registered too.
+    # For now, focusing on the ones moved from asset_service.
+
     return world
 
 def _teardown_world(world: World):
     """Helper function to teardown a test world."""
-    if world and world.db_manager and world.db_manager.engine:
-        Base.metadata.drop_all(bind=world.db_manager.engine)
-        world.db_manager.engine.dispose() # Close connections
+    if world and world.has_resource(DatabaseManager):
+        db_mngr = world.get_resource(DatabaseManager)
+        if db_mngr and db_mngr.engine:
+            Base.metadata.drop_all(bind=db_mngr.engine)
+            db_mngr.engine.dispose() # Close connections
     # Asset storage path (tmp_path subdirectory) will be cleaned by tmp_path fixture
 
 @pytest.fixture(scope="function")

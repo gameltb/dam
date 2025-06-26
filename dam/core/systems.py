@@ -14,17 +14,8 @@ from dam.models import BaseComponent, Entity
 
 # --- System Registration and Metadata ---
 
-SYSTEM_REGISTRY: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
-"""
-Global registry mapping SystemStage enums to a list of system functions.
-Systems are added to this registry via the `@system` decorator.
-"""
-
-EVENT_HANDLER_REGISTRY: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
-"""
-Global registry mapping Event types to a list of system functions that handle them.
-Systems are added to this registry via the `@listens_for` decorator.
-"""
+# Global SYSTEM_METADATA remains, as it stores parameter info by function, which is universal.
+# SYSTEM_REGISTRY and EVENT_HANDLER_REGISTRY are now instance variables on WorldScheduler.
 
 SYSTEM_METADATA: Dict[Callable[..., Any], Dict[str, Any]] = {}
 """
@@ -119,7 +110,9 @@ def system(stage: SystemStage, **kwargs):
     """
 
     def decorator(func: Callable[..., Any]):
-        SYSTEM_REGISTRY[stage].append(func)
+        # Decorator no longer adds to global SYSTEM_REGISTRY.
+        # It primarily populates SYSTEM_METADATA.
+        # Registration to a specific world's scheduler happens via world.register_system().
         param_info = _parse_system_params(func)
         SYSTEM_METADATA[func] = {
             "params": param_info,
@@ -149,7 +142,9 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
         raise TypeError(f"Invalid event_type '{event_type}'. Must be a class that inherits from BaseEvent.")
 
     def decorator(func: Callable[..., Any]):
-        EVENT_HANDLER_REGISTRY[event_type].append(func)
+        # Decorator no longer adds to global EVENT_HANDLER_REGISTRY.
+        # It primarily populates SYSTEM_METADATA.
+        # Registration to a specific world's scheduler happens via world.register_system().
         param_info = _parse_system_params(func)
         SYSTEM_METADATA[func] = {
             "params": param_info,
@@ -207,12 +202,51 @@ class WorldScheduler:
                               world-specific shared resources.
         """
         self.resource_manager = resource_manager
-        # System and event registries are global, defining blueprints.
-        # The scheduler uses these blueprints but resolves resources against its own ResourceManager.
-        self.system_registry = SYSTEM_REGISTRY
-        self.event_handler_registry = EVENT_HANDLER_REGISTRY
+        # WorldScheduler now has its own instance-level registries
+        self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
+        self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
+        # It still uses the global SYSTEM_METADATA for parameter info
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}") # Scheduler instance logger
+
+    def register_system_for_world(
+        self,
+        system_func: Callable[..., Any],
+        stage: Optional[SystemStage] = None,
+        event_type: Optional[Type[BaseEvent]] = None,
+        **kwargs # These are metadata from the original decorator, can be stored if needed
+    ):
+        """
+        Registers a system function (already decorated and in SYSTEM_METADATA)
+        to this specific WorldScheduler instance for a stage or event.
+        """
+        if system_func not in self.system_metadata:
+            # This implies the system wasn't decorated correctly with @system or @listens_for
+            # Or _parse_system_params wasn't called for it during decoration.
+            # For robust parsing, ensure @system or @listens_for also calls _parse_system_params
+            # if it's not already guaranteed.
+            # However, the current decorators do populate SYSTEM_METADATA.
+            # One scenario: a raw function is passed that was never decorated.
+            self.logger.warning(
+                f"System function {system_func.__name__} is not in global SYSTEM_METADATA. "
+                "Attempting to parse its parameters now. Ensure systems are decorated."
+            )
+            # Attempt to parse now, though ideally it's pre-parsed.
+            # This might be redundant if decorators ensure metadata population.
+            # Let's assume decorators handle metadata. If not, this is a fallback.
+            if not _parse_system_params(system_func): # Call to populate if missing
+                 self.logger.error(f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register.")
+                 return
+
+
+        if stage:
+            self.system_registry[stage].append(system_func)
+            self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in this scheduler.")
+        elif event_type:
+            self.event_handler_registry[event_type].append(system_func)
+            self.logger.info(f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler.")
+        else:
+            self.logger.error(f"System {system_func.__name__} must be registered with either a stage or an event_type.")
 
 
     async def _resolve_and_execute_system(

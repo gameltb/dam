@@ -12,12 +12,12 @@ from dam.models import (
     Entity,
     FilePropertiesComponent,
 )
-from dam.services import (
-    asset_service,
+from dam.services import ( # asset_service removed
     ecs_service,
     file_operations,  # Import for get_file_properties
     world_service,
 )
+from dam.core.events import AssetFileIngestionRequested # Added event import
 
 
 @pytest.fixture(scope="function")
@@ -63,40 +63,43 @@ async def populated_world_for_export(
     img_a_path = source_files_for_world_service / "ws_img_A.png"
     txt_file_path = source_files_for_world_service / "ws_sample.txt"
 
-    # Get a session from the world for populating data
-    session = world.get_db_session()
+    # Populate data by dispatching events
+    img_props = file_operations.get_file_properties(img_a_path)
+    img_event = AssetFileIngestionRequested(
+        filepath_on_disk=img_a_path,
+        original_filename="ws_img_A.png",
+        mime_type=img_props[2],
+        size_bytes=img_props[1],
+        world_name=world.name,
+    )
+    await world.dispatch_event(img_event) # world.dispatch_event handles its own session
+
+    txt_props = file_operations.get_file_properties(txt_file_path)
+    txt_event = AssetFileIngestionRequested(
+        filepath_on_disk=txt_file_path,
+        original_filename="ws_sample.txt",
+        mime_type=txt_props[2],
+        size_bytes=txt_props[1],
+        world_name=world.name,
+    )
+    await world.dispatch_event(txt_event)
+
+    # For the manually created entity, we still need a session
+    session_manual = world.get_db_session()
     try:
-        img_props = file_operations.get_file_properties(img_a_path)
-        # asset_service.add_asset_file now takes world_config
-        asset_service.add_asset_file(
-            session=session,
-            filepath_on_disk=img_a_path,
-            original_filename="ws_img_A.png",
-            mime_type=img_props[2],
-            size_bytes=img_props[1],
-            world_config=world.config, # Pass world's config
-        )
-        txt_props = file_operations.get_file_properties(txt_file_path)
-        asset_service.add_asset_file(
-            session=session,
-            filepath_on_disk=txt_file_path,
-            original_filename="ws_sample.txt",
-            mime_type=txt_props[2],
-            size_bytes=txt_props[1],
-            world_config=world.config, # Pass world's config
-        )
-        e3 = ecs_service.create_entity(session)
+        e3 = ecs_service.create_entity(session_manual)
         sha_comp_e3 = ContentHashSHA256Component(entity_id=e3.id, entity=e3, hash_value="manual_hash_for_e3")
-        ecs_service.add_component_to_entity(session, e3.id, sha_comp_e3)
-        session.commit()
+        ecs_service.add_component_to_entity(session_manual, e3.id, sha_comp_e3)
+        session_manual.commit()
     except Exception as e:
-        session.rollback()
-        pytest.fail(f"Failed to populate DB for world '{world.name}' for export tests: {e}")
+        session_manual.rollback()
+        pytest.fail(f"Failed to populate manually added entity in world '{world.name}': {e}")
     finally:
-        session.close()
+        session_manual.close()
 
     # Run METADATA_EXTRACTION stage using the world's method
     # This will use its own session management internally.
+    # This stage processes entities marked by ingestion systems.
     await world.execute_stage(SystemStage.METADATA_EXTRACTION)
 
     return world
@@ -292,17 +295,6 @@ async def test_import_ecs_world_with_merge(populated_world_for_export: World, tm
     # Get a session to query initial state
     session = world_to_merge_into.get_db_session()
     try:
-        existing_txt_entity_props = (
-            session.query(FilePropertiesComponent)
-        .filter(FilePropertiesComponent.original_filename == "ws_sample.txt")
-        .one()
-    )
-    existing_txt_entity_id = existing_txt_entity_props.entity_id
-
-    updated_txt_filename = "ws_sample_updated.txt"
-    new_sha_for_txt = "merged_sha_for_txt"
-    new_entity_json_id = 201
-
         existing_txt_entity_props = (
             session.query(FilePropertiesComponent)
             .filter(FilePropertiesComponent.original_filename == "ws_sample.txt")
