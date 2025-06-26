@@ -13,144 +13,147 @@ from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.models.base_class import Base
 
-# Store original settings
-original_dam_worlds = global_settings.DAM_WORLDS
-original_default_world_name = global_settings.DEFAULT_WORLD_NAME
-original_testing_mode = global_settings.TESTING_MODE
+# Store original settings values to be restored
+_original_settings_values = {}
+
+# Import World for type hinting
+from dam.core.world import World, create_and_register_world, clear_world_registry, get_world
+
+
+@pytest.fixture(scope="session", autouse=True)
+def backup_original_settings():
+    """Backup original settings at the start of the session."""
+    # This is a bit manual; ideally Pydantic settings could be snapshot/restored more cleanly.
+    # We're backing up fields that settings_override is known to change.
+    _original_settings_values["DAM_WORLDS_CONFIG_SOURCE"] = global_settings.DAM_WORLDS_CONFIG_SOURCE
+    _original_settings_values["worlds"] = global_settings.worlds.copy() # shallow copy
+    _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
+    _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
+    yield
+    # Restoration will be handled by settings_override's finalizer using monkeypatch,
+    # but this backup is a safety net or for understanding original state if needed.
 
 
 @pytest.fixture(scope="session")
-def test_worlds_config_data():
-    """Provides the raw configuration dictionary for test worlds."""
-    # Create temporary directories for asset storage for each test world
-    # These will be cleaned up by the OS or manually if needed, but for fixtures,
-    # it's often better to clean up in the fixture itself if state persists.
-    # For session scope, these paths will exist for the whole session.
-    # We'll use function-scoped temp dirs for asset paths to ensure test isolation for file operations.
-    return {
-        "test_world_alpha": {
-            "DATABASE_URL": "sqlite:///:memory:?world=alpha",  # In-memory, unique per world
-            # ASSET_STORAGE_PATH will be overridden per test function needing it
-        },
-        "test_world_beta": {
-            "DATABASE_URL": "sqlite:///:memory:?world=beta",
-        },
-        "test_world_gamma": {  # Added for split tests
-            "DATABASE_URL": "sqlite:///:memory:?world=gamma",
-        },
-        # Worlds for deletion tests to keep main test worlds clean if needed
-        "test_world_alpha_del_split": {
-            "DATABASE_URL": "sqlite:///:memory:?world=alpha_del_split",
-        },
-        "test_world_beta_del_split": {
-            "DATABASE_URL": "sqlite:///:memory:?world=beta_del_split",
-        },
-        "test_world_gamma_del_split": {
-            "DATABASE_URL": "sqlite:///:memory:?world=gamma_del_split",
-        },
-    }
+def test_worlds_config_data_factory(tmp_path_factory):
+    """
+    Provides a factory to generate raw configuration dictionary for test worlds,
+    ensuring unique asset storage paths for each world using tmp_path_factory for session scope.
+    """
+    def _factory():
+        # These paths are created once per session if this factory is used by a session-scoped fixture.
+        # If used by function-scoped, they are unique per function.
+        # For asset paths, function scope is generally better for isolation.
+        # However, the main settings_override is function-scoped, which will handle temp dirs per test.
+        # This session-scoped factory is more for providing the *structure* of config data.
+        # The actual temp asset paths will be generated within settings_override (function-scoped).
+        return {
+            "test_world_alpha": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"},
+            "test_world_beta": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"},
+            "test_world_gamma": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"},
+            "test_world_alpha_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"},
+            "test_world_beta_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"},
+            "test_world_gamma_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"},
+        }
+    return _factory
 
 
 @pytest.fixture(scope="function")
-def settings_override(test_worlds_config_data, monkeypatch):
+def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
     """
     Overrides application settings for the duration of a test function.
-    Each test world gets its own temporary asset storage path.
+    Each test world gets its own temporary asset storage path using the function-scoped tmp_path.
     """
     temp_storage_dirs = {}
+    raw_world_configs = test_worlds_config_data_factory() # Get base config structure
     updated_test_worlds_config = {}
 
-    for world_name, config in test_worlds_config_data.items():
-        temp_dir = tempfile.mkdtemp(prefix=f"dam_test_{world_name}_")
-        temp_storage_dirs[world_name] = Path(temp_dir)
+    for world_name, config_template in raw_world_configs.items():
+        # Use function-scoped tmp_path for asset storage to ensure isolation between tests
+        asset_temp_dir = tmp_path / f"assets_{world_name}"
+        asset_temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_storage_dirs[world_name] = asset_temp_dir
         updated_test_worlds_config[world_name] = {
-            **config,
-            "ASSET_STORAGE_PATH": str(temp_dir),
+            **config_template, # Contains DB URL from factory
+            "ASSET_STORAGE_PATH": str(asset_temp_dir),
         }
 
-    # Use a unique default world for testing to avoid conflicts if some tests don't specify a world
-    default_test_world = "test_world_alpha"
-
-    # Override the global settings object by monkeypatching its attributes directly
-    # This is generally safer than trying to reload a Pydantic settings object mid-flight
-    # if modules have already imported `settings` from `dam.core.config`.
-
-    # We need to ensure that the `settings` object itself is updated, or a new one
-    # is created and used by the application during the test.
-    # Pydantic settings are often instantiated once at import time.
-    # The cleanest way is to control the environment variables Pydantic reads,
-    # or to directly patch the `settings` instance.
+    default_test_world_name = "test_world_alpha"
 
     # Create a new Settings instance with overridden values
     # This ensures that the model_validator in Settings is run with the new values
-
+    # We pass the JSON string to DAM_WORLDS_CONFIG_SOURCE as the Settings model expects
     new_settings = Settings(
-        DAM_WORLDS=json.dumps(updated_test_worlds_config),
-        DAM_DEFAULT_WORLD_NAME=default_test_world,
+        DAM_WORLDS_CONFIG_SOURCE=json.dumps(updated_test_worlds_config),
+        DAM_DEFAULT_WORLD_NAME=default_test_world_name,
         TESTING_MODE=True,
-        # Ensure other critical settings are preserved or set to test defaults if necessary
     )
 
     # Monkeypatch the global `settings` instance in `dam.core.config`
+    original_settings_instance = dam.core.config.settings
     monkeypatch.setattr(dam.core.config, "settings", new_settings)
 
-    # Also monkeypatch where db_manager might have already captured settings if it's module-scoped
-    # This is tricky. It's better if db_manager is instantiated after settings are patched,
-    # or if it can re-read settings. Assuming db_manager is function-scoped or re-initializable.
+    # Clear the world registry before tests that use settings_override to ensure clean state
+    clear_world_registry()
 
-    yield new_settings  # Provide the overridden settings to the test
+    yield new_settings  # Provide the overridden settings to the test function
 
-    # Restore original settings after test
-    monkeypatch.setattr(dam.core.config, "settings", global_settings)  # Restore the original global instance
+    # Restore original settings instance
+    monkeypatch.setattr(dam.core.config, "settings", original_settings_instance)
 
-    # Clean up temporary asset storage directories
-    for path in temp_storage_dirs.values():
-        shutil.rmtree(path, ignore_errors=True)
+    # Clean up temporary asset storage directories (tmp_path itself is function-scoped and auto-cleaned)
+    # but explicit shutil.rmtree can be more robust if needed, though often not necessary with tmp_path.
+    # for path in temp_storage_dirs.values():
+    #     if path.exists(): # Check existence before trying to remove
+    #         shutil.rmtree(path, ignore_errors=True)
+
+    clear_world_registry() # Clear registry after test too
+
+
+def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
+    """Helper function to get/create and setup a world for testing."""
+    # settings_override_fixture has already patched global settings
+    # create_and_register_world will use these patched settings
+    world = create_and_register_world(world_name)
+    world.create_db_and_tables() # Ensure tables are created for this world's DB
+    return world
+
+def _teardown_world(world: World):
+    """Helper function to teardown a test world."""
+    if world and world.db_manager and world.db_manager.engine:
+        Base.metadata.drop_all(bind=world.db_manager.engine)
+        world.db_manager.engine.dispose() # Close connections
+    # Asset storage path (tmp_path subdirectory) will be cleaned by tmp_path fixture
+
+@pytest.fixture(scope="function")
+def test_world_alpha(settings_override: Settings) -> World:
+    """Provides the 'test_world_alpha' World instance, fully set up."""
+    world = _setup_world("test_world_alpha", settings_override)
+    yield world
+    _teardown_world(world)
+
+@pytest.fixture(scope="function")
+def test_world_beta(settings_override: Settings) -> World:
+    """Provides the 'test_world_beta' World instance, fully set up."""
+    world = _setup_world("test_world_beta", settings_override)
+    yield world
+    _teardown_world(world)
+
+@pytest.fixture(scope="function")
+def test_world_gamma(settings_override: Settings) -> World:
+    """Provides the 'test_world_gamma' World instance, fully set up."""
+    world = _setup_world("test_world_gamma", settings_override)
+    yield world
+    _teardown_world(world)
 
 
 @pytest.fixture(scope="function")
-def test_db_manager(settings_override):
-    """
-    Provides a DatabaseManager instance configured with test worlds.
-    Ensures tables are created and dropped for each world's engine.
-    This fixture depends on `settings_override` to ensure settings are patched first.
-    """
-    # settings_override has already patched global `dam.core.config.settings`
-    # So, DatabaseManager will pick up the patched settings when instantiated.
-    # Pass the overridden settings object to the DatabaseManager constructor.
-    manager = DatabaseManager(settings_override)
-
-    # Create tables for all configured test worlds
-    for world_name in manager.get_all_world_names():
-        engine = manager.get_engine(world_name)
-        Base.metadata.create_all(bind=engine)
-        # print(f"Created tables for test world {world_name} on engine {engine.url}")
-
-    yield manager
-
-    # Drop tables for all configured test worlds after the test
-    for world_name in manager.get_all_world_names():
-        engine = manager.get_engine(world_name)
-        Base.metadata.drop_all(bind=engine)
-        # print(f"Dropped tables for test world {world_name} on engine {engine.url}")
-        # Explicitly dispose of the engine to close in-memory DB connections if any issue
-        engine.dispose()
-
-
-@pytest.fixture(scope="function")
-def db_session(test_db_manager, settings_override):
+def db_session(test_world_alpha: World):
     """
     Provides a SQLAlchemy session for the default test world ("test_world_alpha").
-    This is a convenience fixture for tests that don't need to manage multiple worlds explicitly.
     The session is closed automatically after the test.
     """
-    # settings_override ensures that global_settings.DEFAULT_WORLD_NAME is patched
-    # to our desired default test world ("test_world_alpha")
-    default_test_world_name = dam.core.config.settings.DEFAULT_WORLD_NAME
-    if not default_test_world_name:  # Should be set by settings_override
-        raise ValueError("Default test world name not set in overridden settings.")
-
-    session = test_db_manager.get_db_session(default_test_world_name)
+    session = test_world_alpha.get_db_session()
     try:
         yield session
     finally:
@@ -158,13 +161,13 @@ def db_session(test_db_manager, settings_override):
 
 
 @pytest.fixture(scope="function")
-def another_db_session(test_db_manager):
+def another_db_session(test_world_beta: World):
     """
     Provides a SQLAlchemy session for a secondary test world ("test_world_beta").
     Useful for testing interactions or isolation between two worlds.
     The session is closed automatically after the test.
     """
-    session = test_db_manager.get_db_session("test_world_beta")
+    session = test_world_beta.get_db_session()
     try:
         yield session
     finally:

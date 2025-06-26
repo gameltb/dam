@@ -11,9 +11,14 @@ from dam.models.base_component import REGISTERED_COMPONENT_TYPES
 # Define a generic type variable for component types
 T = TypeVar("T", bound=BaseComponent)
 
-# Note: All functions in this service now require a `session: Session` argument.
-# The caller (e.g., CLI command, another service) is responsible for obtaining
-# the correct session for the desired ECS world using `db_manager.get_db_session(world_name)`.
+import logging # Added import
+
+# Note: All functions in this service require a `session: Session` argument.
+# The caller (e.g., a system, another service, or a CLI command handler)
+# is responsible for obtaining the correct session for the desired ECS World,
+# typically by calling `world.get_db_session()`.
+
+logger = logging.getLogger(__name__) # Added logger
 
 
 def create_entity(session: Session) -> Entity:
@@ -123,9 +128,12 @@ def delete_entity(session: Session, entity_id: int, flush: bool = True) -> bool:
     # Delete all associated components
     # REGISTERED_COMPONENT_TYPES should be populated correctly (e.g., in world_service or models.__init__)
     if not REGISTERED_COMPONENT_TYPES:
-        # This might be a critical error or warning depending on application structure
+        # This might be a critical error or warning depending on application structure.
         # For now, we proceed, but ideally, this list is always populated.
-        print("Warning: REGISTERED_COMPONENT_TYPES is empty. Components may not be deleted with entity.")
+        logger.warning(
+            f"REGISTERED_COMPONENT_TYPES is empty while trying to delete entity {entity_id}. "
+            "Associated components may not be fully deleted."
+        )
 
     for component_type in REGISTERED_COMPONENT_TYPES:
         components_to_delete = get_components(session, entity_id, component_type)

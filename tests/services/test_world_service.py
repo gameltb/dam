@@ -46,83 +46,72 @@ def source_files_for_world_service(tmp_path: Path) -> Path:
     return source_files_dir
 
 
+# Import World for type hinting
+from dam.core.world import World
+
+
 @pytest.fixture(scope="function")
-async def populated_db_session_for_export(
-    db_session: Session, source_files_for_world_service: Path, settings_override
-) -> Session:  # Made async
+async def populated_world_for_export(
+    test_world_alpha: World, source_files_for_world_service: Path
+) -> World: # Made async, depends on test_world_alpha
     """
-    Provides the default test world session (from db_session fixture) populated
-    with some assets for export testing.
-    Relies on settings_override being active.
+    Provides the 'test_world_alpha' World instance populated with some assets for export testing.
     """
-    # Use the settings_override fixture directly to get the patched default world name
-    current_world_name = settings_override.DEFAULT_WORLD_NAME
-    if not current_world_name:
-        pytest.fail("Default test world name not set in settings_override for populated_db_session_for_export.")
+    world = test_world_alpha
+    # settings_override is implicitly handled by test_world_alpha fixture
 
     img_a_path = source_files_for_world_service / "ws_img_A.png"
     txt_file_path = source_files_for_world_service / "ws_sample.txt"
 
+    # Get a session from the world for populating data
+    session = world.get_db_session()
     try:
         img_props = file_operations.get_file_properties(img_a_path)
+        # asset_service.add_asset_file now takes world_config
         asset_service.add_asset_file(
-            session=db_session,
+            session=session,
             filepath_on_disk=img_a_path,
             original_filename="ws_img_A.png",
             mime_type=img_props[2],
             size_bytes=img_props[1],
-            world_name=current_world_name,
+            world_config=world.config, # Pass world's config
         )
         txt_props = file_operations.get_file_properties(txt_file_path)
         asset_service.add_asset_file(
-            session=db_session,
+            session=session,
             filepath_on_disk=txt_file_path,
             original_filename="ws_sample.txt",
             mime_type=txt_props[2],
             size_bytes=txt_props[1],
-            world_name=current_world_name,
+            world_config=world.config, # Pass world's config
         )
-        e3 = ecs_service.create_entity(db_session)
+        e3 = ecs_service.create_entity(session)
         sha_comp_e3 = ContentHashSHA256Component(entity_id=e3.id, entity=e3, hash_value="manual_hash_for_e3")
-        ecs_service.add_component_to_entity(db_session, e3.id, sha_comp_e3)
-        db_session.commit()
+        ecs_service.add_component_to_entity(session, e3.id, sha_comp_e3)
+        session.commit()
     except Exception as e:
-        db_session.rollback()
-        pytest.fail(f"Failed to populate DB for world service export tests: {e}")
+        session.rollback()
+        pytest.fail(f"Failed to populate DB for world '{world.name}' for export tests: {e}")
+    finally:
+        session.close()
 
-    # --- Run METADATA_EXTRACTION stage ---
-    # The db_session from the fixture is used for this stage.
-    # WorldScheduler.execute_stage will commit this session.
-    world_config = settings_override.get_world_config(current_world_name)
-    world_ctx_for_fixture = WorldContext(session=db_session, world_name=current_world_name, world_config=world_config)
-    # Assuming test_world_scheduler is available (e.g. another fixture or global)
-    # For this example, let's instantiate it simply here for the fixture's purpose.
-    # This should ideally come from a fixture itself.
-    from dam.core.resources import FileOperationsResource, ResourceManager
-    from dam.core.systems import WorldScheduler
+    # Run METADATA_EXTRACTION stage using the world's method
+    # This will use its own session management internally.
+    await world.execute_stage(SystemStage.METADATA_EXTRACTION)
 
-    temp_resource_manager = ResourceManager()
-    temp_resource_manager.add_resource(FileOperationsResource())
-    temp_scheduler = WorldScheduler(temp_resource_manager)
-
-    await temp_scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_ctx_for_fixture)
-    # db_session is now committed by execute_stage.
-
-    return db_session
+    return world
 
 
-@pytest.mark.asyncio  # Test needs to be async as the fixture is now async
-async def test_export_ecs_world(populated_db_session_for_export: Session, tmp_path: Path, settings_override):
-    db_session = await populated_db_session_for_export  # Await the async fixture
-    # Need to use settings_override for correct world name, not module-level app_settings
-    current_world_name = settings_override.DEFAULT_WORLD_NAME
+@pytest.mark.asyncio
+async def test_export_ecs_world(populated_world_for_export: World, tmp_path: Path):
+    # populated_world_for_export is now a World instance
+    # settings_override is implicitly handled by the World fixture
+
+    export_world = await populated_world_for_export # Fixture is async
     export_file = tmp_path / "world_export.json"
 
-    # The session from populated_db_session_for_export might have been closed by the scheduler.
-    # It's safer for export_ecs_world_to_json to use a fresh session,
-    # or ensure the passed session is still active and contains all data.
-    # Given WorldScheduler now commits but doesn't close, db_session should be usable.
-    world_service.export_ecs_world_to_json(db_session, export_file, world_name_for_log=current_world_name)
+    # world_service.export_ecs_world_to_json now takes a World object
+    world_service.export_ecs_world_to_json(export_world, export_file)
     assert export_file.exists()
 
     with open(export_file, "r") as f:
@@ -181,44 +170,70 @@ async def test_export_ecs_world(populated_db_session_for_export: Session, tmp_pa
 
 
 @pytest.fixture
-def clean_db_session_for_import(another_db_session: Session, settings_override) -> Session:
-    # settings_override ensures the app_settings.DEFAULT_WORLD_NAME is patched if needed,
-    # and test_db_manager (used by another_db_session) is correctly initialized.
-    # another_db_session is for "test_world_beta"
-    return another_db_session
+def clean_world_for_import(test_world_beta: World) -> World:
+    # test_world_beta fixture (from conftest) already ensures settings_override is active
+    # and the world is set up with a clean DB.
+    return test_world_beta
 
 
 def test_import_ecs_world_clean_db(
-    clean_db_session_for_import: Session, source_files_for_world_service: Path, tmp_path: Path
+    clean_world_for_import: World, source_files_for_world_service: Path, tmp_path: Path
 ):
-    db_session = clean_db_session_for_import
-    # The world name for another_db_session is "test_world_beta"
-    current_world_name_for_log = "test_world_beta"
+    import_world = clean_world_for_import # World instance to import into
+    # current_world_name_for_log = import_world.name # For logging if needed, but service handles it
 
     img_a_path = source_files_for_world_service / "ws_img_A.png"
+
+    # Note: The FileLocationComponent in export_data uses "file_identifier" and "storage_type": "referenced_local_file".
+    # The import logic in world_service.py has some mapping for FileLocationComponent fields like:
+    # - "file_identifier" -> "content_identifier"
+    # - "original_filename" -> "contextual_filename"
+    # - "filepath" -> "physical_path_or_key"
+    # Ensure this JSON matches what the import expects or update the JSON/import logic.
+    # Current FileLocationComponent model expects: content_identifier, physical_path_or_key, contextual_filename, storage_type.
+    # The JSON uses 'file_identifier' which should map to 'content_identifier'.
+    # It uses 'original_filename' which should map to 'contextual_filename'.
+    # It's missing 'physical_path_or_key'. For 'referenced_local_file', this should be the actual path.
+    # Let's adjust the JSON to be more aligned or ensure mapping handles it.
+    # The service currently warns if physical_path_or_key is missing.
+    # For "referenced_local_file", the physical_path_or_key IS the file_identifier (the original path).
+    # Let's make the JSON reflect the new model expectations for clarity or test the mapping.
+    # The service has: if "file_identifier" in comp_data_cleaned and "content_identifier" not in comp_data_cleaned:
+    # comp_data_cleaned["content_identifier"] = comp_data_cleaned.pop("file_identifier")
+    # This is okay.
+    # Missing physical_path_or_key will be an issue if not mapped from somewhere.
+    # Let's assume for "referenced_local_file", the 'file_identifier' (which becomes content_identifier)
+    # is NOT the physical path. The physical path is the original path.
+    # The old `FileLocationComponent` had `filepath` which was the physical path.
+    # The new one has `physical_path_or_key`.
+    # The import code has:
+    # if ("filepath" in comp_data_cleaned and "physical_path_or_key" not in comp_data_cleaned):
+    #    comp_data_cleaned["physical_path_or_key"] = comp_data_cleaned.pop("filepath")
+    # The JSON below doesn't have 'filepath'. It has 'file_identifier' for the path.
+    # This means the import logic needs to be robust for old JSON formats or the test JSON needs update.
+    # Let's assume the import should handle the old format where `file_identifier` for a reference was the path.
+    # The current import logic might map file_identifier to content_identifier, then physical_path_or_key is missing.
+    # This needs to be fixed in the import logic or the test data.
+    # For now, I'll provide physical_path_or_key directly in the test JSON matching the new model.
 
     export_data = {
         "entities": [
             {
-                "id": 101,
+                "id": 101, # This ID might not be preserved if DB auto-increments
                 "components": {
                     "FilePropertiesComponent": [
-                        {
-                            "__component_type__": "FilePropertiesComponent",
-                            "original_filename": "ws_img_A.png",
-                            "file_size_bytes": 100,
-                            "mime_type": "image/png",
-                        }
+                        {"__component_type__": "FilePropertiesComponent", "original_filename": "ws_img_A.png", "file_size_bytes": 100, "mime_type": "image/png"}
                     ],
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_img"}
                     ],
-                    "FileLocationComponent": [
+                    "FileLocationComponent": [ # Updated to reflect new model fields more directly
                         {
                             "__component_type__": "FileLocationComponent",
-                            "file_identifier": str(img_a_path.resolve()),
-                            "storage_type": "referenced_local_file",
-                            "original_filename": "ws_img_A.png",
+                            "content_identifier": "fake_sha256_for_import_img", # Typically the hash
+                            "physical_path_or_key": str(img_a_path.resolve()), # Actual path for reference
+                            "contextual_filename": "ws_img_A.png", # Original filename for this location
+                            "storage_type": "local_reference", # Changed from referenced_local_file
                         }
                     ],
                 },
@@ -227,10 +242,7 @@ def test_import_ecs_world_clean_db(
                 "id": 102,
                 "components": {
                     "ContentHashSHA256Component": [
-                        {
-                            "__component_type__": "ContentHashSHA256Component",
-                            "hash_value": "fake_sha256_for_import_manual",
-                        }
+                        {"__component_type__": "ContentHashSHA256Component", "hash_value": "fake_sha256_for_import_manual"}
                     ]
                 },
             },
@@ -240,38 +252,48 @@ def test_import_ecs_world_clean_db(
     with open(import_file, "w") as f:
         json.dump(export_data, f)
 
-    world_service.import_ecs_world_from_json(
-        db_session, import_file, merge=False, world_name_for_log=current_world_name_for_log
-    )
+    # world_service.import_ecs_world_from_json now takes a World object
+    world_service.import_ecs_world_from_json(import_world, import_file, merge=False)
 
-    imported_img_props = (
-        db_session.query(FilePropertiesComponent)
-        .filter(FilePropertiesComponent.original_filename == "ws_img_A.png")
-        .one_or_none()
-    )
-    assert imported_img_props is not None
-    img_entity_id = imported_img_props.entity_id
-    assert (
-        ecs_service.get_component(db_session, img_entity_id, ContentHashSHA256Component).hash_value
-        == "fake_sha256_for_import_img"
-    )
+    # Use a new session from the import_world for checks
+    session = import_world.get_db_session()
+    try:
+        imported_img_props = (
+            session.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "ws_img_A.png")
+            .one_or_none()
+        )
+        assert imported_img_props is not None
+        img_entity_id = imported_img_props.entity_id # This ID is generated by the DB, not from JSON's id:101
 
-    manual_hash_comp = (
-        db_session.query(ContentHashSHA256Component)
-        .filter(ContentHashSHA256Component.hash_value == "fake_sha256_for_import_manual")
-        .one_or_none()
-    )
-    assert manual_hash_comp is not None
-    assert not ecs_service.get_component(db_session, manual_hash_comp.entity_id, FilePropertiesComponent)
+        retrieved_sha256_comp = ecs_service.get_component(session, img_entity_id, ContentHashSHA256Component)
+        assert retrieved_sha256_comp is not None
+        assert retrieved_sha256_comp.hash_value == "fake_sha256_for_import_img"
+
+        manual_hash_comp = (
+            session.query(ContentHashSHA256Component)
+            .filter(ContentHashSHA256Component.hash_value == "fake_sha256_for_import_manual")
+            .one_or_none()
+        )
+        assert manual_hash_comp is not None
+        # Ensure the entity ID for manual_hash_comp is different from img_entity_id if they were separate in JSON
+        assert manual_hash_comp.entity_id != img_entity_id
+        assert not ecs_service.get_component(session, manual_hash_comp.entity_id, FilePropertiesComponent)
+    finally:
+        session.close()
 
 
-@pytest.mark.asyncio  # Test needs to be async as the fixture is now async
-async def test_import_ecs_world_with_merge(populated_db_session_for_export: Session, tmp_path: Path, settings_override):
-    db_session = await populated_db_session_for_export  # Await the async fixture
-    current_world_name_for_log = settings_override.DEFAULT_WORLD_NAME  # Use patched settings
+@pytest.mark.asyncio
+async def test_import_ecs_world_with_merge(populated_world_for_export: World, tmp_path: Path):
+    # populated_world_for_export is already a World instance
+    # settings_override is implicitly handled
+    world_to_merge_into = await populated_world_for_export # Use the same populated world
 
-    existing_txt_entity_props = (
-        db_session.query(FilePropertiesComponent)
+    # Get a session to query initial state
+    session = world_to_merge_into.get_db_session()
+    try:
+        existing_txt_entity_props = (
+            session.query(FilePropertiesComponent)
         .filter(FilePropertiesComponent.original_filename == "ws_sample.txt")
         .one()
     )
@@ -281,18 +303,26 @@ async def test_import_ecs_world_with_merge(populated_db_session_for_export: Sess
     new_sha_for_txt = "merged_sha_for_txt"
     new_entity_json_id = 201
 
+        existing_txt_entity_props = (
+            session.query(FilePropertiesComponent)
+            .filter(FilePropertiesComponent.original_filename == "ws_sample.txt")
+            .one()
+        )
+        existing_txt_entity_id = existing_txt_entity_props.entity_id
+    finally:
+        session.close()
+
+    updated_txt_filename = "ws_sample_updated.txt"
+    new_sha_for_txt = "merged_sha_for_txt"
+    new_entity_json_id = 201 # Original ID from JSON, will likely change on import
+
     export_data_for_merge = {
         "entities": [
             {
-                "id": existing_txt_entity_id,
+                "id": existing_txt_entity_id, # Try to merge with this existing entity
                 "components": {
                     "FilePropertiesComponent": [
-                        {
-                            "__component_type__": "FilePropertiesComponent",
-                            "original_filename": updated_txt_filename,
-                            "file_size_bytes": 999,
-                            "mime_type": "text/merged",
-                        }
+                        {"__component_type__": "FilePropertiesComponent", "original_filename": updated_txt_filename, "file_size_bytes": 999, "mime_type": "text/merged"}
                     ],
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": new_sha_for_txt}
@@ -300,7 +330,7 @@ async def test_import_ecs_world_with_merge(populated_db_session_for_export: Sess
                 },
             },
             {
-                "id": new_entity_json_id,
+                "id": new_entity_json_id, # This should be a new entity
                 "components": {
                     "ContentHashSHA256Component": [
                         {"__component_type__": "ContentHashSHA256Component", "hash_value": "new_entity_hash_for_merge"}
@@ -313,23 +343,31 @@ async def test_import_ecs_world_with_merge(populated_db_session_for_export: Sess
     with open(merge_import_file, "w") as f:
         json.dump(export_data_for_merge, f)
 
-    world_service.import_ecs_world_from_json(
-        db_session, merge_import_file, merge=True, world_name_for_log=current_world_name_for_log
-    )
+    world_service.import_ecs_world_from_json(world_to_merge_into, merge_import_file, merge=True)
 
-    updated_fpc = ecs_service.get_component(db_session, existing_txt_entity_id, FilePropertiesComponent)
-    assert updated_fpc.original_filename == updated_txt_filename and updated_fpc.file_size_bytes == 999
-    updated_sha = ecs_service.get_component(db_session, existing_txt_entity_id, ContentHashSHA256Component)
-    assert updated_sha.hash_value == new_sha_for_txt
+    # Use a new session for checks after import
+    session_after_merge = world_to_merge_into.get_db_session()
+    try:
+        updated_fpc = ecs_service.get_component(session_after_merge, existing_txt_entity_id, FilePropertiesComponent)
+        assert updated_fpc is not None, "FilePropertiesComponent should still exist for the merged entity"
+        assert updated_fpc.original_filename == updated_txt_filename
+        assert updated_fpc.file_size_bytes == 999
 
-    newly_added_entity_sha_comp = (
-        db_session.query(ContentHashSHA256Component)
-        .filter(ContentHashSHA256Component.hash_value == "new_entity_hash_for_merge")
-        .one_or_none()
-    )
-    assert newly_added_entity_sha_comp is not None
-    assert newly_added_entity_sha_comp.entity_id != new_entity_json_id
-    assert db_session.get(Entity, newly_added_entity_sha_comp.entity_id) is not None
+        updated_sha = ecs_service.get_component(session_after_merge, existing_txt_entity_id, ContentHashSHA256Component)
+        assert updated_sha is not None, "ContentHashSHA256Component should exist for the merged entity"
+        assert updated_sha.hash_value == new_sha_for_txt
+
+        newly_added_entity_sha_comp = (
+            session_after_merge.query(ContentHashSHA256Component)
+            .filter(ContentHashSHA256Component.hash_value == "new_entity_hash_for_merge")
+            .one_or_none()
+        )
+        assert newly_added_entity_sha_comp is not None, "New entity from merge should exist"
+        # The ID of the newly added entity will be DB-generated, not new_entity_json_id from the file.
+        assert newly_added_entity_sha_comp.entity_id != new_entity_json_id
+        assert session_after_merge.get(Entity, newly_added_entity_sha_comp.entity_id) is not None
+    finally:
+        session_after_merge.close()
 
 
 # The old source_dir fixture and setup_test_environment_for_world_service are removed.
