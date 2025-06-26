@@ -1,12 +1,12 @@
 import logging
-from typing import Optional, Type, Any, List, TypeVar, Dict # Added Dict
+from typing import Optional, Type, Any, List, TypeVar, Dict, Callable # Added Dict and Callable
 
 from sqlalchemy.orm import Session
 
 from dam.core.config import WorldConfig, settings as global_app_settings
 from dam.core.database import DatabaseManager
 from dam.core.resources import ResourceManager, FileOperationsResource # Assuming FileOperationsResource is standard
-from dam.core.systems import WorldScheduler, SYSTEM_REGISTRY, EVENT_HANDLER_REGISTRY, SYSTEM_METADATA
+from dam.core.systems import WorldScheduler, SYSTEM_METADATA # SYSTEM_REGISTRY, EVENT_HANDLER_REGISTRY removed
 from dam.core.system_params import WorldContext
 from dam.core.events import BaseEvent
 from dam.core.stages import SystemStage
@@ -41,70 +41,40 @@ class World:
             raise TypeError(f"world_config must be an instance of WorldConfig, got {type(world_config)}")
 
         self.name: str = world_config.name
-        self.config: WorldConfig = world_config
+        self.config: WorldConfig = world_config # Keep a direct reference to its own config
         self.logger = logging.getLogger(f"{__name__}.{self.name}") # World-specific logger
+        self.logger.info(f"Creating minimal World instance: {self.name}")
 
-        self.logger.info(f"Initializing World: {self.name}")
-
-        # Initialize core components for this world
-        # Pass the global TESTINT_MODE setting to the DatabaseManager
-        self.db_manager: DatabaseManager = DatabaseManager(
-            world_config=self.config,
-            testing_mode=global_app_settings.TESTING_MODE
-        )
         self.resource_manager: ResourceManager = ResourceManager()
+        self.scheduler: WorldScheduler = WorldScheduler(resource_manager=self.resource_manager)
 
-        # Note: SYSTEM_REGISTRY, EVENT_HANDLER_REGISTRY, SYSTEM_METADATA are global
-        # The scheduler uses these global registries but operates within the context of this World's resources.
-        self.scheduler: WorldScheduler = WorldScheduler(
-            resource_manager=self.resource_manager,
-            # System registries are accessed globally by WorldScheduler internally
-        )
+        # Base resources (DatabaseManager, FileStorageService, WorldConfig as resource, FileOperationsResource)
+        # will be added by an external setup function like `populate_base_resources(world)`.
 
-        self._initialize_default_resources()
-        self.logger.info(f"World '{self.name}' initialized successfully.")
+        self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
 
-    def _initialize_default_resources(self) -> None:
-        """
-        Initializes and adds default resources to this World's ResourceManager.
-        This can be customized or extended by subclasses or specific world factory functions.
-        """
-        self.logger.debug(f"Initializing default resources for World '{self.name}'...")
-
-        # 1. DatabaseManager itself can be a resource if systems need to access it directly.
-        self.resource_manager.add_resource(self.db_manager, DatabaseManager)
-
-        # 2. FileOperationsResource (utility functions wrapping dam.services.file_operations).
-        self.resource_manager.add_resource(FileOperationsResource())
-
-        # 3. WorldConfig for this world. Systems can inject this to get world-specific settings.
-        self.resource_manager.add_resource(self.config, WorldConfig)
-
-        # Note: dam.services.file_storage is a module of functions, not a class to be instantiated here.
-        # Systems needing to store/retrieve files will:
-        #   a) Inject WorldConfig, then call functions from dam.services.file_storage, passing the WorldConfig.
-        #   b) Or, a dedicated FileStorageService class/resource could be developed later if needed,
-        #      which would encapsulate the storage path and provide methods. For now, direct use
-        #      of module functions with WorldConfig is the pattern.
-
-        self.logger.info(f"Default resources initialized for World '{self.name}'. Available: {list(self.resource_manager._resources.keys())}")
+    # Removed _initialize_database_manager and _initialize_additional_default_resources
+    # Their logic will be in the new world_setup.py:populate_base_resources
 
 
-    # --- Database Access ---
+    # --- Database Access (now typically via injected DatabaseManager or direct Session from World) ---
     def get_db_session(self) -> Session:
         """
         Provides a new database session for this World.
         The caller is responsible for closing the session.
+        This method relies on the DatabaseManager resource.
         """
-        return self.db_manager.get_db_session()
+        db_mngr = self.get_resource(DatabaseManager)
+        return db_mngr.get_db_session()
 
     def create_db_and_tables(self) -> None:
         """
         Creates all database tables for this World.
-        Delegates to this World's DatabaseManager.
+        Delegates to this World's DatabaseManager resource.
         """
         self.logger.info(f"Requesting creation of DB tables for World '{self.name}'.")
-        self.db_manager.create_db_and_tables()
+        db_mngr = self.get_resource(DatabaseManager)
+        db_mngr.create_db_and_tables()
 
     # --- Resource Management ---
     def add_resource(self, instance: Any, resource_type: Optional[Type] = None) -> None:
@@ -120,14 +90,43 @@ class World:
         """Checks if a resource of the given type is registered in this World."""
         return self.resource_manager.has_resource(resource_type)
 
+    # --- System Registration (NEW) ---
+    def register_system(self, system_func: Callable[..., Any], stage: Optional[SystemStage] = None, event_type: Optional[Type[BaseEvent]] = None, **kwargs) -> None:
+        """
+        Registers a system function to this specific World's scheduler.
+        The system will be associated with either a stage or an event type.
+        This replaces global registration for systems intended to run in this world.
+        """
+        if stage and event_type:
+            raise ValueError("A system cannot be registered for both a stage and an event type simultaneously.")
+
+        # The WorldScheduler will now need its own registries, or we adapt the global ones
+        # For now, let's assume WorldScheduler is modified to have instance-level registries.
+        # Or, the World object itself manages a list of systems and passes them to scheduler.
+        # Let's refine this: WorldScheduler can still use global metadata (SYSTEM_METADATA)
+        # but its internal lists of systems to run per stage/event should be specific to the World instance.
+
+        # This requires modification to WorldScheduler to accept system registrations
+        # or for World to maintain its own list of systems and pass them to the scheduler.
+        # For now, let's assume WorldScheduler is adapted.
+        self.scheduler.register_system_for_world(system_func, stage=stage, event_type=event_type, **kwargs)
+        if stage:
+            self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in world '{self.name}'.")
+        elif event_type:
+            self.logger.info(f"System {system_func.__name__} registered for event {event_type.__name__} in world '{self.name}'.")
+
+
     # --- System Execution & Event Dispatch ---
     def _get_world_context(self, session: Session) -> WorldContext:
         """Helper to create a WorldContext for system execution."""
+        # WorldConfig is now available as a resource, so systems can inject it.
+        # WorldContext might not need to carry it directly if systems can get it from resource_manager.
+        # However, keeping it for now for compatibility or if direct access is faster.
+        world_cfg = self.get_resource(WorldConfig) # Get it from the resource manager
         return WorldContext(
             session=session,
             world_name=self.name,
-            world_config=self.config,
-            # Potentially add direct access to world's resource_manager or db_manager if needed in context
+            world_config=world_cfg, # Pass the specific config
         )
 
     async def execute_stage(self, stage: SystemStage, session: Optional[Session] = None) -> None:
@@ -234,9 +233,13 @@ def clear_world_registry() -> None:
     logger.info(f"Cleared {count} worlds from the registry.")
 
 
-def create_and_register_world(world_name: str) -> World:
+from dam.core.config import Settings # Import Settings for type hinting
+
+# ... (other code) ...
+
+def create_and_register_world(world_name: str, app_settings: Optional[Settings] = None) -> World:
     """
-    Factory function to create a World instance based on global settings,
+    Factory function to create a World instance based on provided or global settings,
     initialize it, and register it.
 
     Args:
@@ -248,14 +251,19 @@ def create_and_register_world(world_name: str) -> World:
     Raises:
         ValueError: If the world_name is not found in the global configurations.
     """
-    logger.info(f"Attempting to create and register world: {world_name}")
+    current_settings = app_settings or global_app_settings
+    logger.info(f"Attempting to create and register world: {world_name} using settings: {'provided' if app_settings else 'global'}")
     try:
-        world_cfg = global_app_settings.get_world_config(world_name)
+        world_cfg = current_settings.get_world_config(world_name)
     except ValueError as e:
         logger.error(f"Failed to get configuration for world '{world_name}': {e}")
         raise
 
     world = World(world_config=world_cfg)
+
+    # Populate base resources using the new setup function
+    from .world_setup import populate_base_resources # Local import if preferred
+    populate_base_resources(world)
 
     # Optional: Create DB and tables upon world creation/registration if desired
     # world.create_db_and_tables() # Be cautious with this in production environments
@@ -263,16 +271,19 @@ def create_and_register_world(world_name: str) -> World:
     register_world(world)
     return world
 
-def create_and_register_all_worlds_from_settings() -> List[World]:
+def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings] = None) -> List[World]:
     """
-    Creates and registers World instances for all world configurations found in global_app_settings.
+    Creates and registers World instances for all world configurations found in the
+    provided or global app_settings.
     """
+    current_settings = app_settings or global_app_settings
     created_worlds = []
-    world_names = global_app_settings.get_all_world_names()
-    logger.info(f"Found {len(world_names)} worlds in settings to create and register: {world_names}")
+    world_names = current_settings.get_all_world_names()
+    logger.info(f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)")
     for name in world_names:
         try:
-            world = create_and_register_world(name)
+            # Pass the current_settings instance down
+            world = create_and_register_world(name, app_settings=current_settings)
             created_worlds.append(world)
         except Exception as e:
             logger.error(f"Failed to create or register world '{name}': {e}", exc_info=True)

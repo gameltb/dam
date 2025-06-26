@@ -1,10 +1,15 @@
 from pathlib import Path
+import asyncio # For running async event dispatch
 
 import pytest
 from sqlalchemy.orm import Session
 
 from dam.models import Entity, FilePropertiesComponent
-from dam.services import asset_service, ecs_service, world_service
+from dam.services import ecs_service, world_service # Removed asset_service
+from dam.core.world import get_world, World # To get World instance
+from dam.core.events import AssetFileIngestionRequested # For dispatching
+from dam.services.file_storage_service import FileStorageService # May be needed if asset_service used it directly
+from dam.core.config import WorldConfig # For type hinting
 
 # Fixtures like settings_override, test_db_manager, db_session, another_db_session,
 # sample_image_a, sample_text_file etc. are expected from conftest.py or this file.
@@ -17,42 +22,40 @@ def sample_text_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def _populate_world_with_assets(
-    session: Session,
-    world_name_for_service: str,
+async def _populate_world_with_assets( # Made async
+    world_name: str, # Changed from world_name_for_service & session removed
     image_file: Path,
     text_file: Path,
-    # file_ops: FileOperationsResource, # No longer pass file_ops, asset_service uses global
-    # settings # No longer pass settings, asset_service uses global
 ):
-    """Helper to populate a world with a couple of assets."""
-    # Instantiate FileOperationsResource locally if helper needs it directly,
-    # or import from dam.services.file_operations
-    from dam.services import file_operations as f_ops
+    """Helper to populate a world with a couple of assets by dispatching events."""
+    from dam.services import file_operations as f_ops # Keep for get_file_properties
 
+    world = get_world(world_name)
+    if not world:
+        pytest.fail(f"Test setup error: World '{world_name}' not found for populating assets.")
+
+    # Add image file
     img_filename, img_size, img_mime_type = f_ops.get_file_properties(image_file)
-    asset_service.add_asset_file(
-        session=session,
+    img_event = AssetFileIngestionRequested(
         filepath_on_disk=image_file,
-        original_filename=img_filename,  # Use determined filename
+        original_filename=img_filename,
         mime_type=img_mime_type,
         size_bytes=img_size,
-        world_name=world_name_for_service,
-        # No world_config, no file_ops for asset_service.add_asset_file current signature
+        world_name=world.name,
     )
+    await world.dispatch_event(img_event)
 
+    # Add text file
     txt_filename, txt_size, txt_mime_type = f_ops.get_file_properties(text_file)
-    asset_service.add_asset_file(
-        session=session,
+    txt_event = AssetFileIngestionRequested(
         filepath_on_disk=text_file,
-        original_filename=txt_filename,  # Use determined filename
+        original_filename=txt_filename,
         mime_type=txt_mime_type,
         size_bytes=txt_size,
-        world_name=world_name_for_service,
-        # No world_config, no file_ops for asset_service.add_asset_file current signature
+        world_name=world.name,
     )
-    session.commit()
-
+    await world.dispatch_event(txt_event)
+    # Commits are handled by the event/system execution lifecycle.
 
 def count_entities_and_components(session: Session, component_class: type = None):
     entity_count = session.query(Entity).count()
@@ -63,7 +66,8 @@ def count_entities_and_components(session: Session, component_class: type = None
 
 
 # --- Tests for merge_ecs_worlds_db_to_db ---
-def test_merge_worlds_db_to_db_add_new(
+@pytest.mark.asyncio
+async def test_merge_worlds_db_to_db_add_new( # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path
 ):
     source_world_name = "test_world_alpha"  # Default world from db_session fixture
@@ -73,10 +77,11 @@ def test_merge_worlds_db_to_db_add_new(
     target_session = test_db_manager.get_db_session(target_world_name)
 
     # Populate source world
-    # resource_manager = ResourceManager() # Not needed if _populate_world_with_assets doesn't need file_ops passed
-    # file_ops_resource = FileOperationsResource()
-    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
-    _populate_world_with_assets(source_session, source_world_name, sample_image_a, sample_text_file)
+    await _populate_world_with_assets(source_world_name, sample_image_a, sample_text_file) # Pass world_name, await
+    # After event dispatch, data might not be immediately queryable via source_session if events run in sep transactions.
+    # For this test, let's assume event handlers complete and commit before proceeding.
+    # To be robust, one might need to wait or use a post-event signal if the test relies on immediate consistency.
+    # For now, we proceed directly.
     src_entity_count_before, src_fpc_count_before = count_entities_and_components(
         source_session, FilePropertiesComponent
     )
@@ -128,64 +133,60 @@ def test_merge_worlds_db_to_db_add_new(
 
 # --- Tests for split_ecs_world (DB-to-DB) ---
 @pytest.fixture
-def source_world_for_split(
+async def source_world_for_split( # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path
 ):
     world_name = "test_world_alpha"  # Source world
-    session = test_db_manager.get_db_session(world_name)
-    # ResourceManager not strictly needed here if FileOperationsResource is instantiated directly
-    # However, if other resources were needed, it would be.
-    # For consistency with other tests and future use, let's keep it.
-    # resource_manager = ResourceManager() # Not needed for these direct calls
-    # file_ops_resource = FileOperationsResource()
-    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
+    world = get_world(world_name)
+    if not world:
+        pytest.fail(f"Test setup error: World '{world_name}' not found for source_world_for_split.")
+
     from dam.services import file_operations as f_ops  # direct import
 
     # Add image 1 (PNG)
-    # world_config = settings_override.get_world_config(world_name) # asset_service.add_asset_file gets this itself
     img1_filename, img1_size, img1_mime_type = f_ops.get_file_properties(sample_image_a)
-    asset_service.add_asset_file(
-        session=session,
+    img1_event = AssetFileIngestionRequested(
         filepath_on_disk=sample_image_a,
-        original_filename="image1.png",  # Use specific name for test
+        original_filename="image1.png",
         mime_type=img1_mime_type,
         size_bytes=img1_size,
-        world_name=world_name,
-        # No world_config, no file_ops
+        world_name=world.name,
     )
+    await world.dispatch_event(img1_event)
 
     # Add image 2 (create a dummy JPG for mime type difference)
     jpg_file = tmp_path / "image2.jpg"
     jpg_file.write_bytes(b"dummy jpg content")  # very basic
     img2_filename, img2_size, _ = f_ops.get_file_properties(jpg_file)  # Mime type is forced below
-    asset_service.add_asset_file(
-        session=session,
+    img2_event = AssetFileIngestionRequested(
         filepath_on_disk=jpg_file,
-        original_filename="image2.jpg",  # Use specific name for test
+        original_filename="image2.jpg",
         mime_type="image/jpeg",  # Force mime for test
         size_bytes=img2_size,
-        world_name=world_name,
-        # No world_config, no file_ops
+        world_name=world.name,
     )
+    await world.dispatch_event(img2_event)
 
     # Add text file 1
     txt1_filename, txt1_size, txt1_mime_type = f_ops.get_file_properties(sample_text_file)
-    asset_service.add_asset_file(
-        session=session,
+    txt1_event = AssetFileIngestionRequested(
         filepath_on_disk=sample_text_file,
-        original_filename="text1.txt",  # Use specific name for test
+        original_filename="text1.txt",
         mime_type=txt1_mime_type,
         size_bytes=txt1_size,
-        world_name=world_name,
-        # No world_config, no file_ops
+        world_name=world.name,
     )
+    await world.dispatch_event(txt1_event)
 
-    session.commit()
-    return session, world_name
+    # The fixture now returns the world instance and its name.
+    # The session for verification will be obtained by the test.
+    return world, world_name
 
 
-def test_split_world_by_mimetype(settings_override, test_db_manager, source_world_for_split):
-    source_session, source_world_name = source_world_for_split
+@pytest.mark.asyncio
+async def test_split_world_by_mimetype(settings_override, test_db_manager, source_world_for_split): # Made async
+    source_world, source_world_name = await source_world_for_split # Fixture is async, get world
+    source_session = source_world.get_db_session() # Get session from world
 
     selected_target_world_name = "test_world_beta"  # For selected (e.g. images)
     # remaining_target_world_name = "test_world_gamma" # This variable was unused, direct string below
@@ -266,7 +267,8 @@ def test_split_world_by_mimetype(settings_override, test_db_manager, source_worl
     remaining_session.close()
 
 
-def test_split_world_delete_from_source(
+@pytest.mark.asyncio
+async def test_split_world_delete_from_source( # Made async
     settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path
 ):
     # Setup a fresh source world for this test to avoid interference
@@ -278,12 +280,20 @@ def test_split_world_delete_from_source(
     # For now, this test assumes conftest.py is updated.
     # If this test fails due to unknown worlds, conftest.py's test_worlds_config_data needs these added.
 
-    source_session_del = test_db_manager.get_db_session(source_world_name_del)
-    # resource_manager = ResourceManager() # Not needed here either
-    # file_ops_resource = FileOperationsResource()
-    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
-    _populate_world_with_assets(source_session_del, source_world_name_del, sample_image_a, sample_text_file)
+    source_world_del = get_world(source_world_name_del)
+    if not source_world_del:
+        pytest.fail(f"Test setup error: World '{source_world_name_del}' not found for split_delete test.")
+
+    await _populate_world_with_assets(source_world_name_del, sample_image_a, sample_text_file) # Pass world_name
+
+    # Get session after population for count check
+    source_session_del = source_world_del.get_db_session()
     assert source_session_del.query(Entity).count() == 2
+    # Closing this session as split_ecs_world will use its own or expect one to be passed
+    source_session_del.close()
+    # Re-get session for split_ecs_world as it expects an open session.
+    source_session_del = source_world_del.get_db_session()
+
 
     selected_session_del = test_db_manager.get_db_session(selected_target_world_name_del)
     remaining_session_del = test_db_manager.get_db_session(remaining_target_world_name_del)

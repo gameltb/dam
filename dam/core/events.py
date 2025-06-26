@@ -63,9 +63,41 @@ class AssetReferenceIngestionRequested(BaseEvent):
 # or the current mechanism of adding a marker component is sufficient.
 # Let's stick to marker components for now as it's already in place.
 
+
+# --- Events for Query Operations ---
+# These events will carry a unique request_id to potentially correlate results
+# if results are posted back as another event or stored in a temporary resource.
+
+@dataclass
+class FindEntityByHashQuery(BaseEvent):
+    """Event to request finding an entity by its content hash."""
+    hash_value: str
+    world_name: str # Target world for this query
+    request_id: str # Unique ID for this query request
+    hash_type: str = "sha256" # Moved to the end as it has a default
+
+    # For carrying results if the system modifies the event or posts a new one
+    # result_entity_id: Optional[int] = field(default=None, init=False)
+
+@dataclass
+class FindSimilarImagesQuery(BaseEvent):
+    """Event to request finding similar images."""
+    image_path: Path # Path to the query image on a system accessible to the DAM
+    phash_threshold: int
+    ahash_threshold: int
+    dhash_threshold: int
+    world_name: str # Target world for this query
+    request_id: str # Unique ID for this query request
+
+    # For carrying results
+    # result_similar_entities_info: Optional[list[dict]] = field(default=None, init=False)
+
+
 # To allow __init__.py in dam/core to import these
 __all__ = [
     "BaseEvent",
     "AssetFileIngestionRequested",
     "AssetReferenceIngestionRequested",
+    "FindEntityByHashQuery",
+    "FindSimilarImagesQuery",
 ]

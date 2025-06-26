@@ -8,10 +8,11 @@ import logging # Use logging for consistency
 logger = logging.getLogger(__name__)
 
 # List of system modules within this package to load
-# Ensure these files exist: e.g., asset_ingestion_systems.py, metadata_systems.py
+# Ensure these files exist: e.g., metadata_systems.py, asset_lifecycle_systems.py
 _system_module_names = [
-    ".asset_ingestion_systems",
+    # ".asset_ingestion_systems", # Removed
     ".metadata_systems",
+    ".asset_lifecycle_systems", # Add new system module
 ]
 
 for module_name in _system_module_names:

@@ -3,7 +3,8 @@
 # You can import service functions or classes here for easier access, e.g.:
 # from .file_storage import store_file, retrieve_file_path
 
-from . import asset_service, ecs_service, file_operations, world_service
+from . import ecs_service, file_operations, world_service # Removed asset_service
+from .file_storage_service import FileStorageService # Added FileStorageService
 from .ecs_service import (
     add_component_to_entity,
     create_entity,
@@ -16,8 +17,9 @@ from .ecs_service import (
 
 __all__ = [
     "file_operations",
-    "asset_service",
+    # "asset_service", # Removed
     "ecs_service",
+    "FileStorageService", # Added
     "add_component_to_entity",
     "create_entity",
     "delete_entity",

@@ -33,15 +33,31 @@ from dam.models import (
     FramePropertiesComponent,
     ImageDimensionsComponent,
 )
-from dam.services import asset_service, ecs_service, file_operations, world_service  # Added world_service
-
-# Ensure all system modules are imported so @system decorators run and register systems globally
-# These will be used by WorldScheduler instances within each World.
-# Example:
-# from dam import systems as _ # Assuming systems are in dam.systems and __init__.py imports them
+from dam.services import asset_service, ecs_service, file_operations, world_service, file_storage_service # Added file_storage_service
+# Systems will be imported and then registered manually to worlds.
+# from dam import systems as dam_all_systems # Import the systems package
 
 # No global ResourceManager or WorldScheduler here anymore.
 # They are instantiated per World.
+
+# Import specific system functions that need to be registered
+# This is an example; a more dynamic way might be needed for many systems.
+from dam.systems.asset_ingestion_systems import (
+    handle_asset_file_ingestion_request,
+    handle_asset_reference_ingestion_request,
+)
+from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
+from dam.systems.asset_lifecycle_systems import ( # For query handlers
+    handle_find_entity_by_hash_query,
+    handle_find_similar_images_query,
+)
+from dam.core.events import (
+    AssetFileIngestionRequested,
+    AssetReferenceIngestionRequested,
+    FindEntityByHashQuery,
+    FindSimilarImagesQuery,
+)
+import uuid # For generating request_ids
 
 app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
 
@@ -73,15 +89,30 @@ def main_callback(
     setup_logging()
     # Initialize all worlds from settings when CLI starts
     # This also populates the world registry.
+    initialized_worlds: List[World] = []
     try:
-        create_and_register_all_worlds_from_settings()
-        # typer.echo(f"Initialized {len(get_all_registered_worlds())} worlds.") # Optional debug
+        # Pass the global app_config.settings to ensure CLI uses the correct one
+        initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
+        # typer.echo(f"Initialized {len(initialized_worlds)} worlds.") # Optional debug
     except Exception as e:
         # If basic world loading from settings fails, it's a critical startup error.
         typer.secho(f"Critical error: Could not initialize worlds from settings: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    # After worlds are created, register systems to each world instance
+    # This is a simplified example; a more robust mechanism might involve iterating
+    # through system modules or using entry points.
+    for world_instance in initialized_worlds:
+        # Stage-based systems
+        world_instance.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
+        # Event-based systems
+        world_instance.register_system(handle_asset_file_ingestion_request, event_type=AssetFileIngestionRequested)
+        world_instance.register_system(handle_asset_reference_ingestion_request, event_type=AssetReferenceIngestionRequested)
+        world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
+        world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
+        # Add other system registrations here
+        # world_instance.register_system(some_other_system_func, stage=SystemStage.SOME_OTHER_STAGE)
 
     # Determine the target world name
     # Priority: CLI option > Environment Variable > app_config.settings.DEFAULT_WORLD_NAME
@@ -234,7 +265,7 @@ def cli_add_asset(
         if not files_to_process:
             typer.secho(f"No files found in {input_path}", fg=typer.colors.YELLOW)
             raise typer.Exit()
-    else:  # Should be caught by exists=True
+    else:  # Should be caught by exists=True # pragma: no cover
         typer.secho(f"Error: Path {input_path} is not a file or directory.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
@@ -243,6 +274,8 @@ def cli_add_asset(
 
     processed_count, added_count, linked_count, error_count = 0, 0, 0, 0
 
+    # FileStorageService is no longer directly obtained here, as systems will get it via DI.
+
     for filepath in files_to_process:
         processed_count += 1
         typer.echo(
@@ -250,62 +283,57 @@ def cli_add_asset(
         )
         try:
             original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
-        except Exception as e:
+        except Exception as e: # pragma: no cover
             typer.secho(f"  Error getting properties for {filepath}: {e}", fg=typer.colors.RED)
             error_count += 1
             continue
 
-        db_session = None # Initialize for finally block
-        try:
-            db_session = target_world.get_db_session()
-            if no_copy:
-                entity, created_new = asset_service.add_asset_reference(
-                    session=db_session,
-                    filepath_on_disk=filepath,
-                    original_filename=original_filename,
-                    mime_type=mime_type,
-                    size_bytes=size_bytes,
-                    # world_name is removed from service function
-                )
-            else:
-                entity, created_new = asset_service.add_asset_file(
-                    session=db_session,
-                    filepath_on_disk=filepath,
-                    original_filename=original_filename,
-                    mime_type=mime_type,
-                    size_bytes=size_bytes,
-                    world_config=target_world.config, # Pass WorldConfig
-                )
-            db_session.commit() # Commit changes for this asset
-
-            if created_new:
-                added_count += 1
-                typer.secho(f"  Successfully added new asset. Entity ID: {entity.id}", fg=typer.colors.GREEN)
-            else:
-                linked_count += 1
-                typer.secho(
-                    f"  Asset content already exists/referenced. Linked to Entity ID: {entity.id}",
-                    fg=typer.colors.YELLOW,
-                )
-
-            # Run system stages using the World's execute_stage method
-            # This method handles session creation and management internally for the stage.
-            typer.echo(
-                f"  Running post-processing systems for entity {entity.id} in world '{target_world.name}'..."
+        event_to_dispatch: Optional[Any] = None
+        if no_copy:
+            event_to_dispatch = AssetReferenceIngestionRequested(
+                filepath_on_disk=filepath,
+                original_filename=original_filename,
+                mime_type=mime_type,
+                size_bytes=size_bytes,
+                world_name=target_world.name,
             )
-            async def run_stages_for_asset():
-                # No need to pass session to world.execute_stage, it will manage its own.
-                await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
-                # If there were other stages:
-                # await target_world.execute_stage(SystemStage.ASSET_POST_PROCESSING)
+        else:
+            event_to_dispatch = AssetFileIngestionRequested(
+                filepath_on_disk=filepath,
+                original_filename=original_filename,
+                mime_type=mime_type,
+                size_bytes=size_bytes,
+                world_name=target_world.name,
+            )
 
-            asyncio.run(run_stages_for_asset())
-            typer.secho(f"  Post-processing systems completed for entity {entity.id}.", fg=typer.colors.GREEN)
+        try:
+            async def dispatch_and_run_stages():
+                if event_to_dispatch:
+                    await target_world.dispatch_event(event_to_dispatch)
+                    # Assuming event processing is successful, we can log.
+                    # The actual entity ID and created_new status are not directly available here.
+                    # We rely on logs from the system or subsequent queries for confirmation.
+                    typer.secho(
+                        f"  Dispatched {type(event_to_dispatch).__name__} for {original_filename}.",
+                        fg=typer.colors.BLUE,
+                    )
+                    # If an entity was processed by the event, METADATA_EXTRACTION stage will run
+                    # on entities marked by NeedsMetadataExtractionComponent.
+                    # This marker is added by the ingestion event handlers.
+                    typer.echo(
+                        f"  Running post-ingestion systems (e.g., metadata extraction) in world '{target_world.name}'..."
+                    )
+                    await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
+                    typer.secho(f"  Post-ingestion systems completed for {original_filename}.", fg=typer.colors.GREEN)
+
+            asyncio.run(dispatch_and_run_stages())
+            # Note: We can't easily get added_count/linked_count here without querying.
+            # For simplicity, we'll just count processed files.
+            # If specific feedback is needed, systems would need to update a result resource.
 
         except Exception as e:
-            if db_session: # Rollback if session was active
-                db_session.rollback()
-            typer.secho(f"  Error processing file {filepath.name}: {e}", fg=typer.colors.RED)
+            # Event dispatch or stage execution itself failed.
+            typer.secho(f"  Error processing file {filepath.name} via event system: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             error_count += 1
         finally:
@@ -315,8 +343,9 @@ def cli_add_asset(
     typer.echo("\n--- Summary ---")
     typer.echo(f"World: '{target_world.name}'")
     typer.echo(f"Total files processed: {processed_count}")
-    typer.echo(f"New assets added: {added_count}")
-    typer.echo(f"Existing assets linked: {linked_count}")
+    # added_count and linked_count are no longer directly available from event dispatch
+    # typer.echo(f"New assets added: {added_count}")
+    # typer.echo(f"Existing assets linked: {linked_count}")
     typer.echo(f"Errors encountered: {error_count}")
     if error_count > 0:
         typer.secho("Some files could not be processed. Check errors above.", fg=typer.colors.RED)
@@ -391,69 +420,34 @@ def cli_find_file_by_hash(
             typer.secho(f"Error calculating hash for {target_filepath}: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-    typer.echo(
-        f"Querying world '{target_world.name}' for asset with {actual_hash_type} hash: {actual_hash_value}"
+    request_id = str(uuid.uuid4())
+    query_event = FindEntityByHashQuery(
+        hash_value=actual_hash_value,
+        hash_type=actual_hash_type,
+        world_name=target_world.name,
+        request_id=request_id,
     )
-    db_session = None
+
+    typer.echo(
+        f"Dispatching FindEntityByHashQuery (Request ID: {request_id}) to world '{target_world.name}' for hash: {actual_hash_value}"
+    )
+
+    async def dispatch_query():
+        await target_world.dispatch_event(query_event)
+
     try:
-        db_session = target_world.get_db_session()
-        entity = asset_service.find_entity_by_content_hash(db_session, actual_hash_value, actual_hash_type)
-        if entity:
-            typer.secho(f"Found Entity ID: {entity.id} in world '{target_world.name}'", fg=typer.colors.CYAN)
-
-            fpc = ecs_service.get_component(db_session, entity.id, FilePropertiesComponent)
-            if fpc:
-                typer.echo(
-                    f"  File Properties: Name='{fpc.original_filename}', Size={fpc.file_size_bytes}, MIME='{fpc.mime_type}'"
-                )
-
-            typer.echo("  Content Hashes:")
-            sha256_comps = ecs_service.get_components(db_session, entity.id, ContentHashSHA256Component)
-            for ch_comp in sha256_comps:
-                typer.echo(f"    - Type: sha256, Value: {ch_comp.hash_value}")
-            md5_comps = ecs_service.get_components(db_session, entity.id, ContentHashMD5Component)
-            for ch_comp in md5_comps:
-                typer.echo(f"    - Type: md5, Value: {ch_comp.hash_value}")
-
-            locations = ecs_service.get_components(db_session, entity.id, FileLocationComponent)
-            if locations:
-                typer.echo("  File Locations:")
-                for loc in locations:
-                    typer.echo(
-                        f"    - Contextual Name: '{loc.contextual_filename}', Content ID: '{loc.content_identifier[:12]}...', Path/Key: '{loc.physical_path_or_key}', Storage: '{loc.storage_type}'"
-                    )
-
-            dimensions_props = ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent)
-            if dimensions_props:
-                typer.echo(
-                    f"  Image Dimensions: {dimensions_props.width_pixels}x{dimensions_props.height_pixels}px"
-                )
-
-            audio_props = ecs_service.get_component(db_session, entity.id, AudioPropertiesComponent)
-            if audio_props:
-                typer.echo("  Audio Properties:")
-                typer.echo(
-                    f"    Duration: {audio_props.duration_seconds}s, Codec: {audio_props.codec_name}, Rate: {audio_props.sample_rate_hz}Hz"
-                )
-
-            frame_props = ecs_service.get_component(db_session, entity.id, FramePropertiesComponent)
-            if frame_props:
-                typer.echo("  Animated Frame Properties:")
-                typer.echo(
-                    f"    Frames: {frame_props.frame_count}, Rate: {frame_props.nominal_frame_rate}fps, Duration: {frame_props.animation_duration_seconds}s"
-                )
-        else:
-            typer.secho(
-                f"No asset found in world '{target_world.name}' with {actual_hash_type} hash: {actual_hash_value}",
-                fg=typer.colors.YELLOW,
-            )
+        asyncio.run(dispatch_query())
+        typer.secho(
+            f"Query dispatched. Check logs for results related to Request ID: {request_id}.",
+            fg=typer.colors.CYAN,
+        )
+        # The CLI no longer directly prints entity details here.
+        # That logic was part of asset_service and is now in the event handler, which logs.
+        # A mechanism to retrieve results from a temporary resource could be added later if needed.
     except Exception as e:
-        typer.secho(f"Error querying in world '{target_world.name}': {e}", fg=typer.colors.RED)
+        typer.secho(f"Error dispatching query to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db_session:
-            db_session.close()
 
 
 @app.command(name="find-similar-images")
@@ -479,51 +473,35 @@ def cli_find_similar_images(
         raise typer.Exit(code=1)
 
     image_filepath = Path(image_filepath_str)
-    typer.echo(f"Finding images similar to: {image_filepath.name} in world '{target_world.name}'")
+    request_id = str(uuid.uuid4())
 
-    db_session = None
+    query_event = FindSimilarImagesQuery(
+        image_path=image_filepath,
+        phash_threshold=phash_threshold,
+        ahash_threshold=ahash_threshold,
+        dhash_threshold=dhash_threshold,
+        world_name=target_world.name,
+        request_id=request_id,
+    )
+
+    typer.echo(
+        f"Dispatching FindSimilarImagesQuery (Request ID: {request_id}) to world '{target_world.name}' for image: {image_filepath.name}"
+    )
+
+    async def dispatch_query():
+        await target_world.dispatch_event(query_event)
+
     try:
-        db_session = target_world.get_db_session()
-        similar_entities_info = asset_service.find_entities_by_similar_image_hashes(
-            session=db_session,
-            image_path=image_filepath,
-            phash_threshold=phash_threshold,
-            ahash_threshold=ahash_threshold,
-            dhash_threshold=dhash_threshold,
-        )
-        if similar_entities_info:
-            typer.secho(
-                f"Found {len(similar_entities_info)} similar image(s) in world '{target_world.name}':",
-                fg=typer.colors.CYAN,
-            )
-            for info in similar_entities_info:
-                entity = info["entity"]
-                distance = info["distance"]
-                matched_hash_type = info["hash_type"]
-                typer.echo(f"\n  Entity ID: {entity.id} (Matched by {matched_hash_type}, Distance: {distance})")
-                fpc = ecs_service.get_component(db_session, entity.id, FilePropertiesComponent)
-                if fpc:
-                    typer.echo(
-                        f"    File: '{fpc.original_filename}', Size: {fpc.file_size_bytes}, MIME: '{fpc.mime_type}'"
-                    )
-                # ... (display other components as needed, using db_session) ...
-        else:
-            typer.secho(f"No similar images found in world '{target_world.name}'.", fg=typer.colors.YELLOW)
-    except ValueError as ve: # Specific error from service for bad image
+        asyncio.run(dispatch_query())
         typer.secho(
-            f"Error processing image for similarity search in world '{target_world.name}': {ve}",
-            fg=typer.colors.RED,
+            f"Similarity query dispatched. Check logs for results related to Request ID: {request_id}.",
+            fg=typer.colors.CYAN,
         )
-        raise typer.Exit(code=1)
+        # Detailed results are logged by the system handler.
     except Exception as e:
-        typer.secho(
-            f"Unexpected error during similarity search in world '{target_world.name}': {e}", fg=typer.colors.RED
-        )
+        typer.secho(f"Error dispatching similarity query to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    finally:
-        if db_session:
-            db_session.close()
 
 
 @app.command(name="export-world")
