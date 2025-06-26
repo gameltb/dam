@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 @listens_for(AssetFileIngestionRequested)
-async def handle_add_asset_file_event(
+async def handle_asset_file_ingestion_request( # Renamed function
     event: AssetFileIngestionRequested,
     session: WorldSession,
     file_storage_svc: FileStorageService,  # Injected resource
@@ -159,7 +159,7 @@ async def handle_add_asset_file_event(
 
 
 @listens_for(AssetReferenceIngestionRequested)
-async def handle_add_asset_reference_event(
+async def handle_asset_reference_ingestion_request( # Renamed function
     event: AssetReferenceIngestionRequested,
     session: WorldSession,
     # file_storage_svc is not strictly needed here as no file is written to DAM storage
@@ -477,8 +477,8 @@ async def handle_find_similar_images_query(
 # For now, assuming they exist or would be added.
 
 __all__ = [
-    "handle_add_asset_file_event",
-    "handle_add_asset_reference_event",
+    "handle_asset_file_ingestion_request",
+    "handle_asset_reference_ingestion_request", # Renamed function
     "handle_find_entity_by_hash_query",
     "handle_find_similar_images_query",
 ]

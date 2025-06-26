@@ -1,5 +1,5 @@
 import logging  # Added import
-from typing import Any, List, Optional, Type, TypeVar  # Added Any
+from typing import Any, List, Optional, Type, TypeVar, Dict # Added Dict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -182,6 +182,71 @@ def find_entities_with_components(
 
     result = session.execute(stmt).scalars().all()
     return list(result)
+
+
+def get_components_by_value(
+    session: Session,
+    entity_id: int,
+    component_type: Type[T],
+    attributes_values: Dict[str, Any],
+) -> List[T]:
+    """
+    Retrieves components of a specific type for an entity that match all given attribute values.
+    """
+    if not issubclass(component_type, BaseComponent):
+        raise TypeError(f"Type {component_type} is not a BaseComponent subclass.")
+
+    stmt = select(component_type).where(component_type.entity_id == entity_id)
+    for attr_name, value in attributes_values.items():
+        if not hasattr(component_type, attr_name):
+            raise AttributeError(f"Component {component_type.__name__} has no attribute '{attr_name}'.")
+        stmt = stmt.where(getattr(component_type, attr_name) == value)
+
+    return session.execute(stmt).scalars().all()
+
+
+def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
+    """
+    Finds a single entity by its content hash (SHA256 or MD5).
+    Returns the Entity or None if not found.
+    If multiple entities somehow have the same content hash (shouldn't happen for CAS),
+    it will return the first one found.
+    """
+    from dam.models.content_hash_md5_component import ContentHashMD5Component
+    from dam.models.content_hash_sha256_component import ContentHashSHA256Component
+
+    component_to_query: Type[BaseComponent]
+    if hash_type.lower() == "sha256":
+        component_to_query = ContentHashSHA256Component
+    elif hash_type.lower() == "md5":
+        component_to_query = ContentHashMD5Component
+    else:
+        logger.warning(f"Unsupported hash_type '{hash_type}' for find_entity_by_content_hash.")
+        return None
+
+    # Use get_components_by_value to find matching components first.
+    # An entity ID isn't known yet, so we can't use entity_id filter in get_components_by_value.
+    # We need a broader query for components matching the hash_value across all entities.
+
+    # Simpler: query component_to_query directly.
+    stmt = select(component_to_query).where(getattr(component_to_query, "hash_value") == hash_value)
+    components_found = session.execute(stmt).scalars().all()
+
+    if components_found:
+        if len(components_found) > 1:
+            # This case (multiple distinct entities having components with the exact same hash_value)
+            # should ideally not happen if hashes are unique identifiers for content.
+            # Log a warning if it does.
+            entity_ids = sorted(list(set(c.entity_id for c in components_found)))
+            logger.warning(
+                f"Found multiple components ({len(components_found)}) matching {hash_type} hash '{hash_value}' "
+                f"across different entities (IDs: {entity_ids}). This might indicate a data integrity issue "
+                f"if content hashes are expected to be unique per entity. Returning entity of the first component found."
+            )
+        # Return the parent Entity of the first found component.
+        first_component = components_found[0]
+        return get_entity(session, first_component.entity_id) # Fetch the entity
+    return None
 
 
 def find_entities_by_component_attribute_value(
