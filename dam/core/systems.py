@@ -1,8 +1,9 @@
 import asyncio
 import inspect
 from collections import defaultdict
-from typing import Annotated, Any, Callable, Dict, List, get_args, get_origin  # Added Annotated
+from typing import Annotated, Any, Callable, Dict, List, Type, get_args, get_origin, Optional # Added Optional
 
+from dam.core.events import BaseEvent  # Import BaseEvent for type hinting
 from dam.core.resources import ResourceManager, ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_params import (
@@ -18,9 +19,15 @@ Global registry mapping SystemStage enums to a list of system functions.
 Systems are added to this registry via the `@system` decorator.
 """
 
+EVENT_HANDLER_REGISTRY: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
+"""
+Global registry mapping Event types to a list of system functions that handle them.
+Systems are added to this registry via the `@listens_for` decorator.
+"""
+
 SYSTEM_METADATA: Dict[Callable[..., Any], Dict[str, Any]] = {}
 """
-Global dictionary storing metadata for each registered system function.
+Global dictionary storing metadata for each registered system function (stage-based or event-based).
 Keys are the system functions themselves.
 Values are dictionaries containing parsed parameter information (name, type, identity),
 async status, and any other kwargs passed to the decorator.
@@ -29,13 +36,70 @@ Example:
     my_system_func: {
         "params": {
             "param1_name": {"name": "param1", "type_hint": Session, "identity": "WorldSession", ...},
-            "param2_name": {"name": "param2", "type_hint": MyResource, "identity": "Resource", ...}
+            "param2_name": {"name": "param2", "type_hint": MyResource, "identity": "Resource", ...},
+            "event_param_name": {"name": "event", "type_hint": MyCustomEvent, "identity": "Event", ...}
         },
         "is_async": True,
-        "custom_decorator_arg": "value"
+        "custom_decorator_arg": "value",
+        "listens_for_event_type": MyCustomEvent # For event handlers
     }
 }
 """
+
+
+def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
+    """Helper function to parse parameters of a system function."""
+    sig = inspect.signature(func)
+    param_info = {}
+    for name, param in sig.parameters.items():
+        param_type = param.annotation
+        identity_type = None
+        actual_type = param_type
+        marker_component_type = None  # For MarkedEntityList
+        event_type_hint = None # For Event parameters
+
+        if get_origin(param_type) is Annotated:
+            annotations = get_args(param_type)
+            actual_type = annotations[0]
+            identity_type_str = None
+            marker_type_from_annotated = None
+
+            for ann_arg in annotations[1:]:
+                if isinstance(ann_arg, str):
+                    identity_type_str = ann_arg
+                elif inspect.isclass(ann_arg) and issubclass(ann_arg, BaseComponent):
+                    marker_type_from_annotated = ann_arg
+                elif inspect.isclass(ann_arg) and issubclass(ann_arg, BaseEvent): # Check for Event annotation
+                    # This assumes an Annotated Event type like Annotated[MyEvent, "Event"]
+                    # Or the identity "Event" is used to mark it, and actual_type is the event.
+                    pass # Handled by identity_type_str == "Event"
+
+            identity_type = identity_type_str
+
+            if identity_type_str == "MarkedEntityList":
+                marker_component_type = marker_type_from_annotated
+            elif identity_type_str == "Event":
+                # The 'actual_type' (e.g., MyCustomEvent) is the important part for event handlers
+                # It will be used to match the dispatched event type.
+                event_type_hint = actual_type
+
+
+        # If not annotated, but type is a subclass of BaseEvent, assume it's an event parameter
+        # This allows systems to declare `my_event: MySpecificEvent` directly.
+        elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
+            identity_type = "Event"
+            event_type_hint = actual_type
+
+        param_info[name] = {
+            "name": name,
+            "type_hint": actual_type,
+            "identity": identity_type,
+            "marker_component_type": marker_component_type,
+            "event_type_hint": event_type_hint, # Store specific event type if this param is an event
+            "is_annotated": get_origin(param_type) is Annotated,
+            "original_annotation": param.annotation,
+        }
+    return param_info
 
 
 def system(stage: SystemStage, **kwargs):
@@ -54,58 +118,67 @@ def system(stage: SystemStage, **kwargs):
     """
 
     def decorator(func: Callable[..., Any]):
-        """
-        Inner decorator that performs the actual registration and metadata parsing.
-        """
         SYSTEM_REGISTRY[stage].append(func)
-
-        sig = inspect.signature(func)
-        param_info = {}
-        for name, param in sig.parameters.items():
-            param_type = param.annotation
-            identity_type = None
-            actual_type = param_type
-            marker_component_type = None  # For MarkedEntityList
-
-            if get_origin(param_type) is Annotated:
-                annotations = get_args(param_type)  # param.annotation holds the full Annotated type
-                actual_type = annotations[0]  # The actual type, e.g., List[Entity]
-                identity_type_str = None
-                marker_type_from_annotated = None
-
-                for ann_arg in annotations[1:]:  # Iterate through metadata parts of Annotated
-                    if isinstance(ann_arg, str):
-                        identity_type_str = ann_arg
-                    elif inspect.isclass(ann_arg) and issubclass(ann_arg, BaseComponent):  # Check if it's a class
-                        marker_type_from_annotated = ann_arg
-
-                identity_type = identity_type_str  # Assign the found string identity
-
-                if identity_type_str == "MarkedEntityList":
-                    marker_component_type = marker_type_from_annotated  # Assign found marker type
-                # Ensure other identities don't incorrectly get a marker_component_type
-                elif marker_component_type is not None and identity_type_str != "MarkedEntityList":
-                    # This case should ideally not happen if annotations are used correctly
-                    # but good for robustness if other Annotated uses involve component types.
-                    # For now, only MarkedEntityList uses the third Annotated arg for a component type.
-                    pass
-
-            param_info[name] = {
-                "name": name,
-                "type_hint": actual_type,
-                "identity": identity_type,  # "WorldSession", "Resource", "MarkedEntityList", etc.
-                "marker_component_type": marker_component_type,  # Store the M in MarkedEntityList[M]
-                "is_annotated": get_origin(param_type) is Annotated,
-                "original_annotation": param.annotation,
-            }
-        SYSTEM_METADATA[func] = {"params": param_info, "is_async": inspect.iscoroutinefunction(func), **kwargs}
+        param_info = _parse_system_params(func)
+        SYSTEM_METADATA[func] = {
+            "params": param_info,
+            "is_async": inspect.iscoroutinefunction(func),
+            "system_type": "stage_system", # Mark as stage-based
+            **kwargs
+        }
         return func
+    return decorator
 
+
+def listens_for(event_type: Type[BaseEvent], **kwargs):
+    """
+    Decorator to register a function as an event handler for a specific event type.
+
+    The decorator introspects the decorated function's parameters, expecting type hints
+    (often `typing.Annotated`) to declare dependencies like `WorldSession`,
+    `WorldConfig`, specific `Resource` types, and the event object itself
+    (e.g., `event: MySpecificEvent`).
+    This information is stored in `SYSTEM_METADATA`.
+
+    Args:
+        event_type: The class of the event this system listens for (e.g., `AssetFileIngestionRequested`).
+        **kwargs: Additional arbitrary keyword arguments for metadata.
+    """
+    if not (inspect.isclass(event_type) and issubclass(event_type, BaseEvent)):
+        raise TypeError(f"Invalid event_type '{event_type}'. Must be a class that inherits from BaseEvent.")
+
+    def decorator(func: Callable[..., Any]):
+        EVENT_HANDLER_REGISTRY[event_type].append(func)
+        param_info = _parse_system_params(func)
+        SYSTEM_METADATA[func] = {
+            "params": param_info,
+            "is_async": inspect.iscoroutinefunction(func),
+            "system_type": "event_handler", # Mark as event-based
+            "listens_for_event_type": event_type,
+            **kwargs
+        }
+        # Validate that the system actually has a parameter for this event_type
+        has_event_param = any(
+            p_info.get("event_type_hint") == event_type for p_info in param_info.values()
+        )
+        if not has_event_param:
+            # Try to find if any parameter has the event_type as its direct type_hint
+            # This is covered by _parse_system_params if not Annotated.
+            # If still not found, it's an issue.
+            found_by_direct_type = any(
+                p_info.get("type_hint") == event_type and p_info.get("identity") == "Event"
+                for p_info in param_info.values()
+            )
+            if not found_by_direct_type:
+                 print(f"Warning: System {func.__name__} registered for event {event_type.__name__} "
+                       f"but does not seem to have a parameter matching this event type. "
+                       f"Ensure one parameter is typed as `{event_type.__name__}` or `Annotated[{event_type.__name__}, \"Event\"]`.")
+
+        return func
     return decorator
 
 
 # --- World Scheduler ---
-
 
 class WorldScheduler:
     """
@@ -115,10 +188,9 @@ class WorldScheduler:
     - Identifying which systems to run for a given stage or event.
     - Introspecting system function parameters to determine their dependencies.
     - Injecting required dependencies (e.g., database session, world configuration,
-      resources from ResourceManager, lists of entities with specific markers).
-    - Executing systems, supporting both asynchronous and synchronous functions
-      (synchronous functions are run in a thread pool to avoid blocking the event loop).
-    - Managing database session lifecycle (commit/rollback) per stage.
+      resources from ResourceManager, lists of entities with specific markers, event objects).
+    - Executing systems, supporting both asynchronous and synchronous functions.
+    - Managing database session lifecycle (commit/rollback) per stage or per event dispatch group.
     """
 
     def __init__(self, resource_manager: ResourceManager):
@@ -129,182 +201,189 @@ class WorldScheduler:
             resource_manager: An instance of ResourceManager to provide access to shared resources.
         """
         self.resource_manager = resource_manager
-        self.system_registry = SYSTEM_REGISTRY  # Uses the global registry
-        self.system_metadata = SYSTEM_METADATA  # Uses the global metadata store
+        self.system_registry = SYSTEM_REGISTRY
+        self.event_handler_registry = EVENT_HANDLER_REGISTRY
+        self.system_metadata = SYSTEM_METADATA
+
+    async def _resolve_and_execute_system(
+        self,
+        system_func: Callable[..., Any],
+        world_context: WorldContext,
+        event_object: Optional[BaseEvent] = None # Pass event if it's an event handler
+    ):
+        """Helper to resolve dependencies and execute a single system (stage or event based)."""
+        metadata = self.system_metadata.get(system_func)
+        if not metadata:
+            print(f"Warning: No metadata found for system {system_func.__name__}. Skipping.")
+            return False # Indicate failure or skip
+
+        kwargs_to_inject = {}
+        try:
+            for param_name, param_meta in metadata["params"].items():
+                identity = param_meta["identity"]
+                if identity == "WorldSession":
+                    kwargs_to_inject[param_name] = world_context.session
+                elif identity == "WorldName":
+                    kwargs_to_inject[param_name] = world_context.world_name
+                elif identity == "CurrentWorldConfig":
+                    kwargs_to_inject[param_name] = world_context.world_config
+                elif identity == "Resource":
+                    try:
+                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_meta["type_hint"])
+                    except ResourceNotFoundError as e:
+                        raise ValueError(
+                            f"System {system_func.__name__} requires resource {param_meta['type_hint'].__name__} which was not found: {e}"
+                        )
+                elif identity == "MarkedEntityList":
+                    marker_type = param_meta["marker_component_type"]
+                    if not marker_type or not issubclass(marker_type, BaseComponent):
+                        raise ValueError(
+                            f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type."
+                        )
+                    from sqlalchemy import select as sql_select
+                    stmt = sql_select(marker_type.entity_id).distinct()
+                    entity_ids_with_marker = world_context.session.execute(stmt).scalars().all()
+                    entities_to_process = []
+                    if entity_ids_with_marker:
+                        entities_to_process = (
+                            world_context.session.query(Entity).filter(Entity.id.in_(entity_ids_with_marker)).all()
+                        )
+                    kwargs_to_inject[param_name] = entities_to_process
+                    print(
+                        f"System {system_func.__name__} gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
+                    )
+                elif identity == "Event":
+                    # Check if the event_object provided matches the parameter's expected event type
+                    expected_event_type = param_meta["event_type_hint"]
+                    if event_object and isinstance(event_object, expected_event_type):
+                        kwargs_to_inject[param_name] = event_object
+                    elif event_object: # Mismatch
+                        # This should ideally be caught by the dispatch logic that only calls compatible handlers
+                        print(f"Warning: System {system_func.__name__} expected event type {expected_event_type} "
+                              f"but received {type(event_object)}. Skipping injection for this param.")
+                    else: # No event object provided (e.g. if called from stage execution)
+                        # This indicates a system designed as an event handler was called in a non-event context
+                        # or an event handler is missing its event type hint properly.
+                        # For now, we allow it, but it might lead to errors if the system *requires* the event.
+                        # Better: raise error if param_meta["event_type_hint"] is not None and event_object is None
+                        if param_meta["event_type_hint"] is not None:
+                             raise ValueError(f"System {system_func.__name__} parameter '{param_name}' expects an event of type "
+                                              f"{param_meta['event_type_hint'].__name__} but none was provided (event_object is None).")
+
+
+        except Exception as e:
+            print(f"Error preparing dependencies for system {system_func.__name__}: {e}")
+            return False # Indicate failure
+
+        print(
+            f"Executing system: {system_func.__name__} with args: {list(kwargs_to_inject.keys())}"
+        )
+        if metadata["is_async"]:
+            await system_func(**kwargs_to_inject)
+        else:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+
+        # Auto-remove marker component logic (applies if it was a stage system with MarkedEntityList)
+        if metadata.get("system_type") == "stage_system": # Only for stage systems
+            for param_name, param_meta in metadata["params"].items(): # Re-iterate to find MarkedEntityList
+                 if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
+                    marker_type_to_remove = param_meta["marker_component_type"]
+                    entities_processed = kwargs_to_inject.get(param_name, [])
+                    if entities_processed and marker_type_to_remove:
+                        from dam.services import ecs_service  # Local import
+                        print(
+                            f"Scheduler: Removing {marker_type_to_remove.__name__} from {len(entities_processed)} entities after system {system_func.__name__}."
+                        )
+                        for entity_obj in entities_processed:
+                            comp_to_remove = ecs_service.get_component(
+                                world_context.session, entity_obj.id, marker_type_to_remove
+                            )
+                            if comp_to_remove:
+                                ecs_service.remove_component(
+                                    world_context.session, comp_to_remove, flush=False
+                                )
+                        world_context.session.flush() # Flush removals for this system's markers
+        return True # Indicate success
 
     async def execute_stage(self, stage: SystemStage, world_context: WorldContext):
         """
         Executes all systems registered for a specific `SystemStage`.
-
-        For each system, it resolves and injects declared dependencies such as:
-        - `WorldSession`: The active SQLAlchemy session for the current world.
-        - `WorldName`: The name of the current world.
-        - `CurrentWorldConfig`: The configuration object for the current world.
-        - `Resource[SomeResourceType]`: A specific resource from the `ResourceManager`.
-        - `MarkedEntityList[SomeMarkerComponent]`: A list of `Entity` objects that currently
-          have the specified `SomeMarkerComponent` attached.
-
-        The method handles session commits after all systems in a stage have run,
-        or rolls back in case of errors during system execution or commit.
-
-        Args:
-            stage: The `SystemStage` to execute.
-            world_context: A `WorldContext` object providing the database session,
-                           world name, and world configuration for this execution.
-
-        Raises:
-            ValueError: If a system declares a dependency that cannot be resolved (e.g.,
-                        missing resource, invalid marker component type).
+        Handles session commit/rollback for the entire stage.
         """
-        # Changed to print, consider using structured logging if this becomes more complex
         print(f"Executing stage: {stage.name} for world: {world_context.world_name}")
-
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
-            print(f"No systems registered for stage {stage.name}")  # Changed to print
+            print(f"No systems registered for stage {stage.name}")
             return
 
+        all_systems_succeeded = True
         for system_func in systems_to_run:
-            metadata = self.system_metadata.get(system_func)
-            if not metadata:
-                print(f"Warning: No metadata found for system {system_func.__name__}. Skipping.")  # Changed to print
-                continue
+            success = await self._resolve_and_execute_system(system_func, world_context)
+            if not success:
+                all_systems_succeeded = False
+                # Decide if stage execution should stop on first system error, or try all.
+                # For now, let's try all, then rollback if any failed.
+                # Or, more strictly: stop and rollback on first error.
+                print(f"System {system_func.__name__} failed in stage {stage.name}. Stage will be rolled back.")
+                break # Stop on first error
 
-            kwargs_to_inject = {}
+        if all_systems_succeeded:
             try:
-                for param_name, param_meta in metadata["params"].items():
-                    if param_meta["identity"] == "WorldSession":
-                        kwargs_to_inject[param_name] = world_context.session
-                    elif param_meta["identity"] == "WorldName":
-                        kwargs_to_inject[param_name] = world_context.world_name
-                    elif param_meta["identity"] == "CurrentWorldConfig":
-                        kwargs_to_inject[param_name] = world_context.world_config
-                    elif param_meta["identity"] == "Resource":
-                        try:
-                            kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_meta["type_hint"])
-                        except ResourceNotFoundError as e:
-                            raise ValueError(
-                                f"System {system_func.__name__} requires resource {param_meta['type_hint'].__name__} which was not found: {e}"
-                            )
-                    elif param_meta["identity"] == "MarkedEntityList":
-                        marker_type = param_meta["marker_component_type"]
-                        if not marker_type or not issubclass(marker_type, BaseComponent):
-                            raise ValueError(
-                                f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type."
-                            )
-
-                        # This import needs to be here or ecs_service needs to be a resource
-                        from dam.services import ecs_service
-
-                        # Query entities with the marker.
-                        # This is a simplified query. A real implementation might be more optimized
-                        # or allow querying for components directly.
-                        # all_entities_with_marker_component = [] # Unused variable
-                        # This is inefficient - ideally query entities that have this component type.
-                        # For now, let's assume ecs_service can provide this.
-                        # This is a placeholder for a proper query.
-                        # For example: entities = ecs_service.query_entities_with_component(world_context.session, marker_type)
-
-                        # Simplified placeholder: get all entities and filter. VERY INEFFICIENT.
-                        # In a real scenario, you'd have a way to query entities *having* a certain component.
-                        # For example, `SELECT entity_id FROM component_marker_needs_metadata_extraction;`
-                        # then fetch those entities.
-                        # For now, let's assume it's provided or the system does it internally.
-                        # This part needs a proper ECS query mechanism.
-                        # Let's assume for now the system receives the session and queries itself,
-                        # or this MarkedEntityList implies a pre-fetch.
-                        # For this PoC, we'll pass an empty list and the system needs to handle it.
-
-                        # A better approach for MarkedEntityList:
-                        # The scheduler queries for entities that have the marker_type component.
-                        from sqlalchemy import select as sql_select  # Import select
-
-                        stmt = sql_select(marker_type.entity_id).distinct()
-                        entity_ids_with_marker = world_context.session.execute(stmt).scalars().all()
-                        entities_to_process = []
-                        if entity_ids_with_marker:
-                            entities_to_process = (
-                                world_context.session.query(Entity).filter(Entity.id.in_(entity_ids_with_marker)).all()
-                            )
-
-                        kwargs_to_inject[param_name] = entities_to_process
-                        print(
-                            f"System {system_func.__name__} gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
-                        )
-
-                    # Add more parameter identity handlers here (e.g., ComponentQuery, EventHandlerFor)
-
-                    # If a parameter is not handled by specific identity, it's an error for non-on-demand systems.
-                    # On-demand systems would expect these to be passed by the caller.
-                    # This logic needs to be more robust for on-demand vs. staged systems.
-
+                world_context.session.commit()
+                print(f"Committed session for stage {stage.name} in world {world_context.world_name}")
             except Exception as e:
-                print(f"Error preparing dependencies for system {system_func.__name__}: {e}")  # Changed to print
-                continue  # Skip this system
-
-            print(
-                f"Executing system: {system_func.__name__} with args: {list(kwargs_to_inject.keys())}"
-            )  # Changed to print
-            if metadata["is_async"]:
-                await system_func(**kwargs_to_inject)
-            else:
-                # For synchronous systems, run in a thread to avoid blocking asyncio loop
-                # Note: SQLAlchemy sessions are generally not thread-safe.
-                # Synchronous systems needing a session would typically create their own
-                # or use a session from a thread-local scope if the DB manager supports that.
-                # For simplicity now, if a sync system needs WorldSession, this might be problematic.
-                # A better approach is to encourage async systems or have them manage their own sync session.
-                # For now, if it's sync and requests WorldSession, it will get the main thread's session.
-
-                # This is a simplified call. Proper handling of sync systems in an async scheduler
-                # requires careful thought about blocking and resource sharing (like sessions).
-                # Using to_thread is a good general approach for I/O-bound sync code.
-
-                # We need to ensure that the arguments passed to to_thread are safe.
-                # The session object might not be.
-                # A common pattern is for the sync function to create its own session if needed.
-                # For now, this is a simplification.
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
-
-            # After system execution, for MarkedEntityList, we might want to remove the marker.
-            # This could be a responsibility of the system itself, or the scheduler.
-            # If scheduler does it:
-            if param_meta.get("identity") == "MarkedEntityList" and param_meta.get(
-                "auto_remove_marker", True
-            ):  # Add auto_remove_marker option
-                marker_type_to_remove = param_meta["marker_component_type"]
-                entities_processed = kwargs_to_inject.get(param_name, [])
-                if entities_processed and marker_type_to_remove:
-                    from dam.services import ecs_service  # Local import
-
-                    print(
-                        f"Scheduler: Removing {marker_type_to_remove.__name__} from {len(entities_processed)} entities."
-                    )
-                    for entity_obj in entities_processed:
-                        comp_to_remove = ecs_service.get_component(
-                            world_context.session, entity_obj.id, marker_type_to_remove
-                        )
-                        if comp_to_remove:
-                            ecs_service.remove_component(
-                                world_context.session, comp_to_remove, flush=False
-                            )  # Batch flush later
-                    world_context.session.flush()  # Flush removals for this system
-
-        print(f"Finished stage: {stage.name} for world: {world_context.world_name}")  # Changed to print
-        try:
-            # Systems might have flushed changes. The stage itself will commit.
-            # This commit makes changes from this stage visible to subsequent stages
-            # if they use a new session, or to the caller if using the same session.
-            world_context.session.commit()
-            print(f"Committed session for stage {stage.name} in world {world_context.world_name}")
-        except Exception as e:
-            print(
-                f"Error committing session for stage {stage.name} in world {world_context.world_name}: {e}. Rolling back."
-            )
+                print(
+                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {e}. Rolling back."
+                )
+                world_context.session.rollback()
+                raise # Re-raise commit error
+        else:
+            print(f"One or more systems failed in stage {stage.name}. Rolling back session for world {world_context.world_name}.")
             world_context.session.rollback()
-            raise  # Re-raise the exception so the caller knows the stage failed
-        # Session closing is now responsibility of the caller that created/provided the session in WorldContext.
+            # Optionally raise an exception to signal stage failure to caller
+            # raise StageExecutionError(f"Stage {stage.name} failed due to system errors.")
+
+    async def dispatch_event(self, event: BaseEvent, world_context: WorldContext):
+        """
+        Dispatches an event to all registered event handlers for its type.
+        Handles session commit/rollback for the group of event handlers.
+        """
+        event_type = type(event)
+        print(f"Dispatching event: {event_type.__name__} for world: {world_context.world_name}")
+
+        handlers_to_run = self.event_handler_registry.get(event_type, [])
+        if not handlers_to_run:
+            print(f"No event handlers registered for event type {event_type.__name__}")
+            return
+
+        all_handlers_succeeded = True
+        for handler_func in handlers_to_run:
+            # Ensure the handler is actually designed for this specific event type,
+            # though registration should ensure this.
+            # The _resolve_and_execute_system will match param type with event object type.
+            success = await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
+            if not success:
+                all_handlers_succeeded = False
+                print(f"Event handler {handler_func.__name__} failed for event {event_type.__name__}. Event processing will be rolled back.")
+                break # Stop on first error
+
+        if all_handlers_succeeded:
+            try:
+                world_context.session.commit()
+                print(f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}")
+            except Exception as e:
+                print(
+                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {e}. Rolling back."
+                )
+                world_context.session.rollback()
+                raise # Re-raise commit error
+        else:
+            print(f"One or more handlers failed for event {event_type.__name__}. Rolling back session for world {world_context.world_name}.")
+            world_context.session.rollback()
+            # Optionally raise an exception
+            # raise EventHandlingError(f"Event {event_type.__name__} handling failed.")
+
 
     async def run_all_stages(self, initial_world_context: WorldContext):
         """

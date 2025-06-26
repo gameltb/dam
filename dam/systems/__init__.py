@@ -1,13 +1,27 @@
 # This file makes the 'dam.systems' package.
-# Import all system modules here to ensure their @system decorators run and register the systems.
+# We use importlib to ensure all system modules are loaded,
+# so their @system and @listens_for decorators run and register the systems.
 
-# from . import metadata_systems # No longer needed here if cli.py imports specific system modules
+import importlib
+import logging # Use logging for consistency
 
-# from . import hashing_systems # Example for future
-# from . import query_systems   # Example for future
-# from . import analysis_systems # Example for future
+logger = logging.getLogger(__name__)
 
-# Optionally, provide a way to list or access registered systems if needed directly,
-# though usually the WorldScheduler would handle that internally.
-# For now, simply importing is enough for registration via decorators.
-print("dam.systems package initialized, systems (like metadata_systems) should be registered.")
+# List of system modules within this package to load
+# Ensure these files exist: e.g., asset_ingestion_systems.py, metadata_systems.py
+_system_module_names = [
+    ".asset_ingestion_systems",
+    ".metadata_systems",
+]
+
+for module_name in _system_module_names:
+    try:
+        importlib.import_module(module_name, package=__name__)
+        logger.debug(f"Successfully imported system module: {module_name} from package {__name__}")
+    except ImportError as e:
+        # This error is critical if a system module is expected but not found or fails to import.
+        logger.error(f"Failed to import system module {module_name} from package {__name__}: {e}", exc_info=True)
+        # Depending on strictness, might want to re-raise or handle gracefully.
+        # For now, logging the error. If a crucial system fails to load, tests or app will likely fail later.
+
+logger.info(f"dam.systems package initialized. System modules loaded: {_system_module_names}")
