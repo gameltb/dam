@@ -1,314 +1,382 @@
 # tests/services/test_asset_service.py
-import shutil  # For copying files in tests
+import shutil
 from pathlib import Path
+import asyncio # Added for async tests
 
 import pytest
 from sqlalchemy.orm import Session
 
-from dam.core.components_markers import NeedsMetadataExtractionComponent  # Added import
+# Core imports for event system
+from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested
+from dam.core.systems import WorldScheduler, WorldContext
+from dam.core.resources import ResourceManager, FileOperationsResource # Added FileOperationsResource
+from dam.core.stages import SystemStage
+from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.models import (
-    AudioPropertiesComponent,  # Added import
-    ContentHashSHA256Component,  # Added for direct verification
-    FileLocationComponent,  # Added for testing specific file location scenarios
+    AudioPropertiesComponent,
+    ContentHashMD5Component, # Added for direct verification
+    ContentHashSHA256Component,
+    FileLocationComponent,
     FramePropertiesComponent,
     ImageDimensionsComponent,
     ImagePerceptualAHashComponent,
     ImagePerceptualDHashComponent,
     ImagePerceptualPHashComponent,
+    Entity # Added for querying
 )
-from dam.services import asset_service, ecs_service, file_operations
-
-# Fixtures like db_session, settings_override, temp_asset_file, temp_image_file
-# are expected to be provided by conftest.py
-
-# Removed module_db_engine as conftest.py handles engine and session setup per test world.
-
-# sample_image_a, non_image_file, sample_video_file, sample_audio_file, sample_gif_file
-# are now expected to be standard pytest fixtures, potentially from conftest.py or defined here.
-# For simplicity, let's assume they are available as defined previously, or use temp_image_file etc.
-# from conftest.py directly.
-
-# Local file fixtures are removed, assuming they are provided by conftest.py:
-# sample_image_a, sample_text_file (was non_image_file),
-# sample_video_file_placeholder (was sample_video_file),
-# sample_audio_file_placeholder (was sample_audio_file),
-# sample_gif_file_placeholder (was sample_gif_file).
-# Tests will need to use the new placeholder names for multimedia files if they were changed in conftest.
+from dam.services import asset_service, ecs_service, file_operations # asset_service still needed for find_by_hash
+import dam.systems # Import to ensure all systems are registered (event handlers, metadata)
 
 
-def test_add_image_asset_creates_perceptual_hashes(settings_override, db_session: Session, sample_image_a: Path):
-    # settings_override ensures that the test runs with the correct multi-world config
-    # db_session is for the default test world (e.g., "test_world_alpha")
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
+# Helper to initialize scheduler for tests
+def get_test_scheduler() -> WorldScheduler:
+    resource_mgr = ResourceManager()
+    resource_mgr.add_resource(FileOperationsResource()) # Add necessary resources
+    return WorldScheduler(resource_mgr)
+
+
+@pytest.mark.asyncio
+async def test_add_image_asset_creates_perceptual_hashes(settings_override, db_session: Session, sample_image_a: Path):
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
 
     try:
-        import imagehash  # noqa: F401
-        from PIL import Image  # noqa
+        import imagehash # noqa: F401
     except ImportError:
-        pytest.skip("ImageHash or Pillow not installed.")
+        pytest.skip("ImageHash not installed.")
 
     props = file_operations.get_file_properties(sample_image_a)
-    entity, created_new = asset_service.add_asset_file(
-        session=db_session,
-        filepath_on_disk=sample_image_a,
-        original_filename=props[0],
-        mime_type=props[2],
-        size_bytes=props[1],
-        world_name=current_world_name,  # Pass current world name
-    )
-    db_session.commit()
+    original_filename, size_bytes, mime_type = props[0], props[1], props[2]
 
-    assert created_new is True
-    assert entity.id is not None
+    # Check if entity exists before (to determine if new one was created)
+    image_sha256_hash = file_operations.calculate_sha256(sample_image_a)
+    entity_before = asset_service.find_entity_by_content_hash(db_session, image_sha256_hash, "sha256")
+
+    event = AssetFileIngestionRequested(
+        filepath_on_disk=sample_image_a,
+        original_filename=original_filename,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
+        world_name=current_world_name,
+    )
+    world_context = WorldContext(session=db_session, world_name=current_world_name, world_config=world_config)
+    await scheduler.dispatch_event(event, world_context)
+    # dispatch_event now commits session internally on success.
+
+    entity = asset_service.find_entity_by_content_hash(db_session, image_sha256_hash, "sha256")
+    assert entity is not None
+    created_new = entity_before is None
+    assert created_new is True # For this test, assuming it's a new asset
 
     phashes = ecs_service.get_components(db_session, entity.id, ImagePerceptualPHashComponent)
     ahashes = ecs_service.get_components(db_session, entity.id, ImagePerceptualAHashComponent)
     dhashes = ecs_service.get_components(db_session, entity.id, ImagePerceptualDHashComponent)
-    assert len(phashes) + len(ahashes) + len(dhashes) > 0, (
-        "Perceptual hash components should be created by asset_service"
-    )
+    assert len(phashes) + len(ahashes) + len(dhashes) > 0, "Perceptual hash components should be created by event handler"
 
-    # ImageDimensionsComponent is now created by a separate system, not directly by add_asset_file.
-    # Instead, verify that the entity is marked for metadata extraction.
     marker_comp = ecs_service.get_component(db_session, entity.id, NeedsMetadataExtractionComponent)
     assert marker_comp is not None, "Entity should be marked with NeedsMetadataExtractionComponent"
 
-    # Verify asset storage path corresponds to the world
-    world_config = settings_override.get_world_config(current_world_name)  # Use patched settings
+    # Run metadata stage to check for ImageDimensionsComponent (if this test implies it)
+    # For this test, the original only checked marker, so let's stick to that for now.
+    # If ImageDimensionsComponent needs to be checked, uncomment and adapt:
+    # await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_context)
+    # dim_comp = ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent)
+    # assert dim_comp is not None
+
     sha256_comp = ecs_service.get_component(db_session, entity.id, ContentHashSHA256Component)
     assert sha256_comp is not None
+
+    from dam.services.file_storage import _get_storage_path_for_world
+    reconstructed_path = _get_storage_path_for_world(sha256_comp.hash_value, world_config)
+    assert reconstructed_path.exists()
     expected_file_path_fragment = (
         Path(world_config.ASSET_STORAGE_PATH)
         / sha256_comp.hash_value[:2]
         / sha256_comp.hash_value[2:4]
         / sha256_comp.hash_value
     )
-
-    # flc = ecs_service.get_components(db_session, entity.id, FileLocationComponent)[0] # Not strictly needed for this check
-    # stored_file_path = file_operations.get_file_storage_path( # This variable was unused
-    #     flc.file_identifier, world_config.ASSET_STORAGE_PATH
-    # )
-    # or directly check using file_storage service if it provides such a direct path getter based on world_config
-
-    # Reconstruct path using file_storage internal logic for verification
-    from dam.services.file_storage import _get_storage_path_for_world  # Access internal for test
-
-    reconstructed_path = _get_storage_path_for_world(sha256_comp.hash_value, world_config)
-    assert reconstructed_path.exists()
     assert str(expected_file_path_fragment) in str(reconstructed_path)
 
 
-def test_add_non_image_asset_no_perceptual_hashes(settings_override, db_session: Session, sample_text_file: Path):
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
+@pytest.mark.asyncio
+async def test_add_non_image_asset_no_perceptual_hashes(settings_override, db_session: Session, sample_text_file: Path):
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
+
     props = file_operations.get_file_properties(sample_text_file)
-    entity, created_new = asset_service.add_asset_file(
-        session=db_session,
+    original_filename, size_bytes, mime_type = props[0], props[1], props[2]
+
+    text_sha256_hash = file_operations.calculate_sha256(sample_text_file)
+    entity_before = asset_service.find_entity_by_content_hash(db_session, text_sha256_hash, "sha256")
+
+    event = AssetFileIngestionRequested(
         filepath_on_disk=sample_text_file,
-        original_filename=props[0],
-        mime_type=props[2],
-        size_bytes=props[1],
+        original_filename=original_filename,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
         world_name=current_world_name,
     )
-    db_session.commit()
+    world_context = WorldContext(session=db_session, world_name=current_world_name, world_config=world_config)
+    await scheduler.dispatch_event(event, world_context)
+
+    entity = asset_service.find_entity_by_content_hash(db_session, text_sha256_hash, "sha256")
+    assert entity is not None
+    created_new = entity_before is None
     assert created_new is True
+
     assert len(ecs_service.get_components(db_session, entity.id, ImagePerceptualPHashComponent)) == 0
 
 
-def test_add_existing_image_content_adds_missing_hashes(
+@pytest.mark.asyncio
+async def test_add_existing_image_content_adds_missing_hashes(
     settings_override, db_session: Session, sample_image_a: Path, tmp_path: Path
 ):
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
+
     try:
-        import imagehash  # noqa: F401
-        from PIL import Image  # noqa
+        import imagehash # noqa: F401
     except ImportError:
         pytest.skip("ImageHash or Pillow not installed.")
 
     props1 = file_operations.get_file_properties(sample_image_a)
-    entity1, _ = asset_service.add_asset_file(
-        db_session, sample_image_a, props1[0], props1[2], props1[1], world_name=current_world_name
+    event1 = AssetFileIngestionRequested(
+        sample_image_a, props1[0], props1[2], props1[1], current_world_name
     )
-    db_session.commit()
+    world_context = WorldContext(db_session, current_world_name, world_config)
+    await scheduler.dispatch_event(event1, world_context)
+
+    image_sha256_hash = file_operations.calculate_sha256(sample_image_a)
+    entity1 = asset_service.find_entity_by_content_hash(db_session, image_sha256_hash, "sha256")
+    assert entity1 is not None
 
     initial_dhashes = ecs_service.get_components(db_session, entity1.id, ImagePerceptualDHashComponent)
     if not initial_dhashes:
-        pytest.skip("Initial add did not generate dhash.")
+        pytest.skip("Initial event dispatch did not generate dhash.")
 
+    # Manually remove the dhash to simulate it being missing
     db_session.delete(initial_dhashes[0])
-    db_session.commit()
+    db_session.commit() # Commit removal
     assert not ecs_service.get_components(db_session, entity1.id, ImagePerceptualDHashComponent)
 
     copy_of_sample_image_a = tmp_path / "sample_A_copy.png"
     shutil.copy2(sample_image_a, copy_of_sample_image_a)
     props2 = file_operations.get_file_properties(copy_of_sample_image_a)
-    entity2, created_new2 = asset_service.add_asset_file(
-        db_session, copy_of_sample_image_a, props2[0], props2[2], props2[1], world_name=current_world_name
-    )
-    db_session.commit()
 
-    assert created_new2 is False and entity2.id == entity1.id
+    # Sanity check: entity should exist before this event
+    entity_before_event2 = asset_service.find_entity_by_content_hash(db_session, image_sha256_hash, "sha256")
+    assert entity_before_event2 is not None
+
+    event2 = AssetFileIngestionRequested(
+        copy_of_sample_image_a, props2[0], props2[2], props2[1], current_world_name
+    )
+    # Use a new world_context for the second event if dispatch_event closes/invalidates the session
+    # However, current dispatch_event commits but leaves session usable.
+    await scheduler.dispatch_event(event2, world_context)
+
+    entity2 = asset_service.find_entity_by_content_hash(db_session, image_sha256_hash, "sha256")
+    assert entity2 is not None
+    assert entity2.id == entity1.id # Should be the same entity
+
     final_dhashes = ecs_service.get_components(db_session, entity2.id, ImagePerceptualDHashComponent)
     assert len(final_dhashes) > 0
     assert final_dhashes[0].hash_value == initial_dhashes[0].hash_value
 
 
-def test_add_video_asset_creates_multimedia_props(
+@pytest.mark.asyncio
+async def test_add_video_asset_marks_for_metadata_extraction(
     settings_override, db_session: Session, sample_video_file_placeholder: Path
 ):
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
+
     try:
-        from hachoir.parser import createParser  # noqa
+        from hachoir.parser import createParser # noqa
     except ImportError:
-        pytest.skip("Hachoir not installed.")
+        pytest.skip("Hachoir not installed for metadata systems (though not directly used by ingestion event).")
 
     props = file_operations.get_file_properties(sample_video_file_placeholder)
-    mime_type = "video/mp4" if props[2] == "application/octet-stream" else props[2]  # Ensure correct mime for test
-    entity, created_new = asset_service.add_asset_file(
-        db_session, sample_video_file_placeholder, props[0], mime_type, props[1], world_name=current_world_name
-    )
-    db_session.commit()
+    mime_type = "video/mp4" if props[2] == "application/octet-stream" else props[2]
 
-    assert created_new
-    assert entity.id is not None
-    # Verify that multimedia components are NOT created directly
+    video_sha256_hash = file_operations.calculate_sha256(sample_video_file_placeholder)
+
+    event = AssetFileIngestionRequested(
+        sample_video_file_placeholder, props[0], mime_type, props[1], current_world_name
+    )
+    world_context = WorldContext(db_session, current_world_name, world_config)
+    await scheduler.dispatch_event(event, world_context)
+
+    entity = asset_service.find_entity_by_content_hash(db_session, video_sha256_hash, "sha256")
+    assert entity is not None
+
     assert ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent) is None
     assert ecs_service.get_component(db_session, entity.id, FramePropertiesComponent) is None
     assert ecs_service.get_component(db_session, entity.id, AudioPropertiesComponent) is None
-    # Verify that the marker IS added
+
     marker_comp = ecs_service.get_component(db_session, entity.id, NeedsMetadataExtractionComponent)
     assert marker_comp is not None, "Video asset should be marked with NeedsMetadataExtractionComponent"
 
+    # To fully test, run metadata stage and check for components
+    await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_context)
+    # Now check if components were added (assuming sample_video_file_placeholder is a valid video)
+    # This part depends on the actual video file and hachoir's ability to parse it.
+    # For a placeholder, these might still be None. If it's a real video, they should exist.
+    # For example:
+    # if sample_video_file_placeholder.name != "empty.mp4": # Assuming "empty.mp4" is a dummy
+    #     assert ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent) is not None
+    #     assert ecs_service.get_component(db_session, entity.id, FramePropertiesComponent) is not None
 
-def test_add_audio_asset_creates_audio_props(
+
+@pytest.mark.asyncio
+async def test_add_audio_asset_marks_for_metadata_extraction(
     settings_override, db_session: Session, sample_audio_file_placeholder: Path
 ):
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
+
     try:
-        from hachoir.parser import createParser  # noqa
+        from hachoir.parser import createParser # noqa
     except ImportError:
         pytest.skip("Hachoir not installed.")
-    props = file_operations.get_file_properties(sample_audio_file_placeholder)
-    mime_type = "audio/mpeg" if props[2] == "application/octet-stream" else props[2]  # Ensure correct mime for test
-    entity, created_new = asset_service.add_asset_file(
-        db_session, sample_audio_file_placeholder, props[0], mime_type, props[1], world_name=current_world_name
-    )
-    db_session.commit()
 
-    assert created_new
-    assert entity.id is not None
-    # Verify that AudioPropertiesComponent is NOT created directly
+    props = file_operations.get_file_properties(sample_audio_file_placeholder)
+    mime_type = "audio/mpeg" if props[2] == "application/octet-stream" else props[2]
+    audio_sha256_hash = file_operations.calculate_sha256(sample_audio_file_placeholder)
+
+    event = AssetFileIngestionRequested(
+        sample_audio_file_placeholder, props[0], mime_type, props[1], current_world_name
+    )
+    world_context = WorldContext(db_session, current_world_name, world_config)
+    await scheduler.dispatch_event(event, world_context)
+
+    entity = asset_service.find_entity_by_content_hash(db_session, audio_sha256_hash, "sha256")
+    assert entity is not None
+
     assert ecs_service.get_component(db_session, entity.id, AudioPropertiesComponent) is None
-    # Verify that the marker IS added
     marker_comp = ecs_service.get_component(db_session, entity.id, NeedsMetadataExtractionComponent)
     assert marker_comp is not None, "Audio asset should be marked with NeedsMetadataExtractionComponent"
 
+    await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_context)
+    # if sample_audio_file_placeholder.name != "empty.mp3": # Assuming "empty.mp3" is a dummy
+    #    assert ecs_service.get_component(db_session, entity.id, AudioPropertiesComponent) is not None
 
-# @pytest.mark.xfail(reason="Hachoir could not extract dimensions for the minimal sample GIF.")
-# The reason for xfail changes; now add_asset_file itself doesn't create these.
-# This test should now verify that the marker is added, and Frame/ImageDimensions are NOT.
-def test_add_gif_asset_marks_for_metadata_extraction(
+
+@pytest.mark.asyncio
+async def test_add_gif_asset_marks_for_metadata_extraction(
     settings_override, db_session: Session, sample_gif_file_placeholder: Path
 ):
-    current_world_name = settings_override.DEFAULT_WORLD_NAME  # Use patched settings from fixture
-    # Hachoir presence is not strictly needed for this test anymore, as asset_service doesn't use it directly.
-    # However, the overall functionality relies on it, so keeping the skip for now if systems depend on it.
-    # For this specific test, we only check the marker.
+    current_world_name = settings_override.DEFAULT_WORLD_NAME
+    world_config = settings_override.get_world_config(current_world_name)
+    scheduler = get_test_scheduler()
 
     props = file_operations.get_file_properties(sample_gif_file_placeholder)
     mime_type = "image/gif" if props[2] != "image/gif" else props[2]
     assert mime_type == "image/gif"
+    gif_sha256_hash = file_operations.calculate_sha256(sample_gif_file_placeholder)
 
-    entity, created_new = asset_service.add_asset_file(
-        db_session, sample_gif_file_placeholder, props[0], mime_type, props[1], world_name=current_world_name
+    event = AssetFileIngestionRequested(
+        sample_gif_file_placeholder, props[0], mime_type, props[1], current_world_name
     )
-    db_session.commit()
+    world_context = WorldContext(db_session, current_world_name, world_config)
+    await scheduler.dispatch_event(event, world_context)
 
-    assert created_new
-    assert entity.id is not None
+    entity = asset_service.find_entity_by_content_hash(db_session, gif_sha256_hash, "sha256")
+    assert entity is not None
 
-    # FramePropertiesComponent and ImageDimensionsComponent should NOT be created by add_asset_file directly
-    frame_props = ecs_service.get_component(db_session, entity.id, FramePropertiesComponent)
-    assert frame_props is None, "FramePropertiesComponent should not be created directly by add_asset_file for GIF"
-
-    dim_comp_gif = ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent)
-    assert dim_comp_gif is None, "ImageDimensionsComponent should not be created directly by add_asset_file for GIF"
-
-    # Instead, NeedsMetadataExtractionComponent should be added
+    assert ecs_service.get_component(db_session, entity.id, FramePropertiesComponent) is None
+    assert ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent) is None
     marker_comp = ecs_service.get_component(db_session, entity.id, NeedsMetadataExtractionComponent)
     assert marker_comp is not None, "GIF asset should be marked with NeedsMetadataExtractionComponent"
 
+    await scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, world_context)
+    # if sample_gif_file_placeholder.name != "empty.gif": # Assuming "empty.gif" is a dummy
+    #     assert ecs_service.get_component(db_session, entity.id, ImageDimensionsComponent) is not None
+    #     # FramePropertiesComponent might depend on specific GIF content (animated or not)
+    #     # For a simple static GIF, FramePropertiesComponent might not be added or have frame_count=1
+    #     fp_comp = ecs_service.get_component(db_session, entity.id, FramePropertiesComponent)
+    #     assert fp_comp is not None
+    #     assert fp_comp.frame_count >= 1
 
-def test_asset_isolation_between_worlds(settings_override, test_db_manager, sample_image_a: Path):
-    # Get sessions for two different test worlds
-    session_alpha = test_db_manager.get_db_session("test_world_alpha")
-    session_beta = test_db_manager.get_db_session("test_world_beta")
+
+@pytest.mark.asyncio
+async def test_asset_isolation_between_worlds(settings_override, test_db_manager, sample_image_a: Path):
+    scheduler_alpha = get_test_scheduler()
+    # scheduler_beta = get_test_scheduler() # Schedulers are stateless, can reuse
+
+    world_alpha_name = "test_world_alpha"
+    world_beta_name = "test_world_beta"
+
+    session_alpha = test_db_manager.get_db_session(world_alpha_name)
+    session_beta = test_db_manager.get_db_session(world_beta_name)
+
+    world_alpha_config = settings_override.get_world_config(world_alpha_name)
+    world_beta_config = settings_override.get_world_config(world_beta_name)
 
     props_a = file_operations.get_file_properties(sample_image_a)
+    image_sha256_hash = file_operations.calculate_sha256(sample_image_a)
 
-    # Add asset to world_alpha
-    entity_alpha, _ = asset_service.add_asset_file(
-        session_alpha, sample_image_a, props_a[0], props_a[2], props_a[1], world_name="test_world_alpha"
+    event_alpha = AssetFileIngestionRequested(
+        sample_image_a, props_a[0], props_a[2], props_a[1], world_alpha_name
     )
-    session_alpha.commit()
+    wc_alpha = WorldContext(session_alpha, world_alpha_name, world_alpha_config)
+    await scheduler_alpha.dispatch_event(event_alpha, wc_alpha)
 
-    # Verify asset exists in world_alpha
-    assert ecs_service.get_entity(session_alpha, entity_alpha.id) is not None
-    sha256_alpha = ecs_service.get_component(session_alpha, entity_alpha.id, ContentHashSHA256Component)
-    assert sha256_alpha is not None
+    entity_alpha = asset_service.find_entity_by_content_hash(session_alpha, image_sha256_hash)
+    assert entity_alpha is not None
+    sha256_alpha_comp = ecs_service.get_component(session_alpha, entity_alpha.id, ContentHashSHA256Component)
+    assert sha256_alpha_comp is not None
 
-    # Verify asset's file exists in world_alpha's storage
-    world_alpha_config = settings_override.get_world_config("test_world_alpha")  # Use patched settings
-    from dam.services.file_storage import _get_storage_path_for_world  # internal access for test
-
-    alpha_storage_path = _get_storage_path_for_world(sha256_alpha.hash_value, world_alpha_config)
+    from dam.services.file_storage import _get_storage_path_for_world
+    alpha_storage_path = _get_storage_path_for_world(sha256_alpha_comp.hash_value, world_alpha_config)
     assert alpha_storage_path.exists()
 
-    # Verify asset does NOT exist in world_beta by entity ID (IDs are independent) or content hash
-    assert (
-        ecs_service.get_entity(session_beta, entity_alpha.id) is None
-    )  # ID might coincidentally be same if both are 1
-
-    # More robust check: by content hash
-    beta_entity_by_hash = asset_service.find_entity_by_content_hash(session_beta, sha256_alpha.hash_value)
+    beta_entity_by_hash = asset_service.find_entity_by_content_hash(session_beta, sha256_alpha_comp.hash_value)
     assert beta_entity_by_hash is None
 
-    # Verify asset's file does NOT exist in world_beta's storage
-    world_beta_config = settings_override.get_world_config("test_world_beta")  # Use patched settings
-    beta_storage_path = _get_storage_path_for_world(sha256_alpha.hash_value, world_beta_config)
+    beta_storage_path = _get_storage_path_for_world(sha256_alpha_comp.hash_value, world_beta_config)
     assert not beta_storage_path.exists()
 
     session_alpha.close()
     session_beta.close()
 
 
-def test_add_asset_reference_multi_world(settings_override, test_db_manager, sample_image_a: Path, tmp_path: Path):
-    session_alpha = test_db_manager.get_db_session("test_world_alpha")
+@pytest.mark.asyncio
+async def test_add_asset_reference_multi_world(settings_override, test_db_manager, sample_image_a: Path, tmp_path: Path):
+    world_alpha_name = "test_world_alpha"
+    session_alpha = test_db_manager.get_db_session(world_alpha_name)
+    world_alpha_config = settings_override.get_world_config(world_alpha_name)
+    scheduler = get_test_scheduler()
 
-    # Create a unique file for referencing that won't be in CAS by default
     referenced_file = tmp_path / "referenced_image.png"
     shutil.copy2(sample_image_a, referenced_file)
-
     props_ref = file_operations.get_file_properties(referenced_file)
+    ref_sha256_hash = file_operations.calculate_sha256(referenced_file)
 
-    entity_ref_alpha, created_ref = asset_service.add_asset_reference(
-        session_alpha, referenced_file, "referenced.png", props_ref[2], props_ref[1], world_name="test_world_alpha"
+    event_ref_alpha = AssetReferenceIngestionRequested(
+        referenced_file, "referenced.png", props_ref[2], props_ref[1], world_alpha_name
     )
-    session_alpha.commit()
+    wc_alpha = WorldContext(session_alpha, world_alpha_name, world_alpha_config)
+    await scheduler.dispatch_event(event_ref_alpha, wc_alpha)
 
-    assert created_ref is True  # Should be new as it's a reference
-    flc_alpha_ref = ecs_service.get_components(session_alpha, entity_ref_alpha.id, FileLocationComponent)
-    assert len(flc_alpha_ref) == 1
-    assert flc_alpha_ref[0].storage_type == "local_reference"  # Updated expected value
-    assert flc_alpha_ref[0].physical_path_or_key == str(referenced_file.resolve())  # Check physical_path_or_key
-    # content_identifier should be the sha256 hash, which is also asserted below via sha256_comp
+    entity_ref_alpha = asset_service.find_entity_by_content_hash(session_alpha, ref_sha256_hash)
+    assert entity_ref_alpha is not None
 
-    # Ensure the actual file was NOT copied to alpha's CAS storage
-    world_alpha_config = settings_override.get_world_config("test_world_alpha")  # Use patched settings
+    flc_alpha_ref_list = ecs_service.get_components(session_alpha, entity_ref_alpha.id, FileLocationComponent)
+    assert len(flc_alpha_ref_list) == 1
+    flc_alpha_ref = flc_alpha_ref_list[0]
+    assert flc_alpha_ref.storage_type == "local_reference"
+    assert flc_alpha_ref.physical_path_or_key == str(referenced_file.resolve())
+
     sha256_comp = ecs_service.get_component(session_alpha, entity_ref_alpha.id, ContentHashSHA256Component)
     assert sha256_comp is not None
-    from dam.services.file_storage import _get_storage_path_for_world
 
+    from dam.services.file_storage import _get_storage_path_for_world
     cas_path_alpha = _get_storage_path_for_world(sha256_comp.hash_value, world_alpha_config)
-    assert not cas_path_alpha.exists()  # Key check for --no-copy (add_asset_reference)
+    assert not cas_path_alpha.exists()
 
     session_alpha.close()
