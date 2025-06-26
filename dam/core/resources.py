@@ -70,7 +70,7 @@ class ResourceManager:
         if instance is None:
             # Try to find a subclass instance if direct type match fails
             for res_type, res_instance in self._resources.items():
-                if issubclass(res_type, resource_type): # Check if registered type is a subclass of requested type
+                if issubclass(res_type, resource_type):  # Check if registered type is a subclass of requested type
                     return res_instance  # type: ignore
             raise ResourceNotFoundError(resource_type)
         return instance  # type: ignore

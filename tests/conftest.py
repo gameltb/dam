@@ -1,9 +1,9 @@
 import json
-import shutil
-import tempfile
 from pathlib import Path
+from typing import Generator  # Added for fixture type hints
 
 import pytest
+from sqlalchemy.orm import Session  # E402: Moved to top
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -11,13 +11,11 @@ import dam.models
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
+from dam.core.world import World, clear_world_registry, create_and_register_world  # E402: Moved higher
 from dam.models.base_class import Base
 
 # Store original settings values to be restored
 _original_settings_values = {}
-
-# Import World for type hinting
-from dam.core.world import World, create_and_register_world, clear_world_registry, get_world
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -26,10 +24,10 @@ def backup_original_settings():
     # This is a bit manual; ideally Pydantic settings could be snapshot/restored more cleanly.
     # We're backing up fields that settings_override is known to change.
     _original_settings_values["DAM_WORLDS_CONFIG_SOURCE"] = global_settings.DAM_WORLDS_CONFIG_SOURCE
-    _original_settings_values["worlds"] = global_settings.worlds.copy() # shallow copy
+    _original_settings_values["worlds"] = global_settings.worlds.copy()  # shallow copy
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
     _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
-    yield
+    yield  # No specific type yielded by backup_original_settings
     # Restoration will be handled by settings_override's finalizer using monkeypatch,
     # but this backup is a safety net or for understanding original state if needed.
 
@@ -40,6 +38,7 @@ def test_worlds_config_data_factory(tmp_path_factory):
     Provides a factory to generate raw configuration dictionary for test worlds,
     ensuring unique asset storage paths for each world using tmp_path_factory for session scope.
     """
+
     def _factory():
         # These paths are created once per session if this factory is used by a session-scoped fixture.
         # If used by function-scoped, they are unique per function.
@@ -51,21 +50,28 @@ def test_worlds_config_data_factory(tmp_path_factory):
             "test_world_alpha": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"},
             "test_world_beta": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"},
             "test_world_gamma": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"},
-            "test_world_alpha_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"},
-            "test_world_beta_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"},
-            "test_world_gamma_del_split": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"},
+            "test_world_alpha_del_split": {
+                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
+            },
+            "test_world_beta_del_split": {
+                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
+            },
+            "test_world_gamma_del_split": {
+                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
+            },
         }
+
     return _factory
 
 
 @pytest.fixture(scope="function")
-def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
+def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) -> Generator[Settings, None, None]:
     """
     Overrides application settings for the duration of a test function.
     Each test world gets its own temporary asset storage path using the function-scoped tmp_path.
     """
     temp_storage_dirs = {}
-    raw_world_configs = test_worlds_config_data_factory() # Get base config structure
+    raw_world_configs = test_worlds_config_data_factory()  # Get base config structure
     updated_test_worlds_config = {}
 
     for world_name, config_template in raw_world_configs.items():
@@ -74,7 +80,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
         asset_temp_dir.mkdir(parents=True, exist_ok=True)
         temp_storage_dirs[world_name] = asset_temp_dir
         updated_test_worlds_config[world_name] = {
-            **config_template, # Contains DB URL from factory
+            **config_template,  # Contains DB URL from factory
             "ASSET_STORAGE_PATH": str(asset_temp_dir),
         }
 
@@ -96,7 +102,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
     # Clear the world registry before tests that use settings_override to ensure clean state
     clear_world_registry()
 
-    yield new_settings  # Provide the overridden settings to the test function
+    yield new_settings
 
     # Restore original settings instance
     monkeypatch.setattr(dam.core.config, "settings", original_settings_instance)
@@ -107,7 +113,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path):
     #     if path.exists(): # Check existence before trying to remove
     #         shutil.rmtree(path, ignore_errors=True)
 
-    clear_world_registry() # Clear registry after test too
+    clear_world_registry()  # Clear registry after test too
 
 
 def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
@@ -119,32 +125,12 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     # within a single settings_override scope (though typically it's 1-to-1).
     # clear_world_registry() # Ensure clean state before creating this specific world
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
-    world.create_db_and_tables() # Ensure tables are created for this world's DB
+    world.create_db_and_tables()  # Ensure tables are created for this world's DB
 
-    # Manually register systems for this test world, similar to CLI
-    from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
-    from dam.systems.asset_lifecycle_systems import (
-        handle_add_asset_file_event, # Corrected name
-        handle_add_asset_reference_event, # Corrected name
-        handle_find_entity_by_hash_query,
-        handle_find_similar_images_query,
-    )
-    from dam.core.events import (
-        AssetFileIngestionRequested,
-        AssetReferenceIngestionRequested,
-        FindEntityByHashQuery,
-        FindSimilarImagesQuery,
-    )
-    from dam.core.stages import SystemStage
+    # Task 2.2: Use the centralized world_registrar
+    from dam.core.world_registrar import register_core_systems
 
-    # Stage-based systems
-    world.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
-
-    # Event-based systems from asset_lifecycle_systems
-    world.register_system(handle_add_asset_file_event, event_type=AssetFileIngestionRequested)
-    world.register_system(handle_add_asset_reference_event, event_type=AssetReferenceIngestionRequested)
-    world.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
-    world.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
+    register_core_systems(world)
 
     # Note: The original asset_ingestion_systems might become obsolete or be removed.
     # If they still contain other relevant systems, those would need to be registered too.
@@ -152,31 +138,35 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
 
     return world
 
+
 def _teardown_world(world: World):
     """Helper function to teardown a test world."""
     if world and world.has_resource(DatabaseManager):
         db_mngr = world.get_resource(DatabaseManager)
         if db_mngr and db_mngr.engine:
             Base.metadata.drop_all(bind=db_mngr.engine)
-            db_mngr.engine.dispose() # Close connections
+            db_mngr.engine.dispose()  # Close connections
     # Asset storage path (tmp_path subdirectory) will be cleaned by tmp_path fixture
 
+
 @pytest.fixture(scope="function")
-def test_world_alpha(settings_override: Settings) -> World:
+def test_world_alpha(settings_override: Settings) -> Generator[World, None, None]:
     """Provides the 'test_world_alpha' World instance, fully set up."""
     world = _setup_world("test_world_alpha", settings_override)
     yield world
     _teardown_world(world)
 
+
 @pytest.fixture(scope="function")
-def test_world_beta(settings_override: Settings) -> World:
+def test_world_beta(settings_override: Settings) -> Generator[World, None, None]:
     """Provides the 'test_world_beta' World instance, fully set up."""
     world = _setup_world("test_world_beta", settings_override)
     yield world
     _teardown_world(world)
 
+
 @pytest.fixture(scope="function")
-def test_world_gamma(settings_override: Settings) -> World:
+def test_world_gamma(settings_override: Settings) -> Generator[World, None, None]:
     """Provides the 'test_world_gamma' World instance, fully set up."""
     world = _setup_world("test_world_gamma", settings_override)
     yield world
@@ -184,7 +174,9 @@ def test_world_gamma(settings_override: Settings) -> World:
 
 
 @pytest.fixture(scope="function")
-def db_session(test_world_alpha: World):
+def db_session(
+    test_world_alpha: World,
+) -> Generator[Session, None, None]:  # Assuming Session is imported from sqlalchemy.orm
     """
     Provides a SQLAlchemy session for the default test world ("test_world_alpha").
     The session is closed automatically after the test.
@@ -197,7 +189,7 @@ def db_session(test_world_alpha: World):
 
 
 @pytest.fixture(scope="function")
-def another_db_session(test_world_beta: World):
+def another_db_session(test_world_beta: World) -> Generator[Session, None, None]:  # Assuming Session is imported
     """
     Provides a SQLAlchemy session for a secondary test world ("test_world_beta").
     Useful for testing interactions or isolation between two worlds.

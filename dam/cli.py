@@ -1,6 +1,7 @@
 # --- Framework Imports for Systems ---
 import asyncio
 import traceback  # Import traceback for detailed error logging
+import uuid  # For generating request_ids
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -8,56 +9,36 @@ import typer
 from typing_extensions import Annotated
 
 from dam.core import config as app_config
-from dam.core.config import WorldConfig # Added
-from dam.core.world import ( # Added
-    World,
-    create_and_register_world,
-    get_world,
-    get_default_world,
-    get_all_registered_worlds,
-    create_and_register_all_worlds_from_settings,
-    clear_world_registry,
-)
-from dam.core.logging_config import setup_logging
-# ResourceManager and WorldScheduler will be part of World instances
-# from dam.core.resources import FileOperationsResource, ResourceManager # Removed
-# from dam.core.systems import WorldContext, WorldScheduler # Removed
-from dam.core.stages import SystemStage # Keep for system execution if needed directly by CLI
-from dam.core.system_params import WorldContext # Keep for system execution
-from dam.models import (
-    AudioPropertiesComponent,
-    ContentHashMD5Component,
-    ContentHashSHA256Component,
-    FileLocationComponent,
-    FilePropertiesComponent,
-    FramePropertiesComponent,
-    ImageDimensionsComponent,
-)
-from dam.services import asset_service, ecs_service, file_operations, world_service, file_storage_service # Added file_storage_service
-# Systems will be imported and then registered manually to worlds.
-# from dam import systems as dam_all_systems # Import the systems package
-
-# No global ResourceManager or WorldScheduler here anymore.
-# They are instantiated per World.
-
-# Import specific system functions that need to be registered
-# This is an example; a more dynamic way might be needed for many systems.
-from dam.systems.asset_ingestion_systems import (
-    handle_asset_file_ingestion_request,
-    handle_asset_reference_ingestion_request,
-)
-from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
-from dam.systems.asset_lifecycle_systems import ( # For query handlers
-    handle_find_entity_by_hash_query,
-    handle_find_similar_images_query,
-)
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
 )
-import uuid # For generating request_ids
+from dam.core.logging_config import setup_logging
+
+# ResourceManager and WorldScheduler will be part of World instances
+# from dam.core.resources import FileOperationsResource, ResourceManager # Removed
+# from dam.core.systems import WorldContext, WorldScheduler # Removed
+from dam.core.stages import SystemStage  # Keep for system execution if needed directly by CLI
+from dam.core.world import (  # Added
+    World,
+    clear_world_registry,
+    create_and_register_all_worlds_from_settings,
+    get_all_registered_worlds,
+    get_world,
+)
+from dam.services import (
+    file_operations,
+    world_service,
+)  # Added file_storage_service
+
+# Systems will be imported and then registered manually to worlds.
+# from dam import systems as dam_all_systems # Import the systems package
+# No global ResourceManager or WorldScheduler here anymore.
+# They are instantiated per World.
+# Import specific system functions that need to be registered
+# This is an example; a more dynamic way might be needed for many systems.
 
 app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
 
@@ -103,16 +84,11 @@ def main_callback(
     # After worlds are created, register systems to each world instance
     # This is a simplified example; a more robust mechanism might involve iterating
     # through system modules or using entry points.
+    # Task 2.2: Use the centralized world_registrar
+    from dam.core.world_registrar import register_core_systems
+
     for world_instance in initialized_worlds:
-        # Stage-based systems
-        world_instance.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
-        # Event-based systems
-        world_instance.register_system(handle_asset_file_ingestion_request, event_type=AssetFileIngestionRequested)
-        world_instance.register_system(handle_asset_reference_ingestion_request, event_type=AssetReferenceIngestionRequested)
-        world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
-        world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
-        # Add other system registrations here
-        # world_instance.register_system(some_other_system_func, stage=SystemStage.SOME_OTHER_STAGE)
+        register_core_systems(world_instance)
 
     # Determine the target world name
     # Priority: CLI option > Environment Variable > app_config.settings.DEFAULT_WORLD_NAME
@@ -128,14 +104,14 @@ def main_callback(
     if global_state.world_name:
         selected_world_instance = get_world(global_state.world_name)
         if selected_world_instance:
-            if ctx.invoked_subcommand: # Only print if a subcommand is being invoked
+            if ctx.invoked_subcommand:  # Only print if a subcommand is being invoked
                 typer.echo(f"Operating on world: '{global_state.world_name}'")
         else:
             # This means the name was determined, but no such world is registered (e.g., config error for that specific world)
-            if ctx.invoked_subcommand not in ["list-worlds"]: # Allow list-worlds
+            if ctx.invoked_subcommand not in ["list-worlds"]:  # Allow list-worlds
                 typer.secho(
                     f"Error: World '{global_state.world_name}' is specified or default, but it's not correctly configured or registered.",
-                    fg=typer.colors.RED
+                    fg=typer.colors.RED,
                 )
                 # List available valid worlds to help user
                 registered_worlds_list = get_all_registered_worlds()
@@ -156,32 +132,40 @@ def main_callback(
         )
         raise typer.Exit(code=1)
 
-
     if ctx.invoked_subcommand is None:
         # Typer shows help by default.
         # If a default world is identifiable, we could print it.
-        current_selection_info = f"Current default/selected world: '{global_state.world_name}' (Use --world to change)" \
-                                 if global_state.world_name else \
-                                 "No default world selected. Use --world <world_name> or see 'list-worlds'."
+        current_selection_info = (
+            f"Current default/selected world: '{global_state.world_name}' (Use --world to change)"
+            if global_state.world_name
+            else "No default world selected. Use --world <world_name> or see 'list-worlds'."
+        )
 
         typer.echo(current_selection_info)
 
-        if not get_all_registered_worlds() and not app_config.settings.worlds: # Check both raw config and successfully registered
+        if (
+            not get_all_registered_worlds() and not app_config.settings.worlds
+        ):  # Check both raw config and successfully registered
             typer.secho("No DAM worlds seem to be configured. Please set DAM_WORLDS_CONFIG.", fg=typer.colors.YELLOW)
 
 
 @app.command(name="list-worlds")
 def cli_list_worlds():
     """Lists all configured and registered ECS worlds."""
-    # Worlds should have been registered by the main_callback's call to create_and_register_all_worlds_from_settings()
-    registered_worlds = get_all_registered_worlds()
+    try:
+        # Worlds should have been registered by the main_callback's call to create_and_register_all_worlds_from_settings()
+        registered_worlds = get_all_registered_worlds()
 
-    if not registered_worlds:
-        typer.secho("No ECS worlds are currently registered or configured correctly.", fg=typer.colors.YELLOW)
-        typer.echo("Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors.")
-            return
+        if not registered_worlds:
+            typer.secho("No ECS worlds are currently registered or configured correctly.", fg=typer.colors.YELLOW)
+            typer.echo(
+                "Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors."
+            )
+            # The function will naturally proceed to print "Available ECS worlds:" which will be an empty list,
+            # and then handle default world warnings if applicable, or exit cleanly.
+            # This is better than an early return making subsequent code unreachable.
 
-        typer.echo("Available ECS worlds:")
+        typer.echo("Available ECS worlds:")  # Will print this, then loop (or not if empty)
         for world_instance in registered_worlds:
             is_default = app_config.settings.DEFAULT_WORLD_NAME == world_instance.name
             default_marker = " (default)" if is_default else ""
@@ -198,12 +182,14 @@ def cli_list_worlds():
                     "It might have configuration issues.",
                     fg=typer.colors.YELLOW,
                 )
-        elif registered_worlds: # Worlds exist, but no default was determined by settings
-             typer.secho(
+        elif registered_worlds:  # Worlds exist, but no default was determined by settings
+            typer.secho(
                 "\nNote: No specific default world is set. Operations might require explicit --world.",
                 fg=typer.colors.YELLOW,
             )
-    except Exception as e: # Catch any unexpected errors during listing
+        # If registered_worlds is empty AND configured_default is None, nothing specific is printed here, which is fine.
+
+    except Exception as e:  # Catch any unexpected errors during listing
         typer.secho(f"Error listing worlds: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -243,7 +229,9 @@ def cli_add_asset(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     input_path = Path(path_str)
@@ -272,7 +260,9 @@ def cli_add_asset(
     total_files = len(files_to_process)
     typer.echo(f"Found {total_files} file(s) to process for world '{global_state.world_name}'.")
 
-    processed_count, added_count, linked_count, error_count = 0, 0, 0, 0
+    processed_count = 0
+    error_count = 0
+    # added_count, linked_count removed as they are not directly determined here anymore
 
     # FileStorageService is no longer directly obtained here, as systems will get it via DI.
 
@@ -283,7 +273,7 @@ def cli_add_asset(
         )
         try:
             original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
-        except Exception as e: # pragma: no cover
+        except Exception as e:  # pragma: no cover
             typer.secho(f"  Error getting properties for {filepath}: {e}", fg=typer.colors.RED)
             error_count += 1
             continue
@@ -307,6 +297,7 @@ def cli_add_asset(
             )
 
         try:
+
             async def dispatch_and_run_stages():
                 if event_to_dispatch:
                     await target_world.dispatch_event(event_to_dispatch)
@@ -336,9 +327,9 @@ def cli_add_asset(
             typer.secho(f"  Error processing file {filepath.name} via event system: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             error_count += 1
-        finally:
-            if db_session:
-                db_session.close()
+        # finally: # db_session is not defined in this scope anymore; session management is internal to world methods.
+        # if db_session:
+        # db_session.close()
 
     typer.echo("\n--- Summary ---")
     typer.echo(f"World: '{target_world.name}'")
@@ -363,12 +354,14 @@ def setup_db(ctx: typer.Context):  # Added context
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
     try:
-        target_world.create_db_and_tables() # World method calls its db_manager
+        target_world.create_db_and_tables()  # World method calls its db_manager
         typer.secho(f"Database setup complete for world '{target_world.name}'.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during database setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
@@ -397,7 +390,9 @@ def cli_find_file_by_hash(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     actual_hash_value = hash_value_arg
@@ -469,7 +464,9 @@ def cli_find_similar_images(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     image_filepath = Path(image_filepath_str)
@@ -524,7 +521,9 @@ def cli_export_world(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     typer.echo(f"Exporting ECS world '{target_world.name}' to: {export_path}")
@@ -553,7 +552,9 @@ def cli_import_world(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
 
     import_path = Path(filepath_str)
@@ -597,7 +598,7 @@ def cli_merge_worlds_db(
         typer.secho(f"Error: Target world '{target_world}' not found or not initialized.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    if source_world_instance.name == target_world_instance.name: # Compare by actual name from instance
+    if source_world_instance.name == target_world_instance.name:  # Compare by actual name from instance
         typer.secho("Error: Source and target worlds cannot be the same for merge operation.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
@@ -608,9 +609,15 @@ def cli_merge_worlds_db(
             target_world=target_world_instance,
             strategy="add_new",
         )
-        typer.secho(f"Successfully merged world '{source_world_instance.name}' into '{target_world_instance.name}'.", fg=typer.colors.GREEN)
+        typer.secho(
+            f"Successfully merged world '{source_world_instance.name}' into '{target_world_instance.name}'.",
+            fg=typer.colors.GREEN,
+        )
     except Exception as e:
-        typer.secho(f"Error during DB-to-DB merge from '{source_world_instance.name}' to '{target_world_instance.name}': {e}", fg=typer.colors.RED)
+        typer.secho(
+            f"Error during DB-to-DB merge from '{source_world_instance.name}' to '{target_world_instance.name}': {e}",
+            fg=typer.colors.RED,
+        )
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
@@ -679,10 +686,15 @@ def cli_split_world_db(
         typer.secho(f"Error: Source world '{source_world}' not found or not initialized.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     if not selected_target_inst:
-        typer.secho(f"Error: Selected target world '{selected_target_world}' not found or not initialized.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: Selected target world '{selected_target_world}' not found or not initialized.", fg=typer.colors.RED
+        )
         raise typer.Exit(code=1)
     if not remaining_target_inst:
-        typer.secho(f"Error: Remaining target world '{remaining_target_world}' not found or not initialized.", fg=typer.colors.RED)
+        typer.secho(
+            f"Error: Remaining target world '{remaining_target_world}' not found or not initialized.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(code=1)
 
     try:

@@ -14,6 +14,7 @@ or add a different one (e.g., `ProcessingCompleteMarker`).
 This approach allows for decoupled workflows where different systems can react to
 the state of entities as indicated by these markers.
 """
+
 from dam.models.base_component import BaseComponent
 
 # No specific fields needed for marker components, they exist by their type.

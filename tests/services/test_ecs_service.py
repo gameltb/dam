@@ -4,14 +4,19 @@ import pytest
 from sqlalchemy.orm import Session
 
 from dam.models import (
+    AudioPropertiesComponent,
     BaseComponent,
     Entity,
     FileLocationComponent,
-)  # Combined BaseComponent import
+    FilePropertiesComponent,  # Added
+    ImageDimensionsComponent,  # Added
+)
 from dam.services.ecs_service import (
     add_component_to_entity,
     create_entity,
     delete_entity,
+    find_entities_by_component_attribute_value,  # Added
+    find_entities_with_components,  # Added
     get_component,
     get_components,
     get_entity,
@@ -366,3 +371,164 @@ def test_delete_non_existent_entity(db_session: Session):
 # For now, the tests will work with the assumption that component_instance is
 # already validly created (including its entity_id and entity relationship if required by its __init__).
 # The service then re-affirms these by setting them from the passed entity_id.
+
+
+# --- Tests for new query helpers ---
+
+
+def test_find_entities_by_component_attribute_value(db_session: Session):
+    # Setup: Create entities and components
+    entity1 = create_entity(db_session)
+    fpc1 = FilePropertiesComponent(
+        entity_id=entity1.id, entity=entity1, original_filename="file1.jpg", mime_type="image/jpeg", file_size_bytes=100
+    )
+    add_component_to_entity(db_session, entity1.id, fpc1)
+
+    entity2 = create_entity(db_session)
+    fpc2 = FilePropertiesComponent(
+        entity_id=entity2.id, entity=entity2, original_filename="file2.png", mime_type="image/png", file_size_bytes=200
+    )
+    add_component_to_entity(db_session, entity2.id, fpc2)
+
+    entity3 = create_entity(db_session)
+    fpc3 = FilePropertiesComponent(
+        entity_id=entity3.id, entity=entity3, original_filename="file3.jpg", mime_type="image/jpeg", file_size_bytes=300
+    )
+    add_component_to_entity(db_session, entity3.id, fpc3)
+
+    # Entity4 has no FilePropertiesComponent
+    entity4 = create_entity(db_session)
+
+    db_session.commit()
+
+    # Test 1: Find entities with mime_type "image/jpeg"
+    jpeg_entities = find_entities_by_component_attribute_value(
+        db_session, FilePropertiesComponent, "mime_type", "image/jpeg"
+    )
+    assert len(jpeg_entities) == 2
+    jpeg_entity_ids = {e.id for e in jpeg_entities}
+    assert entity1.id in jpeg_entity_ids
+    assert entity3.id in jpeg_entity_ids
+    assert entity2.id not in jpeg_entity_ids
+    assert entity4.id not in jpeg_entity_ids
+
+    # Test 2: Find entities with mime_type "image/png"
+    png_entities = find_entities_by_component_attribute_value(
+        db_session, FilePropertiesComponent, "mime_type", "image/png"
+    )
+    assert len(png_entities) == 1
+    assert png_entities[0].id == entity2.id
+
+    # Test 3: Find entities with non-existent mime_type
+    gif_entities = find_entities_by_component_attribute_value(
+        db_session, FilePropertiesComponent, "mime_type", "image/gif"
+    )
+    assert len(gif_entities) == 0
+
+    # Test 4: Find entities by file_size_bytes
+    large_entities = find_entities_by_component_attribute_value(
+        db_session, FilePropertiesComponent, "file_size_bytes", 300
+    )
+    assert len(large_entities) == 1
+    assert large_entities[0].id == entity3.id
+
+    # Test 5: Invalid attribute name
+    with pytest.raises(AttributeError):
+        find_entities_by_component_attribute_value(
+            db_session, FilePropertiesComponent, "non_existent_attr", "image/jpeg"
+        )
+
+    # Test 6: Invalid component type
+    with pytest.raises(TypeError):
+        find_entities_by_component_attribute_value(
+            db_session,
+            Entity,
+            "mime_type",
+            "image/jpeg",  # type: ignore
+        )
+
+
+def test_find_entities_with_components(db_session: Session):
+    # Setup
+    entity1 = create_entity(db_session)  # Has FPC, IDC
+    fpc1 = FilePropertiesComponent(
+        entity_id=entity1.id, entity=entity1, original_filename="e1.jpg", mime_type="image/jpeg", file_size_bytes=100
+    )
+    idc1 = ImageDimensionsComponent(entity_id=entity1.id, entity=entity1, width=800, height=600)
+    add_component_to_entity(db_session, entity1.id, fpc1)
+    add_component_to_entity(db_session, entity1.id, idc1)
+
+    entity2 = create_entity(db_session)  # Has FPC only
+    fpc2 = FilePropertiesComponent(
+        entity_id=entity2.id, entity=entity2, original_filename="e2.txt", mime_type="text/plain", file_size_bytes=50
+    )
+    add_component_to_entity(db_session, entity2.id, fpc2)
+
+    entity3 = create_entity(db_session)  # Has IDC only
+    idc3 = ImageDimensionsComponent(entity_id=entity3.id, entity=entity3, width=1024, height=768)
+    add_component_to_entity(db_session, entity3.id, idc3)
+
+    entity4 = create_entity(db_session)  # Has FPC, IDC (different values)
+    fpc4 = FilePropertiesComponent(
+        entity_id=entity4.id, entity=entity4, original_filename="e4.png", mime_type="image/png", file_size_bytes=150
+    )
+    idc4 = ImageDimensionsComponent(entity_id=entity4.id, entity=entity4, width=300, height=200)
+    add_component_to_entity(db_session, entity4.id, fpc4)
+    add_component_to_entity(db_session, entity4.id, idc4)
+
+    entity5 = create_entity(db_session)  # No relevant components
+
+    db_session.commit()
+
+    # Test 1: Find entities with FPC AND IDC
+    entities_with_both = find_entities_with_components(db_session, [FilePropertiesComponent, ImageDimensionsComponent])
+    assert len(entities_with_both) == 2
+    both_ids = {e.id for e in entities_with_both}
+    assert entity1.id in both_ids
+    assert entity4.id in both_ids
+    assert entity2.id not in both_ids
+    assert entity3.id not in both_ids
+    assert entity5.id not in both_ids
+
+    # Test 2: Find entities with FPC only
+    entities_with_fpc = find_entities_with_components(db_session, [FilePropertiesComponent])
+    assert len(entities_with_fpc) == 3  # e1, e2, e4
+    fpc_ids = {e.id for e in entities_with_fpc}
+    assert entity1.id in fpc_ids
+    assert entity2.id in fpc_ids
+    assert entity4.id in fpc_ids
+
+    # Test 3: Find entities with IDC only
+    entities_with_idc = find_entities_with_components(db_session, [ImageDimensionsComponent])
+    assert len(entities_with_idc) == 3  # e1, e3, e4
+    idc_ids = {e.id for e in entities_with_idc}
+    assert entity1.id in idc_ids
+    assert entity3.id in idc_ids
+    assert entity4.id in idc_ids
+
+    # Test 4: Empty list of required components
+    assert find_entities_with_components(db_session, []) == []
+
+    # Test 5: Non-existent component type (hypothetical)
+    class NonExistentComponent(BaseComponent):  # type: ignore
+        __tablename__ = "non_existent_component_test"
+        # Minimal fields for BaseComponent if needed by test setup
+        # However, this component won't have a table.
+        # The join would fail. SQLAlchemy might raise error before query, or DB will.
+        # Let's make it a valid but unadded component type.
+
+    # This test is more about how SQLAlchemy handles joins to tables that might exist but have no matching entries.
+    # If NonExistentComponent is not a real table, this will error out earlier.
+    # Let's use a real component that simply isn't added to any entities.
+
+    entities_with_audio = find_entities_with_components(db_session, [AudioPropertiesComponent])
+    assert len(entities_with_audio) == 0
+
+    entities_with_fpc_and_audio = find_entities_with_components(
+        db_session, [FilePropertiesComponent, AudioPropertiesComponent]
+    )
+    assert len(entities_with_fpc_and_audio) == 0
+
+    # Test 6: Invalid component type in list
+    with pytest.raises(TypeError):
+        find_entities_with_components(db_session, [FilePropertiesComponent, Entity])  # type: ignore

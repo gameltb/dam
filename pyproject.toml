@@ -72,6 +72,7 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I001"] # Enable common flake8 rules and isort
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

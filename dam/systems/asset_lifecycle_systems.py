@@ -1,21 +1,16 @@
 import logging
-from pathlib import Path
-from typing import Optional, Tuple
-import uuid # For generating request_ids for query results if needed
+from typing import Optional
 
-from sqlalchemy.orm import Session
-
+from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
-    FindSimilarImagesQuery,
 )
+from dam.core.system_params import CurrentWorldConfig, WorldSession  # Import Resource
 from dam.core.systems import listens_for
-from dam.core.system_params import WorldSession, CurrentWorldConfig, Resource # Import Resource
 from dam.models import Entity
-from typing import Annotated # Import Annotated
 from dam.models.content_hash_md5_component import ContentHashMD5Component
 from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
@@ -24,10 +19,8 @@ from dam.models.image_perceptual_hash_ahash_component import ImagePerceptualAHas
 from dam.models.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from dam.models.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 from dam.models.original_source_info_component import OriginalSourceInfoComponent
-from dam.core.components_markers import NeedsMetadataExtractionComponent
-
 from dam.services import ecs_service, file_operations
-from dam.services.file_storage_service import FileStorageService # Resource
+from dam.services.file_storage_service import FileStorageService  # Resource
 
 # For find_similar_images
 try:
@@ -40,18 +33,21 @@ logger = logging.getLogger(__name__)
 
 # --- Command Systems (Event Handlers for Ingestion) ---
 
+
 @listens_for(AssetFileIngestionRequested)
 async def handle_add_asset_file_event(
     event: AssetFileIngestionRequested,
     session: WorldSession,
-    file_storage_svc: FileStorageService, # Injected resource
+    file_storage_svc: FileStorageService,  # Injected resource
     # world_config: CurrentWorldConfig, # Can get from file_storage_svc.world_config
 ):
     """
     Handles the ingestion of an asset file by copying it, based on an event.
     Logic moved from asset_service.add_asset_file.
     """
-    logger.info(f"System handling AssetFileIngestionRequested for: {event.original_filename} in world {event.world_name}")
+    logger.info(
+        f"System handling AssetFileIngestionRequested for: {event.original_filename} in world {event.world_name}"
+    )
     created_new_entity = False
     filepath_on_disk = event.filepath_on_disk
     original_filename = event.original_filename
@@ -59,11 +55,11 @@ async def handle_add_asset_file_event(
     size_bytes = event.size_bytes
 
     try:
-        file_content = await file_operations.read_file_async(filepath_on_disk) # Using async read
+        file_content = await file_operations.read_file_async(filepath_on_disk)  # Using async read
     except IOError:
         logger.exception(f"Error reading file {filepath_on_disk} for event {event}")
         # Optionally, dispatch a failure event or log more formally
-        return # Stop processing this event
+        return  # Stop processing this event
 
     # FileStorageService (file_storage_svc) now handles storage using its own world_config
     content_hash_sha256, physical_storage_path_suffix = file_storage_svc.store_file(
@@ -99,47 +95,68 @@ async def handle_add_asset_file_event(
         ecs_service.add_component_to_entity(session, entity.id, chc_md5)
 
         fpc = FilePropertiesComponent(
-            entity_id=entity.id, entity=entity, original_filename=original_filename,
-            file_size_bytes=size_bytes, mime_type=mime_type,
+            entity_id=entity.id,
+            entity=entity,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+            mime_type=mime_type,
         )
         ecs_service.add_component_to_entity(session, entity.id, fpc)
 
         flc = FileLocationComponent(
-            entity_id=entity.id, entity=entity, content_identifier=content_hash_sha256,
-            storage_type="local_cas", physical_path_or_key=physical_storage_path_suffix,
+            entity_id=entity.id,
+            entity=entity,
+            content_identifier=content_hash_sha256,
+            storage_type="local_cas",
+            physical_path_or_key=physical_storage_path_suffix,
             contextual_filename=original_filename,
         )
         ecs_service.add_component_to_entity(session, entity.id, flc)
 
-    if not entity: # Should not happen if logic is correct
+    if not entity:  # Should not happen if logic is correct
         logger.error(f"Entity object not available after processing {original_filename}. This is unexpected.")
         return
 
     osi_comp = OriginalSourceInfoComponent(
-        entity_id=entity.id, entity=entity, original_filename=original_filename,
+        entity_id=entity.id,
+        entity=entity,
+        original_filename=original_filename,
         original_path=str(filepath_on_disk.resolve()),
     )
     ecs_service.add_component_to_entity(session, entity.id, osi_comp)
 
     if mime_type and mime_type.startswith("image/"):
         perceptual_hashes = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)
-        if "phash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualPHashComponent, {"hash_value": perceptual_hashes["phash"]}):
-            iphc = ImagePerceptualPHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"])
+        if "phash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualPHashComponent, {"hash_value": perceptual_hashes["phash"]}
+        ):
+            iphc = ImagePerceptualPHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, iphc)
-        if "ahash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualAHashComponent, {"hash_value": perceptual_hashes["ahash"]}):
-            iahc = ImagePerceptualAHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"])
+        if "ahash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualAHashComponent, {"hash_value": perceptual_hashes["ahash"]}
+        ):
+            iahc = ImagePerceptualAHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, iahc)
-        if "dhash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualDHashComponent, {"hash_value": perceptual_hashes["dhash"]}):
-            idhc = ImagePerceptualDHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"])
+        if "dhash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualDHashComponent, {"hash_value": perceptual_hashes["dhash"]}
+        ):
+            idhc = ImagePerceptualDHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, idhc)
 
     if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
         marker_comp = NeedsMetadataExtractionComponent(entity_id=entity.id, entity=entity)
-        ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False) # Flush managed by scheduler
+        ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False)  # Flush managed by scheduler
 
     logger.info(f"Finished AssetFileIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}")
     # The result (entity_id, created_new_entity) is not directly returned to CLI via event.
     # CLI will infer success from lack of error and can query later if needed.
+
 
 @listens_for(AssetReferenceIngestionRequested)
 async def handle_add_asset_reference_event(
@@ -151,7 +168,9 @@ async def handle_add_asset_reference_event(
     Handles the ingestion of an asset by reference, based on an event.
     Logic moved from asset_service.add_asset_reference.
     """
-    logger.info(f"System handling AssetReferenceIngestionRequested for: {event.original_filename} in world {event.world_name}")
+    logger.info(
+        f"System handling AssetReferenceIngestionRequested for: {event.original_filename} in world {event.world_name}"
+    )
     created_new_entity = False
     filepath_on_disk = event.filepath_on_disk
     original_filename = event.original_filename
@@ -192,8 +211,11 @@ async def handle_add_asset_reference_event(
         ecs_service.add_component_to_entity(session, entity.id, chc_md5)
 
         fpc = FilePropertiesComponent(
-            entity_id=entity.id, entity=entity, original_filename=original_filename,
-            file_size_bytes=size_bytes, mime_type=mime_type,
+            entity_id=entity.id,
+            entity=entity,
+            original_filename=original_filename,
+            file_size_bytes=size_bytes,
+            mime_type=mime_type,
         )
         ecs_service.add_component_to_entity(session, entity.id, fpc)
 
@@ -210,37 +232,55 @@ async def handle_add_asset_reference_event(
 
     if not found_ref_location:
         flc = FileLocationComponent(
-            entity_id=entity.id, entity=entity, content_identifier=content_hash_sha256,
-            storage_type="local_reference", physical_path_or_key=resolved_original_path,
+            entity_id=entity.id,
+            entity=entity,
+            content_identifier=content_hash_sha256,
+            storage_type="local_reference",
+            physical_path_or_key=resolved_original_path,
             contextual_filename=original_filename,
         )
         ecs_service.add_component_to_entity(session, entity.id, flc)
 
     osi_comp = OriginalSourceInfoComponent(
-        entity_id=entity.id, entity=entity, original_filename=original_filename,
+        entity_id=entity.id,
+        entity=entity,
+        original_filename=original_filename,
         original_path=resolved_original_path,
     )
     ecs_service.add_component_to_entity(session, entity.id, osi_comp)
 
     if mime_type and mime_type.startswith("image/"):
-        perceptual_hashes = await file_operations.generate_perceptual_hashes_async(filepath_on_disk) # async version
-        if "phash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualPHashComponent, {"hash_value": perceptual_hashes["phash"]}):
-            iphc = ImagePerceptualPHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"])
+        perceptual_hashes = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)  # async version
+        if "phash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualPHashComponent, {"hash_value": perceptual_hashes["phash"]}
+        ):
+            iphc = ImagePerceptualPHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["phash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, iphc)
         # ... (similar for ahash, dhash)
-        if "ahash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualAHashComponent, {"hash_value": perceptual_hashes["ahash"]}):
-            iahc = ImagePerceptualAHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"])
+        if "ahash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualAHashComponent, {"hash_value": perceptual_hashes["ahash"]}
+        ):
+            iahc = ImagePerceptualAHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["ahash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, iahc)
-        if "dhash" in perceptual_hashes and not ecs_service.get_components_by_value(session, entity.id, ImagePerceptualDHashComponent, {"hash_value": perceptual_hashes["dhash"]}):
-            idhc = ImagePerceptualDHashComponent(entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"])
+        if "dhash" in perceptual_hashes and not ecs_service.get_components_by_value(
+            session, entity.id, ImagePerceptualDHashComponent, {"hash_value": perceptual_hashes["dhash"]}
+        ):
+            idhc = ImagePerceptualDHashComponent(
+                entity_id=entity.id, entity=entity, hash_value=perceptual_hashes["dhash"]
+            )
             ecs_service.add_component_to_entity(session, entity.id, idhc)
-
 
     if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
         marker_comp = NeedsMetadataExtractionComponent(entity_id=entity.id, entity=entity)
-        ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False) # Flush managed by scheduler
+        ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False)  # Flush managed by scheduler
 
-    logger.info(f"Finished AssetReferenceIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}")
+    logger.info(
+        f"Finished AssetReferenceIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}"
+    )
 
 
 # --- Query Systems (Event Handlers for Queries) ---
@@ -254,17 +294,22 @@ async def handle_add_asset_reference_event(
 # A more robust way would be for the World to manage a temporary "query_results" resource
 # that systems can write to using event.request_id as a key.
 
+
 @listens_for(FindEntityByHashQuery)
 async def handle_find_entity_by_hash_query(
     event: FindEntityByHashQuery,
     session: WorldSession,
-    world_config: CurrentWorldConfig, # Example of injecting world_config if needed
+    world_config: CurrentWorldConfig,  # Example of injecting world_config if needed
 ):
-    logger.info(f"System handling FindEntityByHashQuery for hash: {event.hash_value} in world {event.world_name} (Req ID: {event.request_id})")
+    logger.info(
+        f"System handling FindEntityByHashQuery for hash: {event.hash_value} in world {event.world_name} (Req ID: {event.request_id})"
+    )
     entity = ecs_service.find_entity_by_content_hash(session, event.hash_value, event.hash_type)
 
     if entity:
-        logger.info(f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}")
+        logger.info(
+            f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}"
+        )
         # How to get this back to CLI? For now, CLI might not get direct output.
         # Option: Store in a temporary resource keyed by event.request_id
         # world.add_resource(QueryResult(event.request_id, entity.id), name=f"query_result_{event.request_id}")
@@ -278,10 +323,14 @@ async def handle_find_similar_images_query(
     event: FindSimilarImagesQuery,
     session: WorldSession,
 ):
-    logger.info(f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})")
+    logger.info(
+        f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})"
+    )
 
     if not imagehash:
-        logger.warning(f"[QueryResult RequestID: {event.request_id}] ImageHash library not available. Cannot perform similarity search.")
+        logger.warning(
+            f"[QueryResult RequestID: {event.request_id}] ImageHash library not available. Cannot perform similarity search."
+        )
         # world.add_resource(QueryResult(event.request_id, [], error="ImageHash not available"), ...)
         return
 
@@ -312,10 +361,12 @@ async def handle_find_similar_images_query(
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
-            logger.warning(f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}")
+            logger.warning(
+                f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}"
+            )
 
         potential_matches = []
-        from sqlalchemy import select as sql_select # For direct querying if ecs_service helpers are not sufficient
+        from sqlalchemy import select as sql_select  # For direct querying if ecs_service helpers are not sufficient
 
         if input_phash_obj:
             all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
@@ -330,11 +381,15 @@ async def handle_find_similar_images_query(
                         entity = session.get(Entity, p_comp.entity_id)
                         if entity:
                             fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-                            potential_matches.append({
-                                "entity_id": entity.id,
-                                "original_filename": fpc.original_filename if fpc else "N/A",
-                                "match_type": "phash_match", "distance": distance, "hash_type": "phash"
-                            })
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "phash_match",
+                                    "distance": distance,
+                                    "hash_type": "phash",
+                                }
+                            )
                 except Exception as e_cmp:
                     logger.warning(f"Error comparing pHash for entity {p_comp.entity_id}: {e_cmp}")
 
@@ -351,11 +406,15 @@ async def handle_find_similar_images_query(
                         entity = session.get(Entity, a_comp.entity_id)
                         if entity:
                             fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-                            potential_matches.append({
-                                "entity_id": entity.id,
-                                "original_filename": fpc.original_filename if fpc else "N/A",
-                                "match_type": "ahash_match", "distance": distance, "hash_type": "ahash"
-                            })
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "ahash_match",
+                                    "distance": distance,
+                                    "hash_type": "ahash",
+                                }
+                            )
                 except Exception as e_cmp:
                     logger.warning(f"Error comparing aHash for entity {a_comp.entity_id}: {e_cmp}")
 
@@ -372,11 +431,15 @@ async def handle_find_similar_images_query(
                         entity = session.get(Entity, d_comp.entity_id)
                         if entity:
                             fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-                            potential_matches.append({
-                                "entity_id": entity.id,
-                                "original_filename": fpc.original_filename if fpc else "N/A",
-                                "match_type": "dhash_match", "distance": distance, "hash_type": "dhash"
-                            })
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "dhash_match",
+                                    "distance": distance,
+                                    "hash_type": "dhash",
+                                }
+                            )
                 except Exception as e_cmp:
                     logger.warning(f"Error comparing dHash for entity {d_comp.entity_id}: {e_cmp}")
 
@@ -389,7 +452,9 @@ async def handle_find_similar_images_query(
         similar_entities_info = list(final_matches_map.values())
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
 
-        logger.info(f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images. Results: {similar_entities_info}")
+        logger.info(
+            f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images. Results: {similar_entities_info}"
+        )
         # How to return to CLI:
         # world_config.query_results_resource.add_result(event.request_id, similar_entities_info)
 
@@ -397,9 +462,12 @@ async def handle_find_similar_images_query(
         logger.warning(f"[QueryResult RequestID: {event.request_id}] Error processing image for similarity: {ve}")
         # world_config.query_results_resource.add_result(event.request_id, error=str(ve))
     except Exception as e:
-        logger.error(f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True)
+        logger.error(
+            f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
+        )
         # world_config.query_results_resource.add_result(event.request_id, error="Unexpected error")
         # world.add_resource(QueryResult(event.request_id, [], error="Unexpected error"), ...)
+
 
 # Ensure async versions of file_operations are available or implement them.
 # e.g., in file_operations.py:

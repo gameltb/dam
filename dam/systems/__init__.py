@@ -3,7 +3,7 @@
 # so their @system and @listens_for decorators run and register the systems.
 
 import importlib
-import logging # Use logging for consistency
+import logging  # Use logging for consistency
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 _system_module_names = [
     # ".asset_ingestion_systems", # Removed
     ".metadata_systems",
-    ".asset_lifecycle_systems", # Add new system module
+    ".asset_lifecycle_systems",  # Add new system module
 ]
 
 for module_name in _system_module_names:

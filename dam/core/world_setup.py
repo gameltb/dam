@@ -1,12 +1,14 @@
 import logging
 
-from dam.core.world import World # Forward declaration for type hint, or direct import if no circularity
-from dam.core.config import WorldConfig, settings as global_app_settings
+from dam.core.config import WorldConfig
+from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
 from dam.core.resources import FileOperationsResource
+from dam.core.world import World  # Forward declaration for type hint, or direct import if no circularity
 from dam.services.file_storage_service import FileStorageService
 
 logger = logging.getLogger(__name__)
+
 
 def populate_base_resources(world: World) -> None:
     """
@@ -21,7 +23,7 @@ def populate_base_resources(world: World) -> None:
     if not world:
         raise ValueError("A valid World instance must be provided.")
 
-    world_config = world.config # Get the config from the world instance itself
+    world_config = world.config  # Get the config from the world instance itself
 
     world.logger.info(f"Populating base resources for World '{world.name}'...")
 
@@ -32,7 +34,7 @@ def populate_base_resources(world: World) -> None:
     # 2. DatabaseManager
     db_manager = DatabaseManager(
         world_config=world_config,
-        testing_mode=global_app_settings.TESTING_MODE # Use global app setting for testing mode
+        testing_mode=global_app_settings.TESTING_MODE,  # Use global app setting for testing mode
     )
     world.resource_manager.add_resource(db_manager, DatabaseManager)
     # Also store a direct reference if World methods like get_db_session need it without get_resource
@@ -50,6 +52,9 @@ def populate_base_resources(world: World) -> None:
     world.resource_manager.add_resource(FileOperationsResource())
     world.logger.debug(f"Added FileOperationsResource for World '{world.name}'.")
 
-    world.logger.info(f"Base resources populated for World '{world.name}'. Current resources: {list(world.resource_manager._resources.keys())}")
+    world.logger.info(
+        f"Base resources populated for World '{world.name}'. Current resources: {list(world.resource_manager._resources.keys())}"
+    )
+
 
 __all__ = ["populate_base_resources"]

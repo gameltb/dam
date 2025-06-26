@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional, Tuple, Type  # Removed List
 
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 # Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
 from dam.models.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
@@ -102,15 +102,15 @@ def export_ecs_world_to_json(export_world: "World", filepath: Path) -> None:
         logger.error(f"Error writing world '{export_world.name}' to {filepath}: {e}", exc_info=True)
         raise
     except Exception as e:
-        logger.error(f"An unexpected error occurred during JSON export for world '{export_world.name}': {e}", exc_info=True)
+        logger.error(
+            f"An unexpected error occurred during JSON export for world '{export_world.name}': {e}", exc_info=True
+        )
         raise
     finally:
         session.close()
 
 
-def import_ecs_world_from_json(
-    target_world: "World", filepath: Path, merge: bool = False
-) -> None:
+def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: bool = False) -> None:
     """
     Imports entities and components from a JSON file into the given target World.
     If merge is False (default), it expects a clean database for the target World,
@@ -318,7 +318,9 @@ def import_ecs_world_from_json(
         logger.info(f"World '{target_world.name}' successfully imported from {filepath}")
     except Exception as e:
         session.rollback()
-        logger.error(f"Error committing imported data to world '{target_world.name}' from {filepath}: {e}", exc_info=True)
+        logger.error(
+            f"Error committing imported data to world '{target_world.name}' from {filepath}: {e}", exc_info=True
+        )
         raise
     finally:
         session.close()
@@ -339,12 +341,13 @@ def merge_ecs_worlds_db_to_db(
     Strategy 'add_new': All source entities are treated as new in the target.
     """
     logger.info(
-        f"Starting DB-to-DB merge from world '{source_world.name}' to '{target_world.name}' "
-        f"with strategy '{strategy}'."
+        f"Starting DB-to-DB merge from world '{source_world.name}' to '{target_world.name}' with strategy '{strategy}'."
     )
 
     if strategy != "add_new":
-        logger.error(f"Merge strategy '{strategy}' for worlds '{source_world.name}' -> '{target_world.name}' is not yet implemented. Only 'add_new' is supported.")
+        logger.error(
+            f"Merge strategy '{strategy}' for worlds '{source_world.name}' -> '{target_world.name}' is not yet implemented. Only 'add_new' is supported."
+        )
         raise NotImplementedError(f"Merge strategy '{strategy}' is not yet implemented.")
 
     source_session = source_world.get_db_session()
@@ -359,7 +362,9 @@ def merge_ecs_worlds_db_to_db(
         processed_count = 0
         for src_entity in source_entities:
             processed_count += 1
-            logger.debug(f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge to '{target_world.name}'...")
+            logger.debug(
+                f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge to '{target_world.name}'..."
+            )
 
             # Strategy 'add_new': Create a new entity in the target world
             tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
@@ -394,7 +399,9 @@ def merge_ecs_worlds_db_to_db(
                     try:
                         new_comp_instance = ComponentClass(**comp_data_for_new)
                         # Add component to the new target entity. Pass flush=False as we commit at the end.
-                        ecs_service.add_component_to_entity(target_session, tgt_entity.id, new_comp_instance, flush=False)
+                        ecs_service.add_component_to_entity(
+                            target_session, tgt_entity.id, new_comp_instance, flush=False
+                        )
                         logger.debug(
                             f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} "
                             f"to tgt_entity {tgt_entity.id}."
@@ -473,7 +480,9 @@ def split_ecs_world(
                     CriteriaComponentClass = comp_class
                     break
             if not CriteriaComponentClass:
-                logger.error(f"Criteria component class '{criteria_component_name}' not found for world '{source_world.name}'.")
+                logger.error(
+                    f"Criteria component class '{criteria_component_name}' not found for world '{source_world.name}'."
+                )
                 raise ValueError(f"Criteria component class '{criteria_component_name}' not found.")
             if criteria_component_attr and not hasattr(CriteriaComponentClass, criteria_component_attr):
                 logger.error(
@@ -495,22 +504,36 @@ def split_ecs_world(
                 if src_criteria_comp_instance:
                     actual_value = getattr(src_criteria_comp_instance, criteria_component_attr, None)
                     if actual_value is not None:
-                        if criteria_op == "eq": matches_criteria = actual_value == criteria_value
-                        elif criteria_op == "ne": matches_criteria = actual_value != criteria_value
-                        elif criteria_op == "contains" and isinstance(actual_value, str): matches_criteria = criteria_value in actual_value
-                        elif criteria_op == "startswith" and isinstance(actual_value, str): matches_criteria = actual_value.startswith(criteria_value)
-                        elif criteria_op == "endswith" and isinstance(actual_value, str): matches_criteria = actual_value.endswith(criteria_value)
-                        elif criteria_op == "gt": matches_criteria = actual_value > criteria_value
-                        elif criteria_op == "lt": matches_criteria = actual_value < criteria_value
-                        elif criteria_op == "ge": matches_criteria = actual_value >= criteria_value
-                        elif criteria_op == "le": matches_criteria = actual_value <= criteria_value
-                        else: logger.warning(f"Unsupported criteria operator '{criteria_op}' for world '{source_world.name}'. Defaulting to no match.")
+                        if criteria_op == "eq":
+                            matches_criteria = actual_value == criteria_value
+                        elif criteria_op == "ne":
+                            matches_criteria = actual_value != criteria_value
+                        elif criteria_op == "contains" and isinstance(actual_value, str):
+                            matches_criteria = criteria_value in actual_value
+                        elif criteria_op == "startswith" and isinstance(actual_value, str):
+                            matches_criteria = actual_value.startswith(criteria_value)
+                        elif criteria_op == "endswith" and isinstance(actual_value, str):
+                            matches_criteria = actual_value.endswith(criteria_value)
+                        elif criteria_op == "gt":
+                            matches_criteria = actual_value > criteria_value
+                        elif criteria_op == "lt":
+                            matches_criteria = actual_value < criteria_value
+                        elif criteria_op == "ge":
+                            matches_criteria = actual_value >= criteria_value
+                        elif criteria_op == "le":
+                            matches_criteria = actual_value <= criteria_value
+                        else:
+                            logger.warning(
+                                f"Unsupported criteria operator '{criteria_op}' for world '{source_world.name}'. Defaulting to no match."
+                            )
 
             target_session_for_copy_db = target_session_selected_db if matches_criteria else target_session_remaining_db
             target_world_log_name = target_world_selected.name if matches_criteria else target_world_remaining.name
 
-            if matches_criteria: count_selected += 1
-            else: count_remaining += 1
+            if matches_criteria:
+                count_selected += 1
+            else:
+                count_remaining += 1
 
             logger.debug(
                 f"Entity {src_entity.id} from world '{source_world.name}': Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
@@ -549,15 +572,19 @@ def split_ecs_world(
 
         if delete_from_source:
             source_session.commit()
-            logger.info(f"Committed deletions of {source_entity_count} entities from source world '{source_world.name}'.")
+            logger.info(
+                f"Committed deletions of {source_entity_count} entities from source world '{source_world.name}'."
+            )
 
-    except Exception as e: # Broad catch for issues during processing or commits
-        logger.error(f"Error during split operation initiated from source world '{source_world.name}': {e}", exc_info=True)
+    except Exception as e:  # Broad catch for issues during processing or commits
+        logger.error(
+            f"Error during split operation initiated from source world '{source_world.name}': {e}", exc_info=True
+        )
         # Rollback all sessions involved if an error occurs before all commits are done
         source_session.rollback()
         target_session_selected_db.rollback()
         target_session_remaining_db.rollback()
-        raise # Re-raise the exception
+        raise  # Re-raise the exception
     finally:
         # Ensure all sessions are closed
         source_session.close()

@@ -1,11 +1,12 @@
 import asyncio
 import inspect
-import logging # Added logging
+import logging  # Added logging
 from collections import defaultdict
-from typing import Annotated, Any, Callable, Dict, List, Type, get_args, get_origin, Optional
+from typing import Annotated, Any, Callable, Dict, List, Optional, Type, get_args, get_origin
 
 from dam.core.events import BaseEvent
-from dam.core.resources import ResourceManager, ResourceNotFoundError
+from dam.core.exceptions import EventHandlingError, StageExecutionError  # Task 5.1: Import new exceptions
+from dam.core.resources import ResourceManager, ResourceNotFoundError  # Assuming this is the one to keep
 from dam.core.stages import SystemStage
 from dam.core.system_params import (
     WorldContext,
@@ -39,57 +40,100 @@ Example:
 """
 
 
+# Need to ensure these are imported for type checking in _parse_system_params
+# WorldContext is already imported
+
+# ... (other imports)
+
+
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
     """Helper function to parse parameters of a system function."""
     sig = inspect.signature(func)
     param_info = {}
     for name, param in sig.parameters.items():
-        param_type = param.annotation
-        identity_type = None
-        actual_type = param_type
-        marker_component_type = None  # For MarkedEntityList
-        event_type_hint = None # For Event parameters
+        original_param_type = param.annotation
 
-        if get_origin(param_type) is Annotated:
-            annotations = get_args(param_type)
-            actual_type = annotations[0]
-            identity_type_str = None
-            marker_type_from_annotated = None
+        identity: Optional[str] = None
+        actual_type = original_param_type  # Default actual_type to the original annotation
+        marker_component_type: Optional[Type[BaseComponent]] = None
+        event_specific_type: Optional[Type[BaseEvent]] = None  # Stores the specific MyEvent for an "Event" identity
 
-            for ann_arg in annotations[1:]:
+        if get_origin(original_param_type) is Annotated:
+            annotated_args = get_args(original_param_type)
+            actual_type = annotated_args[0]  # The core type, e.g., Session, List[Entity], MyEvent, MyResource
+
+            string_identities_found = []
+            type_based_markers_found = []
+
+            for ann_arg in annotated_args[1:]:
                 if isinstance(ann_arg, str):
-                    identity_type_str = ann_arg
-                elif inspect.isclass(ann_arg) and issubclass(ann_arg, BaseComponent):
-                    marker_type_from_annotated = ann_arg
-                elif inspect.isclass(ann_arg) and issubclass(ann_arg, BaseEvent): # Check for Event annotation
-                    # This assumes an Annotated Event type like Annotated[MyEvent, "Event"]
-                    # Or the identity "Event" is used to mark it, and actual_type is the event.
-                    pass # Handled by identity_type_str == "Event"
+                    string_identities_found.append(ann_arg)
+                elif inspect.isclass(ann_arg):
+                    type_based_markers_found.append(ann_arg)
 
-            identity_type = identity_type_str
+            # Prefer string identity if multiple are provided, but log warning.
+            if len(string_identities_found) > 1:
+                logger.warning(
+                    f"Parameter '{name}' in system '{func.__name__}' has multiple string annotations: "
+                    f"{string_identities_found}. Using the first one: '{string_identities_found[0]}'."
+                )
+            if string_identities_found:
+                identity = string_identities_found[0]
 
-            if identity_type_str == "MarkedEntityList":
-                marker_component_type = marker_type_from_annotated
-            elif identity_type_str == "Event":
-                # The 'actual_type' (e.g., MyCustomEvent) is the important part for event handlers
-                # It will be used to match the dispatched event type.
-                event_type_hint = actual_type
+            if identity == "MarkedEntityList":
+                found_marker = False
+                for marker in type_based_markers_found:
+                    if issubclass(marker, BaseComponent):
+                        marker_component_type = marker
+                        found_marker = True
+                        break
+                if not found_marker:
+                    logger.warning(
+                        f"Parameter '{name}' in system '{func.__name__}' is 'MarkedEntityList' but "
+                        f"is missing a BaseComponent subclass in Annotated args."
+                    )
+            elif identity == "Event":
+                if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
+                    event_specific_type = actual_type
+                else:
+                    logger.warning(
+                        f"Parameter '{name}' in system '{func.__name__}' is 'Event' but its type "
+                        f"'{actual_type}' is not a BaseEvent subclass."
+                    )
+            # Other identities like "WorldSession", "CurrentWorldConfig", "Resource", "WorldName"
+            # are set directly from string.
 
+        # Handle non-Annotated cases or cases where Annotated didn't set a specific identity
+        if not identity:  # No string identity from Annotated, or not Annotated at all
+            if actual_type is WorldContext:  # Direct type hint for WorldContext
+                identity = "WorldContext"
+            elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):  # Direct type hint for an Event
+                identity = "Event"
+                event_specific_type = actual_type
+            # For Session, WorldConfig, and generic Resources, explicit Annotated[..., "IdentityString"]
+            # is now preferred. This avoids ambiguity if a system uses other types of Session objects or
+            # config objects. Example: A system might take Annotated[Session, "WorldSession"] and also
+            # another_session: SomeOtherSessionType.
 
-        # If not annotated, but type is a subclass of BaseEvent, assume it's an event parameter
-        # This allows systems to declare `my_event: MySpecificEvent` directly.
-        elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
-            identity_type = "Event"
-            event_type_hint = actual_type
+        # Final consistency check for event_specific_type if identity is "Event"
+        if identity == "Event" and not event_specific_type:
+            if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
+                event_specific_type = actual_type
+            else:  # Should have been caught if actual_type was not BaseEvent and identity came from string.
+                # This path is more for if identity was set some other way or for future implicit rules.
+                logger.warning(
+                    f"Parameter '{name}' in system '{func.__name__}' resolved to 'Event' identity, "
+                    f"but its type '{actual_type}' is not a BaseEvent subclass."
+                )
 
         param_info[name] = {
             "name": name,
-            "type_hint": actual_type,
-            "identity": identity_type,
-            "marker_component_type": marker_component_type,
-            "event_type_hint": event_type_hint, # Store specific event type if this param is an event
-            "is_annotated": get_origin(param_type) is Annotated,
-            "original_annotation": param.annotation,
+            "type_hint": actual_type,  # The core Python type (e.g., Session, MyResource, List[Entity], MyEvent)
+            "identity": identity,  # The string tag (e.g., "WorldSession", "Resource", "Event")
+            "marker_component_type": marker_component_type,  # Specific type for MarkedEntityList (e.g., NeedsProcessingComponent)
+            "event_type_hint": event_specific_type,  # Specific event class for "Event" (e.g., MyCustomEvent)
+            "is_annotated": get_origin(original_param_type) is Annotated,
+            "original_annotation": original_param_type,
         }
     return param_info
 
@@ -117,10 +161,12 @@ def system(stage: SystemStage, **kwargs):
         SYSTEM_METADATA[func] = {
             "params": param_info,
             "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "stage_system", # Mark as stage-based
-            **kwargs
+            "system_type": "stage_system",  # Mark as stage-based
+            "stage": stage,  # Task 2.1: Store stage in metadata
+            **kwargs,
         }
         return func
+
     return decorator
 
 
@@ -149,14 +195,12 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
         SYSTEM_METADATA[func] = {
             "params": param_info,
             "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "event_handler", # Mark as event-based
+            "system_type": "event_handler",  # Mark as event-based
             "listens_for_event_type": event_type,
-            **kwargs
+            **kwargs,
         }
         # Validate that the system actually has a parameter for this event_type
-        has_event_param = any(
-            p_info.get("event_type_hint") == event_type for p_info in param_info.values()
-        )
+        has_event_param = any(p_info.get("event_type_hint") == event_type for p_info in param_info.values())
         if not has_event_param:
             # Try to find if any parameter has the event_type as its direct type_hint
             # This is covered by _parse_system_params if not Annotated.
@@ -166,16 +210,21 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
                 for p_info in param_info.values()
             )
             if not found_by_direct_type:
-                 logger.warning(f"System {func.__name__} registered for event {event_type.__name__} "
-                       f"but does not seem to have a parameter matching this event type. "
-                       f"Ensure one parameter is typed as `{event_type.__name__}` or `Annotated[{event_type.__name__}, \"Event\"]`.")
+                logger.warning(
+                    f"System {func.__name__} registered for event {event_type.__name__} but does not "
+                    f"seem to have a parameter matching this event type. Ensure one parameter is typed as "
+                    f'`{event_type.__name__}` or `Annotated[{event_type.__name__}, "Event"]`.'
+                )
 
         return func
+
     return decorator
 
-logger = logging.getLogger(__name__) # Module-level logger
+
+logger = logging.getLogger(__name__)  # Module-level logger
 
 # --- World Scheduler ---
+
 
 class WorldScheduler:
     """
@@ -207,14 +256,14 @@ class WorldScheduler:
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
         # It still uses the global SYSTEM_METADATA for parameter info
         self.system_metadata = SYSTEM_METADATA
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}") # Scheduler instance logger
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")  # Scheduler instance logger
 
     def register_system_for_world(
         self,
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        **kwargs # These are metadata from the original decorator, can be stored if needed
+        **kwargs,  # These are metadata from the original decorator, can be stored if needed
     ):
         """
         Registers a system function (already decorated and in SYSTEM_METADATA)
@@ -234,26 +283,25 @@ class WorldScheduler:
             # Attempt to parse now, though ideally it's pre-parsed.
             # This might be redundant if decorators ensure metadata population.
             # Let's assume decorators handle metadata. If not, this is a fallback.
-            if not _parse_system_params(system_func): # Call to populate if missing
-                 self.logger.error(f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register.")
-                 return
-
+            if not _parse_system_params(system_func):  # Call to populate if missing
+                self.logger.error(
+                    f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register."
+                )
+                return
 
         if stage:
             self.system_registry[stage].append(system_func)
             self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in this scheduler.")
         elif event_type:
             self.event_handler_registry[event_type].append(system_func)
-            self.logger.info(f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler.")
+            self.logger.info(
+                f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler."
+            )
         else:
             self.logger.error(f"System {system_func.__name__} must be registered with either a stage or an event_type.")
 
-
     async def _resolve_and_execute_system(
-        self,
-        system_func: Callable[..., Any],
-        world_context: WorldContext,
-        event_object: Optional[BaseEvent] = None
+        self, system_func: Callable[..., Any], world_context: WorldContext, event_object: Optional[BaseEvent] = None
     ):
         """
         Helper to resolve dependencies and execute a single system (stage or event based).
@@ -261,7 +309,9 @@ class WorldScheduler:
         """
         metadata = self.system_metadata.get(system_func)
         if not metadata:
-            self.logger.warning(f"No metadata found for system {system_func.__name__} in world '{world_context.world_name}'. Skipping.")
+            self.logger.warning(
+                f"No metadata found for system {system_func.__name__} in world '{world_context.world_name}'. Skipping."
+            )
             return False
 
         kwargs_to_inject = {}
@@ -276,31 +326,34 @@ class WorldScheduler:
                     kwargs_to_inject[param_name] = world_context.world_name
                 elif identity == "CurrentWorldConfig":
                     kwargs_to_inject[param_name] = world_context.world_config
+                elif identity == "WorldContext":  # Task 3.2: Handle WorldContext injection
+                    kwargs_to_inject[param_name] = world_context
                 elif identity == "Resource":
                     try:
                         kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
                     except ResourceNotFoundError as e:
                         self.logger.error(
                             f"System {system_func.__name__} in world '{world_context.world_name}' requires resource "
-                            f"{param_type_hint.__name__} which was not found: {e}", exc_info=True
+                            f"{param_type_hint.__name__} which was not found: {e}",
+                            exc_info=True,
                         )
-                        raise # Re-raise to indicate failure to resolve dependencies
+                        raise  # Re-raise to indicate failure to resolve dependencies
                 elif identity == "MarkedEntityList":
                     marker_type = param_meta["marker_component_type"]
                     if not marker_type or not issubclass(marker_type, BaseComponent):
-                        msg = (f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' "
-                               f"with invalid or missing marker component type in world '{world_context.world_name}'.")
+                        msg = (
+                            f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' "
+                            f"with invalid or missing marker component type in world '{world_context.world_name}'."
+                        )
                         self.logger.error(msg)
                         raise ValueError(msg)
 
-                    from sqlalchemy import select as sql_select # Keep local import for SQLAlchemy specifics
-                    stmt = sql_select(marker_type.entity_id).distinct()
-                    entity_ids_with_marker = world_context.session.execute(stmt).scalars().all()
-                    entities_to_process = []
-                    if entity_ids_with_marker:
-                        entities_to_process = (
-                            world_context.session.query(Entity).filter(Entity.id.in_(entity_ids_with_marker)).all()
-                        )
+                    # Task 1.1: Optimized MarkedEntityList fetching using EXISTS
+                    from sqlalchemy import exists as sql_exists
+                    from sqlalchemy import select as sql_select
+
+                    stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
+                    entities_to_process = world_context.session.execute(stmt).scalars().all()
                     kwargs_to_inject[param_name] = entities_to_process
                     self.logger.debug(
                         f"System {system_func.__name__} in world '{world_context.world_name}' gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
@@ -315,55 +368,58 @@ class WorldScheduler:
                             f"but received {type(event_object)}. Skipping injection for this param."
                         )
                     elif param_meta["event_type_hint"] is not None:
-                        msg = (f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
-                               f"expects an event of type {param_meta['event_type_hint'].__name__} but none was provided.")
+                        msg = (
+                            f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
+                            f"expects an event of type {param_meta['event_type_hint'].__name__} but none was provided."
+                        )
                         self.logger.error(msg)
                         raise ValueError(msg)
 
         except Exception as e:
             self.logger.error(
                 f"Error preparing dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
-                exc_info=True
+                exc_info=True,
             )
             return False
 
         self.logger.debug(
             f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
         )
-        try:
-            if metadata["is_async"]:
-                await system_func(**kwargs_to_inject)
-            else:
-                # Run synchronous system in a thread pool executor to avoid blocking async event loop
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
-        except Exception as e:
-            self.logger.error(f"Error executing system {system_func.__name__} in world '{world_context.world_name}': {e}", exc_info=True)
-            return False # Indicate system execution failure
-
+        # try: # Task 5.1: Let exceptions propagate from here
+        if metadata["is_async"]:
+            await system_func(**kwargs_to_inject)
+        else:
+            # Run synchronous system in a thread pool executor to avoid blocking async event loop
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+        # except Exception as e: # Task 5.1: Propagate instead of returning False
+        # self.logger.error(f"Error executing system {system_func.__name__} in world '{world_context.world_name}': {e}", exc_info=True)
+        # return False # Indicate system execution failure
 
         # Auto-remove marker component logic
         if metadata.get("system_type") == "stage_system":
             for param_name, param_meta in metadata["params"].items():
-                 if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
+                if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
                     marker_type_to_remove = param_meta["marker_component_type"]
-                    entities_processed = kwargs_to_inject.get(param_name, []) # Should be populated if system ran
+                    entities_processed = kwargs_to_inject.get(param_name, [])  # Should be populated if system ran
                     if entities_processed and marker_type_to_remove:
-                        # Local import to avoid circular dependencies if ecs_service imports systems
-                        from dam.services import ecs_service
-                        self.logger.debug(
-                            f"Scheduler for world '{world_context.world_name}': Removing {marker_type_to_remove.__name__} from "
-                            f"{len(entities_processed)} entities after system {system_func.__name__}."
-                        )
-                        for entity_obj in entities_processed:
-                            comp_to_remove = ecs_service.get_component(
-                                world_context.session, entity_obj.id, marker_type_to_remove
+                        # Task 1.2: Optimized auto_remove_marker logic using bulk delete
+                        entity_ids_processed = [entity.id for entity in entities_processed]
+                        if entity_ids_processed:
+                            from sqlalchemy import delete as sql_delete
+
+                            self.logger.debug(
+                                f"Scheduler for world '{world_context.world_name}': Bulk removing {marker_type_to_remove.__name__} from "
+                                f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
                             )
-                            if comp_to_remove:
-                                ecs_service.remove_component(
-                                    world_context.session, comp_to_remove, flush=False # Batch flush
-                                )
-                        world_context.session.flush() # Flush all marker removals for this system
+                            stmt = sql_delete(marker_type_to_remove).where(
+                                marker_type_to_remove.entity_id.in_(entity_ids_processed)
+                            )
+                            world_context.session.execute(stmt)
+                            # The flush here ensures that if the same system (or another in the same stage,
+                            # if error handling changes) tries to re-evaluate this marker, it sees the change.
+                            # It's consistent with the previous flush, relying on the overall stage commit/rollback.
+                            world_context.session.flush()
         return True
 
     async def execute_stage(self, stage: SystemStage, world_context: WorldContext):
@@ -378,37 +434,41 @@ class WorldScheduler:
             self.logger.info(f"No systems registered for stage {stage.name} in world {world_context.world_name}")
             return
 
-        all_systems_succeeded_in_stage = True
-        for system_func in systems_to_run:
-            system_success = await self._resolve_and_execute_system(system_func, world_context)
-            if not system_success:
-                all_systems_succeeded_in_stage = False
-                self.logger.error(
-                    f"System {system_func.__name__} failed in stage {stage.name} for world {world_context.world_name}. "
-                    "Stage execution will be rolled back."
-                )
-                break # Stop on first system error within the stage
+        # all_systems_succeeded_in_stage = True # Task 5.1: Replaced with try/except block
+        active_system_func_name = "None"
+        try:
+            for system_func in systems_to_run:
+                active_system_func_name = system_func.__name__
+                await self._resolve_and_execute_system(system_func, world_context)
 
-        if all_systems_succeeded_in_stage:
+            # If all systems executed without raising an exception
             try:
                 world_context.session.commit()
                 self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
-            except Exception as e:
+            except Exception as commit_exc:
                 self.logger.error(
-                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {e}. Rolling back.",
-                    exc_info=True
+                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {commit_exc}. Rolling back.",
+                    exc_info=True,
                 )
                 world_context.session.rollback()
-                # Consider re-raising to signal failure to the caller (e.g., the World object)
-                # raise StageExecutionError(...) from e
-        else:
-            self.logger.warning(
-                f"One or more systems failed in stage {stage.name}. Rolling back session for world {world_context.world_name}."
+                # Raise StageExecutionError even for commit failure, as the stage didn't complete successfully.
+                raise StageExecutionError(
+                    message=f"Failed to commit stage {stage.name} in world {world_context.world_name}.",
+                    stage_name=stage.name,
+                    original_exception=commit_exc,
+                ) from commit_exc
+        except Exception as system_exc:  # Catch exceptions from _resolve_and_execute_system
+            self.logger.error(
+                f"System '{active_system_func_name}' failed in stage '{stage.name}' for world '{world_context.world_name}'. Rolling back. Error: {system_exc}",
+                exc_info=True,
             )
             world_context.session.rollback()
-            # Optionally raise an exception to signal stage failure
-            # raise StageExecutionError(f"Stage {stage.name} failed due to system errors in world {world_context.world_name}.")
-
+            raise StageExecutionError(
+                message=f"System '{active_system_func_name}' failed during stage '{stage.name}' execution in world '{world_context.world_name}'.",
+                stage_name=stage.name,
+                system_name=active_system_func_name,
+                original_exception=system_exc,
+            ) from system_exc
 
     async def dispatch_event(self, event: BaseEvent, world_context: WorldContext):
         """
@@ -421,38 +481,46 @@ class WorldScheduler:
 
         handlers_to_run = self.event_handler_registry.get(event_type, [])
         if not handlers_to_run:
-            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {world_context.world_name}")
+            self.logger.info(
+                f"No event handlers registered for event type {event_type.__name__} in world {world_context.world_name}"
+            )
             return
 
-        all_handlers_succeeded = True
-        for handler_func in handlers_to_run:
-            handler_success = await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
-            if not handler_success:
-                all_handlers_succeeded = False
-                self.logger.error(
-                    f"Event handler {handler_func.__name__} failed for event {event_type.__name__} "
-                    f"in world {world_context.world_name}. Event processing group will be rolled back."
-                )
-                break # Stop on first handler error for this event
+        active_handler_func_name = "None"
+        try:
+            for handler_func in handlers_to_run:
+                active_handler_func_name = handler_func.__name__
+                await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
 
-        if all_handlers_succeeded:
+            # If all handlers executed without raising an exception
             try:
                 world_context.session.commit()
-                self.logger.info(f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}")
-            except Exception as e:
+                self.logger.info(
+                    f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}"
+                )
+            except Exception as commit_exc:
                 self.logger.error(
-                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {e}. Rolling back.",
-                    exc_info=True
+                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
+                    exc_info=True,
                 )
                 world_context.session.rollback()
-                # raise EventHandlingError(...) from e
-        else:
-            self.logger.warning(
-                f"One or more handlers failed for event {event_type.__name__}. Rolling back session for world {world_context.world_name}."
+                raise EventHandlingError(
+                    message=f"Failed to commit after handling event {event_type.__name__} in world {world_context.world_name}.",
+                    event_type=event_type.__name__,
+                    original_exception=commit_exc,
+                ) from commit_exc
+        except Exception as handler_exc:  # Catch exceptions from _resolve_and_execute_system (via handler)
+            self.logger.error(
+                f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'. Rolling back. Error: {handler_exc}",
+                exc_info=True,
             )
             world_context.session.rollback()
-            # raise EventHandlingError(f"Event {event_type.__name__} handling failed in world {world_context.world_name}.")
-
+            raise EventHandlingError(
+                message=f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'.",
+                event_type=event_type.__name__,
+                handler_name=active_handler_func_name,
+                original_exception=handler_exc,
+            ) from handler_exc
 
     async def run_all_stages(self, initial_world_context: WorldContext):
         """
@@ -490,7 +558,9 @@ class WorldScheduler:
         ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
 
         for stage in ordered_stages:
-            self.logger.info(f"Running stage {stage.name} as part of run_all_stages for world {initial_world_context.world_name}.")
+            self.logger.info(
+                f"Running stage {stage.name} as part of run_all_stages for world {initial_world_context.world_name}."
+            )
             # We use the initial_world_context, which carries the session.
             # The execute_stage method will then use this session and commit/rollback.
             await self.execute_stage(stage, initial_world_context)

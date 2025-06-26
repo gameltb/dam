@@ -1,13 +1,15 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Any
 
 # Using dataclasses for simplicity, similar to Bevy events.
+
 
 @dataclass
 class BaseEvent:
     """Base class for all events, providing a common structure if needed."""
+
     pass
+
 
 @dataclass
 class AssetFileIngestionRequested(BaseEvent):
@@ -15,6 +17,7 @@ class AssetFileIngestionRequested(BaseEvent):
     Event dispatched when a new asset file needs to be ingested by copying.
     Corresponds to the logic previously in asset_service.add_asset_file.
     """
+
     filepath_on_disk: Path
     original_filename: str
     mime_type: str
@@ -27,12 +30,14 @@ class AssetFileIngestionRequested(BaseEvent):
     # entity_id: Optional[int] = field(default=None, init=False)
     # created_new: Optional[bool] = field(default=None, init=False)
 
+
 @dataclass
 class AssetReferenceIngestionRequested(BaseEvent):
     """
     Event dispatched when a new asset needs to be ingested by reference.
     Corresponds to the logic previously in asset_service.add_asset_reference.
     """
+
     filepath_on_disk: Path
     original_filename: str
     mime_type: str
@@ -41,6 +46,7 @@ class AssetReferenceIngestionRequested(BaseEvent):
 
     # entity_id: Optional[int] = field(default=None, init=False)
     # created_new: Optional[bool] = field(default=None, init=False)
+
 
 # Example of a potential event that could be dispatched *by* an ingestion system
 # after an asset is successfully processed, if other systems need to react to that.
@@ -68,26 +74,30 @@ class AssetReferenceIngestionRequested(BaseEvent):
 # These events will carry a unique request_id to potentially correlate results
 # if results are posted back as another event or stored in a temporary resource.
 
+
 @dataclass
 class FindEntityByHashQuery(BaseEvent):
     """Event to request finding an entity by its content hash."""
+
     hash_value: str
-    world_name: str # Target world for this query
-    request_id: str # Unique ID for this query request
-    hash_type: str = "sha256" # Moved to the end as it has a default
+    world_name: str  # Target world for this query
+    request_id: str  # Unique ID for this query request
+    hash_type: str = "sha256"  # Moved to the end as it has a default
 
     # For carrying results if the system modifies the event or posts a new one
     # result_entity_id: Optional[int] = field(default=None, init=False)
 
+
 @dataclass
 class FindSimilarImagesQuery(BaseEvent):
     """Event to request finding similar images."""
-    image_path: Path # Path to the query image on a system accessible to the DAM
+
+    image_path: Path  # Path to the query image on a system accessible to the DAM
     phash_threshold: int
     ahash_threshold: int
     dhash_threshold: int
-    world_name: str # Target world for this query
-    request_id: str # Unique ID for this query request
+    world_name: str  # Target world for this query
+    request_id: str  # Unique ID for this query request
 
     # For carrying results
     # result_similar_entities_info: Optional[list[dict]] = field(default=None, init=False)
