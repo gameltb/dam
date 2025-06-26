@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 # Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
 from dam.models.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.models.entity import Entity
+from dam.models.file_location_component import FileLocationComponent  # Added import
 from dam.services import ecs_service
 
 # No longer need db_manager here if session is always passed in.
@@ -66,31 +67,23 @@ def export_ecs_world_to_json(session: Session, filepath: Path, world_name_for_lo
         entity_data: dict[str, Any] = {"id": entity.id, "components": {}}
 
         for component_class in component_classes:
-            # Components are typically accessed via relationship from Entity,
-            # e.g., entity.component_file_properties
-            # The relationship name is usually the table name.
-            relationship_name = component_class.__tablename__  # type: ignore
-
-            components_on_entity = getattr(entity, relationship_name, [])
-
-            if not isinstance(components_on_entity, list):  # If relationship is one-to-one
-                components_on_entity = [components_on_entity] if components_on_entity else []
+            # Directly query components for the current entity and component_class
+            # This is more robust than relying on pre-configured relationships on the Entity model via tablename.
+            components_on_entity = session.query(component_class).filter(component_class.entity_id == entity.id).all()
 
             if components_on_entity:
                 component_list_data = []
                 for comp_instance in components_on_entity:
-                    if comp_instance:  # Ensure component instance is not None
-                        comp_data = {
-                            c.key: getattr(comp_instance, c.key)
-                            for c in sqlalchemy_inspect(comp_instance).mapper.column_attrs
-                            if c.key not in ["id", "entity_id"]  # Exclude primary/foreign keys often
-                        }
-                        # Add discriminator for component type
-                        comp_data["__component_type__"] = component_class.__name__
-                        component_list_data.append(comp_data)
+                    # comp_instance should not be None if returned from query
+                    comp_data = {
+                        c.key: getattr(comp_instance, c.key)
+                        for c in sqlalchemy_inspect(comp_instance).mapper.column_attrs
+                        if c.key not in ["id", "entity_id"]  # Exclude primary/foreign keys
+                    }
+                    comp_data["__component_type__"] = component_class.__name__
+                    component_list_data.append(comp_data)
 
                 if component_list_data:
-                    # Store components under their class name for clarity in JSON
                     entity_data["components"][component_class.__name__] = component_list_data
 
         world_data["entities"].append(entity_data)
@@ -277,6 +270,33 @@ def import_ecs_world_from_json(
                     # If BaseComponent's __init__ truly needs `entity` object due to kw_only:
                     comp_data_cleaned["entity"] = entity_to_update
 
+                    # Map old FileLocationComponent field names from JSON to new model fields if necessary
+                    if ComponentClass == FileLocationComponent:
+                        if "file_identifier" in comp_data_cleaned and "content_identifier" not in comp_data_cleaned:
+                            comp_data_cleaned["content_identifier"] = comp_data_cleaned.pop("file_identifier")
+                        if "original_filename" in comp_data_cleaned and "contextual_filename" not in comp_data_cleaned:
+                            comp_data_cleaned["contextual_filename"] = comp_data_cleaned.pop("original_filename")
+                        # physical_path_or_key should ideally be in the JSON. If it was 'filepath', map it.
+                        if (
+                            "filepath" in comp_data_cleaned and "physical_path_or_key" not in comp_data_cleaned
+                        ):  # Assuming old key might be 'filepath'
+                            comp_data_cleaned["physical_path_or_key"] = comp_data_cleaned.pop("filepath")
+                        # Ensure physical_path_or_key exists, it's mandatory. This might be an issue if old JSONs don't have it.
+                        if "physical_path_or_key" not in comp_data_cleaned:
+                            # Try to use content_identifier as a fallback if it's a CAS-like scenario,
+                            # or log an error if it's a critical missing piece.
+                            # This depends on how JSONs were generated. For now, let's assume it exists or content_identifier is a proxy.
+                            # If 'local_reference', physical_path_or_key is the direct path.
+                            # If 'local_cas', physical_path_or_key is the relative CAS path (e.g. aa/bb/hash).
+                            # The JSON should reflect this correctly.
+                            # If old JSONs used 'file_identifier' for content and also as part of path for CAS,
+                            # or 'filepath' for referenced files, the mapping must be robust.
+                            # For now, we assume the new field names are in JSON or mapped above.
+                            # If physical_path_or_key is still missing, it's an issue.
+                            logger.warning(
+                                f"FileLocationComponent data for entity {entity_to_update.id} is missing 'physical_path_or_key'. Component might be invalid."
+                            )
+
                     new_component = ComponentClass(**comp_data_cleaned)
                     # session.add(new_component) # add_component_to_entity handles this
                     ecs_service.add_component_to_entity(session, entity_to_update.id, new_component, flush=False)
@@ -347,7 +367,7 @@ def merge_ecs_worlds_db_to_db(
                 comp_data = {
                     attr.key: getattr(src_comp_instance, attr.key)
                     for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                    if attr.key not in ["id", "entity_id"]  # These will be set by new association
+                    if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
                 }
 
                 # Add entity_id and entity for the new target entity
@@ -394,7 +414,7 @@ def merge_ecs_worlds_db_to_db(
 
 def split_ecs_world(  # Renamed from placeholder
     source_session: Session,
-    criteria: Any,  # This will need to be more specific, e.g. a callable or a structured query
+    # criteria: Any,  # This was a placeholder and not used; logic uses specific criteria_* args below
     target_session_selected: Session,
     target_session_remaining: Session,
     source_world_name_for_log: Optional[str] = "source",
@@ -521,7 +541,7 @@ def split_ecs_world(  # Renamed from placeholder
                 comp_data = {
                     attr.key: getattr(src_comp_instance, attr.key)
                     for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                    if attr.key not in ["id", "entity_id"]
+                    if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
                 }
                 comp_data_for_new = comp_data.copy()
                 comp_data_for_new["entity_id"] = tgt_entity.id

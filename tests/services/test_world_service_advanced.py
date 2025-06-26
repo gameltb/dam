@@ -17,16 +17,39 @@ def sample_text_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def _populate_world_with_assets(session: Session, world_name_for_service: str, image_file: Path, text_file: Path):
+def _populate_world_with_assets(
+    session: Session,
+    world_name_for_service: str,
+    image_file: Path,
+    text_file: Path,
+    # file_ops: FileOperationsResource, # No longer pass file_ops, asset_service uses global
+    # settings # No longer pass settings, asset_service uses global
+):
     """Helper to populate a world with a couple of assets."""
-    img_props = asset_service.file_operations.get_file_properties(image_file)
+    # Instantiate FileOperationsResource locally if helper needs it directly,
+    # or import from dam.services.file_operations
+    from dam.services import file_operations as f_ops
+
+    img_filename, img_size, img_mime_type = f_ops.get_file_properties(image_file)
     asset_service.add_asset_file(
-        session, image_file, img_props[0], img_props[2], img_props[1], world_name=world_name_for_service
+        session=session,
+        filepath_on_disk=image_file,
+        original_filename=img_filename,  # Use determined filename
+        mime_type=img_mime_type,
+        size_bytes=img_size,
+        world_name=world_name_for_service,
+        # No world_config, no file_ops for asset_service.add_asset_file current signature
     )
 
-    txt_props = asset_service.file_operations.get_file_properties(text_file)
+    txt_filename, txt_size, txt_mime_type = f_ops.get_file_properties(text_file)
     asset_service.add_asset_file(
-        session, text_file, txt_props[0], txt_props[2], txt_props[1], world_name=world_name_for_service
+        session=session,
+        filepath_on_disk=text_file,
+        original_filename=txt_filename,  # Use determined filename
+        mime_type=txt_mime_type,
+        size_bytes=txt_size,
+        world_name=world_name_for_service,
+        # No world_config, no file_ops for asset_service.add_asset_file current signature
     )
     session.commit()
 
@@ -50,6 +73,9 @@ def test_merge_worlds_db_to_db_add_new(
     target_session = test_db_manager.get_db_session(target_world_name)
 
     # Populate source world
+    # resource_manager = ResourceManager() # Not needed if _populate_world_with_assets doesn't need file_ops passed
+    # file_ops_resource = FileOperationsResource()
+    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
     _populate_world_with_assets(source_session, source_world_name, sample_image_a, sample_text_file)
     src_entity_count_before, src_fpc_count_before = count_entities_and_components(
         source_session, FilePropertiesComponent
@@ -85,7 +111,9 @@ def test_merge_worlds_db_to_db_add_new(
 
     src_entity_ids = {e.id for e in src_entities}
     tgt_entity_ids = {e.id for e in tgt_entities}
-    assert not (src_entity_ids & tgt_entity_ids)  # No overlap in PKs
+    # assert not (src_entity_ids & tgt_entity_ids)  # Removed: This can fail with independent in-memory DBs starting IDs at 1.
+    # The 'add_new' strategy ensures new rows in the target DB,
+    # not necessarily globally unique IDs across separate DB instances.
 
     for tgt_entity in tgt_entities:
         fpc = ecs_service.get_component(target_session, tgt_entity.id, FilePropertiesComponent)
@@ -100,28 +128,56 @@ def test_merge_worlds_db_to_db_add_new(
 
 # --- Tests for split_ecs_world (DB-to-DB) ---
 @pytest.fixture
-def source_world_for_split(test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path):
+def source_world_for_split(
+    settings_override, test_db_manager, sample_image_a: Path, sample_text_file: Path, tmp_path: Path
+):
     world_name = "test_world_alpha"  # Source world
     session = test_db_manager.get_db_session(world_name)
+    # ResourceManager not strictly needed here if FileOperationsResource is instantiated directly
+    # However, if other resources were needed, it would be.
+    # For consistency with other tests and future use, let's keep it.
+    # resource_manager = ResourceManager() # Not needed for these direct calls
+    # file_ops_resource = FileOperationsResource()
+    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
+    from dam.services import file_operations as f_ops  # direct import
 
     # Add image 1 (PNG)
-    img1_props = asset_service.file_operations.get_file_properties(sample_image_a)
+    # world_config = settings_override.get_world_config(world_name) # asset_service.add_asset_file gets this itself
+    img1_filename, img1_size, img1_mime_type = f_ops.get_file_properties(sample_image_a)
     asset_service.add_asset_file(
-        session, sample_image_a, "image1.png", img1_props[2], img1_props[1], world_name=world_name
+        session=session,
+        filepath_on_disk=sample_image_a,
+        original_filename="image1.png",  # Use specific name for test
+        mime_type=img1_mime_type,
+        size_bytes=img1_size,
+        world_name=world_name,
+        # No world_config, no file_ops
     )
 
     # Add image 2 (create a dummy JPG for mime type difference)
     jpg_file = tmp_path / "image2.jpg"
     jpg_file.write_bytes(b"dummy jpg content")  # very basic
-    img2_props = asset_service.file_operations.get_file_properties(jpg_file)
+    img2_filename, img2_size, _ = f_ops.get_file_properties(jpg_file)  # Mime type is forced below
     asset_service.add_asset_file(
-        session, jpg_file, "image2.jpg", "image/jpeg", img2_props[1], world_name=world_name
-    )  # Force mime
+        session=session,
+        filepath_on_disk=jpg_file,
+        original_filename="image2.jpg",  # Use specific name for test
+        mime_type="image/jpeg",  # Force mime for test
+        size_bytes=img2_size,
+        world_name=world_name,
+        # No world_config, no file_ops
+    )
 
     # Add text file 1
-    txt1_props = asset_service.file_operations.get_file_properties(sample_text_file)
+    txt1_filename, txt1_size, txt1_mime_type = f_ops.get_file_properties(sample_text_file)
     asset_service.add_asset_file(
-        session, sample_text_file, "text1.txt", txt1_props[2], txt1_props[1], world_name=world_name
+        session=session,
+        filepath_on_disk=sample_text_file,
+        original_filename="text1.txt",  # Use specific name for test
+        mime_type=txt1_mime_type,
+        size_bytes=txt1_size,
+        world_name=world_name,
+        # No world_config, no file_ops
     )
 
     session.commit()
@@ -223,6 +279,9 @@ def test_split_world_delete_from_source(
     # If this test fails due to unknown worlds, conftest.py's test_worlds_config_data needs these added.
 
     source_session_del = test_db_manager.get_db_session(source_world_name_del)
+    # resource_manager = ResourceManager() # Not needed here either
+    # file_ops_resource = FileOperationsResource()
+    # resource_manager.add_resource(file_ops_resource, FileOperationsResource)
     _populate_world_with_assets(source_session_del, source_world_name_del, sample_image_a, sample_text_file)
     assert source_session_del.query(Entity).count() == 2
 

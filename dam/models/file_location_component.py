@@ -32,7 +32,6 @@ class FileLocationComponent(BaseComponent):
     # Broader tracking of all original filenames that map to this content should be in OriginalSourceInfoComponent.
     contextual_filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-
     __table_args__ = (
         UniqueConstraint("entity_id", "storage_type", "physical_path_or_key", name="uq_physical_location_entity"),
         # An entity should not have the exact same physical file location/reference registered twice.

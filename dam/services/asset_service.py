@@ -6,13 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from dam.models import Entity
-from dam.models.audio_properties_component import AudioPropertiesComponent
 from dam.models.content_hash_md5_component import ContentHashMD5Component
 from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
 from dam.models.file_properties_component import FilePropertiesComponent
-from dam.models.frame_properties_component import FramePropertiesComponent
-from dam.models.image_dimensions_component import ImageDimensionsComponent
 from dam.models.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
 from dam.models.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from dam.models.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
@@ -23,7 +20,12 @@ try:
 except ImportError:
     imagehash = None
 
-from . import file_storage, metadata_extractor # Import the new metadata_extractor service
+# system_service is no longer directly called by asset_service for processing.
+# Instead, asset_service will add a marker component.
+# from . import system_service # No longer needed here directly
+from dam.core.components_markers import NeedsMetadataExtractionComponent  # Import marker
+
+from . import file_storage
 from .ecs_service import (
     add_component_to_entity,
     create_entity,
@@ -108,17 +110,18 @@ def add_asset_file(
         logger.exception(f"Error reading file {filepath_on_disk}")
         raise
 
-    from dam.core.config import settings as app_settings # Import settings
+    # Dynamically import settings to ensure patched version is used in tests
+    from dam.core import config as app_config  # Changed import
 
     name_for_lookup = world_name
     if name_for_lookup is None:
-        name_for_lookup = app_settings.DEFAULT_WORLD_NAME
+        name_for_lookup = app_config.settings.DEFAULT_WORLD_NAME
 
-    world_config_obj = app_settings.get_world_config(name_for_lookup)
+    world_config_obj = app_config.settings.get_world_config(name_for_lookup)
 
     # Store the file using the new service, returns the SHA256 hash (content_hash)
     # and the relative physical path suffix for CAS.
-    content_hash_sha256, physical_storage_path_suffix = file_storage.store_file( # Modified
+    content_hash_sha256, physical_storage_path_suffix = file_storage.store_file(  # Modified
         file_content, world_config=world_config_obj, original_filename=original_filename
     )
 
@@ -133,7 +136,7 @@ def add_asset_file(
         )
         # Ensure MD5 hash is also stored for this existing entity if not already present
         # (This assumes FilePropertiesComponent and other core hashes are only added once per entity)
-        md5_hash_value = calculate_md5(filepath_on_disk) # Calculate MD5 for the source file
+        md5_hash_value = calculate_md5(filepath_on_disk)  # Calculate MD5 for the source file
         existing_md5_components = get_components(session, entity.id, ContentHashMD5Component)
         if not any(comp.hash_value == md5_hash_value for comp in existing_md5_components):
             chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=md5_hash_value)
@@ -147,7 +150,9 @@ def add_asset_file(
         for loc in existing_cas_locations:
             if loc.storage_type == "local_cas" and loc.physical_path_or_key == physical_storage_path_suffix:
                 found_cas_location = True
-                logger.debug(f"CAS FileLocationComponent for {physical_storage_path_suffix} already exists for Entity {entity.id}.")
+                logger.debug(
+                    f"CAS FileLocationComponent for {physical_storage_path_suffix} already exists for Entity {entity.id}."
+                )
                 break
         if not found_cas_location:
             logger.warning(
@@ -160,11 +165,11 @@ def add_asset_file(
                 content_identifier=content_hash_sha256,
                 storage_type="local_cas",
                 physical_path_or_key=physical_storage_path_suffix,
-                contextual_filename=original_filename, # Store original filename with this specific CAS location
+                contextual_filename=original_filename,  # Store original filename with this specific CAS location
             )
             add_component_to_entity(session, entity.id, flc)
 
-    else: # No existing entity for this content hash
+    else:  # No existing entity for this content hash
         created_new_entity = True
         entity = create_entity(session)
         logger.info(
@@ -183,7 +188,7 @@ def add_asset_file(
         fpc = FilePropertiesComponent(
             entity_id=entity.id,
             entity=entity,
-            original_filename=original_filename, # This is the primary original filename for the entity
+            original_filename=original_filename,  # This is the primary original filename for the entity
             file_size_bytes=size_bytes,
             mime_type=mime_type,
         )
@@ -194,14 +199,15 @@ def add_asset_file(
             entity_id=entity.id,
             entity=entity,
             content_identifier=content_hash_sha256,
-            storage_type="local_cas", # Changed from "local_content_addressable"
+            storage_type="local_cas",  # Changed from "local_content_addressable"
             physical_path_or_key=physical_storage_path_suffix,
-            contextual_filename=original_filename, # original_filename for this CAS location
+            contextual_filename=original_filename,  # original_filename for this CAS location
         )
         add_component_to_entity(session, entity.id, flc)
 
     # Always add OriginalSourceInfoComponent for this ingestion event
-    from dam.models.original_source_info_component import OriginalSourceInfoComponent # Import here
+    from dam.models.original_source_info_component import OriginalSourceInfoComponent  # Import here
+
     osi_comp = OriginalSourceInfoComponent(
         entity_id=entity.id,
         entity=entity,
@@ -210,7 +216,6 @@ def add_asset_file(
     )
     add_component_to_entity(session, entity.id, osi_comp)
     logger.info(f"Added OriginalSourceInfo for '{original_filename}' to Entity ID {entity.id}.")
-
 
     # After entity creation or retrieval, if it's an image, add perceptual hashes
     # This logic remains the same, ensuring these components are added if not already present for the entity.
@@ -249,10 +254,17 @@ def add_asset_file(
             add_component_to_entity(session, entity.id, idhc)
             logger.info(f"Added dhash '{perceptual_hashes['dhash'][:12]}...' for Entity ID {entity.id}.")
 
-    # Add multimedia specific components using the new service
-    metadata_extractor.extract_and_add_multimedia_components(
-        session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name
-    )
+    # Mark the entity as needing metadata extraction
+    # The actual extraction will be handled by a system in a later stage.
+    # Ensure the component is only added if it doesn't already exist (though add_component_to_entity might handle this)
+    if not get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Check first
+        marker_comp = NeedsMetadataExtractionComponent(entity_id=entity.id, entity=entity)
+        add_component_to_entity(
+            session, entity.id, marker_comp, flush=True
+        )  # Flush needed to make marker visible for subsequent systems in same overall transaction if not handled by scheduler stages with new sessions
+        logger.info(f"Marked Entity ID {entity.id} with NeedsMetadataExtractionComponent.")
+    else:
+        logger.debug(f"Entity ID {entity.id} already marked for metadata extraction or processed.")
 
     return entity, created_new_entity
 
@@ -372,10 +384,10 @@ def add_asset_reference(
         flc = FileLocationComponent(
             entity_id=entity.id,
             entity=entity,
-            content_identifier=content_hash_sha256, # Link to the content
-            storage_type="local_reference", # Changed from "referenced_local_file"
-            physical_path_or_key=resolved_original_path, # The actual path being referenced
-            contextual_filename=original_filename, # Original filename for this reference
+            content_identifier=content_hash_sha256,  # Link to the content
+            storage_type="local_reference",  # Changed from "referenced_local_file"
+            physical_path_or_key=resolved_original_path,  # The actual path being referenced
+            contextual_filename=original_filename,  # Original filename for this reference
         )
         add_component_to_entity(session, entity.id, flc)
         logger.info(
@@ -384,7 +396,8 @@ def add_asset_reference(
         )
 
     # Always add OriginalSourceInfoComponent for this ingestion event
-    from dam.models.original_source_info_component import OriginalSourceInfoComponent # Import here
+    from dam.models.original_source_info_component import OriginalSourceInfoComponent  # Import here
+
     osi_comp = OriginalSourceInfoComponent(
         entity_id=entity.id,
         entity=entity,
@@ -392,7 +405,9 @@ def add_asset_reference(
         original_path=resolved_original_path,
     )
     add_component_to_entity(session, entity.id, osi_comp)
-    logger.info(f"Added OriginalSourceInfo for '{original_filename}' (path: {resolved_original_path}) to Entity ID {entity.id}.")
+    logger.info(
+        f"Added OriginalSourceInfo for '{original_filename}' (path: {resolved_original_path}) to Entity ID {entity.id}."
+    )
 
     # Add multimedia and perceptual hash components, regardless of whether new or existing entity.
     # This ensures that even if an entity was created by a non-image/video file first,
@@ -426,10 +441,13 @@ def add_asset_reference(
             )
             add_component_to_entity(session, entity.id, idhc)
 
-    # Add multimedia specific components using the new service
-    metadata_extractor.extract_and_add_multimedia_components(
-        session, entity, filepath_on_disk, mime_type, world_name_for_log=world_name
-    )
+    # Mark the entity as needing metadata extraction
+    if not get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Check first
+        marker_comp = NeedsMetadataExtractionComponent(entity_id=entity.id, entity=entity)
+        add_component_to_entity(session, entity.id, marker_comp, flush=True)  # Flush needed
+        logger.info(f"Marked Entity ID {entity.id} with NeedsMetadataExtractionComponent for referenced asset.")
+    else:
+        logger.debug(f"Entity ID {entity.id} already marked for metadata extraction or processed (referenced asset).")
 
     return entity, created_new_entity
 

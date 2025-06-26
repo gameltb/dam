@@ -5,13 +5,15 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from dam.models import Base
+
 # Import Settings for type hinting, and the global settings instance
-from .config import Settings, settings as global_app_settings
+from .config import Settings
+from .config import settings as global_app_settings
 
 
 class DatabaseManager:
-    def __init__(self, settings_object: Settings): # Accept a settings object
-        self.settings = settings_object # Store it
+    def __init__(self, settings_object: Settings):  # Accept a settings object
+        self.settings = settings_object  # Store it
         self._engines: Dict[str, Engine] = {}
         self._session_locals: Dict[str, sessionmaker[Session]] = {}
         self._initialize_engines()
@@ -75,7 +77,9 @@ class DatabaseManager:
 
         # WARNING: Destructive operation in testing mode.
         # Use self.settings here
-        if self.settings.TESTING_MODE and ("pytest" in world_config.DATABASE_URL or "test" in world_config.DATABASE_URL):
+        if self.settings.TESTING_MODE and (
+            "pytest" in world_config.DATABASE_URL or "test" in world_config.DATABASE_URL
+        ):
             Base.metadata.drop_all(bind=engine)
             print(f"Dropped all tables for world '{target_world_name}' ({world_config.DATABASE_URL}) (testing mode)")
 

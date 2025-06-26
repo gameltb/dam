@@ -123,8 +123,9 @@ def test_add_component_to_entity_success(db_session: Session, sample_entity: Ent
     component_to_add = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        file_identifier="test_identifier_123",
-        original_filename="file.txt",
+        content_identifier="test_content_id_123",  # Changed
+        physical_path_or_key="physical/path/to/file.txt",  # Added
+        contextual_filename="file.txt",  # Changed
         storage_type="test_local",
     )
 
@@ -140,8 +141,9 @@ def test_add_component_to_entity_success(db_session: Session, sample_entity: Ent
     retrieved_component = db_session.get(FileLocationComponent, added_component.id)
     assert retrieved_component is not None
     # Assert based on the fields used during creation
-    assert retrieved_component.file_identifier == "test_identifier_123"
-    assert retrieved_component.original_filename == "file.txt"
+    assert retrieved_component.content_identifier == "test_content_id_123"  # Changed
+    assert retrieved_component.physical_path_or_key == "physical/path/to/file.txt"  # Added
+    assert retrieved_component.contextual_filename == "file.txt"  # Changed
     assert retrieved_component.storage_type == "test_local"
 
 
@@ -232,15 +234,17 @@ def test_get_components_multiple(db_session: Session, sample_entity: Entity):
     loc1 = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        file_identifier="id_loc1",
-        original_filename="loc1.txt",
+        content_identifier="content_id_loc1",  # Changed
+        physical_path_or_key="path/loc1.txt",  # Added
+        contextual_filename="loc1.txt",  # Changed
         storage_type="local",
     )
     loc2 = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        file_identifier="id_loc2",
-        original_filename="loc2.txt",
+        content_identifier="content_id_loc2",  # Changed
+        physical_path_or_key="path/loc2.txt",  # Added
+        contextual_filename="loc2.txt",  # Changed
         storage_type="local",
     )
     add_component_to_entity(db_session, sample_entity.id, loc1)
@@ -249,12 +253,12 @@ def test_get_components_multiple(db_session: Session, sample_entity: Entity):
 
     retrieved_locs = get_components(db_session, sample_entity.id, FileLocationComponent)
     assert len(retrieved_locs) == 2
-    identifiers = {loc.file_identifier for loc in retrieved_locs}
-    original_filenames = {loc.original_filename for loc in retrieved_locs}
-    assert "id_loc1" in identifiers
-    assert "id_loc2" in identifiers
-    assert "loc1.txt" in original_filenames
-    assert "loc2.txt" in original_filenames
+    content_identifiers = {loc.content_identifier for loc in retrieved_locs}  # Changed
+    contextual_filenames = {loc.contextual_filename for loc in retrieved_locs}  # Changed
+    assert "content_id_loc1" in content_identifiers  # Changed
+    assert "content_id_loc2" in content_identifiers  # Changed
+    assert "loc1.txt" in contextual_filenames  # Changed
+    assert "loc2.txt" in contextual_filenames  # Changed
 
 
 def test_get_components_empty(db_session: Session, sample_entity: Entity):
@@ -268,8 +272,9 @@ def test_remove_component(db_session: Session, sample_entity: Entity):
     loc = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        file_identifier="id_to_delete",
-        original_filename="to_delete.txt",
+        content_identifier="content_id_to_delete",  # Changed
+        physical_path_or_key="path/to_delete.txt",  # Added
+        contextual_filename="to_delete.txt",  # Changed
         storage_type="local",
     )
     add_component_to_entity(db_session, sample_entity.id, loc)
@@ -296,8 +301,9 @@ def test_delete_entity_cascades_components(db_session: Session, sample_entity: E
     loc = FileLocationComponent(
         entity_id=sample_entity.id,
         entity=sample_entity,
-        file_identifier="id_loc_del",
-        original_filename="loc_del.txt",
+        content_identifier="content_id_loc_del",  # Changed
+        physical_path_or_key="path/loc_del.txt",  # Added
+        contextual_filename="loc_del.txt",  # Changed
         storage_type="local",
     )
     chc_sha256 = ContentHashSHA256Component(  # Changed to a specific component

@@ -42,28 +42,68 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     -   `entity`: A SQLAlchemy relationship property to easily navigate from a component instance back to its parent `Entity` object.
 -   Using `BaseComponent` ensures consistency and reduces boilerplate when defining new components.
 
-### 2.4. Systems (Services)
--   **Definition**: Systems (often referred to as Services in this project's context) contain the logic that operates on entities based on the components they possess. For example, a service might find all entities with a specific hash, or generate thumbnails for entities that have an image component but no thumbnail component yet.
+### 2.4. Systems
+-   **Definition**: Systems encapsulate the logic that operates on entities possessing specific combinations of components. They are the primary way business logic and data transformations are implemented in the ECS architecture.
 -   **Implementation**:
-    *   Services are typically implemented as Python functions or classes within the `dam/services/` directory (e.g., `dam/services/asset_service.py`, `dam/services/file_operations.py`).
-    *   They interact with the database via SQLAlchemy sessions to query for entities with certain components or to add/update components.
+    *   Systems are Python functions (typically `async def`) decorated with `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)`.
+    *   They are organized into modules within the `dam/systems/` directory (e.g., `dam/systems/metadata_systems.py`).
+    *   Systems declare their dependencies (e.g., database session, configuration, resources, specific entity lists) using `typing.Annotated` type hints in their parameters.
+-   **Execution**:
+    *   The `dam.core.systems.WorldScheduler` is responsible for executing registered systems.
+    *   Execution is typically organized into `SystemStage`s (see below). The scheduler runs all systems registered for a particular stage.
+    *   (Future: Systems may also be triggered by events).
+-   **Dependency Injection**: The `WorldScheduler` automatically injects dependencies into systems based on their annotated parameters. Common injectable types include:
+    *   `WorldSession`: The active SQLAlchemy session for the current world.
+    *   `WorldName`: The string name of the current world.
+    *   `CurrentWorldConfig`: The `WorldConfig` object for the current world.
+    *   `Resource[ResourceType]`: An instance of a registered shared resource (see Section 2.5).
+    *   `MarkedEntityList[MarkerComponentType]`: A list of `Entity` objects that have the specified `MarkerComponentType` attached.
+
+### 2.5. Resources and ResourceManager
+-   **Definition**: Resources are shared objects or services that systems might need to perform their tasks. Examples include file operation utilities, external API clients, etc.
+-   **`ResourceManager`**: The `dam.core.resources.ResourceManager` is a central container for managing instances of these resources.
+    *   Resources are typically instantiated once (e.g., at application startup) and added to the `ResourceManager`.
+    *   Systems can request a resource by type-hinting a parameter: `my_file_ops: Annotated[FileOperationsResource, "Resource"]`.
+-   **`FileOperationsResource`**: An example is `dam.core.resources.FileOperationsResource`, which wraps functions from `dam.services.file_operations` to make them injectable.
+
+### 2.6. Marker Components
+-   **Definition**: Marker components are special, often data-less, components used to tag or mark entities. They signal that an entity is in a particular state or requires specific processing.
+-   **Usage**:
+    *   A service (like `asset_service` during initial ingestion) might add a marker like `NeedsMetadataExtractionComponent` to an entity.
+    *   A system (like `MetadataExtractionSystem`) can then request a `MarkedEntityList[NeedsMetadataExtractionComponent]` to get all entities that need metadata extraction.
+    *   After processing, the system (or the scheduler) typically removes the marker or replaces it with another (e.g., `MetadataExtractedComponent`).
+-   **Location**: Defined in `dam/core/components_markers.py`.
+
+### 2.7. System Stages
+-   **Definition**: `dam.core.stages.SystemStage` is an `Enum` that defines distinct phases or stages in the application's processing lifecycle (e.g., `ASSET_INGESTION`, `METADATA_EXTRACTION`, `POST_PROCESSING`).
+-   **Usage**:
+    *   Systems are registered to run at a specific stage using the `@system(stage=SystemStage.SOME_STAGE)` decorator.
+    *   The `WorldScheduler.execute_stage(stage, world_context)` method executes all systems registered for that particular stage.
+    *   This provides a way to order operations and manage dependencies between different processing steps.
 
 ## 3. Project Structure
 
 A brief overview of the key directories:
 
 -   `dam/`: Main package for the DAM system.
-    -   `core/`: Core functionalities like database session management (`database.py`) and application configuration (`config.py`).
-    -   `models/`: Contains all SQLAlchemy model definitions, where each component is typically in its own file (e.g., `entity.py`, `base_component.py`, `component_content_hash_sha256.py`, `component_image_perceptual_hash_phash.py`).
-        -   `base_class.py`: Defines the ultimate `Base` for SQLAlchemy models, configured with `MappedAsDataclass`.
-        -   `types.py`: Custom SQLAlchemy type annotations (e.g., for timestamps).
-        -   `image_dimensions_component.py`, `audio_properties_component.py`, `frame_properties_component.py`: Components for multimedia and image metadata.
-    -   `services/`: Houses the business logic (Systems/Services) that operate on entities and components.
-        - `asset_service.py`: Contains logic for adding assets, including extraction of image dimensions and multimedia metadata using `hachoir`.
-    -   `cli.py`: Defines the Typer-based command-line interface for interacting with the DAM.
--   `alembic/`: Contains Alembic migration scripts and configuration for managing database schema changes. (Note: Current changes do not include new Alembic migrations as per task instructions).
--   `doc/`: Project documentation, including this guide.
--   `tests/`: Contains Pytest tests.
+    -   `core/`: Core ECS framework functionalities.
+        -   `config.py`: Application settings (Pydantic).
+        -   `database.py`: SQLAlchemy engine, session setup, `DatabaseManager`.
+        -   `logging_config.py`: Logging setup.
+        -   `systems.py`: `@system` decorator, `WorldScheduler`.
+        -   `stages.py`: `SystemStage` enum.
+        -   `resources.py`: `ResourceManager` and base `Resource` definitions.
+        -   `system_params.py`: `Annotated` types for system dependency injection (e.g., `WorldSession`, `Resource`, `MarkedEntityList`).
+        -   `components_markers.py`: Definitions for marker components (e.g., `NeedsMetadataExtractionComponent`).
+    -   `models/`: Contains all SQLAlchemy model definitions for Entities and Components.
+        -   `base_class.py`, `base_component.py`, `entity.py`, individual component files.
+    -   `services/`: Contains helper services, often wrapped by or used within Systems, or for direct CLI actions not yet converted to systems. (e.g., `asset_service.py`, `file_storage.py`, `ecs_service.py`).
+    -   `systems/`: Contains ECS System implementations.
+        -   `metadata_systems.py`: Example system for metadata extraction.
+    -   `cli.py`: Defines the Typer-based command-line interface.
+-   `alembic/`: Contains Alembic migration scripts.
+-   `doc/`: Project documentation.
+-   `tests/`: Pytest tests.
     -   `tests/models/`: Tests for individual component models.
     -   `tests/services/`: Tests for service logic.
     -   `tests/test_data/`: Sample data files for testing (e.g., sample images).
@@ -205,93 +245,94 @@ Whenever you add or modify a model (which translates to a database table), you n
     ```
     This applies all pending migrations.
 
-### Step 4: Implement Service Logic (Optional but Recommended)
+### Step 4: Implement System Logic (Recommended)
 
-While not strictly required for the component to exist, you'll typically want service functions to manage instances of your new component. These could reside in an existing service file (like `dam/services/asset_service.py`) or a new service file dedicated to this type of component or related functionality.
+While not strictly required for the component to exist, you'll typically want a System to manage or react to instances of your new component.
 
-**Example: Adding a function to `asset_service.py`**
+**Example: Creating a System to process entities with `TagComponent` (conceptual)**
 
+Imagine you want a system that processes entities that have been tagged (e.g., logs them or performs another action). You might first add a marker, `NeedsTagProcessingComponent`, when a tag is added, and then have a system react to that.
+
+Alternatively, if the system is to *add* tags based on some criteria, it might look like this (this example is more about *using* tags, but illustrates system structure):
+
+Create `dam/systems/tag_processing_system.py`:
 ```python
-# dam/services/asset_service.py
-# ... other imports ...
-from dam.models.tag_component import TagComponent
+from typing import List, Annotated
+from dam.core.components_markers import NeedsTagProcessingComponent # Hypothetical marker
+from dam.core.stages import SystemStage
+from dam.core.system_params import WorldSession
+from dam.core.systems import system
+from dam.models import Entity
+from dam.models.tag_component import TagComponent # Your new component
+from dam.services import ecs_service # For direct component access
 
-# ...
+@system(stage=SystemStage.POST_PROCESSING) # Or an appropriate stage
+async def process_tagged_entities_system(
+    session: WorldSession,
+    entities_with_marker: Annotated[List[Entity], "MarkedEntityList", NeedsTagProcessingComponent]
+):
+    if not entities_with_marker:
+        return
 
-def add_tag_to_entity(session: Session, entity_id: int, tag_name: str) -> TagComponent:
-    # Check if tag already exists for this entity to avoid duplicates (handled by DB constraint too)
-    existing_tag_stmt = select(TagComponent).where(
-        TagComponent.entity_id == entity_id,
-        TagComponent.tag_name == tag_name
-    )
-    existing_tag = session.execute(existing_tag_stmt).scalar_one_or_none()
-    if existing_tag:
-        return existing_tag
+    print(f"TagProcessingSystem: Found {len(entities_with_marker)} entities to process tags for.")
+    for entity in entities_with_marker:
+        tags = ecs_service.get_components(session, entity.id, TagComponent)
+        tag_names = [tag.tag_name for tag in tags]
+        print(f"Entity {entity.id} has tags: {tag_names}")
+        # ... perform some action based on tags ...
 
-    # Assuming entity object is not needed for kw_only if kw_only is from Base
-    # and BaseComponent's __init__ takes entity_id.
-    # If BaseComponent's __init__ also requires 'entity' object due to kw_only behavior:
-    #   entity_obj = session.get(Entity, entity_id)
-    #   if not entity_obj: raise ValueError("Entity not found")
-    #   tag_component = TagComponent(entity_id=entity_id, entity=entity_obj, tag_name=tag_name)
-    # else (current setup where tests pass entity and entity_id):
-    #   This implies the __init__ requires both. For service logic, fetching the entity might be cleaner.
-
-    entity_obj = session.get(Entity, entity_id)
-    if not entity_obj:
-        # Or handle error appropriately
-        raise ValueError(f"Entity with id {entity_id} not found.")
-
-    tag_component = TagComponent(
-        entity_id=entity_id,
-        entity=entity_obj, # Required by BaseComponent's __init__ due to kw_only behavior
-        tag_name=tag_name
-    )
-    session.add(tag_component)
-    # session.commit() # Typically, service functions add to session; CLI/caller commits.
-    return tag_component
-
-def get_tags_for_entity(session: Session, entity_id: int) -> list[TagComponent]:
-    stmt = select(TagComponent).where(TagComponent.entity_id == entity_id)
-    return session.execute(stmt).scalars().all()
-
+        # Remove marker after processing
+        marker = ecs_service.get_component(session, entity.id, NeedsTagProcessingComponent)
+        if marker:
+            ecs_service.remove_component(session, marker)
+    # Session commit/flush is handled by the WorldScheduler per stage
 ```
-*Note on `kw_only=True` and `__init__`*: The example above assumes that due to `kw_only=True` being active (either on `BaseComponent` or inherited from `Base`), the `BaseComponent`'s `__init__` method effectively requires both `entity_id` and the `entity` object itself, as discovered during testing. Service logic should fetch the `Entity` object if it needs to instantiate components directly.
+Remember to import `tag_processing_system` in `dam/cli.py` or `dam/systems/__init__.py` to register it.
 
 ### Step 5: Integrate with CLI or Application Logic
 
-Once you have the component and optional service functions, you can integrate them into your application, for example, by updating or adding a CLI command.
+How you integrate depends on the system's purpose:
+-   **If adding components via CLI**: The CLI command might directly use `ecs_service.add_component_to_entity` or a helper service function. If complex logic or further processing is needed after adding the component, the CLI might add a *marker component* to the entity, and a dedicated system (like the example above) would pick it up in a later stage scheduled by the `WorldScheduler`.
 
-**Example: Modifying `dam-cli add-asset` to accept tags**
+**Example: Modifying `dam-cli add-asset` to accept tags and add `TagComponent` directly (simpler case)**
+(Assuming `asset_service` has a helper `add_tag_to_entity_sync` for direct synchronous use by CLI if needed, or CLI manages session and calls `ecs_service` directly)
 
 ```python
 # dam/cli.py
 # ... other imports ...
-# from dam.services.asset_service import add_tag_to_entity # If defined
+from dam.models.tag_component import TagComponent # Import your new component
+# from dam.services.asset_service import add_tag_to_entity_sync # Hypothetical sync helper
 
 @app.command(name="add-asset")
 def cli_add_asset(
-    filepath_str: Annotated[str, typer.Argument(..., help="Path to the asset file.", ...)],
-    tags: Annotated[Optional[str], typer.Option(help="Comma-separated tags for the asset (e.g., 'photo,animal,cat').")] = None,
+    # ... other parameters ...
+    tags: Annotated[Optional[str], typer.Option(help="Comma-separated tags (e.g., 'photo,animal,cat').")] = None,
 ):
-    # ... (existing file processing and asset adding logic) ...
-    db = SessionLocal()
-    try:
-        # ... (call asset_service.add_asset_file to get entity and created_new) ...
-        # entity, created_new = asset_service.add_asset_file(...)
+    # ... (existing file processing and asset adding logic to get 'entity') ...
+    # This part runs within a 'with db_manager.get_db_session(...) as db:' block in the actual CLI
+    # So 'db' (the session) is available.
 
-        if entity and tags:
-            tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
-            for tag_name in tag_list:
-                # Assuming add_tag_to_entity is available in asset_service
-                asset_service.add_tag_to_entity(db, entity.id, tag_name)
-            typer.echo(f"Added tags: {', '.join(tag_list)} to Entity ID {entity.id}")
+    # entity, created_new = asset_service.add_asset_file(...) # This gets the entity
 
-        db.commit()
-        # ... (success messages) ...
-    # ... (error handling and db.close()) ...
+    if entity and tags:
+        tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        for tag_name in tag_list:
+            # Direct component addition (if no complex post-processing system is needed for this action)
+            # Ensure entity object is loaded if `TagComponent` requires it for relationships
+            entity_obj_for_tag = db.get(Entity, entity.id) # Re-fetch or ensure it's in session correctly
+            if entity_obj_for_tag:
+                tag_component = TagComponent(
+                    entity_id=entity.id,
+                    entity=entity_obj_for_tag, # BaseComponent requires this
+                    tag_name=tag_name
+                )
+                # Use ecs_service to handle potential duplicates if not relying on DB constraint alone before flush
+                ecs_service.add_component_to_entity(db, entity.id, tag_component, flush=False)
+        typer.echo(f"Added tags: {', '.join(tag_list)} to Entity ID {entity.id}")
+        # db.commit() is handled by the main context manager for the command
+    # ...
 ```
-This example shows how the `add-asset` command could be extended to parse a `--tags` option and use the `add_tag_to_entity` service function.
+If adding a tag should trigger further complex processing, the CLI would instead add a `NeedsTaggingProcessingComponent(tag_to_add="...")` and a system would handle the actual `TagComponent` creation and other logic.
 
 ### Step 6: Write Tests
 
@@ -330,27 +371,31 @@ Always ensure your `env.py` is correctly configured to see your `Base.metadata` 
 
 ### 5.2. Running Tests
 
-The project uses `pytest` for testing.
+The project uses `pytest` for testing, preferably run via `uv`.
 -   **Run all tests**:
     ```bash
-    python -m pytest
+    uv run pytest
     ```
-    (Or simply `pytest` if your environment is set up for it).
 -   **Run specific test files or tests**:
     ```bash
-    python -m pytest tests/models/test_entity.py
-    python -m pytest tests/services/test_asset_service.py::test_add_image_asset_creates_perceptual_hashes
+    uv run pytest tests/models/test_entity.py
+    uv run pytest tests/services/test_asset_service.py::test_add_image_asset_creates_perceptual_hashes
     ```
--   **Test Coverage**: Consider using `pytest-cov` for measuring test coverage.
--   **Fixtures**: Database session fixtures (`db_session`) and test data fixtures are defined in `tests/conftest.py` and individual test files.
+-   **Test Coverage**: Use `pytest-cov` (included in `[dev]` dependencies).
+    ```bash
+    uv run pytest --cov=dam --cov-report=term-missing
+    ```
+-   **Fixtures**: Database session fixtures (`db_session`, `test_db_manager`), application settings overrides (`settings_override`), and test data fixtures are defined in `tests/conftest.py` and individual test files.
 
 ### 5.3. Code Style and Conventions
 
--   **Formatting**: The project is configured with Ruff for linting and formatting (see `pyproject.toml` under `[tool.ruff]`).
-    -   Check formatting: `ruff check .`
-    -   Apply formatting: `ruff format .`
--   **Type Checking**: MyPy is configured for static type checking (see `pyproject.toml` under `[tool.mypy]`).
-    -   Run type checker: `mypy .`
+-   **Formatting & Linting**: The project uses Ruff (see `pyproject.toml` under `[tool.ruff]`).
+    -   Format code: `uv run ruff format .`
+    -   Lint and apply auto-fixes: `uv run ruff check . --fix`
+    -   Check for lint errors (without fixing): `uv run ruff check .`
+-   **Type Checking**: MyPy is configured (see `pyproject.toml` under `[tool.mypy]`).
+    -   Run type checker: `uv run mypy .`
+-   **System Registration**: ECS Systems are registered automatically when their Python modules (e.g., `dam/systems/metadata_systems.py`) are imported. Ensure new system modules are imported by a part of the application that loads during startup (like `dam/cli.py` or by importing the main `dam.systems` package if its `__init__.py` imports all system modules).
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
     -   Models: `PascalCase` (e.g., `FileLocationComponent`).

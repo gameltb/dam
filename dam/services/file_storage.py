@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from dam.core.config import WorldConfig, settings
+from dam.core.config import WorldConfig
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def store_file(
 
     # Use world_config.DATABASE_URL or a name from world_config if available for logging,
     # or pass world_name if still needed for logging. For now, simplify log.
-    log_world_identifier = world_config.DATABASE_URL # Example identifier from config
+    log_world_identifier = world_config.DATABASE_URL  # Example identifier from config
 
     if not storage_path.exists():
         with open(storage_path, "wb") as f:
@@ -80,7 +80,7 @@ def store_file(
     return content_hash, physical_storage_path_suffix
 
 
-def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]: # Changed from world_name
+def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]:  # Changed from world_name
     """
     Returns the absolute path to the file identified by file_identifier (SHA256 hash)
     from the specified world's asset storage, using the provided WorldConfig.
@@ -106,7 +106,7 @@ def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[P
         return None
 
 
-def delete_file(file_identifier: str, world_config: WorldConfig) -> bool: # Changed from world_name
+def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Changed from world_name
     """
     Deletes the file identified by file_identifier (SHA256 hash) from the
     specified world's asset storage, using the provided WorldConfig.
@@ -119,9 +119,9 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool: # Chan
     Returns:
         True if the file was deleted, False otherwise.
     """
-    actual_file_path = get_file_path(file_identifier, world_config) # world_config passed directly
+    actual_file_path = get_file_path(file_identifier, world_config)  # world_config passed directly
 
-    log_world_identifier = world_config.DATABASE_URL # Using a generic identifier from world_config for now.
+    log_world_identifier = world_config.DATABASE_URL  # Using a generic identifier from world_config for now.
 
     if actual_file_path and actual_file_path.exists():
         try:
@@ -136,15 +136,22 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool: # Chan
                     grandparent_dir = parent_dir.parent
                     if not any(grandparent_dir.iterdir()):  # Check if directory is empty
                         os.rmdir(grandparent_dir)
-                        logger.info(f"Removed empty directory {grandparent_dir} from world (config: {log_world_identifier})")
+                        logger.info(
+                            f"Removed empty directory {grandparent_dir} from world (config: {log_world_identifier})"
+                        )
             except OSError as e:
                 logger.debug(
                     f"Could not remove parent directory for {actual_file_path} in world (config: {log_world_identifier}): {e} (possibly not empty or permission issue)"
                 )
             return True
         except OSError as e:
-            logger.error(f"Error deleting file {actual_file_path} from world (config: {log_world_identifier}): {e}", exc_info=True)
+            logger.error(
+                f"Error deleting file {actual_file_path} from world (config: {log_world_identifier}): {e}",
+                exc_info=True,
+            )
             return False
     else:
-        logger.warning(f"File with identifier {file_identifier} not found in world (config: {log_world_identifier}) for deletion.")
+        logger.warning(
+            f"File with identifier {file_identifier} not found in world (config: {log_world_identifier}) for deletion."
+        )
         return False
