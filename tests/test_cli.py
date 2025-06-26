@@ -833,5 +833,3 @@ def test_cli_split_world_db_delete_source(test_app, settings_override, tmp_path)
     assert _count_entities_in_world(source_world_del) == 0
     assert _count_entities_in_world(selected_target_del) == 1
     assert _count_entities_in_world(remaining_target_del) == 1
-
-[end of tests/test_cli.py]
