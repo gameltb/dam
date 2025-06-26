@@ -46,6 +46,7 @@ audio = [ # For audio processing
 dev = [ # Example for dev/test dependencies
     "pytest",
     "pytest-cov",
+    "pytest-asyncio", # Added for async test support
     # "ruff", # Already configured via [tool.ruff]
     # "mypy"  # Already configured via [tool.mypy]
 ]

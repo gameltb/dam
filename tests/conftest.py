@@ -189,7 +189,9 @@ def temp_image_file(tmp_path):
     img.save(file_path)
     return file_path
 
+
 # Common file fixtures moved here from other test files
+
 
 @pytest.fixture
 def sample_image_a(tmp_path: Path) -> Path:
@@ -200,8 +202,10 @@ def sample_image_a(tmp_path: Path) -> Path:
     img_a_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR42mNkgIL/DAwM/wUADgAB/vA/cQAAAABJRU5ErkJggg=="
     file_path = tmp_path / "sample_A.png"
     import base64
+
     file_path.write_bytes(base64.b64decode(img_a_b64))
     return file_path
+
 
 @pytest.fixture
 def sample_text_file(tmp_path: Path) -> Path:
@@ -210,27 +214,28 @@ def sample_text_file(tmp_path: Path) -> Path:
     file_path.write_text("This is a common test document.")
     return file_path
 
+
 @pytest.fixture
 def sample_video_file_placeholder(tmp_path: Path) -> Path:
     """Creates a placeholder file with .mp4 extension for tests needing a video file path."""
     file_path = tmp_path / "sample_video_placeholder.mp4"
-    file_path.write_bytes(b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isomiso2avc1mp41") # Minimal MP4-like start
+    file_path.write_bytes(b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isomiso2avc1mp41")  # Minimal MP4-like start
     return file_path
+
 
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
     """Creates a placeholder file with .mp3 extension for tests needing an audio file path."""
     file_path = tmp_path / "sample_audio_placeholder.mp3"
-    file_path.write_bytes(b"ID3\x03\x00\x00\x00\x00\x0f\x00") # Minimal MP3-like start
+    file_path.write_bytes(b"ID3\x03\x00\x00\x00\x00\x0f\x00")  # Minimal MP3-like start
     return file_path
+
 
 @pytest.fixture
 def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     """Creates a placeholder file with .gif extension. For actual GIF content, use Pillow."""
     # A very minimal valid GIF (1x1 transparent pixel)
-    gif_bytes = bytes.fromhex(
-        "47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b"
-    )
+    gif_bytes = bytes.fromhex("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b")
     file_path = tmp_path / "sample_gif_placeholder.gif"
     file_path.write_bytes(gif_bytes)
     return file_path

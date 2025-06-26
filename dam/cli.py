@@ -1,3 +1,5 @@
+# --- Framework Imports for Systems ---
+import asyncio
 import traceback  # Import traceback for detailed error logging
 from pathlib import Path
 from typing import Any, List, Optional  # Added Any
@@ -5,11 +7,15 @@ from typing import Any, List, Optional  # Added Any
 import typer
 from typing_extensions import Annotated
 
-from dam.core.config import settings  # For accessing default world name if needed
+from dam.core import config as app_config  # Changed import
 
+# from dam.core.config import settings  # For accessing default world name if needed
 # Use db_manager for session handling
 from dam.core.database import db_manager  # Changed from SessionLocal, create_db_and_tables
 from dam.core.logging_config import setup_logging
+from dam.core.resources import FileOperationsResource, ResourceManager
+from dam.core.stages import SystemStage
+from dam.core.systems import WorldContext, WorldScheduler  # Assuming WorldContext is also in dam.core.systems
 from dam.models import (
     AudioPropertiesComponent,
     ContentHashMD5Component,
@@ -20,6 +26,20 @@ from dam.models import (
     ImageDimensionsComponent,
 )
 from dam.services import asset_service, ecs_service, file_operations, world_service  # Added world_service
+
+# Ensure all system modules are imported so @system decorators run and register systems
+
+# --- Initialize Framework Objects ---
+resource_manager = ResourceManager()
+# Encapsulate file_operations functions into a resource
+# FileOperationsResource might need to be designed to take the module or be a namespace
+# For now, assuming FileOperationsResource() correctly wraps/provides access to file_operations functions.
+# If FileOperationsResource directly uses functions from file_operations module, it's fine.
+resource_manager.add_resource(FileOperationsResource())
+
+world_scheduler = WorldScheduler(resource_manager)
+# Systems are registered via @system decorator when their modules (e.g., metadata_systems) are imported.
+
 
 app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
 
@@ -51,11 +71,13 @@ def main_callback(
     setup_logging()
 
     # Determine the target world name
-    # Priority: CLI option > Environment Variable > settings.DEFAULT_WORLD_NAME
+    # Priority: CLI option > Environment Variable > app_config.settings.DEFAULT_WORLD_NAME
     if world:
         global_state.world_name = world
-    elif settings.DEFAULT_WORLD_NAME:  # settings.DEFAULT_WORLD_NAME should always exist after pydantic validation
-        global_state.world_name = settings.DEFAULT_WORLD_NAME
+    elif (
+        app_config.settings.DEFAULT_WORLD_NAME
+    ):  # app_config.settings.DEFAULT_WORLD_NAME should always exist after pydantic validation
+        global_state.world_name = app_config.settings.DEFAULT_WORLD_NAME
     else:
         # This case should ideally not be reached if settings validation works correctly
         # and ensures a default world or DAM_WORLDS is configured.
@@ -74,8 +96,8 @@ def main_callback(
     if global_state.world_name:
         try:
             # Validate that the chosen world_name is actually configured
-            # This implicitly uses settings.get_world_config which would raise ValueError if invalid
-            _ = settings.get_world_config(global_state.world_name)
+            # This implicitly uses app_config.settings.get_world_config which would raise ValueError if invalid
+            _ = app_config.settings.get_world_config(global_state.world_name)
             if ctx.invoked_subcommand:  # Only print if a subcommand is being invoked
                 typer.echo(f"Operating on world: '{global_state.world_name}'")
         except ValueError as e:
@@ -109,18 +131,18 @@ def cli_list_worlds():
 
         typer.echo("Available ECS worlds:")
         for name in world_names:
-            is_default = settings.DEFAULT_WORLD_NAME == name
+            is_default = app_config.settings.DEFAULT_WORLD_NAME == name
             default_marker = " (default)" if is_default else ""
             typer.echo(f"  - {name}{default_marker}")
 
-        if not settings.DEFAULT_WORLD_NAME and world_names:
+        if not app_config.settings.DEFAULT_WORLD_NAME and world_names:
             typer.secho(
                 "\nNote: No default world is explicitly set. The first configured world might be used by default if not overridden.",
                 fg=typer.colors.YELLOW,
             )
-        elif settings.DEFAULT_WORLD_NAME and settings.DEFAULT_WORLD_NAME not in world_names:
+        elif app_config.settings.DEFAULT_WORLD_NAME and app_config.settings.DEFAULT_WORLD_NAME not in world_names:
             typer.secho(
-                f"\nWarning: Default world '{settings.DEFAULT_WORLD_NAME}' is set but not found in parsed configurations!",
+                f"\nWarning: Default world '{app_config.settings.DEFAULT_WORLD_NAME}' is set but not found in parsed configurations!",
                 fg=typer.colors.RED,
             )
 
@@ -233,6 +255,48 @@ def cli_add_asset(
                         f"  Asset content already exists/referenced. Linked to Entity ID: {entity.id}",
                         fg=typer.colors.YELLOW,
                     )
+
+                # After primary transaction is committed, run post-processing systems
+                # This needs to happen outside the 'db' session context if that session is closed upon exit.
+                # However, the WorldContext for the scheduler will need its own session.
+                # The original `db` session from `with db_manager.get_db_session...` is committed and closed here.
+                # We need a new context for the scheduler.
+
+            # Systems execution happens *after* the main asset addition transaction is complete.
+            typer.echo(
+                f"  Scheduling post-processing systems for entity {entity.id} in world '{global_state.world_name}'..."
+            )
+            try:
+                current_world_config = app_config.settings.get_world_config(global_state.world_name)
+
+                async def run_system_stages():
+                    # Each stage execution should manage its own session via WorldContext
+                    # For METADATA_EXTRACTION stage:
+                    with db_manager.get_db_session(global_state.world_name) as stage_session:
+                        metadata_world_ctx = WorldContext(
+                            session=stage_session,
+                            world_name=global_state.world_name,  # type: ignore
+                            world_config=current_world_config,
+                        )
+                        await world_scheduler.execute_stage(SystemStage.METADATA_EXTRACTION, metadata_world_ctx)
+
+                    # Example for another stage, if defined and needed:
+                    # with db_manager.get_db_session(global_state.world_name) as stage_session_post:
+                    #     post_process_world_ctx = WorldContext(
+                    #         session=stage_session_post,
+                    #         world_name=global_state.world_name,
+                    #         world_config=current_world_config
+                    #     )
+                    #     await world_scheduler.execute_stage(SystemStage.ASSET_POST_PROCESSING, post_process_world_ctx)
+
+                asyncio.run(run_system_stages())
+                typer.secho(f"  Post-processing systems completed for entity {entity.id}.", fg=typer.colors.GREEN)
+
+            except Exception as e_sys:
+                typer.secho(f"  Error during system execution for {filepath.name}: {e_sys}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                error_count += 1  # Count system execution errors as well
+
         except Exception as e:
             # db.rollback() will be handled by session exiting context manager if commit failed
             typer.secho(f"  Database error for {filepath.name}: {e}", fg=typer.colors.RED)
@@ -341,12 +405,14 @@ def cli_find_file_by_hash(
                     typer.echo("  File Locations:")
                     for loc in locations:
                         typer.echo(
-                            f"    - Orig Name: '{loc.original_filename}', ID: '{loc.file_identifier}', Storage: '{loc.storage_type}'"
+                            f"    - Contextual Name: '{loc.contextual_filename}', Content ID: '{loc.content_identifier[:12]}...', Path/Key: '{loc.physical_path_or_key}', Storage: '{loc.storage_type}'"
                         )
 
                 dimensions_props = ecs_service.get_component(db, entity.id, ImageDimensionsComponent)
                 if dimensions_props:
-                    typer.echo(f"  Image Dimensions: {dimensions_props.width_pixels}x{dimensions_props.height_pixels}px")
+                    typer.echo(
+                        f"  Image Dimensions: {dimensions_props.width_pixels}x{dimensions_props.height_pixels}px"
+                    )
 
                 audio_props = ecs_service.get_component(db, entity.id, AudioPropertiesComponent)
                 if audio_props:
@@ -404,7 +470,7 @@ def cli_find_similar_images(
                 phash_threshold=phash_threshold,
                 ahash_threshold=ahash_threshold,
                 dhash_threshold=dhash_threshold,
-                world_name=global_state.world_name,  # For logging within service
+                # world_name=global_state.world_name, # Removed, service function doesn't take it
             )
             if similar_entities_info:
                 typer.secho(
@@ -524,8 +590,8 @@ def cli_merge_worlds_db(
 
     # Validate worlds exist
     try:
-        settings.get_world_config(source_world)
-        settings.get_world_config(target_world)
+        app_config.settings.get_world_config(source_world)
+        app_config.settings.get_world_config(target_world)
     except ValueError as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -535,9 +601,7 @@ def cli_merge_worlds_db(
         raise typer.Exit(code=1)
 
     try:
-        with db_manager.get_db_session(source_world) as source_db, \
-             db_manager.get_db_session(target_world) as target_db:
-
+        with db_manager.get_db_session(source_world) as source_db, db_manager.get_db_session(target_world) as target_db:
             world_service.merge_ecs_worlds_db_to_db(
                 source_session=source_db,
                 target_session=target_db,
@@ -597,9 +661,9 @@ def cli_split_world_db(
 
     # Validate worlds
     try:
-        settings.get_world_config(source_world)
-        settings.get_world_config(selected_target_world)
-        settings.get_world_config(remaining_target_world)
+        app_config.settings.get_world_config(source_world)
+        app_config.settings.get_world_config(selected_target_world)
+        app_config.settings.get_world_config(remaining_target_world)
     except ValueError as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -623,10 +687,11 @@ def cli_split_world_db(
     # This needs to be robust in the service or by knowing the type.
 
     try:
-        with db_manager.get_db_session(source_world) as source_s, \
-             db_manager.get_db_session(selected_target_world) as selected_s, \
-             db_manager.get_db_session(remaining_target_world) as remaining_s:
-
+        with (
+            db_manager.get_db_session(source_world) as source_s,
+            db_manager.get_db_session(selected_target_world) as selected_s,
+            db_manager.get_db_session(remaining_target_world) as remaining_s,
+        ):
             count_selected, count_remaining = world_service.split_ecs_world(
                 source_session=source_s,
                 target_session_selected=selected_s,

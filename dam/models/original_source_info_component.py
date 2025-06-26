@@ -1,8 +1,5 @@
-from datetime import datetime
-
-from sqlalchemy import DateTime, String
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from .base_component import BaseComponent
 
@@ -19,7 +16,7 @@ class OriginalSourceInfoComponent(BaseComponent):
     # id, entity_id, created_at, updated_at are inherited from BaseComponent
 
     original_filename: Mapped[str] = mapped_column(String(1024), nullable=False)
-    original_path: Mapped[str | None] = mapped_column(String(2048), nullable=True) # Original full path, if available
+    original_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # Original full path, if available
 
     # Timestamp of when this specific source was processed/ingested
     # BaseComponent.created_at can serve this purpose if this component is added upon ingestion.

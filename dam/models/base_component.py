@@ -1,3 +1,4 @@
+import logging  # Added import
 from dataclasses import field
 from datetime import datetime  # Added import
 
@@ -14,7 +15,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 from sqlalchemy.sql import func  # Added for func.now()
 
-import logging # Added import
 from .base_class import Base  # Updated import for Base
 
 if TYPE_CHECKING:

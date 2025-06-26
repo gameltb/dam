@@ -6,13 +6,18 @@ This project implements a Digital Asset Management system using an Entity-Compon
 
 *   **SQLAlchemy ORM**: Used for database interaction, with `MappedAsDataclass` to define components as Python dataclasses that are also database models.
 *   **Alembic**: Manages database schema migrations.
-*   **Modularity**: Each component type (e.g., `FileLocationComponent`, `DimensionsComponent`, `ImagePHashComponent`) is defined in its own Python file within `dam/models/`. Service functions (for adding, getting, updating components) are typically co-located in the component's model file.
-*   **Specialized Logic**: Services like file storage (`dam/services/file_storage.py`) are in separate modules.
-*   **Granular Components**: Assets are broken down into very specific data pieces. For example, an image entity might have `FileLocationComponent`, `FilePropertiesComponent`, `DimensionsComponent`, and multiple image hash components (pHash, aHash, etc.). This provides maximum flexibility.
-*   **Content-Addressable Foundation**: The `add_asset` process uses a content hash (SHA256) to identify if the file's content already exists in the system, reusing the existing Entity if so, and only adding new or updated component data.
-*   **Fingerprinting for Similarity**: Various perceptual hash and fingerprint components are generated and stored for different media types. This allows for similarity searches (though the linking of similar items is a separate process from ingestion).
-*   **CLI**: A Typer-based command-line interface (`dam/cli.py`) provides user interaction for adding assets, querying, etc.
-*   **Database Transactions**: CLI commands are responsible for managing SQLAlchemy session commits and rollbacks. Component service functions typically add objects to the session but do not commit themselves.
+*   **ECS Core Framework**:
+    *   **Systems**: Logic that operates on entities with specific components. Implemented as functions decorated with `@system`, supporting asynchronous execution and stage-based processing (e.g., `METADATA_EXTRACTION`).
+    *   **WorldScheduler**: Manages the execution of systems in defined stages or in response to events (event handling is planned).
+    *   **Dependency Injection**: Systems declare their dependencies (like `WorldSession`, `WorldConfig`, `Resource[T]`, `MarkedEntityList[MarkerComponent]`) using `typing.Annotated` type hints.
+    *   **Resources**: Shared services or utilities (e.g., `FileOperationsResource`) managed by a `ResourceManager` and injectable into systems.
+    *   **Marker Components**: Special components (e.g., `NeedsMetadataExtractionComponent`) used to flag entities for processing by specific systems.
+*   **Modularity**: Components are defined in `dam/models/`. Systems are organized in `dam/systems/`.
+*   **Granular Components**: Assets are described by fine-grained data pieces (e.g., `FileLocationComponent`, `ImageDimensionsComponent`, hash components).
+*   **Content-Addressable Storage (CAS)**: Files are stored based on their content hash (SHA256), promoting de-duplication.
+*   **Metadata Extraction**: Perceptual hashes, dimensions, and other metadata are extracted by dedicated systems after initial asset ingestion.
+*   **CLI**: A Typer-based command-line interface (`dam/cli.py`) for user interaction.
+*   **Database Transactions**: Managed by the `WorldScheduler` per stage or by CLI commands for direct service calls.
 
 ## Project Structure
 
@@ -24,13 +29,21 @@ ecs_dam_system/
 │   ├── models/             # SQLAlchemy models (Components)
 │   │   ├── __init__.py
 │   │   └── ... (e.g., file_location_component.py)
-│   ├── services/           # Business logic, e.g., file storage
+│   ├── services/           # Business logic, e.g., file storage, asset creation helpers
 │   │   ├── __init__.py
-│   │   └── file_storage.py
-│   └── core/               # Core functionalities, DB session, settings
+│   │   └── ... (e.g., asset_service.py, file_storage.py)
+│   ├── systems/            # ECS Systems
+│   │   ├── __init__.py
+│   │   └── metadata_systems.py
+│   └── core/               # Core ECS framework, DB session, settings
 │       ├── __init__.py
-│       ├── config.py       # Application settings (e.g., using Pydantic)
-│       └── database.py     # SQLAlchemy engine, session setup
+│       ├── components_markers.py
+│       ├── config.py       # Application settings (Pydantic)
+│       ├── database.py     # SQLAlchemy engine, session setup
+│       ├── resources.py    # ResourceManager and Resource definitions
+│       ├── stages.py       # SystemStage enum
+│       ├── system_params.py # Annotated types for system dependency injection
+│       └── systems.py      # @system decorator, WorldScheduler
 ├── tests/                  # Pytest tests
 │   ├── __init__.py
 │   └── ...
@@ -120,16 +133,19 @@ dam-cli --help
     dam-cli setup-db
     ```
 
-*   **`add-asset <filepath>`**: Adds a new asset file to the DAM system.
-    *   Calculates content hashes (SHA256, MD5).
-    *   For images, videos, and GIFs, extracts and stores width/height dimensions using `ImageDimensionsComponent`.
-    *   For images, it also calculates perceptual hashes (pHash, aHash, dHash).
-    *   For videos, it's now conceptualized as a combination of visual frames and audio:
-        *   Visual aspects (frame count, frame rate, duration) are stored in `FramePropertiesComponent`.
-        *   Audio track details (codec, duration, sample rate) are stored in `AudioPropertiesComponent`.
-    *   For animated GIFs, frame count and animation details are stored in `FramePropertiesComponent`.
-    *   For standalone audio files, metadata (duration, codec, sample rate) is stored in `AudioPropertiesComponent`.
-    *   If the content already exists (based on SHA256 hash), it links the new filename to the existing asset.
+*   **`add-asset <filepath>`**: Adds a new asset file or references an existing one.
+    *   Core operation: Calculates content hashes (SHA256, MD5), creates the `Entity`, `FilePropertiesComponent`, `FileLocationComponent`, and `OriginalSourceInfoComponent`.
+    *   For images, it also calculates and stores perceptual hashes (pHash, aHash, dHash) during this initial step.
+    *   Marker for System: Adds a `NeedsMetadataExtractionComponent` to the entity.
+    *   Scheduled System: After the `add-asset` command completes the core addition, the `MetadataExtractionSystem` is scheduled to run. This system is responsible for:
+        *   Extracting detailed metadata using Hachoir (if available).
+        *   Creating `ImageDimensionsComponent` for visual media.
+        *   Creating `FramePropertiesComponent` for videos and animated GIFs.
+        *   Creating `AudioPropertiesComponent` for audio files and audio tracks in videos.
+    *   If the content already exists (based on SHA256 hash), it links the new filename/reference to the existing asset entity and may update/add missing components like perceptual hashes or trigger metadata extraction if needed.
+    *   Options:
+        *   `--no-copy`: Adds the asset by reference, storing its original path instead of copying content to DAM storage.
+        *   `-r, --recursive`: If `<filepath>` is a directory, process files recursively.
     ```bash
     dam-cli add-asset /path/to/your/image.jpg
     dam-cli add-asset /path/to/your/video.mp4
@@ -139,8 +155,9 @@ dam-cli --help
     ```
 
 *   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash and displays its properties. This includes:
-    *   Basic file properties (name, size, MIME type).
+    *   Basic file properties (name, size, MIME type from `FilePropertiesComponent`).
     *   Content hashes (MD5, SHA256).
+    *   File Locations (`FileLocationComponent`): Displays contextual filename, content ID, path/key, and storage type for each location.
     *   Image dimensions (width, height) for visual assets.
     *   Frame properties (frame count, rate, duration) for videos and animated GIFs.
     *   Audio properties (codec, duration, sample rate) for audio files and audio tracks within videos.
@@ -179,17 +196,18 @@ dam-cli --help
 
 *   **Running tests:**
     ```bash
-    pytest
+    uv run pytest
     ```
 *   **Linting and Formatting:**
     ```bash
-    ruff check .
-    ruff format .
+    uv run ruff format .
+    uv run ruff check . --fix
     ```
 *   **Type Checking:**
     ```bash
-    mypy .
+    uv run mypy .
     ```
+*   **System Registration**: ECS Systems are registered automatically when their modules (e.g., `dam/systems/metadata_systems.py`) are imported. Ensure new system modules are imported by a part of the application that loads during startup (like `dam/cli.py` or `dam/systems/__init__.py` if `dam.systems` is imported).
 *   **Logging:** The system uses standard Python logging. Output is to stderr by default. Set the `DAM_LOG_LEVEL` environment variable (e.g., to `DEBUG`) for more detailed logs. See `doc/developer_guide.md` for more details.
 
 ### Testing Notes
