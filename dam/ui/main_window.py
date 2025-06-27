@@ -128,6 +128,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(find_similar_action)
 
         file_menu.addSeparator()
+
         exit_action = QAction("&Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
