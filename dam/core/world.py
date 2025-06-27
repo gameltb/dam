@@ -202,7 +202,8 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
     # Initialize resources for the world instance.
     # initialize_world_resources now takes a World instance and modifies its resource_manager in-place.
     from .world_setup import initialize_world_resources
-    initialize_world_resources(world) # Populates world.resource_manager
+
+    initialize_world_resources(world)  # Populates world.resource_manager
 
     # The scheduler was initialized with world.resource_manager. Since initialize_world_resources
     # modifies that same instance, the scheduler should already have the correct reference.

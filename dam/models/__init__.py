@@ -1,14 +1,13 @@
 # This file makes the 'models' directory a Python package.
 
 # Ensure all model modules are imported so they register with Base.metadata
-import dam.core.components_markers  # For marker components
+from ..core.components_markers import *  # noqa: F403
 
 # Core model elements
 from .core.base_class import Base
 from .core.base_component import BaseComponent
 from .core.entity import Entity
 from .core.file_location_component import FileLocationComponent
-from .core.types import BinaryHashValue, HexStringHashValue, PerceptualHashValue, StorageType
 
 # Hash components
 from .hashes.content_hash_md5_component import ContentHashMD5Component
@@ -34,10 +33,6 @@ __all__ = [
     "Entity",
     "BaseComponent",
     "FileLocationComponent",
-    "BinaryHashValue",
-    "HexStringHashValue",
-    "PerceptualHashValue",
-    "StorageType",
     # Hashes
     "ContentHashMD5Component",
     "ContentHashSHA256Component",

@@ -1,7 +1,7 @@
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_component import BaseComponent
+from .. import BaseComponent
 
 
 class OriginalSourceInfoComponent(BaseComponent):

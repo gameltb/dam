@@ -147,6 +147,7 @@ cython_debug/
 # ECS DAM System specific
 /dam.db
 dam_storage/
+dam_asset_storage/
 # If using a file-based DB for local dev, e.g. dam.db
 # Add other project specific ignores here
 

@@ -2,7 +2,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_component import BaseComponent
+from .. import BaseComponent
 
 
 # @dataclass(kw_only=True) # kw_only=True is inherited from Base

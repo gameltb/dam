@@ -3,8 +3,7 @@ from typing import Annotated, List, Type, TypeVar
 from sqlalchemy.orm import Session
 
 from dam.core.config import WorldConfig  # Assuming WorldConfig is in dam.core.config
-from dam.models.base_component import BaseComponent
-from dam.models.entity import Entity
+from dam.models import BaseComponent, Entity
 
 # --- Parameter Identity Annotations ---
 

@@ -13,13 +13,11 @@ from .ecs_service import (
     get_entity,
     remove_component,
 )
-from .file_storage_service import FileStorageService  # Added FileStorageService
 
 __all__ = [
     "file_operations",
     # "asset_service", # Removed
     "ecs_service",
-    "FileStorageService",  # Added
     "add_component_to_entity",
     "create_entity",
     "delete_entity",

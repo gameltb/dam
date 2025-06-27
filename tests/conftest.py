@@ -12,7 +12,7 @@ from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.core.world import World, clear_world_registry, create_and_register_world  # E402: Moved higher
-from dam.models.base_class import Base
+from dam.models import Base
 
 # Store original settings values to be restored
 _original_settings_values = {}
@@ -129,7 +129,7 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     world.create_db_and_tables()  # Ensure tables are created for this world's DB
 
     # Core systems are registered after basic world and resource setup.
-    from dam.core.world_setup import register_core_systems # Updated import
+    from dam.core.world_setup import register_core_systems  # Updated import
 
     register_core_systems(world)
 

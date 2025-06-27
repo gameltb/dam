@@ -1,9 +1,9 @@
 import logging
 
-from dam.core.config import settings as global_app_settings # WorldConfig no longer needed here directly
+from dam.core.config import settings as global_app_settings  # WorldConfig no longer needed here directly
 from dam.core.database import DatabaseManager
-from dam.core.resources import FileOperationsResource # ResourceManager no longer needed here directly
-from dam.core.world import World # Import World for type hinting
+from dam.core.resources import FileOperationsResource  # ResourceManager no longer needed here directly
+from dam.core.world import World  # Import World for type hinting
 from dam.resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,14 @@ def initialize_world_resources(world: World) -> None:
     if not world:
         raise ValueError("A valid World instance must be provided.")
 
-    world_config = world.config # Get config from the world instance
-    resource_manager = world.resource_manager # Use the world's existing resource manager
+    world_config = world.config  # Get config from the world instance
+    resource_manager = world.resource_manager  # Use the world's existing resource manager
     world_name = world_config.name
 
     world.logger.info(f"Populating base resources for World '{world_name}'...")
 
     # 1. WorldConfig itself as a resource
-    resource_manager.add_resource(world_config, world_config.__class__) # Use world_config.__class__ for type
+    resource_manager.add_resource(world_config, world_config.__class__)  # Use world_config.__class__ for type
     world.logger.debug(f"Added WorldConfig resource for World '{world_name}'.")
 
     # 2. DatabaseManager

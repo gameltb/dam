@@ -47,7 +47,7 @@ class BaseComponent(Base):  # Inherit from the new Base
     # set up for each subclass's table.
 
     # Attributes that are __init__ parameters should come first.
-    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False) # Removed init=False
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False, init=False)
 
     # Attributes that are NOT __init__ parameters.
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
@@ -80,7 +80,6 @@ class BaseComponent(Base):  # Inherit from the new Base
             foreign_keys=[cls.entity_id],  # Explicitly use the component's own entity_id for this link
             # back_populates="components",  # Removed as Entity.components is removed
             repr=False,  # For SQLAlchemy's default repr of this relationship property
-            init=False, # Explicitly set init=False for the relationship
         )
 
     def __repr__(self):

@@ -4,10 +4,11 @@ from typing import Dict, Optional
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
 
-from .base_component import BaseComponent
-
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
-from .entity import Entity  # For relationship type hint
+from .. import (
+    BaseComponent,
+    Entity,  # For relationship type hint
+)
 
 
 class WebSourceComponent(BaseComponent):
@@ -30,7 +31,7 @@ class WebSourceComponent(BaseComponent):
         foreign_keys=[website_entity_id],
         backref="sourced_assets",  # Or a more specific backref if needed
         doc="The Entity representing the website this asset came from.",
-        init=False, # Should be populated by ORM via website_entity_id
+        init=False,  # Should be populated by ORM via website_entity_id
     )
 
     source_url: Mapped[str] = mapped_column(
@@ -58,13 +59,17 @@ class WebSourceComponent(BaseComponent):
         comment="Username of the uploader or artist on the site.",
         default=None,
     )
-    uploader_url: Mapped[Optional[str]] = mapped_column(String(2048), comment="URL to the uploader's profile page.", default=None)
+    uploader_url: Mapped[Optional[str]] = mapped_column(
+        String(2048), comment="URL to the uploader's profile page.", default=None
+    )
 
     upload_date: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True, comment="Date and time when the asset was originally uploaded or posted.", default=None
     )
 
-    asset_title: Mapped[Optional[str]] = mapped_column(String(1024), comment="Title of the asset on the website.", default=None)
+    asset_title: Mapped[Optional[str]] = mapped_column(
+        String(1024), comment="Title of the asset on the website.", default=None
+    )
     asset_description: Mapped[Optional[str]] = mapped_column(
         Text, comment="Description or caption provided for the asset.", default=None
     )

@@ -1,7 +1,7 @@
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_component import BaseComponent
+from .. import BaseComponent
 
 
 class FileLocationComponent(BaseComponent):

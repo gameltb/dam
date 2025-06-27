@@ -15,7 +15,7 @@ This approach allows for decoupled workflows where different systems can react t
 the state of entities as indicated by these markers.
 """
 
-from dam.models.base_component import BaseComponent
+from dam.models.core.base_component import BaseComponent
 
 # No specific fields needed for marker components, they exist by their type.
 

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from dam.models import BaseComponent, Entity
-from dam.models.base_component import REGISTERED_COMPONENT_TYPES
+from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
 
 # No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
 
@@ -212,8 +212,7 @@ def find_entity_by_content_hash(session: Session, hash_value: bytes, hash_type: 
     If multiple entities somehow have the same content hash (shouldn't happen for CAS),
     it will return the first one found.
     """
-    from dam.models.content_hash_md5_component import ContentHashMD5Component
-    from dam.models.content_hash_sha256_component import ContentHashSHA256Component
+    from dam.models import ContentHashMD5Component, ContentHashSHA256Component
 
     component_to_query: Type[BaseComponent]
     if hash_type.lower() == "sha256":

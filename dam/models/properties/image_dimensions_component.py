@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_component import BaseComponent
+from .. import BaseComponent
 
 
 # kw_only=True is inherited from Base via BaseComponent
