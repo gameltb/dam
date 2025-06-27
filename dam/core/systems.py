@@ -14,6 +14,7 @@ from dam.models import BaseComponent, Entity
 SYSTEM_METADATA: Dict[Callable[..., Any], Dict[str, Any]] = {}
 logger = logging.getLogger(__name__)
 
+
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
     sig = inspect.signature(func)
     param_info = {}
@@ -39,7 +40,9 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                 identity = string_identities_found[0]
 
             if identity == "MarkedEntityList":
-                marker_component_type = next((m for m in type_based_markers_found if issubclass(m, BaseComponent)), None)
+                marker_component_type = next(
+                    (m for m in type_based_markers_found if issubclass(m, BaseComponent)), None
+                )
                 if not marker_component_type:
                     logger.warning(
                         f"Parameter '{name}' in system '{func.__name__}' is 'MarkedEntityList' but "
@@ -71,31 +74,44 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                 )
 
         param_info[name] = {
-            "name": name, "type_hint": actual_type, "identity": identity,
-            "marker_component_type": marker_component_type, "event_type_hint": event_specific_type,
+            "name": name,
+            "type_hint": actual_type,
+            "identity": identity,
+            "marker_component_type": marker_component_type,
+            "event_type_hint": event_specific_type,
             "is_annotated": get_origin(original_param_type) is Annotated,
             "original_annotation": original_param_type,
         }
     return param_info
 
+
 def system(stage: SystemStage, **kwargs):
     def decorator(func: Callable[..., Any]):
         param_info = _parse_system_params(func)
         SYSTEM_METADATA[func] = {
-            "params": param_info, "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "stage_system", "stage": stage, **kwargs,
+            "params": param_info,
+            "is_async": inspect.iscoroutinefunction(func),
+            "system_type": "stage_system",
+            "stage": stage,
+            **kwargs,
         }
         return func
+
     return decorator
+
 
 def listens_for(event_type: Type[BaseEvent], **kwargs):
     if not (inspect.isclass(event_type) and issubclass(event_type, BaseEvent)):
         raise TypeError(f"Invalid event_type '{event_type}'. Must be a class that inherits from BaseEvent.")
+
     def decorator(func: Callable[..., Any]):
         param_info = _parse_system_params(func)
         SYSTEM_METADATA[func] = {
-            "params": param_info, "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "event_handler", "listens_for_event_type": event_type, **kwargs,
+            "params": param_info,
+            "is_async": inspect.iscoroutinefunction(func),
+            "system_type": "event_handler",
+            "listens_for_event_type": event_type,
+            **kwargs,
         }
         has_event_param = any(p_info.get("event_type_hint") == event_type for p_info in param_info.values())
         if not has_event_param:
@@ -109,7 +125,9 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
                     f"seem to have a parameter matching this event type."
                 )
         return func
+
     return decorator
+
 
 class WorldScheduler:
     def __init__(self, resource_manager: ResourceManager):
@@ -120,8 +138,11 @@ class WorldScheduler:
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def register_system_for_world(
-        self, system_func: Callable[..., Any], stage: Optional[SystemStage] = None,
-        event_type: Optional[Type[BaseEvent]] = None, **kwargs
+        self,
+        system_func: Callable[..., Any],
+        stage: Optional[SystemStage] = None,
+        event_type: Optional[Type[BaseEvent]] = None,
+        **kwargs,
     ):
         if system_func not in self.system_metadata:
             self.logger.warning(
@@ -174,7 +195,8 @@ class WorldScheduler:
                     except ResourceNotFoundError as e:
                         self.logger.error(
                             f"System {system_func.__name__} in world '{world_context.world_name}' requires resource "
-                            f"{param_type_hint.__name__} which was not found: {e}", exc_info=True,
+                            f"{param_type_hint.__name__} which was not found: {e}",
+                            exc_info=True,
                         )
                         raise
                 elif identity == "MarkedEntityList":
@@ -187,7 +209,9 @@ class WorldScheduler:
                         self.logger.error(msg)
                         raise ValueError(msg)
 
-                    from sqlalchemy import exists as sql_exists, select as sql_select
+                    from sqlalchemy import exists as sql_exists
+                    from sqlalchemy import select as sql_select
+
                     stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
                     entities_to_process = world_context.session.execute(stmt).scalars().all()
                     kwargs_to_inject[param_name] = entities_to_process
@@ -210,39 +234,56 @@ class WorldScheduler:
                         )
                         self.logger.error(msg)
                         raise ValueError(msg)
-                else: # No specific identity, try direct resource injection
+                else:  # No specific identity, try direct resource injection
                     # Check if it's the event_object itself, which should only be injected if identity is "Event"
                     is_event_param_for_current_event = False
-                    if event_object and param_meta.get("event_type_hint"): # Check if param expects an event
-                         if isinstance(event_object, param_meta["event_type_hint"]): # Check if current event matches param's expected event type
-                             # Check if this param_name is the one designated for this event type via @listens_for
-                             # This is a bit heuristic: find the param that's typed as the event this handler is for.
-                             event_param_candidate_name = None
-                             listens_for_type = metadata.get("listens_for_event_type") # Get from system metadata
-                             if listens_for_type:
-                                 for pn, pi in metadata["params"].items():
-                                     if pi.get("type_hint") == listens_for_type and pi.get("identity") == "Event":
-                                         event_param_candidate_name = pn
-                                         break
-                             if param_name == event_param_candidate_name:
-                                 is_event_param_for_current_event = True
+                    if event_object and param_meta.get("event_type_hint"):  # Check if param expects an event
+                        if isinstance(
+                            event_object, param_meta["event_type_hint"]
+                        ):  # Check if current event matches param's expected event type
+                            # Check if this param_name is the one designated for this event type via @listens_for
+                            # This is a bit heuristic: find the param that's typed as the event this handler is for.
+                            event_param_candidate_name = None
+                            listens_for_type = metadata.get("listens_for_event_type")  # Get from system metadata
+                            if listens_for_type:
+                                for pn, pi in metadata["params"].items():
+                                    if pi.get("type_hint") == listens_for_type and pi.get("identity") == "Event":
+                                        event_param_candidate_name = pn
+                                        break
+                            if param_name == event_param_candidate_name:
+                                is_event_param_for_current_event = True
 
                     if not is_event_param_for_current_event:
                         # Avoid basic types and NoneType
-                        if not (param_type_hint is str or param_type_hint is int or \
-                                param_type_hint is bool or param_type_hint is float or \
-                                param_type_hint is list or param_type_hint is dict or \
-                                param_type_hint is tuple or param_type_hint is set or \
-                                param_type_hint is type(None)):
-                            self.logger.debug(f"No specific identity for param '{param_name}'. Attempting direct resource injection for type: {param_type_hint}")
+                        if not (
+                            param_type_hint is str
+                            or param_type_hint is int
+                            or param_type_hint is bool
+                            or param_type_hint is float
+                            or param_type_hint is list
+                            or param_type_hint is dict
+                            or param_type_hint is tuple
+                            or param_type_hint is set
+                            or param_type_hint is type(None)
+                        ):
+                            self.logger.debug(
+                                f"No specific identity for param '{param_name}'. Attempting direct resource injection for type: {param_type_hint}"
+                            )
                             try:
                                 resource_instance = self.resource_manager.get_resource(param_type_hint)
                                 kwargs_to_inject[param_name] = resource_instance
-                                self.logger.debug(f"Successfully injected resource for param: {param_name} by direct type: {param_type_hint}")
+                                self.logger.debug(
+                                    f"Successfully injected resource for param: {param_name} by direct type: {param_type_hint}"
+                                )
                             except ResourceNotFoundError:
-                                self.logger.warning(f"Resource not found for param: {param_name} by direct type: {param_type_hint}. This may lead to a TypeError if the parameter is required.")
+                                self.logger.warning(
+                                    f"Resource not found for param: {param_name} by direct type: {param_type_hint}. This may lead to a TypeError if the parameter is required."
+                                )
                             except Exception as e_direct_inject:
-                                self.logger.error(f"Error during direct resource injection attempt for param '{param_name}' (type {param_type_hint}): {e_direct_inject}", exc_info=True)
+                                self.logger.error(
+                                    f"Error during direct resource injection attempt for param '{param_name}' (type {param_type_hint}): {e_direct_inject}",
+                                    exc_info=True,
+                                )
         except Exception as e:
             self.logger.error(
                 f"Error preparing dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
@@ -269,6 +310,7 @@ class WorldScheduler:
                         entity_ids_processed = [entity.id for entity in entities_processed]
                         if entity_ids_processed:
                             from sqlalchemy import delete as sql_delete
+
                             self.logger.debug(
                                 f"Scheduler for world '{world_context.world_name}': Bulk removing {marker_type_to_remove.__name__} from "
                                 f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
@@ -303,7 +345,8 @@ class WorldScheduler:
                 world_context.session.rollback()
                 raise StageExecutionError(
                     message=f"Failed to commit stage {stage.name} in world {world_context.world_name}.",
-                    stage_name=stage.name, original_exception=commit_exc,
+                    stage_name=stage.name,
+                    original_exception=commit_exc,
                 ) from commit_exc
         except Exception as system_exc:
             self.logger.error(
@@ -313,7 +356,9 @@ class WorldScheduler:
             world_context.session.rollback()
             raise StageExecutionError(
                 message=f"System '{active_system_func_name}' failed during stage '{stage.name}' execution in world '{world_context.world_name}'.",
-                stage_name=stage.name, system_name=active_system_func_name, original_exception=system_exc,
+                stage_name=stage.name,
+                system_name=active_system_func_name,
+                original_exception=system_exc,
             ) from system_exc
 
     async def dispatch_event(self, event: BaseEvent, world_context: WorldContext):
@@ -344,7 +389,8 @@ class WorldScheduler:
                 world_context.session.rollback()
                 raise EventHandlingError(
                     message=f"Failed to commit after handling event {event_type.__name__} in world {world_context.world_name}.",
-                    event_type=event_type.__name__, original_exception=commit_exc,
+                    event_type=event_type.__name__,
+                    original_exception=commit_exc,
                 ) from commit_exc
         except Exception as handler_exc:
             self.logger.error(
@@ -354,7 +400,9 @@ class WorldScheduler:
             world_context.session.rollback()
             raise EventHandlingError(
                 message=f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'.",
-                event_type=event_type.__name__, handler_name=active_handler_func_name, original_exception=handler_exc,
+                event_type=event_type.__name__,
+                handler_name=active_handler_func_name,
+                original_exception=handler_exc,
             ) from handler_exc
 
     async def run_all_stages(self, initial_world_context: WorldContext):
