@@ -30,6 +30,7 @@ class WebSourceComponent(BaseComponent):
         foreign_keys=[website_entity_id],
         backref="sourced_assets",  # Or a more specific backref if needed
         doc="The Entity representing the website this asset came from.",
+        init=False, # Should be populated by ORM via website_entity_id
     )
 
     source_url: Mapped[str] = mapped_column(
@@ -39,7 +40,7 @@ class WebSourceComponent(BaseComponent):
         comment="URL of the asset's page or where it was found. Should be unique per (website_entity_id, gallery_id) or similar.",
     )
     original_file_url: Mapped[Optional[str]] = mapped_column(
-        String(2048), comment="Direct URL to the media file, if different from source_url."
+        String(2048), comment="Direct URL to the media file, if different from source_url.", default=None
     )
 
     # website_name is now part of the linked Website Entity via WebsiteProfileComponent
@@ -48,28 +49,30 @@ class WebSourceComponent(BaseComponent):
         String(255),
         index=True,
         comment="Identifier for the gallery, post, or collection on the website (e.g., submission ID).",
+        default=None,
     )
 
     uploader_name: Mapped[Optional[str]] = mapped_column(
         String(255),
         index=True,  # This might also become a link to a User/Artist Entity later
         comment="Username of the uploader or artist on the site.",
+        default=None,
     )
-    uploader_url: Mapped[Optional[str]] = mapped_column(String(2048), comment="URL to the uploader's profile page.")
+    uploader_url: Mapped[Optional[str]] = mapped_column(String(2048), comment="URL to the uploader's profile page.", default=None)
 
     upload_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True, comment="Date and time when the asset was originally uploaded or posted."
+        DateTime, nullable=True, comment="Date and time when the asset was originally uploaded or posted.", default=None
     )
 
-    asset_title: Mapped[Optional[str]] = mapped_column(String(1024), comment="Title of the asset on the website.")
+    asset_title: Mapped[Optional[str]] = mapped_column(String(1024), comment="Title of the asset on the website.", default=None)
     asset_description: Mapped[Optional[str]] = mapped_column(
-        Text, comment="Description or caption provided for the asset."
+        Text, comment="Description or caption provided for the asset.", default=None
     )
 
     # For tags, a simple text field for comma-separated or JSON string.
     # A dedicated Tagging system/component would be better for advanced tag management.
     tags_json: Mapped[Optional[str]] = mapped_column(
-        Text, comment="JSON string or comma-separated list of tags from the source."
+        Text, comment="JSON string or comma-separated list of tags from the source.", default=None
     )
 
     # For extensibility with gallery-specific metadata.
@@ -77,7 +80,7 @@ class WebSourceComponent(BaseComponent):
     # For SQLite, this might default to TEXT and require manual JSON parsing.
     # Using sqlalchemy.types.JSON for broader compatibility including SQLite.
     raw_metadata_dump: Mapped[Optional[Dict[str, any]]] = mapped_column(
-        JSON, nullable=True, comment="Dump of raw metadata from the web source, for extensibility."
+        JSON, nullable=True, comment="Dump of raw metadata from the web source, for extensibility.", default=None
     )
 
     # Consider adding a 'downloaded_at' timestamp if the file is fetched later.

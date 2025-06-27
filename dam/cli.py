@@ -89,8 +89,8 @@ def main_callback(
     # After worlds are created, register systems to each world instance
     # This is a simplified example; a more robust mechanism might involve iterating
     # through system modules or using entry points.
-    # Task 2.2: Use the centralized world_registrar
-    from dam.core.world_registrar import register_core_systems
+    # Task 2.2: Use the centralized world_registrar (now in world_setup)
+    from dam.core.world_setup import register_core_systems
 
     for world_instance in initialized_worlds:
         register_core_systems(world_instance)

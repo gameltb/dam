@@ -199,18 +199,17 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
     world = World(world_config=world_cfg)
 
-    # Initialize resources and assign to the world instance
+    # Initialize resources for the world instance.
+    # initialize_world_resources now takes a World instance and modifies its resource_manager in-place.
     from .world_setup import initialize_world_resources
+    initialize_world_resources(world) # Populates world.resource_manager
 
-    populated_resource_manager = initialize_world_resources(world_cfg)
-    world.resource_manager = populated_resource_manager
-
-    # Ensure the scheduler uses the populated resource manager
-    # If the scheduler was already initialized with the old (empty) one,
-    # we need to update its reference or reinitialize it.
+    # The scheduler was initialized with world.resource_manager. Since initialize_world_resources
+    # modifies that same instance, the scheduler should already have the correct reference.
+    # Explicitly setting it again like world.scheduler.resource_manager = world.resource_manager is harmless
+    # but usually not necessary if the instance itself was modified.
+    # For clarity and safety, ensuring the scheduler sees the potentially *reconfigured* manager is good.
     world.scheduler.resource_manager = world.resource_manager
-    # Alternatively, if WorldScheduler's __init__ is simple and doesn't do much with RM yet:
-    # world.scheduler = WorldScheduler(resource_manager=world.resource_manager)
 
     world.logger.info(f"World '{world.name}' resources populated and scheduler updated.")
 

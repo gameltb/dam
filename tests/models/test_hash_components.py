@@ -27,7 +27,7 @@ def test_content_hash_md5_bytes_storage(db_session: Session, asset_entity: Entit
     # Ensure asset_entity is managed by the session if it's from a different context or detached
     # db_session.add(asset_entity) # Usually not needed if fixture provides session-bound entity
 
-    md5_comp = ContentHashMD5Component(entity=asset_entity, hash_value=md5_bytes)
+    md5_comp = ContentHashMD5Component(entity_id=asset_entity.id, hash_value=md5_bytes)
     # ecs_service.add_component_to_entity will also add md5_comp to session and link entity
     ecs_service.add_component_to_entity(db_session, asset_entity.id, md5_comp)
     db_session.commit()
@@ -44,7 +44,7 @@ def test_content_hash_sha256_bytes_storage(db_session: Session, asset_entity: En
     sha256_hex = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"  # sha256 for "test"
     sha256_bytes = binascii.unhexlify(sha256_hex)
 
-    sha256_comp = ContentHashSHA256Component(entity=asset_entity, hash_value=sha256_bytes)
+    sha256_comp = ContentHashSHA256Component(entity_id=asset_entity.id, hash_value=sha256_bytes)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, sha256_comp)
     db_session.commit()
 
@@ -60,7 +60,7 @@ def test_perceptual_phash_bytes_storage(db_session: Session, asset_entity: Entit
     phash_hex = "f0f0f0f0f0f0f0f0"  # Example 64-bit pHash
     phash_bytes = binascii.unhexlify(phash_hex)
 
-    phash_comp = ImagePerceptualPHashComponent(entity=asset_entity, hash_value=phash_bytes)
+    phash_comp = ImagePerceptualPHashComponent(entity_id=asset_entity.id, hash_value=phash_bytes)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, phash_comp)
     db_session.commit()
 
@@ -77,7 +77,7 @@ def test_perceptual_ahash_bytes_storage(db_session: Session, asset_entity: Entit
     ahash_hex = "0123456789abcdef"  # Example 64-bit aHash
     ahash_bytes = binascii.unhexlify(ahash_hex)
 
-    ahash_comp = ImagePerceptualAHashComponent(entity=asset_entity, hash_value=ahash_bytes)
+    ahash_comp = ImagePerceptualAHashComponent(entity_id=asset_entity.id, hash_value=ahash_bytes)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, ahash_comp)
     db_session.commit()
 
@@ -94,7 +94,7 @@ def test_perceptual_dhash_bytes_storage(db_session: Session, asset_entity: Entit
     dhash_hex = "fedcba9876543210"  # Example 64-bit dHash
     dhash_bytes = binascii.unhexlify(dhash_hex)
 
-    dhash_comp = ImagePerceptualDHashComponent(entity=asset_entity, hash_value=dhash_bytes)
+    dhash_comp = ImagePerceptualDHashComponent(entity_id=asset_entity.id, hash_value=dhash_bytes)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, dhash_comp)
     db_session.commit()
 

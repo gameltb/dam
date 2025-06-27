@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from dam.models.web_source_component import WebSourceComponent
 from dam.models.website_profile_component import WebsiteProfileComponent
+from dam.models.original_source_info_component import OriginalSourceInfoComponent # Added
 from dam.services import ecs_service
 
 
@@ -22,6 +23,7 @@ def test_create_website_profile_component(db_session: Session):
         "api_endpoint": "https://api.testsite.com/v1",
         "parser_rules": {"key": "value"},
     }
+    # Pass entity_id directly, not the entity object to constructor
     profile_comp = WebsiteProfileComponent(**profile_data)
 
     db_session.add(profile_comp)
@@ -104,6 +106,7 @@ def test_create_web_source_component(db_session: Session):
         "uploader_name": "artistX",
         "asset_title": "Cool Artwork",
     }
+    # web_source_data already contains entity_id, which is correct
     web_source_comp = WebSourceComponent(**web_source_data)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, web_source_comp)
     db_session.commit()
@@ -164,6 +167,7 @@ def test_original_source_info_component_with_source_type(db_session: Session):
         "original_path": "/path/to/local_file.jpg",
         "source_type": "local_file",
     }
+    # osi_data_local already contains entity_id
     osi_comp_local = OriginalSourceInfoComponent(**osi_data_local)
     ecs_service.add_component_to_entity(db_session, asset_entity.id, osi_comp_local)
 
@@ -173,6 +177,7 @@ def test_original_source_info_component_with_source_type(db_session: Session):
         "original_path": "https://example.com/web_image.png",  # Using original_path for the URL here
         "source_type": "web_source",
     }
+    # osi_data_web already contains entity_id
     osi_comp_web = OriginalSourceInfoComponent(**osi_data_web)
     # An entity can have multiple OriginalSourceInfoComponent instances
     ecs_service.add_component_to_entity(db_session, asset_entity.id, osi_comp_web)
@@ -198,7 +203,7 @@ def test_original_source_info_component_with_source_type(db_session: Session):
         # Need to bypass ecs_service.add_component_to_entity if it has default handling for source_type
         # For direct model testing:
         bad_osi_comp = OriginalSourceInfoComponent(
-            entity_id=asset_entity.id,
+            entity_id=asset_entity.id, # Pass entity_id
             original_filename="bad_file.txt",
             original_path="/path/bad.txt",
             # source_type=None # This will cause an error with Mapped[str] = mapped_column(nullable=False)
