@@ -3,21 +3,21 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QDialog,
-    QVBoxLayout,
+    QFileDialog,
+    QFormLayout,
     QHBoxLayout,
-    QPushButton,
     QLabel,
     QLineEdit,
-    QCheckBox,
-    QFileDialog,
     QMessageBox,
-    QFormLayout,
+    QPushButton,
+    QVBoxLayout,
 )
 
-from dam.core.world import World
 from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested
 from dam.core.stages import SystemStage
+from dam.core.world import World
 from dam.services import file_operations
 
 
@@ -45,7 +45,7 @@ class AddAssetDialog(QDialog):
         form_layout.addRow(self.no_copy_checkbox)
 
         self.recursive_checkbox = QCheckBox("Process directory recursively")
-        self.recursive_checkbox.setEnabled(False) # Enabled when a directory is selected
+        self.recursive_checkbox.setEnabled(False)  # Enabled when a directory is selected
         form_layout.addRow(self.recursive_checkbox)
 
         self.path_input.textChanged.connect(self.update_recursive_checkbox_state)
@@ -71,7 +71,6 @@ class AddAssetDialog(QDialog):
         if not path.is_dir() and self.recursive_checkbox.isChecked():
             self.recursive_checkbox.setChecked(False)
 
-
     def browse_path(self):
         # Allow selecting either a file or a directory
         # Start with QFileDialog.getOpenFileName and if user cancels, try QFileDialog.getExistingDirectory
@@ -85,7 +84,7 @@ class AddAssetDialog(QDialog):
         # Try to select a directory first. If the user cancels, try to select a file.
         # This provides a somewhat unified experience, prioritizing directories.
         dialog = QFileDialog(self, "Select Directory or File")
-        dialog.setFileMode(QFileDialog.FileMode.Directory) # Prioritize directory
+        dialog.setFileMode(QFileDialog.FileMode.Directory)  # Prioritize directory
 
         # Try to make it more "any file or directory like"
         # On some platforms, getOpenFileNames can select directories if configured right,
@@ -97,14 +96,13 @@ class AddAssetDialog(QDialog):
         path_str = QFileDialog.getExistingDirectory(self, "Select Directory to Add Assets From")
         if path_str:
             self.path_input.setText(path_str)
-            self.update_recursive_checkbox_state(path_str) # Ensure checkbox updates
+            self.update_recursive_checkbox_state(path_str)  # Ensure checkbox updates
         else:
             # If directory selection was cancelled, try file selection
             path_str, _ = QFileDialog.getOpenFileName(self, "Select File to Add as Asset")
             if path_str:
                 self.path_input.setText(path_str)
-                self.update_recursive_checkbox_state(path_str) # Ensure checkbox updates
-
+                self.update_recursive_checkbox_state(path_str)  # Ensure checkbox updates
 
     def get_selected_options(self):
         path_str = self.path_input.text().strip()
@@ -143,7 +141,7 @@ class AddAssetDialog(QDialog):
 
         if not files_to_process:
             QMessageBox.information(self, "No Files", f"No files found to process at '{path}'.")
-            super().reject() # Close dialog if no files
+            super().reject()  # Close dialog if no files
             return
 
         # Show progress/summary later
@@ -176,7 +174,7 @@ class AddAssetDialog(QDialog):
                             world_name=self.current_world.name,
                         )
 
-                    async def dispatch_and_run_stages_sync(): # Helper for asyncio.run
+                    async def dispatch_and_run_stages_sync():  # Helper for asyncio.run
                         if event_to_dispatch:
                             await self.current_world.dispatch_event(event_to_dispatch)
                             await self.current_world.execute_stage(SystemStage.METADATA_EXTRACTION)
@@ -186,26 +184,28 @@ class AddAssetDialog(QDialog):
                 except Exception as e:
                     error_count += 1
                     # Log error, maybe collect them for a summary
-                    print(f"Error processing {filepath.name}: {e}") # Simple print for now
+                    print(f"Error processing {filepath.name}: {e}")  # Simple print for now
 
             summary_message = f"Processed {processed_count} file(s)."
             if error_count > 0:
                 summary_message += f"\nEncountered {error_count} error(s)."
 
             QMessageBox.information(self, "Ingestion Complete", summary_message)
-            super().accept() # Close dialog and signal success
+            super().accept()  # Close dialog and signal success
 
         except Exception as e:
             QMessageBox.critical(self, "Ingestion Error", f"An unexpected error occurred: {e}")
-            super().reject() # Close dialog on major failure
+            super().reject()  # Close dialog on major failure
         finally:
             QApplication.restoreOverrideCursor()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # This is for testing the dialog independently
     # In a real app, you'd need a QApplication and a World instance
-    from PyQt6.QtWidgets import QApplication
     import sys
+
+    from PyQt6.QtWidgets import QApplication
 
     # Mock World for testing
     class MockWorld:
@@ -222,13 +222,17 @@ if __name__ == '__main__':
             print(f"MockWorld: Executing stage: {stage.name}")
             await asyncio.sleep(0.1)
 
-        def get_db_session(self): # Required if any part tries to use it through world
+        def get_db_session(self):  # Required if any part tries to use it through world
             class MockSession:
-                def __enter__(self): return self
-                def __exit__(self, type, value, traceback): pass
-                # Add other methods if needed by downstream calls during testing
-            return MockSession()
+                def __enter__(self):
+                    return self
 
+                def __exit__(self, type, value, traceback):
+                    pass
+
+                # Add other methods if needed by downstream calls during testing
+
+            return MockSession()
 
     app = QApplication(sys.argv)
 
@@ -237,11 +241,12 @@ if __name__ == '__main__':
     try:
         # Attempt to load a real world if configured, for more thorough testing
         from dam.core import config as app_config
-        from dam.core.world import get_world, create_and_register_all_worlds_from_settings
+        from dam.core.world import create_and_register_all_worlds_from_settings, get_world
         from dam.core.world_setup import register_core_systems
 
         worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
-        for w in worlds: register_core_systems(w)
+        for w in worlds:
+            register_core_systems(w)
 
         world_instance_to_use = None
         if app_config.settings.DEFAULT_WORLD_NAME:
@@ -259,7 +264,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Error setting up real world for dialog test, using MockWorld: {e}")
         world_instance_to_use = MockWorld("error_mock")
-
 
     dialog = AddAssetDialog(current_world=world_instance_to_use)
     if dialog.exec():

@@ -801,9 +801,11 @@ def cli_ui(ctx: typer.Context):
     """
     typer.echo("Launching DAM UI...")
     try:
-        from dam.ui.main_window import MainWindow
         import sys
+
         from PyQt6.QtWidgets import QApplication
+
+        from dam.ui.main_window import MainWindow
 
         # Check if a QApplication instance already exists.
         # This is important if the CLI is run multiple times in the same process (e.g., testing)
@@ -825,7 +827,7 @@ def cli_ui(ctx: typer.Context):
             # or prompt the user. For now, let's be strict.
             typer.secho(
                 f"Error: Cannot launch UI. Active world '{global_state.world_name}' not found or no world selected.",
-                fg=typer.colors.RED
+                fg=typer.colors.RED,
             )
             typer.echo("Use --world <world_name> or ensure a default world is configured.")
             raise typer.Exit(code=1)

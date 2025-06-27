@@ -1,24 +1,39 @@
 import asyncio
-from pathlib import Path
 import uuid
-from typing import Optional, List as TypingList, Dict, Any # Renamed List to TypingList
+from pathlib import Path
+from typing import Any, Dict  # Renamed List to TypingList
+from typing import List as TypingList
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog,
-    QMessageBox, QFormLayout, QSpinBox, QListWidget, QListWidgetItem, QApplication,
-    QSplitter # To show query image and results
-)
-from PyQt6.QtGui import QPixmap, QAction # For displaying query image preview
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap  # For displaying query image preview
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QSplitter,  # To show query image and results
+    QVBoxLayout,
+)
 
-from dam.core.world import World
 from dam.core.events import FindSimilarImagesQuery
+from dam.core.world import World
+
 # Assuming ComponentViewerDialog might be reused or a similar display for selected similar image
 from dam.ui.main_window import ComponentViewerDialog
+
 # For image preview, ensure Pillow is available or handle gracefully
 try:
     from PIL import Image as PILImage
     from PIL.ImageQt import ImageQt
+
     _pil_available = True
 except ImportError:
     _pil_available = False
@@ -29,7 +44,7 @@ class FindSimilarImagesDialog(QDialog):
         super().__init__(parent)
         self.current_world = current_world
         self.setWindowTitle("Find Similar Images")
-        self.setMinimumWidth(700) # Increased width
+        self.setMinimumWidth(700)  # Increased width
         self.setMinimumHeight(500)
 
         main_layout = QVBoxLayout(self)
@@ -70,7 +85,7 @@ class FindSimilarImagesDialog(QDialog):
         # Image Preview Area
         self.image_preview_label = QLabel("Image Preview")
         self.image_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_preview_label.setMinimumWidth(200) # Min width for preview
+        self.image_preview_label.setMinimumWidth(200)  # Min width for preview
         self.image_preview_label.setStyleSheet("border: 1px solid gray;")
         self.splitter.addWidget(self.image_preview_label)
 
@@ -79,15 +94,15 @@ class FindSimilarImagesDialog(QDialog):
         self.results_list_widget.itemDoubleClicked.connect(self.view_result_details)
         self.splitter.addWidget(self.results_list_widget)
 
-        self.splitter.setSizes([200, 500]) # Initial sizes for preview and list
+        self.splitter.setSizes([200, 500])  # Initial sizes for preview and list
         main_layout.addWidget(self.splitter)
 
         # Buttons
         button_layout = QHBoxLayout()
         self.find_button = QPushButton("Find Similar Images")
         self.find_button.clicked.connect(self.find_similar)
-        self.cancel_button = QPushButton("Close") # Changed from Cancel to Close
-        self.cancel_button.clicked.connect(self.accept) # Accept will just close it
+        self.cancel_button = QPushButton("Close")  # Changed from Cancel to Close
+        self.cancel_button.clicked.connect(self.accept)  # Accept will just close it
         button_layout.addStretch()
         button_layout.addWidget(self.find_button)
         button_layout.addWidget(self.cancel_button)
@@ -96,9 +111,10 @@ class FindSimilarImagesDialog(QDialog):
         self.setLayout(main_layout)
         self.image_path_input.textChanged.connect(self.update_image_preview)
 
-
     def browse_for_image(self):
-        path_str, _ = QFileDialog.getOpenFileName(self, "Select Query Image", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)")
+        path_str, _ = QFileDialog.getOpenFileName(
+            self, "Select Query Image", "", "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
         if path_str:
             self.image_path_input.setText(path_str)
             # update_image_preview will be called by textChanged signal
@@ -110,7 +126,7 @@ class FindSimilarImagesDialog(QDialog):
 
         if not path_str:
             self.image_preview_label.setText("Select an image to preview.")
-            self.image_preview_label.setPixmap(QPixmap()) # Clear pixmap
+            self.image_preview_label.setPixmap(QPixmap())  # Clear pixmap
             return
 
         path = Path(path_str)
@@ -118,7 +134,10 @@ class FindSimilarImagesDialog(QDialog):
             try:
                 pil_img = PILImage.open(path)
                 # Resize for preview
-                pil_img.thumbnail((self.image_preview_label.width() - 10 , self.image_preview_label.height() -10 ), PILImage.Resampling.LANCZOS)
+                pil_img.thumbnail(
+                    (self.image_preview_label.width() - 10, self.image_preview_label.height() - 10),
+                    PILImage.Resampling.LANCZOS,
+                )
                 qt_image = ImageQt(pil_img)
                 pixmap = QPixmap.fromImage(qt_image)
                 self.image_preview_label.setPixmap(pixmap)
@@ -128,7 +147,6 @@ class FindSimilarImagesDialog(QDialog):
         else:
             self.image_preview_label.setText("Image file not found.")
             self.image_preview_label.setPixmap(QPixmap())
-
 
     def find_similar(self):
         image_path_str = self.image_path_input.text().strip()
@@ -158,6 +176,7 @@ class FindSimilarImagesDialog(QDialog):
         self.results_list_widget.clear()
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
+
             async def dispatch_query_sync():
                 await self.current_world.dispatch_event(query_event)
 
@@ -167,23 +186,25 @@ class FindSimilarImagesDialog(QDialog):
 
             if query_event.result:
                 if isinstance(query_event.result, list) and query_event.result and "error" in query_event.result[0]:
-                     QMessageBox.warning(self, "Query Error", f"Error from system: {query_event.result[0]['error']}")
-                     self.results_list_widget.addItem(f"Error: {query_event.result[0]['error']}")
+                    QMessageBox.warning(self, "Query Error", f"Error from system: {query_event.result[0]['error']}")
+                    self.results_list_widget.addItem(f"Error: {query_event.result[0]['error']}")
                 elif not query_event.result:
                     self.results_list_widget.addItem("No similar images found.")
                 else:
                     for match in query_event.result:
                         # Ensure match is a dict, as per event definition
                         if isinstance(match, dict):
-                            item_text = (f"ID: {match.get('entity_id', 'N/A')} - "
-                                         f"{match.get('original_filename', 'N/A')} "
-                                         f"(Dist: {match.get('distance', '?')} by {match.get('hash_type', '?')})")
+                            item_text = (
+                                f"ID: {match.get('entity_id', 'N/A')} - "
+                                f"{match.get('original_filename', 'N/A')} "
+                                f"(Dist: {match.get('distance', '?')} by {match.get('hash_type', '?')})"
+                            )
                             list_item = QListWidgetItem(item_text)
                             # Store entity_id for double-click action
-                            list_item.setData(Qt.ItemDataRole.UserRole, match.get('entity_id'))
+                            list_item.setData(Qt.ItemDataRole.UserRole, match.get("entity_id"))
                             self.results_list_widget.addItem(list_item)
                         else:
-                             self.results_list_widget.addItem(f"Unexpected result format: {match}")
+                            self.results_list_widget.addItem(f"Unexpected result format: {match}")
             else:
                 self.results_list_widget.addItem("No results or error from similarity query.")
 
@@ -193,12 +214,12 @@ class FindSimilarImagesDialog(QDialog):
             self.results_list_widget.addItem(f"Error: {e}")
         finally:
             if QApplication.overrideCursor() is not None:
-                 QApplication.restoreOverrideCursor()
+                QApplication.restoreOverrideCursor()
 
     def view_result_details(self, item: QListWidgetItem):
         entity_id = item.data(Qt.ItemDataRole.UserRole)
         if entity_id is None:
-            return # No ID stored
+            return  # No ID stored
 
         # Fetch and display components for this entity_id using ComponentViewerDialog
         # This logic is similar to MainWindow's on_asset_double_clicked
@@ -221,8 +242,11 @@ class FindSimilarImagesDialog(QDialog):
                     component_instances_data = []
                     if components:
                         for comp_instance in components:
-                            instance_data = {c.key: getattr(comp_instance, c.key)
-                                             for c in comp_instance.__table__.columns if not c.key.startswith('_')}
+                            instance_data = {
+                                c.key: getattr(comp_instance, c.key)
+                                for c in comp_instance.__table__.columns
+                                if not c.key.startswith("_")
+                            }
                             component_instances_data.append(instance_data)
                     components_data_for_dialog[comp_type_name] = component_instances_data
 
@@ -232,39 +256,54 @@ class FindSimilarImagesDialog(QDialog):
 
         except Exception as e:
             QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self, "Component Fetch Error", f"Error fetching components for Entity ID {entity_id}: {e}")
+            QMessageBox.critical(
+                self, "Component Fetch Error", f"Error fetching components for Entity ID {entity_id}: {e}"
+            )
         finally:
             if QApplication.overrideCursor() is not None:
-                 QApplication.restoreOverrideCursor()
+                QApplication.restoreOverrideCursor()
 
 
-if __name__ == '__main__':
-    from PyQt6.QtWidgets import QApplication
+if __name__ == "__main__":
     import sys
 
+    from PyQt6.QtWidgets import QApplication
+
     class MockWorld:
-        def __init__(self, name="test_world_similar"): self.name = name
+        def __init__(self, name="test_world_similar"):
+            self.name = name
+
         async def dispatch_event(self, event: FindSimilarImagesQuery):
             print(f"MockWorld: Event dispatched: {type(event).__name__} for image {event.image_path.name}")
-            await asyncio.sleep(0.2) # Simulate work
-            if "error" in event.image_path.name: # Test error case
-                 event.result = [{"error": "Simulated system error during similarity search."}]
-            elif "empty" in event.image_path.name: # Test no results
-                 event.result = []
+            await asyncio.sleep(0.2)  # Simulate work
+            if "error" in event.image_path.name:  # Test error case
+                event.result = [{"error": "Simulated system error during similarity search."}]
+            elif "empty" in event.image_path.name:  # Test no results
+                event.result = []
             else:
                 event.result = [
                     {"entity_id": 101, "original_filename": "similar1.jpg", "distance": 1, "hash_type": "phash"},
                     {"entity_id": 102, "original_filename": "closematch.png", "distance": 3, "hash_type": "ahash"},
                 ]
-        def get_db_session(self): # For ComponentViewerDialog if used
-            class MockSession:
-                def __enter__(self): return self
-                def __exit__(self,t,v,tb): pass
-                def query(self, *args): return self # Dummy query
-                def filter(self, *args): return self # Dummy filter
-                def all(self): return [] # Dummy all
-            return MockSession()
 
+        def get_db_session(self):  # For ComponentViewerDialog if used
+            class MockSession:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, t, v, tb):
+                    pass
+
+                def query(self, *args):
+                    return self  # Dummy query
+
+                def filter(self, *args):
+                    return self  # Dummy filter
+
+                def all(self):
+                    return []  # Dummy all
+
+            return MockSession()
 
     app = QApplication(sys.argv)
     world_to_use = MockWorld()
@@ -281,7 +320,6 @@ if __name__ == '__main__':
     #     print(f"Using {'REAL' if real_world else 'MOCK'} world: {world_to_use.name}")
     # except Exception as e:
     #     print(f"Could not load real world for testing FindSimilarImagesDialog ({e}), using MockWorld.")
-
 
     dialog = FindSimilarImagesDialog(current_world=world_to_use)
     dialog.exec()

@@ -24,36 +24,38 @@ Example gallery-dl config:
 
 Make sure to run `gallery-dl --write-metadata ...` for {_metadata_path} to be available.
 """
+
 import asyncio
 import binascii
 import json
 import logging
-import os
 from pathlib import Path
+
 import typer
 from typing_extensions import Annotated
 
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
-from dam.core.world import create_and_register_all_worlds_from_settings, get_world, World
+from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
 from dam.core.world_setup import register_core_systems
-from dam.services import ecs_service, file_operations
 from dam.models import (
-    Entity,
-    OriginalSourceInfoComponent,
-    FilePropertiesComponent,
-    FileLocationComponent,
-    WebSourceComponent,
-    ContentHashSHA256Component,
     ContentHashMD5Component,
+    ContentHashSHA256Component,
+    Entity,
+    FileLocationComponent,
+    FilePropertiesComponent,
     NeedsMetadataExtractionComponent,
-    WebsiteProfileComponent, # Needed if creating website entities
+    OriginalSourceInfoComponent,
+    WebsiteProfileComponent,  # Needed if creating website entities
+    WebSourceComponent,
 )
 from dam.models.source_info import source_types
 from dam.resources.file_storage_resource import FileStorageResource
+from dam.services import ecs_service, file_operations
 
 logger = logging.getLogger(__name__)
 cli_app = typer.Typer()
+
 
 def get_website_entity(session, website_identifier_url: str, metadata_payload: dict) -> Entity:
     """Finds or creates a WebsiteProfile entity."""
@@ -71,6 +73,7 @@ def get_website_entity(session, website_identifier_url: str, metadata_payload: d
     if not website_name:
         try:
             from urllib.parse import urlparse
+
             parsed_url = urlparse(website_identifier_url)
             website_name = parsed_url.netloc.replace("www.", "")
         except Exception:
@@ -101,7 +104,7 @@ async def ingest_gallery_dl_asset_async(
     metadata_payload = {}
     if metadata_filepath.exists():
         try:
-            with open(metadata_filepath, 'r', encoding='utf-8') as f:
+            with open(metadata_filepath, "r", encoding="utf-8") as f:
                 metadata_payload = json.load(f)
             logger.debug(f"Loaded metadata from {metadata_filepath}")
         except Exception as e:
@@ -139,11 +142,15 @@ async def ingest_gallery_dl_asset_async(
 
         if existing_entity:
             entity = existing_entity
-            logger.info(f"Content SHA256 {content_hash_sha256_hex[:12]} for '{actual_filename}' already exists as Entity ID {entity.id}.")
+            logger.info(
+                f"Content SHA256 {content_hash_sha256_hex[:12]} for '{actual_filename}' already exists as Entity ID {entity.id}."
+            )
         else:
             created_new_entity = True
             entity = ecs_service.create_entity(session)
-            logger.info(f"Creating new Entity ID {entity.id} for '{actual_filename}' (SHA256: {content_hash_sha256_hex[:12]}).")
+            logger.info(
+                f"Creating new Entity ID {entity.id} for '{actual_filename}' (SHA256: {content_hash_sha256_hex[:12]})."
+            )
 
             # Add SHA256 hash component
             chc_sha256 = ContentHashSHA256Component(entity=entity, hash_value=content_hash_sha256_bytes)
@@ -158,7 +165,7 @@ async def ingest_gallery_dl_asset_async(
             # Add FilePropertiesComponent
             fpc = FilePropertiesComponent(
                 entity=entity,
-                original_filename=actual_filename, # Name of the downloaded file
+                original_filename=actual_filename,  # Name of the downloaded file
                 file_size_bytes=size_bytes,
                 mime_type=mime_type,
             )
@@ -168,7 +175,7 @@ async def ingest_gallery_dl_asset_async(
             flc = FileLocationComponent(
                 entity=entity,
                 content_identifier=content_hash_sha256_hex,
-                storage_type="dam_managed_storage", # Or "local_cas" if that's your convention
+                storage_type="dam_managed_storage",  # Or "local_cas" if that's your convention
                 physical_path_or_key=str(physical_storage_path_suffix),
                 contextual_filename=actual_filename,
             )
@@ -184,9 +191,9 @@ async def ingest_gallery_dl_asset_async(
                 # This check needs to be more robust if multiple web sources can lead to same entity
                 wscs = ecs_service.get_components(session, entity.id, WebSourceComponent)
                 if any(w.source_url == source_url for w in wscs):
-                     source_already_linked = True
-                     logger.info(f"Entity {entity.id} already has OriginalSourceInfo for web source URL {source_url}.")
-                     break
+                    source_already_linked = True
+                    logger.info(f"Entity {entity.id} already has OriginalSourceInfo for web source URL {source_url}.")
+                    break
 
         if not source_already_linked:
             osi_comp = OriginalSourceInfoComponent(
@@ -200,15 +207,16 @@ async def ingest_gallery_dl_asset_async(
         # gallery-dl metadata usually has 'parent' or similar for the gallery page URL
         # and 'website' for the site name (e.g. deviantart, twitter)
         # For simplicity, we might use the source_url's domain as website_identifier_url if not explicitly provided
-        website_identifier_url = metadata_payload.get("parent") # Prefer gallery page if available
+        website_identifier_url = metadata_payload.get("parent")  # Prefer gallery page if available
         if not website_identifier_url:
-             try:
+            try:
                 from urllib.parse import urlparse
+
                 parsed_source_url = urlparse(source_url)
                 website_identifier_url = f"{parsed_source_url.scheme}://{parsed_source_url.netloc}"
-             except Exception:
+            except Exception:
                 logger.warning(f"Could not derive website identifier URL from {source_url}")
-                website_identifier_url = source_url # Fallback
+                website_identifier_url = source_url  # Fallback
 
         website_entity = get_website_entity(session, website_identifier_url, metadata_payload)
 
@@ -221,47 +229,53 @@ async def ingest_gallery_dl_asset_async(
                 "entity_id": entity.id,
                 "entity": entity,
                 "website_entity_id": website_entity.id,
-                "source_url": source_url, # The specific page URL of the asset
-                "original_file_url": metadata_payload.get("file_url", source_url), # Direct file URL if different
-                "gallery_id": metadata_payload.get(metadata_payload.get("id_key", "id")), # e.g., post ID
+                "source_url": source_url,  # The specific page URL of the asset
+                "original_file_url": metadata_payload.get("file_url", source_url),  # Direct file URL if different
+                "gallery_id": metadata_payload.get(metadata_payload.get("id_key", "id")),  # e.g., post ID
                 "uploader_name": metadata_payload.get("uploader") or metadata_payload.get("artist"),
                 "uploader_url": metadata_payload.get("uploader_url"),
                 "asset_title": metadata_payload.get("title"),
                 "asset_description": metadata_payload.get("description") or metadata_payload.get("caption"),
                 "raw_metadata_dump": metadata_payload,
             }
-            upload_date_str = metadata_payload.get("date") # gallery-dl often uses 'date'
+            upload_date_str = metadata_payload.get("date")  # gallery-dl often uses 'date'
             if upload_date_str:
                 try:
                     from datetime import datetime, timezone
+
                     # gallery-dl date format is often like "YYYYMMDD" or "YYYY-MM-DD HH:MM:SS"
                     # Handle various potential formats or make it robust
-                    if len(upload_date_str) == 8 and upload_date_str.isdigit(): # YYYYMMDD
+                    if len(upload_date_str) == 8 and upload_date_str.isdigit():  # YYYYMMDD
                         dt_obj = datetime.strptime(upload_date_str, "%Y%m%d")
-                    elif isinstance(upload_date_str, (int, float)): # Timestamp
+                    elif isinstance(upload_date_str, (int, float)):  # Timestamp
                         dt_obj = datetime.fromtimestamp(upload_date_str, tz=timezone.utc)
-                    else: # Try ISO format or with spaces
-                         dt_obj = datetime.fromisoformat(upload_date_str.replace(" ", "T").replace("Z", "+00:00"))
-                    web_source_data["upload_date"] = dt_obj.astimezone(timezone.utc) if dt_obj.tzinfo is None else dt_obj
+                    else:  # Try ISO format or with spaces
+                        dt_obj = datetime.fromisoformat(upload_date_str.replace(" ", "T").replace("Z", "+00:00"))
+                    web_source_data["upload_date"] = (
+                        dt_obj.astimezone(timezone.utc) if dt_obj.tzinfo is None else dt_obj
+                    )
 
                 except ValueError as e:
                     logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {source_url}: {e}")
 
             tags_list = metadata_payload.get("tags", [])
-            if isinstance(tags_list, str): # Sometimes tags are space-separated string
+            if isinstance(tags_list, str):  # Sometimes tags are space-separated string
                 tags_list = tags_list.split()
             if tags_list:
-                 web_source_data["tags_json"] = json.dumps(list(set(tags_list))) # Ensure unique tags
+                web_source_data["tags_json"] = json.dumps(list(set(tags_list)))  # Ensure unique tags
 
-            web_comp = WebSourceComponent(**{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None})
+            web_comp = WebSourceComponent(
+                **{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None}
+            )
             ecs_service.add_component_to_entity(session, entity.id, web_comp)
             logger.info(f"Added WebSourceComponent for Entity ID {entity.id} from URL {source_url}")
         else:
             logger.info(f"WebSourceComponent for Entity ID {entity.id} and URL {source_url} already exists.")
 
-
         # 6. Add NeedsMetadataExtractionComponent if new entity or if properties were missing
-        if created_new_entity or not ecs_service.get_components(session, entity.id, FilePropertiesComponent): # Re-check FPC
+        if created_new_entity or not ecs_service.get_components(
+            session, entity.id, FilePropertiesComponent
+        ):  # Re-check FPC
             if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
                 marker_comp = NeedsMetadataExtractionComponent(entity=entity)
                 ecs_service.add_component_to_entity(session, entity.id, marker_comp)
@@ -275,8 +289,18 @@ async def ingest_gallery_dl_asset_async(
 def main(
     world_name: Annotated[str, typer.Option(help="Name of the ECS world to operate on.", envvar="DAM_CURRENT_WORLD")],
     source_url: Annotated[str, typer.Option(help="Original URL of the asset page.")],
-    downloaded_filepath_str: Annotated[str, typer.Option("--downloaded-filepath", help="Path to the downloaded asset file.", exists=True, resolve_path=True)],
-    metadata_filepath_str: Annotated[str, typer.Option("--metadata-filepath", help="Path to the gallery-dl metadata JSON file.", exists=True, resolve_path=True)],
+    downloaded_filepath_str: Annotated[
+        str,
+        typer.Option(
+            "--downloaded-filepath", help="Path to the downloaded asset file.", exists=True, resolve_path=True
+        ),
+    ],
+    metadata_filepath_str: Annotated[
+        str,
+        typer.Option(
+            "--metadata-filepath", help="Path to the gallery-dl metadata JSON file.", exists=True, resolve_path=True
+        ),
+    ],
 ):
     """
     Ingest an asset downloaded by gallery-dl into the DAM.
@@ -293,10 +317,9 @@ def main(
         raise typer.Exit(code=1)
 
     # Register core systems (important for resources like FileStorageResource)
-    from dam.core.world_setup import register_core_systems
-    for w_instance in get_world(None, get_all=True): # type: ignore
-        register_core_systems(w_instance)
 
+    for w_instance in get_world(None, get_all=True):  # type: ignore
+        register_core_systems(w_instance)
 
     target_world = get_world(world_name)
     if not target_world:
@@ -305,12 +328,14 @@ def main(
 
     logger.info(f"Operating on world: '{target_world.name}'")
 
-    asyncio.run(ingest_gallery_dl_asset_async(
-        world=target_world,
-        source_url=source_url,
-        downloaded_filepath=downloaded_filepath,
-        metadata_filepath=metadata_filepath,
-    ))
+    asyncio.run(
+        ingest_gallery_dl_asset_async(
+            world=target_world,
+            source_url=source_url,
+            downloaded_filepath=downloaded_filepath,
+            metadata_filepath=metadata_filepath,
+        )
+    )
     logger.info("Ingestion process finished.")
 
 

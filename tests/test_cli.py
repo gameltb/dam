@@ -5,6 +5,7 @@ from typing import Iterator
 
 import pytest
 from click.testing import Result
+from sqlalchemy import select  # Ensure select is imported for tests
 from typer.testing import CliRunner
 
 # Import the app after patches, if any, are applied.
@@ -24,11 +25,10 @@ from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.properties.file_properties_component import FilePropertiesComponent
-from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.models.source_info import source_types
+from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.services import file_operations
 from dam.services.file_storage import get_file_path
-from sqlalchemy import select # Ensure select is imported for tests
 
 TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"
@@ -281,7 +281,6 @@ def _create_dummy_file(filepath: Path, content: str = "dummy content") -> Path:
 def _create_dummy_image(filepath: Path, size=(32, 32), color="red") -> Path:
     from PIL import Image, ImageDraw
 
-
     img = Image.new("RGB", size, color=color)
     draw = ImageDraw.Draw(img)
 
@@ -405,15 +404,14 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
         assert not hasattr(osi_comp, "original_filename"), "OSI should not have original_filename"
         assert not hasattr(osi_comp, "original_path"), "OSI should not have original_path"
 
-
         # Check FilePropertiesComponent
         fpc_comp = session.execute(
             select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
         ).scalar_one_or_none()
         assert fpc_comp is not None, "FilePropertiesComponent not found"
-        assert fpc_comp.original_filename == expected_props[0] # expected_props[0] is original_filename
-        assert fpc_comp.file_size_bytes == expected_props[1] # expected_props[1] is size_bytes
-        assert fpc_comp.mime_type == expected_props[2] # expected_props[2] is mime_type
+        assert fpc_comp.original_filename == expected_props[0]  # expected_props[0] is original_filename
+        assert fpc_comp.file_size_bytes == expected_props[1]  # expected_props[1] is size_bytes
+        assert fpc_comp.mime_type == expected_props[2]  # expected_props[2] is mime_type
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
@@ -473,7 +471,6 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
             content_hash_bytes = bytes.fromhex(content_hash)
             expected_props = file_operations.get_file_properties(f_path)
 
-
             # Check CAS
             cas_file_path = get_file_path(content_hash, world_config)
             assert cas_file_path is not None, (
@@ -497,10 +494,12 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
             # Check OriginalSourceInfoComponent
             osi_comp = session.execute(
                 select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
-            ).scalar_one_or_none() # Assuming one OSI per entity for this test case
+            ).scalar_one_or_none()  # Assuming one OSI per entity for this test case
             assert osi_comp is not None, f"OriginalSourceInfoComponent for {f_path.name} not found"
             assert osi_comp.source_type == source_types.SOURCE_TYPE_LOCAL_FILE
-            assert not hasattr(osi_comp, "original_filename"), f"OSI for {f_path.name} should not have original_filename"
+            assert not hasattr(osi_comp, "original_filename"), (
+                f"OSI for {f_path.name} should not have original_filename"
+            )
             assert not hasattr(osi_comp, "original_path"), f"OSI for {f_path.name} should not have original_path"
 
             # Check FilePropertiesComponent
@@ -548,13 +547,11 @@ def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
     # from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
     # from dam.models.source_info import source_types
 
-
     world_config = test_environment["settings"].get_world_config(default_world_name)
     db_manager = test_environment["db_managers"][default_world_name]
     content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
     expected_props = file_operations.get_file_properties(dummy_file)
-
 
     # Check that file is NOT in CAS
     cas_file_path = get_file_path(content_hash, world_config)
@@ -588,7 +585,6 @@ def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
         assert fpc_comp.original_filename == expected_props[0]
         assert fpc_comp.file_size_bytes == expected_props[1]
         assert fpc_comp.mime_type == expected_props[2]
-
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
@@ -626,7 +622,6 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
     # from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
     # from dam.models.source_info import source_types
 
-
     db_manager = test_environment["db_managers"][default_world_name]
     content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
@@ -643,16 +638,19 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
         entity_id = hash_components[0].entity_id
         expected_props = file_operations.get_file_properties(dummy_file)
 
-
         # Check OriginalSourceInfoComponent - should still be one primary one from the first add.
         # The second add should link to the existing entity.
         # Depending on how OSI is handled for duplicates (e.g., if it adds another OSI for the same source path)
         # this might need adjustment. For now, assume one distinct OSI by source_type and potentially other unique factors not filename/path.
         # With filename/path removed from OSI, if the second add re-adds an OSI, it would be identical.
         # Let's assume the system is smart enough to not add a fully identical OSI.
-        osi_comps = session.execute(
-            select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
-        ).scalars().all()
+        osi_comps = (
+            session.execute(
+                select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
+            )
+            .scalars()
+            .all()
+        )
         assert len(osi_comps) == 1, f"Expected 1 OriginalSourceInfoComponent, found {len(osi_comps)}"
         assert osi_comps[0].source_type == source_types.SOURCE_TYPE_LOCAL_FILE
         assert not hasattr(osi_comps[0], "original_filename")
@@ -666,7 +664,6 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
         assert fpc_comp.original_filename == expected_props[0]
         assert fpc_comp.file_size_bytes == expected_props[1]
         assert fpc_comp.mime_type == expected_props[2]
-
 
         # Check FileLocationComponent - current system behavior is to add a new FLC if path is identical.
         # The test originally asserted len == 1, implying de-duplication of FLC by path.

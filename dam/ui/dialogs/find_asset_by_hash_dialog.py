@@ -1,16 +1,27 @@
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox,
-    QFileDialog, QMessageBox, QFormLayout, QApplication
-)
-from PyQt6.QtCore import Qt
-from pathlib import Path
+import asyncio  # For running async world events
 import uuid
-import asyncio # For running async world events
+from pathlib import Path
 
-from dam.core.world import World
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+)
+
 from dam.core.events import FindEntityByHashQuery
-from dam.services import file_operations # For calculating hash from file
-from dam.ui.main_window import ComponentViewerDialog # Reuse for displaying results
+from dam.core.world import World
+from dam.services import file_operations  # For calculating hash from file
+
+from .component_viewerd_ialog import ComponentViewerDialog  # Reuse for displaying results
 
 
 class FindAssetByHashDialog(QDialog):
@@ -82,9 +93,9 @@ class FindAssetByHashDialog(QDialog):
         try:
             calculated_hash = ""
             if selected_hash_type == "sha256":
-                calculated_hash = file_operations.calculate_sha256_hex(filepath) # Assuming hex output needed
+                calculated_hash = file_operations.calculate_sha256_hex(filepath)  # Assuming hex output needed
             elif selected_hash_type == "md5":
-                calculated_hash = file_operations.calculate_md5_hex(filepath) # Assuming hex output needed
+                calculated_hash = file_operations.calculate_md5_hex(filepath)  # Assuming hex output needed
 
             self.hash_value_input.setText(calculated_hash)
             QMessageBox.information(self, "Hash Calculated", f"Calculated {selected_hash_type} hash: {calculated_hash}")
@@ -92,7 +103,6 @@ class FindAssetByHashDialog(QDialog):
             QMessageBox.critical(self, "Hash Calculation Error", f"Could not calculate hash: {e}")
         finally:
             QApplication.restoreOverrideCursor()
-
 
     def find_asset(self):
         hash_value = self.hash_value_input.text().strip()
@@ -104,7 +114,7 @@ class FindAssetByHashDialog(QDialog):
 
         request_id = str(uuid.uuid4())
         query_event = FindEntityByHashQuery(
-            hash_value=hash_value, # The service layer will handle hex string to bytes if needed
+            hash_value=hash_value,  # The service layer will handle hex string to bytes if needed
             hash_type=hash_type,
             world_name=self.current_world.name,
             request_id=request_id,
@@ -118,7 +128,7 @@ class FindAssetByHashDialog(QDialog):
 
             asyncio.run(dispatch_query_sync())
 
-            QApplication.restoreOverrideCursor() # Restore cursor before showing dialogs
+            QApplication.restoreOverrideCursor()  # Restore cursor before showing dialogs
 
             if query_event.result:
                 entity_id = query_event.result.get("entity_id")
@@ -134,35 +144,41 @@ class FindAssetByHashDialog(QDialog):
                 for comp_name, data in components_data.items():
                     if isinstance(data, list):
                         processed_components_data[comp_name] = data
-                    elif isinstance(data, dict): # Single instance component
+                    elif isinstance(data, dict):  # Single instance component
                         processed_components_data[comp_name] = [data]
-                    else: # Should not happen based on event structure
-                        print(f"Warning: Unexpected data type for component {comp_name} in FindEntityByHashQuery result.")
+                    else:  # Should not happen based on event structure
+                        print(
+                            f"Warning: Unexpected data type for component {comp_name} in FindEntityByHashQuery result."
+                        )
                         processed_components_data[comp_name] = []
-
 
                 QMessageBox.information(self, "Asset Found", f"Asset found for Entity ID: {entity_id}.")
                 # Reuse ComponentViewerDialog to show the details
                 # It expects dict where values are lists of component instances (as dicts)
-                viewer_dialog = ComponentViewerDialog(entity_id, processed_components_data, self.current_world.name, self)
+                viewer_dialog = ComponentViewerDialog(
+                    entity_id, processed_components_data, self.current_world.name, self
+                )
                 viewer_dialog.exec()
-                super().accept() # Close find dialog if asset found and viewed
+                super().accept()  # Close find dialog if asset found and viewed
             else:
-                QMessageBox.information(self, "Not Found", f"No asset found for hash '{hash_value}' (type: {hash_type}).")
+                QMessageBox.information(
+                    self, "Not Found", f"No asset found for hash '{hash_value}' (type: {hash_type})."
+                )
         except Exception as e:
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self, "Find Asset Error", f"An error occurred: {e}")
             # import traceback; print(traceback.format_exc()) # For debugging
         finally:
-            if QApplication.overrideCursor() is not None: # Ensure cursor is restored
-                 QApplication.restoreOverrideCursor()
+            if QApplication.overrideCursor() is not None:  # Ensure cursor is restored
+                QApplication.restoreOverrideCursor()
 
 
-if __name__ == '__main__':
-    from PyQt6.QtWidgets import QApplication
+if __name__ == "__main__":
     import sys
 
-    class MockWorld: # Same MockWorld as in add_asset_dialog.py for consistency
+    from PyQt6.QtWidgets import QApplication
+
+    class MockWorld:  # Same MockWorld as in add_asset_dialog.py for consistency
         def __init__(self, name="test_world"):
             self.name = name
             print(f"MockWorld '{self.name}' initialized for FindAssetByHashDialog.")
@@ -175,51 +191,55 @@ if __name__ == '__main__':
                 event.result = {
                     "entity_id": 123,
                     "components": {
-                        "FilePropertiesComponent": { # Single instance
+                        "FilePropertiesComponent": {  # Single instance
                             "original_filename": "test_image.jpg",
                             "mime_type": "image/jpeg",
-                            "file_size_bytes": 10240
+                            "file_size_bytes": 10240,
                         },
-                        "ContentHashSHA256Component": { # Single instance
+                        "ContentHashSHA256Component": {  # Single instance
                             "hash_value": "found_hash_sha256"
                         },
-                        "SomeMultiInstanceComponent": [ # Example of multi-instance
-                           {"value": "instance1"},
-                           {"value": "instance2"}
-                        ]
-                    }
+                        "SomeMultiInstanceComponent": [  # Example of multi-instance
+                            {"value": "instance1"},
+                            {"value": "instance2"},
+                        ],
+                    },
                 }
             elif event.hash_value == "another_hash_md5" and event.hash_type == "md5":
-                 event.result = {
+                event.result = {
                     "entity_id": 456,
                     "components": {
                         "FilePropertiesComponent": {
                             "original_filename": "document.pdf",
                             "mime_type": "application/pdf",
                         }
-                    }
-                 }
+                    },
+                }
             else:
-                event.result = None # Not found
+                event.result = None  # Not found
             print(f"MockWorld: Event result set for request_id {event.request_id}")
-
 
     app = QApplication(sys.argv)
     # Setup a mock world
     try:
         from dam.core import config as app_config
-        from dam.core.world import get_world, create_and_register_all_worlds_from_settings
+        from dam.core.world import create_and_register_all_worlds_from_settings, get_world
         from dam.core.world_setup import register_core_systems
 
         worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
-        for w in worlds: register_core_systems(w)
+        for w in worlds:
+            register_core_systems(w)
 
         world_instance_to_use = None
-        if app_config.settings.DEFAULT_WORLD_NAME: world_instance_to_use = get_world(app_config.settings.DEFAULT_WORLD_NAME)
-        elif worlds: world_instance_to_use = worlds[0]
+        if app_config.settings.DEFAULT_WORLD_NAME:
+            world_instance_to_use = get_world(app_config.settings.DEFAULT_WORLD_NAME)
+        elif worlds:
+            world_instance_to_use = worlds[0]
 
-        if not world_instance_to_use: world_instance_to_use = MockWorld("default_mock_find")
-        else: print(f"Using REAL world for FindAssetByHashDialog test: {world_instance_to_use.name}")
+        if not world_instance_to_use:
+            world_instance_to_use = MockWorld("default_mock_find")
+        else:
+            print(f"Using REAL world for FindAssetByHashDialog test: {world_instance_to_use.name}")
 
     except Exception as e:
         print(f"Error setting up world for dialog test, using MockWorld: {e}")
