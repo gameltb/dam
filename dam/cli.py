@@ -792,3 +792,73 @@ def run_cli_directly():
 
 if __name__ == "__main__":
     run_cli_directly()
+
+
+@app.command(name="ui")
+def cli_ui(ctx: typer.Context):
+    """
+    Launches the PyQt6 UI for the Digital Asset Management system.
+    """
+    typer.echo("Launching DAM UI...")
+    try:
+        from dam.ui.main_window import MainWindow
+        import sys
+        from PyQt6.QtWidgets import QApplication
+
+        # Check if a QApplication instance already exists.
+        # This is important if the CLI is run multiple times in the same process (e.g., testing)
+        # or if other parts of the application might also create a QApplication.
+        app_instance = QApplication.instance()
+        if app_instance is None:
+            app_instance = QApplication(sys.argv)
+        else:
+            typer.echo("Reusing existing QApplication instance.")
+
+        # Get the current world context to pass to the UI
+        current_world_instance = None
+        if global_state.world_name:
+            current_world_instance = get_world(global_state.world_name)
+
+        if not current_world_instance:
+            # This case should ideally be handled by main_callback for most commands,
+            # but for UI, we might want to allow launching even if no world is immediately active,
+            # or prompt the user. For now, let's be strict.
+            typer.secho(
+                f"Error: Cannot launch UI. Active world '{global_state.world_name}' not found or no world selected.",
+                fg=typer.colors.RED
+            )
+            typer.echo("Use --world <world_name> or ensure a default world is configured.")
+            raise typer.Exit(code=1)
+
+        typer.echo(f"Launching UI with world context: '{current_world_instance.name}'")
+        main_window = MainWindow(current_world=current_world_instance)
+        main_window.show()
+
+        # Start the Qt event loop.
+        # sys.exit(app_instance.exec()) # This would exit the CLI.
+        # For a CLI command that launches a GUI, we usually want the GUI to run
+        # and the CLI command to finish, allowing the GUI to operate independently
+        # or for the CLI to return to the prompt.
+        # If the GUI is modal or the main point, app_instance.exec() is correct.
+        # If it's a non-blocking launch, we might not call exec() here,
+        # or ensure it doesn't block the CLI from exiting.
+        # For now, let's assume we want the UI to run and the CLI to wait.
+        exit_code = app_instance.exec()
+        sys.exit(exit_code)
+
+    except ImportError as e:
+        if "PyQt6" in str(e):
+            typer.secho(
+                "Error: PyQt6 is not installed. Please install it to use the UI.",
+                fg=typer.colors.RED,
+            )
+            typer.echo("You can typically install it using: pip install ecs-dam-system[ui]")
+            typer.echo(f"Details: {e}")
+        else:
+            typer.secho(f"Error launching UI: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"An unexpected error occurred while launching the UI: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)

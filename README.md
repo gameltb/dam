@@ -28,6 +28,9 @@ ecs_dam_system/
 ├── dam/
 │   ├── __init__.py
 │   ├── cli.py              # Typer CLI application
+│   ├── ui/                 # PyQt6 UI code
+│   │   ├── __init__.py
+│   │   └── main_window.py
 │   ├── models/             # SQLAlchemy models (Components)
 │   │   ├── __init__.py
 │   │   └── ... (e.g., file_location_component.py)
@@ -93,6 +96,7 @@ ecs_dam_system/
     For optional features like perceptual image hashing and multimedia metadata extraction:
     - Image Hashing: `pip install -e ".[image]"` or `uv pip install -e ".[image]"`
     - The system uses `hachoir` for basic multimedia metadata extraction, which is included in the main dependencies.
+    - **For the PyQt6 User Interface:** `pip install -e ".[ui]"` or `uv pip install -e ".[ui]"`
 
 4.  **Set up environment variables:**
     *   Copy `.env.example` to `.env`:
@@ -198,6 +202,19 @@ dam-cli --help
     ```
 
 *   **`query-assets-placeholder`**: (Placeholder, hidden) For future component-based queries.
+
+*   **`ui`**: Launches the PyQt6-based graphical user interface for managing assets.
+    ```bash
+    dam-cli ui
+    ```
+    Make sure you have installed the UI dependencies: `pip install -e ".[ui]"` or `uv pip install -e ".[ui]"`.
+
+    The UI allows you to:
+    *   List assets from the currently selected DAM world.
+    *   Search for assets by filename.
+    *   Filter assets by their MIME type.
+    *   View all components of a selected asset by double-clicking it.
+    *   The active world is determined by the `--world` CLI option, `DAM_CURRENT_WORLD` environment variable, or the default world setting, similar to other CLI commands.
 
 
 ## Development
