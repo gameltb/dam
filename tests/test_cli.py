@@ -199,12 +199,69 @@ def test_cli_list_worlds(test_environment, click_runner):
     # The test_environment fixture already sets up worlds.
     # The CLI's main_callback should initialize them based on the patched settings.
     result = click_runner.invoke(app, ["list-worlds"])
-    assert result.exit_code == 0
-    # assert "Available ECS worlds:" in result.output
-    # assert TEST_DEFAULT_WORLD_NAME in result.output
-    # assert "(default)" in result.output  # Default world should be marked
-    # assert TEST_ALPHA_WORLD_NAME in result.output
-    # assert TEST_BETA_WORLD_NAME in result.output
+    assert result.exit_code == 0, f"CLI Error: {result.output}"
+    output = result.output
+    assert "Available ECS worlds:" in output
+    assert f"{TEST_DEFAULT_WORLD_NAME} (default)" in output
+    assert TEST_ALPHA_WORLD_NAME in output
+    assert TEST_BETA_WORLD_NAME in output
+
+    # Filter for lines that are part of the actual list-worlds output, ignoring logs
+    actual_list_lines = []
+    # Flags to identify sections of output, as logs can be interspersed.
+    # Some commands print "Operating on world:..." before their main output.
+    # list-worlds specific output starts with "Available ECS worlds:"
+    in_list_worlds_output_section = False
+
+    for line in output.splitlines():
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue
+
+        if stripped_line == "Available ECS worlds:":
+            in_list_worlds_output_section = True
+            actual_list_lines.append(stripped_line)
+            continue
+
+        if in_list_worlds_output_section:
+            # Lines starting with "- " are world entries
+            if stripped_line.startswith("- "):
+                actual_list_lines.append(stripped_line)
+            # Optional "Note:" or "Warning:" lines that can follow the list
+            elif stripped_line.startswith("Note:") or stripped_line.startswith("Warning:"):
+                actual_list_lines.append(stripped_line)
+            # If we hit a line that's clearly not part of list-worlds (e.g. another log, or different command output)
+            # we might stop, but logs can be anywhere. So, we just collect what matches.
+
+    # Expected lines from the list-worlds command itself
+    expected_lines_content = [
+        "Available ECS worlds:",
+        f"- {TEST_DEFAULT_WORLD_NAME} (default)",
+        f"- {TEST_ALPHA_WORLD_NAME}",
+        f"- {TEST_BETA_WORLD_NAME}",
+    ]
+
+    # Check if all expected primary lines are present in the filtered output
+    for expected_line in expected_lines_content:
+        assert any(expected_line in actual_line for actual_line in actual_list_lines), (
+            f"Expected line '{expected_line}' not found in CLI output. Found: {actual_list_lines}"
+        )
+
+    # Count only the primary items: header and the three specific worlds
+    # This avoids issues if optional "Note:" or "Warning:" lines appear
+    count_primary_items = 0
+    if any("Available ECS worlds:" in line for line in actual_list_lines):
+        count_primary_items += 1
+    if any(f"- {TEST_DEFAULT_WORLD_NAME} (default)" in line for line in actual_list_lines):
+        count_primary_items += 1
+    if any(f"- {TEST_ALPHA_WORLD_NAME}" in line and "(default)" not in line for line in actual_list_lines):
+        count_primary_items += 1
+    if any(f"- {TEST_BETA_WORLD_NAME}" in line and "(default)" not in line for line in actual_list_lines):
+        count_primary_items += 1
+
+    assert count_primary_items == 4, (
+        f"Expected 4 primary list items (header + 3 worlds), found {count_primary_items} in filtered lines: {actual_list_lines}"
+    )
 
 
 def _create_dummy_file(filepath: Path, content: str = "dummy content") -> Path:
@@ -213,9 +270,44 @@ def _create_dummy_file(filepath: Path, content: str = "dummy content") -> Path:
 
 
 def _create_dummy_image(filepath: Path, size=(32, 32), color="red") -> Path:
-    from PIL import Image
+    from PIL import Image, ImageDraw
+
 
     img = Image.new("RGB", size, color=color)
+    draw = ImageDraw.Draw(img)
+
+    # Add distinct features based on the base color to help perceptual hashes
+    # size is (width, height), e.g., (32, 32)
+    w, h = size
+
+    if color == "red":
+        # Red image: draw a white circle in the middle
+        radius = w // 4
+        cx, cy = w // 2, h // 2
+        bbox = (cx - radius, cy - radius, cx + radius, cy + radius)
+        draw.ellipse(bbox, fill="white")
+
+    elif color == "darkred":  # For the "similar" image
+        # Dark red image: draw a light gray, slightly smaller circle
+        radius = w // 5
+        cx, cy = w // 2, h // 2
+        bbox = (cx - radius, cy - radius, cx + radius, cy + radius)
+        draw.ellipse(bbox, fill="lightgray")
+        # Add a small feature to make it not identical to a plain circle if base colors were same
+        draw.point((1, 1), fill="white")
+
+    elif color == "blue":
+        # Blue image: make it grayscale with lines to be very different
+        img = Image.new("L", size, color="blue")  # Start with blue to get a certain gray base
+        img = img.convert("RGB")  # Convert to RGB so it can be saved as PNG like others
+        draw = ImageDraw.Draw(img)  # Re-get draw object for the new image
+        for i in range(0, h, 4):
+            draw.line([(0, i), (w, i)], fill="white", width=1)
+
+    # Fallback for any other color, just a diagonal line
+    else:  # Should not be hit by current tests using "red", "darkred", "blue"
+        draw.line([(0, 0), (w, h)], fill="black", width=1)
+
     img.save(filepath, "PNG")
     return filepath
 
@@ -231,12 +323,18 @@ def test_cli_setup_db(test_environment, click_runner):
 
     result = click_runner.invoke(app, ["--world", default_world_name, "setup-db"])
     assert result.exit_code == 0, f"CLI Error: {result.output}"
-    # assert f"Setting up database for world: '{default_world_name}'" in result.output # Reduced verbosity
-    # assert f"Database setup complete for world: '{default_world_name}'" in result.output # Reduced verbosity
+    # assert f"Setting up database for world: '{default_world_name}'" in result.output # Avoid stdout checks
+    # assert f"Database setup complete for world: '{default_world_name}'" in result.output # Avoid stdout checks
     assert db_file.exists(), "Database file was not created by setup-db command."
 
-    # Further check: connect and see if tables are there (optional, as fixture does create_all)
-    # For this test, primarily ensuring the command runs and creates the file is key.
+    # Verify that tables are created
+    db_manager = test_environment["db_managers"][default_world_name]
+    with db_manager.get_db_session() as session:
+        # Check for a known table, e.g., 'entities'
+        from sqlalchemy import text
+
+        result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'"))
+        assert result.scalar_one_or_none() == "entities", "Entities table not found after setup-db"
 
 
 def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
@@ -253,32 +351,55 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
     # assert f"Processing file 1/1: {dummy_file.name}" in result.output
     # assert f"Dispatched AssetFileIngestionRequested for {dummy_file.name}" in result.output # This is a good check though
     # assert "Post-ingestion systems completed" in result.output
-    # assert "Summary" in result.output
-    # assert "Total files processed: 1" in result.output
-    # assert "Errors encountered: 0" in result.output
+    # assert "Summary" in result.output # Avoid asserting stdout
+    # assert "Total files processed: 1" in result.output # Avoid asserting stdout
+    # assert "Errors encountered: 0" in result.output # Avoid asserting stdout
 
-    # Check for key log message indicating event dispatch and handling
-    # assert (
-    #     f"dam.core.world] Dispatching event AssetFileIngestionRequested for world {default_world_name}" in caplog.text
-    # )
-    # assert (
-    #     f"dam.systems.asset_lifecycle_systems] Handling AssetFileIngestionRequested for {dummy_file.name}"
-    #     in caplog.text
-    # )
-    # assert "dam.systems.metadata_systems] Running MetadataExtractionSystem" in caplog.text # Keep if essential
+    # Instead of checking logs, verify side effects directly.
+    # Check for file in CAS and database entries.
 
-    # Check for file in CAS as a side effect
+    from sqlalchemy import select
+
+    from dam.models.core.entity import Entity  # Corrected import
+    from dam.models.core.file_location_component import FileLocationComponent
+    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
     from dam.services.file_operations import calculate_sha256
-    from dam.services.file_storage import get_storage_path_for_hash
+    from dam.services.file_storage import get_file_path  # Using public API
 
-    # Need world's asset_storage_path
     world_config = test_environment["settings"].get_world_config(default_world_name)
-    asset_storage_path = world_config.ASSET_STORAGE_PATH
 
     content_hash = calculate_sha256(dummy_file)
-    expected_cas_path = get_storage_path_for_hash(asset_storage_path, content_hash)
-    assert expected_cas_path.exists(), f"Asset file not found in CAS at {expected_cas_path}"
-    assert expected_cas_path.read_text() == dummy_content
+    # Use public get_file_path to verify CAS storage
+    cas_file_path = get_file_path(content_hash, world_config)
+    assert cas_file_path is not None, f"Asset file with hash {content_hash} not found in CAS via get_file_path"
+    assert cas_file_path.exists(), f"Asset file not found in CAS at {cas_file_path}"
+    assert cas_file_path.read_text() == dummy_content
+
+    # Verify database entries
+    db_manager = test_environment["db_managers"][default_world_name]
+    with db_manager.get_db_session() as session:
+        # Find entity by SHA256 hash (hex string converted to bytes for query)
+        content_hash_bytes = bytes.fromhex(content_hash)
+        stmt_hash = select(ContentHashSHA256Component).where(
+            ContentHashSHA256Component.hash_value == content_hash_bytes
+        )
+        hash_component = session.execute(stmt_hash).scalar_one_or_none()
+        assert hash_component is not None, "ContentHashSHA256Component not found in DB"
+        assert hash_component.hash_value == content_hash_bytes
+
+        entity_id = hash_component.entity_id
+        entity = session.get(Entity, entity_id)
+        assert entity is not None, "Entity not found in DB"
+
+        # Check FileLocationComponent
+        stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
+        location_component = session.execute(stmt_loc).scalar_one_or_none()
+        assert location_component is not None, "FileLocationComponent not found"
+        assert location_component.contextual_filename == dummy_file.name  # Corrected attribute
+        assert location_component.storage_type == "local_cas"  # Updated expected value
+        assert (
+            location_component.content_identifier == content_hash
+        )  # Corrected attribute (content_id -> content_identifier)
 
 
 def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runner):
@@ -299,28 +420,61 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
 
     result = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(asset_dir), "--recursive"])
     assert result.exit_code == 0, f"CLI Error: {result.output}"
-    # Reduced stdout checks
-    # assert f"Found 2 file(s) to process" in result.output
-    # assert f"Processing file 1/2: {file1.name}" in result.output
-    # assert f"Processing file 2/2: {file2.name}" in result.output
-    # assert "Total files processed: 2" in result.output
+    # Reduced stdout checks (avoiding brittle assertions on console output)
 
-    # Check for files in CAS
+    # Check for files in CAS and database entries
+    from sqlalchemy import select
+
+    from dam.models.core.entity import Entity  # Corrected import
+    from dam.models.core.file_location_component import FileLocationComponent
+    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
     from dam.services.file_operations import calculate_sha256
-    from dam.services.file_storage import get_storage_path_for_hash
+    from dam.services.file_storage import get_file_path  # Using public API
 
     world_config = test_environment["settings"].get_world_config(default_world_name)
-    asset_storage_path = world_config.ASSET_STORAGE_PATH
+    db_manager = test_environment["db_managers"][default_world_name]
 
-    hash1 = calculate_sha256(file1)
-    cas_path1 = get_storage_path_for_hash(asset_storage_path, hash1)
-    assert cas_path1.exists(), f"Asset file1 not found in CAS at {cas_path1}"
-    assert cas_path1.read_text() == content1
+    files_to_check = [
+        {"path": file1, "content": content1},
+        {"path": file2, "content": content2},
+    ]
 
-    hash2 = calculate_sha256(file2)
-    cas_path2 = get_storage_path_for_hash(asset_storage_path, hash2)
-    assert cas_path2.exists(), f"Asset file2 not found in CAS at {cas_path2}"
-    assert cas_path2.read_text() == content2
+    with db_manager.get_db_session() as session:
+        for file_info in files_to_check:
+            f_path = file_info["path"]
+            f_content = file_info["content"]
+            content_hash = calculate_sha256(f_path)
+            content_hash_bytes = bytes.fromhex(content_hash)
+
+            # Check CAS
+            cas_file_path = get_file_path(content_hash, world_config)  # get_file_path expects hex string
+            assert cas_file_path is not None, (
+                f"Asset {f_path.name} (hash {content_hash}) not found in CAS via get_file_path"
+            )
+            assert cas_file_path.exists(), f"Asset {f_path.name} not found in CAS at {cas_file_path}"
+            assert cas_file_path.read_text() == f_content, f"Content mismatch for {f_path.name}"
+
+            # Check Database
+            stmt_hash = select(ContentHashSHA256Component).where(
+                ContentHashSHA256Component.hash_value == content_hash_bytes
+            )
+            hash_component = session.execute(stmt_hash).scalar_one_or_none()
+            assert hash_component is not None, f"ContentHashSHA256Component for {f_path.name} not found"
+            assert hash_component.hash_value == content_hash_bytes  # Corrected indentation
+
+            entity_id = hash_component.entity_id
+            entity = session.get(Entity, entity_id)
+            assert entity is not None, f"Entity for {f_path.name} not found"
+
+            stmt_loc = (
+                select(FileLocationComponent)
+                .where(FileLocationComponent.entity_id == entity_id)
+                .where(FileLocationComponent.contextual_filename == f_path.name)  # Corrected attribute
+            )
+            location_component = session.execute(stmt_loc).scalar_one_or_none()
+            assert location_component is not None, f"FileLocationComponent for {f_path.name} not found"
+            assert location_component.storage_type == "local_cas"  # Updated expected value
+            assert location_component.content_identifier == content_hash  # Corrected attribute
 
 
 def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
@@ -332,11 +486,42 @@ def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
 
     result = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(dummy_file), "--no-copy"])
     assert result.exit_code == 0, f"CLI Error: {result.output}"
-    # assert f"Dispatched AssetReferenceIngestionRequested for {dummy_file.name}" in result.output
-    # assert (
-    #     f"dam.systems.asset_lifecycle_systems] Handling AssetReferenceIngestionRequested for {dummy_file.name}"
-    #     in caplog.text
-    # )
+
+    # Verify database entries for '--no-copy'
+    from sqlalchemy import select
+
+    from dam.models.core.file_location_component import FileLocationComponent
+    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
+    from dam.services.file_operations import calculate_sha256
+    from dam.services.file_storage import get_file_path  # Using public API
+
+    world_config = test_environment["settings"].get_world_config(default_world_name)
+    db_manager = test_environment["db_managers"][default_world_name]
+    content_hash = calculate_sha256(dummy_file)
+    content_hash_bytes = bytes.fromhex(content_hash)
+
+    # Check that file is NOT in CAS
+    cas_file_path = get_file_path(content_hash, world_config)  # get_file_path expects hex string
+    assert cas_file_path is None, (
+        f"Asset file with hash {content_hash} found in CAS ({cas_file_path}) via get_file_path when --no-copy was used. It should not exist in CAS."
+    )
+
+    with db_manager.get_db_session() as session:
+        stmt_hash = select(ContentHashSHA256Component).where(
+            ContentHashSHA256Component.hash_value == content_hash_bytes
+        )
+        hash_component = session.execute(stmt_hash).scalar_one_or_none()
+        assert hash_component is not None, "ContentHashSHA256Component not found"
+        assert hash_component.hash_value == content_hash_bytes
+        entity_id = hash_component.entity_id
+
+        stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
+        location_component = session.execute(stmt_loc).scalar_one_or_none()
+        assert location_component is not None, "FileLocationComponent not found"
+        assert location_component.contextual_filename == dummy_file.name  # Corrected attribute
+        assert location_component.storage_type == "local_reference"  # Updated expected value
+        assert location_component.physical_path_or_key == str(dummy_file.resolve())  # Corrected attribute
+        assert location_component.content_identifier == content_hash  # Corrected attribute
 
 
 def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
@@ -348,24 +533,85 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
 
     # Add first time
     res1 = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(dummy_file)])
-    assert res1.exit_code == 0, f"CLI Error: {res1.output}"
-    # assert f"Dispatched AssetFileIngestionRequested for {dummy_file.name}" in res1.output
+    assert res1.exit_code == 0, f"CLI Error adding first asset: {res1.output}"
 
-    # Add second time
-    caplog.clear()  # Clear logs before second add
+    # Add second time (duplicate)
     res2 = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(dummy_file)])
-    assert res2.exit_code == 0, f"CLI Error: {res2.output}"
-    # assert f"Dispatched AssetFileIngestionRequested for {dummy_file.name}" in res2.output  # Event is still dispatched
+    assert res2.exit_code == 0, f"CLI Error adding duplicate asset: {res2.output}"
 
-    # Check logs for linking message or specific handling of duplicates
-    # This depends on how the system logs duplicates. Example:
-    # assert "Asset with SHA256 hash ... already exists. Linking to entity ID ..." in caplog.text
-    # For now, we check that the ingestion system acknowledges it.
-    # assert (
-    #     f"dam.systems.asset_lifecycle_systems] Handling AssetFileIngestionRequested for {dummy_file.name}"
-    #     in caplog.text
-    # )
-    # A more robust test would query the DB to ensure only one entity/content record exists.
+    # Verify database entries for duplicate handling
+    from sqlalchemy import select
+
+    from dam.models.core.file_location_component import FileLocationComponent
+    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
+    from dam.services.file_operations import calculate_sha256
+
+    db_manager = test_environment["db_managers"][default_world_name]
+    content_hash = calculate_sha256(dummy_file)
+    content_hash_bytes = bytes.fromhex(content_hash)
+
+    with db_manager.get_db_session() as session:
+        # Expect only one ContentHashSHA256Component for this content
+        stmt_hashes = select(ContentHashSHA256Component).where(
+            ContentHashSHA256Component.hash_value == content_hash_bytes
+        )
+        hash_components = session.execute(stmt_hashes).scalars().all()
+        assert len(hash_components) == 1, "Duplicate ContentHashSHA256Component found or none found"
+        assert hash_components[0].hash_value == content_hash_bytes
+
+        entity_id = hash_components[0].entity_id
+
+        # Expect two FileLocationComponents linked to the same entity_id,
+        # if the system links new filenames for existing content.
+        # Or, if it updates the existing one, then only one.
+        # Based on README: "it links the new filename/reference to the existing asset entity"
+        # This implies multiple FileLocationComponents if filenames are different, or if same filename is added again
+        # it might create a new FLC or update existing.
+        # For this test, we add the *same* file path twice.
+        # The current behavior is that a new FileLocationComponent is added each time `add-asset` is called
+        # for the same file path if it results in the same content hash.
+        # Let's verify this behavior.
+        stmt_locs = (
+            select(FileLocationComponent)
+            .where(FileLocationComponent.entity_id == entity_id)
+            .where(
+                FileLocationComponent.contextual_filename == dummy_file.name  # Corrected attribute
+            )
+        )
+        location_components = session.execute(stmt_locs).scalars().all()
+        # This assertion depends on the exact logic for handling duplicate file paths for the same content.
+        # If the system is designed to create a new FileLocationComponent for each `add` command
+        # even if the path is the same, then this should be 2.
+        # If it updates or ignores, it might be 1.
+        # Let's assume for now it adds a new one.
+        assert len(location_components) >= 1, "FileLocationComponent not found for duplicate asset"
+        # If the behavior is to have only one FLC per unique (entity_id, filename)
+        # and the second add just confirms it, then len would be 1.
+        # If it adds a distinct FLC record for each add operation (even with same filename), then 2.
+        # The current implementation of `_ensure_file_location_component` in `asset_helpers`
+        # will create a new one if one with the exact same (entity_id, filename, path_or_key, storage_type) doesn't exist.
+        # If the same file is added twice, it should result in two FLCs if the context (e.g. world run id) is different,
+        # or if the system doesn't de-duplicate FLCs aggressively.
+        # Given the test setup, it's likely to be 2 if it adds a new FLC per add-asset call.
+        # Let's be more precise: the `add_asset` command calls `ingest_asset_file` which calls
+        # `_ensure_file_location_component`. This helper tries to find an *existing* one first.
+        # If the same exact file path is added, it should find the existing one and not create a new one.
+        # So, len(location_components) should be 1.
+        assert len(location_components) == 1, (
+            f"Expected 1 FileLocationComponent for the same file path, found {len(location_components)}"
+        )
+        assert location_components[0].storage_type == "local_cas"  # Added assertion
+
+        # Verify that the CAS file still exists and content is correct
+        world_config = test_environment["settings"].get_world_config(default_world_name)
+        from dam.services.file_storage import get_file_path  # Using public API
+
+        cas_file_path = get_file_path(content_hash, world_config)
+        assert cas_file_path is not None, (
+            f"Asset file with hash {content_hash} not found in CAS via get_file_path after duplicate add"
+        )
+        assert cas_file_path.exists(), "Asset file not found in CAS after duplicate add"
+        assert cas_file_path.read_text() == "duplicate content"
 
 
 def test_cli_find_file_by_hash(test_environment, caplog, click_runner):
@@ -388,41 +634,40 @@ def test_cli_find_file_by_hash(test_environment, caplog, click_runner):
     # Test find by SHA256
     caplog.clear()
     result_sha256 = click_runner.invoke(app, ["--world", default_world_name, "find-file-by-hash", sha256_hash])
-    assert result_sha256.exit_code == 0, f"CLI Error: {result_sha256.output}"
-    # assert (
-    #     f"Dispatching FindEntityByHashQuery to world '{default_world_name}' for hash: {sha256_hash}"
-    #     in result_sha256.output
-    # )
-    # assert "Query dispatched. Check logs for results" in result_sha256.output
-    # assert f"dam.systems.asset_lifecycle_systems] Handling FindEntityByHashQuery for hash {sha256_hash}" in caplog.text
+    assert result_sha256.exit_code == 0, f"CLI Error finding by SHA256: {result_sha256.output}"
+    # Assert that the output contains information about the found asset
+    # This still requires some output checking, but it's more about content than exact log messages.
+    # A better approach would be for the CLI command to return structured data (e.g., JSON)
+    # if an option is provided, or to have a more predictable output format for parsing.
+    # For now, we'll check for key identifiers in the output.
+    assert sha256_hash in result_sha256.output
+    assert dummy_file.name in result_sha256.output
 
     # Test find by MD5
-    caplog.clear()
     result_md5 = click_runner.invoke(
         app, ["--world", default_world_name, "find-file-by-hash", md5_hash, "--hash-type", "md5"]
     )
-    assert result_md5.exit_code == 0, f"CLI Error: {result_md5.output}"
-    # assert (
-    #     f"Dispatching FindEntityByHashQuery to world '{default_world_name}' for hash: {md5_hash}" in result_md5.output
-    # )
-    # assert (
-    #     f"dam.systems.asset_lifecycle_systems] Handling FindEntityByHashQuery for hash {md5_hash} (type: md5)"
-    #     in caplog.text
-    # )
+    assert result_md5.exit_code == 0, f"CLI Error finding by MD5: {result_md5.output}"
+    assert md5_hash in result_md5.output
+    assert dummy_file.name in result_md5.output
 
     # Test find by providing file
-    caplog.clear()
     result_file = click_runner.invoke(
-        app, ["--world", default_world_name, "find-file-by-hash", "dummy_arg_for_runner", "--file", str(dummy_file)]
+        app,
+        [
+            "--world",
+            default_world_name,
+            "find-file-by-hash",
+            "dummy_arg_for_runner",
+            "--file",
+            str(dummy_file),
+        ],  # dummy_arg is required by typer if not a flag
     )
-    assert result_file.exit_code == 0, f"CLI Error: {result_file.output}"
-    # assert f"Calculating sha256 hash for file: {dummy_file}" in result_file.output
-    # assert f"Calculated sha256 hash: {sha256_hash}" in result_file.output
-    # assert (
-    #     f"Dispatching FindEntityByHashQuery to world '{default_world_name}' for hash: {sha256_hash}"
-    #     in result_file.output
-    # )
-    # assert f"dam.systems.asset_lifecycle_systems] Handling FindEntityByHashQuery for hash {sha256_hash}" in caplog.text
+    assert result_file.exit_code == 0, f"CLI Error finding by file: {result_file.output}"
+    # The command output should indicate it used the hash from the file
+    assert f"Calculated sha256 hash: {sha256_hash}" in result_file.output  # This is a reasonable output to check
+    assert sha256_hash in result_file.output  # The found asset info
+    assert dummy_file.name in result_file.output
 
 
 def test_cli_find_similar_images(test_environment, caplog, click_runner):
@@ -436,21 +681,14 @@ def test_cli_find_similar_images(test_environment, caplog, click_runner):
 
     img1_path = _create_dummy_image(img_dir / "img1.png", color="red")
     img2_path = _create_dummy_image(img_dir / "img2.png", color="darkred")  # Similar
-    _create_dummy_image(img_dir / "img3.png", color="blue")  # Different
+    img3_path = _create_dummy_image(img_dir / "img3.png", color="blue")  # Different
 
     # Add images
-    add_res_img1 = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(img1_path)])
-    assert add_res_img1.exit_code == 0, f"CLI Error: {add_res_img1.output}"
-    add_res_img2 = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(img2_path)])
-    assert add_res_img2.exit_code == 0, f"CLI Error: {add_res_img2.output}"
-    # img3 is added implicitly by adding the directory if we want to test against it
-    # For this test, we'll query with img1 and expect img2 to be potentially found.
-    # Add all images in the directory
-    # add_dir_result = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(img_dir)])
-    # assert add_dir_result.exit_code == 0, f"CLI Error adding image directory: {add_dir_result.output}"
+    for img_path in [img1_path, img2_path, img3_path]:
+        add_res = click_runner.invoke(app, ["--world", default_world_name, "add-asset", str(img_path)])
+        assert add_res.exit_code == 0, f"CLI Error adding image {img_path.name}: {add_res.output}"
 
     # Test find similar
-    caplog.clear()
     # Use a high threshold to ensure the slightly different red image is found
     result_similar = click_runner.invoke(
         app,
@@ -464,16 +702,46 @@ def test_cli_find_similar_images(test_environment, caplog, click_runner):
             "--ahash-threshold",
             "10",
             "--dhash-threshold",
-            "10",
+            "10",  # Increased threshold to catch darkred vs red
         ],
     )
-    assert result_similar.exit_code == 0, f"CLI Error: {result_similar.output}"
-    # assert (
-    #     f"Dispatching FindSimilarImagesQuery to world '{default_world_name}' for image: {img1_path.name}"
-    #     in result_similar.output
-    # )
-    # assert "Similarity query dispatched. Check logs for results" in result_similar.output
-    # assert f"dam.systems.metadata_systems] Handling FindSimilarImagesQuery for image {img1_path.name}" in caplog.text
-    # A more detailed test would check the logs for the specific similar image found.
-    # e.g. assert f"Found similar image: Entity ID ..., Path: {img2_path.name}" in caplog.text
-    # This requires the FindSimilarImagesQuery handler to log such details.
+    assert result_similar.exit_code == 0, f"CLI Error finding similar images: {result_similar.output}"
+
+    # Verify output contains the similar image (img2) and not the different one (img3)
+    # This relies on the output format of the command.
+    # A more robust test would involve checking database state or specific event outputs if available.
+    output = result_similar.output
+    assert img1_path.name in output, "Query image itself should be mentioned in output"
+    assert img2_path.name in output, "Similar image (img2.png) not found in output"
+    assert img3_path.name not in output, "Dissimilar image (img3.png) should not be in output"
+
+    # Example of how pHash distances could be checked if the output included them:
+    # For instance, if output was "Found similar image: img2.png (pHash dist: X, aHash dist: Y, dHash dist: Z)"
+    # import re
+    # match_img2 = re.search(rf"{img2_path.name} \(pHash dist: (\d+)", output)
+    # assert match_img2 is not None, "pHash distance for img2 not found in output"
+    # phash_dist_img2 = int(match_img2.group(1))
+    # assert phash_dist_img2 <= 10 # Check against the threshold used
+
+    # Test with default thresholds (likely stricter) - img2 might not be found
+    result_strict = click_runner.invoke(
+        app,
+        [
+            "--world",
+            default_world_name,
+            "find-similar-images",
+            str(img1_path),
+            # Using default thresholds
+        ],
+    )
+    assert result_strict.exit_code == 0, f"CLI Error with strict thresholds: {result_strict.output}"
+    # Depending on default thresholds and image similarity, img2 might or might not appear.
+    # This part of the test might need adjustment based on actual imagehash behavior for the dummy images.
+    # For now, let's assume default thresholds are strict enough that img2 (darkred vs red) might be excluded
+    # or included with a small distance. The key is that the command runs.
+    # If img2 IS found with default thresholds, then this is fine.
+    # If it's NOT found, that's also fine if the default thresholds are indeed strict.
+    # The main goal is that the command executes and provides some output.
+    # A more precise test would require knowing the exact perceptual hash values of the generated dummy images.
+    # For now, ensuring the command runs and the query image is in output is a basic check.
+    assert img1_path.name in result_strict.output

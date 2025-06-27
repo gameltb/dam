@@ -86,7 +86,7 @@ class FindEntityByHashQuery(BaseEvent):
     hash_type: str = "sha256"  # Moved to the end as it has a default
 
     # For carrying results if the system modifies the event or posts a new one
-    # result_entity_id: Optional[int] = field(default=None, init=False)
+    result: Optional[dict] = None  # field(default=None, init=False) might be better if we don't want it in __init__
 
 
 @dataclass
@@ -101,7 +101,7 @@ class FindSimilarImagesQuery(BaseEvent):
     request_id: str  # Unique ID for this query request
 
     # For carrying results
-    # result_similar_entities_info: Optional[list[dict]] = field(default=None, init=False)
+    result: Optional[list] = None  # field(default=None, init=False)
 
 
 # To allow __init__.py in dam/core to import these

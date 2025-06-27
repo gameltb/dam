@@ -331,9 +331,42 @@ async def handle_find_entity_by_hash_query(
         logger.info(
             f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}"
         )
-        # How to get this back to CLI? For now, CLI might not get direct output.
+        # Populate event.result with details
+        entity_details = {"entity_id": entity.id, "components": {}}
+
+        # Fetch and add common components
+        fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+        if fpc:
+            entity_details["components"]["FilePropertiesComponent"] = {
+                "original_filename": fpc.original_filename,
+                "file_size_bytes": fpc.file_size_bytes,
+                "mime_type": fpc.mime_type,
+            }
+
+        flcs = ecs_service.get_components(session, entity.id, FileLocationComponent)
+        if flcs:
+            entity_details["components"]["FileLocationComponent"] = [
+                {
+                    "content_identifier": flc.content_identifier,
+                    "storage_type": flc.storage_type,
+                    "physical_path_or_key": flc.physical_path_or_key,
+                    "contextual_filename": flc.contextual_filename,
+                }
+                for flc in flcs
+            ]
+
+        sha256_comp = ecs_service.get_component(session, entity.id, ContentHashSHA256Component)
+        if sha256_comp:
+            entity_details["components"]["ContentHashSHA256Component"] = {"hash_value": sha256_comp.hash_value.hex()}
+
+        md5_comp = ecs_service.get_component(session, entity.id, ContentHashMD5Component)
+        if md5_comp:
+            entity_details["components"]["ContentHashMD5Component"] = {"hash_value": md5_comp.hash_value.hex()}
+
+        event.result = entity_details
     else:
         logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
+        event.result = None  # Explicitly set to None if not found
 
 
 @listens_for(FindSimilarImagesQuery)
@@ -373,9 +406,10 @@ async def handle_find_similar_images_query(
         source_entity_id = None
         try:
             # Assuming file_operations.calculate_sha256_async exists
-            source_content_hash = await file_operations.calculate_sha256_async(event.image_path)
+            source_content_hash_hex = await file_operations.calculate_sha256_async(event.image_path)
+            source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
             # ecs_service.find_entity_by_content_hash is synchronous
-            source_entity = ecs_service.find_entity_by_content_hash(session, source_content_hash, "sha256")
+            source_entity = ecs_service.find_entity_by_content_hash(session, source_content_hash_bytes, "sha256")
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
@@ -477,18 +511,16 @@ async def handle_find_similar_images_query(
         logger.info(
             f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images. Results: {similar_entities_info}"
         )
-        # How to return to CLI:
-        # world_config.query_results_resource.add_result(event.request_id, similar_entities_info)
+        event.result = similar_entities_info
 
     except ValueError as ve:
         logger.warning(f"[QueryResult RequestID: {event.request_id}] Error processing image for similarity: {ve}")
-        # world_config.query_results_resource.add_result(event.request_id, error=str(ve))
+        event.result = [{"error": str(ve)}]
     except Exception as e:
         logger.error(
             f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
         )
-        # world_config.query_results_resource.add_result(event.request_id, error="Unexpected error")
-        # world.add_resource(QueryResult(event.request_id, [], error="Unexpected error"), ...)
+        event.result = [{"error": "Unexpected error during similarity search"}]
 
 
 # Ensure async versions of file_operations are available or implement them.
