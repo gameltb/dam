@@ -32,6 +32,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     -   Components inherit from `dam.models.base_component.BaseComponent`. The `kw_only=True` dataclass behavior is inherited from `dam.models.base_class.Base` (which is a `MappedAsDataclass`), so components do not need the `@dataclass(kw_only=True)` decorator themselves.
     -   Each component is defined in its own file within `dam/models/`.
     -   Table names strictly follow the `component_[name]` convention (e.g., `ImageDimensionsComponent` maps to `component_image_dimensions`).
+    -   **Model Registration for SQLAlchemy**: It's crucial that all SQLAlchemy models, including components defined outside the primary `dam/models/` directory (e.g., marker components in `dam/core/components_markers.py`), are imported at a point where they become registered with the shared `AppBase.metadata` object. This must happen before operations like `AppBase.metadata.create_all()` (often used in tests) or Alembic migration generation (`alembic revision --autogenerate`) are performed. This ensures their tables are correctly created and managed. This can be achieved by importing these model modules in `dam/models/__init__.py` or another central point that is loaded early in the application's lifecycle.
 
 ### 2.3. BaseComponent
 -   The `dam.models.base_component.BaseComponent` is an abstract base class that all concrete components should inherit from.
@@ -292,23 +293,28 @@ class TagComponent(BaseComponent):
 - **Custom Fields**: `tag_name: Mapped[str] = mapped_column(...)` defines the actual data this component holds. We've added `index=True` as tags are likely to be queried.
 - **Constraints**: `__table_args__` can define `UniqueConstraint`, `Index`, etc. Here, we prevent duplicate tags per entity.
 
-### Step 2: Register the Component
+### Step 2: Ensure Component Model Registration with SQLAlchemy Metadata
 
-For SQLAlchemy to recognize the new component model and for easier imports, add it to `dam/models/__init__.py`:
+For SQLAlchemy to recognize the new component model, for Alembic to generate migrations for it, and for `AppBase.metadata.create_all()` to create its table, the Python module defining the component class must be imported before these operations occur. This ensures the model class is evaluated and registers itself with `AppBase.metadata`.
 
-```python
-# dam/models/__init__.py
+-   **If the component is defined within the `dam/models/` directory** (e.g., `dam/models/tag_component.py`):
+    Add an import for it in `dam/models/__init__.py` and include its class name in the `__all__` list. For example:
+    ```python
+    # dam/models/__init__.py
+    # ... other imports ...
+    from .tag_component import TagComponent # Add this import
 
-# ... other imports ...
-from .tag_component import TagComponent # Add this import
+    # ...
 
-# ...
+    __all__ = [
+        # ... other model names ...
+        "TagComponent", # Add to __all__
+    ]
+    ```
+-   **If the component is defined outside `dam/models/`** (e.g., marker components in `dam/core/components_markers.py`):
+    You must ensure that the module defining these components (e.g., `dam.core.components_markers`) is imported by a module that *is* loaded early, such as `dam/models/__init__.py` or your main application/test setup module before database operations. For instance, you could add `import dam.core.components_markers` to `dam/models/__init__.py`. A common practice is to have `dam/models/__init__.py` import all model modules to ensure they are registered with the `AppBase.metadata`.
 
-__all__ = [
-    # ... other model names ...
-    "TagComponent", # Add to __all__
-]
-```
+This explicit import step is vital for SQLAlchemy's declarative system to discover all models associated with `AppBase.metadata`.
 
 ### Step 3: Create Database Migration (Alembic)
 

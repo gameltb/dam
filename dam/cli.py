@@ -40,7 +40,12 @@ from dam.services import (
 # Import specific system functions that need to be registered
 # This is an example; a more dynamic way might be needed for many systems.
 
-app = typer.Typer(name="dam-cli", help="Digital Asset Management System CLI", add_completion=True)
+app = typer.Typer(
+    name="dam-cli",
+    help="Digital Asset Management System CLI",
+    add_completion=True,
+    rich_markup_mode="raw",  # Attempt to mitigate CliRunner issues with Rich
+)
 
 
 # Global state for Typer context, primarily for holding the selected world name
@@ -723,9 +728,20 @@ def cli_split_world_db(
         raise typer.Exit(code=1)
 
 
-if __name__ == "__main__":
-    # Clear any worlds from previous test runs or states if CLI is run multiple times in a process
-    # For typical CLI execution, this is not strictly necessary as it's a new process each time.
-    # However, if used programmatically or in tests where the module might be re-imported/re-used:
+# if __name__ == "__main__":
+# Clear any worlds from previous test runs or states if CLI is run multiple times in a process
+# For typical CLI execution, this is not strictly necessary as it's a new process each time.
+# However, if used programmatically or in tests where the module might be re-imported/re-used:
+# clear_world_registry() # Moved to run_cli_directly
+# app()
+
+
+def run_cli_directly():
+    """Function to run the CLI when script is executed directly."""
+    # Clear registry specifically for direct script runs, not for imports by tests.
     clear_world_registry()
     app()
+
+
+if __name__ == "__main__":
+    run_cli_directly()
