@@ -13,14 +13,17 @@ This project implements a Digital Asset Management system using an Entity-Compon
     *   **Resources**: Shared services or utilities (e.g., `FileOperationsResource`) managed by a `ResourceManager` and injectable into systems.
     *   **Marker Components**: Special components (e.g., `NeedsMetadataExtractionComponent`) used to flag entities for processing by specific systems.
     *   **Querying**: The `ecs_service` provides helper functions for common entity queries, such as finding entities by component attributes or combinations of components.
-    *   **Performance**: Internal optimizations have been implemented for efficient handling of entity processing based on marker components.
 *   **Modularity**: Components are defined in `dam/models/`. Systems are organized in `dam/systems/`.
 *   **Granular Components**: Assets are described by fine-grained data pieces (e.g., `FileLocationComponent`, `ImageDimensionsComponent`, hash components).
 *   **Content-Addressable Storage (CAS)**: Files are stored based on their content hash (SHA256), promoting de-duplication.
 *   **Metadata Extraction**: Perceptual hashes, dimensions, and other metadata are extracted by dedicated systems after initial asset ingestion.
-*   **Asset Versioning**: A flexible model allows grouping different versions or manifestations of the same conceptual work. This uses abstract base components (`BaseConceptualInfoComponent`, `BaseVariantInfoComponent`) and concrete implementations (e.g., `ComicBookConceptComponent`, `ComicBookVariantComponent`). See "Asset Versioning and Grouping" under Usage.
+*   **Asset Versioning & Structure**: A flexible model allows grouping different versions of a conceptual work and defining ordered content (like pages in a comic). This uses:
+    *   Abstract base components (`BaseConceptualInfoComponent`, `BaseVariantInfoComponent`).
+    *   Concrete implementations (e.g., `ComicBookConceptComponent`, `ComicBookVariantComponent`).
+    *   Association objects (e.g., `PageLink`) for ordered many-to-many relationships (like comic pages).
+    *   See "Asset Versioning, Structure, and Grouping" under Usage.
 *   **CLI**: A Typer-based command-line interface (`dam/cli.py`) for user interaction.
-*   **Database Transactions**: Managed by the `WorldScheduler` per stage or event dispatch. Failures within these operations now raise specific exceptions (`StageExecutionError`, `EventHandlingError`) for clearer error reporting.
+*   **Database Transactions**: Managed by the `WorldScheduler`.
 
 ## Project Structure
 
@@ -29,39 +32,31 @@ ecs_dam_system/
 ├── dam/
 │   ├── __init__.py
 │   ├── cli.py              # Typer CLI application
-│   ├── ui/                 # PyQt6 UI code
-│   │   ├── __init__.py
-│   │   ├── main_window.py
-│   │   └── dialogs/        # Dialog windows for UI operations
-│   ├── models/             # SQLAlchemy models (Components)
+│   ├── ui/                 # PyQt6 UI code (Optional)
+│   ├── models/             # SQLAlchemy models (Components & Association Objects)
 │   │   ├── __init__.py
 │   │   ├── core/
-│   │   ├── conceptual/     # Models for conceptual assets and variants
+│   │   ├── conceptual/     # Models for conceptual assets, variants, and page links
 │   │   │   ├── base_conceptual_info_component.py
 │   │   │   ├── comic_book_concept_component.py
 │   │   │   ├── base_variant_info_component.py
-│   │   │   └── comic_book_variant_component.py
-│   │   └── ... (e.g., file_location_component.py)
+│   │   │   ├── comic_book_variant_component.py
+│   │   │   └── page_link.py
+│   │   └── ...
 │   ├── services/           # Business logic
 │   │   ├── __init__.py
-│   │   ├── comic_book_service.py # Service for managing comic book versions
+│   │   ├── comic_book_service.py # Service for managing comic book concepts, variants, and pages
 │   │   └── ...
 │   ├── systems/            # ECS Systems
-│   │   ├── __init__.py
-│   │   └── metadata_systems.py
 │   └── core/               # Core ECS framework, DB session, settings
-│       ├── __init__.py
-│       └── ...
 ├── tests/                  # Pytest tests
 │   ├── __init__.py
 │   ├── test_comic_book_service.py
 │   └── ...
-├── .env.example            # Example environment variables
+├── .env.example
 ├── .gitignore
 ├── alembic.ini             # Alembic configuration
 ├── alembic/                # Alembic migration scripts (currently empty)
-│   ├── env.py
-│   ├── script.py.mako
 │   └── versions/           # Migration scripts (currently empty)
 ├── pyproject.toml
 └── README.md
@@ -69,133 +64,80 @@ ecs_dam_system/
 
 ## Setup Instructions
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository_url>
-    cd ecs_dam_system
-    ```
-
-2.  **Create and activate a virtual environment (Python 3.12+ recommended):**
-    ```bash
-    python3.12 -m venv venv
-    source venv/bin/activate
-    ```
-
+1.  **Clone the repository.**
+2.  **Create and activate a virtual environment** (Python 3.12+ recommended).
 3.  **Install dependencies:**
     ```bash
     pip install -e ."[dev,image,ui]"
     # Or using uv:
     # uv pip install -e ".[dev,image,ui]"
     ```
-    This installs the package in editable mode along with development, image processing, and UI extras.
-
-4.  **Set up environment variables:**
-    *   Copy `.env.example` to `.env`.
-    *   Edit `.env` (e.g., `DATABASE_URL=sqlite:///./dam.db`).
-
+4.  **Set up environment variables** (copy `.env.example` to `.env` and edit).
 5.  **Initialize the database:**
-    *   Since Alembic migrations are currently paused, you'll typically initialize the schema directly from models for development:
     ```bash
     dam-cli setup-db
     ```
-    *   (When Alembic is active again): `alembic upgrade head`
+    (Alembic migrations are currently paused; `setup-db` creates tables from models).
 
 ## Usage
 
-The primary way to interact with the DAM system is through its Command Line Interface (CLI).
+**General help:** `dam-cli --help`
 
-**General help:**
-```bash
-dam-cli --help
-```
+### Asset Versioning, Structure, and Grouping (Example: Comic Books)
 
-### Asset Versioning and Grouping (Example: Comic Books)
+The system models conceptual works, their variants, and ordered content like pages.
 
-The system allows managing different versions or manifestations of a conceptual work. This is achieved through a system of abstract base components and concrete, domain-specific components.
+*   **Abstract Bases:**
+    *   `BaseConceptualInfoComponent`: For entities representing a work's concept.
+    *   `BaseVariantInfoComponent`: For file entities that are variants of a concept, linking to the concept's entity.
 
-*   **Base Components (Abstract):**
-    *   `BaseConceptualInfoComponent`: An abstract marker for entities representing a concept (e.g., the idea of a specific comic book issue).
-    *   `BaseVariantInfoComponent`: An abstract marker for entities representing a specific file variant of a concept. It links to the conceptual entity.
+*   **Comic Book Specifics:**
+    *   **`ComicBookConceptComponent`**: Defines a comic concept (e.g., "Amazing Spider-Man #1, 1963") with fields like `comic_title`, `series_title`, `issue_number`, `publication_year`. This is attached to a dedicated "concept entity."
+    *   **`ComicBookVariantComponent`**: Defines a specific version of a comic concept (e.g., an English PDF scan). Attached to a file entity. Fields: `language`, `format`, `is_primary_variant`, etc. Links to the concept entity.
+    *   **`PageLink` (Association Object Table):** Links a "comic book variant entity" (the owner) to "page image entities" in an ordered sequence.
+        *   Stores: `owner_entity_id` (points to the variant entity), `page_image_entity_id`, `page_number`.
+        *   This allows an image to be a page in multiple comic variants (or other owning entities) and supports bidirectional queries (pages for a variant, variants an image is part of).
 
-*   **Concrete Components (Example for Comic Books):**
-    *   **`ComicBookConceptComponent`**: Inherits from `BaseConceptualInfoComponent`. Attached to an `Entity` representing the abstract concept of a comic.
-        *   Fields: `comic_title`, `series_title`, `issue_number`, `publication_year`.
-    *   **`ComicBookVariantComponent`**: Inherits from `BaseVariantInfoComponent`. Attached to an `Entity` that is an actual file (e.g., a PDF or CBZ of the comic).
-        *   Links to the `ComicBookConceptComponent`'s entity via `conceptual_entity_id`.
-        *   Fields: `language`, `format`, `scan_quality`, `is_primary_variant`, `variant_description`.
+**Managing Comic Books (via `dam.services.comic_book_service`):**
 
-**Managing Comic Book Concepts and Variants:**
+*   **Concepts & Variants:**
+    *   `create_comic_book_concept()`
+    *   `link_comic_variant_to_concept()`
+    *   `get_variants_for_comic_concept()`
+    *   And other related functions for finding, setting primary, unlinking.
+*   **Pages for Comic Variants:**
+    *   `assign_page_to_comic_variant()`: Adds an image entity as a page at a specific number to a comic variant.
+    *   `remove_page_from_comic_variant()`: Removes a specific image from a variant's pages.
+    *   `remove_page_at_number_from_comic_variant()`: Removes a page by its number.
+    *   `get_ordered_pages_for_comic_variant()`: Retrieves the list of page image entities for a variant, in order.
+    *   `get_comic_variants_containing_image_as_page()`: Finds which comic variants use a given image as a page.
+    *   `update_page_order_for_comic_variant()`: Replaces the entire page sequence for a variant.
 
-The `dam.services.comic_book_service` module provides functions:
+Initial file ingestion via `dam-cli add-asset` creates file entities. Subsequent operations using the service layer (typically via more advanced CLI commands or UI actions not yet built) would create comic concepts, link variants, and manage pages.
 
-*   `create_comic_book_concept()`: Creates an entity representing a comic book concept (e.g., "Amazing Spider-Man #1, 1963").
-*   `link_comic_variant_to_concept()`: Links a file entity (e.g., an English PDF scan) to a specific comic book concept entity.
-*   `get_variants_for_comic_concept()`: Retrieves all file variants associated with a comic book concept.
-*   `get_comic_concept_for_variant()`: Finds the parent comic book concept for a given file variant.
-*   `find_comic_book_concepts()`: Searches for comic book concepts.
-*   `set_primary_comic_variant()`: Marks one variant as the primary/default for its concept.
-*   `unlink_comic_variant()`: Removes the link between a file variant and its concept.
+### Available CLI Commands
 
-This structure allows for defining other types of conceptual assets (e.g., `MovieConceptComponent`, `MovieVariantComponent`) in the future.
-
-The initial ingestion of a file (`dam-cli add-asset`) creates an entity for that file. Linking it as a variant to a conceptual entity (e.g., a `ComicBookConceptEntity`) is a separate step managed via the domain-specific services (like `comic_book_service`).
-
-### Available Commands
-
-*   **`setup-db`**: Initializes the database and creates all necessary tables based on current models. Run this if the database is new or if models have changed and migrations are not being used.
+*   **`setup-db`**: Initializes/Resets database schema from models.
     ```bash
     dam-cli setup-db
     ```
-
-*   **`add-asset <filepath>`**: Adds a new asset file or references an existing one.
-    *   (Details as before, this part of usage remains largely unchanged at the CLI level for initial file ingestion)
+*   **`add-asset <filepath>`**: Adds a file asset.
     ```bash
     dam-cli add-asset /path/to/your/image.jpg
     ```
+*   **`find-file-by-hash <hash_value>`**: Finds asset by content hash.
+*   **`find-similar-images <image_filepath>`**: Finds similar images.
+*   **`ui`**: Launches the (optional) PyQt6 UI.
 
-*   **`find-file-by-hash <hash_value>`**: (Details as before)
-    ```bash
-    dam-cli find-file-by-hash "a1b2c3d4..."
-    ```
-
-*   **`find-similar-images <image_filepath>`**: (Details as before)
-    ```bash
-    dam-cli find-similar-images /path/to/query_image.png
-    ```
-
-*   **`ui`**: Launches the PyQt6-based graphical user interface.
-    ```bash
-    dam-cli ui
-    ```
+(Refer to previous sections or `--help` for more details on these commands)
 
 ## Development
 
-*   **Running tests:**
-    ```bash
-    uv run pytest
-    ```
-*   **Linting and Formatting:**
-    ```bash
-    uv run ruff format .
-    uv run ruff check . --fix
-    ```
-*   **Type Checking:**
-    ```bash
-    uv run mypy .
-    ```
-*   **System Registration & Execution**: (Details as before)
-*   **Logging:** (Details as before)
+*   **Running tests:** `uv run pytest`
+*   **Linting/Formatting:** `uv run ruff format .`, `uv run ruff check . --fix`
+*   **Type Checking:** `uv run mypy .`
 
-### Testing Notes
+### Database Migrations (Alembic - Currently Paused)
+Alembic is set up but paused. Use `dam-cli setup-db` for schema creation during development. Future re-activation of Alembic will involve generating a baseline from current models.
 
-*   (Details as before)
-
-*   **Database Migrations (Alembic - Currently Paused):**
-    While Alembic is set up, its usage for generating and applying migrations is currently paused during this phase of rapid schema evolution. For development, the `dam-cli setup-db` command is used to create tables directly from models. Once the schema stabilizes, Alembic migrations will be re-introduced.
-    To re-initialize Alembic in the future:
-    1.  Clear the `alembic/versions` directory.
-    2.  Ensure `alembic/env.py` points to your `Base.metadata`.
-    3.  Generate a new baseline revision: `alembic revision -m "Baseline schema from models" --autogenerate`
-    4.  Apply: `alembic upgrade head`
-
-This README provides a starting point. It will be updated as the project evolves.
+This README will be updated as the project evolves.

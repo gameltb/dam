@@ -31,6 +31,7 @@ from .source_info.website_profile_component import WebsiteProfileComponent
 # Import the concrete components that are intended for direct use/instantiation
 from .conceptual.comic_book_concept_component import ComicBookConceptComponent
 from .conceptual.comic_book_variant_component import ComicBookVariantComponent
+from .conceptual.page_link import PageLink # Added PageLink
 # Base abstract conceptual components like BaseConceptualInfoComponent and BaseVariantInfoComponent
 # are typically not re-exported here unless specifically needed for widespread type hinting.
 # Their subclasses (the concrete components above) are what services and systems will primarily work with.
@@ -56,8 +57,9 @@ __all__ = [
     "OriginalSourceInfoComponent",
     "WebSourceComponent",
     "WebsiteProfileComponent",
-    # Conceptual (Concrete Components)
+    # Conceptual (Concrete Components and Association Objects)
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
+    "PageLink", # Added PageLink
     # Marker components are usually imported via dam.core.components_markers where needed
 ]
