@@ -47,12 +47,18 @@ def setup_logging(level: int | str | None = None) -> None:
     app_logger = logging.getLogger("dam")
     app_logger.setLevel(log_level)
 
-    # Prevent duplicate handlers if setup_logging is called multiple times
-    if not app_logger.handlers:
-        handler = logging.StreamHandler(sys.stderr)
-        formatter = logging.Formatter(LOG_FORMAT)
-        handler.setFormatter(formatter)
-        app_logger.addHandler(handler)
+    # Always reconfigure handlers to ensure they use the current sys.stderr,
+    # especially important for testing with CliRunner which swaps out streams.
+    # First, remove any existing handlers for this logger to avoid duplication
+    # and ensure the new handler uses the potentially swapped sys.stderr.
+    for handler_to_remove in list(app_logger.handlers):  # Iterate over a copy
+        app_logger.removeHandler(handler_to_remove)
+        handler_to_remove.close()  # Explicitly close the old handler
+
+    handler = logging.StreamHandler(sys.stderr)  # Use current sys.stderr
+    formatter = logging.Formatter(LOG_FORMAT)
+    handler.setFormatter(formatter)
+    app_logger.addHandler(handler)
 
     # You might also want to configure the root logger if you want to see logs
     # from dependencies, or ensure it doesn't interfere.

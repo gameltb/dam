@@ -1,5 +1,5 @@
 import logging  # Added import
-from typing import Any, List, Optional, Type, TypeVar, Dict # Added Dict
+from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Dict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -245,7 +245,7 @@ def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: st
             )
         # Return the parent Entity of the first found component.
         first_component = components_found[0]
-        return get_entity(session, first_component.entity_id) # Fetch the entity
+        return get_entity(session, first_component.entity_id)  # Fetch the entity
     return None
 
 

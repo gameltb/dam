@@ -57,10 +57,10 @@ class Settings(BaseSettings):
         Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
         This source can be a file path to a JSON file or a direct JSON string.
         """
-        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config")) # Changed here
+        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))  # Changed here
 
         if not config_source:
-            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.") # Changed here
+            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.")  # Changed here
             config_source = '{"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}'
             # Ensure DEFAULT_WORLD_NAME reflects this if it wasn't explicitly set
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
@@ -112,7 +112,9 @@ class Settings(BaseSettings):
         values["worlds"] = final_worlds_dict
 
         # Validate or determine DEFAULT_WORLD_NAME
-        default_world_name_val = values.get("DEFAULT_WORLD_NAME", values.get("default_world_name"))
+        # Explicitly check env var as validator 'values' might not fully reflect it yet for aliased fields
+        env_default_world = os.environ.get("DAM_DEFAULT_WORLD_NAME")
+        default_world_name_val = env_default_world or values.get("DEFAULT_WORLD_NAME", values.get("default_world_name"))
 
         if not final_worlds_dict:  # Should be caught by earlier check, but defensive
             logger.error("No worlds configured after processing. This is unexpected.")
@@ -124,7 +126,7 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"DEFAULT_WORLD_NAME '{default_world_name_val}' is set but not found in the configured worlds: {list(final_worlds_dict.keys())}"
                 )
-            # Default world name is valid and set
+            values["DEFAULT_WORLD_NAME"] = default_world_name_val  # Ensure values dict is updated
         elif "default" in final_worlds_dict:
             values["DEFAULT_WORLD_NAME"] = "default"
             logger.info("DEFAULT_WORLD_NAME not explicitly set, using 'default' world.")

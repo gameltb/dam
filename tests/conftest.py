@@ -23,7 +23,7 @@ def backup_original_settings():
     """Backup original settings at the start of the session."""
     # This is a bit manual; ideally Pydantic settings could be snapshot/restored more cleanly.
     # We're backing up fields that settings_override is known to change.
-    _original_settings_values["DAM_WORLDS_CONFIG_SOURCE"] = global_settings.DAM_WORLDS_CONFIG_SOURCE
+    _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
     _original_settings_values["worlds"] = global_settings.worlds.copy()  # shallow copy
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
     _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
@@ -88,9 +88,9 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
 
     # Create a new Settings instance with overridden values
     # This ensures that the model_validator in Settings is run with the new values
-    # We pass the JSON string to DAM_WORLDS_CONFIG_SOURCE as the Settings model expects
+    # We pass the JSON string to DAM_WORLDS_CONFIG as the Settings model expects
     new_settings = Settings(
-        DAM_WORLDS_CONFIG_SOURCE=json.dumps(updated_test_worlds_config),
+        DAM_WORLDS_CONFIG=json.dumps(updated_test_worlds_config),
         DAM_DEFAULT_WORLD_NAME=default_test_world_name,
         TESTING_MODE=True,
     )
