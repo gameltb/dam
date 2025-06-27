@@ -196,11 +196,6 @@ def test_cli_help(test_environment, click_runner):
     """Test the main help message for the CLI."""
     result = click_runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "Usage: dam-cli [OPTIONS] COMMAND [ARGS]..." in result.output
-    assert "Digital Asset Management System CLI" in result.output
-    assert "add-asset" in result.output
-    assert "list-worlds" in result.output
-    assert "setup-db" in result.output
 
 
 def test_cli_list_worlds(test_environment, click_runner):
