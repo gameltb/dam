@@ -11,14 +11,21 @@ from .. import BaseComponent
 # kw_only=True and @dataclass behavior are inherited from Base
 class FilePropertiesComponent(BaseComponent):
     """
-    Stores basic properties of an asset's file, such as original name,
-    size, and MIME type.
-    Typically, an entity would have one primary set of these properties,
-    though variations could exist (e.g., for different versions or renditions).
-    For now, assuming one per entity via unique constraint.
+    Stores authoritative properties of an entity's associated file,
+    such as its original filename, size in bytes, and MIME type.
+
+    This component is the primary source for these file details.
+    The `original_filename` could be the name of an uploaded file,
+    a filename derived from a URL, or a user-provided name.
+
+    Typically, an entity linked to a file will have one instance of this
+    component. Variations (e.g., for different renditions) might be
+    handled by separate entities or a more complex component structure
+    if needed in the future. The current unique constraint on `entity_id`
+    enforces a one-to-one relationship.
     """
 
-    __tablename__ = "component_file_properties"  # Adjusted to strict component_[name] convention
+    __tablename__ = "component_file_properties"
 
     # id, entity_id, created_at, updated_at are inherited from BaseComponent
 

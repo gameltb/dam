@@ -2,43 +2,44 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .. import BaseComponent
+from . import source_types
 
 
 class OriginalSourceInfoComponent(BaseComponent):
     """
-    Stores information about an original source file that was processed
-    to create or link to an entity's content. An entity can have multiple
-    original sources if the same content was ingested from different files.
+    Classifies the original source type of an entity's content.
+    This component acts as a marker or tag, indicating the nature of the origin.
+    Detailed information about the source, like filename, path, or URL,
+    is stored in other components such as FilePropertiesComponent,
+    FileLocationComponent, or WebSourceComponent.
+
+    An entity typically has one OriginalSourceInfoComponent indicating its
+    primary mode of ingestion or creation.
     """
 
     __tablename__ = "component_original_source_info"
 
     # id, entity_id, created_at, updated_at are inherited from BaseComponent
 
-    original_filename: Mapped[str] = mapped_column(String(1024), nullable=False)
-    original_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # Original full path, if available
-
-    # Timestamp of when this specific source was processed/ingested
-    # BaseComponent.created_at can serve this purpose if this component is added upon ingestion.
-    # If a separate ingestion_timestamp specific to this source record is needed, it can be added:
-    # ingestion_timestamp: Mapped[datetime] = mapped_column(
-    #     DateTime(timezone=True), server_default=func.now(), nullable=False
-    # )
-
-    # No specific unique constraints here by default, allowing multiple records
-    # if the same file (by name/path) is processed multiple times leading to the same entity.
-    # If desired, a UniqueConstraint on (entity_id, original_filename, original_path) could be added.
+    # Fields like original_filename and original_path have been removed.
+    # This information is now expected to be found in:
+    # - FilePropertiesComponent.original_filename
+    # - FileLocationComponent.path (for DAM managed paths or external reference paths)
+    # - WebSourceComponent.url (for web origins)
 
     source_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         index=True,
-        comment="Type of the source (e.g., 'local_file', 'referenced_file', 'web_source').",
+        comment=(
+            "Type classifying the source. See dam.models.source_info.source_types for defined constants "
+            f"(e.g., '{source_types.SOURCE_TYPE_LOCAL_FILE}', '{source_types.SOURCE_TYPE_REFERENCED_FILE}', "
+            f"'{source_types.SOURCE_TYPE_WEB_SOURCE}', '{source_types.SOURCE_TYPE_PRIMARY_FILE}')."
+        ),
     )
 
     def __repr__(self):
         return (
             f"OriginalSourceInfoComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"source_type='{self.source_type}', original_filename='{self.original_filename}', "
-            f"original_path='{self.original_path}')"
+            f"source_type='{self.source_type}')"
         )
