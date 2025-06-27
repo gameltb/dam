@@ -43,6 +43,9 @@ video = [ # For video processing, could include ffmpeg-python if made optional
 audio = [ # For audio processing
     # "mutagen", # Good for audio tags
 ]
+ui = [
+    "PyQt6"
+]
 dev = [ # Example for dev/test dependencies
     "pytest",
     "pytest-cov",
