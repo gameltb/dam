@@ -10,6 +10,7 @@ from dam.core.events import (
     FindSimilarImagesQuery,
     WebAssetIngestionRequested,  # Import new event
 )
+from dam.models.source_info import source_types # Import source_types
 from dam.core.system_params import CurrentWorldConfig, WorldSession  # Import Resource
 from dam.core.systems import listens_for
 from dam.models import (

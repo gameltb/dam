@@ -360,11 +360,14 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
 
     from sqlalchemy import select
 
-    from dam.models.core.entity import Entity  # Corrected import
+    from dam.models.core.entity import Entity
     from dam.models.core.file_location_component import FileLocationComponent
-    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
-    from dam.services.file_operations import calculate_sha256
-    from dam.services.file_storage import get_file_path  # Using public API
+    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+    from dam.models.properties.file_properties_component import FilePropertiesComponent # Added
+    from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent # Added
+    from dam.models.source_info import source_types # Added
+    from dam.services import file_operations # Changed from specific import
+    from dam.services.file_storage import get_file_path
 
     world_config = test_environment["settings"].get_world_config(default_world_name)
 
@@ -377,6 +380,8 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
 
     # Verify database entries
     db_manager = test_environment["db_managers"][default_world_name]
+    expected_props = file_operations.get_file_properties(dummy_file)
+
     with db_manager.get_db_session() as session:
         # Find entity by SHA256 hash (hex string converted to bytes for query)
         content_hash_bytes = bytes.fromhex(content_hash)
@@ -391,15 +396,32 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
         entity = session.get(Entity, entity_id)
         assert entity is not None, "Entity not found in DB"
 
+        # Check OriginalSourceInfoComponent
+        osi_comp = session.execute(
+            select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
+        ).scalar_one_or_none()
+        assert osi_comp is not None, "OriginalSourceInfoComponent not found"
+        assert osi_comp.source_type == source_types.SOURCE_TYPE_LOCAL_FILE
+        assert not hasattr(osi_comp, "original_filename"), "OSI should not have original_filename"
+        assert not hasattr(osi_comp, "original_path"), "OSI should not have original_path"
+
+
+        # Check FilePropertiesComponent
+        fpc_comp = session.execute(
+            select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
+        ).scalar_one_or_none()
+        assert fpc_comp is not None, "FilePropertiesComponent not found"
+        assert fpc_comp.original_filename == expected_props[0] # expected_props[0] is original_filename
+        assert fpc_comp.file_size_bytes == expected_props[1] # expected_props[1] is size_bytes
+        assert fpc_comp.mime_type == expected_props[2] # expected_props[2] is mime_type
+
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         location_component = session.execute(stmt_loc).scalar_one_or_none()
         assert location_component is not None, "FileLocationComponent not found"
-        assert location_component.contextual_filename == dummy_file.name  # Corrected attribute
-        assert location_component.storage_type == "local_cas"  # Updated expected value
-        assert (
-            location_component.content_identifier == content_hash
-        )  # Corrected attribute (content_id -> content_identifier)
+        assert location_component.contextual_filename == dummy_file.name
+        assert location_component.storage_type == "local_cas"
+        assert location_component.content_identifier == content_hash
 
 
 def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runner):
@@ -425,11 +447,15 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
     # Check for files in CAS and database entries
     from sqlalchemy import select
 
-    from dam.models.core.entity import Entity  # Corrected import
-    from dam.models.core.file_location_component import FileLocationComponent
-    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
-    from dam.services.file_operations import calculate_sha256
-    from dam.services.file_storage import get_file_path  # Using public API
+    # Imports are already at the top of the file from previous change
+    # from dam.models.core.entity import Entity
+    # from dam.models.core.file_location_component import FileLocationComponent
+    # from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+    # from dam.models.properties.file_properties_component import FilePropertiesComponent
+    # from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+    # from dam.models.source_info import source_types
+    # from dam.services import file_operations
+    # from dam.services.file_storage import get_file_path
 
     world_config = test_environment["settings"].get_world_config(default_world_name)
     db_manager = test_environment["db_managers"][default_world_name]
@@ -443,11 +469,13 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
         for file_info in files_to_check:
             f_path = file_info["path"]
             f_content = file_info["content"]
-            content_hash = calculate_sha256(f_path)
+            content_hash = file_operations.calculate_sha256(f_path)
             content_hash_bytes = bytes.fromhex(content_hash)
+            expected_props = file_operations.get_file_properties(f_path)
+
 
             # Check CAS
-            cas_file_path = get_file_path(content_hash, world_config)  # get_file_path expects hex string
+            cas_file_path = get_file_path(content_hash, world_config)
             assert cas_file_path is not None, (
                 f"Asset {f_path.name} (hash {content_hash}) not found in CAS via get_file_path"
             )
@@ -460,21 +488,42 @@ def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runne
             )
             hash_component = session.execute(stmt_hash).scalar_one_or_none()
             assert hash_component is not None, f"ContentHashSHA256Component for {f_path.name} not found"
-            assert hash_component.hash_value == content_hash_bytes  # Corrected indentation
+            assert hash_component.hash_value == content_hash_bytes
 
             entity_id = hash_component.entity_id
             entity = session.get(Entity, entity_id)
             assert entity is not None, f"Entity for {f_path.name} not found"
 
+            # Check OriginalSourceInfoComponent
+            osi_comp = session.execute(
+                select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
+            ).scalar_one_or_none() # Assuming one OSI per entity for this test case
+            assert osi_comp is not None, f"OriginalSourceInfoComponent for {f_path.name} not found"
+            assert osi_comp.source_type == source_types.SOURCE_TYPE_LOCAL_FILE
+            assert not hasattr(osi_comp, "original_filename"), f"OSI for {f_path.name} should not have original_filename"
+            assert not hasattr(osi_comp, "original_path"), f"OSI for {f_path.name} should not have original_path"
+
+            # Check FilePropertiesComponent
+            fpc_comp = session.execute(
+                select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
+            ).scalar_one_or_none()
+            assert fpc_comp is not None, f"FilePropertiesComponent for {f_path.name} not found"
+            assert fpc_comp.original_filename == expected_props[0]
+            assert fpc_comp.file_size_bytes == expected_props[1]
+            assert fpc_comp.mime_type == expected_props[2]
+
+            # Check FileLocationComponent
+            # We might have multiple FLCs if the same content was added via different original paths/names before,
+            # but for this test, each file is unique content.
             stmt_loc = (
                 select(FileLocationComponent)
                 .where(FileLocationComponent.entity_id == entity_id)
-                .where(FileLocationComponent.contextual_filename == f_path.name)  # Corrected attribute
+                .where(FileLocationComponent.contextual_filename == f_path.name)
             )
             location_component = session.execute(stmt_loc).scalar_one_or_none()
             assert location_component is not None, f"FileLocationComponent for {f_path.name} not found"
-            assert location_component.storage_type == "local_cas"  # Updated expected value
-            assert location_component.content_identifier == content_hash  # Corrected attribute
+            assert location_component.storage_type == "local_cas"
+            assert location_component.content_identifier == content_hash
 
 
 def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
@@ -490,18 +539,25 @@ def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
     # Verify database entries for '--no-copy'
     from sqlalchemy import select
 
-    from dam.models.core.file_location_component import FileLocationComponent
-    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
-    from dam.services.file_operations import calculate_sha256
-    from dam.services.file_storage import get_file_path  # Using public API
+    # Imports already at top
+    # from dam.models.core.file_location_component import FileLocationComponent
+    # from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+    # from dam.services import file_operations
+    # from dam.services.file_storage import get_file_path
+    # from dam.models.properties.file_properties_component import FilePropertiesComponent
+    # from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+    # from dam.models.source_info import source_types
+
 
     world_config = test_environment["settings"].get_world_config(default_world_name)
     db_manager = test_environment["db_managers"][default_world_name]
-    content_hash = calculate_sha256(dummy_file)
+    content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
+    expected_props = file_operations.get_file_properties(dummy_file)
+
 
     # Check that file is NOT in CAS
-    cas_file_path = get_file_path(content_hash, world_config)  # get_file_path expects hex string
+    cas_file_path = get_file_path(content_hash, world_config)
     assert cas_file_path is None, (
         f"Asset file with hash {content_hash} found in CAS ({cas_file_path}) via get_file_path when --no-copy was used. It should not exist in CAS."
     )
@@ -515,13 +571,33 @@ def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):
         assert hash_component.hash_value == content_hash_bytes
         entity_id = hash_component.entity_id
 
+        # Check OriginalSourceInfoComponent
+        osi_comp = session.execute(
+            select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
+        ).scalar_one_or_none()
+        assert osi_comp is not None, "OriginalSourceInfoComponent not found for no-copy asset"
+        assert osi_comp.source_type == source_types.SOURCE_TYPE_REFERENCED_FILE
+        assert not hasattr(osi_comp, "original_filename"), "OSI for no-copy should not have original_filename"
+        assert not hasattr(osi_comp, "original_path"), "OSI for no-copy should not have original_path"
+
+        # Check FilePropertiesComponent
+        fpc_comp = session.execute(
+            select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
+        ).scalar_one_or_none()
+        assert fpc_comp is not None, "FilePropertiesComponent not found for no-copy asset"
+        assert fpc_comp.original_filename == expected_props[0]
+        assert fpc_comp.file_size_bytes == expected_props[1]
+        assert fpc_comp.mime_type == expected_props[2]
+
+
+        # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         location_component = session.execute(stmt_loc).scalar_one_or_none()
-        assert location_component is not None, "FileLocationComponent not found"
-        assert location_component.contextual_filename == dummy_file.name  # Corrected attribute
-        assert location_component.storage_type == "local_reference"  # Updated expected value
-        assert location_component.physical_path_or_key == str(dummy_file.resolve())  # Corrected attribute
-        assert location_component.content_identifier == content_hash  # Corrected attribute
+        assert location_component is not None, "FileLocationComponent not found for no-copy asset"
+        assert location_component.contextual_filename == dummy_file.name
+        assert location_component.storage_type == "local_reference"
+        assert location_component.physical_path_or_key == str(dummy_file.resolve())
+        assert location_component.content_identifier == content_hash
 
 
 def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
@@ -542,12 +618,17 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
     # Verify database entries for duplicate handling
     from sqlalchemy import select
 
-    from dam.models.core.file_location_component import FileLocationComponent
-    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component  # Corrected import
-    from dam.services.file_operations import calculate_sha256
+    # Imports at top
+    # from dam.models.core.file_location_component import FileLocationComponent
+    # from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+    # from dam.services import file_operations
+    # from dam.models.properties.file_properties_component import FilePropertiesComponent
+    # from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+    # from dam.models.source_info import source_types
+
 
     db_manager = test_environment["db_managers"][default_world_name]
-    content_hash = calculate_sha256(dummy_file)
+    content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
 
     with db_manager.get_db_session() as session:
@@ -560,52 +641,53 @@ def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):
         assert hash_components[0].hash_value == content_hash_bytes
 
         entity_id = hash_components[0].entity_id
+        expected_props = file_operations.get_file_properties(dummy_file)
 
-        # Expect two FileLocationComponents linked to the same entity_id,
-        # if the system links new filenames for existing content.
-        # Or, if it updates the existing one, then only one.
-        # Based on README: "it links the new filename/reference to the existing asset entity"
-        # This implies multiple FileLocationComponents if filenames are different, or if same filename is added again
-        # it might create a new FLC or update existing.
-        # For this test, we add the *same* file path twice.
-        # The current behavior is that a new FileLocationComponent is added each time `add-asset` is called
-        # for the same file path if it results in the same content hash.
-        # Let's verify this behavior.
+
+        # Check OriginalSourceInfoComponent - should still be one primary one from the first add.
+        # The second add should link to the existing entity.
+        # Depending on how OSI is handled for duplicates (e.g., if it adds another OSI for the same source path)
+        # this might need adjustment. For now, assume one distinct OSI by source_type and potentially other unique factors not filename/path.
+        # With filename/path removed from OSI, if the second add re-adds an OSI, it would be identical.
+        # Let's assume the system is smart enough to not add a fully identical OSI.
+        osi_comps = session.execute(
+            select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
+        ).scalars().all()
+        assert len(osi_comps) == 1, f"Expected 1 OriginalSourceInfoComponent, found {len(osi_comps)}"
+        assert osi_comps[0].source_type == source_types.SOURCE_TYPE_LOCAL_FILE
+        assert not hasattr(osi_comps[0], "original_filename")
+        assert not hasattr(osi_comps[0], "original_path")
+
+        # Check FilePropertiesComponent - should be one, from the first add.
+        fpc_comp = session.execute(
+            select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
+        ).scalar_one_or_none()
+        assert fpc_comp is not None, "FilePropertiesComponent not found for duplicate asset"
+        assert fpc_comp.original_filename == expected_props[0]
+        assert fpc_comp.file_size_bytes == expected_props[1]
+        assert fpc_comp.mime_type == expected_props[2]
+
+
+        # Check FileLocationComponent - current system behavior is to add a new FLC if path is identical.
+        # The test originally asserted len == 1, implying de-duplication of FLC by path.
+        # Let's stick to that assumption for now as it's safer. If the system *does* create
+        # multiple FLCs for the same path for the same entity, this test would need adjustment.
+        # The `handle_asset_file_ingestion_request` *does* check if FLC exists for the same entity
+        # and physical_storage_path_suffix. So it should be 1.
         stmt_locs = (
             select(FileLocationComponent)
             .where(FileLocationComponent.entity_id == entity_id)
-            .where(
-                FileLocationComponent.contextual_filename == dummy_file.name  # Corrected attribute
-            )
+            .where(FileLocationComponent.contextual_filename == dummy_file.name)
         )
         location_components = session.execute(stmt_locs).scalars().all()
-        # This assertion depends on the exact logic for handling duplicate file paths for the same content.
-        # If the system is designed to create a new FileLocationComponent for each `add` command
-        # even if the path is the same, then this should be 2.
-        # If it updates or ignores, it might be 1.
-        # Let's assume for now it adds a new one.
-        assert len(location_components) >= 1, "FileLocationComponent not found for duplicate asset"
-        # If the behavior is to have only one FLC per unique (entity_id, filename)
-        # and the second add just confirms it, then len would be 1.
-        # If it adds a distinct FLC record for each add operation (even with same filename), then 2.
-        # The current implementation of `_ensure_file_location_component` in `asset_helpers`
-        # will create a new one if one with the exact same (entity_id, filename, path_or_key, storage_type) doesn't exist.
-        # If the same file is added twice, it should result in two FLCs if the context (e.g. world run id) is different,
-        # or if the system doesn't de-duplicate FLCs aggressively.
-        # Given the test setup, it's likely to be 2 if it adds a new FLC per add-asset call.
-        # Let's be more precise: the `add_asset` command calls `ingest_asset_file` which calls
-        # `_ensure_file_location_component`. This helper tries to find an *existing* one first.
-        # If the same exact file path is added, it should find the existing one and not create a new one.
-        # So, len(location_components) should be 1.
         assert len(location_components) == 1, (
             f"Expected 1 FileLocationComponent for the same file path, found {len(location_components)}"
         )
-        assert location_components[0].storage_type == "local_cas"  # Added assertion
+        assert location_components[0].storage_type == "local_cas"
 
         # Verify that the CAS file still exists and content is correct
         world_config = test_environment["settings"].get_world_config(default_world_name)
-        from dam.services.file_storage import get_file_path  # Using public API
-
+        # from dam.services.file_storage import get_file_path # Import at top
         cas_file_path = get_file_path(content_hash, world_config)
         assert cas_file_path is not None, (
             f"Asset file with hash {content_hash} not found in CAS via get_file_path after duplicate add"
