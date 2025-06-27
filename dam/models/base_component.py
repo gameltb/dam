@@ -68,14 +68,20 @@ class BaseComponent(Base):  # Inherit from the new Base
     )
 
     # To guide dataclass for __init__ (init=False) and repr (repr=False)
-    entity: Mapped["Entity"] = field(init=False, repr=False)
+    # The `entity` relationship is defined below using @declared_attr to correctly link via entity_id
+    # entity: Mapped["Entity"] = field(init=False, repr=False) # This would be for dataclass field, SQLAlchemy handles the relationship
 
     @declared_attr
-    def entity(  # noqa: F811 (Intentional redefinition for SQLAlchemy/dataclass pattern)
-        cls,
-    ) -> Mapped["Entity"]:  # SQLAlchemy uses this for the relationship property
-        """Relationship to the parent Entity."""
-        return relationship("Entity", repr=False)  # repr=False here is for SQLAlchemy's default repr
+    def entity(cls) -> Mapped["Entity"]:
+        """Relationship to the parent (owning) Entity."""
+        # cls.entity_id refers to the entity_id column defined in this BaseComponent
+        # (which will be part of each concrete component's table)
+        return relationship(
+            "Entity",
+            foreign_keys=[cls.entity_id], # Explicitly use the component's own entity_id for this link
+            back_populates="components",  # Assumes Entity will have a "components" collection
+            repr=False # For SQLAlchemy's default repr of this relationship property
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"

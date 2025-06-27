@@ -270,3 +270,16 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     file_path = tmp_path / "sample_gif_placeholder.gif"
     file_path.write_bytes(gif_bytes)
     return file_path
+
+
+@pytest.fixture(scope="function")
+def test_world_with_db_session(settings_override: Settings) -> Generator[World, None, None]:
+    """
+    Provides a fully initialized World instance using the 'test_world_alpha' configuration
+    from settings_override. This world has its DB created and systems registered.
+    The underlying database and asset storage are function-scoped via settings_override.
+    """
+    # Using "test_world_alpha" as the default world for these system tests
+    world = _setup_world("test_world_alpha", settings_override)
+    yield world
+    _teardown_world(world)

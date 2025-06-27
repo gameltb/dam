@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, List, Dict # Added Optional, List, Dict
 
 # Using dataclasses for simplicity, similar to Bevy events.
 
@@ -110,4 +111,29 @@ __all__ = [
     "AssetReferenceIngestionRequested",
     "FindEntityByHashQuery",
     "FindSimilarImagesQuery",
+    "WebAssetIngestionRequested", # Added new event
 ]
+
+
+@dataclass
+class WebAssetIngestionRequested(BaseEvent):
+    """
+    Event dispatched when a new asset from a web source needs to be ingested.
+    This primarily involves storing metadata and URLs. File download might be a separate step.
+    """
+    world_name: str  # Target world for this asset
+    website_identifier_url: str # Main URL of the website (e.g., https://www.deviantart.com) used to find/create the Website Entity.
+    source_url: str  # URL of the specific asset's page or where it was found.
+
+    # Optional metadata that might be provided at submission time
+    # This could be a dict, or specific common fields. Using a dict for flexibility.
+    # For a gallery dump, this metadata_payload would come from the dumper.
+    metadata_payload: Optional[dict] = None
+
+    # Optional: if the direct file URL is already known and different from source_url
+    original_file_url: Optional[str] = None
+
+    # Optional: if tags are provided as a list of strings
+    tags: Optional[list[str]] = None
+
+    # entity_id: Optional[int] = field(default=None, init=False) # For potential result storage

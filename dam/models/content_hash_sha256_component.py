@@ -1,4 +1,4 @@
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import LargeBinary, UniqueConstraint # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_component import BaseComponent
@@ -6,12 +6,13 @@ from .base_component import BaseComponent
 
 class ContentHashSHA256Component(BaseComponent):
     """
-    Stores SHA256 content-based hashes for an entity.
+    Stores SHA256 content-based hashes (32 bytes) for an entity.
     """
 
     __tablename__ = "component_content_hash_sha256"
 
-    hash_value: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # SHA256 hashes are 64 chars
+    # SHA256 hash is 32 bytes (256 bits)
+    hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("entity_id", name="uq_sha256_entity_id"),  # One SHA256 component per entity
@@ -21,7 +22,8 @@ class ContentHashSHA256Component(BaseComponent):
     )
 
     def __repr__(self):
+        hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return (
             f"ContentHashSHA256Component(id={self.id}, entity_id={self.entity_id}, "
-            f"hash_value='{self.hash_value[:10]}...')"
+            f"hash_value(hex)='{hex_hash[:10]}...')"
         )

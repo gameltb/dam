@@ -29,8 +29,16 @@ class OriginalSourceInfoComponent(BaseComponent):
     # if the same file (by name/path) is processed multiple times leading to the same entity.
     # If desired, a UniqueConstraint on (entity_id, original_filename, original_path) could be added.
 
+    source_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+        comment="Type of the source (e.g., 'local_file', 'referenced_file', 'web_source')."
+    )
+
     def __repr__(self):
         return (
             f"OriginalSourceInfoComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"original_filename='{self.original_filename}', original_path='{self.original_path}')"
+            f"source_type='{self.source_type}', original_filename='{self.original_filename}', "
+            f"original_path='{self.original_path}')"
         )

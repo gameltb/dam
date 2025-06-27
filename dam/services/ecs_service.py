@@ -205,9 +205,9 @@ def get_components_by_value(
     return session.execute(stmt).scalars().all()
 
 
-def find_entity_by_content_hash(session: Session, hash_value: str, hash_type: str = "sha256") -> Optional[Entity]:
+def find_entity_by_content_hash(session: Session, hash_value: bytes, hash_type: str = "sha256") -> Optional[Entity]:
     """
-    Finds a single entity by its content hash (SHA256 or MD5).
+    Finds a single entity by its content hash (SHA256 or MD5), provided as bytes.
     Returns the Entity or None if not found.
     If multiple entities somehow have the same content hash (shouldn't happen for CAS),
     it will return the first one found.
