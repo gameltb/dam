@@ -5,7 +5,7 @@ from dam.core.config import WorldConfig
 from dam.services import file_storage  # Import the module with functions
 
 
-class FileStorageService:
+class FileStorageResource:
     """
     A resource class that provides file storage operations, configured per world.
     It wraps the functional implementation in `dam.services.file_storage`.

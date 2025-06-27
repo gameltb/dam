@@ -4,7 +4,7 @@ from dam.core.config import settings as global_app_settings # WorldConfig no lon
 from dam.core.database import DatabaseManager
 from dam.core.resources import FileOperationsResource # ResourceManager no longer needed here directly
 from dam.core.world import World # Import World for type hinting
-from dam.services.file_storage_service import FileStorageService
+from dam.resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +40,10 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(db_manager, DatabaseManager)
     world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
 
-    # 3. FileStorageService
-    file_storage_svc = FileStorageService(world_config=world_config)
-    resource_manager.add_resource(file_storage_svc, FileStorageService)
-    world.logger.debug(f"Added FileStorageService resource for World '{world_name}'.")
+    # 3. FileStorageResource
+    file_storage_svc = FileStorageResource(world_config=world_config)
+    resource_manager.add_resource(file_storage_svc, FileStorageResource)
+    world.logger.debug(f"Added FileStorageResource resource for World '{world_name}'.")
 
     # 4. FileOperationsResource
     resource_manager.add_resource(FileOperationsResource())
