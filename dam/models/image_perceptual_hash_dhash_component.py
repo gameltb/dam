@@ -1,4 +1,4 @@
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import LargeBinary, UniqueConstraint # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_component import BaseComponent
@@ -6,17 +6,18 @@ from .base_component import BaseComponent
 
 class ImagePerceptualDHashComponent(BaseComponent):
     """
-    Stores dHash perceptual hashes for an image entity.
+    Stores dHash perceptual hashes (typically 8 bytes for 64-bit) for an image entity.
     """
 
     __tablename__ = "component_image_perceptual_hash_dhash"
 
-    hash_value: Mapped[str] = mapped_column(String(256), index=True, nullable=False)
+    hash_value: Mapped[bytes] = mapped_column(LargeBinary(8), index=True, nullable=False)
 
     __table_args__ = (UniqueConstraint("entity_id", "hash_value", name="uq_image_dhash_entity_hash"),)
 
     def __repr__(self):
+        hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return (
             f"ImagePerceptualDHashComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"hash_value='{self.hash_value[:10]}...')"
+            f"hash_value(hex)='{hex_hash}')" # Show full hex for short hashes
         )

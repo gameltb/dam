@@ -1,9 +1,10 @@
 from datetime import datetime  # Added import
 
 from sqlalchemy import DateTime, func  # Added func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship # Added relationship
 
 from .base_class import Base  # Updated import for Base
+from .base_component import BaseComponent # Ensure BaseComponent is imported for type hints
 
 # from .types import PkId, TimestampCreated, TimestampUpdated
 # Commented out as not directly used by Entity now
@@ -46,6 +47,31 @@ class Entity(Base):  # Inherit from the new Base
 
     # If using a BaseComponent with a backref, relationships might be
     # implicitly available or defined on the components themselves.
+
+    # This 'components' relationship is primarily to satisfy `back_populates`
+    # from BaseComponent.entity. Querying this directly might be complex due to
+    # BaseComponent being abstract. Specific component relationships are usually preferred.
+    from typing import List
+    from dataclasses import field as dataclass_field
+    # BaseComponent is already imported at the top of the file
+
+    # Define 'components' for dataclass __init__ behavior (not an init arg, defaults to empty list)
+    components: Mapped[List["BaseComponent"]] = dataclass_field(
+        default_factory=list, init=False
+    )
+
+    # Explicitly map the 'components' attribute to the SQLAlchemy relationship
+    # This pattern is used when the default MappedAsDataclass behavior for relationships
+    # (expecting init=False automatically) conflicts with other dataclass settings like kw_only=True.
+    __mapper_args__ = {
+        "properties": {
+            "components": relationship(
+                BaseComponent, # Use direct class reference
+                back_populates="entity",
+                cascade="all, delete-orphan",
+            )
+        }
+    }
 
     def __repr__(self):
         return f"Entity(id={self.id})"
