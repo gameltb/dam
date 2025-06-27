@@ -12,11 +12,14 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QLineEdit,
     QComboBox,
-    QDialog, # For component viewer
-    QTextEdit, # To display component data
-    QVBoxLayout as QDialogVBoxLayout, # Alias to avoid conflict if used elsewhere
-    QScrollArea, # For scrollable component view
-    QPushButton as QDialogButton, # Alias for dialog buttons
+    QDialog,
+    QTextEdit,
+    QVBoxLayout as QDialogVBoxLayout,
+    QScrollArea,
+    QPushButton as QDialogButton,
+    QFileDialog, # For file/directory selection
+    QCheckBox, # For boolean options
+    QFormLayout, # For dialog forms
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
@@ -31,6 +34,13 @@ from dam.models.properties.file_properties_component import FilePropertiesCompon
 from typing import Optional, Dict, Any, List as TypingList
 
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
+from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
+from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
+from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
+from dam.ui.dialogs.world_operations_dialogs import (
+    ExportWorldDialog, ImportWorldDialog, MergeWorldsDialog, SplitWorldDialog
+)
+from dam.core.config import settings as app_settings # For getting all world names
 import json # For pretty printing component data
 
 class ComponentViewerDialog(QDialog):
@@ -101,18 +111,183 @@ class MainWindow(QMainWindow):
 
     def _create_menus(self):
         menu_bar = self.menuBar()
+
+        # File Menu
         file_menu = menu_bar.addMenu("&File")
+        add_asset_action = QAction("&Add Asset(s)...", self)
+        add_asset_action.triggered.connect(self.open_add_asset_dialog)
+        file_menu.addAction(add_asset_action)
+        file_menu.addSeparator()
+
+        find_by_hash_action = QAction("Find Asset by &Hash...", self)
+        find_by_hash_action.triggered.connect(self.open_find_asset_by_hash_dialog)
+        file_menu.addAction(find_by_hash_action)
+
+        find_similar_action = QAction("Find &Similar Images...", self)
+        find_similar_action.triggered.connect(self.open_find_similar_images_dialog)
+        file_menu.addAction(find_similar_action)
+
+        file_menu.addSeparator()
+
         exit_action = QAction("&Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # Placeholder for other menus
-        menu_bar.addMenu("&Edit")
+        # Edit Menu (Placeholder)
+        edit_menu = menu_bar.addMenu("&Edit") # Keep reference if items added later
+
+        # View Menu
         view_menu = menu_bar.addMenu("&View")
-        refresh_action = QAction("&Refresh Assets", self)
-        refresh_action.triggered.connect(self.load_assets) # Connect to asset loading
+        refresh_action = QAction("&Refresh Asset List", self)
+        refresh_action.triggered.connect(self._clear_filters_and_refresh)
         view_menu.addAction(refresh_action)
-        menu_bar.addMenu("&Help")
+
+        # Tools Menu
+        tools_menu = menu_bar.addMenu("&Tools")
+        export_world_action = QAction("&Export Current World...", self)
+        export_world_action.triggered.connect(self.open_export_world_dialog)
+        tools_menu.addAction(export_world_action)
+
+        import_world_action = QAction("&Import Data into Current World...", self)
+        import_world_action.triggered.connect(self.open_import_world_dialog)
+        tools_menu.addAction(import_world_action)
+        tools_menu.addSeparator()
+
+        merge_worlds_action = QAction("&Merge Worlds...", self)
+        merge_worlds_action.triggered.connect(self.open_merge_worlds_dialog)
+        tools_menu.addAction(merge_worlds_action)
+
+        split_world_action = QAction("&Split Current World...", self)
+        split_world_action.triggered.connect(self.open_split_world_dialog)
+        tools_menu.addAction(split_world_action)
+        tools_menu.addSeparator()
+
+        setup_db_action = QAction("Setup &Database for Current World...", self)
+        setup_db_action.triggered.connect(self.setup_current_world_db)
+        tools_menu.addAction(setup_db_action)
+
+        # Help Menu (Placeholder)
+        help_menu = menu_bar.addMenu("&Help")
+
+
+    def open_add_asset_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+
+        dialog = AddAssetDialog(current_world=self.current_world, parent=self)
+        if dialog.exec():
+            self.statusBar().showMessage("Asset ingestion process completed. Refreshing asset list...")
+            self.load_assets()
+        else:
+            self.statusBar().showMessage("Add asset operation cancelled or failed.")
+
+    def open_find_asset_by_hash_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+
+        dialog = FindAssetByHashDialog(current_world=self.current_world, parent=self)
+        # The dialog itself handles showing results or further dialogs (like ComponentViewer)
+        # so we just need to exec() it.
+        dialog.exec()
+        # Optionally, refresh main list if find operation could alter state, but usually not.
+
+    def open_find_similar_images_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+
+        if not _pil_available: # Check if Pillow is available for image previews
+             QMessageBox.warning(self, "Dependency Missing",
+                                "Pillow (PIL) is not installed. Image previews will not be available in the find similar images dialog. "
+                                "Please install 'ecs-dam-system[image]' for full functionality.")
+
+        dialog = FindSimilarImagesDialog(current_world=self.current_world, parent=self)
+        dialog.exec()
+
+    def open_export_world_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first to export.")
+            return
+        dialog = ExportWorldDialog(current_world=self.current_world, parent=self)
+        dialog.exec()
+        # Status updates are handled by the dialog and its worker thread
+
+    def open_import_world_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first to import into.")
+            return
+        dialog = ImportWorldDialog(current_world=self.current_world, parent=self)
+        if dialog.exec(): # Dialog's accept() called on success
+            self.statusBar().showMessage("Import process completed. Refreshing asset list...")
+            self.load_assets() # Refresh list as data might have changed
+        else:
+            self.statusBar().showMessage("Import operation cancelled or failed.")
+
+    def open_merge_worlds_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "A current world must be active to serve as the merge target.")
+            return
+        all_world_names = [w.name for w in app_settings.worlds] if app_settings.worlds else []
+        if len(all_world_names) < 2:
+            QMessageBox.information(self, "Not Enough Worlds", "At least two worlds must be configured to perform a merge operation.")
+            return
+
+        dialog = MergeWorldsDialog(current_world=self.current_world, all_world_names=all_world_names, parent=self)
+        if dialog.exec():
+            self.statusBar().showMessage("Merge process completed. Refreshing asset list...")
+            self.load_assets() # Refresh list as target world data changed
+        else:
+            self.statusBar().showMessage("Merge operation cancelled or failed.")
+
+    def open_split_world_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "A current world must be active to serve as the split source.")
+            return
+        all_world_names = [w.name for w in app_settings.worlds] if app_settings.worlds else []
+        if len(all_world_names) < 3: # Need source + at least two unique targets
+            QMessageBox.information(self, "Not Enough Worlds",
+                                    "At least three worlds must be configured to perform a split operation (one source, two distinct targets).")
+            return
+
+        dialog = SplitWorldDialog(source_world=self.current_world, all_world_names=all_world_names, parent=self)
+        if dialog.exec():
+            self.statusBar().showMessage("Split process completed. Refreshing asset list...")
+            self.load_assets() # Refresh list as source world data might have changed (if delete option used)
+        else:
+            self.statusBar().showMessage("Split operation cancelled or failed.")
+
+    def setup_current_world_db(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "No current world is active to set up its database.")
+            return
+
+        reply = QMessageBox.question(self, "Confirm Database Setup",
+                                     f"This will attempt to initialize the database and create tables for world '{self.current_world.name}'.\n"
+                                     "This is typically done once. Proceed?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.No:
+            return
+
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.statusBar().showMessage(f"Setting up database for world '{self.current_world.name}'...")
+        try:
+            self.current_world.create_db_and_tables()
+            QApplication.restoreOverrideCursor()
+            QMessageBox.information(self, "Database Setup Successful",
+                                    f"Database setup complete for world '{self.current_world.name}'.")
+            self.statusBar().showMessage(f"Database for '{self.current_world.name}' successfully set up.")
+            self.load_assets() # Refresh asset list, in case it was empty due to no tables
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self, "Database Setup Error",
+                                 f"Error during database setup for '{self.current_world.name}':\n{e}")
+            self.statusBar().showMessage(f"Database setup for '{self.current_world.name}' failed: {e}")
+        finally:
+            if QApplication.overrideCursor() is not None: # Ensure cursor is restored
+                 QApplication.restoreOverrideCursor()
 
 
     def _create_status_bar(self):

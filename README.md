@@ -30,7 +30,13 @@ ecs_dam_system/
 │   ├── cli.py              # Typer CLI application
 │   ├── ui/                 # PyQt6 UI code
 │   │   ├── __init__.py
-│   │   └── main_window.py
+│   │   ├── main_window.py
+│   │   └── dialogs/        # Dialog windows for UI operations
+│   │       ├── __init__.py
+│   │       ├── add_asset_dialog.py
+│   │       ├── find_asset_by_hash_dialog.py
+│   │       ├── find_similar_images_dialog.py
+│   │       └── world_operations_dialogs.py
 │   ├── models/             # SQLAlchemy models (Components)
 │   │   ├── __init__.py
 │   │   └── ... (e.g., file_location_component.py)
@@ -214,7 +220,15 @@ dam-cli --help
     *   Search for assets by filename.
     *   Filter assets by their MIME type.
     *   View all components of a selected asset by double-clicking it.
-    *   The active world is determined by the `--world` CLI option, `DAM_CURRENT_WORLD` environment variable, or the default world setting, similar to other CLI commands.
+    *   Add new assets (equivalent to `dam-cli add-asset`) via 'File > Add Asset(s)...'.
+    *   Find assets by content hash (equivalent to `dam-cli find-file-by-hash`) via 'File > Find Asset by Hash...'.
+    *   Find similar images (equivalent to `dam-cli find-similar-images`) via 'File > Find Similar Images...'.
+    *   Export the current world's data to a JSON file (equivalent to `dam-cli export-world`) via 'Tools > Export Current World...'.
+    *   Import data from a JSON file into the current world (equivalent to `dam-cli import-world`) via 'Tools > Import Data into Current World...'.
+    *   Merge another world into the current world (DB-to-DB, equivalent to `dam-cli merge-worlds-db`) via 'Tools > Merge Worlds...'.
+    *   Split the current world into two other worlds based on criteria (DB-to-DB, equivalent to `dam-cli split-world-db`) via 'Tools > Split Current World...'.
+    *   Set up the database for the current world (equivalent to `dam-cli setup-db`) via 'Tools > Setup Database for Current World...'.
+    *   The active world for these operations is determined by the `--world` CLI option, `DAM_CURRENT_WORLD` environment variable, or the default world setting, similar to other CLI commands.
 
 
 ## Development
