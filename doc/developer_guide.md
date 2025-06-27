@@ -14,8 +14,13 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 
 ### 2.2. Components
 -   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. Examples include:
-    - `FileLocationComponent`: Stores where an asset's file is located (`component_file_location`). Key attributes: `contextual_filename`, `content_identifier`, `physical_path_or_key`, `storage_type`.
-    - `FilePropertiesComponent`: Stores original filename, size, MIME type (`component_file_properties`).
+    - `OriginalSourceInfoComponent`: Classifies the origin of the asset's content (e.g., local file, web download, reference) using its `source_type` field. See `dam.models.source_info.source_types` for defined types. It does not store filename or path directly.
+    - `FilePropertiesComponent`: Stores the authoritative properties of an entity's file, such as its `original_filename`, `file_size_bytes`, and `mime_type` (`component_file_properties`). This is the primary source for the original filename.
+    - `FileLocationComponent`: Stores the physical location of an entity's content (`component_file_location`). Key attributes:
+        - `content_identifier`: Typically the SHA256 hash of the content.
+        - `storage_type`: Indicates the nature of the location (e.g., `"dam_managed_storage"`, `"external_file_reference"`).
+        - `physical_path_or_key`: The actual path (e.g., relative path in DAM storage, absolute external path for references).
+        - `contextual_filename`: An optional filename associated with this specific location, useful if `physical_path_or_key` is a hash or generic ID. The primary original filename is in `FilePropertiesComponent`.
     - `ContentHashSHA256Component`: Stores SHA256 content hash as bytes (`component_content_hash_sha256`). Key attribute: `hash_value` (bytes).
     - `ImageDimensionsComponent`: Stores width and height for visual assets (`component_image_dimensions`).
     - `ImagePerceptualPHashComponent`: Stores pHash for images (`component_image_perceptual_hash_phash`).
@@ -229,15 +234,19 @@ The DAM employs a content-addressable storage strategy for asset files, managed 
     3.  Creating the nested directories if they don't exist.
     4.  Writing the `file_content` to the path, using the full hash as the filename.
     5.  Returning the SHA256 hash (file identifier).
-    -   If a file with the same content (and thus the same hash) is stored again, it will not create a duplicate; the existing file is effectively reused. The `original_filename` is not used for the storage path itself but can be stored in metadata components (like `FileLocationComponent`).
+    -   If a file with the same content (and thus the same hash) is stored again, it will not create a duplicate; the existing file is effectively reused. The `original_filename` (from `FilePropertiesComponent`) is not used for the storage path itself.
 -   **`get_file_path` Function**: The `dam.services.file_storage.get_file_path(file_identifier: str) -> Path | None` function reconstructs the absolute path to a stored file given its `file_identifier` (SHA256 hash).
--   **`FileLocationComponent`**: This component (defined in `dam.models.core.file_location_component`, table name `component_file_location`) stores how to locate an asset's content.
+-   **`FileLocationComponent`**: This component (defined in `dam.models.core.file_location_component`, table name `component_file_location`) stores how to locate an entity's content.
     -   `content_identifier`: Stores the SHA256 hash (hex string) of the content.
-    -   `storage_type`: Indicates how the asset is stored, e.g., `"local_cas"` for Content Addressable Storage in the local DAM, or `"local_reference"` for files stored by their original path.
-    -   `physical_path_or_key`: The relative path within the CAS store (e.g., `ab/cd/hashvalue`) or the absolute original file path for references.
-    -   `contextual_filename`: Can store the original/contextual name of the file as ingested for this specific location instance.
+    -   `storage_type`: Indicates how the asset is stored (e.g., `"dam_managed_storage"` for Content Addressable Storage in the local DAM, or `"external_file_reference"` for files stored by their original path).
+    -   `physical_path_or_key`: The relative path within the DAM's CAS store (e.g., `ab/cd/hashvalue`) or the absolute original file path for references.
+    -   `contextual_filename`: Can store an optional filename relevant to this specific location (e.g., if `physical_path_or_key` is a hash). The primary original filename for the asset is stored in `FilePropertiesComponent.original_filename`.
+-   **Relationship with `OriginalSourceInfoComponent` and `FilePropertiesComponent`**:
+    -   `OriginalSourceInfoComponent` classifies the source (e.g., local, web, reference) via `source_type`.
+    -   `FilePropertiesComponent` stores the `original_filename`, size, and MIME type.
+    -   `FileLocationComponent` stores the path, which could be a DAM-internal path or an external reference path.
 -   **Benefits**:
-    -   **Deduplication**: Files with identical content are stored only once in CAS, saving storage space.
+    -   **Deduplication**: Files with identical content are stored only once in DAM-managed CAS, saving storage space.
     -   **Integrity**: The hash acts as a checksum.
     -   **Permanent Identifiers**: The content identifier (hash) is based on content, not a mutable filename or path.
 

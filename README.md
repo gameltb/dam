@@ -136,7 +136,12 @@ dam-cli --help
     ```
 
 *   **`add-asset <filepath>`**: Adds a new asset file or references an existing one.
-    *   Core operation: Calculates content hashes (SHA256, MD5), creates the `Entity`, `FilePropertiesComponent`, `FileLocationComponent`, and `OriginalSourceInfoComponent`.
+    *   Core operation:
+        *   Calculates content hashes (SHA256, MD5).
+        *   Creates an `Entity`.
+        *   Creates `OriginalSourceInfoComponent` to classify the source (e.g., local file, web, reference) using its `source_type` field. This component no longer stores the original filename or path directly.
+        *   Creates `FilePropertiesComponent` to store the original filename, file size, and MIME type.
+        *   Creates `FileLocationComponent` to store the path to the asset's content (either within DAM managed storage or the external reference path).
     *   For images, it also calculates and stores perceptual hashes (pHash, aHash, dHash) during this initial step.
     *   Marker for System: Adds a `NeedsMetadataExtractionComponent` to the entity.
     *   Scheduled System: After the `add-asset` command completes the core addition, the `MetadataExtractionSystem` is scheduled to run via `world.execute_stage(SystemStage.METADATA_EXTRACTION)`. This system is responsible for:
@@ -144,9 +149,9 @@ dam-cli --help
         *   Creating `ImageDimensionsComponent` for visual media.
         *   Creating `FramePropertiesComponent` for videos and animated GIFs.
         *   Creating `AudioPropertiesComponent` for audio files and audio tracks in videos.
-    *   If the content already exists (based on SHA256 hash), it links the new filename/reference to the existing asset entity and may update/add missing components like perceptual hashes or trigger metadata extraction if needed.
+    *   If the content already exists (based on SHA256 hash), it links the new source information to the existing asset entity and may update/add missing components like perceptual hashes or trigger metadata extraction if needed.
     *   Options:
-        *   `--no-copy`: Adds the asset by reference, storing its original path instead of copying content to DAM storage.
+        *   `--no-copy`: Adds the asset by reference. `FileLocationComponent` will store its original path and `OriginalSourceInfoComponent.source_type` will indicate it's a reference.
         *   `-r, --recursive`: If `<filepath>` is a directory, process files recursively.
     ```bash
     dam-cli add-asset /path/to/your/image.jpg
@@ -160,7 +165,7 @@ dam-cli --help
     *   Entity ID.
     *   Basic file properties (original filename, size, MIME type from `FilePropertiesComponent`).
     *   Content hashes (MD5, SHA256 from `ContentHashMD5Component`, `ContentHashSHA256Component`).
-    *   File Locations (`FileLocationComponent`): Displays contextual filename, content identifier (hash), physical path/key, and storage type (e.g., `local_cas`, `local_reference`) for each location.
+    *   File Locations (`FileLocationComponent`): Displays contextual filename (if any), content identifier (hash), the physical path/key (within DAM storage or the external reference path), and storage type (e.g., `local_cas`, `local_reference`) for each location.
     *   Image dimensions (width, height) for visual assets.
     *   Frame properties (frame count, rate, duration) for videos and animated GIFs.
     *   Audio properties (codec, duration, sample rate) for audio files and audio tracks within videos.
