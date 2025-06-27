@@ -115,6 +115,30 @@ class World:
                     f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
                 )
 
+    async def execute_one_time_system(
+        self, system_func: Callable[..., Any], session: Optional[Session] = None, **kwargs: Any
+    ) -> None:
+        """
+        Executes a single, dynamically provided system function immediately.
+        Manages session creation and closure if an external session is not provided.
+        """
+        self.logger.info(
+            f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
+        )
+        if session:
+            world_context = self._get_world_context(session)
+            await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+        else:
+            db_session = self.get_db_session()
+            try:
+                world_context = self._get_world_context(db_session)
+                await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+            finally:
+                db_session.close()
+                self.logger.debug(
+                    f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'."
+                )
+
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"
 
@@ -175,9 +199,21 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
     world = World(world_config=world_cfg)
 
-    from .world_setup import populate_base_resources
+    # Initialize resources and assign to the world instance
+    from .world_setup import initialize_world_resources
 
-    populate_base_resources(world)
+    populated_resource_manager = initialize_world_resources(world_cfg)
+    world.resource_manager = populated_resource_manager
+
+    # Ensure the scheduler uses the populated resource manager
+    # If the scheduler was already initialized with the old (empty) one,
+    # we need to update its reference or reinitialize it.
+    world.scheduler.resource_manager = world.resource_manager
+    # Alternatively, if WorldScheduler's __init__ is simple and doesn't do much with RM yet:
+    # world.scheduler = WorldScheduler(resource_manager=world.resource_manager)
+
+    world.logger.info(f"World '{world.name}' resources populated and scheduler updated.")
+
     register_world(world)
     return world
 

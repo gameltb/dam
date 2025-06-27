@@ -508,9 +508,18 @@ The project uses `pytest` for testing, preferably run via `uv`.
     The application's core systems are registered through the `dam.core.world_registrar.register_core_systems(world_instance)` helper function. This function is called when `World` instances are initialized, for example, by the CLI or in test setups. If you are developing a new system intended to be part of the standard set for all worlds, you should add its registration call to `register_core_systems`.
     For systems that are highly specific to a particular workflow or a custom `World` setup not managed by the default initialization, you would call `world.register_system(...)` manually after obtaining or creating your `World` instance.
     The `WorldScheduler` then executes these registered systems at defined stages or in response to events.
+
+    In addition to stage-based and event-driven execution, a `World` instance can also execute a single system function on-demand using the `world.execute_one_time_system(system_func, session=optional_session, **kwargs)` method. This is useful for invoking specific system logic outside the standard stage/event flow, providing any necessary parameters via `kwargs`. The method handles dependency injection and session management.
+
+-   **World Initialization and Resource Management**:
+    -   A `World` instance is minimally initialized with its `WorldConfig`.
+    -   The essential resources (like `DatabaseManager`, `FileStorageService`, `WorldConfig` itself, `FileOperationsResource`) are populated into the `World`'s `ResourceManager` by the `dam.core.world.create_and_register_world` function (or similar setup functions in tests). This function calls `dam.core.world_setup.initialize_world_resources(world_config)` which returns a populated `ResourceManager`, and this manager is then assigned to `world.resource_manager`. The `WorldScheduler` within the `World` is also updated to use this populated resource manager.
+    -   This keeps the `World.__init__` method clean and centralizes the resource setup logic.
+
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
     -   Models: `PascalCase` (e.g., `FileLocationComponent`).
+    -   Component Instantiation: When creating component instances, if the component inherits from `BaseComponent` (which uses `kw_only=True` dataclass behavior), you must provide the `entity` argument as a keyword argument (e.g., `MyComponent(entity=actual_entity_object, other_field='value')`). Providing `entity_id` directly to the constructor will result in a `TypeError` because the `entity` relationship field is expected. The `ecs_service.add_component_to_entity` helper handles this correctly.
     -   Entity Table: `entities`.
     -   Component Tables: Generally `component_[component_name]` (e.g., `component_file_location`, `component_tag`).
     -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).

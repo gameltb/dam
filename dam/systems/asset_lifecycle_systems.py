@@ -1,5 +1,5 @@
+import binascii  # For hex string to bytes conversion
 import logging
-import binascii # For hex string to bytes conversion
 from typing import Optional
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
@@ -8,13 +8,11 @@ from dam.core.events import (
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
-    WebAssetIngestionRequested, # Import new event
+    WebAssetIngestionRequested,  # Import new event
 )
 from dam.core.system_params import CurrentWorldConfig, WorldSession  # Import Resource
 from dam.core.systems import listens_for
 from dam.models import Entity
-from dam.models.web_source_component import WebSourceComponent # Import new component
-from dam.models.website_profile_component import WebsiteProfileComponent # Import for Website Entity
 from dam.models.content_hash_md5_component import ContentHashMD5Component
 from dam.models.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.file_location_component import FileLocationComponent
@@ -23,6 +21,8 @@ from dam.models.image_perceptual_hash_ahash_component import ImagePerceptualAHas
 from dam.models.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from dam.models.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 from dam.models.original_source_info_component import OriginalSourceInfoComponent
+from dam.models.web_source_component import WebSourceComponent  # Import new component
+from dam.models.website_profile_component import WebsiteProfileComponent  # Import for Website Entity
 from dam.services import ecs_service, file_operations
 from dam.services.file_storage_service import FileStorageService  # Resource
 
@@ -93,7 +93,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         logger.info(
             f"Creating new Entity ID {entity.id} for '{original_filename}' (SHA256: {content_hash_sha256[:12]}...)."
         )
-        chc_sha256 = ContentHashSHA256Component(entity_id=entity.id, entity=entity, hash_value=content_hash_sha256_bytes)
+        chc_sha256 = ContentHashSHA256Component(
+            entity_id=entity.id, entity=entity, hash_value=content_hash_sha256_bytes
+        )
         ecs_service.add_component_to_entity(session, entity.id, chc_sha256)
 
         md5_hash_hex = await file_operations.calculate_md5_async(filepath_on_disk)
@@ -129,7 +131,7 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         entity=entity,
         original_filename=original_filename,
         original_path=str(filepath_on_disk.resolve()),
-        source_type="local_file", # Set source_type
+        source_type="local_file",  # Set source_type
     )
     ecs_service.add_component_to_entity(session, entity.id, osi_comp)
 
@@ -141,9 +143,7 @@ async def handle_asset_file_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualPHashComponent, {"hash_value": phash_bytes}
             ):
-                iphc = ImagePerceptualPHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=phash_bytes
-                )
+                iphc = ImagePerceptualPHashComponent(entity_id=entity.id, entity=entity, hash_value=phash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, iphc)
 
         if "ahash" in perceptual_hashes_hex:
@@ -151,9 +151,7 @@ async def handle_asset_file_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualAHashComponent, {"hash_value": ahash_bytes}
             ):
-                iahc = ImagePerceptualAHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=ahash_bytes
-                )
+                iahc = ImagePerceptualAHashComponent(entity_id=entity.id, entity=entity, hash_value=ahash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, iahc)
 
         if "dhash" in perceptual_hashes_hex:
@@ -161,9 +159,7 @@ async def handle_asset_file_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualDHashComponent, {"hash_value": dhash_bytes}
             ):
-                idhc = ImagePerceptualDHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=dhash_bytes
-                )
+                idhc = ImagePerceptualDHashComponent(entity_id=entity.id, entity=entity, hash_value=dhash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, idhc)
 
     if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
@@ -224,7 +220,9 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             f"Creating new Entity ID {entity.id} for referenced file '{original_filename}' "
             f"(SHA256: {content_hash_sha256_hex[:12]}...)."
         )
-        chc_sha256 = ContentHashSHA256Component(entity_id=entity.id, entity=entity, hash_value=content_hash_sha256_bytes)
+        chc_sha256 = ContentHashSHA256Component(
+            entity_id=entity.id, entity=entity, hash_value=content_hash_sha256_bytes
+        )
         ecs_service.add_component_to_entity(session, entity.id, chc_sha256)
 
         chc_md5 = ContentHashMD5Component(entity_id=entity.id, entity=entity, hash_value=content_hash_md5_bytes)
@@ -254,7 +252,7 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
         flc = FileLocationComponent(
             entity_id=entity.id,
             entity=entity,
-            content_identifier=content_hash_sha256_hex, # Keep hex string for content_identifier if it's for human/external readability
+            content_identifier=content_hash_sha256_hex,  # Keep hex string for content_identifier if it's for human/external readability
             storage_type="local_reference",
             physical_path_or_key=resolved_original_path,
             contextual_filename=original_filename,
@@ -266,7 +264,7 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
         entity=entity,
         original_filename=original_filename,
         original_path=resolved_original_path,
-        source_type="referenced_file", # Set source_type
+        source_type="referenced_file",  # Set source_type
     )
     ecs_service.add_component_to_entity(session, entity.id, osi_comp)
 
@@ -278,9 +276,7 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualPHashComponent, {"hash_value": phash_bytes}
             ):
-                iphc = ImagePerceptualPHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=phash_bytes
-                )
+                iphc = ImagePerceptualPHashComponent(entity_id=entity.id, entity=entity, hash_value=phash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, iphc)
 
         if "ahash" in perceptual_hashes_hex:
@@ -288,9 +284,7 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualAHashComponent, {"hash_value": ahash_bytes}
             ):
-                iahc = ImagePerceptualAHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=ahash_bytes
-                )
+                iahc = ImagePerceptualAHashComponent(entity_id=entity.id, entity=entity, hash_value=ahash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, iahc)
 
         if "dhash" in perceptual_hashes_hex:
@@ -298,9 +292,7 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             if not ecs_service.get_components_by_value(
                 session, entity.id, ImagePerceptualDHashComponent, {"hash_value": dhash_bytes}
             ):
-                idhc = ImagePerceptualDHashComponent(
-                    entity_id=entity.id, entity=entity, hash_value=dhash_bytes
-                )
+                idhc = ImagePerceptualDHashComponent(entity_id=entity.id, entity=entity, hash_value=dhash_bytes)
                 ecs_service.add_component_to_entity(session, entity.id, idhc)
 
     if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
@@ -336,7 +328,9 @@ async def handle_find_entity_by_hash_query(
     try:
         hash_bytes = binascii.unhexlify(event.hash_value)
     except binascii.Error as e:
-        logger.error(f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}")
+        logger.error(
+            f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}"
+        )
         return
 
     entity = ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type)
@@ -517,7 +511,7 @@ __all__ = [
     "handle_asset_reference_ingestion_request",
     "handle_find_entity_by_hash_query",
     "handle_find_similar_images_query",
-    "handle_web_asset_ingestion_request", # Add new handler
+    "handle_web_asset_ingestion_request",  # Add new handler
 ]
 
 
@@ -542,16 +536,17 @@ async def handle_web_asset_ingestion_request(
         session, WebsiteProfileComponent, "main_url", event.website_identifier_url
     )
     if existing_website_profiles:
-        website_entity = existing_website_profiles[0] # Should be unique by main_url due to model constraint
+        website_entity = existing_website_profiles[0]  # Should be unique by main_url due to model constraint
         logger.info(f"Found existing Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
     else:
         website_entity = ecs_service.create_entity(session)
         logger.info(f"Creating new Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
 
         website_name = event.metadata_payload.get("website_name") if event.metadata_payload else None
-        if not website_name: # Derive from URL if not provided
+        if not website_name:  # Derive from URL if not provided
             try:
                 from urllib.parse import urlparse
+
                 parsed_url = urlparse(event.website_identifier_url)
                 website_name = parsed_url.netloc.replace("www.", "")
             except Exception:
@@ -560,7 +555,7 @@ async def handle_web_asset_ingestion_request(
         profile_comp = WebsiteProfileComponent(
             entity_id=website_entity.id,
             entity=website_entity,
-            name=website_name, # Name could come from metadata_payload or be derived
+            name=website_name,  # Name could come from metadata_payload or be derived
             main_url=event.website_identifier_url,
             description=event.metadata_payload.get("website_description") if event.metadata_payload else None,
             # icon_url, api_endpoint, parser_rules can also be populated from metadata_payload if available
@@ -569,16 +564,14 @@ async def handle_web_asset_ingestion_request(
 
     # 2. Create Asset Entity
     asset_entity = ecs_service.create_entity(session)
-    logger.info(
-        f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {event.source_url}"
-    )
+    logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {event.source_url}")
 
     # 3. Create OriginalSourceInfoComponent for the Asset Entity
     # Filename could be derived from URL or title if available
     original_filename = event.metadata_payload.get("asset_title") if event.metadata_payload else None
     if not original_filename:
         try:
-            original_filename = event.source_url.split('/')[-1] or f"web_asset_{entity.id}"
+            original_filename = event.source_url.split("/")[-1] or f"web_asset_{entity.id}"
         except Exception:
             original_filename = f"web_asset_{entity.id}"
 
@@ -586,8 +579,8 @@ async def handle_web_asset_ingestion_request(
         entity_id=asset_entity.id,
         entity=asset_entity,
         original_filename=original_filename,
-        original_path=event.source_url, # Store the source URL as the 'path'
-        source_type="web_source", # New source type
+        original_path=event.source_url,  # Store the source URL as the 'path'
+        source_type="web_source",  # New source type
     )
     ecs_service.add_component_to_entity(session, asset_entity.id, osi_comp)
 
@@ -595,7 +588,7 @@ async def handle_web_asset_ingestion_request(
     web_source_data = {
         "entity_id": asset_entity.id,
         "entity": asset_entity,
-        "website_entity_id": website_entity.id, # Link to the Website Entity
+        "website_entity_id": website_entity.id,  # Link to the Website Entity
         "source_url": event.source_url,
         "original_file_url": event.original_file_url,
         # website_name is no longer here
@@ -613,6 +606,7 @@ async def handle_web_asset_ingestion_request(
         if upload_date_str:
             try:
                 from datetime import datetime
+
                 # Attempt to parse ISO format, add more formats if needed
                 web_source_data["upload_date"] = datetime.fromisoformat(upload_date_str.replace("Z", "+00:00"))
             except ValueError:
@@ -626,6 +620,7 @@ async def handle_web_asset_ingestion_request(
 
     if event.tags:
         import json
+
         web_source_data["tags_json"] = json.dumps(event.tags)
 
     # Filter out None values for fields that are not explicitly in WebSourceComponent model
@@ -638,7 +633,9 @@ async def handle_web_asset_ingestion_request(
     # This is less critical if WebSourceComponent uses **kwargs or similar, but good practice.
     # For now, assuming direct field mapping from the keys prepared above.
 
-    web_comp = WebSourceComponent(**{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None})
+    web_comp = WebSourceComponent(
+        **{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None}
+    )
     ecs_service.add_component_to_entity(session, asset_entity.id, web_comp)
 
     # For web assets ingested this way (metadata-only), we might not immediately
@@ -648,4 +645,6 @@ async def handle_web_asset_ingestion_request(
     # a different marker or a direct call to a metadata system could be made.
     # For now, keeping it simple: no file download, no immediate local metadata extraction.
 
-    logger.info(f"Finished WebAssetIngestionRequested for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {event.source_url}")
+    logger.info(
+        f"Finished WebAssetIngestionRequested for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {event.source_url}"
+    )

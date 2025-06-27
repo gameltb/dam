@@ -1,5 +1,4 @@
 import logging  # Added import
-from dataclasses import field
 from datetime import datetime  # Added import
 
 # PkId is still used by @declared_attr id, Timestamp types are not used here anymore
@@ -78,9 +77,9 @@ class BaseComponent(Base):  # Inherit from the new Base
         # (which will be part of each concrete component's table)
         return relationship(
             "Entity",
-            foreign_keys=[cls.entity_id], # Explicitly use the component's own entity_id for this link
-            back_populates="components",  # Assumes Entity will have a "components" collection
-            repr=False # For SQLAlchemy's default repr of this relationship property
+            foreign_keys=[cls.entity_id],  # Explicitly use the component's own entity_id for this link
+            # back_populates="components",  # Removed as Entity.components is removed
+            repr=False,  # For SQLAlchemy's default repr of this relationship property
         )
 
     def __repr__(self):

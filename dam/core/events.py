@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Dict # Added Optional, List, Dict
+from typing import Optional  # Added Optional, List, Dict
 
 # Using dataclasses for simplicity, similar to Bevy events.
 
@@ -111,7 +111,7 @@ __all__ = [
     "AssetReferenceIngestionRequested",
     "FindEntityByHashQuery",
     "FindSimilarImagesQuery",
-    "WebAssetIngestionRequested", # Added new event
+    "WebAssetIngestionRequested",  # Added new event
 ]
 
 
@@ -121,8 +121,11 @@ class WebAssetIngestionRequested(BaseEvent):
     Event dispatched when a new asset from a web source needs to be ingested.
     This primarily involves storing metadata and URLs. File download might be a separate step.
     """
+
     world_name: str  # Target world for this asset
-    website_identifier_url: str # Main URL of the website (e.g., https://www.deviantart.com) used to find/create the Website Entity.
+    website_identifier_url: (
+        str  # Main URL of the website (e.g., https://www.deviantart.com) used to find/create the Website Entity.
+    )
     source_url: str  # URL of the specific asset's page or where it was found.
 
     # Optional metadata that might be provided at submission time

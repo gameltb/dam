@@ -1,4 +1,4 @@
-from sqlalchemy import LargeBinary, UniqueConstraint # Changed String to LargeBinary
+from sqlalchemy import LargeBinary, UniqueConstraint  # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_component import BaseComponent
