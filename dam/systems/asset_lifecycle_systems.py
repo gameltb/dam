@@ -12,19 +12,21 @@ from dam.core.events import (
 )
 from dam.core.system_params import CurrentWorldConfig, WorldSession  # Import Resource
 from dam.core.systems import listens_for
-from dam.models import Entity
-from dam.models.content_hash_md5_component import ContentHashMD5Component
-from dam.models.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.file_location_component import FileLocationComponent
-from dam.models.file_properties_component import FilePropertiesComponent
-from dam.models.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
-from dam.models.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
-from dam.models.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
-from dam.models.original_source_info_component import OriginalSourceInfoComponent
-from dam.models.web_source_component import WebSourceComponent  # Import new component
-from dam.models.website_profile_component import WebsiteProfileComponent  # Import for Website Entity
+from dam.models import (
+    ContentHashMD5Component,
+    ContentHashSHA256Component,
+    Entity,
+    FileLocationComponent,
+    FilePropertiesComponent,
+    ImagePerceptualAHashComponent,
+    ImagePerceptualDHashComponent,
+    ImagePerceptualPHashComponent,
+    OriginalSourceInfoComponent,
+    WebSourceComponent,
+    WebsiteProfileComponent,
+)
+from dam.resources.file_storage_resource import FileStorageResource # Resource
 from dam.services import ecs_service, file_operations
-from dam.services.file_storage_service import FileStorageService  # Resource
 
 # For find_similar_images
 try:
@@ -42,7 +44,7 @@ logger = logging.getLogger(__name__)
 async def handle_asset_file_ingestion_request(  # Renamed function
     event: AssetFileIngestionRequested,
     session: WorldSession,
-    file_storage_svc: FileStorageService,  # Injected resource
+    file_storage_resource: FileStorageResource,  # Injected resource
     # world_config: CurrentWorldConfig, # Can get from file_storage_svc.world_config
 ):
     """
@@ -65,8 +67,8 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         # Optionally, dispatch a failure event or log more formally
         return  # Stop processing this event
 
-    # FileStorageService (file_storage_svc) now handles storage using its own world_config
-    content_hash_sha256, physical_storage_path_suffix = file_storage_svc.store_file(
+    # FileStorageResource (file_storage_resource) now handles storage using its own world_config
+    content_hash_sha256, physical_storage_path_suffix = file_storage_resource.store_file(
         file_content, original_filename=original_filename
     )
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256)
