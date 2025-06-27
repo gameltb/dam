@@ -52,4 +52,35 @@ __all__ = [
     "set_primary_comic_variant",
     "get_primary_variant_for_comic_concept",
     "unlink_comic_variant",
+    # Tagging service and functions will be added here
 ]
+
+# Import functions from the new tag service
+from . import tag_service # Import the module first
+from .tag_service import (
+    create_tag_concept,
+    get_tag_concept_by_name,
+    get_tag_concept_by_id,
+    find_tag_concepts,
+    update_tag_concept,
+    delete_tag_concept,
+    apply_tag_to_entity,
+    remove_tag_from_entity,
+    get_tags_for_entity,
+    get_entities_for_tag,
+)
+
+# Add new service module and its functions to __all__
+__all__.extend([
+    "tag_service", # Module itself
+    "create_tag_concept",
+    "get_tag_concept_by_name",
+    "get_tag_concept_by_id",
+    "find_tag_concepts",
+    "update_tag_concept",
+    "delete_tag_concept",
+    "apply_tag_to_entity",
+    "remove_tag_from_entity",
+    "get_tags_for_entity",
+    "get_entities_for_tag",
+])
