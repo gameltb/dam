@@ -1,18 +1,17 @@
 import logging
 
-from dam.core.config import WorldConfig
-from dam.core.config import settings as global_app_settings
+from dam.core.config import settings as global_app_settings # WorldConfig no longer needed here directly
 from dam.core.database import DatabaseManager
-from dam.core.resources import FileOperationsResource
-from dam.core.world import World  # Forward declaration for type hint, or direct import if no circularity
+from dam.core.resources import FileOperationsResource # ResourceManager no longer needed here directly
+from dam.core.world import World # Import World for type hinting
 from dam.services.file_storage_service import FileStorageService
 
 logger = logging.getLogger(__name__)
 
 
-def populate_base_resources(world: World) -> None:
+def initialize_world_resources(world: World) -> None:
     """
-    Populates the given World instance with essential base resources.
+    Populates the given World instance's ResourceManager with essential base resources.
 
     These include:
     - WorldConfig (the world's own configuration object)
@@ -23,38 +22,97 @@ def populate_base_resources(world: World) -> None:
     if not world:
         raise ValueError("A valid World instance must be provided.")
 
-    world_config = world.config  # Get the config from the world instance itself
+    world_config = world.config # Get config from the world instance
+    resource_manager = world.resource_manager # Use the world's existing resource manager
+    world_name = world_config.name
 
-    world.logger.info(f"Populating base resources for World '{world.name}'...")
+    world.logger.info(f"Populating base resources for World '{world_name}'...")
 
     # 1. WorldConfig itself as a resource
-    world.resource_manager.add_resource(world_config, WorldConfig)
-    world.logger.debug(f"Added WorldConfig resource for World '{world.name}'.")
+    resource_manager.add_resource(world_config, world_config.__class__) # Use world_config.__class__ for type
+    world.logger.debug(f"Added WorldConfig resource for World '{world_name}'.")
 
     # 2. DatabaseManager
     db_manager = DatabaseManager(
         world_config=world_config,
         testing_mode=global_app_settings.TESTING_MODE,  # Use global app setting for testing mode
     )
-    world.resource_manager.add_resource(db_manager, DatabaseManager)
-    # Also store a direct reference if World methods like get_db_session need it without get_resource
-    # However, the current get_db_session in World uses get_resource(DatabaseManager) which is good.
-    # world.db_manager = db_manager # No longer storing direct .db_manager attribute on World
-    world.logger.debug(f"Added DatabaseManager resource for World '{world.name}'.")
+    resource_manager.add_resource(db_manager, DatabaseManager)
+    world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
 
     # 3. FileStorageService
     file_storage_svc = FileStorageService(world_config=world_config)
-    world.resource_manager.add_resource(file_storage_svc, FileStorageService)
-    # world.file_storage_service = file_storage_svc # No longer storing direct .file_storage_service attribute
-    world.logger.debug(f"Added FileStorageService resource for World '{world.name}'.")
+    resource_manager.add_resource(file_storage_svc, FileStorageService)
+    world.logger.debug(f"Added FileStorageService resource for World '{world_name}'.")
 
     # 4. FileOperationsResource
-    world.resource_manager.add_resource(FileOperationsResource())
-    world.logger.debug(f"Added FileOperationsResource for World '{world.name}'.")
+    resource_manager.add_resource(FileOperationsResource())
+    world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
     world.logger.info(
-        f"Base resources populated for World '{world.name}'. Current resources: {list(world.resource_manager._resources.keys())}"
+        f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
+    )
+    # No return value as it modifies the world's resource_manager in-place
+
+
+__all__ = ["initialize_world_resources", "register_core_systems"]
+
+
+# --- Core System Registration (merged from world_registrar.py) ---
+from typing import TYPE_CHECKING
+
+from dam.core.events import (
+    AssetFileIngestionRequested,
+    AssetReferenceIngestionRequested,
+    FindEntityByHashQuery,
+    FindSimilarImagesQuery,
+)
+from dam.core.stages import SystemStage
+from dam.systems.asset_lifecycle_systems import (
+    handle_asset_file_ingestion_request,
+    handle_asset_reference_ingestion_request,
+    handle_find_entity_by_hash_query,
+    handle_find_similar_images_query,
+)
+from dam.systems.metadata_systems import (
+    extract_metadata_on_asset_ingested,
+)
+
+if TYPE_CHECKING:
+    # World is already imported at the top of this file for initialize_world_resources
+    pass
+
+
+def register_core_systems(world_instance: "World") -> None:
+    """
+    Registers all standard, core systems for a given world instance.
+    This ensures consistency in system registration across different application entry points.
+    """
+    logger.info(f"Registering core systems for world: {world_instance.name}")
+
+    # Metadata Systems
+    world_instance.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
+    logger.debug("Registered system: extract_metadata_on_asset_ingested for stage METADATA_EXTRACTION")
+
+    # Asset Lifecycle Systems (Event-based)
+    world_instance.register_system(
+        handle_asset_file_ingestion_request,
+        event_type=AssetFileIngestionRequested,
+    )
+    logger.debug("Registered system: handle_asset_file_ingestion_request for event AssetFileIngestionRequested")
+
+    world_instance.register_system(
+        handle_asset_reference_ingestion_request,
+        event_type=AssetReferenceIngestionRequested,
+    )
+    logger.debug(
+        "Registered system: handle_asset_reference_ingestion_request for event AssetReferenceIngestionRequested"
     )
 
+    world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
+    logger.debug("Registered system: handle_find_entity_by_hash_query for event FindEntityByHashQuery")
 
-__all__ = ["populate_base_resources"]
+    world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
+    logger.debug("Registered system: handle_find_similar_images_query for event FindSimilarImagesQuery")
+
+    logger.info(f"Core system registration complete for world: {world_instance.name}")

@@ -125,10 +125,11 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     # within a single settings_override scope (though typically it's 1-to-1).
     # clear_world_registry() # Ensure clean state before creating this specific world
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
+    # create_and_register_world now calls initialize_world_resources internally.
     world.create_db_and_tables()  # Ensure tables are created for this world's DB
 
-    # Task 2.2: Use the centralized world_registrar
-    from dam.core.world_registrar import register_core_systems
+    # Core systems are registered after basic world and resource setup.
+    from dam.core.world_setup import register_core_systems # Updated import
 
     register_core_systems(world)
 

@@ -505,12 +505,26 @@ The project uses `pytest` for testing, preferably run via `uv`.
     -   Run type checker: `uv run mypy .`
 -   **System Registration & Execution**:
     System functions are defined with decorators (`@system` or `@listens_for`) which collect their metadata (parameters, target stage/event) globally when modules are imported. However, for a system to be active within a specific `World`, it must be explicitly registered to that `World`'s scheduler via `world.register_system(...)`.
-    The application's core systems are registered through the `dam.core.world_registrar.register_core_systems(world_instance)` helper function. This function is called when `World` instances are initialized, for example, by the CLI or in test setups. If you are developing a new system intended to be part of the standard set for all worlds, you should add its registration call to `register_core_systems`.
+    The application's core systems are registered through the `dam.core.world_setup.register_core_systems(world_instance)` helper function (this function was moved from `world_registrar` to `world_setup`). This function is called when `World` instances are initialized, for example, by the CLI or in test setups. If you are developing a new system intended to be part of the standard set for all worlds, you should add its registration call to `register_core_systems`.
     For systems that are highly specific to a particular workflow or a custom `World` setup not managed by the default initialization, you would call `world.register_system(...)` manually after obtaining or creating your `World` instance.
     The `WorldScheduler` then executes these registered systems at defined stages or in response to events.
+
+    In addition to stage-based and event-driven execution, a `World` instance can also execute a single system function on-demand using the `world.execute_one_time_system(system_func, session=optional_session, **kwargs)` method. This is useful for invoking specific system logic outside the standard stage/event flow, providing any necessary parameters via `kwargs`. The method handles dependency injection and session management.
+
+-   **World Initialization and Resource Management**:
+    -   A `World` instance is minimally initialized with its `WorldConfig` (in `World.__init__`). This includes creating an empty `ResourceManager` and a `WorldScheduler` that holds a reference to this (initially empty) manager.
+    -   The essential resources (like `DatabaseManager`, `FileStorageService`, `WorldConfig` itself, `FileOperationsResource`) are then populated into the `World`'s `ResourceManager` by an external setup function, typically `dam.core.world.create_and_register_world`. This function calls `dam.core.world_setup.initialize_world_resources(world_instance)`, which modifies the `world_instance.resource_manager` in place.
+    -   The `create_and_register_world` function also ensures the `world.scheduler.resource_manager` reference points to the now-populated resource manager (though this is often the same instance, it's a safeguard).
+    -   This approach keeps `World.__init__` clean and centralizes the resource population and core system registration logic in `dam.core.world_setup` and the world creation functions.
+
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
     -   Models: `PascalCase` (e.g., `FileLocationComponent`).
+    -   Component Instantiation: When creating component instances that inherit from `BaseComponent` (which uses `kw_only=True` dataclass behavior from `dam.models.base_class.Base`):
+        - Foreign key ID fields (e.g., `entity_id` in `BaseComponent`, `website_entity_id` in `WebSourceComponent`) are typically required keyword arguments in the `__init__` constructor, unless they have a default or are marked `init=False` (which is not the case for these FK IDs).
+        - SQLAlchemy relationship properties (e.g., `entity` in `BaseComponent`, `website` in `WebSourceComponent`) should be marked with `init=False` in their `relationship()` definition. This means they are NOT constructor arguments and are populated by the ORM after the instance is created and associated with a session (usually upon flush, based on the FK ID values).
+        - Example: `my_comp = MyComponent(entity_id=some_entity.id, other_field='value')`.
+        - The `ecs_service.add_component_to_entity` helper correctly handles linking the component to an entity object after instantiation.
     -   Entity Table: `entities`.
     -   Component Tables: Generally `component_[component_name]` (e.g., `component_file_location`, `component_tag`).
     -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).

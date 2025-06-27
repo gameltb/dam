@@ -1,4 +1,4 @@
-from sqlalchemy import LargeBinary, UniqueConstraint # Changed String to LargeBinary
+from sqlalchemy import LargeBinary, UniqueConstraint  # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_component import BaseComponent
@@ -21,5 +21,5 @@ class ImagePerceptualPHashComponent(BaseComponent):
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return (
             f"ImagePerceptualPHashComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"hash_value(hex)='{hex_hash}')" # Show full hex for short hashes
+            f"hash_value(hex)='{hex_hash}')"  # Show full hex for short hashes
         )

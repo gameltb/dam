@@ -33,7 +33,7 @@ class OriginalSourceInfoComponent(BaseComponent):
         String(50),
         nullable=False,
         index=True,
-        comment="Type of the source (e.g., 'local_file', 'referenced_file', 'web_source')."
+        comment="Type of the source (e.g., 'local_file', 'referenced_file', 'web_source').",
     )
 
     def __repr__(self):

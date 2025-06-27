@@ -18,8 +18,7 @@ from .image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from .image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 from .original_source_info_component import OriginalSourceInfoComponent
 from .web_source_component import WebSourceComponent
-from .website_profile_component import WebsiteProfileComponent # Import new component
-
+from .website_profile_component import WebsiteProfileComponent  # Import new component
 
 # Optionally, define an __all__ for explicit public API of the models package
 __all__ = [
@@ -33,7 +32,7 @@ __all__ = [
     "FilePropertiesComponent",
     "OriginalSourceInfoComponent",
     "WebSourceComponent",
-    "WebsiteProfileComponent", # Added new component
+    "WebsiteProfileComponent",  # Added new component
     # Media-specific property components
     "AudioPropertiesComponent",
     "FramePropertiesComponent",

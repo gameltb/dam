@@ -115,6 +115,30 @@ class World:
                     f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
                 )
 
+    async def execute_one_time_system(
+        self, system_func: Callable[..., Any], session: Optional[Session] = None, **kwargs: Any
+    ) -> None:
+        """
+        Executes a single, dynamically provided system function immediately.
+        Manages session creation and closure if an external session is not provided.
+        """
+        self.logger.info(
+            f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
+        )
+        if session:
+            world_context = self._get_world_context(session)
+            await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+        else:
+            db_session = self.get_db_session()
+            try:
+                world_context = self._get_world_context(db_session)
+                await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+            finally:
+                db_session.close()
+                self.logger.debug(
+                    f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'."
+                )
+
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"
 
@@ -175,9 +199,20 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
     world = World(world_config=world_cfg)
 
-    from .world_setup import populate_base_resources
+    # Initialize resources for the world instance.
+    # initialize_world_resources now takes a World instance and modifies its resource_manager in-place.
+    from .world_setup import initialize_world_resources
+    initialize_world_resources(world) # Populates world.resource_manager
 
-    populate_base_resources(world)
+    # The scheduler was initialized with world.resource_manager. Since initialize_world_resources
+    # modifies that same instance, the scheduler should already have the correct reference.
+    # Explicitly setting it again like world.scheduler.resource_manager = world.resource_manager is harmless
+    # but usually not necessary if the instance itself was modified.
+    # For clarity and safety, ensuring the scheduler sees the potentially *reconfigured* manager is good.
+    world.scheduler.resource_manager = world.resource_manager
+
+    world.logger.info(f"World '{world.name}' resources populated and scheduler updated.")
+
     register_world(world)
     return world
 

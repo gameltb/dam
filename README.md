@@ -139,7 +139,7 @@ dam-cli --help
     *   Core operation: Calculates content hashes (SHA256, MD5), creates the `Entity`, `FilePropertiesComponent`, `FileLocationComponent`, and `OriginalSourceInfoComponent`.
     *   For images, it also calculates and stores perceptual hashes (pHash, aHash, dHash) during this initial step.
     *   Marker for System: Adds a `NeedsMetadataExtractionComponent` to the entity.
-    *   Scheduled System: After the `add-asset` command completes the core addition, the `MetadataExtractionSystem` is scheduled to run. This system is responsible for:
+    *   Scheduled System: After the `add-asset` command completes the core addition, the `MetadataExtractionSystem` is scheduled to run via `world.execute_stage(SystemStage.METADATA_EXTRACTION)`. This system is responsible for:
         *   Extracting detailed metadata using Hachoir (if available).
         *   Creating `ImageDimensionsComponent` for visual media.
         *   Creating `FramePropertiesComponent` for videos and animated GIFs.

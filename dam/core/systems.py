@@ -414,3 +414,207 @@ class WorldScheduler:
             )
             await self.execute_stage(stage, initial_world_context)
         self.logger.info(f"Finished running all stages for world: {initial_world_context.world_name}")
+
+    async def _resolve_dependencies(
+        self,
+        system_func: Callable[..., Any],
+        world_context: WorldContext,
+        event_object: Optional[BaseEvent] = None,
+        **additional_kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Resolves dependencies for a given system function, incorporating additional kwargs.
+        """
+        metadata = self.system_metadata.get(system_func)
+        if not metadata:
+            # Try to parse dynamically if not found (e.g., for one-time systems not using decorators)
+            self.logger.warning(
+                f"No pre-registered metadata for system {system_func.__name__} in world '{world_context.world_name}'. "
+                "Attempting dynamic parameter parsing."
+            )
+            params_info = _parse_system_params(system_func)
+            metadata = {
+                "params": params_info,
+                "is_async": inspect.iscoroutinefunction(system_func),
+                # Add other necessary default metadata if needed, or handle their absence
+            }
+            # Optionally, store this dynamically generated metadata if it's useful for repeated calls,
+            # though for one-time systems, this might not be necessary.
+            # self.system_metadata[system_func] = metadata # Be cautious with modifying shared state here
+
+        kwargs_to_inject: Dict[str, Any] = {}
+
+        # First, fill with additional_kwargs provided by the caller
+        # This allows overriding or providing specific values for parameters.
+        for param_name, value in additional_kwargs.items():
+            if param_name in metadata["params"]:
+                kwargs_to_inject[param_name] = value
+            else:
+                self.logger.warning(
+                    f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored."
+                )
+
+        # Then, resolve remaining dependencies
+        for param_name, param_meta in metadata["params"].items():
+            if param_name in kwargs_to_inject:  # Already provided by additional_kwargs
+                continue
+
+            identity = param_meta["identity"]
+            param_type_hint = param_meta["type_hint"]
+
+            if identity == "WorldSession":
+                kwargs_to_inject[param_name] = world_context.session
+            elif identity == "WorldName":
+                kwargs_to_inject[param_name] = world_context.world_name
+            elif identity == "CurrentWorldConfig":
+                kwargs_to_inject[param_name] = world_context.world_config
+            elif identity == "WorldContext":
+                kwargs_to_inject[param_name] = world_context
+            elif identity == "Resource":
+                kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+            elif identity == "MarkedEntityList":
+                marker_type = param_meta["marker_component_type"]
+                if not marker_type or not issubclass(marker_type, BaseComponent):
+                    msg = (
+                        f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' "
+                        f"with invalid or missing marker component type in world '{world_context.world_name}'."
+                    )
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+                from sqlalchemy import exists as sql_exists
+                from sqlalchemy import select as sql_select
+
+                stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
+                entities_to_process = world_context.session.execute(stmt).scalars().all()
+                kwargs_to_inject[param_name] = entities_to_process
+            elif identity == "Event":
+                expected_event_type = param_meta["event_type_hint"]
+                if event_object and isinstance(event_object, expected_event_type):
+                    kwargs_to_inject[param_name] = event_object
+                elif expected_event_type is not None and not event_object:  # Event expected but none given
+                    msg = (
+                        f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
+                        f"expects an event of type {expected_event_type.__name__} but none was provided for injection."
+                    )
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+            else:  # No specific identity, try direct resource injection if not a basic type
+                if not (
+                    param_type_hint is str
+                    or param_type_hint is int
+                    or param_type_hint is bool
+                    or param_type_hint is float
+                    or param_type_hint is list
+                    or param_type_hint is dict
+                    or param_type_hint is tuple
+                    or param_type_hint is set
+                    or param_type_hint is type(None)
+                ):
+                    try:
+                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+                    except ResourceNotFoundError:
+                        self.logger.debug(
+                            f"Resource not found for param '{param_name}' (type {param_type_hint}) via direct type injection for {system_func.__name__}. "
+                            "It might be provided by additional_kwargs or be optional."
+                        )
+        return kwargs_to_inject
+
+    async def _execute_system_func(
+        self,
+        system_func: Callable[..., Any],
+        world_context: WorldContext,
+        event_object: Optional[BaseEvent] = None,
+        **additional_kwargs: Any,
+    ):
+        """
+        Internal helper to execute a system function after resolving its dependencies.
+        Incorporates additional_kwargs for flexible execution (e.g., for one-time systems).
+        """
+        metadata = self.system_metadata.get(system_func)
+        # If metadata is not found, _resolve_dependencies will attempt dynamic parsing.
+        # We still need to know if it's async.
+        is_async_func = inspect.iscoroutinefunction(system_func)
+        if metadata:  # if pre-registered, use its async flag
+            is_async_func = metadata["is_async"]
+
+        try:
+            kwargs_to_inject = await self._resolve_dependencies(
+                system_func, world_context, event_object, **additional_kwargs
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Error resolving dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
+                exc_info=True,
+            )
+            raise  # Re-raise to be caught by caller (execute_stage, dispatch_event, or execute_one_time_system)
+
+        self.logger.debug(
+            f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
+        )
+
+        if is_async_func:
+            await system_func(**kwargs_to_inject)
+        else:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+
+        # Auto-removal of marker components is specific to registered stage systems with metadata.
+        # One-time systems or event handlers might not use this pattern or expect this behavior by default.
+        if metadata and metadata.get("system_type") == "stage_system":
+            for param_name, param_meta in metadata["params"].items():
+                if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
+                    marker_type_to_remove = param_meta["marker_component_type"]
+                    # Use the injected list from kwargs_to_inject, not a fresh query
+                    entities_processed = kwargs_to_inject.get(param_name, [])
+                    if entities_processed and marker_type_to_remove:
+                        entity_ids_processed = [entity.id for entity in entities_processed]
+                        if entity_ids_processed:
+                            from sqlalchemy import delete as sql_delete
+
+                            self.logger.debug(
+                                f"Scheduler for world '{world_context.world_name}': Bulk removing {marker_type_to_remove.__name__} from "
+                                f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
+                            )
+                            stmt = sql_delete(marker_type_to_remove).where(
+                                marker_type_to_remove.entity_id.in_(entity_ids_processed)
+                            )
+                            world_context.session.execute(stmt)
+                            # Flush is important here if subsequent systems in the same stage need to see this change.
+                            # For one-time systems, commit/flush is handled by the caller.
+                            if metadata.get("system_type") == "stage_system":
+                                world_context.session.flush()
+        return True  # Indicates successful execution of the function itself
+
+    async def execute_one_time_system(
+        self, system_func: Callable[..., Any], world_context: WorldContext, **kwargs: Any
+    ):
+        """
+        Executes a single, dynamically provided system function immediately.
+        Dependencies are resolved, and the system is run.
+        The caller (World.execute_one_time_system) is responsible for session management (commit/rollback).
+        """
+        self.logger.info(
+            f"Executing one-time system: {system_func.__name__} in world '{world_context.world_name}' with provided kwargs: {kwargs}"
+        )
+        try:
+            await self._execute_system_func(system_func, world_context, event_object=None, **kwargs)
+            # For one-time systems, commit is typically handled by the calling context (e.g., World method)
+            # If immediate commit is desired here, it would be:
+            # world_context.session.commit()
+            # self.logger.info(f"Committed session after one-time system {system_func.__name__}")
+        except Exception as e:
+            self.logger.error(
+                f"Error during execution of one-time system {system_func.__name__} in world '{world_context.world_name}': {e}. "
+                "Session rollback should be handled by the caller.",
+                exc_info=True,
+            )
+            # world_context.session.rollback() # Caller handles rollback
+            raise  # Re-raise the exception to be handled by the World method
+
+    # Overwrite _resolve_and_execute_system to use the new _execute_system_func structure
+    async def _resolve_and_execute_system(
+        self, system_func: Callable[..., Any], world_context: WorldContext, event_object: Optional[BaseEvent] = None
+    ):
+        # This method is primarily used by execute_stage and dispatch_event for registered systems.
+        # It will call _execute_system_func without additional_kwargs, relying on standard DI.
+        return await self._execute_system_func(system_func, world_context, event_object)
