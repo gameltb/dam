@@ -437,13 +437,41 @@ def cli_find_file_by_hash(
 
     try:
         asyncio.run(dispatch_query())
-        typer.secho(
-            f"Query dispatched. Check logs for results related to Request ID: {request_id}.",
-            fg=typer.colors.CYAN,
-        )
-        # The CLI no longer directly prints entity details here.
-        # That logic was part of asset_service and is now in the event handler, which logs.
-        # A mechanism to retrieve results from a temporary resource could be added later if needed.
+        # After dispatch, check query_event.result
+        if query_event.result:
+            typer.secho(f"--- Asset Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
+            details = query_event.result
+            typer.echo(f"Entity ID: {details.get('entity_id')}")
+
+            if "FilePropertiesComponent" in details.get("components", {}):
+                fpc = details["components"]["FilePropertiesComponent"]
+                typer.echo(f"  Original Filename: {fpc.get('original_filename')}")
+                typer.echo(f"  Size: {fpc.get('file_size_bytes')} bytes")
+                typer.echo(f"  MIME Type: {fpc.get('mime_type')}")
+
+            if "ContentHashSHA256Component" in details.get("components", {}):
+                sha256c = details["components"]["ContentHashSHA256Component"]
+                typer.echo(f"  SHA256: {sha256c.get('hash_value')}")
+
+            if "ContentHashMD5Component" in details.get("components", {}):
+                md5c = details["components"]["ContentHashMD5Component"]
+                typer.echo(f"  MD5: {md5c.get('hash_value')}")
+
+            if "FileLocationComponent" in details.get("components", {}):
+                flcs = details["components"]["FileLocationComponent"]
+                typer.echo("  File Locations:")
+                for flc in flcs:
+                    typer.echo(f"    - Contextual Filename: {flc.get('contextual_filename')}")
+                    typer.echo(f"      Storage Type: {flc.get('storage_type')}")
+                    typer.echo(f"      Path/Key: {flc.get('physical_path_or_key')}")
+                    typer.echo(f"      Content ID: {flc.get('content_identifier')}")
+            # Add more component details as needed
+        else:
+            typer.secho(
+                f"No asset found for hash {actual_hash_value} (Type: {actual_hash_type}). Request ID: {request_id}",
+                fg=typer.colors.YELLOW,
+            )
+
     except Exception as e:
         typer.secho(f"Error dispatching query to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -495,11 +523,30 @@ def cli_find_similar_images(
 
     try:
         asyncio.run(dispatch_query())
-        typer.secho(
-            f"Similarity query dispatched. Check logs for results related to Request ID: {request_id}.",
-            fg=typer.colors.CYAN,
-        )
-        # Detailed results are logged by the system handler.
+
+        if query_event.result:
+            typer.secho(f"--- Similar Images Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
+            if not query_event.result or (len(query_event.result) == 1 and "error" in query_event.result[0]):
+                error_message = (
+                    query_event.result[0].get("error")
+                    if query_event.result
+                    else "No similar images found or error in processing."
+                )
+                typer.secho(f"Info: {error_message}", fg=typer.colors.YELLOW)
+            else:
+                typer.echo(f"Found {len(query_event.result)} similar image(s) to '{image_filepath.name}':")
+                for match in query_event.result:
+                    typer.echo(
+                        f"  - Entity ID: {match.get('entity_id')}, "
+                        f"Filename: {match.get('original_filename', 'N/A')}, "
+                        f"Distance: {match.get('distance')} ({match.get('hash_type')})"
+                    )
+        else:  # Should ideally not happen if system always sets event.result
+            typer.secho(
+                f"Similarity query processed, but no results returned. Request ID: {request_id}. Check logs.",
+                fg=typer.colors.YELLOW,
+            )
+
     except Exception as e:
         typer.secho(f"Error dispatching similarity query to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)

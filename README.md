@@ -156,10 +156,11 @@ dam-cli --help
     dam-cli add-asset /path/to/your/document.pdf
     ```
 
-*   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash and displays its properties. This includes:
-    *   Basic file properties (name, size, MIME type from `FilePropertiesComponent`).
-    *   Content hashes (MD5, SHA256).
-    *   File Locations (`FileLocationComponent`): Displays contextual filename, content ID, path/key, and storage type for each location.
+*   **`find-file-by-hash <hash_value>`**: Finds an asset by its content hash and displays its properties directly to the console. This includes:
+    *   Entity ID.
+    *   Basic file properties (original filename, size, MIME type from `FilePropertiesComponent`).
+    *   Content hashes (MD5, SHA256 from `ContentHashMD5Component`, `ContentHashSHA256Component`).
+    *   File Locations (`FileLocationComponent`): Displays contextual filename, content identifier (hash), physical path/key, and storage type (e.g., `local_cas`, `local_reference`) for each location.
     *   Image dimensions (width, height) for visual assets.
     *   Frame properties (frame count, rate, duration) for videos and animated GIFs.
     *   Audio properties (codec, duration, sample rate) for audio files and audio tracks within videos.
@@ -181,7 +182,7 @@ dam-cli --help
     dam-cli find-file-by-hash --file /path/to/somefile.txt --hash-type md5
     ```
 
-*   **`find-similar-images <image_filepath>`**: Finds images similar to the provided image based on perceptual hashes.
+*   **`find-similar-images <image_filepath>`**: Finds images similar to the provided image based on perceptual hashes and displays the results to the console. Results include Entity ID, filename, distance, and hash type for each match.
     *   `--phash-threshold <int>`: Max Hamming distance for pHash (default: 4).
     *   `--ahash-threshold <int>`: Max Hamming distance for aHash (default: 4).
     *   `--dhash-threshold <int>`: Max Hamming distance for dHash (default: 4).

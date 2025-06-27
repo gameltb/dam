@@ -179,9 +179,7 @@ async def extract_metadata_on_asset_ingested(
                     width = _get_hachoir_metadata(metadata, "width")
                     height = _get_hachoir_metadata(metadata, "height")
                     if width is not None and height is not None:
-                        dim_comp = ImageDimensionsComponent(
-                            entity_id=entity.id, entity=entity, width_pixels=width, height_pixels=height
-                        )
+                        dim_comp = ImageDimensionsComponent(entity=entity, width_pixels=width, height_pixels=height)
                         ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False)
                         logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
                     else:
@@ -222,7 +220,7 @@ async def extract_metadata_on_asset_ingested(
 
             if is_audio_file_heuristic:  # Standalone audio file
                 if not ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
-                    audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
+                    audio_comp = AudioPropertiesComponent(entity=entity)
                     duration = _get_hachoir_metadata(metadata, "duration")
                     if duration:
                         audio_comp.duration_seconds = duration.total_seconds()
@@ -245,7 +243,7 @@ async def extract_metadata_on_asset_ingested(
 
             if is_video_heuristic:  # Video file or animated image with frames/duration
                 if not ecs_service.get_components(session, entity.id, FramePropertiesComponent):
-                    video_frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
+                    video_frame_comp = FramePropertiesComponent(entity=entity)
 
                     nb_frames = _get_hachoir_metadata(metadata, "nb_frames") or _get_hachoir_metadata(
                         metadata, "frame_count"
@@ -273,7 +271,7 @@ async def extract_metadata_on_asset_ingested(
 
                 # If video, check for embedded audio stream
                 if has_audio_codec and not ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
-                    video_audio_comp = AudioPropertiesComponent(entity_id=entity.id, entity=entity)
+                    video_audio_comp = AudioPropertiesComponent(entity=entity)
                     video_duration_audio = _get_hachoir_metadata(metadata, "duration")  # Use overall duration
                     if video_duration_audio:
                         video_audio_comp.duration_seconds = video_duration_audio.total_seconds()
@@ -290,7 +288,7 @@ async def extract_metadata_on_asset_ingested(
                 if not ecs_service.get_components(
                     session, entity.id, FramePropertiesComponent
                 ):  # Check again if not caught by video heuristic
-                    frame_comp = FramePropertiesComponent(entity_id=entity.id, entity=entity)
+                    frame_comp = FramePropertiesComponent(entity=entity)
                     nb_frames_gif = _get_hachoir_metadata(metadata, "nb_frames") or _get_hachoir_metadata(
                         metadata, "frame_count"
                     )

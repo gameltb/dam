@@ -14,9 +14,9 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 
 ### 2.2. Components
 -   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. Examples include:
-    - `FileLocationComponent`: Stores where an asset's file is located (`component_file_location`).
+    - `FileLocationComponent`: Stores where an asset's file is located (`component_file_location`). Key attributes: `contextual_filename`, `content_identifier`, `physical_path_or_key`, `storage_type`.
     - `FilePropertiesComponent`: Stores original filename, size, MIME type (`component_file_properties`).
-    - `ContentHashSHA256Component`: Stores SHA256 content hash (`component_content_hash_sha256`).
+    - `ContentHashSHA256Component`: Stores SHA256 content hash as bytes (`component_content_hash_sha256`). Key attribute: `hash_value` (bytes).
     - `ImageDimensionsComponent`: Stores width and height for visual assets (`component_image_dimensions`).
     - `ImagePerceptualPHashComponent`: Stores pHash for images (`component_image_perceptual_hash_phash`).
     - `AudioPropertiesComponent`: Stores metadata for audio tracks (duration, codec, sample rate) (`component_audio_properties`).
@@ -32,6 +32,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     -   Components inherit from `dam.models.base_component.BaseComponent`. The `kw_only=True` dataclass behavior is inherited from `dam.models.base_class.Base` (which is a `MappedAsDataclass`), so components do not need the `@dataclass(kw_only=True)` decorator themselves.
     -   Each component is defined in its own file within `dam/models/`.
     -   Table names strictly follow the `component_[name]` convention (e.g., `ImageDimensionsComponent` maps to `component_image_dimensions`).
+    -   **Constructor Note**: When instantiating components that inherit from `BaseComponent`, provide the SQLAlchemy `Entity` object to the `entity` parameter. Do not pass `entity_id` directly to the constructor, as `entity_id` is marked `init=False` in `BaseComponent` and is populated via the `entity` relationship.
     -   **Model Registration for SQLAlchemy**: It's crucial that all SQLAlchemy models, including components defined outside the primary `dam/models/` directory (e.g., marker components in `dam/core/components_markers.py`), are imported at a point where they become registered with the shared `AppBase.metadata` object. This must happen before operations like `AppBase.metadata.create_all()` (often used in tests) or Alembic migration generation (`alembic revision --autogenerate`) are performed. This ensures their tables are correctly created and managed. This can be achieved by importing these model modules in `dam/models/__init__.py` or another central point that is loaded early in the application's lifecycle.
 
 ### 2.3. BaseComponent
@@ -230,16 +231,17 @@ The DAM employs a content-addressable storage strategy for asset files, managed 
     5.  Returning the SHA256 hash (file identifier).
     -   If a file with the same content (and thus the same hash) is stored again, it will not create a duplicate; the existing file is effectively reused. The `original_filename` is not used for the storage path itself but can be stored in metadata components (like `FileLocationComponent`).
 -   **`get_file_path` Function**: The `dam.services.file_storage.get_file_path(file_identifier: str) -> Path | None` function reconstructs the absolute path to a stored file given its `file_identifier` (SHA256 hash).
--   **`FileLocationComponent`**: This component (defined in `dam.models.file_location_component`, table name `component_file_location`) stores how to locate an asset's content.
-    -   `file_identifier`: Stores the SHA256 hash returned by `store_file`.
-    -   `storage_type`: Set to `"local_content_addressable"` for files managed by this strategy.
-    -   `original_filename`: Can store the original name of the file as ingested, providing context.
+-   **`FileLocationComponent`**: This component (defined in `dam.models.core.file_location_component`, table name `component_file_location`) stores how to locate an asset's content.
+    -   `content_identifier`: Stores the SHA256 hash (hex string) of the content.
+    -   `storage_type`: Indicates how the asset is stored, e.g., `"local_cas"` for Content Addressable Storage in the local DAM, or `"local_reference"` for files stored by their original path.
+    -   `physical_path_or_key`: The relative path within the CAS store (e.g., `ab/cd/hashvalue`) or the absolute original file path for references.
+    -   `contextual_filename`: Can store the original/contextual name of the file as ingested for this specific location instance.
 -   **Benefits**:
-    -   **Deduplication**: Files with identical content are stored only once, saving storage space.
-    -   **Integrity**: The hash acts as a checksum; if the file on disk changes, its hash would no longer match the identifier.
-    -   **Permanent Identifiers**: The file identifier (hash) is based on content, not a mutable filename or path.
+    -   **Deduplication**: Files with identical content are stored only once in CAS, saving storage space.
+    -   **Integrity**: The hash acts as a checksum.
+    -   **Permanent Identifiers**: The content identifier (hash) is based on content, not a mutable filename or path.
 
-This approach ensures that the actual asset files are managed robustly and efficiently. The `asset_service` uses these `file_storage` functions when adding new assets.
+This approach ensures that the actual asset files are managed robustly and efficiently. Systems like `asset_lifecycle_systems` use these `file_storage` functions and create `FileLocationComponent` entries.
 
 ---
 
@@ -529,6 +531,7 @@ The project uses `pytest` for testing, preferably run via `uv`.
     -   Component Tables: Generally `component_[component_name]` (e.g., `component_file_location`, `component_tag`).
     -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).
     -   Functions/Methods/Variables: `snake_case`.
+    -   Component Constructors: When creating components derived from `BaseComponent`, remember that `entity_id` is `init=False`. You should pass the `Entity` object itself to the `entity` parameter (e.g., `MyComponent(entity=actual_entity_object, other_field="value")`). The `entity_id` will be populated by SQLAlchemy through this relationship.
 
 Adhering to these practices helps maintain a clean, consistent, and understandable codebase.
 
