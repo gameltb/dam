@@ -20,6 +20,15 @@ from dam.core.world import (
     clear_world_registry,
 )
 from dam.models import Base as AppBase
+from dam.models.core.entity import Entity
+from dam.models.core.file_location_component import FileLocationComponent
+from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+from dam.models.source_info import source_types
+from dam.services import file_operations
+from dam.services.file_storage import get_file_path
+from sqlalchemy import select # Ensure select is imported for tests
 
 TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"
@@ -58,7 +67,7 @@ def test_environment(tmp_path: Path, monkeypatch):
     # Monkeypatch environment variables that Settings will load
     monkeypatch.setenv("DAM_WORLDS_CONFIG", json.dumps(test_worlds_config))
     monkeypatch.setenv("DAM_DEFAULT_WORLD_NAME", TEST_DEFAULT_WORLD_NAME)
-    monkeypatch.setenv("DAM_LOG_LEVEL", "DEBUG")  # Ensure consistent log level for tests
+    monkeypatch.setenv("DAM_LOG_LEVEL", "WARNING")  # Set log level to WARNING for tests
     monkeypatch.setenv("TESTING_MODE", "True")
 
     # Create new Settings and DatabaseManager instances based on the patched env vars
@@ -358,20 +367,11 @@ def test_cli_add_asset_single_file(test_environment, caplog, click_runner):
     # Instead of checking logs, verify side effects directly.
     # Check for file in CAS and database entries.
 
-    from sqlalchemy import select
-
-    from dam.models.core.entity import Entity
-    from dam.models.core.file_location_component import FileLocationComponent
-    from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-    from dam.models.properties.file_properties_component import FilePropertiesComponent # Added
-    from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent # Added
-    from dam.models.source_info import source_types # Added
-    from dam.services import file_operations # Changed from specific import
-    from dam.services.file_storage import get_file_path
+    # Imports moved to module level
 
     world_config = test_environment["settings"].get_world_config(default_world_name)
 
-    content_hash = calculate_sha256(dummy_file)
+    content_hash = file_operations.calculate_sha256(dummy_file)
     # Use public get_file_path to verify CAS storage
     cas_file_path = get_file_path(content_hash, world_config)
     assert cas_file_path is not None, f"Asset file with hash {content_hash} not found in CAS via get_file_path"

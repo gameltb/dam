@@ -125,13 +125,18 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         logger.error(f"Entity object not available after processing {original_filename}. This is unexpected.")
         return
 
-    osi_comp = OriginalSourceInfoComponent(
-        entity=entity,
-        original_filename=original_filename,
-        original_path=str(filepath_on_disk.resolve()),
-        source_type="local_file",  # Set source_type
+    # Check if OSI component of this type already exists
+    existing_osi_comps = ecs_service.get_components_by_value(
+        session, entity.id, OriginalSourceInfoComponent, {"source_type": source_types.SOURCE_TYPE_LOCAL_FILE}
     )
-    ecs_service.add_component_to_entity(session, entity.id, osi_comp)
+    if not existing_osi_comps:
+        osi_comp = OriginalSourceInfoComponent(
+            entity=entity,
+            source_type=source_types.SOURCE_TYPE_LOCAL_FILE,
+        )
+        ecs_service.add_component_to_entity(session, entity.id, osi_comp)
+    else:
+        logger.debug(f"OriginalSourceInfoComponent with source_type LOCAL_FILE already exists for Entity ID {entity.id}")
 
     if mime_type and mime_type.startswith("image/"):
         perceptual_hashes_hex = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)
@@ -253,13 +258,18 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
         )
         ecs_service.add_component_to_entity(session, entity.id, flc)
 
-    osi_comp = OriginalSourceInfoComponent(
-        entity=entity,
-        original_filename=original_filename,
-        original_path=resolved_original_path,
-        source_type="referenced_file",  # Set source_type
+    # Check if OSI component of this type already exists
+    existing_osi_comps = ecs_service.get_components_by_value(
+        session, entity.id, OriginalSourceInfoComponent, {"source_type": source_types.SOURCE_TYPE_REFERENCED_FILE}
     )
-    ecs_service.add_component_to_entity(session, entity.id, osi_comp)
+    if not existing_osi_comps:
+        osi_comp = OriginalSourceInfoComponent(
+            entity=entity,
+            source_type=source_types.SOURCE_TYPE_REFERENCED_FILE,
+        )
+        ecs_service.add_component_to_entity(session, entity.id, osi_comp)
+    else:
+        logger.debug(f"OriginalSourceInfoComponent with source_type REFERENCED_FILE already exists for Entity ID {entity.id}")
 
     if mime_type and mime_type.startswith("image/"):
         perceptual_hashes_hex = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)
@@ -601,11 +611,9 @@ async def handle_web_asset_ingestion_request(
             original_filename = f"web_asset_{entity.id}"
 
     osi_comp = OriginalSourceInfoComponent(
-        entity_id=asset_entity.id,
-        entity=asset_entity,
-        original_filename=original_filename,
-        original_path=event.source_url,  # Store the source URL as the 'path'
-        source_type="web_source",  # New source type
+        entity_id=asset_entity.id, # Retain entity_id if BaseComponent handles it, else use entity=asset_entity
+        entity=asset_entity,       # Prefer passing entity object
+        source_type=source_types.SOURCE_TYPE_WEB_SOURCE,
     )
     ecs_service.add_component_to_entity(session, asset_entity.id, osi_comp)
 
