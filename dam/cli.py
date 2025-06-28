@@ -1,5 +1,6 @@
 # --- Framework Imports for Systems ---
 import asyncio
+import json # Added import for json.dumps
 import traceback  # Import traceback for detailed error logging
 import uuid  # For generating request_ids
 from pathlib import Path
@@ -205,7 +206,7 @@ def cli_list_worlds():
 
 
 @app.command(name="add-asset")
-def cli_add_asset(
+async def cli_add_asset( # Made async
     ctx: typer.Context,  # Added context to access global_state if needed, though --world handles it
     path_str: Annotated[
         str,
@@ -326,7 +327,7 @@ def cli_add_asset(
                     await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
                     typer.secho(f"  Post-ingestion systems completed for {original_filename}.", fg=typer.colors.GREEN)
 
-            asyncio.run(dispatch_and_run_stages())
+            await dispatch_and_run_stages() # Await the async inner function
             # Note: We can't easily get added_count/linked_count here without querying.
             # For simplicity, we'll just count processed files.
             # If specific feedback is needed, systems would need to update a result resource.
@@ -353,7 +354,7 @@ def cli_add_asset(
 
 
 @app.command(name="setup-db")
-def setup_db(ctx: typer.Context):  # Added context
+async def setup_db(ctx: typer.Context):  # Added context, made async
     """
     Initializes the database and creates tables for the specified/default ECS world.
     """
@@ -370,7 +371,7 @@ def setup_db(ctx: typer.Context):  # Added context
 
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
     try:
-        target_world.create_db_and_tables()  # World method calls its db_manager
+        await target_world.create_db_and_tables()  # World method calls its db_manager
         typer.secho(f"Database setup complete for world '{target_world.name}'.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during database setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
@@ -379,7 +380,7 @@ def setup_db(ctx: typer.Context):  # Added context
 
 
 @app.command(name="find-file-by-hash")
-def cli_find_file_by_hash(
+async def cli_find_file_by_hash( # Made async
     ctx: typer.Context,  # Added context
     hash_value_arg: Annotated[
         str, typer.Argument(..., help="The hash value of the file to search for.", metavar="HASH_VALUE")
@@ -490,7 +491,7 @@ def cli_find_file_by_hash(
             #     typer.secho(traceback.format_exc(), fg=typer.colors.RED)
 
     try:
-        asyncio.run(dispatch_query_and_get_result())
+        await dispatch_query_and_get_result() # Await async call
     except Exception as e:  # Catch errors from dispatch_event itself if any occur before future handling
         typer.secho(f"Error during query dispatch setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -498,7 +499,7 @@ def cli_find_file_by_hash(
 
 
 @app.command(name="find-similar-images")
-def cli_find_similar_images(
+async def cli_find_similar_images( # Made async
     ctx: typer.Context,  # Added context
     image_filepath_str: Annotated[
         str, typer.Argument(..., help="Path to image for similarity search.", resolve_path=True, exists=True)
@@ -574,7 +575,7 @@ def cli_find_similar_images(
             # typer.secho(traceback.format_exc(), fg=typer.colors.RED) # Optionally show full traceback
 
     try:
-        asyncio.run(dispatch_query_and_get_result())
+        await dispatch_query_and_get_result() # Await async call
     except Exception as e:  # Catch errors from dispatch_event itself
         typer.secho(f"Error during similarity query dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -827,7 +828,7 @@ transcode_app = typer.Typer(name="transcode", help="Manage transcoding profiles 
 app.add_typer(transcode_app)
 
 @transcode_app.command("profile-create")
-def cli_transcode_profile_create(
+async def cli_transcode_profile_create( # Made async
     ctx: typer.Context,
     profile_name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the transcode profile.")],
     tool_name: Annotated[str, typer.Option("--tool", "-t", help="Transcoding tool (e.g., ffmpeg, cjxl).")],
@@ -866,11 +867,11 @@ def cli_transcode_profile_create(
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             raise typer.Exit(code=1)
 
-    asyncio.run(_create())
+    await _create() # Await async call
 
 
 @transcode_app.command("apply")
-def cli_transcode_apply(
+async def cli_transcode_apply( # Made async
     ctx: typer.Context,
     asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the source asset.")],
     profile_identifier: Annotated[str, typer.Option("--profile", "-p", help="Entity ID or name of the transcode profile.")],
@@ -937,7 +938,8 @@ def cli_transcode_apply(
                     fg=typer.colors.GREEN,
                 )
                 # Optionally display some info about the new asset
-                new_fpc = await ecs_service.get_component_for_target_entity(session, transcoded_entity, target_world.component_registry.get("FilePropertiesComponent"))
+                from dam.models.properties.file_properties_component import FilePropertiesComponent # Ensure type is imported
+                new_fpc = await ecs_service.get_component(session, transcoded_entity.id, FilePropertiesComponent)
                 if new_fpc:
                     typer.echo(f"  New Filename: {new_fpc.original_filename}, Size: {new_fpc.file_size_bytes} bytes") # type: ignore
 
@@ -952,14 +954,14 @@ def cli_transcode_apply(
                 typer.secho(f"Unexpected error during transcoding: {e}", fg=typer.colors.RED)
                 typer.secho(traceback.format_exc(), fg=typer.colors.RED)
                 raise typer.Exit(code=1)
-    asyncio.run(_apply())
+    await _apply() # Await async call
 
 # --- Evaluation Commands ---
 eval_app = typer.Typer(name="evaluate", help="Manage and run transcoding evaluations.")
 app.add_typer(eval_app)
 
 @eval_app.command("run-create")
-def cli_eval_run_create(
+async def cli_eval_run_create( # Made async
     ctx: typer.Context,
     run_name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the evaluation run.")],
     description: Annotated[Optional[str], typer.Option("--desc", help="Optional description for the run.")] = None,
@@ -989,11 +991,11 @@ def cli_eval_run_create(
             typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             raise typer.Exit(code=1)
-    asyncio.run(_create())
+    await _create() # Await async call
 
 
 @eval_app.command("run-execute")
-def cli_eval_run_execute(
+async def cli_eval_run_execute( # Made async
     ctx: typer.Context,
     run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run.")],
     asset_identifiers_str: Annotated[str, typer.Option("--assets", "-a", help="Comma-separated list of source asset Entity IDs or SHA256 hashes.")],
@@ -1056,11 +1058,11 @@ def cli_eval_run_execute(
             typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             raise typer.Exit(code=1)
-    asyncio.run(_execute())
+    await _execute() # Await async call
 
 
 @eval_app.command("report")
-def cli_eval_report(
+async def cli_eval_report( # Made async
     ctx: typer.Context,
     run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run to report on.")],
 ):
@@ -1124,7 +1126,7 @@ def cli_eval_report(
             typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
             raise typer.Exit(code=1)
-    asyncio.run(_report())
+    await _report() # Await async call
 
 
 @app.command(name="ui")

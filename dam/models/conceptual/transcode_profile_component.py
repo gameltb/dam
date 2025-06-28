@@ -3,9 +3,10 @@ from sqlalchemy import String
 
 from dam.models.core.base_component import BaseComponent
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
+from sqlalchemy import ForeignKey # Added for ForeignKey
 
 
-class TranscodeProfileComponent(BaseConceptualInfoComponent, BaseComponent):
+class TranscodeProfileComponent(BaseConceptualInfoComponent): # Removed BaseComponent
     """
     Component defining a transcoding profile.
     This is a conceptual asset, meaning an entity with this component
@@ -13,8 +14,8 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent, BaseComponent):
     """
     __tablename__ = "transcode_profiles"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
-    entity_id: Mapped[int] = mapped_column(nullable=False, index=True, unique=True) # Foreign key to entities.id will be in __mapper_args__
+    # This 'id' is the primary key of this table AND a foreign key to entities.id
+    id: Mapped[int] = mapped_column(ForeignKey("entities.id"), primary_key=True)
 
     profile_name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     tool_name: Mapped[str] = mapped_column(String, nullable=False)  # e.g., "ffmpeg", "cjxl", "avifenc"
@@ -28,9 +29,9 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent, BaseComponent):
 
     __mapper_args__ = {
         "polymorphic_identity": "transcode_profile",
-        "inherit_condition": id == BaseComponent.id, # type: ignore
-         # Link to Entity table via BaseComponent's entity_id if not already handled by BaseComponent's own setup
-        "primary_key": [id], # Explicitly define primary key if not automatically picked up
+        # For joined table, inherit_condition is often not needed if PK/FK is clear.
+        # SQLAlchemy should be able to link TranscodeProfileComponent.id to Entity.id
+        # via the BaseComponent's mapping of its 'entity_id' (which becomes this table's 'id').
     }
 
     def __repr__(self) -> str:

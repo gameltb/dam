@@ -8,14 +8,14 @@ from sqlalchemy.orm import Session, joinedload
 
 
 from dam.core.world import World
-from dam.core.events import Event  # Base event if needed, or define specific events
+from dam.core.events import BaseEvent  # Base event if needed, or define specific events
 from dam.core.exceptions import EntityNotFoundError
 from dam.services import transcode_service, ecs_service, tag_service
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
-from dam.models.core.file_properties_component import FilePropertiesComponent
+from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent # Added
 
 

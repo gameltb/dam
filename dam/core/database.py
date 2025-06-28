@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
 
 from dam.models import Base
 
@@ -41,14 +42,29 @@ class DatabaseManager:
 
         connect_args = {}
         if self.world_config.DATABASE_URL.startswith("sqlite"):
-            connect_args["check_same_thread"] = False
+            # For synchronous sqlite, check_same_thread is needed.
+            # For aiosqlite, it's not applicable in the same way.
+            if not "+aiosqlite" in self.world_config.DATABASE_URL:
+                 connect_args["check_same_thread"] = False
 
-        self._engine = create_engine(
-            self.world_config.DATABASE_URL,
-            connect_args=connect_args,
-            # echo=True # Optional: for debugging SQL statements
-        )
-        self._session_local = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
+        if "+aiosqlite" in self.world_config.DATABASE_URL:
+            from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+            self._engine = create_async_engine(
+                self.world_config.DATABASE_URL,
+                connect_args=connect_args, # connect_args might not be relevant for aiosqlite
+                # echo=True
+            )
+            # For async, sessionmaker needs to be configured for AsyncSession
+            self._session_local = sessionmaker(
+                autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False
+            )
+        else:
+            self._engine = create_engine(
+                self.world_config.DATABASE_URL,
+                connect_args=connect_args,
+                # echo=True # Optional: for debugging SQL statements
+            )
+            self._session_local = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
         logger.info(
             f"Initialized database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
         )
@@ -69,7 +85,7 @@ class DatabaseManager:
             raise RuntimeError(f"SessionLocal for world '{self.world_config.name}' has not been initialized.")
         return self._session_local
 
-    def get_db_session(self) -> Session:
+    def get_db_session(self) -> Session | AsyncSession: # Return type can be Session or AsyncSession
         """
         Provides a new database session for this world.
         The caller is responsible for closing the session.
@@ -77,7 +93,7 @@ class DatabaseManager:
         """
         return self.session_local()
 
-    def create_db_and_tables(self):
+    async def create_db_and_tables(self):
         """
         Creates all database tables for this world using its engine.
         In TESTING_MODE, if the database URL suggests a test database,
@@ -91,7 +107,13 @@ class DatabaseManager:
             "pytest" in self.world_config.DATABASE_URL or "test" in self.world_config.DATABASE_URL
         ):
             try:
-                Base.metadata.drop_all(bind=self.engine)
+                # For async engines, drop_all and create_all need to be run in an async context
+                from sqlalchemy.ext.asyncio import AsyncEngine
+                if isinstance(self.engine, AsyncEngine):
+                    async with self.engine.begin() as conn:
+                        await conn.run_sync(Base.metadata.drop_all)
+                else: # Fallback for synchronous engines, if any are used in tests
+                    Base.metadata.drop_all(bind=self.engine)
                 logger.info(
                     f"Dropped all tables for world '{self.world_config.name}' ({self.world_config.DATABASE_URL}) (testing mode)"
                 )
@@ -103,7 +125,12 @@ class DatabaseManager:
                 # For now, log and continue to create_all.
 
         try:
-            Base.metadata.create_all(bind=self.engine)
+            from sqlalchemy.ext.asyncio import AsyncEngine
+            if isinstance(self.engine, AsyncEngine):
+                async with self.engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+            else: # Fallback for synchronous engines
+                Base.metadata.create_all(bind=self.engine)
             logger.info(
                 f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
             )

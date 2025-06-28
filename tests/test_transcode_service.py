@@ -15,7 +15,7 @@ from dam.models.core.base_component import Base
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.file_location_component import FileLocationComponent
-from dam.models.core.file_properties_component import FilePropertiesComponent
+from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 
 from dam.services import transcode_service, ecs_service, file_operations, tag_service
@@ -63,7 +63,9 @@ async def test_world(tmp_path_factory):
     world_config = test_settings.get_world_config("test_world")
 
     # Create a new world instance for each test to ensure isolation of resources and scheduler state
-    world = World(name="test_world", config=world_config, component_registry=None, settings_override=test_settings)
+    # World.__init__ only takes world_config. Name is derived from it.
+    # Other params like component_registry, settings_override are not part of World.__init__.
+    world = World(world_config=world_config)
 
     initialize_world_resources(world) # Populates db_manager, etc.
     register_core_systems(world) # Registers system event handlers

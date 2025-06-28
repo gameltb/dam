@@ -3,9 +3,10 @@ from sqlalchemy import String, Text
 
 from dam.models.core.base_component import BaseComponent
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
+from sqlalchemy import ForeignKey # Added for ForeignKey
 
 
-class EvaluationRunComponent(BaseConceptualInfoComponent, BaseComponent):
+class EvaluationRunComponent(BaseConceptualInfoComponent): # Removed BaseComponent
     """
     Component defining an evaluation run.
     This is a conceptual asset, representing the concept of a specific
@@ -13,8 +14,8 @@ class EvaluationRunComponent(BaseConceptualInfoComponent, BaseComponent):
     """
     __tablename__ = "evaluation_runs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
-    entity_id: Mapped[int] = mapped_column(nullable=False, index=True, unique=True)
+    # This 'id' is the primary key of this table AND a foreign key to entities.id
+    id: Mapped[int] = mapped_column(ForeignKey("entities.id"), primary_key=True)
 
     run_name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     # concept_name from BaseConceptualInfoComponent will be the run_name
@@ -30,8 +31,7 @@ class EvaluationRunComponent(BaseConceptualInfoComponent, BaseComponent):
 
     __mapper_args__ = {
         "polymorphic_identity": "evaluation_run",
-        "inherit_condition": id == BaseComponent.id, # type: ignore
-        "primary_key": [id],
+        # For joined table, inherit_condition is often not needed if PK/FK is clear.
     }
 
     def __repr__(self) -> str:

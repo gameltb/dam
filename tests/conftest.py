@@ -47,17 +47,17 @@ def test_worlds_config_data_factory(tmp_path_factory):
         # This session-scoped factory is more for providing the *structure* of config data.
         # The actual temp asset paths will be generated within settings_override (function-scoped).
         return {
-            "test_world_alpha": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"},
-            "test_world_beta": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"},
-            "test_world_gamma": {"DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"},
+            "test_world_alpha": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"},
+            "test_world_beta": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"},
+            "test_world_gamma": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"},
             "test_world_alpha_del_split": {
-                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
+                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
             },
             "test_world_beta_del_split": {
-                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
+                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
             },
             "test_world_gamma_del_split": {
-                "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
+                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
             },
         }
 
@@ -116,7 +116,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
     clear_world_registry()  # Clear registry after test too
 
 
-def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
+async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World: # Made async
     """Helper function to get/create and setup a world for testing."""
     # settings_override_fixture is the specific Settings instance for tests.
     # Pass it directly to world creation functions.
@@ -126,7 +126,7 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     # clear_world_registry() # Ensure clean state before creating this specific world
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     # create_and_register_world now calls initialize_world_resources internally.
-    world.create_db_and_tables()  # Ensure tables are created for this world's DB
+    await world.create_db_and_tables()  # Await the async method
 
     # Core systems are registered after basic world and resource setup.
     from dam.core.world_setup import register_core_systems  # Updated import
@@ -140,59 +140,70 @@ def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     return world
 
 
-def _teardown_world(world: World):
+async def _teardown_world_async(world: World): # Made async
     """Helper function to teardown a test world."""
     if world and world.has_resource(DatabaseManager):
         db_mngr = world.get_resource(DatabaseManager)
         if db_mngr and db_mngr.engine:
-            Base.metadata.drop_all(bind=db_mngr.engine)
-            db_mngr.engine.dispose()  # Close connections
+            from sqlalchemy.ext.asyncio import AsyncEngine # Import for type check
+            if isinstance(db_mngr.engine, AsyncEngine):
+                async with db_mngr.engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.drop_all)
+                await db_mngr.engine.dispose() # Dispose async engine
+            else: # Fallback for synchronous engines
+                Base.metadata.drop_all(bind=db_mngr.engine)
+                db_mngr.engine.dispose()  # Close connections
     # Asset storage path (tmp_path subdirectory) will be cleaned by tmp_path fixture
 
+import pytest_asyncio # Added for async fixtures
+from typing import AsyncGenerator # Added for async generator type hint
 
-@pytest.fixture(scope="function")
-def test_world_alpha(settings_override: Settings) -> Generator[World, None, None]:
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]: # Made async
     """Provides the 'test_world_alpha' World instance, fully set up."""
-    world = _setup_world("test_world_alpha", settings_override)
+    world = await _setup_world("test_world_alpha", settings_override) # Await async setup
     yield world
-    _teardown_world(world)
+    await _teardown_world_async(world) # Await async teardown
 
 
-@pytest.fixture(scope="function")
-def test_world_beta(settings_override: Settings) -> Generator[World, None, None]:
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def test_world_beta(settings_override: Settings) -> AsyncGenerator[World, None]: # Made async
     """Provides the 'test_world_beta' World instance, fully set up."""
-    world = _setup_world("test_world_beta", settings_override)
+    world = await _setup_world("test_world_beta", settings_override) # Await async setup
     yield world
-    _teardown_world(world)
+    await _teardown_world_async(world) # Await async teardown
 
 
-@pytest.fixture(scope="function")
-def test_world_gamma(settings_override: Settings) -> Generator[World, None, None]:
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World, None]: # Made async
     """Provides the 'test_world_gamma' World instance, fully set up."""
-    world = _setup_world("test_world_gamma", settings_override)
+    world = await _setup_world("test_world_gamma", settings_override) # Await async setup
     yield world
-    _teardown_world(world)
+    await _teardown_world_async(world) # Await async teardown
 
 
-@pytest.fixture(scope="function")
-def db_session(
-    test_world_alpha: World,
-) -> Generator[Session, None, None]:  # Assuming Session is imported from sqlalchemy.orm
+from sqlalchemy.ext.asyncio import AsyncSession # Added for AsyncSession type hint
+
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def db_session( # Made async
+    test_world_alpha: World, # This fixture is now async
+) -> AsyncGenerator[AsyncSession, None]:  # Yield AsyncSession
     """
-    Provides a SQLAlchemy session for the default test world ("test_world_alpha").
-    The session is closed automatically after the test.
+    Provides an SQLAlchemy AsyncSession for the default test world ("test_world_alpha").
+    The session is managed by an async context manager.
     """
-    session = test_world_alpha.get_db_session()
-    try:
+    db_mngr = test_world_alpha.get_resource(DatabaseManager)
+    # Assuming session_local from DatabaseManager is configured for AsyncSession
+    # when an async engine is used (which it should be by now).
+    async with db_mngr.session_local() as session: # Use async with
         yield session
-    finally:
-        session.close()
+    # Session is automatically closed by async context manager
 
 
-@pytest.fixture(scope="function")
-def another_db_session(test_world_beta: World) -> Generator[Session, None, None]:  # Assuming Session is imported
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def another_db_session(test_world_beta: World) -> AsyncGenerator[AsyncSession, None]: # Made async
     """
-    Provides a SQLAlchemy session for a secondary test world ("test_world_beta").
+    Provides an SQLAlchemy AsyncSession for a secondary test world ("test_world_beta").
     Useful for testing interactions or isolation between two worlds.
     The session is closed automatically after the test.
     """
@@ -273,14 +284,14 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     return file_path
 
 
-@pytest.fixture(scope="function")
-def test_world_with_db_session(settings_override: Settings) -> Generator[World, None, None]:
+@pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
+async def test_world_with_db_session(settings_override: Settings) -> AsyncGenerator[World, None]: # Made async
     """
     Provides a fully initialized World instance using the 'test_world_alpha' configuration
     from settings_override. This world has its DB created and systems registered.
     The underlying database and asset storage are function-scoped via settings_override.
     """
     # Using "test_world_alpha" as the default world for these system tests
-    world = _setup_world("test_world_alpha", settings_override)
+    world = await _setup_world("test_world_alpha", settings_override) # Await async setup
     yield world
-    _teardown_world(world)
+    await _teardown_world_async(world) # Await async teardown

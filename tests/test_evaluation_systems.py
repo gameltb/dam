@@ -11,7 +11,7 @@ from dam.models.core.entity import Entity
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-from dam.models.core.file_properties_component import FilePropertiesComponent # For report data
+from dam.models.properties.file_properties_component import FilePropertiesComponent # For report data
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent # For report data
 
 
@@ -346,4 +346,3 @@ async def test_execute_evaluation_run_source_asset_not_found(test_world: World, 
         assert len(results_mixed) == 1
         assert mock_atp.call_count == 1
         assert results_mixed[0].original_asset_entity_id == valid_asset_id
-```

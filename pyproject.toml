@@ -64,6 +64,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
+    "aiosqlite", # Added for async SQLite in tests
     # "ruff",
     # "mypy"
 ]

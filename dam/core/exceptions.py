@@ -77,3 +77,9 @@ class ResourceNotFoundError(DamECSException, LookupError):  # Inherit from Looku
 
 del ResourceNotFoundError  # Removing this to avoid conflict with existing one.
 # DamECSException, StageExecutionError, EventHandlingError are the new ones for this task.
+
+
+class EntityNotFoundError(DamECSException):
+    """Raised when an entity is not found."""
+
+    pass

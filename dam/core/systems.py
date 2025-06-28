@@ -193,14 +193,14 @@ class WorldScheduler:
                 # Call _execute_system_func directly
                 await self._execute_system_func(system_func, world_context, event_object=None)
             try:
-                world_context.session.commit()
+                await world_context.session.commit() # Await
                 self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
             except Exception as commit_exc:
                 self.logger.error(
                     f"Error committing session for stage {stage.name} in world {world_context.world_name}: {commit_exc}. Rolling back.",
                     exc_info=True,
                 )
-                world_context.session.rollback()
+                await world_context.session.rollback() # Await
                 raise StageExecutionError(
                     message=f"Failed to commit stage {stage.name} in world {world_context.world_name}.",
                     stage_name=stage.name,
@@ -211,7 +211,7 @@ class WorldScheduler:
                 f"System '{active_system_func_name}' failed in stage '{stage.name}' for world '{world_context.world_name}'. Rolling back. Error: {system_exc}",
                 exc_info=True,
             )
-            world_context.session.rollback()
+            await world_context.session.rollback() # Await
             raise StageExecutionError(
                 message=f"System '{active_system_func_name}' failed during stage '{stage.name}' execution in world '{world_context.world_name}'.",
                 stage_name=stage.name,
@@ -236,7 +236,7 @@ class WorldScheduler:
                 # Call _execute_system_func directly
                 await self._execute_system_func(handler_func, world_context, event_object=event)
             try:
-                world_context.session.commit()
+                await world_context.session.commit() # Await
                 self.logger.info(
                     f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}"
                 )
@@ -245,7 +245,7 @@ class WorldScheduler:
                     f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
                     exc_info=True,
                 )
-                world_context.session.rollback()
+                await world_context.session.rollback() # Await
                 raise EventHandlingError(
                     message=f"Failed to commit after handling event {event_type.__name__} in world {world_context.world_name}.",
                     event_type=event_type.__name__,
@@ -256,7 +256,7 @@ class WorldScheduler:
                 f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'. Rolling back. Error: {handler_exc}",
                 exc_info=True,
             )
-            world_context.session.rollback()
+            await world_context.session.rollback() # Await
             raise EventHandlingError(
                 message=f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'.",
                 event_type=event_type.__name__,
@@ -343,7 +343,8 @@ class WorldScheduler:
                 from sqlalchemy import select as sql_select
 
                 stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
-                entities_to_process = world_context.session.execute(stmt).scalars().all()
+                result = await world_context.session.execute(stmt) # Await here
+                entities_to_process = result.scalars().all()
                 kwargs_to_inject[param_name] = entities_to_process
             elif identity == "Event":
                 expected_event_type = param_meta["event_type_hint"]
@@ -436,11 +437,11 @@ class WorldScheduler:
                             stmt = sql_delete(marker_type_to_remove).where(
                                 marker_type_to_remove.entity_id.in_(entity_ids_processed)
                             )
-                            world_context.session.execute(stmt)
+                            await world_context.session.execute(stmt) # Await
                             # Flush is important here if subsequent systems in the same stage need to see this change.
                             # For one-time systems, commit/flush is handled by the caller.
                             if metadata.get("system_type") == "stage_system":
-                                world_context.session.flush()
+                                await world_context.session.flush() # Await
         return True  # Indicates successful execution of the function itself
 
     async def execute_one_time_system(
