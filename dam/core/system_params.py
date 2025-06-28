@@ -11,13 +11,11 @@ from dam.models import BaseComponent, Entity
 # Injected by the WorldScheduler.
 WorldSession = Annotated[Session, "WorldSession"]
 
-# Represents the name of the current active world.
-# Injected by the WorldScheduler.
-WorldName = Annotated[str, "WorldName"]
-
-# Represents the configuration object for the current active world.
-# Injected by the WorldScheduler.
-CurrentWorldConfig = Annotated[WorldConfig, "CurrentWorldConfig"]
+# WorldName and CurrentWorldConfig are no longer special DI identities.
+# Systems should inject WorldConfig by its type (it's a resource)
+# and access world_config.name if the name is needed.
+# WorldName = Annotated[str, "WorldName"] # Removed
+# CurrentWorldConfig = Annotated[WorldConfig, "CurrentWorldConfig"] # Removed
 
 # Generic type for resources managed by the ResourceManager.
 # Systems can request a resource by its type.
@@ -84,6 +82,7 @@ class WorldContext:
         self.world_config = world_config
 
     # Note: While WorldContext holds session, world_name, and world_config,
-    # systems should declare these as dependencies via Annotated types (WorldSession,
-    # WorldName, CurrentWorldConfig) rather than directly accessing WorldContext fields.
+    # systems should declare WorldSession via Annotated type for injection.
+    # WorldConfig should be injected by its class type (as a resource).
+    # WorldContext itself can be injected by its class type if needed by advanced systems.
     # This promotes loose coupling and allows the scheduler to manage how these are provided.

@@ -61,6 +61,8 @@ __all__ = ["initialize_world_resources", "register_core_systems"]
 # --- Core System Registration (merged from world_registrar.py) ---
 from typing import TYPE_CHECKING
 
+# Moved these imports to the top of the file, outside of the TYPE_CHECKING block
+# to resolve E402 errors, as they are needed at runtime for registration.
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
@@ -80,6 +82,7 @@ from dam.systems.metadata_systems import (
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
+    # No runtime imports needed here if they are already above.
     pass
 
 

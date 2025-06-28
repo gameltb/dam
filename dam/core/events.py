@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+import asyncio
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional  # Added Optional, List, Dict
+from typing import Any, Dict, List, Optional  # Added Optional, List, Dict
 
 # Using dataclasses for simplicity, similar to Bevy events.
 
@@ -83,10 +84,10 @@ class FindEntityByHashQuery(BaseEvent):
     hash_value: str
     world_name: str  # Target world for this query
     request_id: str  # Unique ID for this query request
-    hash_type: str = "sha256"  # Moved to the end as it has a default
+    hash_type: str = "sha256"
 
-    # For carrying results if the system modifies the event or posts a new one
-    result: Optional[dict] = None  # field(default=None, init=False) might be better if we don't want it in __init__
+    # For carrying results via an asyncio.Future
+    result_future: Optional[asyncio.Future[Optional[Dict[str, Any]]]] = field(default=None, init=False, repr=False)
 
 
 @dataclass
@@ -100,8 +101,10 @@ class FindSimilarImagesQuery(BaseEvent):
     world_name: str  # Target world for this query
     request_id: str  # Unique ID for this query request
 
-    # For carrying results
-    result: Optional[list] = None  # field(default=None, init=False)
+    # For carrying results via an asyncio.Future
+    result_future: Optional[asyncio.Future[Optional[List[Dict[str, Any]]]]] = field(
+        default=None, init=False, repr=False
+    )
 
 
 # To allow __init__.py in dam/core to import these

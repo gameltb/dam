@@ -427,53 +427,68 @@ def cli_find_file_by_hash(
         world_name=target_world.name,
         request_id=request_id,
     )
+    # Create a future for the result - this needs to be done inside the async function
+    # that will run the event loop.
 
     typer.echo(
         f"Dispatching FindEntityByHashQuery (Request ID: {request_id}) to world '{target_world.name}' for hash: {actual_hash_value}"
     )
 
-    async def dispatch_query():
-        await target_world.dispatch_event(query_event)
+    async def dispatch_query_and_get_result():
+        # Create future inside the async function where the loop is running
+        query_event.result_future = asyncio.get_running_loop().create_future()
+        await target_world.dispatch_event(query_event)  # Event handler will set the future's result
+        try:
+            # Wait for the result from the future with a timeout
+            details = await asyncio.wait_for(query_event.result_future, timeout=10.0)
+            if details:
+                typer.secho(f"--- Asset Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
+                typer.echo(f"Entity ID: {details.get('entity_id')}")
+
+                if "FilePropertiesComponent" in details.get("components", {}):
+                    fpc = details["components"]["FilePropertiesComponent"]
+                    typer.echo(f"  Original Filename: {fpc.get('original_filename')}")
+                    typer.echo(f"  Size: {fpc.get('file_size_bytes')} bytes")
+                    typer.echo(f"  MIME Type: {fpc.get('mime_type')}")
+
+                if "ContentHashSHA256Component" in details.get("components", {}):
+                    sha256c = details["components"]["ContentHashSHA256Component"]
+                    typer.echo(f"  SHA256: {sha256c.get('hash_value')}")
+
+                if "ContentHashMD5Component" in details.get("components", {}):
+                    md5c = details["components"]["ContentHashMD5Component"]
+                    typer.echo(f"  MD5: {md5c.get('hash_value')}")
+
+                if "FileLocationComponent" in details.get("components", {}):
+                    flcs = details["components"]["FileLocationComponent"]
+                    typer.echo("  File Locations:")
+                    for flc in flcs:
+                        typer.echo(f"    - Contextual Filename: {flc.get('contextual_filename')}")
+                        typer.echo(f"      Storage Type: {flc.get('storage_type')}")
+                        typer.echo(f"      Path/Key: {flc.get('physical_path_or_key')}")
+                        typer.echo(f"      Content ID: {flc.get('content_identifier')}")
+                # Add more component details as needed
+            else:
+                typer.secho(
+                    f"No asset found for hash {actual_hash_value} (Type: {actual_hash_type}). Request ID: {request_id}",
+                    fg=typer.colors.YELLOW,
+                )
+        except asyncio.TimeoutError:
+            typer.secho(f"Query timed out for Request ID: {request_id}.", fg=typer.colors.RED)
+        except Exception as e:
+            # This catches exceptions set on the future by the handler, or other await errors
+            typer.secho(
+                f"Query failed for Request ID: {request_id}. Error: {e}",
+                fg=typer.colors.RED,
+            )
+            # Optionally print traceback if the exception from future doesn't have enough context
+            # if not isinstance(e, (YourCustomQueryError)): # Check if it's an error from the handler
+            #     typer.secho(traceback.format_exc(), fg=typer.colors.RED)
 
     try:
-        asyncio.run(dispatch_query())
-        # After dispatch, check query_event.result
-        if query_event.result:
-            typer.secho(f"--- Asset Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
-            details = query_event.result
-            typer.echo(f"Entity ID: {details.get('entity_id')}")
-
-            if "FilePropertiesComponent" in details.get("components", {}):
-                fpc = details["components"]["FilePropertiesComponent"]
-                typer.echo(f"  Original Filename: {fpc.get('original_filename')}")
-                typer.echo(f"  Size: {fpc.get('file_size_bytes')} bytes")
-                typer.echo(f"  MIME Type: {fpc.get('mime_type')}")
-
-            if "ContentHashSHA256Component" in details.get("components", {}):
-                sha256c = details["components"]["ContentHashSHA256Component"]
-                typer.echo(f"  SHA256: {sha256c.get('hash_value')}")
-
-            if "ContentHashMD5Component" in details.get("components", {}):
-                md5c = details["components"]["ContentHashMD5Component"]
-                typer.echo(f"  MD5: {md5c.get('hash_value')}")
-
-            if "FileLocationComponent" in details.get("components", {}):
-                flcs = details["components"]["FileLocationComponent"]
-                typer.echo("  File Locations:")
-                for flc in flcs:
-                    typer.echo(f"    - Contextual Filename: {flc.get('contextual_filename')}")
-                    typer.echo(f"      Storage Type: {flc.get('storage_type')}")
-                    typer.echo(f"      Path/Key: {flc.get('physical_path_or_key')}")
-                    typer.echo(f"      Content ID: {flc.get('content_identifier')}")
-            # Add more component details as needed
-        else:
-            typer.secho(
-                f"No asset found for hash {actual_hash_value} (Type: {actual_hash_type}). Request ID: {request_id}",
-                fg=typer.colors.YELLOW,
-            )
-
-    except Exception as e:
-        typer.secho(f"Error dispatching query to world '{target_world.name}': {e}", fg=typer.colors.RED)
+        asyncio.run(dispatch_query_and_get_result())
+    except Exception as e:  # Catch errors from dispatch_event itself if any occur before future handling
+        typer.secho(f"Error during query dispatch setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
@@ -518,37 +533,46 @@ def cli_find_similar_images(
         f"Dispatching FindSimilarImagesQuery (Request ID: {request_id}) to world '{target_world.name}' for image: {image_filepath.name}"
     )
 
-    async def dispatch_query():
+    async def dispatch_query_and_get_result():
+        query_event.result_future = asyncio.get_running_loop().create_future()
         await target_world.dispatch_event(query_event)
+        try:
+            results = await asyncio.wait_for(
+                query_event.result_future, timeout=30.0
+            )  # Increased timeout for similarity search
+
+            if results:
+                typer.secho(f"--- Similar Images Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
+                # Check if the result is an error indicator (list with a single dict containing 'error')
+                if len(results) == 1 and "error" in results[0]:
+                    error_message = results[0].get("error", "Error in processing similarity query.")
+                    typer.secho(f"Info: {error_message}", fg=typer.colors.YELLOW)
+                else:
+                    typer.echo(f"Found {len(results)} similar image(s) to '{image_filepath.name}':")
+                    for match in results:
+                        typer.echo(
+                            f"  - Entity ID: {match.get('entity_id')}, "
+                            f"Filename: {match.get('original_filename', 'N/A')}, "
+                            f"Distance: {match.get('distance')} ({match.get('hash_type')})"
+                        )
+            else:  # Results is None or an empty list
+                typer.secho(
+                    f"No similar images found for '{image_filepath.name}'. Request ID: {request_id}",
+                    fg=typer.colors.YELLOW,
+                )
+        except asyncio.TimeoutError:
+            typer.secho(f"Similarity query timed out for Request ID: {request_id}.", fg=typer.colors.RED)
+        except Exception as e:
+            typer.secho(
+                f"Similarity query failed for Request ID: {request_id}. Error: {e}",
+                fg=typer.colors.RED,
+            )
+            # typer.secho(traceback.format_exc(), fg=typer.colors.RED) # Optionally show full traceback
 
     try:
-        asyncio.run(dispatch_query())
-
-        if query_event.result:
-            typer.secho(f"--- Similar Images Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
-            if not query_event.result or (len(query_event.result) == 1 and "error" in query_event.result[0]):
-                error_message = (
-                    query_event.result[0].get("error")
-                    if query_event.result
-                    else "No similar images found or error in processing."
-                )
-                typer.secho(f"Info: {error_message}", fg=typer.colors.YELLOW)
-            else:
-                typer.echo(f"Found {len(query_event.result)} similar image(s) to '{image_filepath.name}':")
-                for match in query_event.result:
-                    typer.echo(
-                        f"  - Entity ID: {match.get('entity_id')}, "
-                        f"Filename: {match.get('original_filename', 'N/A')}, "
-                        f"Distance: {match.get('distance')} ({match.get('hash_type')})"
-                    )
-        else:  # Should ideally not happen if system always sets event.result
-            typer.secho(
-                f"Similarity query processed, but no results returned. Request ID: {request_id}. Check logs.",
-                fg=typer.colors.YELLOW,
-            )
-
-    except Exception as e:
-        typer.secho(f"Error dispatching similarity query to world '{target_world.name}': {e}", fg=typer.colors.RED)
+        asyncio.run(dispatch_query_and_get_result())
+    except Exception as e:  # Catch errors from dispatch_event itself
+        typer.secho(f"Error during similarity query dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 

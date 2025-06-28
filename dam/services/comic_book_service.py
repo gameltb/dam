@@ -1,17 +1,18 @@
 import logging
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from dam.models.core.entity import Entity
 from dam.models.conceptual import (
     ComicBookConceptComponent,
     ComicBookVariantComponent,
     PageLink,
 )
+from dam.models.core.entity import Entity
 from dam.services import ecs_service
+
 # from dam.models.properties import FilePropertiesComponent # If checking image type
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ def link_comic_variant_to_concept(
     if is_primary:
         stmt = select(ComicBookVariantComponent).where(
             ComicBookVariantComponent.conceptual_entity_id == comic_concept_entity_id,
-            ComicBookVariantComponent.is_primary_variant == True,
+            ComicBookVariantComponent.is_primary_variant,
         )
         existing_primary_variant = session.execute(stmt).scalars().first()
         if existing_primary_variant and existing_primary_variant.entity_id != file_entity_id:
@@ -109,15 +110,23 @@ def link_comic_variant_to_concept(
 
 def get_variants_for_comic_concept(session: Session, comic_concept_entity_id: int) -> List[Entity]:
     comic_concept_entity = ecs_service.get_entity(session, comic_concept_entity_id)
-    if not comic_concept_entity or not ecs_service.get_component(session, comic_concept_entity_id, ComicBookConceptComponent):
-        logger.warning(f"ComicBookConcept Entity ID {comic_concept_entity_id} not found or is not a valid comic concept.")
+    if not comic_concept_entity or not ecs_service.get_component(
+        session, comic_concept_entity_id, ComicBookConceptComponent
+    ):
+        logger.warning(
+            f"ComicBookConcept Entity ID {comic_concept_entity_id} not found or is not a valid comic concept."
+        )
         return []
 
     stmt = (
         select(Entity)
         .join(ComicBookVariantComponent, Entity.id == ComicBookVariantComponent.entity_id)
         .where(ComicBookVariantComponent.conceptual_entity_id == comic_concept_entity_id)
-        .order_by(ComicBookVariantComponent.is_primary_variant.desc(), ComicBookVariantComponent.language, ComicBookVariantComponent.format)
+        .order_by(
+            ComicBookVariantComponent.is_primary_variant.desc(),
+            ComicBookVariantComponent.language,
+            ComicBookVariantComponent.format,
+        )
     )
     variant_entities = session.execute(stmt).scalars().all()
     return list(variant_entities)
@@ -164,7 +173,9 @@ def set_primary_comic_variant(session: Session, file_entity_id: int, comic_conce
 
     target_variant_comp = ecs_service.get_component(session, file_entity_id, ComicBookVariantComponent)
     if not target_variant_comp or target_variant_comp.conceptual_entity_id != comic_concept_entity_id:
-        logger.error(f"File Entity ID {file_entity_id} is not a variant of ComicBookConcept ID {comic_concept_entity_id}.")
+        logger.error(
+            f"File Entity ID {file_entity_id} is not a variant of ComicBookConcept ID {comic_concept_entity_id}."
+        )
         return False
 
     if target_variant_comp.is_primary_variant:
@@ -173,18 +184,22 @@ def set_primary_comic_variant(session: Session, file_entity_id: int, comic_conce
 
     stmt_current_primary = select(ComicBookVariantComponent).where(
         ComicBookVariantComponent.conceptual_entity_id == comic_concept_entity_id,
-        ComicBookVariantComponent.is_primary_variant == True
+        ComicBookVariantComponent.is_primary_variant,
     )
     current_primary_comp = session.execute(stmt_current_primary).scalars().first()
 
     if current_primary_comp:
-        logger.info(f"Demoting current primary ComicBookVariant (Entity ID: {current_primary_comp.entity_id}) for ComicBookConcept ID {comic_concept_entity_id}.")
+        logger.info(
+            f"Demoting current primary ComicBookVariant (Entity ID: {current_primary_comp.entity_id}) for ComicBookConcept ID {comic_concept_entity_id}."
+        )
         current_primary_comp.is_primary_variant = False
         session.add(current_primary_comp)
 
     target_variant_comp.is_primary_variant = True
     session.add(target_variant_comp)
-    logger.info(f"Set File Entity ID {file_entity_id} as primary variant for ComicBookConcept ID {comic_concept_entity_id}.")
+    logger.info(
+        f"Set File Entity ID {file_entity_id} as primary variant for ComicBookConcept ID {comic_concept_entity_id}."
+    )
     return True
 
 
@@ -193,7 +208,7 @@ def get_primary_variant_for_comic_concept(session: Session, comic_concept_entity
         select(Entity)
         .join(ComicBookVariantComponent, Entity.id == ComicBookVariantComponent.entity_id)
         .where(ComicBookVariantComponent.conceptual_entity_id == comic_concept_entity_id)
-        .where(ComicBookVariantComponent.is_primary_variant == True)
+        .where(ComicBookVariantComponent.is_primary_variant)
     )
     primary_variant_entity = session.execute(stmt).scalars().first()
     return primary_variant_entity
@@ -214,15 +229,15 @@ def unlink_comic_variant(session: Session, file_entity_id: int) -> bool:
 
 # --- Comic Book Page Management ---
 
+
 def assign_page_to_comic_variant(
-    session: Session,
-    comic_variant_entity_id: int,
-    page_image_entity_id: int,
-    page_number: int
+    session: Session, comic_variant_entity_id: int, page_image_entity_id: int, page_number: int
 ) -> Optional[PageLink]:
     variant_comp = ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent)
     if not variant_comp:
-        logger.error(f"Entity ID {comic_variant_entity_id} does not have a ComicBookVariantComponent. Cannot assign pages.")
+        logger.error(
+            f"Entity ID {comic_variant_entity_id} does not have a ComicBookVariantComponent. Cannot assign pages."
+        )
         return None
 
     owner_entity = ecs_service.get_entity(session, comic_variant_entity_id)
@@ -240,14 +255,16 @@ def assign_page_to_comic_variant(
         return None
 
     page_link = PageLink(
-        owner=owner_entity,                 # Pass Entity object for relationship
-        page_image=page_image_entity,       # Pass Entity object for relationship
-        page_number=page_number
+        owner=owner_entity,  # Pass Entity object for relationship
+        page_image=page_image_entity,  # Pass Entity object for relationship
+        page_number=page_number,
     )
     try:
         session.add(page_link)
         session.flush()
-        logger.info(f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}.")
+        logger.info(
+            f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
+        )
         return page_link
     except IntegrityError as e:
         session.rollback()
@@ -259,18 +276,13 @@ def assign_page_to_comic_variant(
         raise
 
 
-def remove_page_from_comic_variant(
-    session: Session,
-    comic_variant_entity_id: int,
-    page_image_entity_id: int
-) -> bool:
+def remove_page_from_comic_variant(session: Session, comic_variant_entity_id: int, page_image_entity_id: int) -> bool:
     if not ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot remove page.")
         return False
 
     stmt = select(PageLink).where(
-        PageLink.owner_entity_id == comic_variant_entity_id,
-        PageLink.page_image_entity_id == page_image_entity_id
+        PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_image_entity_id == page_image_entity_id
     )
     page_link_instance = session.execute(stmt).scalar_one_or_none()
 
@@ -282,18 +294,13 @@ def remove_page_from_comic_variant(
     return False
 
 
-def remove_page_at_number_from_comic_variant(
-    session: Session,
-    comic_variant_entity_id: int,
-    page_number: int
-) -> bool:
+def remove_page_at_number_from_comic_variant(session: Session, comic_variant_entity_id: int, page_number: int) -> bool:
     if not ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot remove page.")
         return False
 
     stmt = select(PageLink).where(
-        PageLink.owner_entity_id == comic_variant_entity_id,
-        PageLink.page_number == page_number
+        PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_number == page_number
     )
     page_link_instance = session.execute(stmt).scalar_one_or_none()
 
@@ -305,10 +312,7 @@ def remove_page_at_number_from_comic_variant(
     return False
 
 
-def get_ordered_pages_for_comic_variant(
-    session: Session,
-    comic_variant_entity_id: int
-) -> List[Entity]:
+def get_ordered_pages_for_comic_variant(session: Session, comic_variant_entity_id: int) -> List[Entity]:
     if not ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot get pages.")
         return []
@@ -324,12 +328,10 @@ def get_ordered_pages_for_comic_variant(
 
 
 def get_comic_variants_containing_image_as_page(
-    session: Session,
-    page_image_entity_id: int
+    session: Session, page_image_entity_id: int
 ) -> List[tuple[Entity, int]]:
-    stmt = (
-        select(PageLink.owner_entity_id, PageLink.page_number)
-        .where(PageLink.page_image_entity_id == page_image_entity_id)
+    stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(
+        PageLink.page_image_entity_id == page_image_entity_id
     )
     results = session.execute(stmt).all()
 
@@ -339,15 +341,15 @@ def get_comic_variants_containing_image_as_page(
         if owner_entity and ecs_service.get_component(session, owner_id, ComicBookVariantComponent):
             variant_pages_info.append((owner_entity, page_num))
         else:
-            logger.debug(f"Owner Entity ID {owner_id} linked to image ID {page_image_entity_id} is not a ComicBookVariant. Skipping.")
+            logger.debug(
+                f"Owner Entity ID {owner_id} linked to image ID {page_image_entity_id} is not a ComicBookVariant. Skipping."
+            )
 
     return variant_pages_info
 
 
 def update_page_order_for_comic_variant(
-    session: Session,
-    comic_variant_entity_id: int,
-    ordered_page_image_entity_ids: List[int]
+    session: Session, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
 ) -> List[PageLink]:
     owner_entity = ecs_service.get_entity(session, comic_variant_entity_id)
     if not owner_entity or not ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):
@@ -361,20 +363,22 @@ def update_page_order_for_comic_variant(
         page_number = i + 1
         page_image_entity = ecs_service.get_entity(session, page_image_id)
         if not page_image_entity:
-             logger.warning(f"Image Entity ID {page_image_id} for page {page_number} not found. Skipping.")
-             continue
+            logger.warning(f"Image Entity ID {page_image_id} for page {page_number} not found. Skipping.")
+            continue
 
         page_link = PageLink(
-            owner=owner_entity,                 # Pass Entity object
-            page_image=page_image_entity,       # Pass Entity object
-            page_number=page_number
+            owner=owner_entity,  # Pass Entity object
+            page_image=page_image_entity,  # Pass Entity object
+            page_number=page_number,
         )
         session.add(page_link)
         new_page_links.append(page_link)
 
     try:
         session.flush()
-        logger.info(f"Successfully updated page order for comic variant ID {comic_variant_entity_id} with {len(new_page_links)} pages.")
+        logger.info(
+            f"Successfully updated page order for comic variant ID {comic_variant_entity_id} with {len(new_page_links)} pages."
+        )
     except IntegrityError as e:
         session.rollback()
         logger.error(f"Failed to update page order due to integrity error: {e}")

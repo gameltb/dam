@@ -10,7 +10,8 @@ from dam.core.events import (
     FindSimilarImagesQuery,
     WebAssetIngestionRequested,  # Import new event
 )
-from dam.core.system_params import CurrentWorldConfig, WorldSession  # Import Resource
+from dam.core.config import WorldConfig  # Import WorldConfig directly
+from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
 from dam.core.systems import listens_for
 from dam.models import (
     ContentHashMD5Component,
@@ -327,61 +328,76 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
 async def handle_find_entity_by_hash_query(
     event: FindEntityByHashQuery,
     session: WorldSession,
-    world_config: CurrentWorldConfig,  # Example of injecting world_config if needed
+    world_config: WorldConfig,  # Changed from CurrentWorldConfig
 ):
     logger.info(
-        f"System handling FindEntityByHashQuery for hash: {event.hash_value} (type: {event.hash_type}) in world {event.world_name} (Req ID: {event.request_id})"
+        f"System handling FindEntityByHashQuery for hash: {event.hash_value} (type: {event.hash_type}) in world '{world_config.name}' (Req ID: {event.request_id})"
     )
-    try:
-        hash_bytes = binascii.unhexlify(event.hash_value)
-    except binascii.Error as e:
+    if not event.result_future:
         logger.error(
-            f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}"
+            f"Result future not set on FindEntityByHashQuery event (Req ID: {event.request_id}). Cannot proceed."
         )
         return
 
-    entity = ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type)
+    try:
+        try:
+            hash_bytes = binascii.unhexlify(event.hash_value)
+        except binascii.Error as e:
+            logger.error(
+                f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}"
+            )
+            raise ValueError(
+                f"Invalid hash_value format: {event.hash_value}"
+            ) from e  # Re-raise to set exception on future
 
-    if entity:
-        logger.info(
-            f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}"
-        )
-        # Populate event.result with details
-        entity_details = {"entity_id": entity.id, "components": {}}
+        entity = ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type)
+        entity_details_dict = None
 
-        # Fetch and add common components
-        fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-        if fpc:
-            entity_details["components"]["FilePropertiesComponent"] = {
-                "original_filename": fpc.original_filename,
-                "file_size_bytes": fpc.file_size_bytes,
-                "mime_type": fpc.mime_type,
-            }
+        if entity:
+            logger.info(
+                f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}"
+            )
+            entity_details_dict = {"entity_id": entity.id, "components": {}}
 
-        flcs = ecs_service.get_components(session, entity.id, FileLocationComponent)
-        if flcs:
-            entity_details["components"]["FileLocationComponent"] = [
-                {
-                    "content_identifier": flc.content_identifier,
-                    "storage_type": flc.storage_type,
-                    "physical_path_or_key": flc.physical_path_or_key,
-                    "contextual_filename": flc.contextual_filename,
+            fpc = ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+            if fpc:
+                entity_details_dict["components"]["FilePropertiesComponent"] = {
+                    "original_filename": fpc.original_filename,
+                    "file_size_bytes": fpc.file_size_bytes,
+                    "mime_type": fpc.mime_type,
                 }
-                for flc in flcs
-            ]
 
-        sha256_comp = ecs_service.get_component(session, entity.id, ContentHashSHA256Component)
-        if sha256_comp:
-            entity_details["components"]["ContentHashSHA256Component"] = {"hash_value": sha256_comp.hash_value.hex()}
+            flcs = ecs_service.get_components(session, entity.id, FileLocationComponent)
+            if flcs:
+                entity_details_dict["components"]["FileLocationComponent"] = [
+                    {
+                        "content_identifier": flc.content_identifier,
+                        "storage_type": flc.storage_type,
+                        "physical_path_or_key": flc.physical_path_or_key,
+                        "contextual_filename": flc.contextual_filename,
+                    }
+                    for flc in flcs
+                ]
 
-        md5_comp = ecs_service.get_component(session, entity.id, ContentHashMD5Component)
-        if md5_comp:
-            entity_details["components"]["ContentHashMD5Component"] = {"hash_value": md5_comp.hash_value.hex()}
+            sha256_comp = ecs_service.get_component(session, entity.id, ContentHashSHA256Component)
+            if sha256_comp:
+                entity_details_dict["components"]["ContentHashSHA256Component"] = {
+                    "hash_value": sha256_comp.hash_value.hex()
+                }
 
-        event.result = entity_details
-    else:
-        logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
-        event.result = None  # Explicitly set to None if not found
+            md5_comp = ecs_service.get_component(session, entity.id, ContentHashMD5Component)
+            if md5_comp:
+                entity_details_dict["components"]["ContentHashMD5Component"] = {"hash_value": md5_comp.hash_value.hex()}
+        else:
+            logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
+
+        if not event.result_future.done():
+            event.result_future.set_result(entity_details_dict)
+
+    except Exception as e:
+        logger.error(f"Error in handle_find_entity_by_hash_query (Req ID: {event.request_id}): {e}", exc_info=True)
+        if not event.result_future.done():
+            event.result_future.set_exception(e)
 
 
 @listens_for(FindSimilarImagesQuery)
@@ -392,38 +408,36 @@ async def handle_find_similar_images_query(
     logger.info(
         f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})"
     )
-
-    if not imagehash:
-        logger.warning(
-            f"[QueryResult RequestID: {event.request_id}] ImageHash library not available. Cannot perform similarity search."
+    if not event.result_future:
+        logger.error(
+            f"Result future not set on FindSimilarImagesQuery event (Req ID: {event.request_id}). Cannot proceed."
         )
-        # world.add_resource(QueryResult(event.request_id, [], error="ImageHash not available"), ...)
         return
 
     try:
-        # This logic is from asset_service.find_entities_by_similar_image_hashes
-        # It needs to be adapted to run within an async system.
-        # generate_perceptual_hashes might need an async version or to_thread.
-        # For now, assume file_operations has async versions or we wrap sync calls.
+        if not imagehash:
+            msg = "ImageHash library not available. Cannot perform similarity search."
+            logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
+            if not event.result_future.done():
+                event.result_future.set_result([{"error": msg}])  # Set result as a list with error dict
+            return
+
         input_hashes = await file_operations.generate_perceptual_hashes_async(event.image_path)
         if not input_hashes:
             msg = f"Could not generate perceptual hashes for {event.image_path.name}."
             logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
-            # world.add_resource(QueryResult(event.request_id, [], error=msg), ...)
+            if not event.result_future.done():
+                event.result_future.set_result([{"error": msg}])
             return
 
-        # The rest of the similarity logic from asset_service.find_entities_by_similar_image_hashes
-        # would go here, adapted for async and using injected session.
         input_phash_obj = imagehash.hex_to_hash(input_hashes["phash"]) if "phash" in input_hashes else None
         input_ahash_obj = imagehash.hex_to_hash(input_hashes["ahash"]) if "ahash" in input_hashes else None
         input_dhash_obj = imagehash.hex_to_hash(input_hashes["dhash"]) if "dhash" in input_hashes else None
 
         source_entity_id = None
         try:
-            # Assuming file_operations.calculate_sha256_async exists
             source_content_hash_hex = await file_operations.calculate_sha256_async(event.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
-            # ecs_service.find_entity_by_content_hash is synchronous
             source_entity = ecs_service.find_entity_by_content_hash(session, source_content_hash_bytes, "sha256")
             if source_entity:
                 source_entity_id = source_entity.id
@@ -433,7 +447,7 @@ async def handle_find_similar_images_query(
             )
 
         potential_matches = []
-        from sqlalchemy import select as sql_select  # For direct querying if ecs_service helpers are not sufficient
+        from sqlalchemy import select as sql_select
 
         if input_phash_obj:
             all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
@@ -442,7 +456,6 @@ async def handle_find_similar_images_query(
                 if source_entity_id and p_comp.entity_id == source_entity_id:
                     continue
                 try:
-                    # Convert stored bytes hash to hex string for imagehash library
                     db_phash_hex = p_comp.hash_value.hex()
                     db_phash_obj = imagehash.hex_to_hash(db_phash_hex)
                     distance = input_phash_obj - db_phash_obj
@@ -523,19 +536,20 @@ async def handle_find_similar_images_query(
         similar_entities_info = list(final_matches_map.values())
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
 
-        logger.info(
-            f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images. Results: {similar_entities_info}"
-        )
-        event.result = similar_entities_info
+        logger.info(f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images.")
+        if not event.result_future.done():
+            event.result_future.set_result(similar_entities_info)
 
-    except ValueError as ve:
+    except ValueError as ve:  # Specific error from imagehash or file_operations
         logger.warning(f"[QueryResult RequestID: {event.request_id}] Error processing image for similarity: {ve}")
-        event.result = [{"error": str(ve)}]
-    except Exception as e:
+        if not event.result_future.done():
+            event.result_future.set_result([{"error": str(ve)}])
+    except Exception as e:  # Catch-all for other unexpected errors
         logger.error(
             f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
         )
-        event.result = [{"error": "Unexpected error during similarity search"}]
+        if not event.result_future.done():
+            event.result_future.set_exception(e)  # Set general exception for unexpected errors
 
 
 # Ensure async versions of file_operations are available or implement them.

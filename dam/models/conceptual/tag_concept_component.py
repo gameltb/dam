@@ -1,7 +1,8 @@
-from sqlalchemy import String, Boolean, UniqueConstraint
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base_conceptual_info_component import BaseConceptualInfoComponent
+
 # It might be useful to have an Enum for scope types
 # from enum import Enum
 # class TagScopeType(Enum):
@@ -16,6 +17,7 @@ class TagConceptComponent(BaseConceptualInfoComponent):
     This component is attached to an Entity that represents the tag itself.
     Other entities are then linked to this "Tag Entity" to apply the tag.
     """
+
     __tablename__ = "component_tag_concept"
 
     # id, entity_id, created_at, updated_at are inherited via BaseConceptualInfoComponent
@@ -24,29 +26,27 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         String(255),
         nullable=False,
         index=True,
-        comment="The unique name of the tag (e.g., 'Sci-Fi', 'Needs Review', 'Artist:JohnDoe')."
+        comment="The unique name of the tag (e.g., 'Sci-Fi', 'Needs Review', 'Artist:JohnDoe').",
     )
 
     # For simplicity, using strings for scope_type. An Enum could be used for stricter validation.
     tag_scope_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="GLOBAL", # Default to global scope
+        default="GLOBAL",  # Default to global scope
         index=True,
-        comment="Defines the scope of the tag (e.g., 'GLOBAL', 'COMPONENT_CLASS_REQUIRED', 'CONCEPTUAL_ASSET_LOCAL')."
+        comment="Defines the scope of the tag (e.g., 'GLOBAL', 'COMPONENT_CLASS_REQUIRED', 'CONCEPTUAL_ASSET_LOCAL').",
     )
 
     tag_scope_detail: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
         comment="Details for the scope, e.g., component class name if scope_type is 'COMPONENT_CLASS_REQUIRED', "
-                "or an Entity ID if scope_type is 'CONCEPTUAL_ASSET_LOCAL'."
+        "or an Entity ID if scope_type is 'CONCEPTUAL_ASSET_LOCAL'.",
     )
 
     tag_description: Mapped[str | None] = mapped_column(
-        String(2048),
-        nullable=True,
-        comment="A description of what this tag represents or how it should be used."
+        String(2048), nullable=True, comment="A description of what this tag represents or how it should be used."
     )
 
     allow_values: Mapped[bool] = mapped_column(
@@ -54,11 +54,11 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         default=False,
         nullable=False,
         comment="If True, this tag can be applied with an associated value (e.g., Tag 'Rating', Value '5 Stars'). "
-                "If False, it's a simple label tag."
+        "If False, it's a simple label tag.",
     )
 
     __table_args__ = (
-        UniqueConstraint('tag_name', name='uq_tag_concept_name'),
+        UniqueConstraint("tag_name", name="uq_tag_concept_name"),
         # If tag names should be unique only within a certain scope (e.g. different users can have same tag name),
         # this constraint would need to be more complex or handled at service layer.
         # For now, assuming tag_name is globally unique for simplicity of definition.

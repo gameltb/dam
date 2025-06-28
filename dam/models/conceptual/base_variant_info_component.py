@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr # Added declared_attr
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship  # Added declared_attr
 
 from ..core.base_component import BaseComponent
 
@@ -38,7 +38,7 @@ class BaseVariantInfoComponent(BaseComponent):
         """Relationship to the parent (owning) Conceptual Asset Entity."""
         return relationship(
             "Entity",
-            foreign_keys=[cls.conceptual_entity_id], # Use cls.conceptual_entity_id
+            foreign_keys=[cls.conceptual_entity_id],  # Use cls.conceptual_entity_id
             # backref="variants_conceptual_links", # Consider if a backref is needed and how it would work with multiple variant types
             repr=False,
         )
