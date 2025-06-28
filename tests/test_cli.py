@@ -1000,3 +1000,130 @@ async def test_cli_find_similar_images(test_environment, caplog): # Made async, 
     # If this part fails, it might be due to hash values, not the async conversion.
     # For now, let's just assert that some result (even if empty) is returned.
     assert isinstance(strict_results, list)
+
+
+@pytest.mark.asyncio
+async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatch):
+    """Test that ExiftoolMetadataComponent is created with data from exiftool."""
+    caplog.set_level("INFO")
+    tmp_path = test_environment["tmp_path"]
+    default_world_name = test_environment["default_world_name"]
+
+    # 1. Create a dummy image file (content doesn't matter much as we'll mock exiftool)
+    dummy_image_content = b"fake image data"
+    dummy_image_file = tmp_path / "test_exif_image.jpg"
+    dummy_image_file.write_bytes(dummy_image_content)
+
+    # 2. Define sample exiftool output
+    # Exiftool with -json -G returns a list with one dictionary
+    sample_exif_data_dict = {
+        "SourceFile": str(dummy_image_file),
+        "EXIF:Make": "TestMake",
+        "EXIF:Model": "TestModel",
+        "Composite:ImageSize": "640x480"
+    }
+
+    # 3. Mock `_run_exiftool_subprocess`
+    # We need AsyncMock if the function being mocked is an async function
+    # _run_exiftool_subprocess is async.
+    from unittest.mock import AsyncMock
+
+    mock_run_exiftool = AsyncMock(return_value=sample_exif_data_dict)
+    monkeypatch.setattr("dam.systems.metadata_systems._run_exiftool_subprocess", mock_run_exiftool)
+
+    # 4. Add the asset programmatically
+    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
+    from dam.core.config import Settings as AppSettings
+    from dam.core.events import AssetFileIngestionRequested
+    from dam.core.stages import SystemStage
+    from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
+
+    current_test_settings = AppSettings() # Uses monkeypatched env from test_environment
+    create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
+    target_world = get_world(default_world_name)
+    assert target_world is not None
+
+    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_image_file)
+
+    ingestion_event = AssetFileIngestionRequested(
+        filepath_on_disk=dummy_image_file,
+        original_filename=original_filename,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
+        world_name=target_world.name,
+    )
+
+    await target_world.dispatch_event(ingestion_event)
+    await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
+
+    # 5. Query for ExiftoolMetadataComponent and assert
+    db_manager = test_environment["db_managers"][default_world_name]
+    content_hash = file_operations.calculate_sha256(dummy_image_file) # To find the entity
+    content_hash_bytes = bytes.fromhex(content_hash)
+
+    entity_id = None
+    async with db_manager.session_local() as session:
+        stmt_hash = select(ContentHashSHA256Component).where(
+            ContentHashSHA256Component.hash_value == content_hash_bytes
+        )
+        hash_comp_result = await session.execute(stmt_hash)
+        hash_component = hash_comp_result.scalar_one_or_none()
+        assert hash_component is not None, "Asset was not ingested correctly (no hash component)."
+        entity_id = hash_component.entity_id
+
+        stmt_exif = select(ExiftoolMetadataComponent).where(ExiftoolMetadataComponent.entity_id == entity_id)
+        exif_comp_result = await session.execute(stmt_exif)
+        exif_component = exif_comp_result.scalar_one_or_none()
+
+        assert exif_component is not None, "ExiftoolMetadataComponent was not created."
+        assert exif_component.raw_exif_json is not None, "raw_exif_json is None."
+
+        # Compare the dictionaries
+        assert exif_component.raw_exif_json == sample_exif_data_dict, \
+            f"Exif data mismatch. DB: {exif_component.raw_exif_json}, Expected: {sample_exif_data_dict}"
+
+    # 6. Assert that the mock was called correctly
+    mock_run_exiftool.assert_called_once()
+    # The first argument to _run_exiftool_subprocess is the filepath Path object
+    call_args = mock_run_exiftool.call_args[0] # Gets positional arguments
+    assert len(call_args) == 1, "Mock called with unexpected number of positional arguments"
+
+    # Resolve the path from FLC to compare, as that's what metadata_systems uses
+    # This part is a bit tricky as the exact path passed to _run_exiftool_subprocess
+    # depends on how FileLocationComponent was resolved by metadata_systems.
+    # For a CAS asset, it would be base_storage_path / physical_path_or_key
+    # For this test, let's assume the dummy_image_file path itself is what's used if it's a CAS asset stored directly.
+    # However, the system prioritizes CAS path.
+    # To simplify, we check if the filename part matches, as the full path construction can be complex.
+
+    # Let's get the actual path used by the system by looking at FileLocationComponent
+    filepath_used_by_system = None
+    async with db_manager.session_local() as session:
+        flc_stmt = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
+        flc_result = await session.execute(flc_stmt)
+        flc = flc_result.scalar_one() # Assuming one FLC for this test asset
+
+        world_config = target_world.config
+        if flc.storage_type == "local_cas":
+            base_storage_path = Path(world_config.ASSET_STORAGE_PATH)
+            # physical_path_or_key for CAS is usually content_identifier/original_filename
+            # or just content_identifier. Let's assume it's the path that get_file_path would give.
+            # However, metadata_systems constructs it as base_storage_path / flc.physical_path_or_key
+            # If flc.physical_path_or_key is relative, this is correct.
+            # For a CAS asset, physical_path_or_key might be like "ab/cd/abcdef..."
+            # The original code in metadata_systems.py:
+            # filepath_on_disk = base_storage_path / cas_loc.physical_path_or_key
+            # So, let's reconstruct that.
+            if flc.physical_path_or_key: # Should exist for CAS
+                 filepath_used_by_system = Path(world_config.ASSET_STORAGE_PATH) / flc.physical_path_or_key
+            else: # Should not happen for CAS
+                 filepath_used_by_system = Path("error_path_not_found_in_flc")
+
+        elif flc.storage_type == "local_reference":
+            filepath_used_by_system = Path(flc.physical_path_or_key)
+        else: # Should not happen for this test
+            filepath_used_by_system = Path("unknown_storage_type_path")
+
+
+    assert call_args[0] == filepath_used_by_system, \
+        f"Mock called with wrong filepath. Actual: {call_args[0]}, Expected: {filepath_used_by_system}"

@@ -66,6 +66,10 @@ async def create_evaluation_run_concept(
             # If BaseConceptualInfoComponent had concept_description, it would be:
             # concept_description=description
         )
+        # Explicitly set conceptual fields inherited from BaseConceptualInfoComponent
+        eval_run_comp.concept_name = run_name
+        eval_run_comp.concept_description = description
+
         # eval_run_comp.entity_id = run_entity.id # Handled by passing entity
         db_session.add(eval_run_comp)
 
