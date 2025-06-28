@@ -1,6 +1,6 @@
 # This file makes the 'services' directory a Python package.
 
-from . import ecs_service, file_operations, world_service
+from . import ecs_service, file_operations, world_service, transcode_service
 
 # Import functions from the new comic book service
 from .comic_book_service import (
@@ -84,5 +84,29 @@ __all__.extend(
         "remove_tag_from_entity",
         "get_tags_for_entity",
         "get_entities_for_tag",
+    ]
+)
+
+# Import functions from the new transcode service
+from . import transcode_service # Import the module first
+from .transcode_service import (
+    create_transcode_profile,
+    get_transcode_profile_by_name_or_id,
+    apply_transcode_profile,
+    get_transcoded_variants_for_original,
+    get_assets_using_profile,
+    TranscodeServiceError,
+)
+
+# Add new service module and its functions to __all__
+__all__.extend(
+    [
+        "transcode_service", # Module itself
+        "create_transcode_profile",
+        "get_transcode_profile_by_name_or_id",
+        "apply_transcode_profile",
+        "get_transcoded_variants_for_original",
+        "get_assets_using_profile",
+        "TranscodeServiceError",
     ]
 )
