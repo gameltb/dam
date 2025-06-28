@@ -72,12 +72,12 @@ async def test_system_create_evaluation_run_concept(test_environment):
         assert erc.entity_id == run_entity.id # Check if entity_id is correctly set
 
         # Verify System:EvaluationRun tag
-        tag_concept = await tag_service.get_tag_concept_by_name(target_world, "System:EvaluationRun", session=session)
+        tag_concept = await tag_service.get_tag_concept_by_name(session, "System:EvaluationRun")
         assert tag_concept is not None
 
         link_stmt = select(EntityTagLinkComponent).where(
             EntityTagLinkComponent.entity_id == run_entity.id,
-            EntityTagLinkComponent.tag_concept_id == tag_concept.id
+            EntityTagLinkComponent.tag_concept_entity_id == tag_concept.id # type: ignore
         )
         link_result = await session.execute(link_stmt)
         link = link_result.scalar_one_or_none()

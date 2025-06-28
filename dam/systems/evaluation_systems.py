@@ -58,35 +58,33 @@ async def create_evaluation_run_concept(
         await db_session.flush()
 
         eval_run_comp = EvaluationRunComponent(
+            id=run_entity.id,
             entity=run_entity, # Pass Entity object
-            run_name=run_name
-            # concept_name and concept_description are not direct __init__ args
-            # If 'description' is meant for a specific field, it should be added to the model
-            # and passed correctly. For now, removing to fix TypeError.
-            # If BaseConceptualInfoComponent had concept_description, it would be:
-            # concept_description=description
+            run_name=run_name,
+            concept_name=run_name, # Pass run_name for concept_name
+            concept_description=description # Pass description for concept_description
         )
-        # Explicitly set conceptual fields inherited from BaseConceptualInfoComponent
-        eval_run_comp.concept_name = run_name
-        eval_run_comp.concept_description = description
-
-        # eval_run_comp.entity_id = run_entity.id # Handled by passing entity
+        # The attributes are now set via the constructor.
+        # eval_run_comp.entity_id = run_entity.id # Handled by passing entity / or id mapping
         db_session.add(eval_run_comp)
 
         # Tag it as an "Evaluation Run"
         try:
             tag_concept_name = "System:EvaluationRun"
             try:
-                tag_concept = await tag_service.get_tag_concept_by_name(world, tag_concept_name, session=db_session)
+                # Pass db_session directly, world is not used by get_tag_concept_by_name
+                tag_concept = await tag_service.get_tag_concept_by_name(db_session, tag_concept_name)
             except tag_service.TagConceptNotFoundError:
+                # create_tag_concept expects session as its first argument
                 tag_concept = await tag_service.create_tag_concept(
-                    world,
-                    name=tag_concept_name,
+                    db_session, # Pass db_session here
+                    tag_name=tag_concept_name, # Parameter name is tag_name
                     description="Marks an entity as an Evaluation Run.",
-                    scope="GLOBAL",
-                    session=db_session
+                    scope_type="GLOBAL", # Parameter name is scope_type
+                    # session=db_session # Removed redundant keyword argument
                 )
-            await tag_service.apply_tag_to_entity(world, run_entity.id, tag_concept.id, session=db_session)
+            # apply_tag_to_entity call confirmed to be correct
+            await tag_service.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
         except Exception as e:
             world.logger.warning(f"Could not apply system tag to evaluation run '{run_name}': {e}")
 

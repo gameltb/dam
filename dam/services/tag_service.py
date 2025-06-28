@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
 
+class TagConceptNotFoundError(Exception):
+    """Custom exception for when a TagConcept is not found."""
+    pass
+
 # --- Tag Definition Functions ---
 
 
@@ -37,10 +41,14 @@ async def create_tag_concept( # Made async
     if not scope_type:
         raise ValueError("Tag scope type cannot be empty.")
 
-    existing_tag_concept = await get_tag_concept_by_name(session, tag_name) # Await
-    if existing_tag_concept:
+    try:
+        existing_tag_concept = await get_tag_concept_by_name(session, tag_name) # Await
+        # If get_tag_concept_by_name returns (doesn't raise), the tag exists.
         logger.warning(f"TagConcept with name '{tag_name}' already exists with Entity ID {existing_tag_concept.id}.")
         return existing_tag_concept
+    except TagConceptNotFoundError:
+        # Tag does not exist, proceed to create it.
+        pass
 
     tag_concept_entity = await ecs_service.create_entity(session) # Await
     if tag_concept_entity.id is None: await session.flush() # Ensure ID
@@ -52,6 +60,8 @@ async def create_tag_concept( # Made async
         tag_scope_detail=scope_detail,
         tag_description=description,
         allow_values=allow_values,
+        concept_name=tag_name,  # Use tag_name for the general concept_name
+        concept_description=description # Use description for the general concept_description
     )
     session.add(tag_concept_comp)
     try:
@@ -66,14 +76,17 @@ async def create_tag_concept( # Made async
         return None
 
 
-async def get_tag_concept_by_name(session: AsyncSession, name: str) -> Optional[Entity]: # Made async
+async def get_tag_concept_by_name(session: AsyncSession, name: str) -> Entity: # Made async, return type changed
     stmt = (
         select(Entity)
         .join(TagConceptComponent, Entity.id == TagConceptComponent.entity_id)
         .where(TagConceptComponent.tag_name == name)
     )
     result = await session.execute(stmt) # Await
-    return result.scalar_one_or_none()
+    entity = result.scalar_one_or_none()
+    if entity is None:
+        raise TagConceptNotFoundError(f"Tag concept '{name}' not found.")
+    return entity
 
 
 async def get_tag_concept_by_id(session: AsyncSession, tag_concept_entity_id: int) -> Optional[Entity]: # Made async

@@ -36,6 +36,8 @@ async def create_comic_book_concept( # Made async
         series_title=series_title or comic_title,
         issue_number=issue_number,
         publication_year=publication_year,
+            concept_name=comic_title,
+            concept_description=None,
     )
     session.add(comic_concept_comp)
     logger.info(
