@@ -7,6 +7,8 @@ from .page_link import PageLink
 from .tag_concept_component import TagConceptComponent
 from .transcode_profile_component import TranscodeProfileComponent
 from .transcoded_variant_component import TranscodedVariantComponent
+from .evaluation_result_component import EvaluationResultComponent
+from .evaluation_run_component import EvaluationRunComponent
 
 __all__ = [
     "BaseConceptualInfoComponent",

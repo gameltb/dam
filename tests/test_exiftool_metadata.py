@@ -5,15 +5,17 @@ import asyncio
 import json
 import shutil
 from pathlib import Path
+import logging # Added import
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+import pytest_asyncio # Added for async fixtures
+from sqlalchemy.ext.asyncio import AsyncSession # Changed from sqlalchemy.orm import Session
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.system_params import WorldSession
-from dam.models import Entity, FileLocationComponent, FilePropertiesComponent
+from dam.models import Entity, FileLocationComponent, FilePropertiesComponent, ImageDimensionsComponent # Added ImageDimensionsComponent
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam.services import ecs_service
 from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
@@ -22,58 +24,65 @@ from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
 MINIMAL_EXIF_JSON_OUTPUT = [{"SourceFile": "dummy.jpg", "FileType": "JPEG"}]
 
 
-@pytest.fixture
-def dummy_entity(session: Session) -> Entity:
-    entity = Entity(name="test_entity")
-    session.add(entity)
-    session.commit()
+@pytest_asyncio.fixture
+async def dummy_entity(db_session: AsyncSession) -> Entity: # Changed to async and db_session
+    entity = Entity() # Removed name="test_entity" as Entity has no 'name' field by default
+    db_session.add(entity)
+    await db_session.commit() # Await commit
+    await db_session.refresh(entity) # Refresh to get ID etc.
     return entity
 
 
-@pytest.fixture
-def dummy_file_location(session: Session, dummy_entity: Entity, tmp_path: Path) -> FileLocationComponent:
+@pytest_asyncio.fixture
+async def dummy_file_location(db_session: AsyncSession, dummy_entity: Entity, tmp_path: Path) -> FileLocationComponent: # Changed to async and db_session
     # Create a dummy file
     asset_file = tmp_path / "dummy.jpg"
     asset_file.write_text("dummy content")
 
     # Simulate CAS storage for simplicity in tests
     cas_path_segment = "cas/dummy_hash.jpg"
-    cas_storage_path = tmp_path / "asset_storage"
-    actual_cas_file_path = cas_storage_path / cas_path_segment
-    actual_cas_file_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(asset_file, actual_cas_file_path)
+    # cas_storage_path = tmp_path / "asset_storage" # This will be derived from WorldConfig
+    # actual_cas_file_path = cas_storage_path / cas_path_segment
+    # actual_cas_file_path.parent.mkdir(parents=True, exist_ok=True)
+    # shutil.copy(asset_file, actual_cas_file_path) # File creation handled by test or system if needed, not fixture here
 
     loc = FileLocationComponent(
-        entity_id=dummy_entity.id,
+        entity=dummy_entity, # Pass entity object
+        content_identifier="dummy_content_hash_exiftool", # Added content_identifier
         storage_type="local_cas",
         physical_path_or_key=cas_path_segment, # Relative to ASSET_STORAGE_PATH
-        file_size_bytes=asset_file.stat().st_size,
+        contextual_filename=asset_file.name # Added contextual_filename
+        # file_size_bytes=asset_file.stat().st_size, # File size is in FilePropertiesComponent
     )
-    session.add(loc)
-    session.commit()
+    # loc.entity_id = dummy_entity.id # No longer set directly
+    db_session.add(loc)
+    await db_session.commit() # Await commit
     return loc
 
 
-@pytest.fixture
-def dummy_file_properties(session: Session, dummy_entity: Entity) -> FilePropertiesComponent:
+@pytest_asyncio.fixture
+async def dummy_file_properties(db_session: AsyncSession, dummy_entity: Entity) -> FilePropertiesComponent: # Changed to async and db_session
     fp = FilePropertiesComponent(
-        entity_id=dummy_entity.id,
+        entity=dummy_entity, # Pass entity object
+        original_filename="dummy.jpg", # Added original_filename
         mime_type="image/jpeg",
-        file_extension=".jpg",
+        file_size_bytes=12345 # Added file_size_bytes
+        # file_extension=".jpg", # file_extension is not a field in FilePropertiesComponent
     )
-    session.add(fp)
-    session.commit()
+    # fp.entity_id = dummy_entity.id # No longer set directly
+    db_session.add(fp)
+    await db_session.commit() # Await commit
     return fp
 
 
 @pytest.fixture
-def world_session_mock(session: Session) -> WorldSession:
+def world_session_mock(db_session: AsyncSession) -> WorldSession: # Changed to db_session
     # Create a mock WorldSession that wraps the real test session
     ws_mock = MagicMock(spec=WorldSession)
-    ws_mock.session = session  # The real SQLAlchemy session for DB operations
-    ws_mock.get_db = MagicMock(return_value=session) # For systems that might call get_db
-    # Mock other methods if your system uses them, e.g., .commit(), .flush()
-    # For this test, direct session usage via ecs_service should be fine.
+    ws_mock.session = db_session  # The real SQLAlchemy AsyncSession for DB operations
+    ws_mock.get_db = MagicMock(return_value=db_session) # For systems that might call get_db
+    # Mock other methods if your system uses them (e.g., world.logger)
+    ws_mock.logger = MagicMock(spec=logging.Logger)
     return ws_mock
 
 
@@ -108,6 +117,7 @@ async def test_exiftool_extraction_success(
 
     # Configure WorldConfig (especially ASSET_STORAGE_PATH)
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:", # Not directly used by this part of system
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -153,6 +163,7 @@ async def test_exiftool_not_found(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -197,6 +208,7 @@ async def test_exiftool_execution_error(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -240,6 +252,7 @@ async def test_exiftool_json_decode_error(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -284,6 +297,7 @@ async def test_exiftool_empty_json_list_output(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -331,6 +345,7 @@ async def test_hachoir_runs_if_exiftool_fails(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -386,6 +401,7 @@ async def test_exiftool_runs_if_hachoir_fails(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -418,6 +434,7 @@ async def test_no_entities_to_process(
     tmp_path: Path,
 ):
     world_config = WorldConfig(
+        name="test_world_exif_no_entities", # Added specific name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -459,6 +476,7 @@ async def test_hachoir_not_installed_exiftool_runs(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -536,6 +554,7 @@ async def test_existing_exiftool_component_not_overwritten(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )
@@ -577,6 +596,7 @@ async def test_file_not_found_on_disk_for_exiftool(
 
     # Make sure the file does NOT exist
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage_non_existent_file") # Use a different base
     )
@@ -639,6 +659,7 @@ async def test_no_file_location_component(
     session.commit()
 
     world_config = WorldConfig(
+        name="test_world_exif", # Added name
         DATABASE_URL="sqlite:///:memory:",
         ASSET_STORAGE_PATH=str(tmp_path / "asset_storage")
     )

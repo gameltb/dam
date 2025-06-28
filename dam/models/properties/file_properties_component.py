@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .. import BaseComponent
+from dam.models.core.base_component import BaseComponent
 
 # Base is inherited via BaseComponent
 
