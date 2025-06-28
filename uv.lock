@@ -159,7 +159,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
     { name = "sqlalchemy" },
-    { name = "typer", extras = ["all"] },
+    { name = "typer" },
 ]
 provides-extras = ["image", "video", "audio", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "ui", "dev", "all"]
 

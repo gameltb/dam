@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Generator  # Added for fixture type hints
 
 import pytest
-from sqlalchemy.orm import Session  # E402: Moved to top
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -140,22 +139,17 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     return world
 
 
-async def _teardown_world_async(world: World): # Made async
-    """Helper function to teardown a test world."""
+async def _teardown_world_async(world: World):
+    """Helper function to teardown a test world's database and dispose of the engine."""
     if world and world.has_resource(DatabaseManager):
         db_mngr = world.get_resource(DatabaseManager)
-        if db_mngr and db_mngr.engine:
-            from sqlalchemy.ext.asyncio import AsyncEngine # Import for type check
-            if isinstance(db_mngr.engine, AsyncEngine):
-                async with db_mngr.engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.drop_all)
-                await db_mngr.engine.dispose() # Dispose async engine
-            else: # Fallback for synchronous engines
-                Base.metadata.drop_all(bind=db_mngr.engine)
-                db_mngr.engine.dispose()  # Close connections
+        if db_mngr and db_mngr.engine: # Engine is now guaranteed to be AsyncEngine
+            async with db_mngr.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.drop_all)
+            await db_mngr.engine.dispose()  # Dispose async engine
     # Asset storage path (tmp_path subdirectory) will be cleaned by tmp_path fixture
 
-import pytest_asyncio # Added for async fixtures
+import pytest_asyncio
 from typing import AsyncGenerator # Added for async generator type hint
 
 @pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture

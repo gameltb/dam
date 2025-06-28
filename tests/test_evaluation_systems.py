@@ -18,11 +18,13 @@ from dam.models.conceptual.transcoded_variant_component import TranscodedVariant
 from dam.systems import evaluation_systems
 from dam.services import transcode_service, ecs_service, tag_service # For setup and verification
 from dam.core.exceptions import EntityNotFoundError
+from dam.core.events import StartEvaluationForTranscodedAsset # Import event directly
 
 # Import fixtures from conftest or other test files if they are reusable
 # For this test file, we'll reuse some fixtures if they were defined broadly,
 # or redefine specific ones. Let's assume test_world and db_session are available (e.g. from conftest or transcode_service tests)
 # For simplicity, re-using the setup from test_transcode_service.py for db and world
+# Note: Importing fixtures like this is fine, but specific classes like events should be from their canonical source.
 from .test_transcode_service import setup_database, db_session, test_world, sample_asset_entity
 
 

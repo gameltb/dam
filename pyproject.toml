@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     "sqlalchemy",
     "alembic",
-    "typer[all]", # Using [all] for rich tracebacks and shell completion
+    "typer", # Using [all] for rich tracebacks and shell completion
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management

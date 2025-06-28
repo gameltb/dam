@@ -1,13 +1,22 @@
 import asyncio
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any # Added List, Dict, Any for type hints potentially used by events
+from dataclasses import dataclass, field # Added dataclass, field
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.future import select
 
 from dam.core.world import World
-from dam.core.events import AssetFileIngestionRequested
+# Updated event imports: BaseEvent is needed, others are now defined in core.events
+from dam.core.events import (
+    BaseEvent, # Make sure BaseEvent is imported
+    AssetFileIngestionRequested,
+    TranscodeJobRequested,
+    TranscodeJobCompleted,
+    TranscodeJobFailed,
+    StartEvaluationForTranscodedAsset
+)
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
@@ -402,3 +411,38 @@ except ImportError:
         EVALUATION = "EVALUATION"
         # ... etc.
     print("Note: Using a mock SystemStage enum for transcode_service.py.")
+
+# --- Transcoding Events ---
+# These are now defined in dam.core.events to avoid circular imports.
+# @dataclass
+# class TranscodeJobRequested(BaseEvent):
+#     world_name: str
+#     source_entity_id: int
+#     profile_id: int
+#     priority: int = 100
+#     output_parent_dir: Optional[Path] = None
+
+# @dataclass
+# class TranscodeJobCompleted(BaseEvent):
+#     job_id: int
+#     world_name: str
+#     source_entity_id: int
+#     profile_id: int
+#     output_entity_id: int
+#     output_file_path: Path
+
+# @dataclass
+# class TranscodeJobFailed(BaseEvent):
+#     job_id: int
+#     world_name: str
+#     source_entity_id: int
+#     profile_id: int
+#     error_message: str
+
+# --- Evaluation Events ---
+# Also moved to dam.core.events
+# @dataclass
+# class StartEvaluationForTranscodedAsset(BaseEvent):
+#     world_name: str
+#     evaluation_run_id: int
+#     transcoded_asset_id: int
