@@ -12,6 +12,7 @@ This file provides instructions for AI agents working with this codebase.
     *   To run tests with coverage locally, use `uv run pytest --cov=dam --cov-report=term-missing` (ensure `pytest-cov` is installed via dev dependencies).
     *   **Environment Setup:** It is recommended to use `uv` for managing virtual environments and dependencies.
         *   Install dependencies (including `pytest` and `pytest-cov`): `uv run pip install -e .[all]` (as specified in `pyproject.toml`, includes all optional groups).
+    *   **Assertion Guideline:** Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions.
 *   **Commit Messages:** Follow conventional commit message formats.
 *   **CI/CD:** The continuous integration pipeline is managed by GitHub Actions, configured in `.github/workflows/ci.yml`.
     *   It uses Python 3.12.
@@ -21,4 +22,5 @@ This file provides instructions for AI agents working with this codebase.
 
 ### Specific Instructions
 
-*   There are no specific instructions at this time.
+*   **Design Specification**: For guidance on models (Components) and Systems architecture (excluding testing guidelines which are now in this document), please consult the [Design Specification](doc/design_specification.md) document.
+*   There are no other specific instructions at this time.
