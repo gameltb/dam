@@ -16,23 +16,17 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
     # id, entity_id, conceptual_entity_id, created_at, updated_at are inherited.
 
     language: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-        index=True,
-        comment="Language of this comic book variant (e.g., 'en', 'jp')."
+        String(50), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."
     )
 
     format: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-        index=True,
-        comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub')."
+        String(50), nullable=True, index=True, comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub')."
     )
 
     scan_quality: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-        comment="Description of scan quality, if applicable (e.g., '300dpi', 'WebRip', 'Archive Grade')."
+        comment="Description of scan quality, if applicable (e.g., '300dpi', 'WebRip', 'Archive Grade').",
     )
 
     is_primary_variant: Mapped[bool] = mapped_column(
@@ -40,13 +34,13 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
         default=False,
         nullable=False,
         index=True,
-        comment="Indicates if this is the primary or preferred variant for the comic book concept."
+        comment="Indicates if this is the primary or preferred variant for the comic book concept.",
     )
 
     variant_description: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="A general description for this variant, e.g., 'Collector's Edition Scan', 'Digital Release'."
+        comment="A general description for this variant, e.g., 'Collector's Edition Scan', 'Digital Release'.",
     )
 
     # Could add other comic variant specific fields:
@@ -65,8 +59,8 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
             "conceptual_entity_id",
             "language",
             "format",
-            "variant_description", # This might be too specific for a unique constraint
-            name="uq_comic_variant_details_per_concept"
+            "variant_description",  # This might be too specific for a unique constraint
+            name="uq_comic_variant_details_per_concept",
         ),
         # An Entity (file) can only be one specific comic book variant of one comic book concept.
         # This is implicitly handled by BaseVariantInfoComponent having conceptual_entity_id

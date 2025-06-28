@@ -13,11 +13,9 @@ from pathlib import Path
 from typing import Annotated, Any, List  # Added Dict
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
+from dam.core.config import WorldConfig  # Import WorldConfig directly
 from dam.core.stages import SystemStage
-from dam.core.system_params import (
-    CurrentWorldConfig,
-    WorldSession,
-)
+from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
 from dam.core.systems import system
 from dam.models import (
     AudioPropertiesComponent,
@@ -90,7 +88,7 @@ async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | N
 @system(stage=SystemStage.METADATA_EXTRACTION)
 async def extract_metadata_on_asset_ingested(
     session: WorldSession,
-    world_config: CurrentWorldConfig,
+    world_config: WorldConfig,  # Changed from CurrentWorldConfig
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
     if not createParser or not extractMetadata:

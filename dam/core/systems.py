@@ -57,10 +57,15 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                         f"'{actual_type}' is not a BaseEvent subclass."
                     )
 
-        if not identity:
-            if actual_type is WorldContext:
+        if not identity:  # Only set identity if not already set by Annotated string
+            # Specific framework types that are not standard resources
+            if actual_type is WorldContext:  # WorldContext is passed directly by scheduler
                 identity = "WorldContext"
-            elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
+            # elif actual_type is WorldConfig: # WorldConfig is a resource, handled by type
+            #     identity = "CurrentWorldConfig"
+            # elif actual_type is str and name == "world_name": # Heuristic, better to inject WorldConfig
+            #     identity = "WorldName"
+            elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):  # Events are special
                 identity = "Event"
                 event_specific_type = actual_type
 
@@ -165,162 +170,14 @@ class WorldScheduler:
         else:
             self.logger.error(f"System {system_func.__name__} must be registered with either a stage or an event_type.")
 
-    async def _resolve_and_execute_system(
-        self, system_func: Callable[..., Any], world_context: WorldContext, event_object: Optional[BaseEvent] = None
-    ):
-        metadata = self.system_metadata.get(system_func)
-        if not metadata:
-            self.logger.warning(
-                f"No metadata found for system {system_func.__name__} in world '{world_context.world_name}'. Skipping."
-            )
-            return False
-
-        kwargs_to_inject = {}
-        try:
-            for param_name, param_meta in metadata["params"].items():
-                identity = param_meta["identity"]
-                param_type_hint = param_meta["type_hint"]
-
-                if identity == "WorldSession":
-                    kwargs_to_inject[param_name] = world_context.session
-                elif identity == "WorldName":
-                    kwargs_to_inject[param_name] = world_context.world_name
-                elif identity == "CurrentWorldConfig":
-                    kwargs_to_inject[param_name] = world_context.world_config
-                elif identity == "WorldContext":
-                    kwargs_to_inject[param_name] = world_context
-                elif identity == "Resource":
-                    try:
-                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
-                    except ResourceNotFoundError as e:
-                        self.logger.error(
-                            f"System {system_func.__name__} in world '{world_context.world_name}' requires resource "
-                            f"{param_type_hint.__name__} which was not found: {e}",
-                            exc_info=True,
-                        )
-                        raise
-                elif identity == "MarkedEntityList":
-                    marker_type = param_meta["marker_component_type"]
-                    if not marker_type or not issubclass(marker_type, BaseComponent):
-                        msg = (
-                            f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' "
-                            f"with invalid or missing marker component type in world '{world_context.world_name}'."
-                        )
-                        self.logger.error(msg)
-                        raise ValueError(msg)
-
-                    from sqlalchemy import exists as sql_exists
-                    from sqlalchemy import select as sql_select
-
-                    stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
-                    entities_to_process = world_context.session.execute(stmt).scalars().all()
-                    kwargs_to_inject[param_name] = entities_to_process
-                    self.logger.debug(
-                        f"System {system_func.__name__} in world '{world_context.world_name}' gets {len(entities_to_process)} entities for marker {marker_type.__name__}"
-                    )
-                elif identity == "Event":
-                    expected_event_type = param_meta["event_type_hint"]
-                    if event_object and isinstance(event_object, expected_event_type):
-                        kwargs_to_inject[param_name] = event_object
-                    elif event_object:
-                        self.logger.warning(
-                            f"System {system_func.__name__} in world '{world_context.world_name}' expected event type {expected_event_type} "
-                            f"but received {type(event_object)}. Skipping injection for this param."
-                        )
-                    elif expected_event_type is not None:
-                        msg = (
-                            f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
-                            f"expects an event of type {expected_event_type.__name__} but none was provided."
-                        )
-                        self.logger.error(msg)
-                        raise ValueError(msg)
-                else:  # No specific identity, try direct resource injection
-                    # Check if it's the event_object itself, which should only be injected if identity is "Event"
-                    is_event_param_for_current_event = False
-                    if event_object and param_meta.get("event_type_hint"):  # Check if param expects an event
-                        if isinstance(
-                            event_object, param_meta["event_type_hint"]
-                        ):  # Check if current event matches param's expected event type
-                            # Check if this param_name is the one designated for this event type via @listens_for
-                            # This is a bit heuristic: find the param that's typed as the event this handler is for.
-                            event_param_candidate_name = None
-                            listens_for_type = metadata.get("listens_for_event_type")  # Get from system metadata
-                            if listens_for_type:
-                                for pn, pi in metadata["params"].items():
-                                    if pi.get("type_hint") == listens_for_type and pi.get("identity") == "Event":
-                                        event_param_candidate_name = pn
-                                        break
-                            if param_name == event_param_candidate_name:
-                                is_event_param_for_current_event = True
-
-                    if not is_event_param_for_current_event:
-                        # Avoid basic types and NoneType
-                        if not (
-                            param_type_hint is str
-                            or param_type_hint is int
-                            or param_type_hint is bool
-                            or param_type_hint is float
-                            or param_type_hint is list
-                            or param_type_hint is dict
-                            or param_type_hint is tuple
-                            or param_type_hint is set
-                            or param_type_hint is type(None)
-                        ):
-                            self.logger.debug(
-                                f"No specific identity for param '{param_name}'. Attempting direct resource injection for type: {param_type_hint}"
-                            )
-                            try:
-                                resource_instance = self.resource_manager.get_resource(param_type_hint)
-                                kwargs_to_inject[param_name] = resource_instance
-                                self.logger.debug(
-                                    f"Successfully injected resource for param: {param_name} by direct type: {param_type_hint}"
-                                )
-                            except ResourceNotFoundError:
-                                self.logger.warning(
-                                    f"Resource not found for param: {param_name} by direct type: {param_type_hint}. This may lead to a TypeError if the parameter is required."
-                                )
-                            except Exception as e_direct_inject:
-                                self.logger.error(
-                                    f"Error during direct resource injection attempt for param '{param_name}' (type {param_type_hint}): {e_direct_inject}",
-                                    exc_info=True,
-                                )
-        except Exception as e:
-            self.logger.error(
-                f"Error preparing dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
-                exc_info=True,
-            )
-            raise
-
-        self.logger.debug(
-            f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
-        )
-
-        if metadata["is_async"]:
-            await system_func(**kwargs_to_inject)
-        else:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
-
-        if metadata.get("system_type") == "stage_system":
-            for param_name, param_meta in metadata["params"].items():
-                if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
-                    marker_type_to_remove = param_meta["marker_component_type"]
-                    entities_processed = kwargs_to_inject.get(param_name, [])
-                    if entities_processed and marker_type_to_remove:
-                        entity_ids_processed = [entity.id for entity in entities_processed]
-                        if entity_ids_processed:
-                            from sqlalchemy import delete as sql_delete
-
-                            self.logger.debug(
-                                f"Scheduler for world '{world_context.world_name}': Bulk removing {marker_type_to_remove.__name__} from "
-                                f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
-                            )
-                            stmt = sql_delete(marker_type_to_remove).where(
-                                marker_type_to_remove.entity_id.in_(entity_ids_processed)
-                            )
-                            world_context.session.execute(stmt)
-                            world_context.session.flush()
-        return True
+    # This method is now effectively replaced by _execute_system_func and can be removed.
+    # async def _resolve_and_execute_system(
+    #     self, system_func: Callable[..., Any], world_context: WorldContext, event_object: Optional[BaseEvent] = None
+    # ):
+    #     # ... (old implementation was here) ...
+    #     # This method is primarily used by execute_stage and dispatch_event for registered systems.
+    #     # It will call _execute_system_func without additional_kwargs, relying on standard DI.
+    #     return await self._execute_system_func(system_func, world_context, event_object)
 
     async def execute_stage(self, stage: SystemStage, world_context: WorldContext):
         self.logger.info(f"Executing stage: {stage.name} for world: {world_context.world_name}")
@@ -333,7 +190,8 @@ class WorldScheduler:
         try:
             for system_func in systems_to_run:
                 active_system_func_name = system_func.__name__
-                await self._resolve_and_execute_system(system_func, world_context)
+                # Call _execute_system_func directly
+                await self._execute_system_func(system_func, world_context, event_object=None)
             try:
                 world_context.session.commit()
                 self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
@@ -375,7 +233,8 @@ class WorldScheduler:
         try:
             for handler_func in handlers_to_run:
                 active_handler_func_name = handler_func.__name__
-                await self._resolve_and_execute_system(handler_func, world_context, event_object=event)
+                # Call _execute_system_func directly
+                await self._execute_system_func(handler_func, world_context, event_object=event)
             try:
                 world_context.session.commit()
                 self.logger.info(
@@ -462,15 +321,14 @@ class WorldScheduler:
             identity = param_meta["identity"]
             param_type_hint = param_meta["type_hint"]
 
-            if identity == "WorldSession":
+            if identity == "WorldSession":  # WorldSession is special, directly from WorldContext
                 kwargs_to_inject[param_name] = world_context.session
-            elif identity == "WorldName":
-                kwargs_to_inject[param_name] = world_context.world_name
-            elif identity == "CurrentWorldConfig":
-                kwargs_to_inject[param_name] = world_context.world_config
-            elif identity == "WorldContext":
+            # WorldName and CurrentWorldConfig identities are removed.
+            # WorldConfig is injected as a resource by type.
+            # Systems needing world_name should inject WorldConfig and use world_config.name.
+            elif identity == "WorldContext":  # WorldContext is special, passed directly
                 kwargs_to_inject[param_name] = world_context
-            elif identity == "Resource":
+            elif identity == "Resource":  # Explicitly annotated as a resource
                 kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
             elif identity == "MarkedEntityList":
                 marker_type = param_meta["marker_component_type"]
@@ -611,10 +469,6 @@ class WorldScheduler:
             # world_context.session.rollback() # Caller handles rollback
             raise  # Re-raise the exception to be handled by the World method
 
-    # Overwrite _resolve_and_execute_system to use the new _execute_system_func structure
-    async def _resolve_and_execute_system(
-        self, system_func: Callable[..., Any], world_context: WorldContext, event_object: Optional[BaseEvent] = None
-    ):
-        # This method is primarily used by execute_stage and dispatch_event for registered systems.
-        # It will call _execute_system_func without additional_kwargs, relying on standard DI.
-        return await self._execute_system_func(system_func, world_context, event_object)
+    # The _resolve_and_execute_system method has been removed as its functionality
+    # is integrated into _execute_system_func and called directly by
+    # execute_stage and dispatch_event.

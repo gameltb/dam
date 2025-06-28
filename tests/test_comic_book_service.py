@@ -1,12 +1,12 @@
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy import select  # Added import
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select # Added import
+from sqlalchemy.orm import Session
 
-from dam.models.core.entity import Entity
 from dam.models.conceptual import ComicBookConceptComponent, ComicBookVariantComponent, PageLink
-from dam.services import ecs_service
 from dam.services import comic_book_service as cbs
+from dam.services import ecs_service
+
 # from dam.models.properties import ImagePropertiesComponent # If checking image type
 
 
@@ -45,7 +45,7 @@ def test_create_comic_book_concept(db_session: Session):
     db_session.commit()
     retrieved_comp_2 = ecs_service.get_component(db_session, concept_entity_2.id, ComicBookConceptComponent)
     assert retrieved_comp_2.comic_title == "Solo Story"
-    assert retrieved_comp_2.series_title == "Solo Story" # Should default to comic_title
+    assert retrieved_comp_2.series_title == "Solo Story"  # Should default to comic_title
 
 
 def test_link_comic_variant_to_concept(db_session: Session):
@@ -101,7 +101,10 @@ def test_link_comic_variant_error_cases(db_session: Session):
 
     cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="CBZ")
     db_session.commit()
-    with pytest.raises(ValueError, match=f"File Entity ID {file_entity_1.id} is already linked as a ComicBookVariant to ComicBookConcept ID {concept_entity.id}"):
+    with pytest.raises(
+        ValueError,
+        match=f"File Entity ID {file_entity_1.id} is already linked as a ComicBookVariant to ComicBookConcept ID {concept_entity.id}",
+    ):
         cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="fr")
 
     concept_entity_2 = cbs.create_comic_book_concept(db_session, comic_title="Another Error Comic")
@@ -109,8 +112,11 @@ def test_link_comic_variant_error_cases(db_session: Session):
     db_session.commit()
     cbs.link_comic_variant_to_concept(db_session, concept_entity_2.id, file_entity_2.id, language="de")
     db_session.commit()
-    with pytest.raises(ValueError, match=f"File Entity ID {file_entity_2.id} is already a ComicBookVariant of a different ComicBookConcept ID {concept_entity_2.id}"):
-         cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_2.id, language="es")
+    with pytest.raises(
+        ValueError,
+        match=f"File Entity ID {file_entity_2.id} is already a ComicBookVariant of a different ComicBookConcept ID {concept_entity_2.id}",
+    ):
+        cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_2.id, language="es")
 
 
 def test_get_variants_for_comic_concept(db_session: Session):
@@ -118,11 +124,13 @@ def test_get_variants_for_comic_concept(db_session: Session):
     concept_entity = cbs.create_comic_book_concept(db_session, comic_title="Variant Test Comic")
     file_entity_1 = ecs_service.create_entity(db_session)
     file_entity_2 = ecs_service.create_entity(db_session)
-    file_entity_3 = ecs_service.create_entity(db_session) # Not linked
+    file_entity_3 = ecs_service.create_entity(db_session)  # Not linked
     db_session.commit()
 
     cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="PDF")
-    cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_2.id, language="jp", format="CBZ", is_primary=True)
+    cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_2.id, language="jp", format="CBZ", is_primary=True
+    )
     db_session.commit()
 
     variants = cbs.get_variants_for_comic_concept(db_session, concept_entity.id)
@@ -133,7 +141,7 @@ def test_get_variants_for_comic_concept(db_session: Session):
     assert file_entity_3.id not in variant_ids
 
     # Check order (primary first)
-    assert variants[0].id == file_entity_2.id # Primary
+    assert variants[0].id == file_entity_2.id  # Primary
     assert variants[1].id == file_entity_1.id
 
     assert cbs.get_variants_for_comic_concept(db_session, 999) == []
@@ -163,9 +171,27 @@ def test_get_comic_concept_for_variant(db_session: Session):
 
 def test_find_comic_book_concepts(db_session: Session):
     """Test finding comic book concepts by criteria."""
-    cc1 = cbs.create_comic_book_concept(db_session, comic_title="Amazing Adventures", series_title="Amazing Adventures", issue_number="1", publication_year=1980)
-    cc2 = cbs.create_comic_book_concept(db_session, comic_title="Amazing Spider-Man", series_title="Amazing Spider-Man", issue_number="100", publication_year=1971)
-    cc3 = cbs.create_comic_book_concept(db_session, comic_title="Spectacular Stories", series_title="Spectacular Stories", issue_number="Annual 1", publication_year=1990)
+    cc1 = cbs.create_comic_book_concept(
+        db_session,
+        comic_title="Amazing Adventures",
+        series_title="Amazing Adventures",
+        issue_number="1",
+        publication_year=1980,
+    )
+    cc2 = cbs.create_comic_book_concept(
+        db_session,
+        comic_title="Amazing Spider-Man",
+        series_title="Amazing Spider-Man",
+        issue_number="100",
+        publication_year=1971,
+    )
+    cc3 = cbs.create_comic_book_concept(
+        db_session,
+        comic_title="Spectacular Stories",
+        series_title="Spectacular Stories",
+        issue_number="Annual 1",
+        publication_year=1990,
+    )
     db_session.commit()
 
     results_title = cbs.find_comic_book_concepts(db_session, comic_title_query="Amazing")
@@ -189,7 +215,7 @@ def test_find_comic_book_concepts(db_session: Session):
     assert results_combo[0].id == cc2.id
 
     assert cbs.find_comic_book_concepts(db_session, comic_title_query="NonExistent") == []
-    assert cbs.find_comic_book_concepts(db_session) # Test no criteria (should log warning, return all)
+    assert cbs.find_comic_book_concepts(db_session)  # Test no criteria (should log warning, return all)
     all_concepts = cbs.find_comic_book_concepts(db_session)
     assert len(all_concepts) == 3
 
@@ -198,7 +224,7 @@ def test_set_primary_comic_variant(db_session: Session):
     concept = cbs.create_comic_book_concept(db_session, comic_title="Primary Test")
     v1_e = ecs_service.create_entity(db_session)
     v2_e = ecs_service.create_entity(db_session)
-    v3_e = ecs_service.create_entity(db_session) # Variant of another concept
+    v3_e = ecs_service.create_entity(db_session)  # Variant of another concept
     other_concept = cbs.create_comic_book_concept(db_session, comic_title="Other Primary")
     db_session.commit()
 
@@ -209,7 +235,8 @@ def test_set_primary_comic_variant(db_session: Session):
 
     assert cbs.set_primary_comic_variant(db_session, v1_e.id, concept.id) is True
     db_session.commit()
-    db_session.refresh(vc1); db_session.refresh(vc2)
+    db_session.refresh(vc1)
+    db_session.refresh(vc2)
     assert vc1.is_primary_variant is True
     assert vc2.is_primary_variant is False
     primary_v = cbs.get_primary_variant_for_comic_concept(db_session, concept.id)
@@ -217,11 +244,12 @@ def test_set_primary_comic_variant(db_session: Session):
 
     assert cbs.set_primary_comic_variant(db_session, v2_e.id, concept.id) is True
     db_session.commit()
-    db_session.refresh(vc1); db_session.refresh(vc2)
+    db_session.refresh(vc1)
+    db_session.refresh(vc2)
     assert vc1.is_primary_variant is False
     assert vc2.is_primary_variant is True
 
-    assert cbs.set_primary_comic_variant(db_session, v2_e.id, concept.id) is True # Set current again
+    assert cbs.set_primary_comic_variant(db_session, v2_e.id, concept.id) is True  # Set current again
     db_session.refresh(vc2)
     assert vc2.is_primary_variant is True
 
@@ -269,8 +297,8 @@ def test_unlink_comic_variant(db_session: Session):
     db_session.commit()
     assert ecs_service.get_component(db_session, variant_e.id, ComicBookVariantComponent) is None
 
-    assert cbs.unlink_comic_variant(db_session, variant_e.id) is False # Already unlinked
-    assert cbs.unlink_comic_variant(db_session, 999) is False # Non-existent
+    assert cbs.unlink_comic_variant(db_session, variant_e.id) is False  # Already unlinked
+    assert cbs.unlink_comic_variant(db_session, 999) is False  # Non-existent
 
 
 def test_comic_variant_unique_constraints(db_session: Session):
@@ -281,17 +309,23 @@ def test_comic_variant_unique_constraints(db_session: Session):
     db_session.commit()
 
     # Link file1
-    cbs.link_comic_variant_to_concept(db_session, concept1.id, file1.id, language="en", format="PDF", variant_description="Scan A")
+    cbs.link_comic_variant_to_concept(
+        db_session, concept1.id, file1.id, language="en", format="PDF", variant_description="Scan A"
+    )
     db_session.commit()
 
     # Try to link file2 with exact same lang, format, description to concept1
     with pytest.raises(IntegrityError):
-        cbs.link_comic_variant_to_concept(db_session, concept1.id, file2.id, language="en", format="PDF", variant_description="Scan A")
+        cbs.link_comic_variant_to_concept(
+            db_session, concept1.id, file2.id, language="en", format="PDF", variant_description="Scan A"
+        )
         db_session.commit()
     db_session.rollback()
 
     # Should be fine with different description
-    cbs.link_comic_variant_to_concept(db_session, concept1.id, file2.id, language="en", format="PDF", variant_description="Scan B")
+    cbs.link_comic_variant_to_concept(
+        db_session, concept1.id, file2.id, language="en", format="PDF", variant_description="Scan B"
+    )
     db_session.commit()
 
 
@@ -309,13 +343,13 @@ def test_primary_variant_logic_on_link_comic(db_session: Session):
     vc2 = cbs.link_comic_variant_to_concept(db_session, concept.id, f2.id, "fr", "CBZ", is_primary=True)
     db_session.commit()
     db_session.refresh(vc1)
-    assert vc1.is_primary_variant is False # Demoted
+    assert vc1.is_primary_variant is False  # Demoted
     assert vc2.is_primary_variant is True
 
     vc3 = cbs.link_comic_variant_to_concept(db_session, concept.id, f3.id, "de", "ePub", is_primary=False)
     db_session.commit()
     db_session.refresh(vc2)
-    assert vc2.is_primary_variant is True # Still primary
+    assert vc2.is_primary_variant is True  # Still primary
     assert vc3.is_primary_variant is False
 
     primary_variant_entity = cbs.get_primary_variant_for_comic_concept(db_session, concept.id)
@@ -324,6 +358,7 @@ def test_primary_variant_logic_on_link_comic(db_session: Session):
 
 
 # --- Page Management Tests ---
+
 
 def test_assign_page_to_comic_variant(db_session: Session):
     concept = cbs.create_comic_book_concept(db_session, comic_title="Paged Comic")
@@ -352,12 +387,16 @@ def test_assign_page_to_comic_variant(db_session: Session):
     assert page_link2.page_number == 2
 
     # Test duplicate page number for same variant - service should return None
-    assert cbs.assign_page_to_comic_variant(db_session, variant_entity.id, page_image2.id, 1) is None # Page 1 already exists
-    db_session.rollback() # Rollback as service already did on error and returned None
+    assert (
+        cbs.assign_page_to_comic_variant(db_session, variant_entity.id, page_image2.id, 1) is None
+    )  # Page 1 already exists
+    db_session.rollback()  # Rollback as service already did on error and returned None
 
     # Test duplicate image for same variant (if uq_owner_page_image is active) - service should return None
-    assert cbs.assign_page_to_comic_variant(db_session, variant_entity.id, page_image1.id, 3) is None # page_image1 already used
-    db_session.rollback() # Rollback
+    assert (
+        cbs.assign_page_to_comic_variant(db_session, variant_entity.id, page_image1.id, 3) is None
+    )  # page_image1 already used
+    db_session.rollback()  # Rollback
 
     # Test assigning to non-variant entity
     non_variant_entity = ecs_service.create_entity(db_session)
@@ -424,33 +463,36 @@ def test_remove_page_from_comic_variant(db_session: Session):
     assert len(pages_after_remove) == 1
     assert pages_after_remove[0].id == p_img2.id
 
-    assert cbs.remove_page_from_comic_variant(db_session, variant_e.id, p_img1.id) is False # Already removed
+    assert cbs.remove_page_from_comic_variant(db_session, variant_e.id, p_img1.id) is False  # Already removed
 
     # Remove by page number
-    assert cbs.remove_page_at_number_from_comic_variant(db_session, variant_e.id, 2) is True # p_img2 was page 2
+    assert cbs.remove_page_at_number_from_comic_variant(db_session, variant_e.id, 2) is True  # p_img2 was page 2
     db_session.commit()
     assert len(cbs.get_ordered_pages_for_comic_variant(db_session, variant_e.id)) == 0
 
-    assert cbs.remove_page_at_number_from_comic_variant(db_session, variant_e.id, 1) is False # No page 1 now
+    assert cbs.remove_page_at_number_from_comic_variant(db_session, variant_e.id, 1) is False  # No page 1 now
 
 
 def test_get_comic_variants_containing_image_as_page(db_session: Session):
     concept1 = cbs.create_comic_book_concept(db_session, comic_title="CVCIAP C1")
-    variant1_1 = ecs_service.create_entity(db_session); cbs.link_comic_variant_to_concept(db_session, concept1.id, variant1_1.id, "en", "PDF")
-    variant1_2 = ecs_service.create_entity(db_session); cbs.link_comic_variant_to_concept(db_session, concept1.id, variant1_2.id, "en", "CBZ")
+    variant1_1 = ecs_service.create_entity(db_session)
+    cbs.link_comic_variant_to_concept(db_session, concept1.id, variant1_1.id, "en", "PDF")
+    variant1_2 = ecs_service.create_entity(db_session)
+    cbs.link_comic_variant_to_concept(db_session, concept1.id, variant1_2.id, "en", "CBZ")
 
     concept2 = cbs.create_comic_book_concept(db_session, comic_title="CVCIAP C2")
-    variant2_1 = ecs_service.create_entity(db_session); cbs.link_comic_variant_to_concept(db_session, concept2.id, variant2_1.id, "fr", "PDF")
+    variant2_1 = ecs_service.create_entity(db_session)
+    cbs.link_comic_variant_to_concept(db_session, concept2.id, variant2_1.id, "fr", "PDF")
 
-    img_page_A = ecs_service.create_entity(db_session) # Used in multiple
-    img_page_B = ecs_service.create_entity(db_session) # Used in one
-    img_page_C = ecs_service.create_entity(db_session) # Not used as page
+    img_page_A = ecs_service.create_entity(db_session)  # Used in multiple
+    img_page_B = ecs_service.create_entity(db_session)  # Used in one
+    img_page_C = ecs_service.create_entity(db_session)  # Not used as page
     db_session.commit()
 
     cbs.assign_page_to_comic_variant(db_session, variant1_1.id, img_page_A.id, 1)
     cbs.assign_page_to_comic_variant(db_session, variant1_1.id, img_page_B.id, 2)
-    cbs.assign_page_to_comic_variant(db_session, variant1_2.id, img_page_A.id, 5) # img_page_A used again
-    cbs.assign_page_to_comic_variant(db_session, variant2_1.id, img_page_A.id, 10) # img_page_A used again
+    cbs.assign_page_to_comic_variant(db_session, variant1_2.id, img_page_A.id, 5)  # img_page_A used again
+    cbs.assign_page_to_comic_variant(db_session, variant2_1.id, img_page_A.id, 10)  # img_page_A used again
     db_session.commit()
 
     variants_with_A = cbs.get_comic_variants_containing_image_as_page(db_session, img_page_A.id)
@@ -463,11 +505,14 @@ def test_get_comic_variants_containing_image_as_page(db_session: Session):
 
     # Check page numbers for img_page_A
     for v_entity, pg_num in variants_with_A:
-        if v_entity.id == variant1_1.id: assert pg_num == 1
-        elif v_entity.id == variant1_2.id: assert pg_num == 5
-        elif v_entity.id == variant2_1.id: assert pg_num == 10
-        else: assert False, "Unexpected variant found for image A"
-
+        if v_entity.id == variant1_1.id:
+            assert pg_num == 1
+        elif v_entity.id == variant1_2.id:
+            assert pg_num == 5
+        elif v_entity.id == variant2_1.id:
+            assert pg_num == 10
+        else:
+            assert False, "Unexpected variant found for image A"
 
     variants_with_B = cbs.get_comic_variants_containing_image_as_page(db_session, img_page_B.id)
     assert len(variants_with_B) == 1
@@ -486,7 +531,7 @@ def test_update_page_order_for_comic_variant(db_session: Session):
     p_img1 = ecs_service.create_entity(db_session)
     p_img2 = ecs_service.create_entity(db_session)
     p_img3 = ecs_service.create_entity(db_session)
-    p_img4 = ecs_service.create_entity(db_session) # New page
+    p_img4 = ecs_service.create_entity(db_session)  # New page
     db_session.commit()
 
     # Initial pages
@@ -522,11 +567,11 @@ def test_update_page_order_for_comic_variant(db_session: Session):
     cbs.update_page_order_for_comic_variant(db_session, variant_e.id, [p_img1.id, 9999, p_img2.id])
     db_session.commit()
     final_pages_skipped = cbs.get_ordered_pages_for_comic_variant(db_session, variant_e.id)
-    assert [p.id for p in final_pages_skipped] == [p_img1.id, p_img2.id] # 9999 was skipped
+    assert [p.id for p in final_pages_skipped] == [p_img1.id, p_img2.id]  # 9999 was skipped
 
     # Test integrity error during update (e.g. duplicate image ID in new list if uq_owner_page_image constraint is active)
     # This depends on the uq_owner_page_image constraint from PageLink model.
     # If constraint `UniqueConstraint('owner_entity_id', 'page_image_entity_id', name='uq_owner_page_image')` is active:
     with pytest.raises(IntegrityError):
-        cbs.update_page_order_for_comic_variant(db_session, variant_e.id, [p_img1.id, p_img1.id]) # Duplicate image
-    db_session.rollback() # Ensure session is clean after expected error
+        cbs.update_page_order_for_comic_variant(db_session, variant_e.id, [p_img1.id, p_img1.id])  # Duplicate image
+    db_session.rollback()  # Ensure session is clean after expected error
