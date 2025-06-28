@@ -9,45 +9,42 @@ This document provides guidance for developers working on the ECS Digital Asset 
 The system is built upon the Entity-Component-System (ECS) pattern, which promotes flexibility and modularity.
 
 ### 2.1. Entities
--   **Definition**: Entities are unique identifiers (typically integers or UUIDs) representing a single digital asset within the system. They don't hold data themselves but act as a central point to which Components are attached.
+-   **Definition**: Entities are unique identifiers (typically integers or UUIDs) representing a single digital asset or concept within the system. They don't hold data themselves but act as a central point to which Components are attached.
 -   **Implementation**: In our system, Entities are represented by the `dam.models.entity.Entity` SQLAlchemy model, which primarily provides a unique `id`.
 
 ### 2.2. Components
 -   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. Examples include:
-    - `OriginalSourceInfoComponent`: Classifies the origin of the asset's content (e.g., local file, web download, reference) using its `source_type` field. See `dam.models.source_info.source_types` for defined types. It does not store filename or path directly.
-    - `FilePropertiesComponent`: Stores the authoritative properties of an entity's file, such as its `original_filename`, `file_size_bytes`, and `mime_type` (`component_file_properties`). This is the primary source for the original filename.
-    - `FileLocationComponent`: Stores the physical location of an entity's content (`component_file_location`). Key attributes:
-        - `content_identifier`: Typically the SHA256 hash of the content.
-        - `storage_type`: Indicates the nature of the location (e.g., `"dam_managed_storage"`, `"external_file_reference"`).
-        - `physical_path_or_key`: The actual path (e.g., relative path in DAM storage, absolute external path for references).
-        - `contextual_filename`: An optional filename associated with this specific location, useful if `physical_path_or_key` is a hash or generic ID. The primary original filename is in `FilePropertiesComponent`.
-    - `ContentHashSHA256Component`: Stores SHA256 content hash as bytes (`component_content_hash_sha256`). Key attribute: `hash_value` (bytes).
-    - `ImageDimensionsComponent`: Stores width and height for visual assets (`component_image_dimensions`).
-    - `ImagePerceptualPHashComponent`: Stores pHash for images (`component_image_perceptual_hash_phash`).
-    - `AudioPropertiesComponent`: Stores metadata for audio tracks (duration, codec, sample rate) (`component_audio_properties`).
-    - `FramePropertiesComponent`: Stores metadata for sequences of frames like animated GIFs or video tracks (frame count, duration, frame rate) (`component_frame_properties`).
--   **Video Asset Conceptualization**: Videos are conceptualized as a combination of components:
-    - An `Entity` representing the video.
-    - `FileLocationComponent` and `FilePropertiesComponent` as standard.
-    - One `ImageDimensionsComponent` for the video's resolution.
-    - One `FramePropertiesComponent` for its visual track details (frame count, fps, visual duration).
-    - One or more `AudioPropertiesComponent` instances for its audio tracks.
-    - The dedicated `VideoPropertiesComponent` has been removed in favor of this composite model.
+    -   **Core File/Asset Descriptors**:
+        -   `OriginalSourceInfoComponent`: Classifies the origin of the asset's content.
+        -   `FilePropertiesComponent`: Stores original filename, file size, and MIME type.
+        -   `FileLocationComponent`: Stores the physical location of an entity's content.
+        -   `ContentHashSHA256Component`, `ContentHashMD5Component`: Store content hashes.
+    -   **Media-Specific Properties**:
+        -   `ImageDimensionsComponent`: Stores width and height.
+        -   `ImagePerceptualPHashComponent` (and AHash, DHash): Stores perceptual hashes for images.
+        -   `AudioPropertiesComponent`: Stores metadata for audio tracks.
+        -   `FramePropertiesComponent`: Stores metadata for frame sequences (videos, GIFs).
+    -   **Conceptual Modeling & Versioning (New)**:
+        -   `BaseConceptualInfoComponent` (Abstract): Base for defining conceptual works.
+        -   `ComicBookConceptComponent`: Concrete example for comic book concepts (series, issue, year).
+        -   `BaseVariantInfoComponent` (Abstract): Base for file variants of a conceptual work.
+        -   `ComicBookVariantComponent`: Concrete example for comic book variants (language, format).
+    -   **Tagging System (New)**:
+        -   `TagConceptComponent`: Defines a tag, its scope, and properties (e.g., tag name "Sci-Fi", scope "GLOBAL"). This component is on an Entity that *is* the tag definition.
+        -   `EntityTagLinkComponent`: Links any entity to a `TagConceptEntity`, effectively applying the tag, optionally with a value.
 -   **Implementation**:
-    -   Components inherit from `dam.models.base_component.BaseComponent`. The `kw_only=True` dataclass behavior is inherited from `dam.models.base_class.Base` (which is a `MappedAsDataclass`), so components do not need the `@dataclass(kw_only=True)` decorator themselves.
-    -   Each component is defined in its own file within `dam/models/`.
-    -   Table names strictly follow the `component_[name]` convention (e.g., `ImageDimensionsComponent` maps to `component_image_dimensions`).
-    -   **Constructor Note**: When instantiating components that inherit from `BaseComponent`, provide the SQLAlchemy `Entity` object to the `entity` parameter. Do not pass `entity_id` directly to the constructor, as `entity_id` is marked `init=False` in `BaseComponent` and is populated via the `entity` relationship.
-    -   **Model Registration for SQLAlchemy**: It's crucial that all SQLAlchemy models, including components defined outside the primary `dam/models/` directory (e.g., marker components in `dam/core/components_markers.py`), are imported at a point where they become registered with the shared `AppBase.metadata` object. This must happen before operations like `AppBase.metadata.create_all()` (often used in tests) or Alembic migration generation (`alembic revision --autogenerate`) are performed. This ensures their tables are correctly created and managed. This can be achieved by importing these model modules in `dam/models/__init__.py` or another central point that is loaded early in the application's lifecycle.
+    -   Components inherit from `dam.models.base_component.BaseComponent`.
+    -   Dataclass behavior (including `kw_only=True`) is inherited from `dam.models.base_class.Base`.
+    -   Table names follow `component_[name]`.
+    -   **Constructor Note**: Pass the `Entity` object to the `entity` parameter. `entity_id` is `init=False` and populated via the relationship. For components not directly inheriting from `BaseComponent` (like association objects), their constructors are standard SQLAlchemy model constructors.
+    -   **Model Registration**: Ensure all model modules (components, association objects like `PageLink`) are imported (e.g., in `dam/models/__init__.py`) to be registered with `AppBase.metadata` before DB operations like `create_all()` or Alembic autogeneration.
 
 ### 2.3. BaseComponent
--   The `dam.models.base_component.BaseComponent` is an abstract base class that all concrete components should inherit from.
--   It provides common fields required by most components:
-    -   `id`: A primary key for the component instance itself.
-    -   `entity_id`: A foreign key to `entities.id`, linking the component to an asset.
-    -   `created_at`, `updated_at`: Timestamps for tracking component record changes.
-    -   `entity`: A SQLAlchemy relationship property to easily navigate from a component instance back to its parent `Entity` object.
--   Using `BaseComponent` ensures consistency and reduces boilerplate when defining new components.
+-   Provides common fields: `id`, `entity_id` (FK to `entities.id`), `created_at`, `updated_at`, and an `entity` relationship.
+
+#### 2.3.1. Association Objects (New)
+-   For ordered many-to-many relationships or relationships with extra data, direct SQLAlchemy models (inheriting from `Base`) are used instead of components.
+-   Example: `PageLink` (in `dam/models/conceptual/page_link.py`) links an owner entity (e.g., a `ComicBookVariantComponent`'s entity) to page image entities, storing `page_number`.
 
 ### 2.4. Systems
 -   **Definition**: Systems encapsulate the logic that operates on entities possessing specific combinations of components. They are the primary way business logic and data transformations are implemented in the ECS architecture.
@@ -134,7 +131,82 @@ The `dam.services.ecs_service` module provides several helper functions to facil
         ```
     *   **Performance Note**: For optimal performance with `find_entities_by_component_attribute_value`, ensure that attributes frequently used for querying (like `mime_type` in the example above) are indexed in their respective component model definitions (e.g., `mime_type: Mapped[Optional[str]] = mapped_column(String(128), index=True)`). An index has been added to `FilePropertiesComponent.mime_type` as part of recent optimizations.
 
-### 2.9. Error Handling in ECS Operations
+### 2.9. Asset Versioning, Structure, and Tagging (New Section)
+
+The DAM system has been extended to support more complex relationships between assets, including versioning, structured content (like comic book pages), and a flexible tagging system.
+#### 2.9.1. Conceptual Assets and Variants (Example: Comic Books)
+
+This model allows grouping different file versions or manifestations under a common "conceptual work."
+
+*   **Abstract Base Components:**
+    *   `dam.models.conceptual.BaseConceptualInfoComponent`: An abstract base for components that define the *concept* of a work. Entities with such a component represent the abstract idea (e.g., "Amazing Spider-Man #1, 1963").
+    *   `dam.models.conceptual.BaseVariantInfoComponent`: An abstract base for components that mark a file `Entity` as a specific *variant* or version of a conceptual work. It includes `conceptual_entity_id` to link to the concept's `Entity`.
+
+*   **Concrete Comic Book Example:**
+    *   **`ComicBookConceptComponent`**: Defined in `dam.models.conceptual.comic_book_concept_component.py`. Inherits `BaseConceptualInfoComponent`.
+        *   Attached to an `Entity` that represents the abstract idea of a specific comic book (e.g., a particular issue or collected edition).
+        *   Fields: `comic_title`, `series_title` (optional), `issue_number` (optional), `publication_year` (optional).
+    *   **`ComicBookVariantComponent`**: Defined in `dam.models.conceptual.comic_book_variant_component.py`. Inherits `BaseVariantInfoComponent`.
+        *   Attached to an `Entity` that represents an actual file (e.g., a PDF, CBZ, or high-resolution scan).
+        *   Links to the `ComicBookConceptComponent`'s entity via the inherited `conceptual_entity_id`.
+        *   Fields: `language` (optional), `format` (optional, e.g., "PDF", "CBZ"), `scan_quality` (optional), `is_primary_variant` (boolean), `variant_description` (optional).
+
+*   **Managing Comic Book Concepts and Variants:**
+    *   The `dam.services.comic_book_service.py` module provides specialized functions for these types:
+        *   `create_comic_book_concept()`: Creates an entity with `ComicBookConceptComponent`.
+        *   `link_comic_variant_to_concept()`: Adds `ComicBookVariantComponent` to a file entity and links it to a concept.
+        *   Other functions for querying variants, finding concepts, setting primary variants, etc.
+
+#### 2.9.2. Ordered Content (Example: Comic Book Pages)
+
+To represent ordered sequences of images, like pages in a comic book.
+
+*   **`PageLink` Association Object:** Defined in `dam.models.conceptual.page_link.py`. This is a SQLAlchemy model inheriting from `Base` (not `BaseComponent`).
+    *   It creates a many-to-many relationship between an "owner" entity and "page image" entities, with an order.
+    *   Fields:
+        *   `owner_entity_id`: ForeignKey to `entities.id`. For comics, this is the ID of the `Entity` that has the `ComicBookVariantComponent`.
+        *   `page_image_entity_id`: ForeignKey to `entities.id` (the `Entity` for the image file).
+        *   `page_number`: Integer defining the order.
+    *   This structure allows an image to be a page in multiple "owner" contexts (e.g., different comic variants) and supports bidirectional queries.
+
+*   **Managing Comic Pages (via `dam.services.comic_book_service.py`):**
+    *   `assign_page_to_comic_variant()`: Creates a `PageLink` record.
+    *   `remove_page_from_comic_variant()`, `remove_page_at_number_from_comic_variant()`
+    *   `get_ordered_pages_for_comic_variant()`: Retrieves page image `Entity` objects in order.
+    *   `get_comic_variants_containing_image_as_page()`: Finds which comic variants use a specific image.
+    *   `update_page_order_for_comic_variant()`: Replaces the entire page sequence for a variant.
+
+#### 2.9.3. Tagging System
+
+A flexible tagging system where tag definitions are themselves conceptual entities.
+
+*   **`TagConceptComponent`**: Defined in `dam.models.conceptual.tag_concept_component.py`. Inherits from `BaseConceptualInfoComponent`.
+    *   Attached to an `Entity` that represents the definition of a tag.
+    *   Fields:
+        *   `tag_name`: The name of the tag (e.g., "Sci-Fi", "Character:Spider-Man"). Usually unique.
+        *   `tag_scope_type`: String defining the tag's applicability (e.g., "GLOBAL", "COMPONENT_CLASS_REQUIRED", "CONCEPTUAL_ASSET_LOCAL").
+        *   `tag_scope_detail`: Extra information for the scope (e.g., a component class name, or an Entity ID of a conceptual asset for local scope).
+        *   `tag_description`: Optional description of the tag.
+        *   `allow_values`: Boolean indicating if this tag can be applied with a specific value (e.g., for a "Rating" tag, the value might be "5 Stars").
+
+*   **`EntityTagLinkComponent`**: Defined in `dam.models.conceptual.entity_tag_link_component.py`. Inherits from `BaseComponent`.
+    *   This component is attached to the `Entity` being tagged.
+    *   Fields:
+        *   `tag_concept_entity_id`: ForeignKey to the `Entity` that has the `TagConceptComponent` (the tag definition). `ondelete="CASCADE"` is set.
+        *   `tag_value`: Optional string value for the tag application, used if `TagConceptComponent.allow_values` is true.
+    *   Relationship `tag_concept` links back to the tag definition entity, with `passive_deletes=True`.
+
+*   **Managing Tags (via `dam.services.tag_service.py`):**
+    *   `create_tag_concept()`: Defines a new tag.
+    *   `apply_tag_to_entity()`: Applies a defined tag to an entity. This function includes logic to validate the tag's scope against the target entity.
+    *   `get_tags_for_entity()`: Retrieves all tags (and their values) applied to an entity.
+    *   `get_entities_for_tag()`: Finds all entities that have a specific tag applied (optionally filtering by value).
+    *   Other functions for updating and deleting tag definitions and applications.
+
+This hybrid approach allows structured versioning and page management for specific types like comics, while the tagging system provides a flexible way to add arbitrary, scoped metadata across all types of entities.
+
+
+### 2.10. Error Handling in ECS Operations
 
 When systems are executed via `World.execute_stage(...)` or event handlers via `World.dispatch_event(...)`, failures within the systems/handlers or during the final database commit will now result in specific custom exceptions being raised. This allows calling code to more effectively respond to operational failures. These exceptions are defined in `dam.core.exceptions`.
 
@@ -184,7 +256,7 @@ When systems are executed via `World.execute_stage(...)` or event handlers via `
     ```
 *   This improved error propagation ensures that failures in scheduled ECS operations are not silent and can be handled appropriately by the parts of the application orchestrating these processes (e.g., CLI commands, service layers).
 
-### 2.10. Performance Considerations
+### 2.11. Performance Considerations
 Internal optimizations have been implemented to enhance the performance of common ECS operations. Notably:
 -   Fetching entities based on `MarkedEntityList` dependencies in systems is now more efficient, using optimized database queries.
 -   The automatic removal of marker components by the `WorldScheduler` after system processing has been streamlined to reduce database overhead.
@@ -194,33 +266,41 @@ Internal optimizations have been implemented to enhance the performance of commo
 
 A brief overview of the key directories:
 
--   `dam/`: Main package for the DAM system.
-    -   `core/`: Core ECS framework functionalities.
-        -   `config.py`: Application settings (Pydantic).
-        -   `database.py`: SQLAlchemy engine, session setup, `DatabaseManager`.
-        -   `logging_config.py`: Logging setup.
-        -   `systems.py`: `@system` decorator, `WorldScheduler`.
-        -   `stages.py`: `SystemStage` enum.
-        -   `resources.py`: `ResourceManager` and base `Resource` definitions.
-        -   `system_params.py`: `Annotated` types for system dependency injection (e.g., `WorldSession`, `Resource`, `MarkedEntityList`).
-        -   `components_markers.py`: Definitions for marker components (e.g., `NeedsMetadataExtractionComponent`).
-    -   `models/`: Contains all SQLAlchemy model definitions for Entities and Components.
-        -   `base_class.py`, `base_component.py`, `entity.py`, individual component files.
-    -   `services/`: Contains helper services, often wrapped by or used within Systems, or for direct CLI actions not yet converted to systems. (e.g., `asset_service.py`, `file_storage.py`, `ecs_service.py`).
-    -   `systems/`: Contains ECS System implementations.
-        -   `metadata_systems.py`: Example system for metadata extraction.
-    -   `cli.py`: Defines the Typer-based command-line interface.
--   `alembic/`: Contains Alembic migration scripts.
--   `doc/`: Project documentation.
--   `tests/`: Pytest tests.
-    -   `tests/models/`: Tests for individual component models.
-    -   `tests/services/`: Tests for service logic.
-    -   `tests/test_data/`: Sample data files for testing (e.g., sample images).
--   `pyproject.toml`: Project metadata, dependencies, and tool configurations (Ruff, MyPy, Pytest).
--   `.env.example`: Example environment variables file.
--   `README.md`: Main project README.
+```
+ecs_dam_system/
+├── dam/
+│   ├── __init__.py
+│   ├── cli.py              # Typer CLI application
+│   ├── ui/                 # PyQt6 UI code (Optional)
+│   ├── models/             # SQLAlchemy models (Components & Association Objects)
+│   │   ├── __init__.py
+│   │   ├── core/
+│   │   ├── conceptual/     # Models for conceptual assets, variants, pages, tags
+│   │   │   ├── base_conceptual_info_component.py
+│   │   │   ├── comic_book_concept_component.py
+│   │   │   ├── base_variant_info_component.py
+│   │   │   ├── comic_book_variant_component.py
+│   │   │   ├── page_link.py
+│   │   │   ├── tag_concept_component.py
+│   │   │   └── entity_tag_link_component.py
+│   │   └── ...
+│   ├── services/           # Business logic
+│   │   ├── __init__.py
+│   │   ├── comic_book_service.py # Service for managing comic book concepts, variants, and pages
+│   │   ├── tag_service.py      # Service for managing tags
+│   │   └── ...
+│   ├── systems/            # ECS Systems
+│   └── core/               # Core ECS framework, DB session, settings
+├── tests/                  # Pytest tests
+│   ├── __init__.py
+│   ├── test_comic_book_service.py
+│   ├── test_tag_service.py # Tests for tagging
+│   └── ...
+└── ... (other project files)
+```
+(Ensure all new model and service files are accurately reflected here).
 
-### 2.5. File Storage and Retrieval
+### 3.1. File Storage and Retrieval
 
 The DAM employs a content-addressable storage strategy for asset files, managed by the `dam.services.file_storage` module.
 
@@ -473,20 +553,15 @@ This comprehensive approach ensures your new component is well-defined, integrat
 ## 5. Other Development Aspects
 
 ### 5.1. Database Migrations (Alembic Workflow)
-
-Beyond adding new component tables, Alembic is used for all schema changes:
--   **Modifying existing tables**: E.g., adding a column to a component.
-    1.  Make the change in your SQLAlchemy model file (e.g., add a new `Mapped[]` attribute).
-    2.  Generate a new revision: `alembic revision -m "add_new_column_to_my_component" --autogenerate`
-    3.  Inspect the script: It should contain `op.add_column()`.
-    4.  Apply: `alembic upgrade head`
--   **Creating new indexes or constraints**: Can also often be autogenerated or added manually to a revision script.
--   **Branching and Merging**: Alembic supports branching for more complex team workflows, though for simpler projects, a linear history is common.
--   **Downgrading**: Each revision script's `downgrade()` function should correctly reverse the `upgrade()` operations. Test downgrades if critical (`alembic downgrade <target_revision>`).
--   **Current Revision**: Check current DB revision: `alembic current`
--   **History**: View migration history: `alembic history`
-
-Always ensure your `env.py` is correctly configured to see your `Base.metadata` for autogenerate to work effectively.
+-   **Current Status (Important):** Alembic is set up, but its usage for generating and applying migrations is **currently paused** during this phase of active schema evolution (related to conceptual assets, variants, pages, and tags).
+-   **Development Database Setup:** For development, use the `dam-cli setup-db` command. This command will drop and recreate all tables based on the current SQLAlchemy model definitions. **This is destructive and only suitable for development environments.**
+-   **Future Reactivation of Alembic:** Once the schema for these new features stabilizes, Alembic migrations will be re-introduced. The process will likely involve:
+    1.  Clearing any old/obsolete migration files from `alembic/versions/`.
+    2.  Ensuring `alembic/env.py` is correctly configured to target `AppBase.metadata` from `dam.models.core.base_class`.
+    3.  Generating a new "baseline" migration that reflects the entire current schema: `alembic revision -m "baseline_schema_with_versioning_and_tagging" --autogenerate`.
+    4.  Carefully reviewing the autogenerated script.
+    5.  Applying this baseline to development databases: `alembic upgrade head`.
+    From that point on, subsequent schema changes would again be managed by new incremental Alembic revisions.
 
 ### 5.2. Running Tests
 
@@ -541,6 +616,21 @@ The project uses `pytest` for testing, preferably run via `uv`.
     -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).
     -   Functions/Methods/Variables: `snake_case`.
     -   Component Constructors: When creating components derived from `BaseComponent`, remember that `entity_id` is `init=False`. You should pass the `Entity` object itself to the `entity` parameter (e.g., `MyComponent(entity=actual_entity_object, other_field="value")`). The `entity_id` will be populated by SQLAlchemy through this relationship.
+    -   **Naming Conventions Update**:
+        - Component Tables: `component_[component_name]` (e.g., `component_comic_book_concept`, `component_tag_concept`).
+        - Association Object Tables: Plural, descriptive (e.g., `page_links`).
+        - **Component & Model Constructors (Important due to `MappedAsDataclass`):**
+            - For components inheriting from `BaseComponent` (which provides `entity_id: Mapped[int] = mapped_column(init=False)` and `entity: Mapped["Entity"] = relationship(...)` where the relationship is an init argument):
+                - Always pass the parent `Entity` object to the `entity` parameter (e.g., `MyComponent(entity=actual_entity_object, other_field="value")`).
+                - Other fields defined directly on the component (not inherited `init=False` fields) are passed as keyword arguments.
+                - Example: `ComicBookConceptComponent(entity=concept_entity, comic_title="...")`.
+                - Example: `EntityTagLinkComponent(entity=entity_to_tag, tag_concept=tag_concept_entity, tag_value="...")`. Here, `tag_concept` is the relationship attribute, and its corresponding FK `tag_concept_entity_id` is `init=False`.
+            - For association objects (like `PageLink`) or models inheriting directly from `Base` (not `BaseComponent`):
+                - The `__init__` signature is determined by `MappedAsDataclass`. Columns not marked `init=False` are constructor arguments.
+                - Relationship attributes not marked `init=False` also become constructor arguments.
+                - Foreign Key columns that are part of a primary key are often `init=False` by default if there's a corresponding relationship attribute that *is* an init argument.
+                - Example: `PageLink(owner=owner_entity, page_image=page_image_entity, page_number=1)`. Here, `owner` and `page_image` are relationship attributes that are init arguments, and their corresponding FK ID columns (`owner_entity_id`, `page_image_entity_id`) are `init=False`.
+            - **Rule of Thumb:** When in doubt, inspect the model definition. If a column has `init=False`, don't pass it to `__init__`. If a relationship attribute does not have `init=False`, it's likely an `__init__` argument. The goal is typically to pass relationship *objects* to the constructor when they are primary means of establishing links, and let SQLAlchemy derive the FK ID values.
 
 Adhering to these practices helps maintain a clean, consistent, and understandable codebase.
 
