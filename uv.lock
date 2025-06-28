@@ -103,6 +103,14 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "imagehash" },
+    { name = "pillow" },
+    { name = "pyqt6" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -119,6 +127,12 @@ ui = [
 [package.metadata]
 requires-dist = [
     { name = "alembic" },
+    { name = "ecs-dam-system", extras = ["all-transcode"], marker = "extra == 'all'" },
+    { name = "ecs-dam-system", extras = ["audio"], marker = "extra == 'all'" },
+    { name = "ecs-dam-system", extras = ["dev"], marker = "extra == 'all'" },
+    { name = "ecs-dam-system", extras = ["image"], marker = "extra == 'all'" },
+    { name = "ecs-dam-system", extras = ["ui"], marker = "extra == 'all'" },
+    { name = "ecs-dam-system", extras = ["video"], marker = "extra == 'all'" },
     { name = "hachoir" },
     { name = "imagehash", marker = "extra == 'image'" },
     { name = "pillow", marker = "extra == 'image'" },
@@ -132,7 +146,7 @@ requires-dist = [
     { name = "sqlalchemy" },
     { name = "typer", extras = ["all"] },
 ]
-provides-extras = ["image", "video", "audio", "ui", "dev"]
+provides-extras = ["image", "video", "audio", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "ui", "dev", "all"]
 
 [[package]]
 name = "greenlet"

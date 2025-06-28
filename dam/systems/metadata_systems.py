@@ -4,18 +4,21 @@ This module defines systems related to metadata extraction for assets.
 Systems in this module are responsible for processing entities (typically those
 marked with `NeedsMetadataExtractionComponent`) to extract and store detailed
 metadata such as dimensions, duration, frame counts, audio properties, etc.,
-using tools like the Hachoir library.
+using tools like the Hachoir library and exiftool.
 """
 
 import asyncio
+import json
 import logging
+import shutil
+import subprocess
 from pathlib import Path
-from typing import Annotated, Any, List  # Added Dict
+from typing import Annotated, Any, Dict, List
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
-from dam.core.config import WorldConfig  # Import WorldConfig directly
+from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
+from dam.core.system_params import WorldSession
 from dam.core.systems import system
 from dam.models import (
     AudioPropertiesComponent,
@@ -25,6 +28,7 @@ from dam.models import (
     FramePropertiesComponent,
     ImageDimensionsComponent,
 )
+from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam.services import ecs_service
 
 try:
@@ -38,6 +42,52 @@ except ImportError:
     extractMetadata = None
 
 logger = logging.getLogger(__name__)
+
+
+async def _run_exiftool_subprocess(filepath: Path) -> Dict[str, Any] | None:
+    """
+    Runs exiftool on the given filepath and returns the JSON output.
+    Returns None if exiftool is not found or if an error occurs.
+    """
+    exiftool_path = shutil.which("exiftool")
+    if not exiftool_path:
+        logger.warning("exiftool command not found in PATH. Skipping exiftool metadata extraction.")
+        return None
+
+    command = [exiftool_path, "-json", "-G", str(filepath)]
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            logger.error(
+                f"Exiftool error for {filepath} (return code {process.returncode}): {stderr.decode(errors='ignore')}"
+            )
+            return None
+
+        try:
+            # exiftool outputs a list with a single JSON object
+            data = json.loads(stdout)
+            if isinstance(data, list) and len(data) > 0:
+                return data[0]
+            logger.warning(f"Exiftool output for {filepath} was not a list with one element: {stdout.decode(errors='ignore')[:200]}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON from exiftool for {filepath}: {e}. Output: {stdout.decode(errors='ignore')[:200]}")
+            return None
+
+    except Exception as e:
+        logger.error(f"Exception running exiftool for {filepath}: {e}", exc_info=True)
+        return None
+
+
+async def _extract_metadata_with_exiftool_async(filepath_on_disk: Path) -> Dict[str, Any] | None:
+    """
+    Asynchronously calls exiftool metadata extraction.
+    """
+    return await _run_exiftool_subprocess(filepath_on_disk)
 
 
 def _has_hachoir_metadata(md, key: str) -> bool:
@@ -155,27 +205,25 @@ async def extract_metadata_on_asset_ingested(
         logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity.id} (MIME: {mime_type})")
 
         # Correctly await the async function that internally uses to_thread
-        metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
+        hachoir_metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
 
-        if not metadata:
+        if not hachoir_metadata:
             logger.info(f"No metadata extracted by Hachoir for {filepath_on_disk} (Entity ID {entity.id})")
         else:
             keys_to_log = []
-            if hasattr(metadata, "keys") and callable(metadata.keys):
+            if hasattr(hachoir_metadata, "keys") and callable(hachoir_metadata.keys):
                 try:
-                    keys_to_log = list(metadata.keys())
+                    keys_to_log = list(hachoir_metadata.keys())
                 except Exception:
                     keys_to_log = ["<error reading Hachoir metadata keys>"]
-            # Hachoir metadata objects might not be simple dicts, so direct isinstance(metadata, dict) might be too restrictive.
-            # The .has() and .get() methods are safer.
             logger.debug(
-                f"Hachoir metadata (type: {type(metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
+                f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
             )
 
             if mime_type.startswith("image/") or mime_type.startswith("video/"):
                 if not ecs_service.get_components(session, entity.id, ImageDimensionsComponent):
-                    width = _get_hachoir_metadata(metadata, "width")
-                    height = _get_hachoir_metadata(metadata, "height")
+                    width = _get_hachoir_metadata(hachoir_metadata, "width")
+                    height = _get_hachoir_metadata(hachoir_metadata, "height")
                     if width is not None and height is not None:
                         dim_comp = ImageDimensionsComponent(entity=entity, width_pixels=width, height_pixels=height)
                         ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False)
@@ -185,18 +233,17 @@ async def extract_metadata_on_asset_ingested(
                             f"Could not extract width/height for visual media Entity ID {entity.id} (MIME: {mime_type})"
                         )
 
-            # Heuristics for audio/video based on Hachoir fields
-            has_duration = _has_hachoir_metadata(metadata, "duration")
-            has_width = _has_hachoir_metadata(metadata, "width")  # Often present for video
-            has_frame_rate = _has_hachoir_metadata(metadata, "frame_rate")  # Video
-            has_audio_codec = _has_hachoir_metadata(metadata, "audio_codec")
-            has_sample_rate = _has_hachoir_metadata(metadata, "sample_rate")  # Audio
+            has_duration = _has_hachoir_metadata(hachoir_metadata, "duration")
+            has_width = _has_hachoir_metadata(hachoir_metadata, "width")
+            has_frame_rate = _has_hachoir_metadata(hachoir_metadata, "frame_rate")
+            has_audio_codec = _has_hachoir_metadata(hachoir_metadata, "audio_codec")
+            has_sample_rate = _has_hachoir_metadata(hachoir_metadata, "sample_rate")
 
             is_video_heuristic = (
                 mime_type.startswith("video/")
                 or (
                     mime_type.startswith("image/")
-                    and _get_hachoir_metadata(metadata, "nb_frames", 0) > 1
+                    and _get_hachoir_metadata(hachoir_metadata, "nb_frames", 0) > 1
                     and has_duration
                 )
                 or (has_duration and (has_width or has_frame_rate) and not mime_type.startswith("audio/"))
@@ -205,9 +252,8 @@ async def extract_metadata_on_asset_ingested(
             is_audio_file_heuristic = False
             if mime_type.startswith("audio/"):
                 is_audio_file_heuristic = True
-            elif has_audio_codec and not is_video_heuristic:  # If it has audio codec but isn't identified as video
+            elif has_audio_codec and not is_video_heuristic:
                 is_audio_file_heuristic = True
-            # More specific: if not image/video but has duration and audio-specific fields
             elif (
                 not mime_type.startswith("image/")
                 and not is_video_heuristic
@@ -216,44 +262,35 @@ async def extract_metadata_on_asset_ingested(
             ):
                 is_audio_file_heuristic = True
 
-            if is_audio_file_heuristic:  # Standalone audio file
+            if is_audio_file_heuristic:
                 if not ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
                     audio_comp = AudioPropertiesComponent(entity=entity)
-                    duration = _get_hachoir_metadata(metadata, "duration")
+                    duration = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if duration:
                         audio_comp.duration_seconds = duration.total_seconds()
-
-                    audio_codec_val = _get_hachoir_metadata(metadata, "audio_codec")
-                    if not audio_codec_val and _has_hachoir_metadata(
-                        metadata, "compression"
-                    ):  # Fallback for some formats
-                        audio_codec_val = _get_hachoir_metadata(metadata, "compression")
+                    audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
+                    if not audio_codec_val and _has_hachoir_metadata(hachoir_metadata, "compression"):
+                        audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "compression")
                     audio_comp.codec_name = audio_codec_val
-
-                    audio_comp.sample_rate_hz = _get_hachoir_metadata(metadata, "sample_rate")
-                    audio_comp.channels = _get_hachoir_metadata(metadata, "nb_channel")
-                    bit_rate_bps = _get_hachoir_metadata(metadata, "bit_rate")
-                    if bit_rate_bps:  # Hachoir often gives total bit_rate for file
+                    audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
+                    audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
+                    bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
+                    if bit_rate_bps:
                         audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-
                     ecs_service.add_component_to_entity(session, entity.id, audio_comp, flush=False)
                     logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 
-            if is_video_heuristic:  # Video file or animated image with frames/duration
+            if is_video_heuristic:
                 if not ecs_service.get_components(session, entity.id, FramePropertiesComponent):
                     video_frame_comp = FramePropertiesComponent(entity=entity)
-
-                    nb_frames = _get_hachoir_metadata(metadata, "nb_frames") or _get_hachoir_metadata(
-                        metadata, "frame_count"
+                    nb_frames = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
+                        hachoir_metadata, "frame_count"
                     )
                     video_frame_comp.frame_count = nb_frames
-                    video_frame_comp.nominal_frame_rate = _get_hachoir_metadata(metadata, "frame_rate")
-
-                    video_duration = _get_hachoir_metadata(metadata, "duration")
+                    video_frame_comp.nominal_frame_rate = _get_hachoir_metadata(hachoir_metadata, "frame_rate")
+                    video_duration = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if video_duration:
                         video_frame_comp.animation_duration_seconds = video_duration.total_seconds()
-
-                    # Estimate frame_count if missing but rate and duration are available
                     if (
                         not video_frame_comp.frame_count
                         and video_frame_comp.nominal_frame_rate
@@ -263,44 +300,50 @@ async def extract_metadata_on_asset_ingested(
                         video_frame_comp.frame_count = int(
                             video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
                         )
-
                     ecs_service.add_component_to_entity(session, entity.id, video_frame_comp, flush=False)
                     logger.info(f"Added FramePropertiesComponent for video/animated Entity ID {entity.id}")
 
-                # If video, check for embedded audio stream
                 if has_audio_codec and not ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
                     video_audio_comp = AudioPropertiesComponent(entity=entity)
-                    video_duration_audio = _get_hachoir_metadata(metadata, "duration")  # Use overall duration
+                    video_duration_audio = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if video_duration_audio:
                         video_audio_comp.duration_seconds = video_duration_audio.total_seconds()
-                    video_audio_comp.codec_name = _get_hachoir_metadata(metadata, "audio_codec")
-                    video_audio_comp.sample_rate_hz = _get_hachoir_metadata(metadata, "sample_rate")
-                    video_audio_comp.channels = _get_hachoir_metadata(metadata, "nb_channel")
-                    # Bit rate for audio stream might be separate or part of overall; Hachoir often gives overall.
-                    # We'll leave bit_rate_kbps empty for embedded audio unless specifically found for the audio stream.
+                    video_audio_comp.codec_name = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
+                    video_audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
+                    video_audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
                     ecs_service.add_component_to_entity(session, entity.id, video_audio_comp, flush=False)
                     logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
 
-            # Specific handling for animated GIFs (distinct from general video)
             if mime_type == "image/gif":
-                if not ecs_service.get_components(
-                    session, entity.id, FramePropertiesComponent
-                ):  # Check again if not caught by video heuristic
+                if not ecs_service.get_components(session, entity.id, FramePropertiesComponent):
                     frame_comp = FramePropertiesComponent(entity=entity)
-                    nb_frames_gif = _get_hachoir_metadata(metadata, "nb_frames") or _get_hachoir_metadata(
-                        metadata, "frame_count"
+                    nb_frames_gif = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
+                        hachoir_metadata, "frame_count"
                     )
                     frame_comp.frame_count = nb_frames_gif
-
-                    duration_gif_obj = _get_hachoir_metadata(metadata, "duration")
+                    duration_gif_obj = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if duration_gif_obj:
                         duration_sec = duration_gif_obj.total_seconds()
                         frame_comp.animation_duration_seconds = duration_sec
                         if nb_frames_gif and nb_frames_gif > 1 and duration_sec > 0:
                             frame_comp.nominal_frame_rate = nb_frames_gif / duration_sec
-
                     ecs_service.add_component_to_entity(session, entity.id, frame_comp, flush=False)
                     logger.info(f"Added FramePropertiesComponent for animated GIF Entity ID {entity.id}")
+
+        # Exiftool metadata extraction
+        logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity.id})")
+        exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)
+
+        if exiftool_data:
+            if not ecs_service.get_component(session, entity.id, ExiftoolMetadataComponent):
+                exif_comp = ExiftoolMetadataComponent(entity=entity, raw_exif_json=exiftool_data)
+                ecs_service.add_component_to_entity(session, entity.id, exif_comp, flush=False)
+                logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity.id}")
+            else:
+                logger.info(f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate.")
+        else:
+            logger.info(f"No metadata extracted by Exiftool for {filepath_on_disk} (Entity ID {entity.id})")
+
 
         # Clean up the marker component after processing
         marker = ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)
