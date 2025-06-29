@@ -70,12 +70,19 @@ class ComponentViewerDialog(QDialog):
         # self.tree_widget.addTopLevelItem(entity_root_item) # Already added by parenting
 
         for comp_type_name, instances_list in components_data.items():
+            if not instances_list: # If there are no instances for this component type, skip it
+                continue
+
             comp_type_item = QTreeWidgetItem(entity_root_item, [comp_type_name, f"({len(instances_list)} instance(s))"])
 
-            if not instances_list:
-                QTreeWidgetItem(comp_type_item, ["(No instances loaded or available)"]) # Spanning for message
-            else:
-                for idx, instance_data_dict in enumerate(instances_list):
+            # Since we checked instances_list is not empty above, this else is always taken if we reach here.
+            # The 'if not instances_list:' check inside the loop is now redundant if we skip empty lists above.
+            # However, the original structure was to show the type then "(No instances...)".
+            # The new requirement is to not show the type at all if no instances.
+            # So, the check `if not instances_list:` above handles this.
+
+            # The following loop will only execute if instances_list is not empty.
+            for idx, instance_data_dict in enumerate(instances_list):
                     # If only one instance, or no 'id' in instance_data, attributes go under comp_type_item directly.
                     # Otherwise, create an intermediate item for the instance.
                     parent_for_attributes = comp_type_item
