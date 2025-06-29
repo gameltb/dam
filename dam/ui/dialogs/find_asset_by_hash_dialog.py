@@ -93,9 +93,9 @@ class FindAssetByHashDialog(QDialog):
         try:
             calculated_hash = ""
             if selected_hash_type == "sha256":
-                calculated_hash = file_operations.calculate_sha256_hex(filepath)  # Assuming hex output needed
+                calculated_hash = file_operations.calculate_sha256(filepath)
             elif selected_hash_type == "md5":
-                calculated_hash = file_operations.calculate_md5_hex(filepath)  # Assuming hex output needed
+                calculated_hash = file_operations.calculate_md5(filepath)
 
             self.hash_value_input.setText(calculated_hash)
             QMessageBox.information(self, "Hash Calculated", f"Calculated {selected_hash_type} hash: {calculated_hash}")

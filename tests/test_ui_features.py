@@ -389,7 +389,7 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     mock_path_constructor = mocker.patch("pathlib.Path", return_value=created_path_mock)
 
     mock_calculate_sha256 = mocker.patch(
-        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256_hex",
+        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256", # Corrected path
         return_value="calculated_hash"
     )
 

@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QApplication,
 )
+from PyQt6.QtCore import Qt # Import Qt for Qt.CursorShape
 
 from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested
 from dam.core.stages import SystemStage
