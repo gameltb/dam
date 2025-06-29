@@ -231,8 +231,9 @@ class ComponentFetcher(QRunnable):
                     # Or raise an error:
                     raise FileNotFoundError(f"Entity ID {self.asset_id} not found in world '{self.world.name}'.")
 
-
-                for comp_type_name, comp_type_cls in REGISTERED_COMPONENT_TYPES.items():
+                # REGISTERED_COMPONENT_TYPES is a List[Type[BaseComponent]]
+                for comp_type_cls in REGISTERED_COMPONENT_TYPES:
+                    comp_type_name = comp_type_cls.__name__
                     # Assuming ecs_service.get_components can be made async or there's an async version
                     components = await ecs_service.get_components(session, self.asset_id, comp_type_cls) # Corrected: was async_get_components
                     component_instances_data = []
