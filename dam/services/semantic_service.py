@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any, Optional, Type
+from typing import List, Dict, Any, Optional, Type, Tuple # Added Tuple
 
 import numpy as np
 from sentence_transformers import SentenceTransformer

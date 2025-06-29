@@ -211,13 +211,15 @@ async def apply_character_to_entity(
 
     link_comp = EntityCharacterLinkComponent(
         character_concept_entity_id=character_concept_entity_id,
+        character_concept=character_concept_entity, # Provide the related entity object
         role_in_asset=role,
-        # character_concept relationship is handled by SQLAlchemy if IDs are set
     )
 
     try:
         await ecs_service.add_component_to_entity(session, target_entity.id, link_comp)
-        char_name = character_concept_entity.get_component(CharacterConceptComponent).concept_name # type: ignore
+        # Fetch the component using ecs_service to get its name for logging
+        char_concept_comp_for_log = await ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+        char_name = char_concept_comp_for_log.concept_name if char_concept_comp_for_log else "Unknown Character"
         logger.info(
             f"Applied character '{char_name}' (Concept ID: {character_concept_entity_id}) "
             f"to Entity ID {entity_id_to_link} with role '{role}'."

@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select # Added import for select
 
 from dam.core.world import World # Needed for session context if services expect it
 from dam.services import character_service, ecs_service
@@ -64,7 +65,9 @@ async def test_find_character_concepts(db_session: AsyncSession):
 
     alpha_search = await character_service.find_character_concepts(db_session, query_name="Alpha")
     assert len(alpha_search) == 1
-    assert alpha_search[0].get_component(CharacterConceptComponent).concept_name == "Alpha Char" # type: ignore
+    alpha_comp = await ecs_service.get_component(db_session, alpha_search[0].id, CharacterConceptComponent)
+    assert alpha_comp is not None
+    assert alpha_comp.concept_name == "Alpha Char"
 
     char_search = await character_service.find_character_concepts(db_session, query_name="Char")
     # This depends on exact names; ensure test names are distinct enough.
@@ -72,7 +75,12 @@ async def test_find_character_concepts(db_session: AsyncSession):
     # Let's make names more specific for this test or clear DB before.
     # For now, assuming only the 3 above match "Char" if other tests use different naming.
     # This is brittle. A better way is to check if the expected ones are present.
-    names_found = [e.get_component(CharacterConceptComponent).concept_name for e in char_search] # type: ignore
+    names_found = []
+    for e in char_search:
+        comp = await ecs_service.get_component(db_session, e.id, CharacterConceptComponent)
+        if comp:
+            names_found.append(comp.concept_name)
+
     assert "Alpha Char" in names_found
     assert "Beta Char" in names_found
     assert "Gamma Person" not in names_found # "Person" does not contain "Char"
@@ -159,8 +167,12 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     # Get characters for asset1
     chars_on_asset1 = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1) == 2
-    roles_on_asset1 = sorted([r for e, r in chars_on_asset1]) # Sort for consistent comparison
-    assert roles_on_asset1 == [None, "Protagonist"]
+    # Replace None with empty string for sorting, then map back for assertion if needed, or assert against modified list
+    roles_for_sorting = [r if r is not None else "" for e, r in chars_on_asset1]
+    roles_on_asset1 = sorted(roles_for_sorting)
+    # Expected: None (empty string) sorts before "Protagonist"
+    assert roles_on_asset1 == ["", "Protagonist"]
+
 
     # Get assets for character
     assets_for_char = await character_service.get_entities_for_character(db_session, char_entity.id)
@@ -187,6 +199,18 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     # Remove character with role
     remove_success1 = await character_service.remove_character_from_entity(db_session, asset1.id, char_entity.id, role="Protagonist")
     assert remove_success1
+    await db_session.commit() # Commit the deletion
+
+    # Explicitly try to fetch the supposedly deleted component to confirm deletion
+    deleted_link_check_stmt = select(EntityCharacterLinkComponent).where(
+        EntityCharacterLinkComponent.entity_id == asset1.id,
+        EntityCharacterLinkComponent.character_concept_entity_id == char_entity.id,
+        EntityCharacterLinkComponent.role_in_asset == "Protagonist"
+    )
+    result_deleted_check = await db_session.execute(deleted_link_check_stmt)
+    still_exists = result_deleted_check.scalar_one_or_none()
+    assert still_exists is None, "The specific link component (Protagonist role) should have been deleted."
+
     chars_on_asset1_after_remove = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1_after_remove) == 1
     assert chars_on_asset1_after_remove[0][1] is None # Only the no-role link should remain
@@ -194,6 +218,8 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     # Remove character without role
     remove_success2 = await character_service.remove_character_from_entity(db_session, asset1.id, char_entity.id, role=None)
     assert remove_success2
+    await db_session.commit() # Commit this deletion as well
+
     chars_on_asset1_final = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1_final) == 0
 

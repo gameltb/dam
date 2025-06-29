@@ -1,5 +1,7 @@
 import pytest
 from typer.testing import CliRunner
+from pathlib import Path # Missing import
+from typing import Optional # For asset_sha256 type hint
 
 from dam.cli import app # main Typer app
 from dam.core.world import World
@@ -28,7 +30,7 @@ async def test_cli_character_create(current_test_world: World):
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
 
-    result = runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name, "--desc", char_desc])
+    result = runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name, "--desc", char_desc], catch_exceptions=False)
     print(f"CLI character create output: {result.stdout}")
     assert result.exit_code == 0
     assert f"Character concept '{char_name}'" in result.stdout

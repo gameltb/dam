@@ -1304,6 +1304,8 @@ async def cli_character_create(
 
         except ValueError as e: # From service if name is empty
             typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        except Exception as e_inner: # Catch any other exception during the service call
+            typer.secho(f"INNER EXCEPTION in character create: {type(e_inner).__name__}: {e_inner}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
         except Exception as e:
             typer.secho(f"Unexpected error creating character concept: {e}", fg=typer.colors.RED)

@@ -19,7 +19,7 @@ class EntityCharacterLinkComponent(BaseComponent):
 
     # This is the Entity ID of the Entity that *has* the CharacterConceptComponent
     character_concept_entity_id: Mapped[int] = mapped_column(
-        ForeignKey("entity.id"), # Standard FK to the Entity table
+        ForeignKey("entities.id"), # Corrected FK to the 'entities' table
         nullable=False,
         index=True,
     )
