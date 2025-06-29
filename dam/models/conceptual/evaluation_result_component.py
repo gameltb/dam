@@ -12,7 +12,7 @@ class EvaluationResultComponent(BaseComponent):
     that was generated during the evaluation.
     """
 
-    __tablename__ = "evaluation_results"
+    __tablename__ = "component_evaluation_result" # Renamed
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this to the transcoded asset's entity.
