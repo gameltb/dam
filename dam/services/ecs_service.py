@@ -202,16 +202,31 @@ async def find_entity_id_by_hash(session: AsyncSession, hash_value: str, hash_ty
     Returns the Entity ID or None if not found.
     Converts hex string hash_value to bytes before querying.
     """
+    from dam.models import ContentHashMD5Component, ContentHashSHA256Component # Moved import here
+
+    hash_bytes: bytes
     try:
         hash_bytes = bytes.fromhex(hash_value)
     except ValueError:
         logger.warning(f"Invalid hex string for hash_value: {hash_value}")
         return None
 
-    entity = await find_entity_by_content_hash(session, hash_bytes, hash_type) # Await async call
-    if entity:
-        return entity.id
-    return None
+    stmt: Any # To satisfy mypy for stmt potentially not being assigned if hash_type is invalid
+    if hash_type.lower() == "sha256":
+        stmt = select(ContentHashSHA256Component.entity_id).where(
+            ContentHashSHA256Component.hash_value == hash_bytes
+        )
+    elif hash_type.lower() == "md5":
+        stmt = select(ContentHashMD5Component.entity_id).where( # type: ignore[attr-defined] # Assuming MD5 comp exists
+            ContentHashMD5Component.hash_value == hash_bytes # type: ignore[attr-defined]
+        )
+    else:
+        logger.error(f"Unsupported hash type for find_entity_id_by_hash: {hash_type}")
+        return None # Or raise ValueError
+
+    result = await session.execute(stmt)
+    entity_id = result.scalar_one_or_none()
+    return entity_id
 
 
 async def get_components_by_value( # Made async

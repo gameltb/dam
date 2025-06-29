@@ -54,9 +54,11 @@ async def _add_dummy_asset(world: World, tmp_path: Path, filename: str = "source
     async with world.db_session_maker() as session:
         content_hash_val = file_operations.calculate_sha256(dummy_file)
         # content_hash_bytes = bytes.fromhex(content_hash_val) # SHA256 in DB is string
+        content_hash_bytes = bytes.fromhex(content_hash_val)
+
 
         stmt_hash = select(ContentHashSHA256Component).where(
-            ContentHashSHA256Component.hash_value == content_hash_val # Query with string
+            ContentHashSHA256Component.hash_value == content_hash_bytes # Query with bytes
         )
         hash_comp_result = await session.execute(stmt_hash)
         hash_component = hash_comp_result.scalar_one_or_none()

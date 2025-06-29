@@ -63,7 +63,7 @@ async def create_transcode_profile(
         concept_description = description
 
         profile_component = TranscodeProfileComponent(
-            entity_id=profile_entity.id,
+            entity=profile_entity, # Pass entity directly
             profile_name=profile_name,
             tool_name=tool_name,
             parameters=parameters,
@@ -72,6 +72,11 @@ async def create_transcode_profile(
             concept_name=concept_name, # from BaseConceptualInfoComponent
             concept_description=concept_description # from BaseConceptualInfoComponent
         )
+        # Explicitly set entity relationship and inherited entity_id
+        # profile_component.entity = profile_entity # Already set if passed in __init__ and handled by ORM
+        # Ensure 'id' (PK/FK) and 'entity_id' (inherited) are correctly set.
+        profile_component.id = profile_entity.id
+        profile_component.entity_id = profile_entity.id
         session.add(profile_component)
 
         # Add a tag to mark this entity as a "Transcode Profile"

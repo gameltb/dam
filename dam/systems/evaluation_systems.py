@@ -64,8 +64,11 @@ async def create_evaluation_run_concept(
             concept_name=run_name, # Pass run_name for concept_name
             concept_description=description # Pass description for concept_description
         )
-        # The attributes are now set via the constructor.
-        # eval_run_comp.entity_id = run_entity.id # Handled by passing entity / or id mapping
+        # Explicitly set entity_id because it's init=False in BaseComponent
+        # and EvaluationRunComponent.id is the PK/FK.
+        eval_run_comp.entity_id = run_entity.id
+        eval_run_comp.entity = run_entity # Ensure relationship is also set
+
         db_session.add(eval_run_comp)
 
         # Tag it as an "Evaluation Run"

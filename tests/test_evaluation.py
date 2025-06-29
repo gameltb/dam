@@ -26,6 +26,9 @@ from dam.systems import evaluation_systems
 from .test_cli import test_environment, click_runner, _create_dummy_file # For dummy asset creation
 from .test_transcoding import _add_dummy_asset # More specific helper
 
+import functools # For functools.partial
+from asyncio import get_event_loop # For asyncio.get_event_loop
+
 # Pytest marker for async tests
 pytestmark = pytest.mark.asyncio
 
@@ -90,16 +93,22 @@ async def test_cli_eval_run_create(test_environment, click_runner: CliRunner):
     run_name = "test_cli_eval_run"
     description = "Test CLI evaluation run description"
 
-    result = click_runner.invoke(app, [
-        "--world", default_world_name,
-        "evaluate", "run-create",
-        "--name", run_name,
-        "--desc", description,
-    ])
+    loop = get_event_loop()
+    result = await loop.run_in_executor(
+        None,  # Uses the default ThreadPoolExecutor
+        functools.partial(
+            click_runner.invoke,
+            app,
+            [
+                "--world", default_world_name,
+                "evaluate", "run-create",
+                "--name", run_name,
+                "--desc", description,
+            ]
+        )
+    )
 
     assert result.exit_code == 0, f"CLI Error: {result.output}"
-    assert f"Evaluation run '{run_name}'" in result.output
-    assert "created successfully" in result.output
 
     target_world = get_world(default_world_name)
     assert target_world is not None

@@ -975,23 +975,21 @@ async def cli_eval_run_create( # Made async
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    async def _create():
-        try:
-            run_entity = await evaluation_systems.create_evaluation_run_concept(
-                world=target_world, run_name=run_name, description=description
-            )
-            typer.secho(
-                f"Evaluation run '{run_name}' (Entity ID: {run_entity.id}) created successfully in world '{target_world.name}'.",
-                fg=typer.colors.GREEN,
-            )
-        except evaluation_systems.EvaluationError as e:
-            typer.secho(f"Error creating evaluation run: {e}", fg=typer.colors.RED)
-            raise typer.Exit(code=1)
-        except Exception as e:
-            typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
-            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-            raise typer.Exit(code=1)
-    await _create() # Await async call
+    try:
+        run_entity = await evaluation_systems.create_evaluation_run_concept(
+            world=target_world, run_name=run_name, description=description
+        )
+        typer.secho(
+            f"Evaluation run '{run_name}' (Entity ID: {run_entity.id}) created successfully in world '{target_world.name}'.",
+            fg=typer.colors.GREEN,
+        )
+    except evaluation_systems.EvaluationError as e:
+        typer.secho(f"Error creating evaluation run: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 @eval_app.command("run-execute")

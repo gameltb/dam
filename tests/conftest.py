@@ -160,6 +160,74 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world) # Await async teardown
 
 
+@pytest.fixture(scope="session", autouse=True)
+def configure_session_logging():
+    """
+    Set the log level to WARNING for all loggers for the entire test session.
+    This is a session-scoped fixture that runs automatically.
+    """
+    import logging
+
+    # Store original levels to restore them later
+    original_levels = {}
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    original_levels['root'] = root_logger.level
+    root_logger.setLevel(logging.WARNING)
+
+    # Configure all existing loggers
+    # Iterate over a copy of the dictionary keys in case it's modified during iteration elsewhere
+    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+        logger = logging.getLogger(logger_name)
+        original_levels[logger_name] = logger.level
+        logger.setLevel(logging.WARNING)
+
+    yield
+
+    # Restore original log levels
+    root_logger.setLevel(original_levels.get('root', logging.INFO))
+    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+        logger = logging.getLogger(logger_name)
+        original_level = original_levels.get(logger_name, logging.INFO)
+        logger.setLevel(original_level)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_session_logging():
+    """
+    Set the log level to WARNING for all loggers for the entire test session.
+    This is a session-scoped fixture that runs automatically.
+    """
+    import logging
+
+    # Store original levels to restore them later
+    original_levels = {}
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    original_levels['root'] = root_logger.level
+    root_logger.setLevel(logging.WARNING)
+
+    # Configure all existing loggers
+    for logger_name in logging.Logger.manager.loggerDict:
+        logger = logging.getLogger(logger_name)
+        original_levels[logger_name] = logger.level
+        logger.setLevel(logging.WARNING)
+
+    # Basic config can also be used but might interfere if tests set up handlers.
+    # logging.basicConfig(level=logging.WARNING, force=True) # force=True to override existing handlers' levels
+
+    yield
+
+    # Restore original log levels
+    root_logger.setLevel(original_levels.get('root', logging.INFO)) # Default to INFO if not found
+    for logger_name in logging.Logger.manager.loggerDict:
+        logger = logging.getLogger(logger_name)
+        original_level = original_levels.get(logger_name, logging.INFO) # Default to INFO
+        logger.setLevel(original_level)
+
+
 @pytest_asyncio.fixture(scope="function") # Use pytest_asyncio.fixture
 async def test_world_beta(settings_override: Settings) -> AsyncGenerator[World, None]: # Made async
     """Provides the 'test_world_beta' World instance, fully set up."""
