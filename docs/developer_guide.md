@@ -57,9 +57,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     *   Execution is typically organized into `SystemStage`s (see below). The scheduler runs all systems registered for a particular stage.
     *   (Future: Systems may also be triggered by events).
 -   **Dependency Injection**: The `WorldScheduler` automatically injects dependencies into systems based on their annotated parameters. Common injectable types include:
-    *   `WorldSession`: The active SQLAlchemy session for the current world (typically `Annotated[Session, "WorldSession"]`).
-    *   `WorldName`: The string name of the current world (typically `Annotated[str, "WorldName"]`).
-    *   `CurrentWorldConfig`: The `WorldConfig` object for the current world (typically `Annotated[WorldConfig, "CurrentWorldConfig"]`).
+    *   `WorldSession`: The active SQLAlchemy session for the current world (typically `Annotated[AsyncSession, "WorldSession"]`).
     *   `WorldContext`: The entire `WorldContext` object, providing access to session, world name, and world config. Can be requested directly via `my_context: WorldContext`.
     *   `Resource[ResourceType]`: An instance of a registered shared resource (see Section 2.5).
     *   `MarkedEntityList[MarkerComponentType]`: A list of `Entity` objects that have the specified `MarkerComponentType` attached.

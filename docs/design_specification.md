@@ -62,10 +62,9 @@ Systems encapsulate the logic that operates on entities. They typically query fo
 ### 3.3. Dependency Injection
 - Systems declare their dependencies using `typing.Annotated` type hints in their parameters. The `WorldScheduler` injects these dependencies.
 - Common injectable types include:
-    - `WorldSession`: `Annotated[Session, "WorldSession"]` - The active SQLAlchemy session.
+    - `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - The active SQLAlchemy session.
     - `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources like file operators.
     - `MarkedEntityList[MarkerComponentType]`: `Annotated[List[Entity], "MarkedEntityList", MyMarkerComponent]` - A list of entities that have the specified marker component.
-    - `CurrentWorldConfig`: `Annotated[WorldConfig, "CurrentWorldConfig"]`
     - `WorldContext`: Provides access to session, world name, and config.
 
 ## 4. Testing Guidelines

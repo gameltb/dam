@@ -22,5 +22,5 @@ This file provides instructions for AI agents working with this codebase.
 
 ### Specific Instructions
 
-*   **Design Specification**: For guidance on models (Components) and Systems architecture (excluding testing guidelines which are now in this document), please consult the [Design Specification](doc/design_specification.md) document.
+*   **Design Specification**: For guidance on models (Components) and Systems architecture (excluding testing guidelines which are now in this document), please consult the [Design Specification](docs/design_specification.md) document.
 *   There are no other specific instructions at this time.
