@@ -5,7 +5,7 @@ from pytestqt.qtbot import QtBot
 
 from dam.core.world import World
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent # Corrected case
-from dam.ui.dialogs.component_viewerd_ialog import ComponentViewerDialog
+from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
 
 # pytest-qt automatically provides a qapp fixture or handles QApplication instance.
 # Removing custom qapp fixture to avoid conflicts.

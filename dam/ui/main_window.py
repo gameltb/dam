@@ -35,7 +35,7 @@ from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service
 from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
-from dam.ui.dialogs.component_viewerd_ialog import ComponentViewerDialog
+from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
 from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
 from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
 from dam.ui.dialogs.world_operations_dialogs import (
