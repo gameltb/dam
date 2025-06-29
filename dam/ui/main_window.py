@@ -39,6 +39,8 @@ from dam.ui.dialogs.world_operations_dialogs import (
     MergeWorldsDialog,
     SplitWorldDialog,
 )
+from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog
+from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog
 
 
 class MainWindow(QMainWindow):
@@ -112,6 +114,17 @@ class MainWindow(QMainWindow):
         setup_db_action = QAction("Setup &Database for Current World...", self)
         setup_db_action.triggered.connect(self.setup_current_world_db)
         tools_menu.addAction(setup_db_action)
+        tools_menu.addSeparator()
+
+        transcode_asset_action = QAction("&Transcode Selected Asset...", self)
+        transcode_asset_action.triggered.connect(self.open_transcode_asset_dialog)
+        tools_menu.addAction(transcode_asset_action)
+        # self.transcode_asset_action = transcode_asset_action # Store if we need to enable/disable it
+        tools_menu.addSeparator()
+
+        evaluation_setup_action = QAction("Setup Transcoding &Evaluation...", self)
+        evaluation_setup_action.triggered.connect(self.open_evaluation_setup_dialog)
+        tools_menu.addAction(evaluation_setup_action)
 
         # Help Menu (Placeholder)
         help_menu = menu_bar.addMenu("&Help")
@@ -247,6 +260,61 @@ class MainWindow(QMainWindow):
         finally:
             if QApplication.overrideCursor() is not None:  # Ensure cursor is restored
                 QApplication.restoreOverrideCursor()
+
+    def open_transcode_asset_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+
+        selected_items = self.asset_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "No Asset Selected", "Please select an asset from the list to transcode.")
+            return
+        if len(selected_items) > 1:
+            QMessageBox.information(self, "Multiple Assets Selected", "Please select only one asset to transcode at a time.")
+            return
+
+        list_item = selected_items[0]
+        entity_id = list_item.data(Qt.ItemDataRole.UserRole) # This is the entity_id
+
+        # We need the original filename for display in the dialog.
+        # The list_item text is "ID: {entity_id} - {original_filename} ({mime_type_val or 'N/A'})"
+        # We can parse it, or better, store filename as another data role if needed frequently.
+        # For now, let's try to parse it. This is a bit fragile.
+        # A better way would be to query FilePropertiesComponent for the filename using entity_id.
+        item_text = list_item.text()
+        try:
+            # Example: "ID: 123 - my_image.jpg (image/jpeg)"
+            filename_part = item_text.split(" - ", 1)[1]
+            original_filename = filename_part.split(" (", 1)[0]
+        except IndexError:
+            original_filename = f"Entity {entity_id}" # Fallback
+
+        if entity_id is None: # Should not happen if item is valid
+            QMessageBox.warning(self, "Error", "Selected asset has no ID.")
+            return
+
+        dialog = TranscodeAssetDialog(
+            world=self.current_world,
+            entity_id=entity_id,
+            entity_filename=original_filename,
+            parent=self
+        )
+        dialog.exec()
+        # After dialog closes, we might want to refresh asset list if new assets were created
+        # self.load_assets() # Or only if dialog.result() == QDialog.DialogCode.Accepted
+
+    def open_evaluation_setup_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+
+        dialog = EvaluationSetupDialog(world=self.current_world, parent=self)
+        dialog.exec()
+        # Results are shown in a subsequent dialog from EvaluationSetupDialog itself.
+        # May need to refresh assets if evaluation creates new components/entities.
+        # self.load_assets()
+
 
     def _create_status_bar(self):
         self.statusBar().showMessage("Ready")
