@@ -261,7 +261,7 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
         # Instead, we'll just check it's called. The internal calls to dispatch/execute are checked via their mocks.
         pass # Just confirm it's called; its internal calls are mocked.
 
-    mocker.patch("dam.ui.dialogs.add_asset_dialog.asyncio.run", side_effect=mock_asyncio_run)
+    mock_async_run = mocker.patch("dam.ui.dialogs.add_asset_dialog.asyncio.run", side_effect=mock_asyncio_run)
 
     # Mock QMessageBox to prevent it from blocking
     mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
@@ -297,7 +297,7 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
 
     # Assert that file_properties was called, and then our mocked asyncio.run was called
     mock_get_props.assert_called_once_with(dummy_file)
-    dam.ui.dialogs.add_asset_dialog.asyncio.run.assert_called() # Check if asyncio.run was called
+    mock_async_run.assert_called() # Check if asyncio.run was called
 
     # Check that the mocked world methods were called (by the sync wrapper or by asyncio.run's mock)
     # These assertions depend on how deeply `mock_asyncio_run` executes the coroutine.
@@ -386,10 +386,11 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # If calculate_sha256_hex directly uses the Path object, this is fine.
     # Let's assume it does. If it needs a string, str(created_path_mock) would need to be set.
 
-    mock_path_constructor = mocker.patch("pathlib.Path", return_value=created_path_mock)
+    # Patch Path as it's imported and used within the dialog's module
+    mock_path_constructor = mocker.patch("dam.ui.dialogs.find_asset_by_hash_dialog.Path", return_value=created_path_mock)
 
     mock_calculate_sha256 = mocker.patch(
-        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256", # Corrected path
+        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256",
         return_value="calculated_hash"
     )
 
