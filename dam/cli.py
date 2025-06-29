@@ -846,6 +846,7 @@ async def cli_transcode_profile_create( # Made async
         raise typer.Exit(code=1)
 
     async def _create():
+        typer.echo("DEBUG: Entering _create for profile-create") # Debug print
         try:
             profile_entity = await transcode_service.create_transcode_profile(
                 world=target_world,

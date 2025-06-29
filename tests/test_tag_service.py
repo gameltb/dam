@@ -128,7 +128,8 @@ async def test_get_tag_concept_by_name(db_session: AsyncSession, global_tag_conc
     retrieved_tag = await ts.get_tag_concept_by_name(db_session, "GlobalTestTag") # Await
     assert retrieved_tag is not None
     assert retrieved_tag.id == global_tag_concept.id
-    assert await ts.get_tag_concept_by_name(db_session, "NonExistentTag") is None # Await
+    with pytest.raises(ts.TagConceptNotFoundError): # Expect an exception
+        await ts.get_tag_concept_by_name(db_session, "NonExistentTag") # Await
 
 
 @pytest.mark.asyncio

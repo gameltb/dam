@@ -12,7 +12,7 @@ class TranscodedVariantComponent(BaseComponent):
     """
     __tablename__ = "transcoded_variants"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this component to the transcoded file's entity.
 
     original_asset_entity_id: Mapped[int] = mapped_column(

@@ -58,18 +58,13 @@ async def create_evaluation_run_concept(
         await db_session.flush()
 
         eval_run_comp = EvaluationRunComponent(
-            id=run_entity.id,
-            entity=run_entity, # Pass Entity object
+            id=run_entity.id, # For EvaluationRunComponent's own PK/FK 'id' field
             run_name=run_name,
             concept_name=run_name, # Pass run_name for concept_name
             concept_description=description # Pass description for concept_description
         )
-        # Explicitly set entity_id because it's init=False in BaseComponent
-        # and EvaluationRunComponent.id is the PK/FK.
-        eval_run_comp.entity_id = run_entity.id
-        eval_run_comp.entity = run_entity # Ensure relationship is also set
-
-        db_session.add(eval_run_comp)
+        # Use ecs_service to add the component and handle associations for BaseComponent fields
+        await ecs_service.add_component_to_entity(db_session, run_entity.id, eval_run_comp)
 
         # Tag it as an "Evaluation Run"
         try:
@@ -304,29 +299,23 @@ async def get_evaluation_results(
             .join(TranscodeProfileComponent, EvaluationResultComponent.transcode_profile_entity_id == TranscodeProfileComponent.entity_id)
             .join(Entity, EvaluationResultComponent.entity_id == Entity.id) # This joins EvaluationResultComponent.entity_id (which is the transcoded asset's entity_id) to Entity.id
             .where(EvaluationResultComponent.evaluation_run_entity_id == eval_run_comp.entity_id)
-            .options( # Eager load components for the transcoded entity (Entity object from the join)
-                joinedload(Entity.components_collection).selectinload(FilePropertiesComponent), # type: ignore
-                joinedload(Entity.components_collection).selectinload(TranscodedVariantComponent) # type: ignore
-            )
+            # Removed problematic .options() for joinedload(Entity.components_collection)
         )
 
         db_results = (await db_session.execute(stmt)).all()
 
         formatted_results = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results: # type: ignore
-            # Assuming get_component_for_entity was a typo and should be get_component
+            # Fetch FilePropertiesComponent for the original asset
             orig_fpc = await ecs_service.get_component(db_session, res_comp.original_asset_entity_id, FilePropertiesComponent) # type: ignore
             original_filename = orig_fpc.original_filename if orig_fpc else "N/A" # type: ignore
 
-            # The 'transcoded_entity_obj' is the Entity instance for the transcoded asset.
-            # We need to find its FilePropertiesComponent from its loaded components_collection.
-            trans_fpc = None
-            for comp_instance in transcoded_entity_obj.components_collection:
-                if isinstance(comp_instance, FilePropertiesComponent):
-                    trans_fpc = comp_instance
-                    break
+            # Fetch FilePropertiesComponent for the transcoded asset
+            trans_fpc = await ecs_service.get_component(db_session, transcoded_entity_obj.id, FilePropertiesComponent) # type: ignore
             transcoded_filename = trans_fpc.original_filename if trans_fpc else "N/A"
 
+            # TranscodedVariantComponent is not directly used in the loop for constructing formatted_results,
+            # so no need to fetch it separately unless its fields were to be added to the report.
 
             custom_metrics = {}
             if res_comp.custom_metrics_json:

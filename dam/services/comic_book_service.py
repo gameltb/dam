@@ -31,7 +31,6 @@ async def create_comic_book_concept( # Made async
 
     concept_entity = await ecs_service.create_entity(session) # Await async call
     comic_concept_comp = ComicBookConceptComponent(
-        entity=concept_entity,
         comic_title=comic_title,
         series_title=series_title or comic_title,
         issue_number=issue_number,
@@ -39,7 +38,7 @@ async def create_comic_book_concept( # Made async
             concept_name=comic_title,
             concept_description=None,
     )
-    session.add(comic_concept_comp)
+    await ecs_service.add_component_to_entity(session, concept_entity.id, comic_concept_comp)
     logger.info(
         f"Created ComicBookConcept Entity ID {concept_entity.id} for title '{comic_title}'"
         f"{f', issue {issue_number}' if issue_number else ''}."
@@ -99,7 +98,6 @@ async def link_comic_variant_to_concept( # Made async
             session.add(existing_primary_variant)
 
     cb_variant_comp = ComicBookVariantComponent(
-        entity=file_entity,
         conceptual_asset=comic_concept_entity,
         language=language,
         format=format,
@@ -107,8 +105,8 @@ async def link_comic_variant_to_concept( # Made async
         scan_quality=scan_quality,
         variant_description=variant_description,
     )
-    session.add(cb_variant_comp)
-    await session.flush() # Explicitly flush here to process relationships
+    await ecs_service.add_component_to_entity(session, file_entity.id, cb_variant_comp)
+    # await session.flush() # Flushing is handled by add_component_to_entity or caller
     logger.info(
         f"Linked File Entity ID {file_entity_id} to ComicBookConcept ID {comic_concept_entity_id} "
         f"as variant: lang='{language}', format='{format}', desc='{variant_description}'."

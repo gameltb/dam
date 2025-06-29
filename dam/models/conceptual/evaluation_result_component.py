@@ -13,7 +13,7 @@ class EvaluationResultComponent(BaseComponent):
     """
     __tablename__ = "evaluation_results"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this to the transcoded asset's entity.
 
     evaluation_run_entity_id: Mapped[int] = mapped_column(

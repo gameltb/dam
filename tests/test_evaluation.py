@@ -33,7 +33,7 @@ from asyncio import get_event_loop # For asyncio.get_event_loop
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_dummy_profile(world: World, name: str, tool: str = "mocktool", params: str = "-p", out_fmt: str = "mock") -> Entity:
+async def _create_dummy_profile(world: World, name: str, tool: str = "mocktool", params: str = "-p {input} {output}", out_fmt: str = "mock") -> Entity:
     """Helper to create a dummy transcode profile."""
     return await transcode_service.create_transcode_profile(
         world=world,
@@ -342,38 +342,34 @@ async def test_cli_eval_report(test_environment, monkeypatch): # Removed click_r
     profile_report = await _create_dummy_profile(target_world, "eval_prof_report")
     eval_run_report_concept = await evaluation_systems.create_evaluation_run_concept(target_world, "report_exec_run_name")
 
+    # Create a real placeholder entity for the "transcoded" asset
+    async with target_world.db_session_maker() as session:
+        real_mock_transcoded_entity = Entity()
+        session.add(real_mock_transcoded_entity)
+        await session.commit() # Commit to get an ID
+        await session.refresh(real_mock_transcoded_entity)
+        # Create and add a FilePropertiesComponent for this mock transcoded entity
+        # This FPC will be fetched by execute_evaluation_run
+        mock_fpc_transcoded_report = FilePropertiesComponent(
+            original_filename="transcoded_report_asset.mock",
+            file_size_bytes=9999,
+            mime_type="application/octet-stream"
+        )
+        await dam_ecs_service.add_component_to_entity(session, real_mock_transcoded_entity.id, mock_fpc_transcoded_report)
+        await session.commit()
 
-    mock_transcoded_entity_report = Entity()
-    # Ensure unique ID for the mock transcoded entity
-    mock_transcoded_entity_report.id = source_asset_report.id + 3000
-    # Use MagicMock for FilePropertiesComponent
-    mock_fpc_transcoded_report = MagicMock(spec=FilePropertiesComponent)
-    mock_fpc_transcoded_report.entity_id = mock_transcoded_entity_report.id
-    mock_fpc_transcoded_report.original_filename = "transcoded_report_asset.mock"
-    mock_fpc_transcoded_report.file_size_bytes = 9999
-    mock_fpc_transcoded_report.mime_type = "application/octet-stream"
-    mock_fpc_transcoded_report.id = mock_transcoded_entity_report.id # Mock component's own PK
-
-    # Mock apply_transcode_profile for the execute_evaluation_run setup part
-    mock_apply_transcode_profile_report = AsyncMock(return_value=MagicMock(id=mock_transcoded_entity_report.id))
+    # Mock apply_transcode_profile to return the ID of this real entity
+    mock_apply_transcode_profile_report = AsyncMock(return_value=MagicMock(id=real_mock_transcoded_entity.id))
     monkeypatch.setattr(transcode_service, "apply_transcode_profile", mock_apply_transcode_profile_report)
 
-    # Store and mock ecs_service functions carefully
+    # Store original ecs_service functions that might be restored
     original_get_entity = dam_ecs_service.get_entity
-    original_get_component = dam_ecs_service.get_component # Correct function name
+    original_get_component = dam_ecs_service.get_component
 
-    async def mock_get_entity_for_exec(session, entity_id_val):
-        if entity_id_val == mock_transcoded_entity_report.id:
-            return mock_transcoded_entity_report
-        # For other entities (source, profile, run concept), let the original function handle it.
-        return await original_get_entity(session, entity_id_val)
-    monkeypatch.setattr(dam_ecs_service, "get_entity", AsyncMock(side_effect=mock_get_entity_for_exec))
-
-    async def mock_get_component_for_exec(session, entity_id, component_class): # Changed signature
-        if entity_id == mock_transcoded_entity_report.id and component_class == FilePropertiesComponent:
-            return mock_fpc_transcoded_report
-        return await original_get_component(session, entity_id, component_class) # Call original correct function
-    monkeypatch.setattr(dam_ecs_service, "get_component", AsyncMock(side_effect=mock_get_component_for_exec)) # Patch correct function
+    # No need to mock get_entity for the real_mock_transcoded_entity as it's real.
+    # We might still need to mock get_component if execute_evaluation_run needs other components
+    # that _add_dummy_asset or _create_dummy_profile don't create, but for FPC it should be fine now.
+    # The test only seems to rely on FPC for the transcoded asset.
 
     # Execute the run to populate data for the report
     await evaluation_systems.execute_evaluation_run(
@@ -389,10 +385,16 @@ async def test_cli_eval_report(test_environment, monkeypatch): # Removed click_r
     monkeypatch.setattr(dam_ecs_service, "get_component", original_get_component) # Restore correct function
 
 
+    # Fetch the component to get its name
+    async with target_world.db_session_maker() as session:
+        eval_run_comp_for_report = await session.get(EvaluationRunComponent, eval_run_report_concept.id)
+        assert eval_run_comp_for_report is not None
+        evaluation_run_name_for_report = eval_run_comp_for_report.run_name
+
     # 2. Call the system function for generating report data
     report_data = await evaluation_systems.get_evaluation_results(
         world=target_world,
-        evaluation_run_id_or_name=eval_run_report_concept.run_name # Use name as CLI would
+        evaluation_run_id_or_name=evaluation_run_name_for_report
     )
 
     # Assertions on the structure and content of report_data
@@ -400,7 +402,7 @@ async def test_cli_eval_report(test_environment, monkeypatch): # Removed click_r
     assert len(report_data) == 1, "Expected one result in the report data"
 
     result_item = report_data[0]
-    assert result_item["evaluation_run_name"] == eval_run_report_concept.run_name
+    assert result_item["evaluation_run_name"] == evaluation_run_name_for_report
     # Verify original asset details (FilePropertiesComponent for original asset is fetched by get_evaluation_results)
     # We need to ensure the original asset (source_asset_report) and its FPC are in the DB correctly.
     # _add_dummy_asset should have handled this.

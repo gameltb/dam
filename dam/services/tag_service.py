@@ -54,7 +54,6 @@ async def create_tag_concept( # Made async
     if tag_concept_entity.id is None: await session.flush() # Ensure ID
 
     tag_concept_comp = TagConceptComponent(
-        entity=tag_concept_entity,
         tag_name=tag_name,
         tag_scope_type=scope_type.upper(),
         tag_scope_detail=scope_detail,
@@ -63,9 +62,8 @@ async def create_tag_concept( # Made async
         concept_name=tag_name,  # Use tag_name for the general concept_name
         concept_description=description # Use description for the general concept_description
     )
-    session.add(tag_concept_comp)
     try:
-        await session.flush() # Await
+        await ecs_service.add_component_to_entity(session, tag_concept_entity.id, tag_concept_comp)
         logger.info(f"Created TagConcept Entity ID {tag_concept_entity.id} with name '{tag_name}'.")
         return tag_concept_entity
     except IntegrityError:
@@ -126,12 +124,16 @@ async def update_tag_concept( # Made async
 
     updated = False
     if name is not None and tag_concept_comp.tag_name != name:
-        existing_tag = await get_tag_concept_by_name(session, name) # Await
-        if existing_tag and existing_tag.id != tag_concept_entity_id:
-            logger.error(
-                f"Cannot update tag name to '{name}' as it already exists for TagConcept ID {existing_tag.id}."
-            )
-            return None
+        try:
+            existing_tag = await get_tag_concept_by_name(session, name) # Await
+            if existing_tag and existing_tag.id != tag_concept_entity_id:
+                logger.error(
+                    f"Cannot update tag name to '{name}' as it already exists for TagConcept ID {existing_tag.id}."
+                )
+                return None
+        except TagConceptNotFoundError:
+            # This is the expected case if the new name is available
+            pass
         tag_concept_comp.tag_name = name
         updated = True
     if scope_type is not None and tag_concept_comp.tag_scope_type != scope_type.upper():
@@ -331,11 +333,13 @@ async def apply_tag_to_entity( # Made async
         )
         return None
 
-    link_comp = EntityTagLinkComponent(entity=target_entity, tag_concept=tag_concept_entity, tag_value=value)
+    # Instantiate EntityTagLinkComponent without 'entity' (from BaseComponent, init=False)
+    # 'tag_concept' is a relationship on EntityTagLinkComponent itself and is an init argument.
+    link_comp = EntityTagLinkComponent(tag_concept=tag_concept_entity, tag_value=value)
 
     try:
-        session.add(link_comp)
-        await session.flush() # Await
+        # Use ecs_service to add the component and handle associations for BaseComponent fields
+        await ecs_service.add_component_to_entity(session, target_entity.id, link_comp)
         logger.info(
             f"Applied tag '{tag_concept_comp.tag_name}' (Concept ID: {tag_concept_entity_id}) to Entity ID {entity_id_to_tag} with value '{value}'."
         )
