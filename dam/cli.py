@@ -33,8 +33,15 @@ from dam.services import (
     file_operations,
     transcode_service,
     world_service,
+    character_service, # Added character_service
+    ecs_service as dam_ecs_service, # Alias to avoid conflict with local ecs_service module
+    semantic_service, # Added semantic_service
 )
-from dam.systems import evaluation_systems  # Added evaluation_systems
+from dam.models.conceptual import CharacterConceptComponent # For displaying character info
+from dam.models.properties import FilePropertiesComponent # For displaying asset info
+from dam.core.events import SemanticSearchQuery # For semantic search CLI
+
+from dam.systems import evaluation_systems
 from dam.utils.media_utils import TranscodeError
 
 # Systems will be imported and then registered manually to worlds.
@@ -1256,3 +1263,357 @@ def cli_ui(ctx: typer.Context):
 
 if __name__ == "__main__":
     run_cli_directly()
+
+
+# --- Character Commands ---
+character_app = typer.Typer(name="character", help="Manage character concepts and their links to assets.")
+app.add_typer(character_app)
+
+@character_app.command("create")
+async def cli_character_create(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the character concept.")],
+    description: Annotated[Optional[str], typer.Option("--desc", "-d", help="Optional description for the character.")] = None,
+):
+    """Creates a new character concept."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    async with target_world.db_session_maker() as session:
+        try:
+            char_entity = await character_service.create_character_concept(
+                session=session,
+                name=name,
+                description=description,
+            )
+            if char_entity:
+                typer.secho(
+                    f"Character concept '{name}' (Entity ID: {char_entity.id}) created successfully in world '{target_world.name}'.",
+                    fg=typer.colors.GREEN,
+                )
+            else:
+                # This case might happen if the character already exists and create_character_concept returns it
+                # Or if there was an error logged by the service but no exception raised to here.
+                # Check service logs for more details.
+                typer.secho(f"Character concept '{name}' might already exist or could not be created. Check logs.", fg=typer.colors.YELLOW)
+
+        except ValueError as e: # From service if name is empty
+            typer.secho(f"Error: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error creating character concept: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
+@character_app.command("apply")
+async def cli_character_apply(
+    ctx: typer.Context,
+    asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the asset to link.")],
+    character_identifier: Annotated[str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")],
+    role: Annotated[Optional[str], typer.Option("--role", "-r", help="Optional role of the character in this asset.")] = None,
+):
+    """Applies (links) a character to an asset."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    async with target_world.db_session_maker() as session:
+        try:
+            # Resolve asset_identifier to entity_id
+            asset_entity_id: Optional[int] = None
+            try:
+                asset_entity_id = int(asset_identifier)
+            except ValueError:
+                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(
+                    session, hash_value=asset_identifier, hash_type="sha256"
+                )
+                if not entity_id_from_hash:
+                    typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+                asset_entity_id = entity_id_from_hash
+
+            if asset_entity_id is None: # Should be caught above
+                raise typer.Exit(code=1)
+
+            # Resolve character_identifier to character_concept_entity_id
+            character_concept_entity_id: Optional[int] = None
+            try:
+                character_concept_entity_id = int(character_identifier)
+                # Verify it's a valid character concept
+                if not await character_service.get_character_concept_by_id(session, character_concept_entity_id):
+                    raise character_service.CharacterConceptNotFoundError
+            except ValueError:
+                char_concept_entity = await character_service.get_character_concept_by_name(session, character_identifier)
+                character_concept_entity_id = char_concept_entity.id
+            except character_service.CharacterConceptNotFoundError:
+                typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            if character_concept_entity_id is None: # Should be caught
+                raise typer.Exit(code=1)
+
+            link_component = await character_service.apply_character_to_entity(
+                session=session,
+                entity_id_to_link=asset_entity_id,
+                character_concept_entity_id=character_concept_entity_id,
+                role=role,
+            )
+
+            if link_component:
+                typer.secho(
+                    f"Successfully linked character '{character_identifier}' to asset '{asset_identifier}' with role '{role}'.",
+                    fg=typer.colors.GREEN,
+                )
+            else:
+                # This might happen if the link already exists and the service returns None or the existing link.
+                # The service logs a warning in such cases.
+                typer.secho(
+                    f"Could not link character '{character_identifier}' to asset '{asset_identifier}'. "
+                    "It might already be linked with the same role, or an error occurred. Check logs.",
+                    fg=typer.colors.YELLOW
+                )
+
+        except character_service.CharacterConceptNotFoundError:
+             typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
+             raise typer.Exit(code=1)
+        except dam_ecs_service.EntityNotFoundError: # If asset entity ID is invalid and not caught by hash lookup
+            typer.secho(f"Error: Asset with identifier '{asset_identifier}' not found.", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error applying character to asset: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
+@character_app.command("list-for-asset")
+async def cli_character_list_for_asset(
+    ctx: typer.Context,
+    asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the asset.")],
+):
+    """Lists all characters linked to a specific asset."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    async with target_world.db_session_maker() as session:
+        try:
+            asset_entity_id: Optional[int] = None
+            try:
+                asset_entity_id = int(asset_identifier)
+            except ValueError:
+                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(
+                    session, hash_value=asset_identifier, hash_type="sha256"
+                )
+                if not entity_id_from_hash:
+                    typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+                asset_entity_id = entity_id_from_hash
+
+            if asset_entity_id is None:
+                raise typer.Exit(code=1)
+
+            characters_on_asset = await character_service.get_characters_for_entity(session, asset_entity_id)
+
+            if not characters_on_asset:
+                typer.secho(f"No characters found for asset '{asset_identifier}'.", fg=typer.colors.YELLOW)
+                return
+
+            typer.echo(f"Characters linked to asset '{asset_identifier}' (Entity ID: {asset_entity_id}):")
+            for char_concept_entity, role in characters_on_asset:
+                char_comp = await dam_ecs_service.get_component(session, char_concept_entity.id, CharacterConceptComponent)
+                char_name = char_comp.concept_name if char_comp else "Unknown Character"
+                role_str = f" (Role: {role})" if role else ""
+                typer.echo(f"  - {char_name} (Concept ID: {char_concept_entity.id}){role_str}")
+
+        except dam_ecs_service.EntityNotFoundError:
+             typer.secho(f"Error: Asset with identifier '{asset_identifier}' not found.", fg=typer.colors.RED)
+             raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error listing characters for asset: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
+@character_app.command("find-assets")
+async def cli_character_find_assets(
+    ctx: typer.Context,
+    character_identifier: Annotated[str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")],
+    role_filter: Annotated[Optional[str], typer.Option("--role", "-r", help="Filter by specific role. Use '__NONE__' for assets where character has no role specified, or '__ANY__' for any role.")] = None,
+):
+    """Finds all assets linked to a specific character."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    actual_role_filter = role_filter
+    filter_by_role_presence: Optional[bool] = None
+    if role_filter == "__NONE__":
+        actual_role_filter = None
+        filter_by_role_presence = False
+    elif role_filter == "__ANY__":
+        actual_role_filter = None
+        filter_by_role_presence = True
+
+
+    async with target_world.db_session_maker() as session:
+        try:
+            character_concept_entity_id: Optional[int] = None
+            try:
+                character_concept_entity_id = int(character_identifier)
+                # Verify it's a valid character concept
+                if not await character_service.get_character_concept_by_id(session, character_concept_entity_id):
+                    raise character_service.CharacterConceptNotFoundError
+            except ValueError:
+                char_concept_entity = await character_service.get_character_concept_by_name(session, character_identifier)
+                character_concept_entity_id = char_concept_entity.id
+            except character_service.CharacterConceptNotFoundError:
+                typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            if character_concept_entity_id is None:
+                raise typer.Exit(code=1)
+
+            linked_assets = await character_service.get_entities_for_character(
+                session,
+                character_concept_entity_id,
+                role_filter=actual_role_filter,
+                filter_by_role_presence=filter_by_role_presence
+            )
+
+            if not linked_assets:
+                typer.secho(f"No assets found for character '{character_identifier}' with specified role filter.", fg=typer.colors.YELLOW)
+                return
+
+            typer.echo(f"Assets linked to character '{character_identifier}' (Concept ID: {character_concept_entity_id}):")
+            for asset_entity in linked_assets:
+                fpc = await dam_ecs_service.get_component(session, asset_entity.id, FilePropertiesComponent)
+                filename = fpc.original_filename if fpc else "N/A"
+                # To show roles, we'd need to query EntityCharacterLinkComponent for each asset or enhance get_entities_for_character
+                typer.echo(f"  - Asset ID: {asset_entity.id}, Filename: {filename}")
+
+        except character_service.CharacterConceptNotFoundError:
+             typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
+             raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error finding assets for character: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+# --- Search Commands ---
+search_app = typer.Typer(name="search", help="Search for assets using various methods.")
+app.add_typer(search_app)
+
+@search_app.command("semantic")
+async def cli_search_semantic(
+    ctx: typer.Context,
+    query: Annotated[str, typer.Option("--query", "-q", help="Text query for semantic search.")],
+    top_n: Annotated[int, typer.Option("--top-n", "-n", help="Number of top results to return.")] = 10,
+    model_name: Annotated[Optional[str], typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional).")] = None,
+):
+    """Performs semantic search based on text query."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    request_id = str(uuid.uuid4())
+    query_event = SemanticSearchQuery(
+        query_text=query,
+        world_name=target_world.name,
+        request_id=request_id,
+        top_n=top_n,
+        model_name=model_name, # Will use service default if None
+    )
+
+    typer.echo(f"Dispatching SemanticSearchQuery (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'")
+
+    async def dispatch_and_await_results():
+        query_event.result_future = asyncio.get_running_loop().create_future()
+        await target_world.dispatch_event(query_event)
+        try:
+            # Result is List[Tuple[Entity, float, TextEmbeddingComponent]]
+            results = await asyncio.wait_for(query_event.result_future, timeout=60.0) # Increased timeout for potentially heavy query
+
+            if not results:
+                typer.secho(f"No semantic matches found for query: '{query[:100]}...'. Request ID: {request_id}", fg=typer.colors.YELLOW)
+                return
+
+            typer.secho(f"--- Semantic Search Results (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
+            typer.echo(f"Found {len(results)} results for query '{query[:100]}...':")
+            async with target_world.db_session_maker() as session: # New session for fetching components for display
+                for (entity, score, emb_comp) in results:
+                    fpc = await dam_ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                    filename = fpc.original_filename if fpc else "N/A"
+                    source_info = f"{emb_comp.source_component_name}.{emb_comp.source_field_name}" if emb_comp else "N/A"
+                    typer.echo(
+                        f"  - Entity ID: {entity.id}, Score: {score:.4f}, Filename: {filename}"
+                        f"\n    Matched on: {source_info} (Model: {emb_comp.model_name if emb_comp else 'N/A'})"
+                    )
+        except asyncio.TimeoutError:
+            typer.secho(f"Semantic search query timed out for Request ID: {request_id}.", fg=typer.colors.RED)
+        except Exception as e:
+            typer.secho(f"Semantic search query failed for Request ID: {request_id}. Error: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+
+    try:
+        await dispatch_and_await_results()
+    except Exception as e:
+        typer.secho(f"Error during semantic search dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+# Placeholder for item search CLI - to be implemented
+@search_app.command("items")
+async def cli_search_items(
+    ctx: typer.Context,
+    text: Annotated[Optional[str], typer.Option("--text", "-t", help="Keyword text to search in filenames/descriptions.")] = None,
+    tag: Annotated[Optional[str], typer.Option("--tag", help="Filter by tag name.")] = None,
+    character: Annotated[Optional[str], typer.Option("--character", help="Filter by character name or ID.")] = None,
+    # Add more filters as needed
+):
+    """
+    Searches for items (assets) based on keywords, tags, characters, etc. (Work In Progress)
+    """
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    typer.secho("Item search CLI is a work in progress.", fg=typer.colors.YELLOW)
+
+    # Implementation notes:
+    # 1. Create ItemSearchQuery event in dam.core.events.
+    # 2. Create a handler in a new system (e.g., dam.systems.search_systems.py)
+    #    - This handler will:
+    #      - Get initial set of entities based on text search (e.g., in FilePropertiesComponent.original_filename, or other text fields).
+    #        This might require iterating or using DB full-text search if available.
+    #      - If tag is provided, get entities for that tag using tag_service.
+    #      - If character is provided, get entities for that character using character_service.
+    #      - Intersect the sets of entities based on the filters provided.
+    #      - Return the final list of matching entities.
+    # 3. Update this CLI command to dispatch the ItemSearchQuery and display results.
+    pass

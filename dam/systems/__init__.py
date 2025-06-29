@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 _system_module_names = [
     # ".asset_ingestion_systems", # Removed
     ".metadata_systems",
-    ".asset_lifecycle_systems",  # Add new system module
-    ".evaluation_systems",  # Added evaluation_systems
+    ".asset_lifecycle_systems",
+    ".evaluation_systems",
+    ".semantic_systems", # Added semantic_systems
 ]
 
 for module_name in _system_module_names:

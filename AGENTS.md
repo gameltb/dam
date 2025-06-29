@@ -17,6 +17,11 @@ This file provides instructions for AI agents working with this codebase.
     *   To run tests with coverage locally, use `uv run pytest --cov=dam --cov-report=term-missing` (ensure `pytest-cov` is installed via dev dependencies). For UI tests with coverage: `QT_QPA_PLATFORM=offscreen uv run pytest --cov=dam --cov-report=term-missing`.
     *   **Environment Setup:** It is recommended to use `uv` for managing virtual environments and dependencies.
         *   Install dependencies (including `pytest`, `pytest-cov`, `pytest-qt`, `pytest-mock`): `uv run pip install -e .[all]` (as specified in `pyproject.toml`, includes all optional groups).
+        *   **PyTorch Installation Note (for limited disk space environments):** Due to limited disk space in some sandbox environments, PyTorch (a dependency of `sentence-transformers`) should be installed as CPU-only first, before other packages that might pull in a larger GPU-enabled version. Use the following command if encountering space issues:
+            ```bash
+            uv run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+            ```
+            Then proceed with installing other dependencies like `uv run pip install -e .[all]` or `uv run pip install sentence-transformers`. Note that PyTorch will be CPU-only in such environments.
     *   **Assertion Guideline:** Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.
 *   **Commit Messages:** Follow conventional commit message formats.
 *   **CI/CD:** The continuous integration pipeline is managed by GitHub Actions, configured in `.github/workflows/ci.yml`.

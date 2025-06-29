@@ -23,11 +23,13 @@ classifiers = [
 dependencies = [
     "sqlalchemy",
     "alembic",
-    "typer", 
+    "typer",
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
-    "hachoir", # For metadata extraction
+    # "hachoir", # Moved to optional
+    # "sentence-transformers", # Moved to optional
+    # "numpy", # Moved to optional
 ]
 
 [project.optional-dependencies]
@@ -40,6 +42,13 @@ video = [
 ]
 audio = [
     # "mutagen",
+]
+metadata = [ # New group for metadata extraction
+    "hachoir"
+]
+semantic = [ # New group for semantic search capabilities
+    "sentence-transformers",
+    "numpy"
 ]
 # Transcoding tool specific dependencies (optional, as tools might be system-installed)
 # These are more for tracking/documentation if direct python bindings were used.
@@ -74,9 +83,11 @@ all = [
     "ecs_dam_system[image]",
     "ecs_dam_system[video]",
     "ecs_dam_system[audio]",
+    "ecs_dam_system[metadata]",
+    "ecs_dam_system[semantic]",
     "ecs_dam_system[ui]",
     "ecs_dam_system[dev]",
-    "ecs_dam_system[all-transcode]", # Include the new transcoding group
+    "ecs_dam_system[all-transcode]",
 ]
 
 

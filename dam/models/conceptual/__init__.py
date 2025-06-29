@@ -9,10 +9,12 @@ from .page_link import PageLink
 from .tag_concept_component import TagConceptComponent
 from .transcode_profile_component import TranscodeProfileComponent
 from .transcoded_variant_component import TranscodedVariantComponent
+from .character_concept_component import CharacterConceptComponent
+from .entity_character_link_component import EntityCharacterLinkComponent
 
 __all__ = [
     "BaseConceptualInfoComponent",
-    "BaseVariantInfoComponent",  # Added BaseVariantInfoComponent to maintain order consistency
+    "BaseVariantInfoComponent",
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
     "PageLink",
@@ -22,4 +24,6 @@ __all__ = [
     "TranscodedVariantComponent",
     "EvaluationRunComponent",
     "EvaluationResultComponent",
+    "CharacterConceptComponent",
+    "EntityCharacterLinkComponent",
 ]

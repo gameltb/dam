@@ -45,6 +45,8 @@ from dam.ui.dialogs.world_operations_dialogs import (
     MergeWorldsDialog,
     SplitWorldDialog,
 )
+from dam.ui.dialogs.character_management_dialog import CharacterManagementDialog
+from dam.ui.dialogs.semantic_search_dialog import SemanticSearchDialog
 
 
 class MimeTypeFetcherSignals(QObject):
@@ -409,6 +411,15 @@ class MainWindow(QMainWindow):
         evaluation_setup_action = QAction("Setup Transcoding &Evaluation...", self)
         evaluation_setup_action.triggered.connect(self.open_evaluation_setup_dialog)
         tools_menu.addAction(evaluation_setup_action)
+        tools_menu.addSeparator()
+
+        character_management_action = QAction("&Character Management...", self)
+        character_management_action.triggered.connect(self.open_character_management_dialog)
+        tools_menu.addAction(character_management_action)
+
+        semantic_search_action = QAction("Se&mantic Search...", self)
+        semantic_search_action.triggered.connect(self.open_semantic_search_dialog)
+        tools_menu.addAction(semantic_search_action)
 
         # Help Menu (Placeholder)
         help_menu = menu_bar.addMenu("&Help")
@@ -624,6 +635,46 @@ class MainWindow(QMainWindow):
         # Results are shown in a subsequent dialog from EvaluationSetupDialog itself.
         # May need to refresh assets if evaluation creates new components/entities.
         # self.load_assets()
+
+    def open_character_management_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+        # Placeholder for now
+        current_asset_id = None
+        selected_rows = self.asset_table_widget.selectionModel().selectedRows()
+        if selected_rows:
+            id_item = self.asset_table_widget.item(selected_rows[0].row(), 0)
+            if id_item:
+                current_asset_id = id_item.data(Qt.ItemDataRole.UserRole)
+
+        dialog = CharacterManagementDialog(world=self.current_world, current_selected_asset_id=current_asset_id, parent=self)
+        dialog.exec()
+        # Potentially refresh asset list or component views if characters were applied/changed
+
+    def open_semantic_search_dialog(self):
+        if not self.current_world:
+            QMessageBox.warning(self, "No World", "Please select or configure a DAM world first.")
+            return
+        # Placeholder for now
+        dialog = SemanticSearchDialog(world=self.current_world, parent=self)
+        dialog.view_components_requested.connect(self._handle_view_components_request)
+        dialog.exec()
+
+    def _handle_view_components_request(self, asset_id: int):
+        """
+        Slot to handle requests to view components for a specific asset ID,
+        typically emitted from search dialogs.
+        """
+        if not self.current_world:
+            QMessageBox.warning(self, "Error", "No world selected. Cannot view components.")
+            return
+
+        self.statusBar().showMessage(f"Fetching components for Entity ID: {asset_id} (from search)...")
+        fetcher = ComponentFetcher(world=self.current_world, asset_id=asset_id)
+        fetcher.signals.components_ready.connect(self._on_components_fetched) # Reuses existing slot
+        fetcher.signals.error_occurred.connect(self._on_component_fetch_error) # Reuses existing slot
+        self.thread_pool.start(fetcher)
 
     def _create_status_bar(self):
         self.statusBar().showMessage("Ready")

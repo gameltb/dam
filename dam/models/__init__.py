@@ -38,6 +38,10 @@ from .source_info.original_source_info_component import OriginalSourceInfoCompon
 from .source_info.web_source_component import WebSourceComponent
 from .source_info.website_profile_component import WebsiteProfileComponent
 
+# Semantic components
+from .semantic.text_embedding_component import TextEmbeddingComponent
+
+
 # Base abstract conceptual components like BaseConceptualInfoComponent and BaseVariantInfoComponent
 # are typically not re-exported here unless specifically needed for widespread type hinting.
 # Their subclasses (the concrete components above) are what services and systems will primarily work with.
@@ -69,7 +73,9 @@ __all__ = [
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
     "PageLink",
-    "TagConceptComponent",  # Added
-    "EntityTagLinkComponent",  # Added
+    "TagConceptComponent",
+    "EntityTagLinkComponent",
+    # Semantic
+    "TextEmbeddingComponent",
     # Marker components are usually imported via dam.core.components_markers where needed
 ]
