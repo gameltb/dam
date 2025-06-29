@@ -224,7 +224,7 @@ class ComponentFetcher(QRunnable):
         async def fetch_components_async():
             components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
             async with self.world.get_db_session() as session:
-                entity = await ecs_service.async_get_entity(session, self.asset_id) # Assuming async_get_entity
+                entity = await ecs_service.get_entity(session, self.asset_id) # Corrected: was async_get_entity
                 if not entity:
                     # This case should perhaps be an error or specific signal
                     # For now, an empty components_data will be emitted.
@@ -234,7 +234,7 @@ class ComponentFetcher(QRunnable):
 
                 for comp_type_name, comp_type_cls in REGISTERED_COMPONENT_TYPES.items():
                     # Assuming ecs_service.get_components can be made async or there's an async version
-                    components = await ecs_service.async_get_components(session, self.asset_id, comp_type_cls)
+                    components = await ecs_service.get_components(session, self.asset_id, comp_type_cls) # Corrected: was async_get_components
                     component_instances_data = []
                     if components:
                         for comp_instance in components:
