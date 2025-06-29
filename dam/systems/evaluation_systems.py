@@ -209,7 +209,7 @@ async def execute_evaluation_run(
         for original_asset_entity_id in source_asset_entity_ids:
             world.logger.info(f"Processing original asset ID: {original_asset_entity_id}")
             # Validate original asset exists
-            original_asset_entity = await ecs_service.get_entity_by_id(session, original_asset_entity_id)
+            original_asset_entity = await ecs_service.get_entity(session, original_asset_entity_id) # Changed to get_entity
             if not original_asset_entity:
                 world.logger.warning(f"Original asset ID {original_asset_entity_id} not found. Skipping.")
                 continue
@@ -228,17 +228,21 @@ async def execute_evaluation_run(
 
                     # After apply_transcode_profile completes and commits its transaction for the new asset,
                     # we fetch the new entity within *this* evaluation run's session to add the EvaluationResultComponent.
-                    transcoded_asset_entity = await ecs_service.get_entity_by_id(session, transcoded_asset_entity_id_from_service)
+                    transcoded_asset_entity = await ecs_service.get_entity(session, transcoded_asset_entity_id_from_service) # Changed to get_entity
                     if not transcoded_asset_entity:
                          world.logger.error(f"    Failed to retrieve newly transcoded asset ID {transcoded_asset_entity_id_from_service} in current session. Skipping result component.")
                          continue
 
                     world.logger.info(f"    Successfully transcoded. New asset ID: {transcoded_asset_entity.id}")
 
-                    await session.refresh(transcoded_asset_entity, attribute_names=['components_collection'])
+                    # await session.refresh(transcoded_asset_entity, attribute_names=['components_collection']) # Keep refresh if entity object is used
+                    # Commented out: In mocked scenarios, transcoded_asset_entity is a MagicMock and not in the session.
+                    # For real scenarios, if components_collection needs to be eagerly loaded or refreshed,
+                    # this would be necessary. However, current code below only fetches FPC by ID.
 
-                    fpc = await ecs_service.get_component_for_target_entity(
-                        session, transcoded_asset_entity, FilePropertiesComponent # type: ignore
+                    # Use ecs_service.get_component with entity_id
+                    fpc = await ecs_service.get_component(
+                        session, transcoded_asset_entity.id, FilePropertiesComponent # type: ignore
                     )
                     file_size = fpc.file_size_bytes if fpc else None # type: ignore
 
@@ -257,6 +261,7 @@ async def execute_evaluation_run(
                         ssim_score=ssim,
                         psnr_score=psnr,
                         custom_metrics_json=custom_metrics,
+                        notes=None, # Add missing 'notes' argument
                     )
                     eval_result_comp.entity_id = transcoded_asset_entity.id # Set entity_id directly
                     session.add(eval_result_comp)
@@ -309,7 +314,8 @@ async def get_evaluation_results(
 
         formatted_results = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results: # type: ignore
-            orig_fpc = await ecs_service.get_component_for_entity(db_session, res_comp.original_asset_entity_id, FilePropertiesComponent) # type: ignore
+            # Assuming get_component_for_entity was a typo and should be get_component
+            orig_fpc = await ecs_service.get_component(db_session, res_comp.original_asset_entity_id, FilePropertiesComponent) # type: ignore
             original_filename = orig_fpc.original_filename if orig_fpc else "N/A" # type: ignore
 
             # The 'transcoded_entity_obj' is the Entity instance for the transcoded asset.

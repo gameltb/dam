@@ -63,6 +63,7 @@ async def create_transcode_profile(
         concept_description = description
 
         profile_component = TranscodeProfileComponent(
+                id=profile_entity.id, # Pass the entity's ID as the component's ID
             entity=profile_entity, # Pass entity directly
             profile_name=profile_name,
             tool_name=tool_name,
