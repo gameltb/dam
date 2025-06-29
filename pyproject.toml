@@ -27,9 +27,7 @@ dependencies = [
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
-    # ImageHash and Pillow moved to optional-dependencies
     "hachoir", # For metadata extraction
-    # "ffmpeg-python", # Alternative, more powerful but requires ffmpeg installed
 ]
 
 [project.optional-dependencies]
@@ -108,6 +106,7 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+qt_api = "pyqt6"
 
 [tool.mypy]
 python_version = "3.12"
