@@ -114,6 +114,70 @@ class MimeTypeFetcher(QRunnable):
             self.signals.error_occurred.emit(error_message)
 
 
+class AssetLoaderSignals(QObject):
+    """
+    Defines signals for AssetLoader.
+    - assets_ready: Emitted when assets are successfully fetched.
+                    Payload is a list of tuples: (entity_id, original_filename, mime_type).
+    - error_occurred: Emitted when an error occurs during fetching.
+                      Payload is the error message string.
+    """
+    assets_ready = pyqtSignal(list)
+    error_occurred = pyqtSignal(str)
+
+
+class AssetLoader(QRunnable):
+    """
+    Worker runnable to fetch assets from the database asynchronously
+    in a separate thread, applying optional search and MIME type filters.
+    """
+    def __init__(self, world: World, search_term: Optional[str], selected_mime_type: Optional[str]):
+        super().__init__()
+        self.world = world
+        self.search_term = search_term
+        self.selected_mime_type = selected_mime_type
+        self.signals = AssetLoaderSignals()
+
+    def run(self):
+        """
+        Executes the database query to fetch assets.
+        Emits assets_ready on success, error_occurred on failure.
+        """
+        if not self.world:
+            self.signals.error_occurred.emit("No world configured for fetching assets.")
+            return
+
+        async def fetch_assets_async():
+            async with self.world.get_db_session() as session:
+                from sqlalchemy import select # Ensure select is imported
+
+                query = select(
+                    FilePropertiesComponent.entity_id,
+                    FilePropertiesComponent.original_filename,
+                    FilePropertiesComponent.mime_type,
+                ).order_by(FilePropertiesComponent.original_filename) # Added default ordering
+
+                if self.search_term:
+                    query = query.filter(FilePropertiesComponent.original_filename.ilike(f"%{self.search_term}%"))
+
+                if self.selected_mime_type:
+                    query = query.filter(FilePropertiesComponent.mime_type == self.selected_mime_type)
+
+                result = await session.execute(query)
+                assets_found = result.all() # Returns list of Row objects
+                # Convert Row objects to simple tuples for easier handling by the signal
+                return [(row.entity_id, row.original_filename, row.mime_type) for row in assets_found]
+
+
+        try:
+            assets_data = asyncio.run(fetch_assets_async())
+            self.signals.assets_ready.emit(assets_data)
+        except Exception as e:
+            error_message = f"Error loading assets: {e}"
+            # import traceback; traceback.print_exc() # For detailed debugging
+            self.signals.error_occurred.emit(error_message)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, current_world: Optional[World] = None):
         super().__init__()
@@ -501,83 +565,105 @@ class MainWindow(QMainWindow):
         if error_message: # If there was an error, it's already logged/shown by caller
             pass
 
+    def _set_asset_controls_enabled(self, enabled: bool):
+        """Helper to enable/disable asset loading related controls."""
+        self.search_input.setEnabled(enabled)
+        self.mime_type_filter.setEnabled(enabled) # This might conflict with MimeTypeFetcher's own enabling/disabling
+        self.refresh_button.setEnabled(enabled)
+        # Consider also disabling asset_list_widget during load if it's too interactive
 
     def load_assets(self):
+        """
+        Initiates fetching of assets in a worker thread.
+        Actual list update happens in _on_assets_fetched or _on_asset_fetch_error.
+        """
         search_term = self.search_input.text().strip().lower()
-        selected_mime_type = self.mime_type_filter.currentData()  # Get data (actual MIME type string)
+        selected_mime_type = self.mime_type_filter.currentData()
 
         status_message_parts = ["Loading assets"]
-        if search_term:
-            status_message_parts.append(f"searching for '{search_term}'")
-        if selected_mime_type:
-            status_message_parts.append(f"filtered by type '{selected_mime_type}'")
-
+        if search_term: status_message_parts.append(f"searching for '{search_term}'")
+        if selected_mime_type: status_message_parts.append(f"filtered by type '{selected_mime_type}'")
         self.statusBar().showMessage("... ".join(status_message_parts) + "...")
+
         self.asset_list_widget.clear()
+        self._set_asset_controls_enabled(False)
 
         if not self.current_world:
-            self.statusBar().showMessage("Error: No world selected.")
-            QMessageBox.warning(self, "Error", "No DAM world is currently selected. Cannot load assets.")
-            self.asset_list_widget.addItem("No world selected.")
+            error_msg = "No DAM world is currently selected. Cannot load assets."
+            self._on_asset_fetch_error(error_msg) # Use the error handler
+            # QMessageBox.warning(self, "Error", error_msg) # This is handled by _on_asset_fetch_error
             return
 
-        try:
-            with self.current_world.get_db_session() as session:
-                query = session.query(
-                    FilePropertiesComponent.entity_id,
-                    FilePropertiesComponent.original_filename,
-                    FilePropertiesComponent.mime_type,
-                )
+        asset_loader = AssetLoader(
+            world=self.current_world,
+            search_term=search_term,
+            selected_mime_type=selected_mime_type
+        )
+        asset_loader.signals.assets_ready.connect(self._on_assets_fetched)
+        asset_loader.signals.error_occurred.connect(self._on_asset_fetch_error)
+        self.thread_pool.start(asset_loader)
 
-                if search_term:
-                    query = query.filter(FilePropertiesComponent.original_filename.ilike(f"%{search_term}%"))
+    def _on_assets_fetched(self, assets_data: TypingList[tuple]):
+        """
+        Slot to receive successfully fetched assets from AssetLoader.
+        Populates the asset list widget.
+        """
+        self.asset_list_widget.clear() # Clear again just in case
 
-                if selected_mime_type:  # Filter by MIME type if one is selected
-                    query = query.filter(FilePropertiesComponent.mime_type == selected_mime_type)
+        search_term = self.search_input.text().strip().lower() # Get current search term for status message
+        selected_mime_type = self.mime_type_filter.currentData() # Get current filter for status message
 
-                assets_found = query.all()
+        if not assets_data:
+            message = "No assets found."
+            if search_term or selected_mime_type:
+                message_parts = ["No assets found"]
+                if search_term: message_parts.append(f"matching '{search_term}'")
+                if selected_mime_type: message_parts.append(f"of type '{selected_mime_type}'")
+                message = " ".join(message_parts) + "."
+            self.asset_list_widget.addItem(message)
+            self.statusBar().showMessage(message)
+        else:
+            for entity_id, original_filename, mime_type_val in assets_data:
+                display_text = f"ID: {entity_id} - {original_filename} ({mime_type_val or 'N/A'})"
+                item = QListWidgetItem(display_text)
+                item.setData(Qt.ItemDataRole.UserRole, entity_id)
+                self.asset_list_widget.addItem(item)
 
-                if not assets_found:
-                    message = "No assets found."
-                    if search_term or selected_mime_type:
-                        message_parts = ["No assets found"]
-                        if search_term:
-                            message_parts.append(f"matching '{search_term}'")
-                        if selected_mime_type:
-                            message_parts.append(f"of type '{selected_mime_type}'")
-                        message = " ".join(message_parts) + "."
-                    self.asset_list_widget.addItem(message)
-                    self.statusBar().showMessage(message)
-                    return
+            num_found = len(assets_data)
+            loaded_message_parts = [f"Loaded {num_found} asset{'s' if num_found != 1 else ''}"]
+            if search_term: loaded_message_parts.append(f"matching '{search_term}'")
+            if selected_mime_type: loaded_message_parts.append(f"of type '{selected_mime_type}'")
+            if self.current_world: loaded_message_parts.append(f"from world '{self.current_world.name}'.")
+            self.statusBar().showMessage(" ".join(loaded_message_parts))
 
-                for entity_id, original_filename, mime_type_val in assets_found:
-                    display_text = f"ID: {entity_id} - {original_filename} ({mime_type_val or 'N/A'})"
-                    item = QListWidgetItem(display_text)
-                    item.setData(Qt.ItemDataRole.UserRole, entity_id)
-                    self.asset_list_widget.addItem(item)
+        self._set_asset_controls_enabled(True)
+        # Ensure mime_type_filter is specifically re-enabled if MimeTypeFetcher is also done
+        # This can be tricky if both run concurrently. A simple solution is that both enable it.
+        if not self.mime_type_filter.isEnabled(): # Check if MimeTypeFetcher is still running
+             if self.thread_pool.activeThreadCount() == 0 : # A bit of a guess, better to have specific flags
+                  self.mime_type_filter.setEnabled(True)
+        # A better approach for mime_type_filter might be a separate flag or counter for disabling operations.
 
-                num_found = len(assets_found)
-                loaded_message_parts = [f"Loaded {num_found} asset{'s' if num_found != 1 else ''}"]
-                if search_term:
-                    loaded_message_parts.append(f"matching '{search_term}'")
-                if selected_mime_type:
-                    loaded_message_parts.append(f"of type '{selected_mime_type}'")
-                loaded_message_parts.append(f"from world '{self.current_world.name}'.")
-                self.statusBar().showMessage(" ".join(loaded_message_parts))
+    def _on_asset_fetch_error(self, error_message: str):
+        """
+        Slot to receive error messages from the AssetLoader worker.
+        """
+        self.asset_list_widget.clear() # Clear previous items
+        self.asset_list_widget.addItem(f"Error loading assets: {error_message.splitlines()[0]}") # Show first line of error
+        self.statusBar().showMessage(f"Error loading assets: {error_message}", 5000)
+        QMessageBox.critical(
+            self, "Load Assets Error", f"Could not load assets:\n{error_message}"
+        )
+        self._set_asset_controls_enabled(True)
+        # Similar logic for mime_type_filter re-enabling as in _on_assets_fetched
+        if not self.mime_type_filter.isEnabled():
+             if self.thread_pool.activeThreadCount() == 0 :
+                  self.mime_type_filter.setEnabled(True)
 
-        except Exception as e:
-            self.statusBar().showMessage(f"Error loading assets: {e}")
-            QMessageBox.critical(
-                self, "Load Assets Error", f"Could not load assets from world '{self.current_world.name}':\n{e}"
-            )
-            # Consider logging the full traceback for debugging
-            # import traceback
-            # print(traceback.format_exc())
-            self.asset_list_widget.addItem(f"Error loading assets: {e}")
 
     def on_asset_double_clicked(self, item: QListWidgetItem):
         asset_id = item.data(Qt.ItemDataRole.UserRole)
-        if asset_id is None:  # Should not happen if data is set correctly
+        if asset_id is None:
             QMessageBox.warning(self, "Error", "No asset ID associated with this item.")
             return
 
