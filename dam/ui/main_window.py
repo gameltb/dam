@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import threading # For simple threading, consider QThread for more complex Qt integration
+import logging # Added import logging
 
 # from dam.models.core.entity import Entity # Not directly needed if using service functions
 # Added for type hinting, Optional already imported from typing
@@ -61,57 +62,55 @@ class MimeTypeFetcher(QRunnable):
     Worker runnable to fetch distinct MIME types from the database asynchronously
     in a separate thread.
     """
+    # import logging # This was moved to the top of the file
+
     def __init__(self, world: World):
         super().__init__()
         self.world = world
         self.signals = MimeTypeFetcherSignals()
+        self.logger = logging.getLogger(__name__ + ".MimeTypeFetcher")
 
     def run(self):
         """
         Executes the database query to fetch MIME types.
         Emits result_ready on success, error_occurred on failure.
         """
+        self.logger.info(f"MimeTypeFetcher started for world: {self.world.name if self.world else 'None'}.")
         if not self.world:
+            self.logger.warning("No world configured for MimeTypeFetcher.")
             self.signals.error_occurred.emit("No world configured for fetching MIME types.")
+            self.logger.info("MimeTypeFetcher finished (no world).")
             return
 
         async def fetch_mime_types_async():
+            self.logger.info("fetch_mime_types_async started.")
             async with self.world.get_db_session() as session:
-                # Ensure the session is used correctly for async operations
-                # The query itself needs to be executed in an async way if possible,
-                # or run_sync if the query execution part is synchronous but session is async.
-                # Assuming session.execute or similar for async queries.
-                # For SQLAlchemy 2.0 style with async session:
-                from sqlalchemy import select, text # Added import
+                self.logger.info("Async session obtained for MIME types.")
+                from sqlalchemy import select # Ensure select is imported
                 stmt = (
                     select(FilePropertiesComponent.mime_type)
                     .filter(FilePropertiesComponent.mime_type.isnot(None))
                     .distinct()
                     .order_by(FilePropertiesComponent.mime_type)
                 )
+                self.logger.info("Executing MIME type query.")
                 result = await session.execute(stmt)
                 distinct_mime_types = result.scalars().all()
+                self.logger.info(f"MIME type query executed, found {len(distinct_mime_types)} types.")
                 return distinct_mime_types
 
         try:
-            # Running the async function within the thread
-            # asyncio.run() creates a new event loop.
-            # If QThreadPool runs this in a thread that might already have an event loop,
-            # consider `asyncio.new_event_loop()` and `loop.run_until_complete()`.
-            # For simplicity, assuming asyncio.run() is okay here.
-            # If issues arise, a more sophisticated async-to-sync bridge might be needed.
-            # Or, if the Qt event loop can manage asyncio tasks, that's another path.
-            # However, QRunnable is simpler and often used with blocking tasks.
-            # To bridge async SQLAlchemy with a synchronous QRunnable, we run the async part.
-            # asyncio.run() should create and manage its own event loop.
+            self.logger.info("Calling asyncio.run(fetch_mime_types_async).")
             mime_types = asyncio.run(fetch_mime_types_async())
-            # Convert to list of strings for the signal
+            self.logger.info("asyncio.run(fetch_mime_types_async) completed.")
             self.signals.result_ready.emit([str(mt) for mt in mime_types if mt])
-
+            self.logger.info("result_ready signal emitted.")
         except Exception as e:
             error_message = f"Error fetching MIME types: {e}"
-            # import traceback; traceback.print_exc() # For detailed debugging
+            self.logger.error(error_message, exc_info=True)
             self.signals.error_occurred.emit(error_message)
+        finally:
+            self.logger.info("MimeTypeFetcher finished.")
 
 
 class AssetLoaderSignals(QObject):
@@ -137,45 +136,58 @@ class AssetLoader(QRunnable):
         self.search_term = search_term
         self.selected_mime_type = selected_mime_type
         self.signals = AssetLoaderSignals()
+        self.logger = logging.getLogger(__name__ + ".AssetLoader")
 
     def run(self):
         """
         Executes the database query to fetch assets.
         Emits assets_ready on success, error_occurred on failure.
         """
+        self.logger.info(f"AssetLoader started for world: {self.world.name if self.world else 'None'}. Search: '{self.search_term}', Type: '{self.selected_mime_type}'.")
         if not self.world:
+            self.logger.warning("No world configured for AssetLoader.")
             self.signals.error_occurred.emit("No world configured for fetching assets.")
+            self.logger.info("AssetLoader finished (no world).")
             return
 
         async def fetch_assets_async():
+            self.logger.info("fetch_assets_async started.")
             async with self.world.get_db_session() as session:
-                from sqlalchemy import select # Ensure select is imported
+                self.logger.info("Async session obtained for assets.")
+                from sqlalchemy import select
 
                 query = select(
                     FilePropertiesComponent.entity_id,
                     FilePropertiesComponent.original_filename,
                     FilePropertiesComponent.mime_type,
-                ).order_by(FilePropertiesComponent.original_filename) # Added default ordering
+                ).order_by(FilePropertiesComponent.original_filename)
 
                 if self.search_term:
+                    self.logger.info(f"Applying search term: {self.search_term}")
                     query = query.filter(FilePropertiesComponent.original_filename.ilike(f"%{self.search_term}%"))
 
                 if self.selected_mime_type:
+                    self.logger.info(f"Applying MIME type filter: {self.selected_mime_type}")
                     query = query.filter(FilePropertiesComponent.mime_type == self.selected_mime_type)
 
+                self.logger.info("Executing asset query.")
                 result = await session.execute(query)
-                assets_found = result.all() # Returns list of Row objects
-                # Convert Row objects to simple tuples for easier handling by the signal
+                assets_found = result.all()
+                self.logger.info(f"Asset query executed, found {len(assets_found)} assets.")
                 return [(row.entity_id, row.original_filename, row.mime_type) for row in assets_found]
 
-
         try:
+            self.logger.info("Calling asyncio.run(fetch_assets_async).")
             assets_data = asyncio.run(fetch_assets_async())
+            self.logger.info("asyncio.run(fetch_assets_async) completed.")
             self.signals.assets_ready.emit(assets_data)
+            self.logger.info("assets_ready signal emitted.")
         except Exception as e:
             error_message = f"Error loading assets: {e}"
-            # import traceback; traceback.print_exc() # For detailed debugging
+            self.logger.error(error_message, exc_info=True)
             self.signals.error_occurred.emit(error_message)
+        finally:
+            self.logger.info("AssetLoader finished.")
 
 
 class ComponentFetcherSignals(QObject):
@@ -898,6 +910,11 @@ if __name__ == "__main__":
     #             print("Standalone: No world could be automatically determined. UI may have limited functionality.")
     #     except Exception as e:
     #         print(f"Standalone: Error initializing default world: {e}")
+
+    # Setup logging for standalone UI run
+    from dam.core.logging_config import setup_logging # Moved import here
+    import logging # Ensure logging is imported
+    setup_logging(level=logging.INFO) # Or DEBUG for more verbosity
 
     window = MainWindow(current_world=active_world)  # Pass active_world (could be None)
     window.show()
