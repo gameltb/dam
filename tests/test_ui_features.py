@@ -264,7 +264,7 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     mock_async_run = mocker.patch("dam.ui.dialogs.add_asset_dialog.asyncio.run", side_effect=mock_asyncio_run)
 
     # Mock QMessageBox to prevent it from blocking
-    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mock_qmessagebox_info = mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
 
 
     dialog = AddAssetDialog(current_world=mock_world)
@@ -313,7 +313,7 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     # mock_execute_stage.assert_called()
 
     # Check that QMessageBox.information was called
-    PyQt6.QtWidgets.QMessageBox.information.assert_called_once()
+    mock_qmessagebox_info.assert_called_once()
 
     # Check that super().accept() was called, indicating successful completion of logic
     # This can be done by spying on super().accept() if needed, or checking dialog result if exec_() was used.
