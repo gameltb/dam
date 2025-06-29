@@ -1,21 +1,20 @@
 import logging
 from typing import Optional
 
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engine
 
 from dam.models import Base
 
 # Import WorldConfig for type hinting
-from .config import WorldConfig  # Keep global_app_settings for TESTING_MODE reference
+from .config import WorldConfig
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
     """
-    Manages database connections and sessions for a single, specific ECS World.
+    Manages asynchronous database connections and sessions for a single, specific ECS World.
     An instance of DatabaseManager is typically associated with one World instance.
     """
 
@@ -28,70 +27,87 @@ class DatabaseManager:
             testing_mode: Global testing mode flag, affects table dropping.
         """
         self.world_config = world_config
-        self.testing_mode = testing_mode  # Store global testing_mode
-        self._engine: Optional[Engine] = None
-        self._session_local: Optional[sessionmaker[Session]] = None
+        self.testing_mode = testing_mode
+        self._engine: Optional[AsyncEngine] = None
+        self._session_local: Optional[sessionmaker[AsyncSession]] = None
         self._initialize_engine()
 
     def _initialize_engine(self):
-        """Initializes the engine and session maker for this world."""
+        """Initializes the async engine and session maker for this world."""
         if not self.world_config.DATABASE_URL:
-            # This should ideally be caught by WorldConfig validation if DATABASE_URL is mandatory
             raise ValueError(f"DATABASE_URL not set for world '{self.world_config.name}'. Cannot initialize database.")
 
-        connect_args = {}
-        if self.world_config.DATABASE_URL.startswith("sqlite"):
-            connect_args["check_same_thread"] = False
+        # Ensure the DATABASE_URL is compatible with aiosqlite if it's a sqlite URL
+        # The project aims to use aiosqlite for async SQLite operations.
+        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith("sqlite+aiosqlite://"):
+            # Automatically adjust sqlite DSNs to use aiosqlite
+            # This might be too aggressive if other async sqlite drivers were intended,
+            # but for this project, aiosqlite is the standard.
+            logger.warning(
+                f"Adjusting DATABASE_URL for world '{self.world_config.name}' to use 'sqlite+aiosqlite'. "
+                f"Original: '{self.world_config.DATABASE_URL}'"
+            )
+            self.world_config.DATABASE_URL = self.world_config.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
 
-        self._engine = create_engine(
+
+        # connect_args for aiosqlite are generally not needed for basic operation.
+        # 'check_same_thread' is not applicable.
+        # If specific pragmas or extensions are needed, they can be passed via listeners or engine events.
+        connect_args = {} # Kept empty for now, can be populated if specific needs arise.
+
+        self._engine = create_async_engine(
             self.world_config.DATABASE_URL,
-            connect_args=connect_args,
-            # echo=True # Optional: for debugging SQL statements
+            connect_args=connect_args, # Pass empty connect_args
+            # echo=True # Uncomment for debugging SQL statements
         )
-        self._session_local = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
+        self._session_local = sessionmaker(
+            autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False
+        )
         logger.info(
-            f"Initialized database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+            f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
         )
 
     @property
-    def engine(self) -> Engine:
-        """Returns the SQLAlchemy engine for this world."""
+    def engine(self) -> AsyncEngine:
+        """Returns the SQLAlchemy AsyncEngine for this world."""
         if self._engine is None:
-            # This should not happen if _initialize_engine is called in __init__
-            raise RuntimeError(f"Database engine for world '{self.world_config.name}' has not been initialized.")
+            raise RuntimeError(f"Async Database engine for world '{self.world_config.name}' has not been initialized.")
         return self._engine
 
     @property
-    def session_local(self) -> sessionmaker[Session]:
-        """Returns the SessionLocal factory for this world."""
+    def session_local(self) -> sessionmaker[AsyncSession]:
+        """Returns the AsyncSessionLocal factory for this world."""
         if self._session_local is None:
-            # Should not happen
-            raise RuntimeError(f"SessionLocal for world '{self.world_config.name}' has not been initialized.")
+            raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized.")
         return self._session_local
 
-    def get_db_session(self) -> Session:
+    def get_db_session(self) -> AsyncSession:
         """
-        Provides a new database session for this world.
-        The caller is responsible for closing the session.
-        e.g., using a try/finally block or as a context manager if Session supports it.
+        Provides a new asynchronous database session for this world.
+        The caller is responsible for closing the session, typically using `async with`.
         """
-        return self.session_local()
+        if self._session_local is None: # Should ideally be caught by property access if it were None
+            raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized and cannot create a session.")
+        return self._session_local()
 
-    def create_db_and_tables(self):
+    async def create_db_and_tables(self):
         """
-        Creates all database tables for this world using its engine.
+        Creates all database tables for this world using its async engine.
         In TESTING_MODE, if the database URL suggests a test database,
         it will drop all tables before creating them.
         """
         logger.info(f"Attempting to create database tables for world '{self.world_config.name}'...")
 
+        if self._engine is None: # Guard against uninitialized engine
+            raise RuntimeError(f"Async engine not initialized for world '{self.world_config.name}'. Cannot create tables.")
+
         # WARNING: Destructive operation in testing mode.
-        # Uses the testing_mode flag passed during __init__
         if self.testing_mode and (
             "pytest" in self.world_config.DATABASE_URL or "test" in self.world_config.DATABASE_URL
         ):
             try:
-                Base.metadata.drop_all(bind=self.engine)
+                async with self._engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.drop_all)
                 logger.info(
                     f"Dropped all tables for world '{self.world_config.name}' ({self.world_config.DATABASE_URL}) (testing mode)"
                 )
@@ -99,17 +115,17 @@ class DatabaseManager:
                 logger.error(
                     f"Error dropping tables for world '{self.world_config.name}' in testing mode: {e}", exc_info=True
                 )
-                # Depending on severity, might re-raise or just warn.
-                # For now, log and continue to create_all.
+                # Log and continue to create_all, or re-raise depending on desired strictness.
 
         try:
-            Base.metadata.create_all(bind=self.engine)
+            async with self._engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
             logger.info(
                 f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
             )
         except Exception as e:
             logger.error(f"Error creating tables for world '{self.world_config.name}': {e}", exc_info=True)
-            raise  # Re-raise after logging, as this is a critical failure.
+            raise
 
     def get_world_name(self) -> str:
         """Returns the name of the world this manager is associated with."""

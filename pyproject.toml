@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     "sqlalchemy",
     "alembic",
-    "typer[all]", # Using [all] for rich tracebacks and shell completion
+    "typer", 
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
@@ -37,22 +37,48 @@ image = [
     "ImageHash",
     "Pillow"
 ]
-video = [ # For video processing, could include ffmpeg-python if made optional
-    # "ffmpeg-python"
+video = [
+    # "ffmpeg-python" # Using subprocess for now
 ]
-audio = [ # For audio processing
-    # "mutagen", # Good for audio tags
+audio = [
+    # "mutagen",
 ]
+# Transcoding tool specific dependencies (optional, as tools might be system-installed)
+# These are more for tracking/documentation if direct python bindings were used.
+# For now, we assume ffmpeg, cjxl, avifenc, etc., are in PATH.
+transcode-ffmpeg = []
+transcode-cjxl = []
+transcode-avifenc = []
+
+# Group for all transcoding related optional dependencies (if any were added above)
+all-transcode = [
+    # "ecs_dam_system[transcode-ffmpeg]", # Example if they had actual deps
+    # "ecs_dam_system[transcode-cjxl]",
+    # "ecs_dam_system[transcode-avifenc]",
+]
+
 ui = [
     "PyQt6"
 ]
-dev = [ # Example for dev/test dependencies
+dev = [
     "pytest",
     "pytest-cov",
-    "pytest-asyncio", # Added for async test support
-    # "ruff", # Already configured via [tool.ruff]
-    # "mypy"  # Already configured via [tool.mypy]
+    "pytest-asyncio",
+    "aiosqlite", # Added for async SQLite in tests
+    # "ruff",
+    # "mypy"
 ]
+
+# Convenience group to install all optional dependencies
+all = [
+    "ecs_dam_system[image]",
+    "ecs_dam_system[video]",
+    "ecs_dam_system[audio]",
+    "ecs_dam_system[ui]",
+    "ecs_dam_system[dev]",
+    "ecs_dam_system[all-transcode]", # Include the new transcoding group
+]
+
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder

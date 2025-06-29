@@ -8,25 +8,19 @@ This file provides instructions for AI agents working with this codebase.
 *   **Testing:**
     *   All new features must be accompanied by unit tests.
     *   Ensure all tests pass before submitting changes.
-    *   The command to run tests is `uv run pytest`.
+    *   The command to run tests is `uv run pytest -x`.
     *   To run tests with coverage locally, use `uv run pytest --cov=dam --cov-report=term-missing` (ensure `pytest-cov` is installed via dev dependencies).
     *   **Environment Setup:** It is recommended to use `uv` for managing virtual environments and dependencies.
-        *   Create a virtual environment: `uv venv .venv` (or your preferred directory name).
-        *   Activate the environment: `source .venv/bin/activate` (Linux/macOS) or `.venv\\Scripts\\activate` (Windows).
-        *   Install dependencies (including `pytest` and `pytest-cov`): `uv pip install -e ".[dev,image,ui]"` (as specified in `pyproject.toml`, includes all optional groups).
-*   **Code Style & Linting**:
-    *   Use `uv run ruff format .` to format the code.
-    *   Use `uv run ruff check . --fix` to lint and apply automatic fixes.
-    *   Use `uv run mypy .` for static type checking.
+        *   Install dependencies (including `pytest` and `pytest-cov`): `uv run pip install -e .[all]` (as specified in `pyproject.toml`, includes all optional groups).
+    *   **Assertion Guideline:** Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions.
 *   **Commit Messages:** Follow conventional commit message formats.
 *   **CI/CD:** The continuous integration pipeline is managed by GitHub Actions, configured in `.github/workflows/ci.yml`.
     *   It uses Python 3.12.
-    *   It creates a virtual environment using `uv venv .venv` and activates it.
-    *   It installs dependencies (including `pytest-cov`) using `uv pip install -e ".[dev,image,ui]"`.
+    *   It installs dependencies (including `pytest-cov`) using `uv run pip install -e .[all]`.
     *   It runs tests using `uv run pytest --cov=dam --cov-report=term-missing` to display a coverage report in the CI logs.
-    *   It also runs `uv run ruff format --check .` and `uv run ruff check .`.
     *   Any changes to the build or test process should be reflected there and in this document.
 
 ### Specific Instructions
 
-*   There are no specific instructions at this time.
+*   **Design Specification**: For guidance on models (Components) and Systems architecture (excluding testing guidelines which are now in this document), please consult the [Design Specification](doc/design_specification.md) document.
+*   There are no other specific instructions at this time.

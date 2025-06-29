@@ -19,6 +19,14 @@ This project implements a Digital Asset Management system using an Entity-Compon
     *   Concrete components: e.g., `ComicBookConceptComponent`, `ComicBookVariantComponent`.
     *   Association objects: e.g., `PageLink` for ordered pages.
 *   **Tagging System**: Tags are defined as conceptual assets (`TagConceptComponent`) and applied to entities via a link component (`EntityTagLinkComponent`), supporting scopes and optional values.
+*   **Transcoding Framework**:
+    *   Define reusable transcoding profiles (`TranscodeProfileComponent`) as conceptual assets, specifying tool (e.g., `ffmpeg`, `cjxl`), parameters, and output format.
+    *   Transcoded files are ingested as new assets, linked to the original via `TranscodedVariantComponent`.
+    *   CLI for managing profiles and applying them to assets.
+*   **Evaluation Framework**:
+    *   Define evaluation runs (`EvaluationRunComponent`) to test multiple profiles on multiple assets.
+    *   Results, including file size and placeholder quality metrics, are stored in `EvaluationResultComponent`.
+    *   CLI for creating runs, executing them, and reporting results.
 *   **CLI**: Typer-based interface.
 *   **Database Transactions**: Managed by `WorldScheduler`.
 
@@ -97,15 +105,46 @@ Tags are defined as conceptual assets themselves and can be applied to any entit
     *   `get_entities_for_tag()`: Finds entities with a specific tag.
     *   And other functions for managing tag definitions and applications.
 
-### Available CLI Commands
+### Transcoding and Evaluation
 
-*   **`setup-db`**: Initializes/Resets database schema.
-*   **`add-asset <filepath>`**: Adds a file asset.
-*   **`find-file-by-hash <hash_value>`**: Finds asset by hash.
-*   **`find-similar-images <image_filepath>`**: Finds similar images.
-*   **`ui`**: Launches PyQt6 UI.
+The system supports defining transcoding profiles and evaluating their results.
 
-(Details of asset ingestion and basic CLI commands remain similar; new CLI commands for versioning and tagging would be added based on the new services).
+*   **Transcoding Profiles (`TranscodeProfileComponent`)**:
+    *   Define a named profile specifying the command-line `tool` (e.g., `ffmpeg`, `cjxl`, `avifenc`), the `parameters` for the tool (using `{input}` and `{output}` placeholders), and the target `output_format` (e.g., `avif`, `jxl`, `mp4`).
+    *   These profiles are conceptual assets themselves.
+    *   Created via: `dam-cli transcode profile-create --name <profile_name> --tool <tool> --params "<parameters>" --format <format> [--desc <description>]`
+*   **Applying Transcodes (`TranscodedVariantComponent`)**:
+    *   When a profile is applied to an asset, the specified tool is executed.
+    *   The output is ingested as a new asset.
+    *   A `TranscodedVariantComponent` is attached to this new asset, linking it to the original asset and the `TranscodeProfileComponent` used. It also stores the transcoded file size.
+    *   Applied via: `dam-cli transcode apply --asset <asset_id_or_hash> --profile <profile_id_or_name>`
+*   **Evaluation Runs (`EvaluationRunComponent`)**:
+    *   Define a named evaluation run to systematically transcode multiple source assets with multiple transcoding profiles.
+    *   Created via: `dam-cli evaluate run-create --name <run_name> [--desc <description>]`
+*   **Evaluation Results (`EvaluationResultComponent`)**:
+    *   For each transcoding operation performed during an evaluation run, an `EvaluationResultComponent` is created and attached to the transcoded asset.
+    *   It stores links to the evaluation run, original asset, profile used, file size, and placeholders for quality metrics (e.g., VMAF, SSIM, PSNR - actual calculation is currently a placeholder).
+    *   Evaluation executed via: `dam-cli evaluate run-execute --run <run_id_or_name> --assets <asset_ids_or_hashes_comma_sep> --profiles <profile_ids_or_names_comma_sep>`
+*   **Reporting**:
+    *   View results of an evaluation run: `dam-cli evaluate report --run <run_id_or_name>`
+
+### General CLI Commands
+
+*   **`dam-cli --help`**: Shows all available commands and subcommands.
+*   **`dam-cli --world <world_name> <command>`**: Specifies the ECS world to operate on. Can also be set via `DAM_CURRENT_WORLD` env var or a default in settings.
+*   **`dam-cli list-worlds`**: Lists configured ECS worlds.
+*   **`dam-cli setup-db`**: Initializes/Resets database schema for the selected world.
+*   **`dam-cli add-asset <filepath_or_dir>`**: Adds new asset file(s).
+    *   Options: `--no-copy` (add by reference), `-r, --recursive` (process directory recursively).
+*   **`dam-cli find-file-by-hash <hash_value_or_path>`**: Finds asset by content hash.
+    *   Options: `--hash-type <type>` (md5, sha256), `--file <path>` (calculate hash from file).
+*   **`dam-cli find-similar-images <image_filepath>`**: Finds similar images using perceptual hashes.
+*   **`dam-cli export-world <filepath.json>`**: Exports world data to JSON.
+*   **`dam-cli import-world <filepath.json>`**: Imports world data from JSON.
+    *   Option: `--merge` (merge with existing data).
+*   **`dam-cli ui`**: Launches the PyQt6 UI (if UI dependencies are installed).
+
+(Details of asset ingestion, versioning, and tagging remain as described previously.)
 
 ## Development
 

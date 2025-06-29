@@ -1,5 +1,6 @@
 # --- Framework Imports for Systems ---
 import asyncio
+import json # Added import for json.dumps
 import traceback  # Import traceback for detailed error logging
 import uuid  # For generating request_ids
 from pathlib import Path
@@ -31,7 +32,11 @@ from dam.core.world import (  # Added
 from dam.services import (
     file_operations,
     world_service,
-)  # Added file_storage_service
+    transcode_service,
+    ecs_service as dam_ecs_service, # Alias to avoid conflict with local ecs_service import in cli_transcode_apply
+)
+from dam.systems import evaluation_systems # Added evaluation_systems
+from dam.utils.media_utils import TranscodeError
 
 # Systems will be imported and then registered manually to worlds.
 # from dam import systems as dam_all_systems # Import the systems package
@@ -201,7 +206,7 @@ def cli_list_worlds():
 
 
 @app.command(name="add-asset")
-def cli_add_asset(
+async def cli_add_asset( # Made async
     ctx: typer.Context,  # Added context to access global_state if needed, though --world handles it
     path_str: Annotated[
         str,
@@ -322,7 +327,7 @@ def cli_add_asset(
                     await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
                     typer.secho(f"  Post-ingestion systems completed for {original_filename}.", fg=typer.colors.GREEN)
 
-            asyncio.run(dispatch_and_run_stages())
+            await dispatch_and_run_stages() # Await the async inner function
             # Note: We can't easily get added_count/linked_count here without querying.
             # For simplicity, we'll just count processed files.
             # If specific feedback is needed, systems would need to update a result resource.
@@ -349,7 +354,7 @@ def cli_add_asset(
 
 
 @app.command(name="setup-db")
-def setup_db(ctx: typer.Context):  # Added context
+async def setup_db(ctx: typer.Context):  # Added context, made async
     """
     Initializes the database and creates tables for the specified/default ECS world.
     """
@@ -366,7 +371,7 @@ def setup_db(ctx: typer.Context):  # Added context
 
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
     try:
-        target_world.create_db_and_tables()  # World method calls its db_manager
+        await target_world.create_db_and_tables()  # World method calls its db_manager
         typer.secho(f"Database setup complete for world '{target_world.name}'.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during database setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
@@ -375,7 +380,7 @@ def setup_db(ctx: typer.Context):  # Added context
 
 
 @app.command(name="find-file-by-hash")
-def cli_find_file_by_hash(
+async def cli_find_file_by_hash( # Made async
     ctx: typer.Context,  # Added context
     hash_value_arg: Annotated[
         str, typer.Argument(..., help="The hash value of the file to search for.", metavar="HASH_VALUE")
@@ -486,7 +491,7 @@ def cli_find_file_by_hash(
             #     typer.secho(traceback.format_exc(), fg=typer.colors.RED)
 
     try:
-        asyncio.run(dispatch_query_and_get_result())
+        await dispatch_query_and_get_result() # Await async call
     except Exception as e:  # Catch errors from dispatch_event itself if any occur before future handling
         typer.secho(f"Error during query dispatch setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -494,7 +499,7 @@ def cli_find_file_by_hash(
 
 
 @app.command(name="find-similar-images")
-def cli_find_similar_images(
+async def cli_find_similar_images( # Made async
     ctx: typer.Context,  # Added context
     image_filepath_str: Annotated[
         str, typer.Argument(..., help="Path to image for similarity search.", resolve_path=True, exists=True)
@@ -570,7 +575,7 @@ def cli_find_similar_images(
             # typer.secho(traceback.format_exc(), fg=typer.colors.RED) # Optionally show full traceback
 
     try:
-        asyncio.run(dispatch_query_and_get_result())
+        await dispatch_query_and_get_result() # Await async call
     except Exception as e:  # Catch errors from dispatch_event itself
         typer.secho(f"Error during similarity query dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -818,6 +823,311 @@ if __name__ == "__main__":
     run_cli_directly()
 
 
+# --- Transcoding Commands ---
+transcode_app = typer.Typer(name="transcode", help="Manage transcoding profiles and operations.")
+app.add_typer(transcode_app)
+
+@transcode_app.command("profile-create")
+async def cli_transcode_profile_create( # Made async
+    ctx: typer.Context,
+    profile_name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the transcode profile.")],
+    tool_name: Annotated[str, typer.Option("--tool", "-t", help="Transcoding tool (e.g., ffmpeg, cjxl).")],
+    parameters: Annotated[str, typer.Option("--params", "-p", help="Tool parameters. Use {input} and {output} placeholders.")],
+    output_format: Annotated[str, typer.Option("--format", "-f", help="Target output format/extension (e.g., avif, jxl, mp4).")],
+    description: Annotated[Optional[str], typer.Option("--desc", help="Optional description for the profile.")] = None,
+):
+    """Creates a new transcoding profile."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    async def _create():
+        typer.echo("DEBUG: Entering _create for profile-create") # Debug print
+        try:
+            profile_entity = await transcode_service.create_transcode_profile(
+                world=target_world,
+                profile_name=profile_name,
+                tool_name=tool_name,
+                parameters=parameters,
+                output_format=output_format,
+                description=description,
+            )
+            typer.secho(
+                f"Transcode profile '{profile_name}' (Entity ID: {profile_entity.id}) created successfully in world '{target_world.name}'.",
+                fg=typer.colors.GREEN,
+            )
+        except transcode_service.TranscodeServiceError as e:
+            typer.secho(f"Error creating profile: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error creating profile: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    await _create() # Await async call
+
+
+@transcode_app.command("apply")
+async def cli_transcode_apply( # Made async
+    ctx: typer.Context,
+    asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the source asset.")],
+    profile_identifier: Annotated[str, typer.Option("--profile", "-p", help="Entity ID or name of the transcode profile.")],
+    output_path_str: Annotated[Optional[str], typer.Option("--output-dir", "-o", help="Optional parent directory for the transcoded file (mainly for external storage). If not set, uses DAM internal storage via ingestion.")] = None,
+):
+    """Applies a transcode profile to an asset."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    output_dir: Optional[Path] = Path(output_path_str) if output_path_str else None
+    if output_dir and not output_dir.is_dir():
+        typer.secho(f"Error: Specified output directory '{output_dir}' does not exist or is not a directory.", fg=typer.colors.RED)
+        # It might be better to create it in the service, but for CLI, explicit existence is safer.
+        # Or, the service's `transcode_media` creates it. Let's assume service handles creation.
+        # For now, let's remove this check and let the service layer handle path logic.
+        # raise typer.Exit(code=1)
+        pass
+
+
+    async def _apply():
+        from dam.services import ecs_service # Placed here to avoid circular import issues at top level with models
+        from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+
+        source_asset_entity_id: Optional[int] = None
+        async with target_world.db_session_maker() as session:
+            try:
+                source_asset_entity_id = int(asset_identifier)
+            except ValueError: # Not an int, assume it's a SHA256 hash
+                typer.echo(f"Asset identifier '{asset_identifier}' is not an ID, attempting to resolve as SHA256 hash...")
+                entity_id_from_hash = await ecs_service.find_entity_id_by_hash(
+                    session, hash_value=asset_identifier, hash_type="sha256"
+                )
+                if not entity_id_from_hash:
+                    typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+                source_asset_entity_id = entity_id_from_hash
+                typer.echo(f"Resolved SHA256 hash '{asset_identifier}' to Entity ID: {source_asset_entity_id}")
+
+            if source_asset_entity_id is None: # Should not happen if logic above is correct
+                 typer.secho(f"Error: Could not determine source asset entity ID from '{asset_identifier}'.", fg=typer.colors.RED)
+                 raise typer.Exit(code=1)
+
+            profile_id_to_use: int | str
+            try:
+                profile_id_to_use = int(profile_identifier)
+            except ValueError:
+                profile_id_to_use = profile_identifier # Use as name
+
+            try:
+                typer.echo(f"Applying transcode profile '{profile_identifier}' to asset ID {source_asset_entity_id} in world '{target_world.name}'...")
+                transcoded_entity = await transcode_service.apply_transcode_profile(
+                    world=target_world,
+                    source_asset_entity_id=source_asset_entity_id,
+                    profile_entity_id=profile_id_to_use, # Pass as int or str
+                    output_parent_dir=output_dir,
+                )
+                typer.secho(
+                    f"Transcoding successful. New transcoded asset Entity ID: {transcoded_entity.id}.",
+                    fg=typer.colors.GREEN,
+                )
+                # Optionally display some info about the new asset
+                from dam.models.properties.file_properties_component import FilePropertiesComponent # Ensure type is imported
+                new_fpc = await ecs_service.get_component(session, transcoded_entity.id, FilePropertiesComponent)
+                if new_fpc:
+                    typer.echo(f"  New Filename: {new_fpc.original_filename}, Size: {new_fpc.file_size_bytes} bytes") # type: ignore
+
+            except transcode_service.TranscodeServiceError as e:
+                typer.secho(f"Error applying transcode profile: {e}", fg=typer.colors.RED)
+                # Check if it's a TranscodeError from media_utils for more specific advice
+                if isinstance(e.__cause__, TranscodeError):
+                    if "Command not found" in str(e.__cause__) or "not found in PATH" in str(e.__cause__):
+                         typer.secho("Hint: Ensure the required transcoding tool (e.g., ffmpeg, cjxl) is installed and accessible in your system's PATH.", fg=typer.colors.YELLOW)
+                raise typer.Exit(code=1)
+            except Exception as e:
+                typer.secho(f"Unexpected error during transcoding: {e}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+    await _apply() # Await async call
+
+# --- Evaluation Commands ---
+eval_app = typer.Typer(name="evaluate", help="Manage and run transcoding evaluations.")
+app.add_typer(eval_app)
+
+@eval_app.command("run-create")
+async def cli_eval_run_create( # Made async
+    ctx: typer.Context,
+    run_name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the evaluation run.")],
+    description: Annotated[Optional[str], typer.Option("--desc", help="Optional description for the run.")] = None,
+):
+    """Creates a new evaluation run concept."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    try:
+        run_entity = await evaluation_systems.create_evaluation_run_concept(
+            world=target_world, run_name=run_name, description=description
+        )
+        typer.secho(
+            f"Evaluation run '{run_name}' (Entity ID: {run_entity.id}) created successfully in world '{target_world.name}'.",
+            fg=typer.colors.GREEN,
+        )
+    except evaluation_systems.EvaluationError as e:
+        typer.secho(f"Error creating evaluation run: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("run-execute")
+async def cli_eval_run_execute( # Made async
+    ctx: typer.Context,
+    run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run.")],
+    asset_identifiers_str: Annotated[str, typer.Option("--assets", "-a", help="Comma-separated list of source asset Entity IDs or SHA256 hashes.")],
+    profile_identifiers_str: Annotated[str, typer.Option("--profiles", "-p", help="Comma-separated list of transcode profile Entity IDs or names.")],
+):
+    """Executes a pre-defined evaluation run."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    asset_identifiers = [item.strip() for item in asset_identifiers_str.split(',')]
+    profile_identifiers = [item.strip() for item in profile_identifiers_str.split(',')]
+
+    # Attempt to convert numeric identifiers to int
+    typed_asset_ids: List[Union[int, str]] = []
+    for aid in asset_identifiers:
+        try:
+            typed_asset_ids.append(int(aid))
+        except ValueError:
+            typed_asset_ids.append(aid)
+
+    typed_profile_ids: List[Union[int, str]] = []
+    for pid in profile_identifiers:
+        try:
+            typed_profile_ids.append(int(pid))
+        except ValueError:
+            typed_profile_ids.append(pid)
+
+    run_id_to_use: Union[int, str]
+    try:
+        run_id_to_use = int(run_identifier)
+    except ValueError:
+        run_id_to_use = run_identifier
+
+
+    async def _execute():
+        try:
+            typer.echo(f"Executing evaluation run '{run_identifier}' in world '{target_world.name}'...")
+            results = await evaluation_systems.execute_evaluation_run(
+                world=target_world,
+                evaluation_run_id_or_name=run_id_to_use,
+                source_asset_identifiers=typed_asset_ids,
+                profile_identifiers=typed_profile_ids,
+            )
+            typer.secho(
+                f"Evaluation run '{run_identifier}' completed. Generated {len(results)} results.",
+                fg=typer.colors.GREEN,
+            )
+            if not results:
+                typer.echo("No results were generated. Check logs for details on skipped items or errors during processing.")
+            # Optionally, print a summary of results here or direct to use 'evaluate report'
+        except evaluation_systems.EvaluationError as e:
+            typer.secho(f"Error executing evaluation run: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+    await _execute() # Await async call
+
+
+@eval_app.command("report")
+async def cli_eval_report( # Made async
+    ctx: typer.Context,
+    run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run to report on.")],
+):
+    """Displays a report for a completed evaluation run."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    run_id_to_use: Union[int, str]
+    try:
+        run_id_to_use = int(run_identifier)
+    except ValueError:
+        run_id_to_use = run_identifier
+
+    async def _report():
+        try:
+            results_data = await evaluation_systems.get_evaluation_results(
+                world=target_world, evaluation_run_id_or_name=run_id_to_use
+            )
+            if not results_data:
+                typer.secho(f"No results found for evaluation run '{run_identifier}'.", fg=typer.colors.YELLOW)
+                return
+
+            typer.secho(f"\n--- Evaluation Report for Run: '{results_data[0]['evaluation_run_name']}' ---", bold=True) # Assumes all results have same run_name
+
+            # Simple table print using Typer/Rich echo. For complex tables, consider `rich.table.Table`.
+            # Headers
+            headers = [
+                "Orig. Asset ID", "Orig. Filename",
+                "Profile", "Tool", "Params", "Format",
+                "Transcoded ID", "Transcoded Filename",
+                "Size (Bytes)", "VMAF", "SSIM", "PSNR", "Custom Metrics", "Notes"
+            ]
+            # typer.echo("| " + " | ".join(headers) + " |") # Basic header
+            # For better formatting, print each result.
+
+            for res in results_data:
+                typer.echo("---")
+                typer.echo(f"  Original Asset: {res['original_asset_filename']} (ID: {res['original_asset_entity_id']})")
+                typer.echo(f"  Profile: {res['profile_name']} (Tool: {res['profile_tool']}, Format: {res['profile_format']})")
+                typer.echo(f"    Params: {res['profile_params']}")
+                typer.echo(f"  Transcoded Asset: {res['transcoded_asset_filename']} (ID: {res['transcoded_asset_entity_id']})")
+                typer.echo(f"    File Size: {res['file_size_bytes']} bytes")
+                typer.echo(f"    VMAF: {res['vmaf_score'] if res['vmaf_score'] is not None else 'N/A'}")
+                typer.echo(f"    SSIM: {res['ssim_score'] if res['ssim_score'] is not None else 'N/A'}")
+                typer.echo(f"    PSNR: {res['psnr_score'] if res['psnr_score'] is not None else 'N/A'}")
+                if res['custom_metrics']:
+                    typer.echo(f"    Custom Metrics: {json.dumps(res['custom_metrics'])}")
+                if res['notes']:
+                    typer.echo(f"    Notes: {res['notes']}")
+            typer.echo("---\nReport End.")
+
+        except evaluation_systems.EvaluationError as e:
+            typer.secho(f"Error generating report: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        except Exception as e:
+            typer.secho(f"Unexpected error: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+    await _report() # Await async call
+
+
 @app.command(name="ui")
 def cli_ui(ctx: typer.Context):
     """
@@ -826,6 +1136,7 @@ def cli_ui(ctx: typer.Context):
     typer.echo("Launching DAM UI...")
     try:
         import sys
+        from typing import Union # Required for Python < 3.10 for List[Union[...]]
 
         from PyQt6.QtWidgets import QApplication
 

@@ -606,17 +606,11 @@ The project uses `pytest` for testing, preferably run via `uv`.
 -   **Imports**: Follow standard Python import ordering (e.g., standard library, then third-party, then local application imports), often managed by formatters like Ruff.
 -   **Naming Conventions**:
     -   Models: `PascalCase` (e.g., `FileLocationComponent`).
-    -   Component Instantiation: When creating component instances that inherit from `BaseComponent` (which uses `kw_only=True` dataclass behavior from `dam.models.base_class.Base`):
-        - Foreign key ID fields (e.g., `entity_id` in `BaseComponent`, `website_entity_id` in `WebSourceComponent`) are typically required keyword arguments in the `__init__` constructor, unless they have a default or are marked `init=False` (which is not the case for these FK IDs).
-        - SQLAlchemy relationship properties (e.g., `entity` in `BaseComponent`, `website` in `WebSourceComponent`) should be marked with `init=False` in their `relationship()` definition. This means they are NOT constructor arguments and are populated by the ORM after the instance is created and associated with a session (usually upon flush, based on the FK ID values).
-        - Example: `my_comp = MyComponent(entity_id=some_entity.id, other_field='value')`.
-        - The `ecs_service.add_component_to_entity` helper correctly handles linking the component to an entity object after instantiation.
     -   Entity Table: `entities`.
     -   Component Tables: Generally `component_[component_name]` (e.g., `component_file_location`, `component_tag`).
     -   Specific Hash Component Tables: `component_content_hash_[hashtype]` (e.g., `component_content_hash_sha256`) or `component_image_perceptual_hash_[hashtype]` (e.g., `component_image_perceptual_hash_phash`).
     -   Functions/Methods/Variables: `snake_case`.
-    -   Component Constructors: When creating components derived from `BaseComponent`, remember that `entity_id` is `init=False`. You should pass the `Entity` object itself to the `entity` parameter (e.g., `MyComponent(entity=actual_entity_object, other_field="value")`). The `entity_id` will be populated by SQLAlchemy through this relationship.
-    -   **Naming Conventions Update**:
+    -   **Naming Conventions Update / Component & Model Constructors**:
         - Component Tables: `component_[component_name]` (e.g., `component_comic_book_concept`, `component_tag_concept`).
         - Association Object Tables: Plural, descriptive (e.g., `page_links`).
         - **Component & Model Constructors (Important due to `MappedAsDataclass`):**

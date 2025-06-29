@@ -1,6 +1,7 @@
 from typing import Annotated, List, Type, TypeVar
 
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
 
 from dam.core.config import WorldConfig  # Assuming WorldConfig is in dam.core.config
 from dam.models import BaseComponent, Entity
@@ -9,7 +10,7 @@ from dam.models import BaseComponent, Entity
 
 # Represents the current SQLAlchemy session for the active world.
 # Injected by the WorldScheduler.
-WorldSession = Annotated[Session, "WorldSession"]
+WorldSession = Annotated[AsyncSession, "WorldSession"] # Changed to AsyncSession
 
 # WorldName and CurrentWorldConfig are no longer special DI identities.
 # Systems should inject WorldConfig by its type (it's a resource)
@@ -76,7 +77,7 @@ class WorldContext:
         world_config: The `WorldConfig` object containing settings for this world.
     """
 
-    def __init__(self, session: Session, world_name: str, world_config: WorldConfig):
+    def __init__(self, session: AsyncSession, world_name: str, world_config: WorldConfig): # Use AsyncSession
         self.session = session
         self.world_name = world_name
         self.world_config = world_config

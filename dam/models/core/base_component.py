@@ -78,8 +78,9 @@ class BaseComponent(Base):  # Inherit from the new Base
         return relationship(
             "Entity",
             foreign_keys=[cls.entity_id],  # Explicitly use the component's own entity_id for this link
-            # back_populates="components",  # Removed as Entity.components is removed
+            # back_populates="components", # REMOVED as Entity.components is removed
             repr=False,  # For SQLAlchemy's default repr of this relationship property
+            init=False,  # Prevent 'entity' from being an __init__ parameter
         )
 
     def __repr__(self):

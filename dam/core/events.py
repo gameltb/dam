@@ -1,145 +1,100 @@
 import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional  # Added Optional, List, Dict
+from typing import Any, Dict, List, Optional
 
 # Using dataclasses for simplicity, similar to Bevy events.
-
 
 @dataclass
 class BaseEvent:
     """Base class for all events, providing a common structure if needed."""
-
     pass
-
 
 @dataclass
 class AssetFileIngestionRequested(BaseEvent):
-    """
-    Event dispatched when a new asset file needs to be ingested by copying.
-    Corresponds to the logic previously in asset_service.add_asset_file.
-    """
-
     filepath_on_disk: Path
     original_filename: str
     mime_type: str
     size_bytes: int
-    world_name: str  # Target world for this asset
-
-    # To store the result of the operation for the dispatcher or caller to potentially access
-    # This is optional and depends on how we want to get results back from event handlers.
-    # For now, systems might update the DB and log, direct return might not be needed from the event itself.
-    # entity_id: Optional[int] = field(default=None, init=False)
-    # created_new: Optional[bool] = field(default=None, init=False)
-
+    world_name: str
 
 @dataclass
 class AssetReferenceIngestionRequested(BaseEvent):
-    """
-    Event dispatched when a new asset needs to be ingested by reference.
-    Corresponds to the logic previously in asset_service.add_asset_reference.
-    """
-
     filepath_on_disk: Path
     original_filename: str
     mime_type: str
     size_bytes: int
-    world_name: str  # Target world for this asset
-
-    # entity_id: Optional[int] = field(default=None, init=False)
-    # created_new: Optional[bool] = field(default=None, init=False)
-
-
-# Example of a potential event that could be dispatched *by* an ingestion system
-# after an asset is successfully processed, if other systems need to react to that.
-# For now, the `NeedsMetadataExtractionComponent` marker serves a similar purpose.
-# @dataclass
-# class AssetIngested(BaseEvent):
-#     entity_id: int
-#     world_name: str
-#     ingestion_type: str # e.g., "file_copy", "reference"
-#     original_filename: str
-
-# Placeholder for a system to return results if needed.
-# For now, systems will modify the DB directly.
-# If direct feedback to the caller of event dispatch is needed, a different pattern might be used.
-# For example, the dispatch method could return a future or a result object.
-# For Bevy-like events, typically events are fire-and-forget, and systems react.
-# Results are observed through changes in World state (Components, Resources).
-
-# We might also need an event to trigger the metadata extraction stage,
-# or the current mechanism of adding a marker component is sufficient.
-# Let's stick to marker components for now as it's already in place.
-
-
-# --- Events for Query Operations ---
-# These events will carry a unique request_id to potentially correlate results
-# if results are posted back as another event or stored in a temporary resource.
-
+    world_name: str
 
 @dataclass
 class FindEntityByHashQuery(BaseEvent):
-    """Event to request finding an entity by its content hash."""
-
     hash_value: str
-    world_name: str  # Target world for this query
-    request_id: str  # Unique ID for this query request
+    world_name: str
+    request_id: str
     hash_type: str = "sha256"
-
-    # For carrying results via an asyncio.Future
     result_future: Optional[asyncio.Future[Optional[Dict[str, Any]]]] = field(default=None, init=False, repr=False)
-
 
 @dataclass
 class FindSimilarImagesQuery(BaseEvent):
-    """Event to request finding similar images."""
-
-    image_path: Path  # Path to the query image on a system accessible to the DAM
+    image_path: Path
     phash_threshold: int
     ahash_threshold: int
     dhash_threshold: int
-    world_name: str  # Target world for this query
-    request_id: str  # Unique ID for this query request
+    world_name: str
+    request_id: str
+    result_future: Optional[asyncio.Future[List[Dict[str, Any]]]] = field(default=None, init=False, repr=False) # Corrected here
 
-    # For carrying results via an asyncio.Future
-    result_future: Optional[asyncio.Future[Optional[List[Dict[str, Any]]]]] = field(
-        default=None, init=False, repr=False
-    )
+@dataclass
+class WebAssetIngestionRequested(BaseEvent):
+    world_name: str
+    website_identifier_url: str
+    source_url: str
+    metadata_payload: Optional[dict] = None
+    original_file_url: Optional[str] = None
+    tags: Optional[list[str]] = None
 
+# --- Transcoding Events (Moved from dam.services.transcode_service) ---
+@dataclass
+class TranscodeJobRequested(BaseEvent):
+    world_name: str
+    source_entity_id: int
+    profile_id: int # This is the Entity ID of the TranscodeProfileComponent's entity
+    priority: int = 100
+    output_parent_dir: Optional[Path] = None # Optional: specify where the output file should be placed initially
 
-# To allow __init__.py in dam/core to import these
+@dataclass
+class TranscodeJobCompleted(BaseEvent):
+    job_id: int # Corresponds to the ID in the TranscodeJobDB table
+    world_name: str
+    source_entity_id: int
+    profile_id: int # Entity ID of the profile used
+    output_entity_id: int # Entity ID of the newly created transcoded asset
+    output_file_path: Path # Path to the (potentially temporary) transcoded file
+
+@dataclass
+class TranscodeJobFailed(BaseEvent):
+    job_id: int
+    world_name: str
+    source_entity_id: int
+    profile_id: int
+    error_message: str
+
+# --- Evaluation Events (Moved from dam.services.transcode_service) ---
+@dataclass
+class StartEvaluationForTranscodedAsset(BaseEvent):
+    world_name: str
+    evaluation_run_id: int # Entity ID of the EvaluationRun concept
+    transcoded_asset_id: int # Entity ID of the asset that was transcoded (output of a transcode job)
+
 __all__ = [
     "BaseEvent",
     "AssetFileIngestionRequested",
     "AssetReferenceIngestionRequested",
     "FindEntityByHashQuery",
     "FindSimilarImagesQuery",
-    "WebAssetIngestionRequested",  # Added new event
+    "WebAssetIngestionRequested",
+    "TranscodeJobRequested",
+    "TranscodeJobCompleted",
+    "TranscodeJobFailed",
+    "StartEvaluationForTranscodedAsset",
 ]
-
-
-@dataclass
-class WebAssetIngestionRequested(BaseEvent):
-    """
-    Event dispatched when a new asset from a web source needs to be ingested.
-    This primarily involves storing metadata and URLs. File download might be a separate step.
-    """
-
-    world_name: str  # Target world for this asset
-    website_identifier_url: (
-        str  # Main URL of the website (e.g., https://www.deviantart.com) used to find/create the Website Entity.
-    )
-    source_url: str  # URL of the specific asset's page or where it was found.
-
-    # Optional metadata that might be provided at submission time
-    # This could be a dict, or specific common fields. Using a dict for flexibility.
-    # For a gallery dump, this metadata_payload would come from the dumper.
-    metadata_payload: Optional[dict] = None
-
-    # Optional: if the direct file URL is already known and different from source_url
-    original_file_url: Optional[str] = None
-
-    # Optional: if tags are provided as a list of strings
-    tags: Optional[list[str]] = None
-
-    # entity_id: Optional[int] = field(default=None, init=False) # For potential result storage
