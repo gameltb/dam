@@ -26,8 +26,8 @@ from PyQt6.QtWidgets import (
 from dam.core.events import FindSimilarImagesQuery
 from dam.core.world import World
 
-# Assuming ComponentViewerDialog might be reused or a similar display for selected similar image
-from dam.ui.main_window import ComponentViewerDialog
+# ComponentViewerDialog will be imported locally in view_result_details to avoid circular import
+# from dam.ui.main_window import ComponentViewerDialog
 
 # For image preview, ensure Pillow is available or handle gracefully
 try:
@@ -226,11 +226,12 @@ class FindSimilarImagesDialog(QDialog):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
         try:
-            with self.current_world.get_db_session() as session:
-                # Re-importing here to avoid class-level circular dependency if ComponentViewerDialog was in main_window only
-                from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
-                from dam.services import ecs_service
+            # Local import to avoid circular dependency
+            from dam.ui.main_window import ComponentViewerDialog
+            from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
+            from dam.services import ecs_service
 
+            with self.current_world.get_db_session() as session:
                 entity = ecs_service.get_entity(session, entity_id)
                 if not entity:
                     QMessageBox.warning(self, "Error", f"Entity ID {entity_id} not found.")
