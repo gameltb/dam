@@ -604,8 +604,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.asset_list_widget)
 
         self.setCentralWidget(central_widget)
-        self.populate_mime_type_filter() # Initial population
-        self.load_assets()
+        self.populate_mime_type_filter() # Initial population will now trigger load_assets on completion/error
 
     def _clear_filters_and_refresh(self):
         self.search_input.clear()
@@ -638,6 +637,7 @@ class MainWindow(QMainWindow):
         self._update_mime_type_filter_ui(mime_types)
         self.statusBar().showMessage("MIME type filter populated.", 3000) # Disappears after 3s
         self.mime_type_filter.setEnabled(True)
+        self.load_assets() # Load assets after MIME types are fetched
 
     def _on_mime_type_fetch_error(self, error_message: str):
         """
@@ -647,6 +647,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"MIME filter error: {error_message}", 5000) # Disappears after 5s
         self.mime_type_filter.setEnabled(True)
         QMessageBox.warning(self, "Filter Error", f"Could not populate MIME type filter:\n{error_message}")
+        self.load_assets() # Still attempt to load assets even if MIME types failed
 
 
     def _update_mime_type_filter_ui(self, mime_types: TypingList[str], error_message: Optional[str] = None):
