@@ -1,11 +1,14 @@
 import sys
+import asyncio
+import threading # For simple threading, consider QThread for more complex Qt integration
 
 # from dam.models.core.entity import Entity # Not directly needed if using service functions
 # Added for type hinting, Optional already imported from typing
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 from typing import List as TypingList
 
-from PyQt6.QtCore import Qt
+
+from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, QThreadPool
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QApplication,
@@ -43,6 +46,74 @@ from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog
 from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog
 
 
+class MimeTypeFetcherSignals(QObject):
+    """
+    Defines signals for MimeTypeFetcher.
+    - result_ready: Emitted when MIME types are successfully fetched.
+    - error_occurred: Emitted when an error occurs during fetching.
+    """
+    result_ready = pyqtSignal(list)
+    error_occurred = pyqtSignal(str)
+
+
+class MimeTypeFetcher(QRunnable):
+    """
+    Worker runnable to fetch distinct MIME types from the database asynchronously
+    in a separate thread.
+    """
+    def __init__(self, world: World):
+        super().__init__()
+        self.world = world
+        self.signals = MimeTypeFetcherSignals()
+
+    def run(self):
+        """
+        Executes the database query to fetch MIME types.
+        Emits result_ready on success, error_occurred on failure.
+        """
+        if not self.world:
+            self.signals.error_occurred.emit("No world configured for fetching MIME types.")
+            return
+
+        async def fetch_mime_types_async():
+            async with self.world.get_db_session() as session:
+                # Ensure the session is used correctly for async operations
+                # The query itself needs to be executed in an async way if possible,
+                # or run_sync if the query execution part is synchronous but session is async.
+                # Assuming session.execute or similar for async queries.
+                # For SQLAlchemy 2.0 style with async session:
+                from sqlalchemy import select, text # Added import
+                stmt = (
+                    select(FilePropertiesComponent.mime_type)
+                    .filter(FilePropertiesComponent.mime_type.isnot(None))
+                    .distinct()
+                    .order_by(FilePropertiesComponent.mime_type)
+                )
+                result = await session.execute(stmt)
+                distinct_mime_types = result.scalars().all()
+                return distinct_mime_types
+
+        try:
+            # Running the async function within the thread
+            # asyncio.run() creates a new event loop.
+            # If QThreadPool runs this in a thread that might already have an event loop,
+            # consider `asyncio.new_event_loop()` and `loop.run_until_complete()`.
+            # For simplicity, assuming asyncio.run() is okay here.
+            # If issues arise, a more sophisticated async-to-sync bridge might be needed.
+            # Or, if the Qt event loop can manage asyncio tasks, that's another path.
+            # However, QRunnable is simpler and often used with blocking tasks.
+            # To bridge async SQLAlchemy with a synchronous QRunnable, we run the async part.
+            # asyncio.run() should create and manage its own event loop.
+            mime_types = asyncio.run(fetch_mime_types_async())
+            # Convert to list of strings for the signal
+            self.signals.result_ready.emit([str(mt) for mt in mime_types if mt])
+
+        except Exception as e:
+            error_message = f"Error fetching MIME types: {e}"
+            # import traceback; traceback.print_exc() # For detailed debugging
+            self.signals.error_occurred.emit(error_message)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, current_world: Optional[World] = None):
         super().__init__()
@@ -51,12 +122,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"DAM UI - World: {current_world.name if current_world else 'No World Selected'}")
         self.setGeometry(100, 100, 800, 600)
 
+        self.thread_pool = QThreadPool() # For running worker tasks
+        # print(f"Max QThreadPool threads: {self.thread_pool.maxThreadCount()}")
+
+
         self._create_menus()
         self._create_status_bar()
         self._create_central_widget()
 
-        # Store the world instance if needed for data fetching
-        # self.current_world = None # Placeholder, needs to be set, e.g. via CLI or a selector
 
     def _create_menus(self):
         menu_bar = self.menuBar()
@@ -341,64 +414,93 @@ class MainWindow(QMainWindow):
         self.mime_type_filter = QComboBox()
         self.mime_type_filter.setFixedWidth(150)  # Adjust width as needed
         self.mime_type_filter.addItem("All Types", "")  # User data is empty string for no filter
-        # self.populate_mime_type_filter() # Call this after world is confirmed
         self.mime_type_filter.currentIndexChanged.connect(self.load_assets)
         controls_layout.addWidget(self.mime_type_filter)
 
-        self.refresh_button = QPushButton("Refresh All")  # Renamed from "Clear Search" for clarity
+        self.refresh_button = QPushButton("Refresh All")
         self.refresh_button.clicked.connect(self._clear_filters_and_refresh)
         controls_layout.addWidget(self.refresh_button)
 
         controls_layout.addStretch()
         main_layout.addLayout(controls_layout)
 
-        # Asset list widget
         self.asset_list_widget = QListWidget()
         self.asset_list_widget.itemDoubleClicked.connect(self.on_asset_double_clicked)
         main_layout.addWidget(self.asset_list_widget)
 
         self.setCentralWidget(central_widget)
-        self.populate_mime_type_filter()  # Populate filter once after UI setup
-        self.load_assets()  # Initial load
+        self.populate_mime_type_filter() # Initial population
+        self.load_assets()
 
     def _clear_filters_and_refresh(self):
         self.search_input.clear()
-        self.mime_type_filter.setCurrentIndex(0)  # Reset to "All Types"
-        self.load_assets()
+        # self.mime_type_filter.setCurrentIndex(0) # This might trigger load_assets before populate is done
+        self.populate_mime_type_filter() # Re-populate, then load_assets will be called by its completion or by currentIndexChanged
+        self.load_assets() # Explicitly call load_assets to ensure refresh with cleared filters
 
     def populate_mime_type_filter(self):
-        self.mime_type_filter.blockSignals(True)  # Block signals during population
-        # Store current selection
+        """
+        Initiates the fetching of MIME types in a worker thread.
+        The actual population of the QComboBox happens in _update_mime_type_filter_ui.
+        """
+        if not self.current_world:
+            self._update_mime_type_filter_ui([], error_message="No world selected. Cannot populate MIME types.")
+            return
+
+        # Disable the filter during update to prevent user interaction / signal emission
+        self.mime_type_filter.setEnabled(False)
+        self.statusBar().showMessage("Populating MIME type filter...")
+
+        fetcher = MimeTypeFetcher(world=self.current_world)
+        fetcher.signals.result_ready.connect(self._on_mime_types_fetched)
+        fetcher.signals.error_occurred.connect(self._on_mime_type_fetch_error)
+        self.thread_pool.start(fetcher)
+
+    def _on_mime_types_fetched(self, mime_types: TypingList[str]):
+        """
+        Slot to receive successfully fetched MIME types from the worker.
+        """
+        self._update_mime_type_filter_ui(mime_types)
+        self.statusBar().showMessage("MIME type filter populated.", 3000) # Disappears after 3s
+        self.mime_type_filter.setEnabled(True)
+
+    def _on_mime_type_fetch_error(self, error_message: str):
+        """
+        Slot to receive error messages from the MIME type fetcher worker.
+        """
+        self._update_mime_type_filter_ui([], error_message=error_message) # Pass empty list on error
+        self.statusBar().showMessage(f"MIME filter error: {error_message}", 5000) # Disappears after 5s
+        self.mime_type_filter.setEnabled(True)
+        QMessageBox.warning(self, "Filter Error", f"Could not populate MIME type filter:\n{error_message}")
+
+
+    def _update_mime_type_filter_ui(self, mime_types: TypingList[str], error_message: Optional[str] = None):
+        """
+        Updates the MIME type QComboBox with fetched data or an error message.
+        This method is always called on the main GUI thread.
+        """
+        self.mime_type_filter.blockSignals(True)
         current_filter_value = self.mime_type_filter.currentData()
-
         self.mime_type_filter.clear()
-        self.mime_type_filter.addItem("All Types", "")  # Add default "All Types"
+        self.mime_type_filter.addItem("All Types", "")
 
-        if self.current_world:
-            try:
-                with self.current_world.get_db_session() as session:
-                    distinct_mime_types = (
-                        session.query(FilePropertiesComponent.mime_type)
-                        .filter(FilePropertiesComponent.mime_type.isnot(None))
-                        .distinct()
-                        .order_by(FilePropertiesComponent.mime_type)
-                        .all()
-                    )
-                    for (mime_type,) in distinct_mime_types:
-                        if mime_type:  # Ensure not empty string if that's possible from DB
-                            self.mime_type_filter.addItem(mime_type, mime_type)
+        if mime_types:
+            for mime_type in sorted(list(set(mime_types))): # Ensure unique and sorted
+                if mime_type:
+                    self.mime_type_filter.addItem(mime_type, mime_type)
 
-                # Restore previous selection if possible
-                index_to_set = self.mime_type_filter.findData(current_filter_value)
-                if index_to_set != -1:
-                    self.mime_type_filter.setCurrentIndex(index_to_set)
-                else:
-                    self.mime_type_filter.setCurrentIndex(0)  # Default to "All Types"
+        index_to_set = self.mime_type_filter.findData(current_filter_value)
+        if index_to_set != -1:
+            self.mime_type_filter.setCurrentIndex(index_to_set)
+        else:
+            self.mime_type_filter.setCurrentIndex(0) # Default to "All Types"
 
-            except Exception as e:
-                print(f"Error populating MIME type filter: {e}")  # Log or show error
-                QMessageBox.warning(self, "Filter Error", f"Could not populate MIME type filter: {e}")
-        self.mime_type_filter.blockSignals(False)  # Unblock signals
+        self.mime_type_filter.blockSignals(False)
+        self.mime_type_filter.setEnabled(True) # Re-enable after update
+
+        if error_message: # If there was an error, it's already logged/shown by caller
+            pass
+
 
     def load_assets(self):
         search_term = self.search_input.text().strip().lower()

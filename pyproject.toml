@@ -107,6 +107,7 @@ ignore = ["E501"]
 pythonpath = ["."]
 testpaths = ["tests"]
 qt_api = "pyqt6"
+asyncio_mode = "auto" # Try auto mode for pytest-asyncio
 
 [tool.mypy]
 python_version = "3.12"
