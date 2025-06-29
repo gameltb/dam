@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"] # 项目要求 Python >= 3.12
+        python-version: ["3.12"] 
 
     steps:
     - uses: actions/checkout@v3
@@ -22,11 +22,7 @@ jobs:
         uv venv .venv
         source .venv/bin/activate
         # Install all optional dependencies, explicitly including PyQt6 and pytest-qt for robustness
-        uv pip install -e ".[all]" PyQt6 pytest-qt
-    - name: Install Qt dependencies for headless testing
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 libxcb-xinerama0 libxcb-xinput0
+        uv pip install -e ".[all]"
     - name: Test with pytest and generate coverage report
       env:
         QT_QPA_PLATFORM: offscreen # For headless UI testing
