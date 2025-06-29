@@ -21,7 +21,7 @@ from dam.core.events import FindEntityByHashQuery
 from dam.core.world import World
 from dam.services import file_operations  # For calculating hash from file
 
-from .component_viewerd_ialog import ComponentViewerDialog  # Reuse for displaying results
+from .component_viewerd_dialog import ComponentViewerDialog  # Reuse for displaying results
 
 
 class FindAssetByHashDialog(QDialog):

@@ -14,7 +14,7 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent):  # Removed BaseCom
     represents the concept of a specific transcoding configuration.
     """
 
-    __tablename__ = "transcode_profiles"
+    __tablename__ = "component_transcode_profile" # Renamed
 
     # This 'id' is the primary key of this table AND a foreign key to entities.id
     id: Mapped[int] = mapped_column(ForeignKey("entities.id"), primary_key=True)

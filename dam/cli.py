@@ -818,10 +818,6 @@ def run_cli_directly():
     app()
 
 
-if __name__ == "__main__":
-    run_cli_directly()
-
-
 # --- Transcoding Commands ---
 transcode_app = typer.Typer(name="transcode", help="Manage transcoding profiles and operations.")
 app.add_typer(transcode_app)
@@ -1256,3 +1252,7 @@ def cli_ui(ctx: typer.Context):
         typer.secho(f"An unexpected error occurred while launching the UI: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+if __name__ == "__main__":
+    run_cli_directly()

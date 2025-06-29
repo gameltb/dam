@@ -5,7 +5,7 @@ from pytestqt.qtbot import QtBot
 
 from dam.core.world import World
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent # Corrected case
-from dam.ui.dialogs.component_viewerd_ialog import ComponentViewerDialog
+from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
 
 # pytest-qt automatically provides a qapp fixture or handles QApplication instance.
 # Removing custom qapp fixture to avoid conflicts.
@@ -60,21 +60,78 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
         components_data=components_data_for_dialog,
         world_name=mock_world.name
     )
-    qtbot.addWidget(dialog) # Register dialog with qtbot for cleanup
+    qtbot.addWidget(dialog)
 
-    # The dialog formats components data as JSON string in a QTextEdit
-    # We need to check if the key EXIF fields are present in the text.
-    dialog_text = dialog.text_edit.toPlainText()
+    # Verify tree structure and content
+    tree = dialog.tree_widget
+    assert tree is not None
+    assert tree.columnCount() == 2
+    assert tree.headerItem().text(0) == "Property"
+    assert tree.headerItem().text(1) == "Value"
 
-    assert "ExiftoolMetadataComponent" in dialog_text # Corrected class name
-    assert "CameraCorp" in dialog_text
-    assert "DSLR-1000" in dialog_text
-    assert "2023:01:01 10:00:00" in dialog_text
+    # Check root item (Entity ID)
+    assert tree.topLevelItemCount() == 1
+    root_item = tree.topLevelItem(0)
+    assert f"Entity ID: {entity_id}" in root_item.text(0)
+    assert f"World: {mock_world.name}" in root_item.text(0)
 
-    # Test that the dialog can be created and doesn't crash without data
+    # Find ExiftoolMetadataComponent type node
+    exif_type_item = None
+    for i in range(root_item.childCount()):
+        child = root_item.child(i)
+        if child.text(0) == "ExiftoolMetadataComponent":
+            exif_type_item = child
+            break
+    assert exif_type_item is not None, "ExiftoolMetadataComponent type node not found"
+    assert exif_type_item.isExpanded(), "ExiftoolMetadataComponent type node should be expanded"
+
+    # ExiftoolMetadataComponent should have one instance, attributes are direct children
+    # Or, if there's an "Instance X" node, attributes are under that.
+    # Current _populate_tree logic: if 1 instance, attributes are under type_item.
+    # The instance_data_dict itself has 'entity_id' and 'raw_exif_json'.
+
+    raw_exif_json_item = None
+    entity_id_attr_item = None # This is the entity_id attribute of the component itself
+
+    # Attributes of the component instance are children of exif_type_item (or an instance node)
+    # Based on current _populate_tree for single instance, parent_for_attributes is comp_type_item
+    parent_of_attributes = exif_type_item
+
+    for i in range(parent_of_attributes.childCount()):
+        attr_item = parent_of_attributes.child(i)
+        if attr_item.text(0) == "raw_exif_json":
+            raw_exif_json_item = attr_item
+        elif attr_item.text(0) == "entity_id": # This is the component's own entity_id attribute
+             entity_id_attr_item = attr_item
+
+
+    assert raw_exif_json_item is not None, "'raw_exif_json' attribute not found"
+    assert raw_exif_json_item.text(1) == "(dict)", "raw_exif_json should be shown as (dict)"
+    assert entity_id_attr_item is not None, "component's 'entity_id' attribute not found"
+    assert entity_id_attr_item.text(1) == str(entity_id)
+
+
+    # Check for nested EXIF data under raw_exif_json_item
+    make_item, model_item, datetime_item = None, None, None
+    for i in range(raw_exif_json_item.childCount()):
+        child = raw_exif_json_item.child(i)
+        if child.text(0) == "Make" and child.text(1) == "CameraCorp":
+            make_item = child
+        elif child.text(0) == "Model" and child.text(1) == "DSLR-1000":
+            model_item = child
+        elif child.text(0) == "DateTimeOriginal" and child.text(1) == "2023:01:01 10:00:00":
+            datetime_item = child
+
+    assert make_item is not None, "EXIF 'Make' not found or incorrect"
+    assert model_item is not None, "EXIF 'Model' not found or incorrect"
+    assert datetime_item is not None, "EXIF 'DateTimeOriginal' not found or incorrect"
+
+    # Test empty state
     empty_dialog = ComponentViewerDialog(entity_id=2, components_data={}, world_name="empty_world")
     qtbot.addWidget(empty_dialog)
-    assert "No components found" in empty_dialog.text_edit.toPlainText()
+    assert empty_dialog.tree_widget.topLevelItemCount() == 1
+    assert "No components found" in empty_dialog.tree_widget.topLevelItem(0).text(0)
+
 
 # Placeholder for Transcoding Dialog Test
 # def test_transcoding_dialog_trigger(qtbot: QtBot, mock_world):
@@ -821,8 +878,36 @@ def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mocker):
     """Test MIME type filter population when no world is selected."""
     mock_qmessagebox_warning = mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
 
+    main_window = MainWindow(current_world=None) # No world
+    qtbot.addWidget(main_window)
+    main_window.show()
+    qtbot.waitForWindowShown(main_window)
+
+    # In this case, _update_mime_type_filter_ui is called directly with an error message.
+    # No thread is started. So, the UI should update quickly.
+    # We can check the QMessageBox directly if it's called synchronously or wait briefly.
+
+    # Wait for the warning to be shown (it might be called via QTimer.singleShot(0, ...) or similar if posted)
+    # or check status bar and combo box state.
+    # Given the current implementation, _update_mime_type_filter_ui is called directly.
+
+    # Let's ensure the event loop processes any posted events
+    qtbot.wait(100) # Small wait for safety, though likely not needed here.
+
+    mock_qmessagebox_warning.assert_called_once()
+    args, _ = mock_qmessagebox_warning.call_args
+    assert "Could not populate MIME type filter" in args[1]
+    assert "No world selected" in args[2]
+
+    assert main_window.mime_type_filter.count() == 1 # Only "All Types"
+    assert main_window.mime_type_filter.itemText(0) == "All Types"
+    assert main_window.mime_type_filter.isEnabled()
+
 
 # Tests for MainWindow's asset loading
+# Import necessary signals for mocking AssetLoader
+from dam.ui.main_window import AssetLoaderSignals, ComponentFetcherSignals, DbSetupWorkerSignals
+from PyQt6.QtWidgets import QTableWidgetItem, QMessageBox # For QMessageBox.StandardButton and QTableWidgetItem
 
 @pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
 def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
@@ -860,14 +945,20 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     # Simulate the worker emitting the assets_ready signal
     # The slot _on_assets_fetched is connected to assets_ready
     # We can call the slot directly for testing the UI update logic
-    main_window._on_assets_fetched(mock_assets_data)
+    main_window._on_assets_fetched(mock_assets_data) # This now populates asset_table_widget
 
-    assert main_window.asset_list_widget.count() == len(mock_assets_data)
-    assert "asset1.jpg" in main_window.asset_list_widget.item(0).text()
-    assert main_window.asset_list_widget.item(0).data(Qt.ItemDataRole.UserRole) == 1
-    assert "asset2.png" in main_window.asset_list_widget.item(1).text()
-    assert main_window.asset_list_widget.item(1).data(Qt.ItemDataRole.UserRole) == 2
+    assert main_window.asset_table_widget.rowCount() == len(mock_assets_data)
+    # Column order: ID (0), Filename (1), MIME Type (2)
+    assert main_window.asset_table_widget.item(0, 0).text() == str(mock_assets_data[0][0]) # ID
+    assert main_window.asset_table_widget.item(0, 0).data(Qt.ItemDataRole.UserRole) == mock_assets_data[0][0]
+    assert main_window.asset_table_widget.item(0, 1).text() == mock_assets_data[0][1] # Filename
+    assert main_window.asset_table_widget.item(0, 2).text() == mock_assets_data[0][2] # MIME
+
+    assert main_window.asset_table_widget.item(1, 0).text() == str(mock_assets_data[1][0]) # ID
+    assert main_window.asset_table_widget.item(1, 1).text() == mock_assets_data[1][1] # Filename
+    assert main_window.asset_table_widget.item(1, 2).text() == mock_assets_data[1][2] # MIME
     assert main_window.search_input.isEnabled()
+    assert main_window.asset_table_widget.isSortingEnabled()
 
 
 @pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
@@ -908,7 +999,7 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     )
     # Simulate empty result to complete the flow
     main_window._on_assets_fetched([])
-    assert main_window.asset_list_widget.count() == 1 # "No assets found"
+    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty, message is on status bar
     assert main_window.search_input.isEnabled()
 
 
@@ -929,8 +1020,9 @@ def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     main_window.load_assets()
     main_window._on_assets_fetched([]) # Simulate worker returning empty list
 
-    assert main_window.asset_list_widget.count() == 1
-    assert "No assets found" in main_window.asset_list_widget.item(0).text()
+    assert main_window.asset_table_widget.rowCount() == 0 # Table empty
+    # Status bar message is tested implicitly by checking if it's set, actual text can vary.
+    # The main thing is that the table is empty.
     assert main_window.search_input.isEnabled()
 
 @pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
@@ -959,8 +1051,8 @@ def test_main_window_load_assets_error(qtbot: QtBot, mock_world, mocker):
     assert "Load Assets Error" in args[1] # Title
     assert error_message in args[2] # Message
 
-    assert main_window.asset_list_widget.count() == 1 # Error message item
-    assert f"Error loading assets: {error_message.splitlines()[0]}" in main_window.asset_list_widget.item(0).text()
+    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty
+    # Error message is in QMessageBox and status bar, not table
     assert main_window.search_input.isEnabled()
 
 @pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
@@ -983,8 +1075,8 @@ def test_main_window_load_assets_no_world(qtbot: QtBot, mocker):
     assert "Load Assets Error" in args[1]
     assert "No DAM world is currently selected" in args[2]
 
-    assert main_window.asset_list_widget.count() == 1 # Error message item
-    assert "Error loading assets: No DAM world" in main_window.asset_list_widget.item(0).text()
+    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty
+    # Error message is in QMessageBox and status bar
     assert main_window.search_input.isEnabled()
 
 
@@ -1099,11 +1191,27 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     mocker.patch.object(main_window, 'populate_mime_type_filter')
     mocker.patch.object(main_window, 'load_assets') # Prevent initial load_assets
 
-    # Create a dummy QListWidgetItem to simulate a click
-    list_item = QListWidgetItem("ID: 123 - test_asset.jpg (image/jpeg)")
-    list_item.setData(Qt.ItemDataRole.UserRole, asset_id_to_test)
+    # Create a dummy QTableWidgetItem to simulate a click
+    # We need to populate the table with at least one item to click it.
+    # Or, we can mock the item() call on asset_table_widget.
+    # For simplicity, let's assume the table has one item.
+    # This test primarily focuses on the logic *after* an item is identified.
 
-    main_window.on_asset_double_clicked(list_item) # Trigger action
+    # Mock main_window.asset_table_widget.item(row, 0) to return a mock item with data
+    mock_table_id_item = mocker.MagicMock(spec=QTableWidgetItem)
+    mock_table_id_item.data.return_value = asset_id_to_test
+    mocker.patch.object(main_window.asset_table_widget, 'item', return_value=mock_table_id_item)
+
+    # Create a dummy QTableWidgetItem just to pass to the slot
+    # The slot will use item.row() then use the mocked main_window.asset_table_widget.item()
+    dummy_clicked_item = QTableWidgetItem()
+    # We need to ensure item.row() returns a valid row, e.g., 0
+    # This can be done by adding the item to the table or mocking item.row()
+    # However, the current _on_asset_table_item_double_clicked gets row from the item passed.
+    mocker.patch.object(dummy_clicked_item, 'row', return_value=0)
+
+
+    main_window._on_asset_table_item_double_clicked(dummy_clicked_item) # Trigger action
 
     mock_component_fetcher_class.assert_called_once_with(world=mock_world, asset_id=asset_id_to_test)
 
@@ -1137,11 +1245,17 @@ def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, moc
     mocker.patch.object(main_window, 'populate_mime_type_filter')
     mocker.patch.object(main_window, 'load_assets')
 
-    list_item = QListWidgetItem("ID: 456 - another_asset.png (image/png)")
-    list_item.setData(Qt.ItemDataRole.UserRole, asset_id_to_test)
+    # Similar to success case, mock table item retrieval
+    mock_table_id_item = mocker.MagicMock(spec=QTableWidgetItem)
+    mock_table_id_item.data.return_value = asset_id_to_test
+    mocker.patch.object(main_window.asset_table_widget, 'item', return_value=mock_table_id_item)
 
-    main_window.on_asset_double_clicked(list_item)
-    main_window._on_component_fetch_error(error_msg, asset_id_to_test) # Simulate error callback
+    dummy_clicked_item = QTableWidgetItem()
+    mocker.patch.object(dummy_clicked_item, 'row', return_value=0)
+
+    main_window._on_asset_table_item_double_clicked(dummy_clicked_item) # Trigger action
+    # Then simulate the error callback from the (mocked) ComponentFetcher
+    main_window._on_component_fetch_error(error_msg, asset_id_to_test)
 
     mock_qmessagebox_critical.assert_called_once()
     args, _ = mock_qmessagebox_critical.call_args
@@ -1211,6 +1325,64 @@ def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
     # Ensure no unexpected exceptions during close
     assert not exceptions, f"Exceptions during close: {exceptions}"
 
+
+# Tests for Column Filtering
+@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and UI test instability.")
+def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, mock_world, mocker):
+    """Test that column filter texts are collected and passed to AssetLoader."""
+    mock_asset_loader_instance = mocker.MagicMock()
+    mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)
+    mock_asset_loader_class = mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
+
+    main_window = MainWindow(current_world=mock_world)
+    qtbot.addWidget(main_window)
+    main_window.show()
+    qtbot.waitForWindowShown(main_window)
+    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop initial MIME fetch/asset load chain
+
+    # Set text in column filters
+    filter_values = {"id": "123", "filename": "test", "mime_type": "image"}
+    main_window.column_filter_inputs["id"].setText(filter_values["id"])
+    main_window.column_filter_inputs["filename"].setText(filter_values["filename"])
+    main_window.column_filter_inputs["mime_type"].setText(filter_values["mime_type"])
+    # main_window.search_input.setText("") # Ensure global search is empty for this test
+    # main_window.mime_type_filter.setCurrentIndex(0) # Ensure combobox filter is "All Types"
+
+    # load_assets should be triggered by textChanged, or call it directly to test its collection logic
+    main_window.load_assets()
+
+    expected_column_filters = {
+        "id": "123",
+        "filename": "test",
+        "mime_type": "image"
+    }
+    mock_asset_loader_class.assert_called_once_with(
+        world=mock_world,
+        search_term="", # Assuming global search is empty
+        selected_mime_type="", # Assuming combobox is "All types"
+        column_filters=expected_column_filters
+    )
+
+@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and UI test instability.")
+def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_world, mocker):
+    """Test that _clear_filters_and_refresh clears column filter QLineEdits."""
+    main_window = MainWindow(current_world=mock_world)
+    qtbot.addWidget(main_window)
+    main_window.show()
+    qtbot.waitForWindowShown(main_window)
+    mocker.patch.object(main_window, 'populate_mime_type_filter')
+    # Mock load_assets to prevent it from running and interfering with the check of cleared inputs
+    mocker.patch.object(main_window, 'load_assets')
+
+    main_window.column_filter_inputs["filename"].setText("some text")
+    main_window.search_input.setText("global search text")
+
+    main_window._clear_filters_and_refresh()
+
+    assert main_window.column_filter_inputs["filename"].text() == ""
+    assert main_window.search_input.text() == ""
+    # Assert that load_assets was called by _clear_filters_and_refresh
+    main_window.load_assets.assert_called()
 
 
 # For now, the `test_exif_metadata_display` is a good starting point.
