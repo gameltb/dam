@@ -34,10 +34,10 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
         -   `EntityTagLinkComponent`: Links any entity to a `TagConceptEntity`, effectively applying the tag, optionally with a value.
 -   **Implementation**:
     -   Components inherit from `dam.models.base_component.BaseComponent`.
-    -   Dataclass behavior (including `kw_only=True`) is inherited from `dam.models.base_class.Base`.
-    -   Table names follow `component_[name]`.
-    -   **Constructor Note**: Pass the `Entity` object to the `entity` parameter. `entity_id` is `init=False` and populated via the relationship. For components not directly inheriting from `BaseComponent` (like association objects), their constructors are standard SQLAlchemy model constructors.
-    -   **Model Registration**: Ensure all model modules (components, association objects like `PageLink`) are imported (e.g., in `dam/models/__init__.py`) to be registered with `AppBase.metadata` before DB operations like `create_all()` or Alembic autogeneration.
+    - Dataclass behavior (including `kw_only=True`) is inherited from `dam.models.core.base_class.Base`.
+    - Table names typically follow the convention `component_[name]`.
+    - **Constructor Note**: For components inheriting from `BaseComponent`, the `entity_id` field and the `entity` relationship attribute are both `init=False`. This means you do not pass `entity` or `entity_id` when creating the component instance. Components should be instantiated with their own specific data fields. The linkage to an `Entity` (setting `entity_id` and the `entity` relationship) is managed by the `dam.services.ecs_service.add_component_to_entity` function after the component is created. For components not directly inheriting from `BaseComponent` (like association objects such as `PageLink`), their constructors follow standard SQLAlchemy model instantiation patterns based on their `MappedAsDataclass` definition.
+    - **Model Registration**: Ensure all model modules (components, association objects like `PageLink`) are imported (e.g., in `dam/models/__init__.py`) so that their definitions are processed. This is crucial for SQLAlchemy's `Base.metadata` to be aware of all tables before database operations like `create_all()` or Alembic autogeneration.
 
 ### 2.3. BaseComponent
 -   Provides common fields: `id`, `entity_id` (FK to `entities.id`), `created_at`, `updated_at`, and an `entity` relationship.
@@ -90,15 +90,15 @@ The `dam.services.ecs_service` module provides several helper functions to facil
 
 *   **`find_entities_with_components`**
     *   **Purpose**: Retrieves a list of distinct `Entity` objects that possess *all* of the specified component types.
-    *   **Signature**: `find_entities_with_components(session: Session, required_component_types: List[Type[BaseComponent]]) -> List[Entity]`
+    *   **Signature**: `async def find_entities_with_components(session: AsyncSession, required_component_types: List[Type[BaseComponent]]) -> List[Entity]`
     *   **Example**:
         ```python
         from dam.services import ecs_service
         from dam.models import FilePropertiesComponent, ImageDimensionsComponent
-        from sqlalchemy.orm import Session # Assuming session is obtained
+        from sqlalchemy.ext.asyncio import AsyncSession # Assuming AsyncSession is obtained
 
-        # session: Session = ... obtain session ...
-        image_entities = ecs_service.find_entities_with_components(
+        # session: AsyncSession = ... obtain session ...
+        image_entities = await ecs_service.find_entities_with_components( # Note: await
             session,
             [FilePropertiesComponent, ImageDimensionsComponent]
         )
@@ -109,15 +109,15 @@ The `dam.services.ecs_service` module provides several helper functions to facil
 
 *   **`find_entities_by_component_attribute_value`**
     *   **Purpose**: Retrieves a list of distinct `Entity` objects that have a specific component where a particular attribute of that component matches a given value.
-    *   **Signature**: `find_entities_by_component_attribute_value(session: Session, component_type: Type[T], attribute_name: str, value: Any) -> List[Entity]` (where `T` is a `BaseComponent` subclass)
+    *   **Signature**: `async def find_entities_by_component_attribute_value(session: AsyncSession, component_type: Type[T], attribute_name: str, value: Any) -> List[Entity]` (where `T` is a `BaseComponent` subclass)
     *   **Example**:
         ```python
         from dam.services import ecs_service
         from dam.models import FilePropertiesComponent
-        from sqlalchemy.orm import Session # Assuming session is obtained
+        from sqlalchemy.ext.asyncio import AsyncSession # Assuming AsyncSession is obtained
 
-        # session: Session = ... obtain session ...
-        jpeg_entities = ecs_service.find_entities_by_component_attribute_value(
+        # session: AsyncSession = ... obtain session ...
+        jpeg_entities = await ecs_service.find_entities_by_component_attribute_value( # Note: await
             session,
             FilePropertiesComponent,
             "mime_type",
@@ -384,7 +384,7 @@ class TagComponent(BaseComponent):
 
 ### Step 2: Ensure Component Model Registration with SQLAlchemy Metadata
 
-For SQLAlchemy to recognize the new component model, for Alembic to generate migrations for it, and for `AppBase.metadata.create_all()` to create its table, the Python module defining the component class must be imported before these operations occur. This ensures the model class is evaluated and registers itself with `AppBase.metadata`.
+For SQLAlchemy to recognize the new component model, for Alembic to generate migrations for it, and for `Base.metadata.create_all()` to create its table, the Python module defining the component class must be imported before these operations occur. This ensures the model class is evaluated and registers itself with `Base.metadata`.
 
 -   **If the component is defined within the `dam/models/` directory** (e.g., `dam/models/tag_component.py`):
     Add an import for it in `dam/models/__init__.py` and include its class name in the `__all__` list. For example:
@@ -401,9 +401,9 @@ For SQLAlchemy to recognize the new component model, for Alembic to generate mig
     ]
     ```
 -   **If the component is defined outside `dam/models/`** (e.g., marker components in `dam/core/components_markers.py`):
-    You must ensure that the module defining these components (e.g., `dam.core.components_markers`) is imported by a module that *is* loaded early, such as `dam/models/__init__.py` or your main application/test setup module before database operations. For instance, you could add `import dam.core.components_markers` to `dam/models/__init__.py`. A common practice is to have `dam/models/__init__.py` import all model modules to ensure they are registered with the `AppBase.metadata`.
+    You must ensure that the module defining these components (e.g., `dam.core.components_markers`) is imported by a module that *is* loaded early, such as `dam/models/__init__.py` or your main application/test setup module before database operations. For instance, you could add `import dam.core.components_markers` to `dam/models/__init__.py`. A common practice is to have `dam/models/__init__.py` import all model modules to ensure they are registered with `Base.metadata`.
 
-This explicit import step is vital for SQLAlchemy's declarative system to discover all models associated with `AppBase.metadata`.
+This explicit import step is vital for SQLAlchemy's declarative system to discover all models associated with `Base.metadata`.
 
 ### Step 3: Create Database Migration (Alembic)
 
@@ -514,17 +514,20 @@ def cli_add_asset(
     if entity and tags:
         tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
         for tag_name in tag_list:
-            # Direct component addition (if no complex post-processing system is needed for this action)
-            # Ensure entity object is loaded if `TagComponent` requires it for relationships
-            entity_obj_for_tag = db.get(Entity, entity.id) # Re-fetch or ensure it's in session correctly
-            if entity_obj_for_tag:
-                tag_component = TagComponent(
-                    entity_id=entity.id,
-                    entity=entity_obj_for_tag, # BaseComponent requires this
-                    tag_name=tag_name
-                )
-                # Use ecs_service to handle potential duplicates if not relying on DB constraint alone before flush
-                ecs_service.add_component_to_entity(db, entity.id, tag_component, flush=False)
+            # Create the component instance with its specific data.
+            # The BaseComponent's entity_id and entity fields are init=False,
+            # so they are not passed to the constructor here.
+            tag_component = TagComponent(tag_name=tag_name)
+
+            # The ecs_service.add_component_to_entity function will handle:
+            # 1. Setting tag_component.entity_id = entity.id
+            # 2. Setting tag_component.entity = entity (the ORM relationship)
+            # 3. Adding the component to the session.
+            # The `entity` object must be the one managed by the current `db` session.
+            # If `entity` was from a different session or detached, it might need to be db.get(Entity, entity.id).
+            # Assuming `entity` is the correct, session-attached object:
+            ecs_service.add_component_to_entity(db, entity.id, tag_component, flush=False)
+
         typer.echo(f"Added tags: {', '.join(tag_list)} to Entity ID {entity.id}")
         # db.commit() is handled by the main context manager for the command
     # ...
@@ -555,7 +558,7 @@ This comprehensive approach ensures your new component is well-defined, integrat
 -   **Development Database Setup:** For development, use the `dam-cli setup-db` command. This command will drop and recreate all tables based on the current SQLAlchemy model definitions. **This is destructive and only suitable for development environments.**
 -   **Future Reactivation of Alembic:** Once the schema for these new features stabilizes, Alembic migrations will be re-introduced. The process will likely involve:
     1.  Clearing any old/obsolete migration files from `alembic/versions/`.
-    2.  Ensuring `alembic/env.py` is correctly configured to target `AppBase.metadata` from `dam.models.core.base_class`.
+    2.  Ensuring `alembic/env.py` is correctly configured to target `Base.metadata` from `dam.models.core.base_class`.
     3.  Generating a new "baseline" migration that reflects the entire current schema: `alembic revision -m "baseline_schema_with_versioning_and_tagging" --autogenerate`.
     4.  Carefully reviewing the autogenerated script.
     5.  Applying this baseline to development databases: `alembic upgrade head`.
@@ -612,17 +615,42 @@ The project uses `pytest` for testing, preferably run via `uv`.
         - Component Tables: `component_[component_name]` (e.g., `component_comic_book_concept`, `component_tag_concept`).
         - Association Object Tables: Plural, descriptive (e.g., `page_links`).
         - **Component & Model Constructors (Important due to `MappedAsDataclass`):**
-            - For components inheriting from `BaseComponent` (which provides `entity_id: Mapped[int] = mapped_column(init=False)` and `entity: Mapped["Entity"] = relationship(...)` where the relationship is an init argument):
-                - Always pass the parent `Entity` object to the `entity` parameter (e.g., `MyComponent(entity=actual_entity_object, other_field="value")`).
-                - Other fields defined directly on the component (not inherited `init=False` fields) are passed as keyword arguments.
-                - Example: `ComicBookConceptComponent(entity=concept_entity, comic_title="...")`.
-                - Example: `EntityTagLinkComponent(entity=entity_to_tag, tag_concept=tag_concept_entity, tag_value="...")`. Here, `tag_concept` is the relationship attribute, and its corresponding FK `tag_concept_entity_id` is `init=False`.
-            - For association objects (like `PageLink`) or models inheriting directly from `Base` (not `BaseComponent`):
-                - The `__init__` signature is determined by `MappedAsDataclass`. Columns not marked `init=False` are constructor arguments.
-                - Relationship attributes not marked `init=False` also become constructor arguments.
-                - Foreign Key columns that are part of a primary key are often `init=False` by default if there's a corresponding relationship attribute that *is* an init argument.
-                - Example: `PageLink(owner=owner_entity, page_image=page_image_entity, page_number=1)`. Here, `owner` and `page_image` are relationship attributes that are init arguments, and their corresponding FK ID columns (`owner_entity_id`, `page_image_entity_id`) are `init=False`.
-            - **Rule of Thumb:** When in doubt, inspect the model definition. If a column has `init=False`, don't pass it to `__init__`. If a relationship attribute does not have `init=False`, it's likely an `__init__` argument. The goal is typically to pass relationship *objects* to the constructor when they are primary means of establishing links, and let SQLAlchemy derive the FK ID values.
+            - **Components inheriting from `BaseComponent`**:
+                - Recall that `BaseComponent` defines `entity_id: Mapped[int] = mapped_column(init=False)` and `entity: Mapped["Entity"] = relationship(init=False)`.
+                - Therefore, when you instantiate a component that inherits from `BaseComponent`, you **do not** pass `entity` or `entity_id` to its constructor.
+                - You only pass the data fields specific to that component (those that are `init=True`, which is the default for fields unless specified otherwise).
+                - The linking to the parent `Entity` (setting `entity_id` and the `entity` relationship) is handled by the `dam.services.ecs_service.add_component_to_entity` function after the component instance is created.
+                - Example:
+                    ```python
+                    # Correct instantiation for a component inheriting BaseComponent
+                    my_comp = MyComponent(my_specific_field="some_value")
+                    # ... then later, to associate with an entity:
+                    # ecs_service.add_component_to_entity(session, target_entity.id, my_comp)
+                    ```
+                - Example for `ComicBookConceptComponent`:
+                    ```python
+                    # Assuming ComicBookConceptComponent has fields like comic_title, series_title
+                    concept_comp = ComicBookConceptComponent(comic_title="The Amazing Example", series_title="Examples Vol. 1")
+                    # ... then associate with a concept_entity:
+                    # ecs_service.add_component_to_entity(session, concept_entity.id, concept_comp)
+                    ```
+            - **`EntityTagLinkComponent` Example**:
+                - This component inherits from `BaseComponent`, so `entity` and `entity_id` (referring to the entity being tagged) are `init=False`.
+                - It defines `tag_concept_entity_id: Mapped[int] = mapped_column(init=False)` and `tag_concept: Mapped["Entity"] = relationship(...)` (which is `init=True` by default as `init` is not specified on the relationship itself). It also has `tag_value: Mapped[str | None]`.
+                - So, its constructor, as generated by `MappedAsDataclass`, would expect `tag_concept` (the `Entity` defining the tag) and optionally `tag_value`.
+                - Correct Instantiation:
+                    ```python
+                    # entity_to_be_tagged = some entity instance
+                    # tag_definition_entity = an entity instance that has TagConceptComponent
+                    link_comp = EntityTagLinkComponent(tag_concept=tag_definition_entity, tag_value="example_value")
+                    # ... then associate this link component with the entity being tagged:
+                    # ecs_service.add_component_to_entity(session, entity_to_be_tagged.id, link_comp)
+                    ```
+            - **Association Objects (e.g., `PageLink`) or Models inheriting directly from `Base`**:
+                - These do not inherit `entity_id` or `entity` from `BaseComponent`.
+                - Their `__init__` signature is determined by `MappedAsDataclass` based on their own field definitions. Columns and relationship attributes not marked `init=False` become constructor arguments.
+                - Example: `PageLink(owner_entity=owner_entity, page_image=page_image_entity, page_number=1)`. Here, `owner_entity` and `page_image` are likely relationship attributes that are `init=True` by default, and their corresponding FK ID columns (`owner_entity_id`, `page_image_entity_id`) would be `init=False` if they are populated via these relationships.
+            - **Rule of Thumb:** When in doubt, inspect the model definition. If a Mapped attribute (column or relationship) has `init=False` explicitly set, do not pass it to `__init__`. If `init` is not specified, it defaults to `True` for `MappedAsDataclass` constructor generation. The goal is typically to pass relationship *objects* to the constructor when they are the primary means of establishing links (and are `init=True`), and let SQLAlchemy derive the foreign key ID values. For `BaseComponent` children, the `entity`/`entity_id` linkage is a special case handled post-instantiation by `ecs_service`.
 
 Adhering to these practices helps maintain a clean, consistent, and understandable codebase.
 

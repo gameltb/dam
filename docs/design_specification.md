@@ -34,7 +34,7 @@ Components are data-only Python classes that store specific attributes or proper
 
 ### 2.2. Naming Conventions
 - **Class Names**: `PascalCase` (e.g., `FilePropertiesComponent`).
-- **Table Names**: `component_[name]` (e.g., `component_file_properties`). This convention is established by `BaseComponent`.
+- **Convention for Table Names**: `component_[name]` (e.g., `component_file_properties`). While not enforced by `BaseComponent` itself, this is the recommended naming convention.
 
 ### 2.3. Inheritance
 - All components must inherit from `dam.models.core.base_component.BaseComponent`. This base class provides common fields (`id`, `entity_id`, `created_at`, `updated_at`) and SQLAlchemy integration.
@@ -44,10 +44,18 @@ Components are data-only Python classes that store specific attributes or proper
 - Example: `original_filename: Mapped[Optional[str]] = mapped_column(String(1024))`
 
 ### 2.5. Constructor Expectations
-- Due to `BaseComponent` inheriting dataclass behavior (`kw_only=True`) from `dam.models.core.base_class.Base`, constructors expect keyword arguments.
-- The `entity_id` field in `BaseComponent` is `init=False`.
-- **Crucially, when instantiating a component, pass the parent `Entity` object to the `entity` parameter of the constructor.** SQLAlchemy will populate `entity_id` from this relationship.
-- Example: `my_component = MyComponent(entity=actual_entity_object, custom_field="value")`
+- Components inherit `kw_only=True` constructor behavior from `dam.models.core.base_class.Base`.
+- In `BaseComponent`, both the `entity_id` field (linking to an `Entity`) and the `entity` relationship attribute itself are defined with `init=False`. This means they are not set via the component's constructor when you first create an instance of a component.
+- Instead, components are instantiated with their own specific data fields (those that are `init=True` by default or explicitly in the component's definition).
+- The association with an `Entity` (i.e., setting the `entity_id` and linking the `entity` relationship) is typically handled by the `dam.services.ecs_service.add_component_to_entity(session, entity_id, component_instance)` function. This function is called *after* the component instance has been created with its own data.
+- Example:
+  ```python
+  # Create the component with its specific data
+  my_component = MyComponent(custom_field="value")
+  # Then, associate it with an entity using the service
+  # actual_entity_id = some_entity.id
+  # ecs_service.add_component_to_entity(session, actual_entity_id, my_component)
+  ```
 
 ## 3. Systems
 
