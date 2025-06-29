@@ -806,6 +806,37 @@ class MainWindow(QMainWindow):
             self, "Component Fetch Error", f"Could not fetch components for Entity ID {asset_id}:\n{error_message}"
         )
 
+    def closeEvent(self, event):
+        """
+        Handle the window close event to ensure worker threads are properly managed.
+        """
+        # print("MainWindow closeEvent triggered.") # For debugging
+        # Potentially disable further UI interactions here if needed
+
+        # Wait for all tasks in the thread pool to complete.
+        # Set a timeout (e.g., 5000ms) to prevent indefinite blocking if a task hangs.
+        # waitForDone returns true if all tasks completed; false if it timed out.
+        self.statusBar().showMessage("Shutting down worker threads, please wait...")
+        QApplication.processEvents() # Process events to update status bar immediately
+
+        if not self.thread_pool.waitForDone(5000):
+            # print("Worker threads did not finish in time. Some tasks may be incomplete.") # For debugging
+            # Optionally, show a message to the user or log this occurrence.
+            # Depending on the nature of tasks, forceful termination might be considered,
+            # but QThreadPool doesn't offer direct cancellation of QRunnables.
+            # The runnables themselves would need to support interruption.
+            # For now, we just accept the event and let Qt proceed with closing.
+            QMessageBox.warning(self, "Shutdown Warning",
+                                "Some background tasks did not finish quickly.\n"
+                                "The application will now close. If issues persist, please restart.")
+        else:
+            # print("All worker threads finished.") # For debugging
+            pass
+
+        self.statusBar().showMessage("Exiting...")
+        QApplication.processEvents() # Ensure this message is shown
+        super().closeEvent(event) # Proceed with closing the window
+
 
 if __name__ == "__main__":
     # This part needs to be adjusted if the UI is launched via CLI
