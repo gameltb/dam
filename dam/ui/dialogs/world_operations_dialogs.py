@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from dam.core.config import settings as app_settings  # To get list of all configured worlds
-from dam.core.world import World
+from dam.core.world import World, get_world # Import get_world here
 from dam.services import world_service
 
 

@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QVBoxLayout,
+    QApplication,
 )
 
 from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested

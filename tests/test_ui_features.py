@@ -375,13 +375,29 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # args[1] is components_data, args[2] is world_name
 
     # Test "Calculate & Fill Hash"
-    dummy_file = Path(mocker.MagicMock(spec=Path)) # Mock path object
-    dummy_file.is_file.return_value = True
-    dialog.file_path_input.setText(str(dummy_file))
+    mock_file_path_text = "/tmp/mock_file_for_hash.txt"
+    dialog.file_path_input.setText(mock_file_path_text)
 
-    mock_calculate_sha256 = mocker.patch("dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256_hex", return_value="calculated_hash")
+    # Mock the Path object that will be created from mock_file_path_text in the dialog
+    created_path_mock = mocker.MagicMock(spec=Path)
+    created_path_mock.is_file.return_value = True
+    # If calculate_sha256_hex needs the path string, ensure the mock can provide it
+    # For spec=Path, str(created_path_mock) might give a mock representation.
+    # If calculate_sha256_hex directly uses the Path object, this is fine.
+    # Let's assume it does. If it needs a string, str(created_path_mock) would need to be set.
+
+    mock_path_constructor = mocker.patch("pathlib.Path", return_value=created_path_mock)
+
+    mock_calculate_sha256 = mocker.patch(
+        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256_hex",
+        return_value="calculated_hash"
+    )
+
     dialog.calculate_and_fill_hash_button.click()
-    mock_calculate_sha256.assert_called_once_with(dummy_file)
+
+    mock_path_constructor.assert_called_once_with(mock_file_path_text)
+    created_path_mock.is_file.assert_called_once()
+    mock_calculate_sha256.assert_called_once_with(created_path_mock)
     assert dialog.hash_value_input.text() == "calculated_hash"
 
 from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
