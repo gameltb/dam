@@ -242,7 +242,7 @@ async def another_db_session(test_world_beta: World) -> AsyncGenerator[AsyncSess
     The session is managed by an async context manager.
     """
     db_mngr = test_world_beta.get_resource(DatabaseManager)
-    async with db_mngr.session_local() as session: # Use async with
+    async with db_mngr.session_local() as session:  # Use async with
         yield session
     # Session is automatically closed by async context manager
 

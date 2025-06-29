@@ -13,7 +13,7 @@ class ExiftoolMetadataComponent(BaseComponent):
     Component to store raw metadata extracted by exiftool.
     """
 
-    __tablename__ = "component_exiftool_metadata" # Renamed
+    __tablename__ = "component_exiftool_metadata"  # Renamed
 
     # Inherits id, entity_id, created_at, updated_at from BaseComponent
 

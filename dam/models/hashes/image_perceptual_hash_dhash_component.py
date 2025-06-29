@@ -9,7 +9,7 @@ class ImagePerceptualDHashComponent(BaseComponent):
     Stores dHash perceptual hashes (typically 8 bytes for 64-bit) for an image entity.
     """
 
-    __tablename__ = "component_image_perceptual_dhash" # Renamed
+    __tablename__ = "component_image_perceptual_dhash"  # Renamed
 
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(8), index=True, nullable=False)
 

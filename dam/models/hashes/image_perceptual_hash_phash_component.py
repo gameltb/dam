@@ -9,7 +9,7 @@ class ImagePerceptualPHashComponent(BaseComponent):
     Stores pHash perceptual hashes (typically 8 bytes for 64-bit) for an image entity.
     """
 
-    __tablename__ = "component_image_perceptual_phash" # Renamed
+    __tablename__ = "component_image_perceptual_phash"  # Renamed
 
     # Perceptual hashes (e.g., pHash from imagehash library) are often 64-bit, so 8 bytes.
     # String(256) was likely oversized for hex representation; 16 chars for 8 bytes hex.

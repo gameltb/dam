@@ -1,8 +1,7 @@
 import asyncio
-import uuid
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -11,14 +10,16 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
-    QProgressBar, # For potential progress display during setup or short eval
+    QProgressBar,  # For potential progress display during setup or short eval
     QPushButton,
     QVBoxLayout,
 )
 
 from dam.core.world import World
+
 # from dam.services.evaluation_service import EvaluationService # Or event based
-from dam.ui.dialogs.evaluation_result_dialog import EvaluationResultDialog # To show results
+from dam.ui.dialogs.evaluation_result_dialog import EvaluationResultDialog  # To show results
+
 
 # Placeholder for actual evaluation logic
 class EvaluationWorker(QThread):
@@ -33,7 +34,9 @@ class EvaluationWorker(QThread):
 
     def run(self):
         try:
-            self.progress.emit(0, f"Starting evaluation between Entity ID {self.entity_id_original} and {self.entity_id_transcoded}...")
+            self.progress.emit(
+                0, f"Starting evaluation between Entity ID {self.entity_id_original} and {self.entity_id_transcoded}..."
+            )
 
             # TODO: Replace with actual call to EvaluationService or event dispatch
             # For example:
@@ -64,9 +67,9 @@ class EvaluationWorker(QThread):
                 "metrics": {
                     "PSNR": 35.6,
                     "SSIM": 0.987,
-                    "VMAF": 92.1 # If applicable
+                    "VMAF": 92.1,  # If applicable
                 },
-                "notes": "Evaluation completed successfully."
+                "notes": "Evaluation completed successfully.",
             }
             self.finished.emit(True, "Evaluation successful.", dummy_result_data)
 
@@ -149,9 +152,7 @@ class EvaluationSetupDialog(QDialog):
         self.status_label.setVisible(True)
 
         self.worker = EvaluationWorker(
-            world=self.world,
-            entity_id_original=original_id,
-            entity_id_transcoded=transcoded_id
+            world=self.world, entity_id_original=original_id, entity_id_transcoded=transcoded_id
         )
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.on_evaluation_finished)
@@ -176,10 +177,10 @@ class EvaluationSetupDialog(QDialog):
             result_dialog = EvaluationResultDialog(
                 world_name=self.world.name,
                 evaluation_data=result_data,
-                parent=self.parent() # Or self, depending on desired ownership and modality
+                parent=self.parent(),  # Or self, depending on desired ownership and modality
             )
             result_dialog.exec()
-            self.accept() # Close setup dialog after result dialog is shown and closed
+            self.accept()  # Close setup dialog after result dialog is shown and closed
         else:
             QMessageBox.critical(self, "Evaluation Error", message)
 
@@ -188,10 +189,16 @@ class EvaluationSetupDialog(QDialog):
     def cancel_or_close(self):
         if self.is_evaluating and self.worker:
             if self.worker.isRunning():
-                if QMessageBox.question(self, "Confirm Cancel",
-                                     "Cancel ongoing evaluation?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                     QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+                if (
+                    QMessageBox.question(
+                        self,
+                        "Confirm Cancel",
+                        "Cancel ongoing evaluation?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    == QMessageBox.StandardButton.Yes
+                ):
                     self.worker.requestInterruption()
                     self.status_label.setText("Cancelling evaluation...")
         else:
@@ -199,10 +206,16 @@ class EvaluationSetupDialog(QDialog):
 
     def closeEvent(self, event):
         if self.is_evaluating and self.worker and self.worker.isRunning():
-            if QMessageBox.question(self, "Confirm Exit",
-                                 "Evaluation in progress. Exit anyway?",
-                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                 QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+            if (
+                QMessageBox.question(
+                    self,
+                    "Confirm Exit",
+                    "Evaluation in progress. Exit anyway?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                == QMessageBox.StandardButton.Yes
+            ):
                 self.worker.requestInterruption()
                 event.accept()
             else:
@@ -210,10 +223,14 @@ class EvaluationSetupDialog(QDialog):
         else:
             event.accept()
 
+
 if __name__ == "__main__":
     app = QApplication([])
-    class MockWorld: # Same as in TranscodeAssetDialog
-        def __init__(self, name="test_eval_world"): self.name = name
+
+    class MockWorld:  # Same as in TranscodeAssetDialog
+        def __init__(self, name="test_eval_world"):
+            self.name = name
+
         async def dispatch_event(self, event):
             print(f"MockWorld: Event dispatched: {type(event).__name__}")
             await asyncio.sleep(0.1)

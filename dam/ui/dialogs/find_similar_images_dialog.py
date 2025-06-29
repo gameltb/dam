@@ -227,9 +227,9 @@ class FindSimilarImagesDialog(QDialog):
         components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
         try:
             # Local import to avoid circular dependency
-            from dam.ui.main_window import ComponentViewerDialog
             from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
             from dam.services import ecs_service
+            from dam.ui.main_window import ComponentViewerDialog
 
             with self.current_world.get_db_session() as session:
                 entity = ecs_service.get_entity(session, entity_id)

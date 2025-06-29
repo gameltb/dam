@@ -11,7 +11,7 @@ class TranscodedVariantComponent(BaseComponent):
     This component is attached to the entity representing the transcoded file.
     """
 
-    __tablename__ = "component_transcoded_variant" # Renamed
+    __tablename__ = "component_transcoded_variant"  # Renamed
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this component to the transcoded file's entity.

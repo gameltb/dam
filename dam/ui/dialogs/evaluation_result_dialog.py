@@ -3,13 +3,11 @@ from typing import Any, Dict
 
 from PyQt6.QtWidgets import (
     QDialog,
+    QPushButton,
     QScrollArea,
     QTextEdit,
-    QPushButton,
     QVBoxLayout,
 )
-
-from dam.core.world import World # May not be strictly needed if all data is passed in
 
 
 class EvaluationResultDialog(QDialog):
@@ -38,7 +36,7 @@ class EvaluationResultDialog(QDialog):
                 formatted_text += json.dumps(self.evaluation_data, indent=2, default=str)
             except Exception as e:
                 formatted_text += f"Error formatting evaluation data: {e}\n"
-                formatted_text += str(self.evaluation_data) # Fallback
+                formatted_text += str(self.evaluation_data)  # Fallback
 
         self.text_edit.setText(formatted_text)
 
@@ -53,9 +51,11 @@ class EvaluationResultDialog(QDialog):
 
         self.setLayout(layout)
 
+
 if __name__ == "__main__":
-    from PyQt6.QtWidgets import QApplication
     import sys
+
+    from PyQt6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
 
@@ -66,27 +66,18 @@ if __name__ == "__main__":
         "comparison_type": "Original vs. Transcode",
         "evaluation_profile": "Generic Quality Profile v1",
         "metrics": {
-            "PSNR": {
-                "value": 38.5,
-                "unit": "dB"
-            },
-            "SSIM": {
-                "value": 0.991,
-                "unit": ""
-            },
-            "VMAF": { # Video specific, but example
+            "PSNR": {"value": 38.5, "unit": "dB"},
+            "SSIM": {"value": 0.991, "unit": ""},
+            "VMAF": {  # Video specific, but example
                 "value": 95.2,
                 "unit": "",
-                "notes": "Calculated on first 10 seconds"
+                "notes": "Calculated on first 10 seconds",
             },
-            "FileSizeReduction": {
-                "value": 75.5,
-                "unit": "%"
-            }
+            "FileSizeReduction": {"value": 75.5, "unit": "%"},
         },
         "status": "Completed",
         "evaluation_timestamp": "2023-10-26T14:30:00Z",
-        "notes": "Transcoded asset shows excellent quality with significant size reduction."
+        "notes": "Transcoded asset shows excellent quality with significant size reduction.",
     }
 
     mock_world_name = "test_eval_results_world"

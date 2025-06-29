@@ -1,4 +1,4 @@
-import asyncio # Add asyncio for running async methods
+import asyncio  # Add asyncio for running async methods
 from pathlib import Path
 from typing import List as TypingList
 from typing import Optional  # Added for type hinting
@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from dam.core.config import settings as app_settings  # To get list of all configured worlds
-from dam.core.world import World, get_world # Import get_world here
+from dam.core.world import World, get_world  # Import get_world here
 from dam.services import world_service
 
 
@@ -48,7 +48,9 @@ class WorldOperationWorker(QThread):
             elif self.operation_type == "import":
                 self.progress.emit(f"Importing world from {self.params['filepath']} into '{self.world.name}'...")
                 # world_service.import_ecs_world_from_json is async
-                asyncio.run(world_service.import_ecs_world_from_json(self.world, self.params["filepath"], self.params["merge"]))
+                asyncio.run(
+                    world_service.import_ecs_world_from_json(self.world, self.params["filepath"], self.params["merge"])
+                )
                 self.finished.emit(
                     None, f"World data imported successfully into '{self.world.name}' from {self.params['filepath']}."
                 )
@@ -58,9 +60,11 @@ class WorldOperationWorker(QThread):
                 self.progress.emit(f"Merging world '{source_world_name}' into '{target_world_name}' (DB-to-DB)...")
                 source_world_instance = self.params["source_world_instance"]
                 # world_service.merge_ecs_worlds_db_to_db is async
-                asyncio.run(world_service.merge_ecs_worlds_db_to_db(
-                    source_world=source_world_instance, target_world=self.world, strategy="add_new"
-                ))
+                asyncio.run(
+                    world_service.merge_ecs_worlds_db_to_db(
+                        source_world=source_world_instance, target_world=self.world, strategy="add_new"
+                    )
+                )
                 self.finished.emit(None, f"Successfully merged '{source_world_name}' into '{target_world_name}'.")
             elif self.operation_type == "split_db":
                 self.progress.emit(f"Splitting world '{self.world.name}'...")

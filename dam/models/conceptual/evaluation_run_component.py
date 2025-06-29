@@ -14,7 +14,7 @@ class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseCompon
     evaluation setup (e.g., evaluating various profiles on a set of assets).
     """
 
-    __tablename__ = "component_evaluation_run" # Renamed
+    __tablename__ = "component_evaluation_run"  # Renamed
 
     # This 'id' is the primary key of this table AND a foreign key to entities.id
     id: Mapped[int] = mapped_column(ForeignKey("entities.id"), primary_key=True)

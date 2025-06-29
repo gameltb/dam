@@ -1,14 +1,13 @@
 import pytest
-from PyQt6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 from pytestqt.qtbot import QtBot
 
 from dam.core.world import World
-from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent # Corrected case
 from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
 
 # pytest-qt automatically provides a qapp fixture or handles QApplication instance.
 # Removing custom qapp fixture to avoid conflicts.
+
 
 @pytest.fixture
 def mock_world(mocker):
@@ -25,16 +24,13 @@ def mock_world(mocker):
     # For this test, direct mocking of get_components is simpler
     return world
 
+
 def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
     """
     Test that EXIF metadata is displayed in the ComponentViewerDialog.
     """
     entity_id = 1
-    exif_data = {
-        "Make": "CameraCorp",
-        "Model": "DSLR-1000",
-        "DateTimeOriginal": "2023:01:01 10:00:00"
-    }
+    exif_data = {"Make": "CameraCorp", "Model": "DSLR-1000", "DateTimeOriginal": "2023:01:01 10:00:00"}
 
     # The ComponentViewerDialog receives a dictionary representation of components.
     # We don't need to instantiate the actual SQLAlchemy component for this test,
@@ -47,18 +43,16 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
     # For simplicity, we'll mock the direct data structure the dialog receives
 
     components_data_for_dialog = {
-        "ExiftoolMetadataComponent": [ # Corrected class name key
+        "ExiftoolMetadataComponent": [  # Corrected class name key
             {
                 "entity_id": entity_id,
-                "raw_exif_json": exif_data  # Corrected key to match component attribute
+                "raw_exif_json": exif_data,  # Corrected key to match component attribute
             }
         ]
     }
 
     dialog = ComponentViewerDialog(
-        entity_id=entity_id,
-        components_data=components_data_for_dialog,
-        world_name=mock_world.name
+        entity_id=entity_id, components_data=components_data_for_dialog, world_name=mock_world.name
     )
     qtbot.addWidget(dialog)
 
@@ -91,7 +85,7 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
     # The instance_data_dict itself has 'entity_id' and 'raw_exif_json'.
 
     raw_exif_json_item = None
-    entity_id_attr_item = None # This is the entity_id attribute of the component itself
+    entity_id_attr_item = None  # This is the entity_id attribute of the component itself
 
     # Attributes of the component instance are children of exif_type_item (or an instance node)
     # Based on current _populate_tree for single instance, parent_for_attributes is comp_type_item
@@ -101,15 +95,13 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
         attr_item = parent_of_attributes.child(i)
         if attr_item.text(0) == "raw_exif_json":
             raw_exif_json_item = attr_item
-        elif attr_item.text(0) == "entity_id": # This is the component's own entity_id attribute
-             entity_id_attr_item = attr_item
-
+        elif attr_item.text(0) == "entity_id":  # This is the component's own entity_id attribute
+            entity_id_attr_item = attr_item
 
     assert raw_exif_json_item is not None, "'raw_exif_json' attribute not found"
     assert raw_exif_json_item.text(1) == "(dict)", "raw_exif_json should be shown as (dict)"
     assert entity_id_attr_item is not None, "component's 'entity_id' attribute not found"
     assert entity_id_attr_item.text(1) == str(entity_id)
-
 
     # Check for nested EXIF data under raw_exif_json_item
     make_item, model_item, datetime_item = None, None, None
@@ -150,6 +142,7 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
 
 from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog, TranscodeWorker
 
+
 def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of TranscodeAssetDialog."""
     entity_id = 1
@@ -157,10 +150,14 @@ def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     # Mock TranscodeWorker
     mock_transcode_worker_instance = mocker.MagicMock(spec=TranscodeWorker)
-    mock_transcode_worker_class = mocker.patch("dam.ui.dialogs.transcode_asset_dialog.TranscodeWorker", return_value=mock_transcode_worker_instance)
+    mock_transcode_worker_class = mocker.patch(
+        "dam.ui.dialogs.transcode_asset_dialog.TranscodeWorker", return_value=mock_transcode_worker_instance
+    )
 
     # Mock QMessageBoxes that might be called by the dialog
-    mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.No) # Default to No for cancel confirmation
+    mocker.patch(
+        "PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.No
+    )  # Default to No for cancel confirmation
     mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
     mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
 
@@ -182,18 +179,16 @@ def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     # Verify TranscodeWorker was called with correct parameters
     mock_transcode_worker_class.assert_called_once_with(
-        world=mock_world,
-        entity_id=entity_id,
-        profile_id=selected_profile_id,
-        profile_name=selected_profile_name
+        world=mock_world, entity_id=entity_id, profile_id=selected_profile_id, profile_name=selected_profile_name
     )
     mock_transcode_worker_instance.start.assert_called_once()
 
     # Test cancel/close behavior (simplified) - dialog should close on reject
     # If worker is running, it asks for confirmation. Here, worker is mocked.
-    dialog.cancel_or_close() # Should call reject if not transcoding
+    dialog.cancel_or_close()  # Should call reject if not transcoding
     # qtbot.waitUntil(lambda: not dialog.isVisible()) # This might be too aggressive if dialog.reject() is not immediate
     # For now, assume reject() works. A more robust test would check dialog.result() or signals.
+
 
 # Placeholder for Transcoding Evaluation Dialog Test
 # def test_transcoding_evaluation_dialog_trigger(qtbot: QtBot, mock_world):
@@ -210,8 +205,9 @@ def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
 #     # 6. (Later) Instantiate EvaluationResultDialog with mock results and verify display
 #     pass
 
-from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog, EvaluationWorker
 from dam.ui.dialogs.evaluation_result_dialog import EvaluationResultDialog
+from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog, EvaluationWorker
+
 
 def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of EvaluationSetupDialog."""
@@ -220,7 +216,9 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     # Mock EvaluationWorker
     mock_eval_worker_instance = mocker.MagicMock(spec=EvaluationWorker)
-    mock_eval_worker_class = mocker.patch("dam.ui.dialogs.evaluation_setup_dialog.EvaluationWorker", return_value=mock_eval_worker_instance)
+    mock_eval_worker_class = mocker.patch(
+        "dam.ui.dialogs.evaluation_setup_dialog.EvaluationWorker", return_value=mock_eval_worker_instance
+    )
 
     # Mock EvaluationResultDialog to check if it's called
     mock_eval_result_dialog_class = mocker.patch("dam.ui.dialogs.evaluation_setup_dialog.EvaluationResultDialog")
@@ -228,7 +226,9 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # Mock QMessageBoxes
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.No)
     mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
-    mocker.patch("PyQt6.QtWidgets.QMessageBox.information") # Though not directly used by EvalSetup, good for consistency
+    mocker.patch(
+        "PyQt6.QtWidgets.QMessageBox.information"
+    )  # Though not directly used by EvalSetup, good for consistency
 
     dialog = EvaluationSetupDialog(world=mock_world)
     qtbot.addWidget(dialog)
@@ -244,9 +244,7 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     # Verify EvaluationWorker was called
     mock_eval_worker_class.assert_called_once_with(
-        world=mock_world,
-        entity_id_original=original_id,
-        entity_id_transcoded=transcoded_id
+        world=mock_world, entity_id_original=original_id, entity_id_transcoded=transcoded_id
     )
     mock_eval_worker_instance.start.assert_called_once()
 
@@ -260,19 +258,16 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
     mock_eval_result_dialog_class.assert_called_once_with(
         world_name=mock_world.name,
         evaluation_data=dummy_eval_results,
-        parent=dialog.parent() # or dialog if parent is self in dialog
+        parent=dialog.parent(),  # or dialog if parent is self in dialog
     )
 
     # Test closing
     # dialog.cancel_or_close() # This would call reject
 
+
 def test_evaluation_result_dialog_basic(qtbot: QtBot, mock_world):
     """Test basic functionality of EvaluationResultDialog."""
-    eval_data = {
-        "original_entity_id": 10,
-        "transcoded_entity_id": 20,
-        "metrics": {"PSNR": 35.0, "SSIM": 0.98}
-    }
+    eval_data = {"original_entity_id": 10, "transcoded_entity_id": 20, "metrics": {"PSNR": 35.0, "SSIM": 0.98}}
     world_name = mock_world.name
 
     dialog = EvaluationResultDialog(world_name=world_name, evaluation_data=eval_data)
@@ -290,19 +285,24 @@ def test_evaluation_result_dialog_basic(qtbot: QtBot, mock_world):
     qtbot.addWidget(empty_dialog)
     assert "No evaluation data provided" in empty_dialog.text_edit.toPlainText()
 
-from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
+
 from pathlib import Path
+
+from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
+
 
 def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of AddAssetDialog."""
     # Mock file_operations.get_file_properties
-    mock_get_props = mocker.patch("dam.ui.dialogs.add_asset_dialog.file_operations.get_file_properties",
-                                  return_value=("test.jpg", 1024, "image/jpeg"))
+    mock_get_props = mocker.patch(
+        "dam.ui.dialogs.add_asset_dialog.file_operations.get_file_properties",
+        return_value=("test.jpg", 1024, "image/jpeg"),
+    )
 
     # Mock world event dispatch and stage execution (synchronous mocks for simplicity here)
-    mock_dispatch = mocker.MagicMock() # Synchronous mock
+    mock_dispatch = mocker.MagicMock()  # Synchronous mock
     mock_world.dispatch_event = mock_dispatch
-    mock_execute_stage = mocker.MagicMock() # Synchronous mock
+    mock_execute_stage = mocker.MagicMock()  # Synchronous mock
     mock_world.execute_stage = mock_execute_stage
 
     # Mock asyncio.run to prevent event loop conflicts
@@ -316,13 +316,12 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
         # However, the coro itself is an `async def`.
         # A truly synchronous call isn't possible.
         # Instead, we'll just check it's called. The internal calls to dispatch/execute are checked via their mocks.
-        pass # Just confirm it's called; its internal calls are mocked.
+        pass  # Just confirm it's called; its internal calls are mocked.
 
     mock_async_run = mocker.patch("dam.ui.dialogs.add_asset_dialog.asyncio.run", side_effect=mock_asyncio_run)
 
     # Mock QMessageBox to prevent it from blocking
     mock_qmessagebox_info = mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
-
 
     dialog = AddAssetDialog(current_world=mock_world)
     qtbot.addWidget(dialog)
@@ -350,11 +349,11 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     # qtbot.mouseClick(dialog.add_button, qt_api.QtCore.Qt.MouseButton.LeftButton)
 
     # Call accept which contains the core logic
-    dialog.accept() # This will trigger the processing logic
+    dialog.accept()  # This will trigger the processing logic
 
     # Assert that file_properties was called, and then our mocked asyncio.run was called
     mock_get_props.assert_called_once_with(dummy_file)
-    mock_async_run.assert_called() # Check if asyncio.run was called
+    mock_async_run.assert_called()  # Check if asyncio.run was called
 
     # Check that the mocked world methods were called (by the sync wrapper or by asyncio.run's mock)
     # These assertions depend on how deeply `mock_asyncio_run` executes the coroutine.
@@ -376,8 +375,10 @@ def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     # This can be done by spying on super().accept() if needed, or checking dialog result if exec_() was used.
     # For now, if no error and QMessageBox was shown, assume it reached the end.
 
+
+from dam.core.events import FindEntityByHashQuery  # For type checking
 from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
-from dam.core.events import FindEntityByHashQuery # For type checking
+
 
 def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of FindAssetByHashDialog."""
@@ -410,9 +411,9 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
         if isinstance(event, FindEntityByHashQuery):
             event.result = {
                 "entity_id": 123,
-                "components": {"FilePropertiesComponent": [{"original_filename": "test.jpg"}]}
+                "components": {"FilePropertiesComponent": [{"original_filename": "test.jpg"}]},
             }
-        return None # For async stub compatibility
+        return None  # For async stub compatibility
 
     mock_dispatch.side_effect = side_effect_dispatch
 
@@ -428,7 +429,7 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # Verify ComponentViewerDialog was called if asset found
     mock_component_viewer_class.assert_called_once()
     args, _ = mock_component_viewer_class.call_args
-    assert args[0] == 123 # entity_id
+    assert args[0] == 123  # entity_id
     # args[1] is components_data, args[2] is world_name
 
     # Test "Calculate & Fill Hash"
@@ -444,11 +445,12 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # Let's assume it does. If it needs a string, str(created_path_mock) would need to be set.
 
     # Patch Path as it's imported and used within the dialog's module
-    mock_path_constructor = mocker.patch("dam.ui.dialogs.find_asset_by_hash_dialog.Path", return_value=created_path_mock)
+    mock_path_constructor = mocker.patch(
+        "dam.ui.dialogs.find_asset_by_hash_dialog.Path", return_value=created_path_mock
+    )
 
     mock_calculate_sha256 = mocker.patch(
-        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256",
-        return_value="calculated_hash"
+        "dam.ui.dialogs.find_asset_by_hash_dialog.file_operations.calculate_sha256", return_value="calculated_hash"
     )
 
     dialog.calculate_and_fill_hash_button.click()
@@ -458,8 +460,10 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     mock_calculate_sha256.assert_called_once_with(created_path_mock)
     assert dialog.hash_value_input.text() == "calculated_hash"
 
-from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
+
 from dam.core.events import FindSimilarImagesQuery
+from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog
+
 
 def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of FindSimilarImagesDialog."""
@@ -480,7 +484,7 @@ def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_
     assert "Find Similar Images" in dialog.windowTitle()
 
     dummy_image_file = tmp_path / "query_image.png"
-    dummy_image_file.write_text("dummy png content") # Content doesn't matter for this test path
+    dummy_image_file.write_text("dummy png content")  # Content doesn't matter for this test path
 
     # Simulate image path input
     dialog.image_path_input.setText(str(dummy_image_file))
@@ -492,6 +496,7 @@ def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_
             event.result = [
                 {"entity_id": 234, "original_filename": "similar1.jpg", "distance": 2, "hash_type": "phash"}
             ]
+
     mock_dispatch.side_effect = side_effect_dispatch
 
     # Simulate "Find Similar Images" click
@@ -508,18 +513,22 @@ def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_
     assert dialog.results_list_widget.count() > 0
     assert "similar1.jpg" in dialog.results_list_widget.item(0).text()
 
+
 from dam.ui.dialogs.world_operations_dialogs import (
     ExportWorldDialog,
     ImportWorldDialog,
     MergeWorldsDialog,
     SplitWorldDialog,
-    WorldOperationWorker
+    WorldOperationWorker,
 )
+
 
 def test_export_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of ExportWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
-    mock_worker_class = mocker.patch("dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance)
+    mock_worker_class = mocker.patch(
+        "dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance
+    )
 
     dialog = ExportWorldDialog(current_world=mock_world)
     qtbot.addWidget(dialog)
@@ -538,16 +547,19 @@ def test_export_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     mock_worker_class.assert_called_once_with(mock_world, "export", {"filepath": export_file_path})
     mock_worker_instance.start.assert_called_once()
 
+
 def test_import_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of ImportWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
-    mock_worker_class = mocker.patch("dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance)
+    mock_worker_class = mocker.patch(
+        "dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance
+    )
 
     dialog = ImportWorldDialog(current_world=mock_world)
     qtbot.addWidget(dialog)
 
     import_file_path = tmp_path / "world_import.json"
-    import_file_path.write_text("{}") # Make file exist
+    import_file_path.write_text("{}")  # Make file exist
     dialog.path_input.setText(str(import_file_path))
     dialog.merge_checkbox.setChecked(True)
 
@@ -561,10 +573,13 @@ def test_import_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     mock_worker_class.assert_called_once_with(mock_world, "import", {"filepath": import_file_path, "merge": True})
     mock_worker_instance.start.assert_called_once()
 
+
 def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of MergeWorldsDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
-    mock_worker_class = mocker.patch("dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance)
+    mock_worker_class = mocker.patch(
+        "dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance
+    )
 
     all_world_names = [mock_world.name, "source_world_beta", "other_world_gamma"]
 
@@ -585,10 +600,7 @@ def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     dialog.start_merge()
 
-    expected_params = {
-        "source_world_name": "source_world_beta",
-        "source_world_instance": mock_source_world_beta
-    }
+    expected_params = {"source_world_name": "source_world_beta", "source_world_instance": mock_source_world_beta}
     mock_worker_class.assert_called_once_with(mock_world, "merge_db", expected_params)
     mock_worker_instance.start.assert_called_once()
 
@@ -596,17 +608,24 @@ def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
 def test_split_world_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of SplitWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
-    mock_worker_class = mocker.patch("dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance)
+    mock_worker_class = mocker.patch(
+        "dam.ui.dialogs.world_operations_dialogs.WorldOperationWorker", return_value=mock_worker_instance
+    )
 
     all_world_names = [mock_world.name, "target_selected_world", "target_remaining_world"]
 
-    mock_target_selected_world = mocker.MagicMock(spec=World); mock_target_selected_world.name = "target_selected_world"
-    mock_target_remaining_world = mocker.MagicMock(spec=World); mock_target_remaining_world.name = "target_remaining_world"
+    mock_target_selected_world = mocker.MagicMock(spec=World)
+    mock_target_selected_world.name = "target_selected_world"
+    mock_target_remaining_world = mocker.MagicMock(spec=World)
+    mock_target_remaining_world.name = "target_remaining_world"
 
     def get_world_side_effect(world_name_arg):
-        if world_name_arg == "target_selected_world": return mock_target_selected_world
-        if world_name_arg == "target_remaining_world": return mock_target_remaining_world
+        if world_name_arg == "target_selected_world":
+            return mock_target_selected_world
+        if world_name_arg == "target_remaining_world":
+            return mock_target_remaining_world
         return None
+
     mocker.patch("dam.ui.dialogs.world_operations_dialogs.get_world", side_effect=get_world_side_effect)
 
     dialog = SplitWorldDialog(source_world=mock_world, all_world_names=all_world_names)
@@ -648,12 +667,14 @@ def test_headless_capability_check(qtbot: QtBot):
     A simple test to ensure QtBot is functional, indicating headless setup is likely working.
     """
     from PyQt6.QtWidgets import QPushButton
+
     button = QPushButton("Test")
     qtbot.addWidget(button)
     # In 'offscreen' mode, isVisible() might be False.
     # Instead, check if the widget exists and its properties are accessible.
     assert button is not None
     assert button.text() == "Test"
+
 
 # More tests will be added here as UI components are developed.
 # For CI, ensure Xvfb is installed and running if needed:
@@ -778,15 +799,16 @@ def test_headless_capability_check(qtbot: QtBot):
 #     # A good strategy is to test dialogs in isolation with mocked inputs,
 #     # and then test the parts of MainWindow that *prepare* those inputs.
 
-from dam.ui.main_window import MainWindow, MimeTypeFetcher
-from dam.models.properties.file_properties_component import FilePropertiesComponent
-from sqlalchemy.future import select
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
+from dam.ui.main_window import MainWindow
 
 
 # Test for MainWindow's MIME type filter population
 # @pytest.mark.asyncio # Removed: Test function itself doesn't need to be async
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
+)
 def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world, mocker):
     """Test successful population of the MIME type filter in MainWindow."""
     # Mock the database result for MimeTypeFetcher
@@ -822,7 +844,7 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world,
     def check_mime_filter_populated():
         return main_window.mime_type_filter.count() > 1
 
-    qtbot.waitUntil(check_mime_filter_populated, timeout=5000) # Wait up to 5 seconds
+    qtbot.waitUntil(check_mime_filter_populated, timeout=5000)  # Wait up to 5 seconds
 
     assert main_window.mime_type_filter.count() == len(mock_mime_types) + 1  # +1 for "All Types"
     for i, mime_type in enumerate(mock_mime_types):
@@ -833,7 +855,9 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world,
 
 
 # @pytest.mark.asyncio # Removed
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
+)
 def test_main_window_populate_mime_type_filter_db_error(qtbot: QtBot, mock_world, mocker):
     """Test MIME type filter population when database query fails."""
     # Mock get_db_session to raise an exception
@@ -865,20 +889,22 @@ def test_main_window_populate_mime_type_filter_db_error(qtbot: QtBot, mock_world
 
     mock_qmessagebox_warning.assert_called_once()
     args, _ = mock_qmessagebox_warning.call_args
-    assert "Could not populate MIME type filter" in args[1] # Title
-    assert error_message in args[2] # Message body
+    assert "Could not populate MIME type filter" in args[1]  # Title
+    assert error_message in args[2]  # Message body
 
     assert main_window.mime_type_filter.count() == 1  # Only "All Types"
-    assert main_window.mime_type_filter.isEnabled() # Should be re-enabled even on error
+    assert main_window.mime_type_filter.isEnabled()  # Should be re-enabled even on error
 
 
 # @pytest.mark.asyncio # Removed
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
+)
 def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mocker):
     """Test MIME type filter population when no world is selected."""
     mock_qmessagebox_warning = mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
 
-    main_window = MainWindow(current_world=None) # No world
+    main_window = MainWindow(current_world=None)  # No world
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
@@ -892,24 +918,28 @@ def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mocker):
     # Given the current implementation, _update_mime_type_filter_ui is called directly.
 
     # Let's ensure the event loop processes any posted events
-    qtbot.wait(100) # Small wait for safety, though likely not needed here.
+    qtbot.wait(100)  # Small wait for safety, though likely not needed here.
 
     mock_qmessagebox_warning.assert_called_once()
     args, _ = mock_qmessagebox_warning.call_args
     assert "Could not populate MIME type filter" in args[1]
     assert "No world selected" in args[2]
 
-    assert main_window.mime_type_filter.count() == 1 # Only "All Types"
+    assert main_window.mime_type_filter.count() == 1  # Only "All Types"
     assert main_window.mime_type_filter.itemText(0) == "All Types"
     assert main_window.mime_type_filter.isEnabled()
 
 
 # Tests for MainWindow's asset loading
 # Import necessary signals for mocking AssetLoader
-from dam.ui.main_window import AssetLoaderSignals, ComponentFetcherSignals, DbSetupWorkerSignals
-from PyQt6.QtWidgets import QTableWidgetItem, QMessageBox # For QMessageBox.StandardButton and QTableWidgetItem
+from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem  # For QMessageBox.StandardButton and QTableWidgetItem
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+from dam.ui.main_window import AssetLoaderSignals, ComponentFetcherSignals, DbSetupWorkerSignals
+
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     """Test successful loading and display of assets."""
     mock_assets_data = [
@@ -920,7 +950,7 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     # Mock the AssetLoader
     mock_asset_loader_instance = mocker.MagicMock()
     # Configure the signals for the instance
-    mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals) # Use real signals class for spec
+    mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)  # Use real signals class for spec
 
     # Patch the AssetLoader class to return our mocked instance
     mock_asset_loader_class = mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
@@ -928,7 +958,7 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
     main_window.show()
-    qtbot.waitForWindowShown(main_window) # Ensure window is shown and event loop processed once
+    qtbot.waitForWindowShown(main_window)  # Ensure window is shown and event loop processed once
 
     # Simulate the AssetLoader finishing successfully by directly calling the connected slot
     # This bypasses QThreadPool and QRunnable.run() for more direct testing of UI logic.
@@ -945,23 +975,25 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     # Simulate the worker emitting the assets_ready signal
     # The slot _on_assets_fetched is connected to assets_ready
     # We can call the slot directly for testing the UI update logic
-    main_window._on_assets_fetched(mock_assets_data) # This now populates asset_table_widget
+    main_window._on_assets_fetched(mock_assets_data)  # This now populates asset_table_widget
 
     assert main_window.asset_table_widget.rowCount() == len(mock_assets_data)
     # Column order: ID (0), Filename (1), MIME Type (2)
-    assert main_window.asset_table_widget.item(0, 0).text() == str(mock_assets_data[0][0]) # ID
+    assert main_window.asset_table_widget.item(0, 0).text() == str(mock_assets_data[0][0])  # ID
     assert main_window.asset_table_widget.item(0, 0).data(Qt.ItemDataRole.UserRole) == mock_assets_data[0][0]
-    assert main_window.asset_table_widget.item(0, 1).text() == mock_assets_data[0][1] # Filename
-    assert main_window.asset_table_widget.item(0, 2).text() == mock_assets_data[0][2] # MIME
+    assert main_window.asset_table_widget.item(0, 1).text() == mock_assets_data[0][1]  # Filename
+    assert main_window.asset_table_widget.item(0, 2).text() == mock_assets_data[0][2]  # MIME
 
-    assert main_window.asset_table_widget.item(1, 0).text() == str(mock_assets_data[1][0]) # ID
-    assert main_window.asset_table_widget.item(1, 1).text() == mock_assets_data[1][1] # Filename
-    assert main_window.asset_table_widget.item(1, 2).text() == mock_assets_data[1][2] # MIME
+    assert main_window.asset_table_widget.item(1, 0).text() == str(mock_assets_data[1][0])  # ID
+    assert main_window.asset_table_widget.item(1, 1).text() == mock_assets_data[1][1]  # Filename
+    assert main_window.asset_table_widget.item(1, 2).text() == mock_assets_data[1][2]  # MIME
     assert main_window.search_input.isEnabled()
     assert main_window.asset_table_widget.isSortingEnabled()
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     """Test that search term and MIME type are passed to AssetLoader."""
     mock_asset_loader_instance = mocker.MagicMock()
@@ -985,25 +1017,26 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     # Let's assume it's populated and we can set it.
     # This part is tricky because MimeTypeFetcher runs on init.
     # We can mock `populate_mime_type_filter` to prevent it from running.
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop MimeTypeFetcher
-    main_window.mime_type_filter.addItem(mime_type, mime_type) # Add item for test
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop MimeTypeFetcher
+    main_window.mime_type_filter.addItem(mime_type, mime_type)  # Add item for test
     main_window.mime_type_filter.setCurrentIndex(main_window.mime_type_filter.findData(mime_type))
-
 
     main_window.load_assets()
 
     mock_asset_loader_class.assert_called_once_with(
         world=mock_world,
-        search_term=search_term.lower(), # load_assets converts to lower
-        selected_mime_type=mime_type
+        search_term=search_term.lower(),  # load_assets converts to lower
+        selected_mime_type=mime_type,
     )
     # Simulate empty result to complete the flow
     main_window._on_assets_fetched([])
-    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty, message is on status bar
+    assert main_window.asset_table_widget.rowCount() == 0  # Table should be empty, message is on status bar
     assert main_window.search_input.isEnabled()
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     """Test asset loading when no assets are found."""
     mock_asset_loader_instance = mocker.MagicMock()
@@ -1015,17 +1048,20 @@ def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     main_window.show()
     qtbot.waitForWindowShown(main_window)
 
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop MimeTypeFetcher
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop MimeTypeFetcher
 
     main_window.load_assets()
-    main_window._on_assets_fetched([]) # Simulate worker returning empty list
+    main_window._on_assets_fetched([])  # Simulate worker returning empty list
 
-    assert main_window.asset_table_widget.rowCount() == 0 # Table empty
+    assert main_window.asset_table_widget.rowCount() == 0  # Table empty
     # Status bar message is tested implicitly by checking if it's set, actual text can vary.
     # The main thing is that the table is empty.
     assert main_window.search_input.isEnabled()
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_load_assets_error(qtbot: QtBot, mock_world, mocker):
     """Test asset loading when an error occurs."""
     error_message = "Test DB Error"
@@ -1041,55 +1077,65 @@ def test_main_window_load_assets_error(qtbot: QtBot, mock_world, mocker):
     main_window.show()
     qtbot.waitForWindowShown(main_window)
 
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop MimeTypeFetcher
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop MimeTypeFetcher
 
     main_window.load_assets()
-    main_window._on_asset_fetch_error(error_message) # Simulate worker emitting error
+    main_window._on_asset_fetch_error(error_message)  # Simulate worker emitting error
 
     mock_qmessagebox_critical.assert_called_once()
     args, _ = mock_qmessagebox_critical.call_args
-    assert "Load Assets Error" in args[1] # Title
-    assert error_message in args[2] # Message
+    assert "Load Assets Error" in args[1]  # Title
+    assert error_message in args[2]  # Message
 
-    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty
+    assert main_window.asset_table_widget.rowCount() == 0  # Table should be empty
     # Error message is in QMessageBox and status bar, not table
     assert main_window.search_input.isEnabled()
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_load_assets_no_world(qtbot: QtBot, mocker):
     """Test asset loading when no world is selected."""
     mock_qmessagebox_critical = mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
     # We don't need to mock AssetLoader here as load_assets should handle no_world before starting it.
 
-    main_window = MainWindow(current_world=None) # No world
+    main_window = MainWindow(current_world=None)  # No world
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
 
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop MimeTypeFetcher
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop MimeTypeFetcher
 
-    main_window.load_assets() # This should call _on_asset_fetch_error directly
+    main_window.load_assets()  # This should call _on_asset_fetch_error directly
 
     mock_qmessagebox_critical.assert_called_once()
     args, _ = mock_qmessagebox_critical.call_args
     assert "Load Assets Error" in args[1]
     assert "No DAM world is currently selected" in args[2]
 
-    assert main_window.asset_table_widget.rowCount() == 0 # Table should be empty
+    assert main_window.asset_table_widget.rowCount() == 0  # Table should be empty
     # Error message is in QMessageBox and status bar
     assert main_window.search_input.isEnabled()
 
 
 # Tests for MainWindow.setup_current_world_db
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
     """Test successful database setup for the current world."""
     mock_db_setup_worker_instance = mocker.MagicMock()
     mock_db_setup_worker_instance.signals = mocker.MagicMock(spec=DbSetupWorkerSignals)
-    mock_db_setup_worker_class = mocker.patch("dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance)
+    mock_db_setup_worker_class = mocker.patch(
+        "dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance
+    )
 
-    mock_qmessagebox_question = mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes)
+    mock_qmessagebox_question = mocker.patch(
+        "PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes
+    )
     mock_qmessagebox_info = mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
 
     # Mock load_assets to prevent it from actually running during this test
@@ -1100,13 +1146,13 @@ def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
     main_window.show()
     qtbot.waitForWindowShown(main_window)
 
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop MimeTypeFetcher
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop MimeTypeFetcher
     # We also need to stop the initial load_assets call in __init__ if it interferes
     # The mock_load_assets above should handle this if called early enough or if __init__ calls self.load_assets.
     # For safety, one might mock load_assets on the prototype before __init__ if it's called there.
     # However, the current structure calls it after _create_central_widget.
 
-    main_window.setup_current_world_db() # Trigger the action
+    main_window.setup_current_world_db()  # Trigger the action
 
     mock_qmessagebox_question.assert_called_once()
     mock_db_setup_worker_class.assert_called_once_with(mock_world)
@@ -1119,26 +1165,32 @@ def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
     assert "Database Setup Successful" in args[1]
     assert f"Database setup complete for world '{mock_world.name}'" in args[2]
 
-    mock_load_assets.assert_called() # Check if assets are refreshed
+    mock_load_assets.assert_called()  # Check if assets are refreshed
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_setup_db_error(qtbot: QtBot, mock_world, mocker):
     """Test error handling during database setup."""
     error_message = "DB setup failed spectacularly"
     mock_db_setup_worker_instance = mocker.MagicMock()
     mock_db_setup_worker_instance.signals = mocker.MagicMock(spec=DbSetupWorkerSignals)
-    mock_db_setup_worker_class = mocker.patch("dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance)
+    mock_db_setup_worker_class = mocker.patch(
+        "dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance
+    )
 
-    mock_qmessagebox_question = mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes)
+    mock_qmessagebox_question = mocker.patch(
+        "PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes
+    )
     mock_qmessagebox_critical = mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
-    mocker.patch.object(MainWindow, "load_assets") # Mock out to prevent side effects
+    mocker.patch.object(MainWindow, "load_assets")  # Mock out to prevent side effects
 
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
+    mocker.patch.object(main_window, "populate_mime_type_filter")
 
     main_window.setup_current_world_db()
 
@@ -1153,26 +1205,34 @@ def test_main_window_setup_db_error(qtbot: QtBot, mock_world, mocker):
     assert "Database Setup Error" in args[1]
     assert error_message in args[2]
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_setup_db_no_world(qtbot: QtBot, mocker):
     """Test database setup attempt when no world is current."""
     mock_qmessagebox_warning = mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
 
-    main_window = MainWindow(current_world=None) # No world
+    main_window = MainWindow(current_world=None)  # No world
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
+    mocker.patch.object(main_window, "populate_mime_type_filter")
     mocker.patch.object(main_window, "load_assets")
 
     main_window.setup_current_world_db()
 
-    mock_qmessagebox_warning.assert_called_once_with(main_window, "No World", "No current world is active to set up its database.")
+    mock_qmessagebox_warning.assert_called_once_with(
+        main_window, "No World", "No current world is active to set up its database."
+    )
 
 
 # Tests for ComponentFetcher integration (on_asset_double_clicked)
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, mocker):
     """Test successful component fetching and dialog display on asset double click."""
     asset_id_to_test = 123
@@ -1180,7 +1240,9 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
 
     mock_component_fetcher_instance = mocker.MagicMock()
     mock_component_fetcher_instance.signals = mocker.MagicMock(spec=ComponentFetcherSignals)
-    mock_component_fetcher_class = mocker.patch("dam.ui.main_window.ComponentFetcher", return_value=mock_component_fetcher_instance)
+    mock_component_fetcher_class = mocker.patch(
+        "dam.ui.main_window.ComponentFetcher", return_value=mock_component_fetcher_instance
+    )
 
     mock_component_viewer_dialog_class = mocker.patch("dam.ui.main_window.ComponentViewerDialog")
 
@@ -1188,8 +1250,8 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
-    mocker.patch.object(main_window, 'load_assets') # Prevent initial load_assets
+    mocker.patch.object(main_window, "populate_mime_type_filter")
+    mocker.patch.object(main_window, "load_assets")  # Prevent initial load_assets
 
     # Create a dummy QTableWidgetItem to simulate a click
     # We need to populate the table with at least one item to click it.
@@ -1200,7 +1262,7 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     # Mock main_window.asset_table_widget.item(row, 0) to return a mock item with data
     mock_table_id_item = mocker.MagicMock(spec=QTableWidgetItem)
     mock_table_id_item.data.return_value = asset_id_to_test
-    mocker.patch.object(main_window.asset_table_widget, 'item', return_value=mock_table_id_item)
+    mocker.patch.object(main_window.asset_table_widget, "item", return_value=mock_table_id_item)
 
     # Create a dummy QTableWidgetItem just to pass to the slot
     # The slot will use item.row() then use the mocked main_window.asset_table_widget.item()
@@ -1208,10 +1270,9 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     # We need to ensure item.row() returns a valid row, e.g., 0
     # This can be done by adding the item to the table or mocking item.row()
     # However, the current _on_asset_table_item_double_clicked gets row from the item passed.
-    mocker.patch.object(dummy_clicked_item, 'row', return_value=0)
+    mocker.patch.object(dummy_clicked_item, "row", return_value=0)
 
-
-    main_window._on_asset_table_item_double_clicked(dummy_clicked_item) # Trigger action
+    main_window._on_asset_table_item_double_clicked(dummy_clicked_item)  # Trigger action
 
     mock_component_fetcher_class.assert_called_once_with(world=mock_world, asset_id=asset_id_to_test)
 
@@ -1225,7 +1286,9 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     mock_component_viewer_dialog_class.return_value.exec.assert_called_once()
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
+)
 def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, mocker):
     """Test error handling for component fetching on asset double click."""
     asset_id_to_test = 456
@@ -1236,24 +1299,24 @@ def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, moc
     mocker.patch("dam.ui.main_window.ComponentFetcher", return_value=mock_component_fetcher_instance)
 
     mock_qmessagebox_critical = mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
-    mocker.patch("dam.ui.main_window.ComponentViewerDialog") # Ensure dialog is not actually created
+    mocker.patch("dam.ui.main_window.ComponentViewerDialog")  # Ensure dialog is not actually created
 
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
-    mocker.patch.object(main_window, 'load_assets')
+    mocker.patch.object(main_window, "populate_mime_type_filter")
+    mocker.patch.object(main_window, "load_assets")
 
     # Similar to success case, mock table item retrieval
     mock_table_id_item = mocker.MagicMock(spec=QTableWidgetItem)
     mock_table_id_item.data.return_value = asset_id_to_test
-    mocker.patch.object(main_window.asset_table_widget, 'item', return_value=mock_table_id_item)
+    mocker.patch.object(main_window.asset_table_widget, "item", return_value=mock_table_id_item)
 
     dummy_clicked_item = QTableWidgetItem()
-    mocker.patch.object(dummy_clicked_item, 'row', return_value=0)
+    mocker.patch.object(dummy_clicked_item, "row", return_value=0)
 
-    main_window._on_asset_table_item_double_clicked(dummy_clicked_item) # Trigger action
+    main_window._on_asset_table_item_double_clicked(dummy_clicked_item)  # Trigger action
     # Then simulate the error callback from the (mocked) ComponentFetcher
     main_window._on_component_fetch_error(error_msg, asset_id_to_test)
 
@@ -1263,7 +1326,9 @@ def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, moc
     assert error_msg in args[2]
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and general difficulty in testing Qt app exit reliably.")
+@pytest.mark.skip(
+    reason="Skipping due to fatal Python error (Abort) and general difficulty in testing Qt app exit reliably."
+)
 def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
     """
     Test that MainWindow attempts to wait for thread pool on close.
@@ -1275,8 +1340,8 @@ def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
     qtbot.waitForWindowShown(main_window)
 
     # Mock the methods that would prevent __init__ from fully working in test if they run
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
-    mocker.patch.object(main_window, 'load_assets')
+    mocker.patch.object(main_window, "populate_mime_type_filter")
+    mocker.patch.object(main_window, "load_assets")
 
     # Spy on thread_pool.waitForDone
     mock_wait_for_done = mocker.spy(main_window.thread_pool, "waitForDone")
@@ -1309,12 +1374,12 @@ def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
     # We are testing if our cleanup logic in closeEvent is hit.
 
     # To ensure closeEvent is processed by the event loop:
-    with qtbot.capture_exceptions() as exceptions: # To see if any exceptions occur during close
-        main_window.close() # Request window close
-        qtbot.wait(100) # Allow event loop to process the close event
+    with qtbot.capture_exceptions() as exceptions:  # To see if any exceptions occur during close
+        main_window.close()  # Request window close
+        qtbot.wait(100)  # Allow event loop to process the close event
 
     # Check if waitForDone was called
-    mock_wait_for_done.assert_called_once_with(5000) # Check it was called with the timeout
+    mock_wait_for_done.assert_called_once_with(5000)  # Check it was called with the timeout
 
     # Since we mocked waitForDone to return False (timeout), check if QMessageBox.warning was called
     mock_qmessagebox_warning.assert_called_once()
@@ -1338,7 +1403,7 @@ def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, mock_world, moc
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter') # Stop initial MIME fetch/asset load chain
+    mocker.patch.object(main_window, "populate_mime_type_filter")  # Stop initial MIME fetch/asset load chain
 
     # Set text in column filters
     filter_values = {"id": "123", "filename": "test", "mime_type": "image"}
@@ -1351,17 +1416,14 @@ def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, mock_world, moc
     # load_assets should be triggered by textChanged, or call it directly to test its collection logic
     main_window.load_assets()
 
-    expected_column_filters = {
-        "id": "123",
-        "filename": "test",
-        "mime_type": "image"
-    }
+    expected_column_filters = {"id": "123", "filename": "test", "mime_type": "image"}
     mock_asset_loader_class.assert_called_once_with(
         world=mock_world,
-        search_term="", # Assuming global search is empty
-        selected_mime_type="", # Assuming combobox is "All types"
-        column_filters=expected_column_filters
+        search_term="",  # Assuming global search is empty
+        selected_mime_type="",  # Assuming combobox is "All types"
+        column_filters=expected_column_filters,
     )
+
 
 @pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and UI test instability.")
 def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_world, mocker):
@@ -1370,9 +1432,9 @@ def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_worl
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
-    mocker.patch.object(main_window, 'populate_mime_type_filter')
+    mocker.patch.object(main_window, "populate_mime_type_filter")
     # Mock load_assets to prevent it from running and interfering with the check of cleared inputs
-    mocker.patch.object(main_window, 'load_assets')
+    mocker.patch.object(main_window, "load_assets")
 
     main_window.column_filter_inputs["filename"].setText("some text")
     main_window.search_input.setText("global search text")
@@ -1384,10 +1446,9 @@ def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_worl
     # Assert that load_assets was called by _clear_filters_and_refresh
     main_window.load_assets.assert_called()
 
-
-# For now, the `test_exif_metadata_display` is a good starting point.
-# We will add tests for the new dialogs (Transcode, Evaluation) once they are implemented.
-    main_window = MainWindow(current_world=None) # No world
+    # For now, the `test_exif_metadata_display` is a good starting point.
+    # We will add tests for the new dialogs (Transcode, Evaluation) once they are implemented.
+    main_window = MainWindow(current_world=None)  # No world
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
@@ -1401,14 +1462,14 @@ def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_worl
     # Given the current implementation, _update_mime_type_filter_ui is called directly.
 
     # Let's ensure the event loop processes any posted events
-    qtbot.wait(100) # Small wait for safety, though likely not needed here.
+    qtbot.wait(100)  # Small wait for safety, though likely not needed here.
 
     mock_qmessagebox_warning.assert_called_once()
     args, _ = mock_qmessagebox_warning.call_args
     assert "Could not populate MIME type filter" in args[1]
     assert "No world selected" in args[2]
 
-    assert main_window.mime_type_filter.count() == 1 # Only "All Types"
+    assert main_window.mime_type_filter.count() == 1  # Only "All Types"
     assert main_window.mime_type_filter.itemText(0) == "All Types"
     assert main_window.mime_type_filter.isEnabled()
 

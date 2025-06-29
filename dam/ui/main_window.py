@@ -1,30 +1,29 @@
-import sys
 import asyncio
-import threading # For simple threading, consider QThread for more complex Qt integration
-import logging # Added import logging
+import logging  # Added import logging
+import sys
 
 # from dam.models.core.entity import Entity # Not directly needed if using service functions
 # Added for type hinting, Optional already imported from typing
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional
 from typing import List as TypingList
 
-
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, QThreadPool
+from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QComboBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,  # Added QTableWidgetItem
     QVBoxLayout,
     QWidget,
-    QTableWidget, QAbstractItemView, QHeaderView, QTableWidgetItem # Added QTableWidgetItem
 )
 
 from dam.core.config import settings as app_settings  # For getting all world names
@@ -36,16 +35,16 @@ from dam.models.properties.file_properties_component import FilePropertiesCompon
 from dam.services import ecs_service
 from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
 from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
+from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog
 from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
 from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
+from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog
 from dam.ui.dialogs.world_operations_dialogs import (
     ExportWorldDialog,
     ImportWorldDialog,
     MergeWorldsDialog,
     SplitWorldDialog,
 )
-from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog
-from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog
 
 
 class MimeTypeFetcherSignals(QObject):
@@ -54,6 +53,7 @@ class MimeTypeFetcherSignals(QObject):
     - result_ready: Emitted when MIME types are successfully fetched.
     - error_occurred: Emitted when an error occurs during fetching.
     """
+
     result_ready = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
 
@@ -63,6 +63,7 @@ class MimeTypeFetcher(QRunnable):
     Worker runnable to fetch distinct MIME types from the database asynchronously
     in a separate thread.
     """
+
     # import logging # This was moved to the top of the file
 
     def __init__(self, world: World):
@@ -87,7 +88,8 @@ class MimeTypeFetcher(QRunnable):
             self.logger.info("fetch_mime_types_async started.")
             async with self.world.get_db_session() as session:
                 self.logger.info("Async session obtained for MIME types.")
-                from sqlalchemy import select # Ensure select is imported
+                from sqlalchemy import select  # Ensure select is imported
+
                 stmt = (
                     select(FilePropertiesComponent.mime_type)
                     .filter(FilePropertiesComponent.mime_type.isnot(None))
@@ -122,6 +124,7 @@ class AssetLoaderSignals(QObject):
     - error_occurred: Emitted when an error occurs during fetching.
                       Payload is the error message string.
     """
+
     assets_ready = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
 
@@ -131,15 +134,19 @@ class AssetLoader(QRunnable):
     Worker runnable to fetch assets from the database asynchronously
     in a separate thread, applying optional search and MIME type filters.
     """
-    def __init__(self, world: World,
-                 search_term: Optional[str],
-                 selected_mime_type: Optional[str],
-                 column_filters: Optional[Dict[str, str]] = None): # Added column_filters
+
+    def __init__(
+        self,
+        world: World,
+        search_term: Optional[str],
+        selected_mime_type: Optional[str],
+        column_filters: Optional[Dict[str, str]] = None,
+    ):  # Added column_filters
         super().__init__()
         self.world = world
         self.search_term = search_term
         self.selected_mime_type = selected_mime_type
-        self.column_filters = column_filters if column_filters else {} # Ensure it's a dict
+        self.column_filters = column_filters if column_filters else {}  # Ensure it's a dict
         self.signals = AssetLoaderSignals()
         self.logger = logging.getLogger(__name__ + ".AssetLoader")
 
@@ -148,9 +155,11 @@ class AssetLoader(QRunnable):
         Executes the database query to fetch assets.
         Emits assets_ready on success, error_occurred on failure.
         """
-        self.logger.info(f"AssetLoader started for world: {self.world.name if self.world else 'None'}. "
-                         f"Global Search: '{self.search_term}', Type: '{self.selected_mime_type}', "
-                         f"Column Filters: {self.column_filters}.")
+        self.logger.info(
+            f"AssetLoader started for world: {self.world.name if self.world else 'None'}. "
+            f"Global Search: '{self.search_term}', Type: '{self.selected_mime_type}', "
+            f"Column Filters: {self.column_filters}."
+        )
         if not self.world:
             self.logger.warning("No world configured for AssetLoader.")
             self.signals.error_occurred.emit("No world configured for fetching assets.")
@@ -186,15 +195,19 @@ class AssetLoader(QRunnable):
                             self.logger.info(f"Applying ID filter (exact match): {filter_id}")
                             query = query.filter(FilePropertiesComponent.entity_id == filter_id)
                         except ValueError:
-                            self.logger.warning(f"ID filter '{self.column_filters['id']}' is not a valid integer. Applying as string 'like' filter.")
-                            query = query.filter(FilePropertiesComponent.entity_id.cast(str).ilike(f"%{self.column_filters['id']}%"))
+                            self.logger.warning(
+                                f"ID filter '{self.column_filters['id']}' is not a valid integer. Applying as string 'like' filter."
+                            )
+                            query = query.filter(
+                                FilePropertiesComponent.entity_id.cast(str).ilike(f"%{self.column_filters['id']}%")
+                            )
 
                     if "filename" in self.column_filters:
                         filter_filename = self.column_filters["filename"]
                         self.logger.info(f"Applying Filename column filter (ilike): {filter_filename}")
                         query = query.filter(FilePropertiesComponent.original_filename.ilike(f"%{filter_filename}%"))
 
-                    if "mime_type" in self.column_filters: # Key for filter input was 'mime_type'
+                    if "mime_type" in self.column_filters:  # Key for filter input was 'mime_type'
                         filter_mime = self.column_filters["mime_type"]
                         self.logger.info(f"Applying MIME Type column filter (ilike): {filter_mime}")
                         query = query.filter(FilePropertiesComponent.mime_type.ilike(f"%{filter_mime}%"))
@@ -227,6 +240,7 @@ class ComponentFetcherSignals(QObject):
     - error_occurred: Emitted when an error occurs.
                       Payload: error_message (str), asset_id (int).
     """
+
     components_ready = pyqtSignal(dict, int, str)
     error_occurred = pyqtSignal(str, int)
 
@@ -235,6 +249,7 @@ class ComponentFetcher(QRunnable):
     """
     Worker runnable to fetch all components for a given asset_id from the database.
     """
+
     def __init__(self, world: World, asset_id: int):
         super().__init__()
         self.world = world
@@ -253,7 +268,7 @@ class ComponentFetcher(QRunnable):
         async def fetch_components_async():
             components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
             async with self.world.get_db_session() as session:
-                entity = await ecs_service.get_entity(session, self.asset_id) # Corrected: was async_get_entity
+                entity = await ecs_service.get_entity(session, self.asset_id)  # Corrected: was async_get_entity
                 if not entity:
                     # This case should perhaps be an error or specific signal
                     # For now, an empty components_data will be emitted.
@@ -264,7 +279,9 @@ class ComponentFetcher(QRunnable):
                 for comp_type_cls in REGISTERED_COMPONENT_TYPES:
                     comp_type_name = comp_type_cls.__name__
                     # Assuming ecs_service.get_components can be made async or there's an async version
-                    components = await ecs_service.get_components(session, self.asset_id, comp_type_cls) # Corrected: was async_get_components
+                    components = await ecs_service.get_components(
+                        session, self.asset_id, comp_type_cls
+                    )  # Corrected: was async_get_components
                     component_instances_data = []
                     if components:
                         for comp_instance in components:
@@ -288,12 +305,14 @@ class ComponentFetcher(QRunnable):
 
 class DbSetupWorkerSignals(QObject):
     """Signals for database setup worker."""
-    setup_complete = pyqtSignal(str) # world_name
-    setup_error = pyqtSignal(str, str) # world_name, error_message
+
+    setup_complete = pyqtSignal(str)  # world_name
+    setup_error = pyqtSignal(str, str)  # world_name, error_message
 
 
 class DbSetupWorker(QRunnable):
     """Worker to run create_db_and_tables for a world."""
+
     def __init__(self, world: World):
         super().__init__()
         self.world = world
@@ -316,14 +335,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"DAM UI - World: {current_world.name if current_world else 'No World Selected'}")
         self.setGeometry(100, 100, 800, 600)
 
-        self.thread_pool = QThreadPool() # For running worker tasks
+        self.thread_pool = QThreadPool()  # For running worker tasks
         # print(f"Max QThreadPool threads: {self.thread_pool.maxThreadCount()}")
-
 
         self._create_menus()
         self._create_status_bar()
         self._create_central_widget()
-
 
     def _create_menus(self):
         menu_bar = self.menuBar()
@@ -497,7 +514,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No World", "No current world is active to set up its database.")
             return
 
-        world_name_for_setup = self.current_world.name # Capture before potential thread issues
+        world_name_for_setup = self.current_world.name  # Capture before potential thread issues
 
         reply = QMessageBox.question(
             self,
@@ -524,9 +541,7 @@ class MainWindow(QMainWindow):
 
     def _on_db_setup_complete(self, world_name: str):
         QApplication.restoreOverrideCursor()
-        QMessageBox.information(
-            self, "Database Setup Successful", f"Database setup complete for world '{world_name}'."
-        )
+        QMessageBox.information(self, "Database Setup Successful", f"Database setup complete for world '{world_name}'.")
         self.statusBar().showMessage(f"Database for '{world_name}' successfully set up.")
         self.load_assets()  # Refresh asset list
 
@@ -537,7 +552,6 @@ class MainWindow(QMainWindow):
         )
         self.statusBar().showMessage(f"Database setup for '{world_name}' failed: {error_message.splitlines()[0]}", 5000)
         # No finally block needed here for cursor as it's handled in each slot.
-
 
     def open_transcode_asset_dialog(self):
         if not self.current_world:
@@ -552,12 +566,16 @@ class MainWindow(QMainWindow):
         # selectedItems() can return multiple items from the same row if multiple columns are selected.
         # We need the row index and then get the specific items.
         # Assuming single row selection due to QAbstractItemView.SelectionBehavior.SelectRows
-        if not self.asset_table_widget.selectionModel().hasSelection(): # Should be caught by selected_table_items check too
-             QMessageBox.information(self, "No Asset Selected", "Please select an asset row from the table to transcode.")
-             return
+        if (
+            not self.asset_table_widget.selectionModel().hasSelection()
+        ):  # Should be caught by selected_table_items check too
+            QMessageBox.information(
+                self, "No Asset Selected", "Please select an asset row from the table to transcode."
+            )
+            return
 
-        selected_row = self.asset_table_widget.currentRow() # Gets the current row index
-        if selected_row < 0: # No row selected or invalid
+        selected_row = self.asset_table_widget.currentRow()  # Gets the current row index
+        if selected_row < 0:  # No row selected or invalid
             QMessageBox.information(self, "No Asset Selected", "Please select a valid asset row.")
             return
 
@@ -566,32 +584,31 @@ class MainWindow(QMainWindow):
         # QTableWidget's selectionModel().selectedRows() gives QModelIndexList of first column of selected rows.
         selected_rows_indices = self.asset_table_widget.selectionModel().selectedRows()
         if len(selected_rows_indices) > 1:
-            QMessageBox.information(self, "Multiple Assets Selected", "Please select only one asset to transcode at a time.")
+            QMessageBox.information(
+                self, "Multiple Assets Selected", "Please select only one asset to transcode at a time."
+            )
             return
 
         # Get entity_id from Column 0 (ID) of the selected row
         id_item = self.asset_table_widget.item(selected_row, 0)
-        if not id_item: # Should not happen if row is valid and populated
+        if not id_item:  # Should not happen if row is valid and populated
             QMessageBox.warning(self, "Error", "Could not retrieve asset ID from selected row.")
             return
         entity_id = id_item.data(Qt.ItemDataRole.UserRole)
 
         # Get original_filename from Column 1 (Filename)
         filename_item = self.asset_table_widget.item(selected_row, 1)
-        if not filename_item: # Should not happen
+        if not filename_item:  # Should not happen
             QMessageBox.warning(self, "Error", "Could not retrieve asset filename from selected row.")
             return
         original_filename = filename_item.text()
 
-        if entity_id is None: # Should be caught by earlier checks too
+        if entity_id is None:  # Should be caught by earlier checks too
             QMessageBox.warning(self, "Error", "Selected asset has no valid ID.")
             return
 
         dialog = TranscodeAssetDialog(
-            world=self.current_world,
-            entity_id=entity_id,
-            entity_filename=original_filename,
-            parent=self
+            world=self.current_world, entity_id=entity_id, entity_filename=original_filename, parent=self
         )
         dialog.exec()
         # After dialog closes, we might want to refresh asset list if new assets were created
@@ -607,7 +624,6 @@ class MainWindow(QMainWindow):
         # Results are shown in a subsequent dialog from EvaluationSetupDialog itself.
         # May need to refresh assets if evaluation creates new components/entities.
         # self.load_assets()
-
 
     def _create_status_bar(self):
         self.statusBar().showMessage("Ready")
@@ -646,7 +662,7 @@ class MainWindow(QMainWindow):
 
         # Column Filters
         filter_layout = QHBoxLayout()
-        self.column_filter_inputs: Dict[str, QLineEdit] = {} # To store filter QLineEdits
+        self.column_filter_inputs: Dict[str, QLineEdit] = {}  # To store filter QLineEdits
 
         id_filter_input = QLineEdit()
         id_filter_input.setPlaceholderText("Filter ID...")
@@ -679,27 +695,26 @@ class MainWindow(QMainWindow):
 
         # Adjust column widths - e.g., make filename stretch
         header = self.asset_table_widget.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents) # ID column
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch) # Filename column
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents) # MIME Type column
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID column
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Filename column
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # MIME Type column
 
         self.asset_table_widget.itemDoubleClicked.connect(self._on_asset_table_item_double_clicked)
         main_layout.addWidget(self.asset_table_widget)
 
-
         self.setCentralWidget(central_widget)
-        self.populate_mime_type_filter() # Initial population will now trigger load_assets on completion/error
+        self.populate_mime_type_filter()  # Initial population will now trigger load_assets on completion/error
 
     def _clear_filters_and_refresh(self):
         self.search_input.clear()
-        self.mime_type_filter.setCurrentIndex(0) # Reset to "All Types"
+        self.mime_type_filter.setCurrentIndex(0)  # Reset to "All Types"
         for filter_input in self.column_filter_inputs.values():
             filter_input.blockSignals(True)
             filter_input.clear()
             filter_input.blockSignals(False)
 
         # self.populate_mime_type_filter() # This is for repopulating the dropdown, not strictly needed for clearing filters
-        self.load_assets() # This will now pick up all cleared filters
+        self.load_assets()  # This will now pick up all cleared filters
 
     def _trigger_filter_assets(self):
         """Slot called when any column filter QLineEdit's textChanged signal is emitted."""
@@ -730,20 +745,19 @@ class MainWindow(QMainWindow):
         Slot to receive successfully fetched MIME types from the worker.
         """
         self._update_mime_type_filter_ui(mime_types)
-        self.statusBar().showMessage("MIME type filter populated.", 3000) # Disappears after 3s
+        self.statusBar().showMessage("MIME type filter populated.", 3000)  # Disappears after 3s
         self.mime_type_filter.setEnabled(True)
-        self.load_assets() # Load assets after MIME types are fetched
+        self.load_assets()  # Load assets after MIME types are fetched
 
     def _on_mime_type_fetch_error(self, error_message: str):
         """
         Slot to receive error messages from the MIME type fetcher worker.
         """
-        self._update_mime_type_filter_ui([], error_message=error_message) # Pass empty list on error
-        self.statusBar().showMessage(f"MIME filter error: {error_message}", 5000) # Disappears after 5s
+        self._update_mime_type_filter_ui([], error_message=error_message)  # Pass empty list on error
+        self.statusBar().showMessage(f"MIME filter error: {error_message}", 5000)  # Disappears after 5s
         self.mime_type_filter.setEnabled(True)
         QMessageBox.warning(self, "Filter Error", f"Could not populate MIME type filter:\n{error_message}")
-        self.load_assets() # Still attempt to load assets even if MIME types failed
-
+        self.load_assets()  # Still attempt to load assets even if MIME types failed
 
     def _update_mime_type_filter_ui(self, mime_types: TypingList[str], error_message: Optional[str] = None):
         """
@@ -756,7 +770,7 @@ class MainWindow(QMainWindow):
         self.mime_type_filter.addItem("All Types", "")
 
         if mime_types:
-            for mime_type in sorted(list(set(mime_types))): # Ensure unique and sorted
+            for mime_type in sorted(list(set(mime_types))):  # Ensure unique and sorted
                 if mime_type:
                     self.mime_type_filter.addItem(mime_type, mime_type)
 
@@ -764,18 +778,18 @@ class MainWindow(QMainWindow):
         if index_to_set != -1:
             self.mime_type_filter.setCurrentIndex(index_to_set)
         else:
-            self.mime_type_filter.setCurrentIndex(0) # Default to "All Types"
+            self.mime_type_filter.setCurrentIndex(0)  # Default to "All Types"
 
         self.mime_type_filter.blockSignals(False)
-        self.mime_type_filter.setEnabled(True) # Re-enable after update
+        self.mime_type_filter.setEnabled(True)  # Re-enable after update
 
-        if error_message: # If there was an error, it's already logged/shown by caller
+        if error_message:  # If there was an error, it's already logged/shown by caller
             pass
 
     def _set_asset_controls_enabled(self, enabled: bool):
         """Helper to enable/disable asset loading related controls."""
         self.search_input.setEnabled(enabled)
-        self.mime_type_filter.setEnabled(enabled) # This might conflict with MimeTypeFetcher's own enabling/disabling
+        self.mime_type_filter.setEnabled(enabled)  # This might conflict with MimeTypeFetcher's own enabling/disabling
         self.refresh_button.setEnabled(enabled)
         # Consider also disabling asset_list_widget during load if it's too interactive
 
@@ -790,21 +804,24 @@ class MainWindow(QMainWindow):
         selected_mime_type = self.mime_type_filter.currentData()
 
         # Column-specific filters from their QLineEdits
-        column_filters = {key: input_widget.text().strip()
-                          for key, input_widget in self.column_filter_inputs.items()
-                          if input_widget.text().strip()}
-
+        column_filters = {
+            key: input_widget.text().strip()
+            for key, input_widget in self.column_filter_inputs.items()
+            if input_widget.text().strip()
+        }
 
         status_message_parts = ["Loading assets"]
-        if search_term: status_message_parts.append(f"searching for '{search_term}' (global)")
-        if selected_mime_type: status_message_parts.append(f"typed '{selected_mime_type}'")
+        if search_term:
+            status_message_parts.append(f"searching for '{search_term}' (global)")
+        if selected_mime_type:
+            status_message_parts.append(f"typed '{selected_mime_type}'")
         if column_filters:
-            col_filter_str = ", ".join([f"{k}:'{v}'" for k,v in column_filters.items()])
+            col_filter_str = ", ".join([f"{k}:'{v}'" for k, v in column_filters.items()])
             status_message_parts.append(f"column filters ({col_filter_str})")
 
         self.statusBar().showMessage("... ".join(status_message_parts) + "...")
 
-        self.asset_table_widget.setRowCount(0) # Changed from asset_list_widget
+        self.asset_table_widget.setRowCount(0)  # Changed from asset_list_widget
         self._set_asset_controls_enabled(False)
 
         if not self.current_world:
@@ -815,9 +832,9 @@ class MainWindow(QMainWindow):
         # Pass all filters to AssetLoader
         asset_loader = AssetLoader(
             world=self.current_world,
-            search_term=search_term, # Global search
-            selected_mime_type=selected_mime_type, # MIME type from combobox
-            column_filters=column_filters # New per-column filters
+            search_term=search_term,  # Global search
+            selected_mime_type=selected_mime_type,  # MIME type from combobox
+            column_filters=column_filters,  # New per-column filters
         )
         asset_loader.signals.assets_ready.connect(self._on_assets_fetched)
         asset_loader.signals.error_occurred.connect(self._on_asset_fetch_error)
@@ -828,8 +845,8 @@ class MainWindow(QMainWindow):
         Slot to receive successfully fetched assets from AssetLoader.
         Populates the asset table widget.
         """
-        self.asset_table_widget.setRowCount(0) # Clear previous rows
-        self.asset_table_widget.setSortingEnabled(False) # Disable sorting during population for performance
+        self.asset_table_widget.setRowCount(0)  # Clear previous rows
+        self.asset_table_widget.setSortingEnabled(False)  # Disable sorting during population for performance
 
         search_term = self.search_input.text().strip().lower()
         selected_mime_type = self.mime_type_filter.currentData()
@@ -838,8 +855,10 @@ class MainWindow(QMainWindow):
             message = "No assets found."
             if search_term or selected_mime_type:
                 message_parts = ["No assets found"]
-                if search_term: message_parts.append(f"matching '{search_term}'")
-                if selected_mime_type: message_parts.append(f"of type '{selected_mime_type}'")
+                if search_term:
+                    message_parts.append(f"matching '{search_term}'")
+                if selected_mime_type:
+                    message_parts.append(f"of type '{selected_mime_type}'")
                 message = " ".join(message_parts) + "."
             self.statusBar().showMessage(message)
             # Optionally, display this message in the table itself if it's empty
@@ -850,7 +869,7 @@ class MainWindow(QMainWindow):
 
                 # ID Item (Column 0)
                 id_item = QTableWidgetItem(str(entity_id))
-                id_item.setData(Qt.ItemDataRole.UserRole, entity_id) # Store entity_id for later use
+                id_item.setData(Qt.ItemDataRole.UserRole, entity_id)  # Store entity_id for later use
                 # For numeric sorting, ensure data is set appropriately or use custom item
                 # Qt by default might sort numbers as strings if not handled.
                 # We can set data with a sort role, e.g. id_item.setData(Qt.ItemDataRole.UserRole + 1, entity_id)
@@ -869,43 +888,44 @@ class MainWindow(QMainWindow):
 
             num_found = len(assets_data)
             loaded_message_parts = [f"Loaded {num_found} asset{'s' if num_found != 1 else ''}"]
-            if search_term: loaded_message_parts.append(f"matching '{search_term}'")
-            if selected_mime_type: loaded_message_parts.append(f"of type '{selected_mime_type}'")
-            if self.current_world: loaded_message_parts.append(f"from world '{self.current_world.name}'.")
+            if search_term:
+                loaded_message_parts.append(f"matching '{search_term}'")
+            if selected_mime_type:
+                loaded_message_parts.append(f"of type '{selected_mime_type}'")
+            if self.current_world:
+                loaded_message_parts.append(f"from world '{self.current_world.name}'.")
             self.statusBar().showMessage(" ".join(loaded_message_parts))
 
-        self.asset_table_widget.setSortingEnabled(True) # Re-enable sorting
+        self.asset_table_widget.setSortingEnabled(True)  # Re-enable sorting
         self._set_asset_controls_enabled(True)
         # Ensure mime_type_filter is specifically re-enabled if MimeTypeFetcher is also done
         # This can be tricky if both run concurrently. A simple solution is that both enable it.
-        if not self.mime_type_filter.isEnabled(): # Check if MimeTypeFetcher is still running
-             if self.thread_pool.activeThreadCount() == 0 : # A bit of a guess, better to have specific flags
-                  self.mime_type_filter.setEnabled(True)
+        if not self.mime_type_filter.isEnabled():  # Check if MimeTypeFetcher is still running
+            if self.thread_pool.activeThreadCount() == 0:  # A bit of a guess, better to have specific flags
+                self.mime_type_filter.setEnabled(True)
         # A better approach for mime_type_filter might be a separate flag or counter for disabling operations.
 
     def _on_asset_fetch_error(self, error_message: str):
         """
         Slot to receive error messages from the AssetLoader worker.
         """
-        self.asset_table_widget.setRowCount(0) # Clear previous items (use setRowCount for table)
+        self.asset_table_widget.setRowCount(0)  # Clear previous items (use setRowCount for table)
         # self.asset_table_widget.addItem(f"Error loading assets: {error_message.splitlines()[0]}") # Can't addItem to table
         self.statusBar().showMessage(f"Error loading assets: {error_message}", 5000)
-        QMessageBox.critical(
-            self, "Load Assets Error", f"Could not load assets:\n{error_message}"
-        )
+        QMessageBox.critical(self, "Load Assets Error", f"Could not load assets:\n{error_message}")
         self._set_asset_controls_enabled(True)
         # Similar logic for mime_type_filter re-enabling as in _on_assets_fetched
         if not self.mime_type_filter.isEnabled():
-             if self.thread_pool.activeThreadCount() == 0 :
-                  self.mime_type_filter.setEnabled(True)
+            if self.thread_pool.activeThreadCount() == 0:
+                self.mime_type_filter.setEnabled(True)
 
     def _on_asset_table_item_double_clicked(self, item: QTableWidgetItem):
         """Handles double-click on an item in the asset table."""
-        if not item: # Should not happen if connected to itemDoubleClicked
+        if not item:  # Should not happen if connected to itemDoubleClicked
             return
 
         row = item.row()
-        id_item = self.asset_table_widget.item(row, 0) # ID is in column 0
+        id_item = self.asset_table_widget.item(row, 0)  # ID is in column 0
 
         if not id_item:
             QMessageBox.warning(self, "Error", "Could not identify asset from double click.")
@@ -933,7 +953,7 @@ class MainWindow(QMainWindow):
         Slot to receive successfully fetched components from ComponentFetcher.
         Shows the ComponentViewerDialog.
         """
-        if not components_data: # Or if a specific error like "not found" was signaled differently
+        if not components_data:  # Or if a specific error like "not found" was signaled differently
             self.statusBar().showMessage(f"No components found for Entity ID: {asset_id}.")
             # Optionally show a QMessageBox.information here
         else:
@@ -945,7 +965,6 @@ class MainWindow(QMainWindow):
         dialog.exec()
         # Clear status bar after dialog is closed or set to a default message
         self.statusBar().showMessage("Ready", 2000)
-
 
     def _on_component_fetch_error(self, error_message: str, asset_id: int):
         """
@@ -968,7 +987,7 @@ class MainWindow(QMainWindow):
         # Set a timeout (e.g., 5000ms) to prevent indefinite blocking if a task hangs.
         # waitForDone returns true if all tasks completed; false if it timed out.
         self.statusBar().showMessage("Shutting down worker threads, please wait...")
-        QApplication.processEvents() # Process events to update status bar immediately
+        QApplication.processEvents()  # Process events to update status bar immediately
 
         if not self.thread_pool.waitForDone(5000):
             # print("Worker threads did not finish in time. Some tasks may be incomplete.") # For debugging
@@ -977,16 +996,19 @@ class MainWindow(QMainWindow):
             # but QThreadPool doesn't offer direct cancellation of QRunnables.
             # The runnables themselves would need to support interruption.
             # For now, we just accept the event and let Qt proceed with closing.
-            QMessageBox.warning(self, "Shutdown Warning",
-                                "Some background tasks did not finish quickly.\n"
-                                "The application will now close. If issues persist, please restart.")
+            QMessageBox.warning(
+                self,
+                "Shutdown Warning",
+                "Some background tasks did not finish quickly.\n"
+                "The application will now close. If issues persist, please restart.",
+            )
         else:
             # print("All worker threads finished.") # For debugging
             pass
 
         self.statusBar().showMessage("Exiting...")
-        QApplication.processEvents() # Ensure this message is shown
-        super().closeEvent(event) # Proceed with closing the window
+        QApplication.processEvents()  # Ensure this message is shown
+        super().closeEvent(event)  # Proceed with closing the window
 
 
 if __name__ == "__main__":
@@ -1051,9 +1073,11 @@ if __name__ == "__main__":
     #         print(f"Standalone: Error initializing default world: {e}")
 
     # Setup logging for standalone UI run
-    from dam.core.logging_config import setup_logging # Moved import here
-    import logging # Ensure logging is imported
-    setup_logging(level=logging.INFO) # Or DEBUG for more verbosity
+    import logging  # Ensure logging is imported
+
+    from dam.core.logging_config import setup_logging  # Moved import here
+
+    setup_logging(level=logging.INFO)  # Or DEBUG for more verbosity
 
     window = MainWindow(current_world=active_world)  # Pass active_world (could be None)
     window.show()

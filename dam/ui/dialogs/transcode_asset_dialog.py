@@ -1,8 +1,7 @@
 import asyncio
-import uuid
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -17,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from dam.core.world import World
+
 # Assume TranscodeProfileComponent exists and can be queried for names/IDs
 # from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 # Assume TranscodeService exists for handling the transcoding operation
@@ -33,18 +33,20 @@ DUMMY_PROFILES = {
 
 class TranscodeWorker(QThread):
     finished = pyqtSignal(bool, str)  # success (bool), message (str)
-    progress = pyqtSignal(int, str) # value (int), message (str)
+    progress = pyqtSignal(int, str)  # value (int), message (str)
 
     def __init__(self, world: World, entity_id: int, profile_id: str, profile_name: str):
         super().__init__()
         self.world = world
         self.entity_id = entity_id
         self.profile_id = profile_id
-        self.profile_name = profile_name # For messages
+        self.profile_name = profile_name  # For messages
 
     def run(self):
         try:
-            self.progress.emit(0, f"Starting transcode for Entity ID {self.entity_id} with profile '{self.profile_name}'...")
+            self.progress.emit(
+                0, f"Starting transcode for Entity ID {self.entity_id} with profile '{self.profile_name}'..."
+            )
 
             # TODO: Replace with actual call to TranscodeService or event dispatch
             # For example:
@@ -66,7 +68,7 @@ class TranscodeWorker(QThread):
                 if self.isInterruptionRequested():
                     self.finished.emit(False, "Transcoding cancelled.")
                     return
-                QThread.msleep(50) # Simulate some processing time
+                QThread.msleep(50)  # Simulate some processing time
                 self.progress.emit(i, f"Transcoding... {i}%")
 
             # Simulate success
@@ -99,7 +101,7 @@ class TranscodeAssetDialog(QDialog):
         # TODO: Populate with actual transcode profiles from the system/world
         # For now, using dummy profiles
         for name, profile_id in DUMMY_PROFILES.items():
-            self.profile_combo.addItem(name, profile_id) # Store ID as item data
+            self.profile_combo.addItem(name, profile_id)  # Store ID as item data
 
         if not DUMMY_PROFILES:
             self.profile_combo.addItem("No transcode profiles available.")
@@ -110,21 +112,20 @@ class TranscodeAssetDialog(QDialog):
         layout.addLayout(form_layout)
 
         self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False) # Show when transcoding starts
+        self.progress_bar.setVisible(False)  # Show when transcoding starts
         layout.addWidget(self.progress_bar)
 
         self.status_label = QLabel("")
         self.status_label.setVisible(False)
         layout.addWidget(self.status_label)
 
-
         button_layout = QHBoxLayout()
         self.start_button = QPushButton("Start Transcode")
         self.start_button.setEnabled(bool(DUMMY_PROFILES))
         self.start_button.clicked.connect(self.start_transcoding)
 
-        self.cancel_button = QPushButton("Cancel Operation") # Becomes cancel during operation
-        self.cancel_button.clicked.connect(self.cancel_or_close) # Default is close
+        self.cancel_button = QPushButton("Cancel Operation")  # Becomes cancel during operation
+        self.cancel_button.clicked.connect(self.cancel_or_close)  # Default is close
 
         button_layout.addStretch()
         button_layout.addWidget(self.start_button)
@@ -135,7 +136,7 @@ class TranscodeAssetDialog(QDialog):
         self.is_transcoding = False
 
     def start_transcoding(self):
-        if self.is_transcoding: # Should not happen if button disabled
+        if self.is_transcoding:  # Should not happen if button disabled
             return
 
         selected_profile_name = self.profile_combo.currentText()
@@ -158,7 +159,7 @@ class TranscodeAssetDialog(QDialog):
             world=self.world,
             entity_id=self.entity_id,
             profile_id=selected_profile_id,
-            profile_name=selected_profile_name
+            profile_name=selected_profile_name,
         )
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.on_transcoding_finished)
@@ -171,10 +172,10 @@ class TranscodeAssetDialog(QDialog):
     def on_transcoding_finished(self, success: bool, message: str):
         self.is_transcoding = False
         self.start_button.setEnabled(True)
-        self.profile_combo.setEnabled(True) # Re-enable profile selection
-        self.cancel_button.setText("Close") # Revert to "Close"
-        self.progress_bar.setVisible(False) # Hide progress bar on completion or error
-        self.status_label.setText(message) # Show final status
+        self.profile_combo.setEnabled(True)  # Re-enable profile selection
+        self.cancel_button.setText("Close")  # Revert to "Close"
+        self.progress_bar.setVisible(False)  # Hide progress bar on completion or error
+        self.status_label.setText(message)  # Show final status
 
         if success:
             QMessageBox.information(self, "Transcode Complete", message)
@@ -184,30 +185,36 @@ class TranscodeAssetDialog(QDialog):
         else:
             QMessageBox.critical(self, "Transcode Error", message)
 
-        self.worker = None # Clean up worker
+        self.worker = None  # Clean up worker
 
     def cancel_or_close(self):
         if self.is_transcoding and self.worker:
             if self.worker.isRunning():
-                reply = QMessageBox.question(self, "Confirm Cancel",
-                                             "Are you sure you want to cancel the ongoing transcoding operation?",
-                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                             QMessageBox.StandardButton.No)
+                reply = QMessageBox.question(
+                    self,
+                    "Confirm Cancel",
+                    "Are you sure you want to cancel the ongoing transcoding operation?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
                 if reply == QMessageBox.StandardButton.Yes:
                     self.worker.requestInterruption()
                     self.status_label.setText("Cancelling transcoding operation...")
                     # Actual cancellation and cleanup happens in on_transcoding_finished
                     # or when the worker thread acknowledges interruption.
         else:
-            self.reject() # Close the dialog if not transcoding
+            self.reject()  # Close the dialog if not transcoding
 
     def closeEvent(self, event):
         """Handle attempts to close the dialog while transcoding."""
         if self.is_transcoding and self.worker and self.worker.isRunning():
-            reply = QMessageBox.question(self, "Confirm Exit",
-                                         "Transcoding is in progress. Are you sure you want to exit?",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                         QMessageBox.StandardButton.No)
+            reply = QMessageBox.question(
+                self,
+                "Confirm Exit",
+                "Transcoding is in progress. Are you sure you want to exit?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
             if reply == QMessageBox.StandardButton.Yes:
                 self.worker.requestInterruption()
                 event.accept()
@@ -215,6 +222,7 @@ class TranscodeAssetDialog(QDialog):
                 event.ignore()
         else:
             event.accept()
+
 
 if __name__ == "__main__":
     app = QApplication([])
@@ -225,7 +233,7 @@ if __name__ == "__main__":
             self.name = name
             print(f"MockWorld '{self.name}' initialized for TranscodeAssetDialog.")
 
-        async def dispatch_event(self, event): # If using event-based system
+        async def dispatch_event(self, event):  # If using event-based system
             print(f"MockWorld: Event dispatched: {type(event).__name__}")
             await asyncio.sleep(0.1)
             # Simulate event processing, set event.result or event.error
@@ -238,9 +246,7 @@ if __name__ == "__main__":
     test_entity_filename = "example_asset.jpg"
 
     dialog = TranscodeAssetDialog(
-        world=mock_world_instance,
-        entity_id=test_entity_id,
-        entity_filename=test_entity_filename
+        world=mock_world_instance, entity_id=test_entity_id, entity_filename=test_entity_filename
     )
     dialog.show()
     app.exec()
