@@ -102,6 +102,11 @@ def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
     mock_transcode_worker_instance = mocker.MagicMock(spec=TranscodeWorker)
     mock_transcode_worker_class = mocker.patch("dam.ui.dialogs.transcode_asset_dialog.TranscodeWorker", return_value=mock_transcode_worker_instance)
 
+    # Mock QMessageBoxes that might be called by the dialog
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.No) # Default to No for cancel confirmation
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
+
     dialog = TranscodeAssetDialog(world=mock_world, entity_id=entity_id, entity_filename=entity_filename)
     qtbot.addWidget(dialog)
 
@@ -162,6 +167,11 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
     # Mock EvaluationResultDialog to check if it's called
     mock_eval_result_dialog_class = mocker.patch("dam.ui.dialogs.evaluation_setup_dialog.EvaluationResultDialog")
+
+    # Mock QMessageBoxes
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.No)
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information") # Though not directly used by EvalSetup, good for consistency
 
     dialog = EvaluationSetupDialog(world=mock_world)
     qtbot.addWidget(dialog)
@@ -321,6 +331,10 @@ def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # Mock ComponentViewerDialog
     mock_component_viewer_class = mocker.patch("dam.ui.dialogs.find_asset_by_hash_dialog.ComponentViewerDialog")
 
+    # Mock QMessageBoxes that might be called by the dialog
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
+
     dialog = FindAssetByHashDialog(current_world=mock_world)
     qtbot.addWidget(dialog)
 
@@ -382,6 +396,10 @@ def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_
     mock_dispatch = mocker.async_stub("dispatch_event_async_stub")
     mock_world.dispatch_event = mock_dispatch
 
+    # Mock QMessageBoxes
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
+
     dialog = FindSimilarImagesDialog(current_world=mock_world)
     qtbot.addWidget(dialog)
 
@@ -437,6 +455,9 @@ def test_export_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
 
     # Mock QMessageBox.question to always return Yes for overwrite confirmation
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.Yes)
+    # Mock other QMessageBoxes that might be shown by worker completion
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
 
     dialog.start_export()
 
@@ -457,6 +478,9 @@ def test_import_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     dialog.merge_checkbox.setChecked(True)
 
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.Yes)
+    # Mock other QMessageBoxes that might be shown by worker completion
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
 
     dialog.start_import()
 
@@ -481,6 +505,9 @@ def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
     dialog.source_world_combo.setCurrentText("source_world_beta")
 
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.Yes)
+    # Mock other QMessageBoxes that might be shown by worker completion
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
 
     dialog.start_merge()
 
@@ -520,6 +547,9 @@ def test_split_world_dialog_basic(qtbot: QtBot, mock_world, mocker):
     dialog.delete_from_source_checkbox.setChecked(True)
 
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=qt_api.QtWidgets.QMessageBox.StandardButton.Yes)
+    # Mock other QMessageBoxes that might be shown by worker completion
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
 
     dialog.start_split()
 
