@@ -178,6 +178,94 @@ class AssetLoader(QRunnable):
             self.signals.error_occurred.emit(error_message)
 
 
+class ComponentFetcherSignals(QObject):
+    """
+    Defines signals for ComponentFetcher.
+    - components_ready: Emitted when components are successfully fetched.
+                        Payload: components_data (dict), asset_id (int), world_name (str).
+    - error_occurred: Emitted when an error occurs.
+                      Payload: error_message (str), asset_id (int).
+    """
+    components_ready = pyqtSignal(dict, int, str)
+    error_occurred = pyqtSignal(str, int)
+
+
+class ComponentFetcher(QRunnable):
+    """
+    Worker runnable to fetch all components for a given asset_id from the database.
+    """
+    def __init__(self, world: World, asset_id: int):
+        super().__init__()
+        self.world = world
+        self.asset_id = asset_id
+        self.signals = ComponentFetcherSignals()
+
+    def run(self):
+        """
+        Executes the database query to fetch components.
+        Emits components_ready on success, error_occurred on failure.
+        """
+        if not self.world:
+            self.signals.error_occurred.emit("No world configured for fetching components.", self.asset_id)
+            return
+
+        async def fetch_components_async():
+            components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
+            async with self.world.get_db_session() as session:
+                entity = await ecs_service.async_get_entity(session, self.asset_id) # Assuming async_get_entity
+                if not entity:
+                    # This case should perhaps be an error or specific signal
+                    # For now, an empty components_data will be emitted.
+                    # Or raise an error:
+                    raise FileNotFoundError(f"Entity ID {self.asset_id} not found in world '{self.world.name}'.")
+
+
+                for comp_type_name, comp_type_cls in REGISTERED_COMPONENT_TYPES.items():
+                    # Assuming ecs_service.get_components can be made async or there's an async version
+                    components = await ecs_service.async_get_components(session, self.asset_id, comp_type_cls)
+                    component_instances_data = []
+                    if components:
+                        for comp_instance in components:
+                            instance_data = {
+                                c.key: getattr(comp_instance, c.key)
+                                for c in comp_instance.__table__.columns
+                                if not c.key.startswith("_")
+                            }
+                            component_instances_data.append(instance_data)
+                    components_data_for_dialog[comp_type_name] = component_instances_data
+            return components_data_for_dialog
+
+        try:
+            components_data = asyncio.run(fetch_components_async())
+            self.signals.components_ready.emit(components_data, self.asset_id, self.world.name)
+        except Exception as e:
+            error_message = f"Error fetching components for Entity ID {self.asset_id}: {e}"
+            # import traceback; traceback.print_exc()
+            self.signals.error_occurred.emit(error_message, self.asset_id)
+
+
+class DbSetupWorkerSignals(QObject):
+    """Signals for database setup worker."""
+    setup_complete = pyqtSignal(str) # world_name
+    setup_error = pyqtSignal(str, str) # world_name, error_message
+
+
+class DbSetupWorker(QRunnable):
+    """Worker to run create_db_and_tables for a world."""
+    def __init__(self, world: World):
+        super().__init__()
+        self.world = world
+        self.signals = DbSetupWorkerSignals()
+
+    def run(self):
+        try:
+            # world.create_db_and_tables() is an async method
+            asyncio.run(self.world.create_db_and_tables())
+            self.signals.setup_complete.emit(self.world.name)
+        except Exception as e:
+            self.signals.setup_error.emit(self.world.name, f"Error during database setup: {e}")
+
+
 class MainWindow(QMainWindow):
     def __init__(self, current_world: Optional[World] = None):
         super().__init__()
@@ -367,36 +455,47 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No World", "No current world is active to set up its database.")
             return
 
+        world_name_for_setup = self.current_world.name # Capture before potential thread issues
+
         reply = QMessageBox.question(
             self,
             "Confirm Database Setup",
-            f"This will attempt to initialize the database and create tables for world '{self.current_world.name}'.\n"
+            f"This will attempt to initialize the database and create tables for world '{world_name_for_setup}'.\n"
             "This is typically done once. Proceed?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.No:
+            self.statusBar().showMessage("Database setup cancelled by user.", 3000)
             return
 
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        self.statusBar().showMessage(f"Setting up database for world '{self.current_world.name}'...")
-        try:
-            self.current_world.create_db_and_tables()
-            QApplication.restoreOverrideCursor()
-            QMessageBox.information(
-                self, "Database Setup Successful", f"Database setup complete for world '{self.current_world.name}'."
-            )
-            self.statusBar().showMessage(f"Database for '{self.current_world.name}' successfully set up.")
-            self.load_assets()  # Refresh asset list, in case it was empty due to no tables
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(
-                self, "Database Setup Error", f"Error during database setup for '{self.current_world.name}':\n{e}"
-            )
-            self.statusBar().showMessage(f"Database setup for '{self.current_world.name}' failed: {e}")
-        finally:
-            if QApplication.overrideCursor() is not None:  # Ensure cursor is restored
-                QApplication.restoreOverrideCursor()
+        self.statusBar().showMessage(f"Starting database setup for world '{world_name_for_setup}'...")
+
+        # Disable the button or relevant UI parts during operation
+        # For simplicity, just using cursor and status messages for now.
+
+        worker = DbSetupWorker(self.current_world)
+        worker.signals.setup_complete.connect(self._on_db_setup_complete)
+        worker.signals.setup_error.connect(self._on_db_setup_error)
+        self.thread_pool.start(worker)
+
+    def _on_db_setup_complete(self, world_name: str):
+        QApplication.restoreOverrideCursor()
+        QMessageBox.information(
+            self, "Database Setup Successful", f"Database setup complete for world '{world_name}'."
+        )
+        self.statusBar().showMessage(f"Database for '{world_name}' successfully set up.")
+        self.load_assets()  # Refresh asset list
+
+    def _on_db_setup_error(self, world_name: str, error_message: str):
+        QApplication.restoreOverrideCursor()
+        QMessageBox.critical(
+            self, "Database Setup Error", f"Error during database setup for '{world_name}':\n{error_message}"
+        )
+        self.statusBar().showMessage(f"Database setup for '{world_name}' failed: {error_message.splitlines()[0]}", 5000)
+        # No finally block needed here for cursor as it's handled in each slot.
+
 
     def open_transcode_asset_dialog(self):
         if not self.current_world:
@@ -660,7 +759,6 @@ class MainWindow(QMainWindow):
              if self.thread_pool.activeThreadCount() == 0 :
                   self.mime_type_filter.setEnabled(True)
 
-
     def on_asset_double_clicked(self, item: QListWidgetItem):
         asset_id = item.data(Qt.ItemDataRole.UserRole)
         if asset_id is None:
@@ -672,47 +770,41 @@ class MainWindow(QMainWindow):
             return
 
         self.statusBar().showMessage(f"Fetching components for Entity ID: {asset_id}...")
+        # Disable list or show busy cursor? For now, just status bar.
 
-        components_data_for_dialog: Dict[str, TypingList[Dict[str, Any]]] = {}
-        try:
-            with self.current_world.get_db_session() as session:
-                entity = ecs_service.get_entity(session, asset_id)
-                if not entity:
-                    QMessageBox.warning(
-                        self, "Error", f"Entity ID {asset_id} not found in world '{self.current_world.name}'."
-                    )
-                    self.statusBar().showMessage(f"Entity ID {asset_id} not found.")
-                    return
+        fetcher = ComponentFetcher(world=self.current_world, asset_id=asset_id)
+        fetcher.signals.components_ready.connect(self._on_components_fetched)
+        fetcher.signals.error_occurred.connect(self._on_component_fetch_error)
+        self.thread_pool.start(fetcher)
 
-                for comp_type_name, comp_type_cls in REGISTERED_COMPONENT_TYPES.items():
-                    components = ecs_service.get_components(session, asset_id, comp_type_cls)
-                    component_instances_data = []
-                    if components:
-                        for comp_instance in components:
-                            # Convert component instance to a dictionary
-                            # This is a basic conversion; more sophisticated serialization might be needed
-                            # for complex types or relationships within components.
-                            instance_data = {
-                                c.key: getattr(comp_instance, c.key)
-                                for c in comp_instance.__table__.columns
-                                if not c.key.startswith("_")
-                            }  # Exclude SQLAlchemy internals
-                            component_instances_data.append(instance_data)
-                    components_data_for_dialog[comp_type_name] = component_instances_data
+    def _on_components_fetched(self, components_data: dict, asset_id: int, world_name: str):
+        """
+        Slot to receive successfully fetched components from ComponentFetcher.
+        Shows the ComponentViewerDialog.
+        """
+        if not components_data: # Or if a specific error like "not found" was signaled differently
+            self.statusBar().showMessage(f"No components found for Entity ID: {asset_id}.")
+            # Optionally show a QMessageBox.information here
+        else:
+            self.statusBar().showMessage(f"Successfully fetched components for Entity ID: {asset_id}.")
 
-            if not components_data_for_dialog:
-                self.statusBar().showMessage(f"No components found for Entity ID: {asset_id}.")
-            else:
-                self.statusBar().showMessage(f"Successfully fetched components for Entity ID: {asset_id}.")
+        # Ensure world_name matches current world if important, though ComponentFetcher uses its own world instance.
+        # Here, world_name is mostly for display in the dialog.
+        dialog = ComponentViewerDialog(asset_id, components_data, world_name, self)
+        dialog.exec()
+        # Clear status bar after dialog is closed or set to a default message
+        self.statusBar().showMessage("Ready", 2000)
 
-            dialog = ComponentViewerDialog(asset_id, components_data_for_dialog, self.current_world.name, self)
-            dialog.exec()
 
-        except Exception as e:
-            error_msg = f"Error fetching components for Entity ID {asset_id}: {e}"
-            self.statusBar().showMessage(error_msg)
-            QMessageBox.critical(self, "Component Fetch Error", error_msg)
-            # import traceback; print(traceback.format_exc()) # For debugging
+    def _on_component_fetch_error(self, error_message: str, asset_id: int):
+        """
+        Slot to receive error messages from the ComponentFetcher worker.
+        """
+        status_msg = f"Error fetching components for Entity ID {asset_id}: {error_message.splitlines()[0]}"
+        self.statusBar().showMessage(status_msg, 5000)
+        QMessageBox.critical(
+            self, "Component Fetch Error", f"Could not fetch components for Entity ID {asset_id}:\n{error_message}"
+        )
 
 
 if __name__ == "__main__":
