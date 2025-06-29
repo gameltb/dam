@@ -15,6 +15,10 @@ from dam.services import ecs_service as dam_ecs_service
 from dam.services import tag_service, transcode_service
 from dam.systems import evaluation_systems
 
+from .test_cli import (
+    test_environment,  # noqa: F401
+)
+
 # Assuming test_environment fixture can be imported or replicated.
 from .test_transcoding import _add_dummy_asset  # More specific helper
 

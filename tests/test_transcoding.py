@@ -23,7 +23,10 @@ from dam.services import file_operations, tag_service, transcode_service
 # Assuming test_environment fixture can be imported or replicated if needed.
 # For now, let's use the one from test_cli by importing it.
 # This might require adjustments if there are import cycles or if it's preferred to keep it separate.
-from .test_cli import _create_dummy_file
+from .test_cli import (
+    _create_dummy_file,
+    test_environment,  # noqa: F401
+)
 
 # Pytest marker for async tests
 pytestmark = pytest.mark.asyncio
