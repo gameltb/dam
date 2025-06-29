@@ -8,15 +8,11 @@ from typing import List as TypingList
 
 from PyQt6.QtWidgets import (
     QDialog,
-    QScrollArea,
-    QTextEdit,
-)
-from PyQt6.QtWidgets import (
-    QPushButton as QDialogButton,  # For dialog forms
-)
-from PyQt6.QtWidgets import (
+    QTreeWidget, QTreeWidgetItem, QHeaderView, # Added QTreeWidget, QTreeWidgetItem, QHeaderView
+    QPushButton as QDialogButton,
     QVBoxLayout as QDialogVBoxLayout,
 )
+# Removed QScrollArea, QTextEdit as they are no longer used.
 
 
 class ComponentViewerDialog(QDialog):
@@ -25,50 +21,83 @@ class ComponentViewerDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle(f"Components for Entity ID: {entity_id} (World: {world_name})")
-        self.setGeometry(200, 200, 700, 500)  # Adjusted size
+        self.setGeometry(200, 200, 700, 500)
 
-        layout = QDialogVBoxLayout(self)  # Use alias for clarity
+        layout = QDialogVBoxLayout(self)
 
-        self.text_edit = QTextEdit()
-        self.text_edit.setReadOnly(True)
+        self.tree_widget = QTreeWidget()
+        self.tree_widget.setColumnCount(2)
+        self.tree_widget.setHeaderLabels(["Property", "Value"])
 
-        formatted_text = f"Entity ID: {entity_id}\nWorld: {world_name}\n\nComponents:\n"
-        formatted_text += "=" * 20 + "\n\n"
+        # self._populate_tree(entity_id, components_data, world_name) # Call to populate will be in next step
 
-        if not components_data:
-            formatted_text += "No components found for this entity."
-        else:
-            for comp_name, comp_list in components_data.items():
-                formatted_text += f"--- {comp_name} ---\n"
-                if not comp_list:
-                    formatted_text += "  (No instances of this component type)\n"
-                else:
-                    for i, comp_data in enumerate(comp_list):
-                        # Pretty print each component's data
-                        try:
-                            # Exclude SQLAlchemy internal state if present
-                            data_to_print = {k: v for k, v in comp_data.items() if not k.startswith("_sa_")}
-                            formatted_text += json.dumps(
-                                data_to_print, indent=2, default=str
-                            )  # default=str for non-serializable
-                        except Exception as e:
-                            formatted_text += f"  Error formatting component: {e}\n"
-                            # Fallback to string representation if JSON fails
-                            formatted_text += str(comp_data)
-                        formatted_text += "\n"
-                        if i < len(comp_list) - 1:
-                            formatted_text += "-\n"  # Separator for multiple instances of same component type
-                formatted_text += "\n"
+        layout.addWidget(self.tree_widget)
 
-        self.text_edit.setText(formatted_text)
-
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(self.text_edit)
-        layout.addWidget(scroll_area)
-
-        close_button = QDialogButton("Close")  # Use alias
+        close_button = QDialogButton("Close")
         close_button.clicked.connect(self.accept)
         layout.addWidget(close_button)
 
         self.setLayout(layout)
+        self._populate_tree(entity_id, components_data, world_name) # Call to populate the tree
+
+    def _add_attribute_to_tree(self, parent_item: QTreeWidgetItem, key: str, value: Any):
+        """
+        Recursively adds attributes to the tree.
+        Handles nested dictionaries and lists.
+        """
+        if isinstance(value, dict):
+            dict_item = QTreeWidgetItem(parent_item, [str(key), "(dict)"])
+            for sub_key, sub_value in value.items():
+                self._add_attribute_to_tree(dict_item, sub_key, sub_value)
+        elif isinstance(value, list):
+            list_item = QTreeWidgetItem(parent_item, [str(key), f"(list: {len(value)} items)"])
+            for index, item_value in enumerate(value):
+                # For list items, use index as key or a generic "item" prefix
+                self._add_attribute_to_tree(list_item, f"[{index}]", item_value)
+        else:
+            QTreeWidgetItem(parent_item, [str(key), str(value)])
+
+    def _populate_tree(self, entity_id: int, components_data: Dict[str, TypingList[Dict[str, Any]]], world_name: str):
+        self.tree_widget.clear() # Clear any existing items
+
+        if not components_data:
+            QTreeWidgetItem(self.tree_widget, ["No components found for this entity."])
+            return
+
+        root_item_text = f"Entity ID: {entity_id} (World: {world_name})"
+        # Create a top-level item for the entity itself, spanning both columns for its main display
+        entity_root_item = QTreeWidgetItem(self.tree_widget, [root_item_text, ""])
+        # self.tree_widget.addTopLevelItem(entity_root_item) # Already added by parenting
+
+        for comp_type_name, instances_list in components_data.items():
+            comp_type_item = QTreeWidgetItem(entity_root_item, [comp_type_name, f"({len(instances_list)} instance(s))"])
+
+            if not instances_list:
+                QTreeWidgetItem(comp_type_item, ["(No instances loaded or available)"]) # Spanning for message
+            else:
+                for idx, instance_data_dict in enumerate(instances_list):
+                    # If only one instance, or no 'id' in instance_data, attributes go under comp_type_item directly.
+                    # Otherwise, create an intermediate item for the instance.
+                    parent_for_attributes = comp_type_item
+                    instance_id = instance_data_dict.get('id') # Assuming 'id' might be a key in component data
+
+                    if len(instances_list) > 1 or instance_id is not None:
+                        instance_label = f"Instance {instance_id if instance_id is not None else idx + 1}"
+                        instance_item = QTreeWidgetItem(comp_type_item, [instance_label, ""])
+                        parent_for_attributes = instance_item
+
+                    for attr_key, attr_value in instance_data_dict.items():
+                        self._add_attribute_to_tree(parent_for_attributes, attr_key, attr_value)
+
+        # Expand top-level items (Entity ID, Component Types)
+        # Expand the main entity item and its direct children (component types)
+        if entity_root_item: # Check if entity_root_item was created (i.e. components_data was not empty)
+            entity_root_item.setExpanded(True)
+            for i in range(entity_root_item.childCount()):
+                entity_root_item.child(i).setExpanded(True) # Expand component type items
+
+        # Adjust column widths
+        self.tree_widget.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree_widget.header().setStretchLastSection(True) # Make the 'Value' column stretch
+        # Alternatively, for more control if more columns are added:
+        # self.tree_widget.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)

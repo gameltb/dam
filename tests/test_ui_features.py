@@ -60,21 +60,78 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
         components_data=components_data_for_dialog,
         world_name=mock_world.name
     )
-    qtbot.addWidget(dialog) # Register dialog with qtbot for cleanup
+    qtbot.addWidget(dialog)
 
-    # The dialog formats components data as JSON string in a QTextEdit
-    # We need to check if the key EXIF fields are present in the text.
-    dialog_text = dialog.text_edit.toPlainText()
+    # Verify tree structure and content
+    tree = dialog.tree_widget
+    assert tree is not None
+    assert tree.columnCount() == 2
+    assert tree.headerItem().text(0) == "Property"
+    assert tree.headerItem().text(1) == "Value"
 
-    assert "ExiftoolMetadataComponent" in dialog_text # Corrected class name
-    assert "CameraCorp" in dialog_text
-    assert "DSLR-1000" in dialog_text
-    assert "2023:01:01 10:00:00" in dialog_text
+    # Check root item (Entity ID)
+    assert tree.topLevelItemCount() == 1
+    root_item = tree.topLevelItem(0)
+    assert f"Entity ID: {entity_id}" in root_item.text(0)
+    assert f"World: {mock_world.name}" in root_item.text(0)
 
-    # Test that the dialog can be created and doesn't crash without data
+    # Find ExiftoolMetadataComponent type node
+    exif_type_item = None
+    for i in range(root_item.childCount()):
+        child = root_item.child(i)
+        if child.text(0) == "ExiftoolMetadataComponent":
+            exif_type_item = child
+            break
+    assert exif_type_item is not None, "ExiftoolMetadataComponent type node not found"
+    assert exif_type_item.isExpanded(), "ExiftoolMetadataComponent type node should be expanded"
+
+    # ExiftoolMetadataComponent should have one instance, attributes are direct children
+    # Or, if there's an "Instance X" node, attributes are under that.
+    # Current _populate_tree logic: if 1 instance, attributes are under type_item.
+    # The instance_data_dict itself has 'entity_id' and 'raw_exif_json'.
+
+    raw_exif_json_item = None
+    entity_id_attr_item = None # This is the entity_id attribute of the component itself
+
+    # Attributes of the component instance are children of exif_type_item (or an instance node)
+    # Based on current _populate_tree for single instance, parent_for_attributes is comp_type_item
+    parent_of_attributes = exif_type_item
+
+    for i in range(parent_of_attributes.childCount()):
+        attr_item = parent_of_attributes.child(i)
+        if attr_item.text(0) == "raw_exif_json":
+            raw_exif_json_item = attr_item
+        elif attr_item.text(0) == "entity_id": # This is the component's own entity_id attribute
+             entity_id_attr_item = attr_item
+
+
+    assert raw_exif_json_item is not None, "'raw_exif_json' attribute not found"
+    assert raw_exif_json_item.text(1) == "(dict)", "raw_exif_json should be shown as (dict)"
+    assert entity_id_attr_item is not None, "component's 'entity_id' attribute not found"
+    assert entity_id_attr_item.text(1) == str(entity_id)
+
+
+    # Check for nested EXIF data under raw_exif_json_item
+    make_item, model_item, datetime_item = None, None, None
+    for i in range(raw_exif_json_item.childCount()):
+        child = raw_exif_json_item.child(i)
+        if child.text(0) == "Make" and child.text(1) == "CameraCorp":
+            make_item = child
+        elif child.text(0) == "Model" and child.text(1) == "DSLR-1000":
+            model_item = child
+        elif child.text(0) == "DateTimeOriginal" and child.text(1) == "2023:01:01 10:00:00":
+            datetime_item = child
+
+    assert make_item is not None, "EXIF 'Make' not found or incorrect"
+    assert model_item is not None, "EXIF 'Model' not found or incorrect"
+    assert datetime_item is not None, "EXIF 'DateTimeOriginal' not found or incorrect"
+
+    # Test empty state
     empty_dialog = ComponentViewerDialog(entity_id=2, components_data={}, world_name="empty_world")
     qtbot.addWidget(empty_dialog)
-    assert "No components found" in empty_dialog.text_edit.toPlainText()
+    assert empty_dialog.tree_widget.topLevelItemCount() == 1
+    assert "No components found" in empty_dialog.tree_widget.topLevelItem(0).text(0)
+
 
 # Placeholder for Transcoding Dialog Test
 # def test_transcoding_dialog_trigger(qtbot: QtBot, mock_world):
