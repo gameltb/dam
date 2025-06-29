@@ -239,13 +239,12 @@ async def another_db_session(test_world_beta: World) -> AsyncGenerator[AsyncSess
     """
     Provides an SQLAlchemy AsyncSession for a secondary test world ("test_world_beta").
     Useful for testing interactions or isolation between two worlds.
-    The session is closed automatically after the test.
+    The session is managed by an async context manager.
     """
-    session = test_world_beta.get_db_session()
-    try:
+    db_mngr = test_world_beta.get_resource(DatabaseManager)
+    async with db_mngr.session_local() as session: # Use async with
         yield session
-    finally:
-        session.close()
+    # Session is automatically closed by async context manager
 
 
 @pytest.fixture
