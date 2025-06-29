@@ -1,3 +1,4 @@
+import asyncio # Add asyncio for running async methods
 from pathlib import Path
 from typing import List as TypingList
 from typing import Optional  # Added for type hinting
@@ -39,13 +40,15 @@ class WorldOperationWorker(QThread):
         try:
             if self.operation_type == "export":
                 self.progress.emit(f"Exporting world '{self.world.name}' to {self.params['filepath']}...")
-                world_service.export_ecs_world_to_json(self.world, self.params["filepath"])
+                # world_service.export_ecs_world_to_json is async
+                asyncio.run(world_service.export_ecs_world_to_json(self.world, self.params["filepath"]))
                 self.finished.emit(
                     None, f"World '{self.world.name}' exported successfully to {self.params['filepath']}."
                 )
             elif self.operation_type == "import":
                 self.progress.emit(f"Importing world from {self.params['filepath']} into '{self.world.name}'...")
-                world_service.import_ecs_world_from_json(self.world, self.params["filepath"], self.params["merge"])
+                # world_service.import_ecs_world_from_json is async
+                asyncio.run(world_service.import_ecs_world_from_json(self.world, self.params["filepath"], self.params["merge"]))
                 self.finished.emit(
                     None, f"World data imported successfully into '{self.world.name}' from {self.params['filepath']}."
                 )
@@ -53,18 +56,18 @@ class WorldOperationWorker(QThread):
                 source_world_name = self.params["source_world_name"]
                 target_world_name = self.world.name  # Target is the dialog's current_world
                 self.progress.emit(f"Merging world '{source_world_name}' into '{target_world_name}' (DB-to-DB)...")
-                # We need actual World instances. The dialog should pass these.
-                # For now, assuming params contains 'source_world_instance'
                 source_world_instance = self.params["source_world_instance"]
-                world_service.merge_ecs_worlds_db_to_db(
+                # world_service.merge_ecs_worlds_db_to_db is async
+                asyncio.run(world_service.merge_ecs_worlds_db_to_db(
                     source_world=source_world_instance, target_world=self.world, strategy="add_new"
-                )
+                ))
                 self.finished.emit(None, f"Successfully merged '{source_world_name}' into '{target_world_name}'.")
             elif self.operation_type == "split_db":
                 self.progress.emit(f"Splitting world '{self.world.name}'...")
-                # Parameters for split_ecs_world: source_world, target_world_selected, target_world_remaining,
-                # criteria_component_name, criteria_component_attr, criteria_value, criteria_op, delete_from_source
-                count_selected, count_remaining = world_service.split_ecs_world(**self.params)
+                # world_service.split_ecs_world is async
+                # Need to ensure all params passed to split_ecs_world are suitable for asyncio.run context
+                # The params dict already contains the necessary world instances.
+                count_selected, count_remaining = asyncio.run(world_service.split_ecs_world(**self.params))
                 self.finished.emit(
                     None, f"Split complete: {count_selected} entities to selected, {count_remaining} to remaining."
                 )
