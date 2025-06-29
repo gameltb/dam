@@ -1,17 +1,19 @@
+from sqlalchemy import (
+    ForeignKey,  # Added for ForeignKey
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String
 
-from dam.models.core.base_component import BaseComponent
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
-from sqlalchemy import ForeignKey # Added for ForeignKey
 
 
-class TranscodeProfileComponent(BaseConceptualInfoComponent): # Removed BaseComponent
+class TranscodeProfileComponent(BaseConceptualInfoComponent):  # Removed BaseComponent
     """
     Component defining a transcoding profile.
     This is a conceptual asset, meaning an entity with this component
     represents the concept of a specific transcoding configuration.
     """
+
     __tablename__ = "transcode_profiles"
 
     # This 'id' is the primary key of this table AND a foreign key to entities.id
@@ -20,12 +22,12 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent): # Removed BaseComp
     profile_name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     tool_name: Mapped[str] = mapped_column(String, nullable=False)  # e.g., "ffmpeg", "cjxl", "avifenc"
     parameters: Mapped[str] = mapped_column(String, nullable=False)  # e.g., "-crf 23 -preset medium"
-    output_format: Mapped[str] = mapped_column(String, nullable=False) # e.g., "avif", "jxl", "mp4"
+    output_format: Mapped[str] = mapped_column(String, nullable=False)  # e.g., "avif", "jxl", "mp4"
     description: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # For BaseConceptualInfoComponent
-    concept_name: Mapped[str] = mapped_column(String, nullable=False) # Will be same as profile_name
-    concept_description: Mapped[str | None] = mapped_column(String, nullable=True) # Will be same as description
+    concept_name: Mapped[str] = mapped_column(String, nullable=False)  # Will be same as profile_name
+    concept_description: Mapped[str | None] = mapped_column(String, nullable=True)  # Will be same as description
 
     __mapper_args__ = {
         "polymorphic_identity": "transcode_profile",

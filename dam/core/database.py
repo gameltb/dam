@@ -1,8 +1,8 @@
 import logging
 from typing import Optional
 
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engine
 
 from dam.models import Base
 
@@ -39,7 +39,9 @@ class DatabaseManager:
 
         # Ensure the DATABASE_URL is compatible with aiosqlite if it's a sqlite URL
         # The project aims to use aiosqlite for async SQLite operations.
-        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith("sqlite+aiosqlite://"):
+        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith(
+            "sqlite+aiosqlite://"
+        ):
             # Automatically adjust sqlite DSNs to use aiosqlite
             # This might be too aggressive if other async sqlite drivers were intended,
             # but for this project, aiosqlite is the standard.
@@ -49,15 +51,14 @@ class DatabaseManager:
             )
             self.world_config.DATABASE_URL = self.world_config.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
 
-
         # connect_args for aiosqlite are generally not needed for basic operation.
         # 'check_same_thread' is not applicable.
         # If specific pragmas or extensions are needed, they can be passed via listeners or engine events.
-        connect_args = {} # Kept empty for now, can be populated if specific needs arise.
+        connect_args = {}  # Kept empty for now, can be populated if specific needs arise.
 
         self._engine = create_async_engine(
             self.world_config.DATABASE_URL,
-            connect_args=connect_args, # Pass empty connect_args
+            connect_args=connect_args,  # Pass empty connect_args
             # echo=True # Uncomment for debugging SQL statements
         )
         self._session_local = sessionmaker(
@@ -86,8 +87,10 @@ class DatabaseManager:
         Provides a new asynchronous database session for this world.
         The caller is responsible for closing the session, typically using `async with`.
         """
-        if self._session_local is None: # Should ideally be caught by property access if it were None
-            raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized and cannot create a session.")
+        if self._session_local is None:  # Should ideally be caught by property access if it were None
+            raise RuntimeError(
+                f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized and cannot create a session."
+            )
         return self._session_local()
 
     async def create_db_and_tables(self):
@@ -98,8 +101,10 @@ class DatabaseManager:
         """
         logger.info(f"Attempting to create database tables for world '{self.world_config.name}'...")
 
-        if self._engine is None: # Guard against uninitialized engine
-            raise RuntimeError(f"Async engine not initialized for world '{self.world_config.name}'. Cannot create tables.")
+        if self._engine is None:  # Guard against uninitialized engine
+            raise RuntimeError(
+                f"Async engine not initialized for world '{self.world_config.name}'. Cannot create tables."
+            )
 
         # WARNING: Destructive operation in testing mode.
         if self.testing_mode and (

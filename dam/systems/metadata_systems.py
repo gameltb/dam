@@ -56,9 +56,7 @@ async def _run_exiftool_subprocess(filepath: Path) -> Dict[str, Any] | None:
 
     command = [exiftool_path, "-json", "-G", str(filepath)]
     try:
-        process = await asyncio.create_subprocess_exec(
-            *command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        process = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
@@ -72,10 +70,14 @@ async def _run_exiftool_subprocess(filepath: Path) -> Dict[str, Any] | None:
             data = json.loads(stdout)
             if isinstance(data, list) and len(data) > 0:
                 return data[0]
-            logger.warning(f"Exiftool output for {filepath} was not a list with one element: {stdout.decode(errors='ignore')[:200]}")
+            logger.warning(
+                f"Exiftool output for {filepath} was not a list with one element: {stdout.decode(errors='ignore')[:200]}"
+            )
             return None
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON from exiftool for {filepath}: {e}. Output: {stdout.decode(errors='ignore')[:200]}")
+            logger.error(
+                f"Failed to decode JSON from exiftool for {filepath}: {e}. Output: {stdout.decode(errors='ignore')[:200]}"
+            )
             return None
 
     except Exception as e:
@@ -144,11 +146,11 @@ async def extract_metadata_on_asset_ingested(
     if not createParser or not extractMetadata:
         logger.warning("Hachoir library not installed. Skipping metadata extraction system.")
         for entity in entities_to_process:  # Clean up markers if system can't run
-            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent) # Await
+            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)  # Await
             if marker:
-                await ecs_service.remove_component(session, marker, flush=False) # Await
+                await ecs_service.remove_component(session, marker, flush=False)  # Await
         if entities_to_process:  # Only flush if there were entities to potentially remove markers from
-            await session.flush() # Await
+            await session.flush()  # Await
         return
 
     if not entities_to_process:
@@ -162,24 +164,24 @@ async def extract_metadata_on_asset_ingested(
     for entity in entities_to_process:
         logger.debug(f"Processing entity ID {entity.id} for metadata extraction.")
 
-        file_props = await ecs_service.get_component(session, entity.id, FilePropertiesComponent) # Await
+        file_props = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
         if not file_props:
             logger.warning(f"No FilePropertiesComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent) # Await
+            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)  # Await
             if marker:
-                await ecs_service.remove_component(session, marker, flush=False) # Await
+                await ecs_service.remove_component(session, marker, flush=False)  # Await
             continue
 
         mime_type = (
             file_props.mime_type if file_props else "application/octet-stream"
         )  # Default if fpc is None (though checked above)
 
-        all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent) # Await
+        all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
         if not all_locations:
             logger.warning(f"No FileLocationComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent) # Await
+            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)  # Await
             if marker:
-                await ecs_service.remove_component(session, marker, flush=False) # Await
+                await ecs_service.remove_component(session, marker, flush=False)  # Await
             continue
 
         filepath_on_disk: Path | None = None
@@ -197,9 +199,9 @@ async def extract_metadata_on_asset_ingested(
             logger.error(
                 f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
             )
-            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent) # Await
+            marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)  # Await
             if marker:
-                await ecs_service.remove_component(session, marker, flush=False) # Await
+                await ecs_service.remove_component(session, marker, flush=False)  # Await
             continue
 
         logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity.id} (MIME: {mime_type})")
@@ -221,12 +223,12 @@ async def extract_metadata_on_asset_ingested(
             )
 
             if mime_type.startswith("image/") or mime_type.startswith("video/"):
-                if not await ecs_service.get_components(session, entity.id, ImageDimensionsComponent): # Await
+                if not await ecs_service.get_components(session, entity.id, ImageDimensionsComponent):  # Await
                     width = _get_hachoir_metadata(hachoir_metadata, "width")
                     height = _get_hachoir_metadata(hachoir_metadata, "height")
                     if width is not None and height is not None:
                         dim_comp = ImageDimensionsComponent(width_pixels=width, height_pixels=height)
-                        await ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False) # Await
+                        await ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False)  # Await
                         logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
                     else:
                         logger.warning(
@@ -263,7 +265,7 @@ async def extract_metadata_on_asset_ingested(
                 is_audio_file_heuristic = True
 
             if is_audio_file_heuristic:
-                if not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent): # Await
+                if not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent):  # Await
                     audio_comp = AudioPropertiesComponent()
                     duration = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if duration:
@@ -277,11 +279,11 @@ async def extract_metadata_on_asset_ingested(
                     bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
                     if bit_rate_bps:
                         audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-                    await ecs_service.add_component_to_entity(session, entity.id, audio_comp, flush=False) # Await
+                    await ecs_service.add_component_to_entity(session, entity.id, audio_comp, flush=False)  # Await
                     logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 
             if is_video_heuristic:
-                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent): # Await
+                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):  # Await
                     video_frame_comp = FramePropertiesComponent()
                     nb_frames = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
                         hachoir_metadata, "frame_count"
@@ -300,10 +302,14 @@ async def extract_metadata_on_asset_ingested(
                         video_frame_comp.frame_count = int(
                             video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
                         )
-                    await ecs_service.add_component_to_entity(session, entity.id, video_frame_comp, flush=False) # Await
+                    await ecs_service.add_component_to_entity(
+                        session, entity.id, video_frame_comp, flush=False
+                    )  # Await
                     logger.info(f"Added FramePropertiesComponent for video/animated Entity ID {entity.id}")
 
-                if has_audio_codec and not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent): # Await
+                if has_audio_codec and not await ecs_service.get_components(
+                    session, entity.id, AudioPropertiesComponent
+                ):  # Await
                     video_audio_comp = AudioPropertiesComponent()
                     video_duration_audio = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if video_duration_audio:
@@ -311,11 +317,13 @@ async def extract_metadata_on_asset_ingested(
                     video_audio_comp.codec_name = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
                     video_audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
                     video_audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-                    await ecs_service.add_component_to_entity(session, entity.id, video_audio_comp, flush=False) # Await
+                    await ecs_service.add_component_to_entity(
+                        session, entity.id, video_audio_comp, flush=False
+                    )  # Await
                     logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
 
             if mime_type == "image/gif":
-                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent): # Await
+                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):  # Await
                     frame_comp = FramePropertiesComponent()
                     nb_frames_gif = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
                         hachoir_metadata, "frame_count"
@@ -327,7 +335,7 @@ async def extract_metadata_on_asset_ingested(
                         frame_comp.animation_duration_seconds = duration_sec
                         if nb_frames_gif and nb_frames_gif > 1 and duration_sec > 0:
                             frame_comp.nominal_frame_rate = nb_frames_gif / duration_sec
-                    await ecs_service.add_component_to_entity(session, entity.id, frame_comp, flush=False) # Await
+                    await ecs_service.add_component_to_entity(session, entity.id, frame_comp, flush=False)  # Await
                     logger.info(f"Added FramePropertiesComponent for animated GIF Entity ID {entity.id}")
 
         # Exiftool metadata extraction
@@ -335,20 +343,23 @@ async def extract_metadata_on_asset_ingested(
         exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)
 
         if exiftool_data:
-            if not await ecs_service.get_component(session, entity.id, ExiftoolMetadataComponent): # Await
+            if not await ecs_service.get_component(session, entity.id, ExiftoolMetadataComponent):  # Await
                 exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
-                await ecs_service.add_component_to_entity(session, entity.id, exif_comp, flush=False) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, exif_comp, flush=False)  # Await
                 logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity.id}")
             else:
-                logger.info(f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate.")
+                logger.info(
+                    f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate."
+                )
         else:
             logger.info(f"No metadata extracted by Exiftool for {filepath_on_disk} (Entity ID {entity.id})")
 
-
         # Clean up the marker component after processing
-        marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent) # Await
+        marker = await ecs_service.get_component(session, entity.id, NeedsMetadataExtractionComponent)  # Await
         if marker:
-            await ecs_service.remove_component(session, marker, flush=False)  # Await, Batch flush at end of system if needed
+            await ecs_service.remove_component(
+                session, marker, flush=False
+            )  # Await, Batch flush at end of system if needed
             logger.debug(f"Removed NeedsMetadataExtractionComponent from Entity ID {entity.id}")
 
     logger.info("MetadataExtractionSystem finished processing entities.")

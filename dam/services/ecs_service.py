@@ -2,7 +2,7 @@ import logging  # Added import
 from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Dict
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type hints
 
 from dam.models import BaseComponent, Entity
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
@@ -20,9 +20,8 @@ T = TypeVar("T", bound=BaseComponent)
 
 logger = logging.getLogger(__name__)  # Added logger
 
-from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession for type hints
 
-async def create_entity(session: AsyncSession) -> Entity: # Made async, use AsyncSession
+async def create_entity(session: AsyncSession) -> Entity:  # Made async, use AsyncSession
     """
     Creates a new Entity instance in the given session, adds it, and flushes.
     The caller is responsible for committing the session.
@@ -33,9 +32,7 @@ async def create_entity(session: AsyncSession) -> Entity: # Made async, use Asyn
     return entity
 
 
-from sqlalchemy.orm import selectinload # Import selectinload
-
-async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]: # Made async, use AsyncSession
+async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]:  # Made async, use AsyncSession
     """
     Retrieves an entity by its ID from the given session.
     Note: Generic eager loading of all 'components' via Entity.components was removed
@@ -47,7 +44,9 @@ async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]:
     return result.scalar_one_or_none()
 
 
-async def add_component_to_entity(session: AsyncSession, entity_id: int, component_instance: T, flush: bool = True) -> T: # Made async
+async def add_component_to_entity(
+    session: AsyncSession, entity_id: int, component_instance: T, flush: bool = True
+) -> T:  # Made async
     """
     Adds a component instance to a specified entity in the given session.
 
@@ -62,7 +61,7 @@ async def add_component_to_entity(session: AsyncSession, entity_id: int, compone
     Raises:
         ValueError: If the entity is not found.
     """
-    entity = await get_entity(session, entity_id) # Await async call
+    entity = await get_entity(session, entity_id)  # Await async call
     if not entity:
         raise ValueError(f"Entity with ID {entity_id} not found in the provided session.")
 
@@ -80,25 +79,25 @@ async def add_component_to_entity(session: AsyncSession, entity_id: int, compone
     return component_instance
 
 
-async def get_component(session: AsyncSession, entity_id: int, component_type: Type[T]) -> Optional[T]: # Made async
+async def get_component(session: AsyncSession, entity_id: int, component_type: Type[T]) -> Optional[T]:  # Made async
     """
     Retrieves a single component of a specific type for an entity from the given session.
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     return result.scalar_one_or_none()
 
 
-async def get_components(session: AsyncSession, entity_id: int, component_type: Type[T]) -> List[T]: # Made async
+async def get_components(session: AsyncSession, entity_id: int, component_type: Type[T]) -> List[T]:  # Made async
     """
     Retrieves all components of a specific type for an entity from the given session.
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     return result.scalars().all()
 
 
-async def remove_component(session: AsyncSession, component: BaseComponent, flush: bool = False) -> None: # Made async
+async def remove_component(session: AsyncSession, component: BaseComponent, flush: bool = False) -> None:  # Made async
     """
     Deletes a specific component instance from the database via the given session.
     The caller is responsible for committing the session.
@@ -115,12 +114,12 @@ async def remove_component(session: AsyncSession, component: BaseComponent, flus
     # No need to check `if component not in session` if it's fetched via the same session.
     # If it could be from another session, then `session.merge(component)` might be needed before delete.
     # For simplicity, assume it's from the current session or attached.
-    await session.delete(component) # Await delete
+    await session.delete(component)  # Await delete
     if flush:
-        await session.flush() # Await flush
+        await session.flush()  # Await flush
 
 
-async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = True) -> bool: # Made async
+async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = True) -> bool:  # Made async
     """
     Deletes an entity and all its associated components from the given session.
     The caller is responsible for committing the session.
@@ -133,7 +132,7 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
     Returns:
         True if the entity was found and deleted, False otherwise.
     """
-    entity = await get_entity(session, entity_id) # Await async call
+    entity = await get_entity(session, entity_id)  # Await async call
     if not entity:
         return False
 
@@ -148,16 +147,16 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
         )
 
     for component_type in REGISTERED_COMPONENT_TYPES:
-        components_to_delete = await get_components(session, entity_id, component_type) # Await async call
+        components_to_delete = await get_components(session, entity_id, component_type)  # Await async call
         for component in components_to_delete:
             # Pass flush=False as we'll do a single flush at the end if requested
-            await remove_component(session, component, flush=False) # Await async call
+            await remove_component(session, component, flush=False)  # Await async call
 
-    await session.delete(entity) # Await delete
+    await session.delete(entity)  # Await delete
 
     if flush:
         try:
-            await session.flush() # Await flush
+            await session.flush()  # Await flush
         except Exception as e:
             # Caller should manage transaction
             raise e
@@ -167,7 +166,7 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
 # --- Query Helper Functions ---
 
 
-async def find_entities_with_components( # Made async
+async def find_entities_with_components(  # Made async
     session: AsyncSession, required_component_types: List[Type[BaseComponent]]
 ) -> List[Entity]:
     """
@@ -192,17 +191,19 @@ async def find_entities_with_components( # Made async
     # Ensure distinct entities if multiple components of the same type or complex joins might cause duplicates
     stmt = stmt.distinct()
 
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     return list(result.scalars().all())
 
 
-async def find_entity_id_by_hash(session: AsyncSession, hash_value: str, hash_type: str = "sha256") -> Optional[int]: # Use AsyncSession
+async def find_entity_id_by_hash(
+    session: AsyncSession, hash_value: str, hash_type: str = "sha256"
+) -> Optional[int]:  # Use AsyncSession
     """
     Finds an entity ID by its content hash string (hex).
     Returns the Entity ID or None if not found.
     Converts hex string hash_value to bytes before querying.
     """
-    from dam.models import ContentHashMD5Component, ContentHashSHA256Component # Moved import here
+    from dam.models import ContentHashMD5Component, ContentHashSHA256Component  # Moved import here
 
     hash_bytes: bytes
     try:
@@ -211,25 +212,23 @@ async def find_entity_id_by_hash(session: AsyncSession, hash_value: str, hash_ty
         logger.warning(f"Invalid hex string for hash_value: {hash_value}")
         return None
 
-    stmt: Any # To satisfy mypy for stmt potentially not being assigned if hash_type is invalid
+    stmt: Any  # To satisfy mypy for stmt potentially not being assigned if hash_type is invalid
     if hash_type.lower() == "sha256":
-        stmt = select(ContentHashSHA256Component.entity_id).where(
-            ContentHashSHA256Component.hash_value == hash_bytes
-        )
+        stmt = select(ContentHashSHA256Component.entity_id).where(ContentHashSHA256Component.hash_value == hash_bytes)
     elif hash_type.lower() == "md5":
-        stmt = select(ContentHashMD5Component.entity_id).where( # type: ignore[attr-defined] # Assuming MD5 comp exists
-            ContentHashMD5Component.hash_value == hash_bytes # type: ignore[attr-defined]
+        stmt = select(ContentHashMD5Component.entity_id).where(  # type: ignore[attr-defined] # Assuming MD5 comp exists
+            ContentHashMD5Component.hash_value == hash_bytes  # type: ignore[attr-defined]
         )
     else:
         logger.error(f"Unsupported hash type for find_entity_id_by_hash: {hash_type}")
-        return None # Or raise ValueError
+        return None  # Or raise ValueError
 
     result = await session.execute(stmt)
     entity_id = result.scalar_one_or_none()
     return entity_id
 
 
-async def get_components_by_value( # Made async
+async def get_components_by_value(  # Made async
     session: AsyncSession,
     entity_id: int,
     component_type: Type[T],
@@ -247,11 +246,13 @@ async def get_components_by_value( # Made async
             raise AttributeError(f"Component {component_type.__name__} has no attribute '{attr_name}'.")
         stmt = stmt.where(getattr(component_type, attr_name) == value)
 
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     return result.scalars().all()
 
 
-async def find_entity_by_content_hash(session: AsyncSession, hash_value: bytes, hash_type: str = "sha256") -> Optional[Entity]: # Made async
+async def find_entity_by_content_hash(
+    session: AsyncSession, hash_value: bytes, hash_type: str = "sha256"
+) -> Optional[Entity]:  # Made async
     """
     Finds a single entity by its content hash (SHA256 or MD5), provided as bytes.
     Returns the Entity or None if not found.
@@ -275,7 +276,7 @@ async def find_entity_by_content_hash(session: AsyncSession, hash_value: bytes, 
 
     # Simpler: query component_to_query directly.
     stmt = select(component_to_query).where(getattr(component_to_query, "hash_value") == hash_value)
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     components_found = result.scalars().all()
 
     if components_found:
@@ -295,7 +296,7 @@ async def find_entity_by_content_hash(session: AsyncSession, hash_value: bytes, 
     return None
 
 
-async def find_entities_by_component_attribute_value( # Made async
+async def find_entities_by_component_attribute_value(  # Made async
     session: AsyncSession,
     component_type: Type[T],
     attribute_name: str,
@@ -319,5 +320,5 @@ async def find_entities_by_component_attribute_value( # Made async
         .distinct()  # Ensure distinct entities are returned
     )
 
-    result = await session.execute(stmt) # Await execute
+    result = await session.execute(stmt)  # Await execute
     return list(result.scalars().all())

@@ -1,11 +1,11 @@
 """
 This module defines the ExiftoolMetadataComponent for storing raw EXIF data.
 """
-from sqlalchemy import JSON # Changed from JSONB
+
+from sqlalchemy import JSON  # Changed from JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent
-from dam.models.core.types import PkId
 
 
 class ExiftoolMetadataComponent(BaseComponent):

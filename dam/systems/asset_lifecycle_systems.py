@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
+from dam.core.config import WorldConfig  # Import WorldConfig directly
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
@@ -10,7 +11,6 @@ from dam.core.events import (
     FindSimilarImagesQuery,
     WebAssetIngestionRequested,  # Import new event
 )
-from dam.core.config import WorldConfig  # Import WorldConfig directly
 from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
 from dam.core.systems import listens_for
 from dam.models import (
@@ -76,7 +76,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256)
 
     # Use a helper for finding existing entity by hash (can be a local helper or from ecs_service)
-    existing_entity = await ecs_service.find_entity_by_content_hash(session, content_hash_sha256_bytes, "sha256") # Await async call
+    existing_entity = await ecs_service.find_entity_by_content_hash(
+        session, content_hash_sha256_bytes, "sha256"
+    )  # Await async call
     entity: Optional[Entity] = None
 
     if existing_entity:
@@ -87,34 +89,34 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         )
         md5_hash_hex = await file_operations.calculate_md5_async(filepath_on_disk)
         md5_hash_bytes = binascii.unhexlify(md5_hash_hex)
-        existing_md5_components = await ecs_service.get_components(session, entity.id, ContentHashMD5Component) # Await
+        existing_md5_components = await ecs_service.get_components(session, entity.id, ContentHashMD5Component)  # Await
         if not any(comp.hash_value == md5_hash_bytes for comp in existing_md5_components):
             chc_md5 = ContentHashMD5Component(hash_value=md5_hash_bytes)
-            await ecs_service.add_component_to_entity(session, entity.id, chc_md5) # Await
+            await ecs_service.add_component_to_entity(session, entity.id, chc_md5)  # Await
     else:
         created_new_entity = True
-        entity = await ecs_service.create_entity(session) # Await
+        entity = await ecs_service.create_entity(session)  # Await
         # Ensure entity.id is available after creation if create_entity flushes
-        if entity.id is None: # Should not happen if create_entity flushes
-             await session.flush() # Or handle error appropriately
+        if entity.id is None:  # Should not happen if create_entity flushes
+            await session.flush()  # Or handle error appropriately
 
         logger.info(
             f"Creating new Entity ID {entity.id} for '{original_filename}' (SHA256: {content_hash_sha256[:12]}...)."
         )
         chc_sha256 = ContentHashSHA256Component(hash_value=content_hash_sha256_bytes)
-        await ecs_service.add_component_to_entity(session, entity.id, chc_sha256) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, chc_sha256)  # Await
 
         md5_hash_hex = await file_operations.calculate_md5_async(filepath_on_disk)
         md5_hash_bytes = binascii.unhexlify(md5_hash_hex)
         chc_md5 = ContentHashMD5Component(hash_value=md5_hash_bytes)
-        await ecs_service.add_component_to_entity(session, entity.id, chc_md5) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, chc_md5)  # Await
 
         fpc = FilePropertiesComponent(
             original_filename=original_filename,
             file_size_bytes=size_bytes,
             mime_type=mime_type,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, fpc) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, fpc)  # Await
 
         flc = FileLocationComponent(
             content_identifier=content_hash_sha256,
@@ -122,21 +124,21 @@ async def handle_asset_file_ingestion_request(  # Renamed function
             physical_path_or_key=physical_storage_path_suffix,
             contextual_filename=original_filename,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, flc) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, flc)  # Await
 
     if not entity:  # Should not happen if logic is correct
         logger.error(f"Entity object not available after processing {original_filename}. This is unexpected.")
         return
 
     # Check if OSI component of this type already exists
-    existing_osi_comps = await ecs_service.get_components_by_value( # Await
+    existing_osi_comps = await ecs_service.get_components_by_value(  # Await
         session, entity.id, OriginalSourceInfoComponent, {"source_type": source_types.SOURCE_TYPE_LOCAL_FILE}
     )
     if not existing_osi_comps:
         osi_comp = OriginalSourceInfoComponent(
             source_type=source_types.SOURCE_TYPE_LOCAL_FILE,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, osi_comp) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, osi_comp)  # Await
     else:
         logger.debug(
             f"OriginalSourceInfoComponent with source_type LOCAL_FILE already exists for Entity ID {entity.id}"
@@ -147,31 +149,33 @@ async def handle_asset_file_ingestion_request(  # Renamed function
 
         if "phash" in perceptual_hashes_hex:
             phash_bytes = binascii.unhexlify(perceptual_hashes_hex["phash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualPHashComponent, {"hash_value": phash_bytes}
             ):
                 iphc = ImagePerceptualPHashComponent(hash_value=phash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, iphc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, iphc)  # Await
 
         if "ahash" in perceptual_hashes_hex:
             ahash_bytes = binascii.unhexlify(perceptual_hashes_hex["ahash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualAHashComponent, {"hash_value": ahash_bytes}
             ):
                 iahc = ImagePerceptualAHashComponent(hash_value=ahash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, iahc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, iahc)  # Await
 
         if "dhash" in perceptual_hashes_hex:
             dhash_bytes = binascii.unhexlify(perceptual_hashes_hex["dhash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualDHashComponent, {"hash_value": dhash_bytes}
             ):
                 idhc = ImagePerceptualDHashComponent(hash_value=dhash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, idhc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, idhc)  # Await
 
-    if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent): # Await
+    if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Await
         marker_comp = NeedsMetadataExtractionComponent()
-        await ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False)  # Await, Flush managed by scheduler
+        await ecs_service.add_component_to_entity(
+            session, entity.id, marker_comp, flush=False
+        )  # Await, Flush managed by scheduler
 
     logger.info(f"Finished AssetFileIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}")
     # The result (entity_id, created_new_entity) is not directly returned to CLI via event.
@@ -207,7 +211,9 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256_hex)
     content_hash_md5_bytes = binascii.unhexlify(content_hash_md5_hex)
 
-    existing_entity = await ecs_service.find_entity_by_content_hash(session, content_hash_sha256_bytes, "sha256") # Await
+    existing_entity = await ecs_service.find_entity_by_content_hash(
+        session, content_hash_sha256_bytes, "sha256"
+    )  # Await
     entity: Optional[Entity] = None
 
     if existing_entity:
@@ -216,38 +222,39 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             f"Content (SHA256: {content_hash_sha256_hex[:12]}...) for '{original_filename}' "
             f"already exists as Entity ID {entity.id}. Adding new reference."
         )
-        existing_md5_components = await ecs_service.get_components(session, entity.id, ContentHashMD5Component) # Await
+        existing_md5_components = await ecs_service.get_components(session, entity.id, ContentHashMD5Component)  # Await
         if not any(comp.hash_value == content_hash_md5_bytes for comp in existing_md5_components):
             chc_md5 = ContentHashMD5Component(hash_value=content_hash_md5_bytes)
-            await ecs_service.add_component_to_entity(session, entity.id, chc_md5) # Await
+            await ecs_service.add_component_to_entity(session, entity.id, chc_md5)  # Await
     else:
         created_new_entity = True
-        entity = await ecs_service.create_entity(session) # Await
-        if entity.id is None: await session.flush() # Ensure ID
+        entity = await ecs_service.create_entity(session)  # Await
+        if entity.id is None:
+            await session.flush()  # Ensure ID
 
         logger.info(
             f"Creating new Entity ID {entity.id} for referenced file '{original_filename}' "
             f"(SHA256: {content_hash_sha256_hex[:12]}...)."
         )
         chc_sha256 = ContentHashSHA256Component(hash_value=content_hash_sha256_bytes)
-        await ecs_service.add_component_to_entity(session, entity.id, chc_sha256) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, chc_sha256)  # Await
 
         chc_md5 = ContentHashMD5Component(hash_value=content_hash_md5_bytes)
-        await ecs_service.add_component_to_entity(session, entity.id, chc_md5) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, chc_md5)  # Await
 
         fpc = FilePropertiesComponent(
             original_filename=original_filename,
             file_size_bytes=size_bytes,
             mime_type=mime_type,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, fpc) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, fpc)  # Await
 
     if not entity:
         logger.error(f"Entity object not available after processing reference {original_filename}. This is unexpected.")
         return
 
     resolved_original_path = str(filepath_on_disk.resolve())
-    existing_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent) # Await
+    existing_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
     found_ref_location = any(
         loc.storage_type == "local_reference" and loc.physical_path_or_key == resolved_original_path
         for loc in existing_locations
@@ -260,17 +267,17 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
             physical_path_or_key=resolved_original_path,
             contextual_filename=original_filename,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, flc) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, flc)  # Await
 
     # Check if OSI component of this type already exists
-    existing_osi_comps = await ecs_service.get_components_by_value( # Await
+    existing_osi_comps = await ecs_service.get_components_by_value(  # Await
         session, entity.id, OriginalSourceInfoComponent, {"source_type": source_types.SOURCE_TYPE_REFERENCED_FILE}
     )
     if not existing_osi_comps:
         osi_comp = OriginalSourceInfoComponent(
             source_type=source_types.SOURCE_TYPE_REFERENCED_FILE,
         )
-        await ecs_service.add_component_to_entity(session, entity.id, osi_comp) # Await
+        await ecs_service.add_component_to_entity(session, entity.id, osi_comp)  # Await
     else:
         logger.debug(
             f"OriginalSourceInfoComponent with source_type REFERENCED_FILE already exists for Entity ID {entity.id}"
@@ -281,31 +288,33 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
 
         if "phash" in perceptual_hashes_hex:
             phash_bytes = binascii.unhexlify(perceptual_hashes_hex["phash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualPHashComponent, {"hash_value": phash_bytes}
             ):
                 iphc = ImagePerceptualPHashComponent(hash_value=phash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, iphc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, iphc)  # Await
 
         if "ahash" in perceptual_hashes_hex:
             ahash_bytes = binascii.unhexlify(perceptual_hashes_hex["ahash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualAHashComponent, {"hash_value": ahash_bytes}
             ):
                 iahc = ImagePerceptualAHashComponent(hash_value=ahash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, iahc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, iahc)  # Await
 
         if "dhash" in perceptual_hashes_hex:
             dhash_bytes = binascii.unhexlify(perceptual_hashes_hex["dhash"])
-            if not await ecs_service.get_components_by_value( # Await
+            if not await ecs_service.get_components_by_value(  # Await
                 session, entity.id, ImagePerceptualDHashComponent, {"hash_value": dhash_bytes}
             ):
                 idhc = ImagePerceptualDHashComponent(hash_value=dhash_bytes)
-                await ecs_service.add_component_to_entity(session, entity.id, idhc) # Await
+                await ecs_service.add_component_to_entity(session, entity.id, idhc)  # Await
 
-    if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent): # Await
+    if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Await
         marker_comp = NeedsMetadataExtractionComponent()
-        await ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False) # Await, Flush managed by scheduler
+        await ecs_service.add_component_to_entity(
+            session, entity.id, marker_comp, flush=False
+        )  # Await, Flush managed by scheduler
 
     logger.info(
         f"Finished AssetReferenceIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}"
@@ -350,7 +359,7 @@ async def handle_find_entity_by_hash_query(
                 f"Invalid hash_value format: {event.hash_value}"
             ) from e  # Re-raise to set exception on future
 
-        entity = await ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type) # Await
+        entity = await ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type)  # Await
         entity_details_dict = None
 
         if entity:
@@ -359,7 +368,7 @@ async def handle_find_entity_by_hash_query(
             )
             entity_details_dict = {"entity_id": entity.id, "components": {}}
 
-            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent) # Await
+            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
             if fpc:
                 entity_details_dict["components"]["FilePropertiesComponent"] = {
                     "original_filename": fpc.original_filename,
@@ -367,7 +376,7 @@ async def handle_find_entity_by_hash_query(
                     "mime_type": fpc.mime_type,
                 }
 
-            flcs = await ecs_service.get_components(session, entity.id, FileLocationComponent) # Await
+            flcs = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
             if flcs:
                 entity_details_dict["components"]["FileLocationComponent"] = [
                     {
@@ -379,13 +388,13 @@ async def handle_find_entity_by_hash_query(
                     for flc in flcs
                 ]
 
-            sha256_comp = await ecs_service.get_component(session, entity.id, ContentHashSHA256Component) # Await
+            sha256_comp = await ecs_service.get_component(session, entity.id, ContentHashSHA256Component)  # Await
             if sha256_comp:
                 entity_details_dict["components"]["ContentHashSHA256Component"] = {
                     "hash_value": sha256_comp.hash_value.hex()
                 }
 
-            md5_comp = await ecs_service.get_component(session, entity.id, ContentHashMD5Component) # Await
+            md5_comp = await ecs_service.get_component(session, entity.id, ContentHashMD5Component)  # Await
             if md5_comp:
                 entity_details_dict["components"]["ContentHashMD5Component"] = {"hash_value": md5_comp.hash_value.hex()}
         else:
@@ -438,7 +447,9 @@ async def handle_find_similar_images_query(
         try:
             source_content_hash_hex = await file_operations.calculate_sha256_async(event.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
-            source_entity = await ecs_service.find_entity_by_content_hash(session, source_content_hash_bytes, "sha256") # Await
+            source_entity = await ecs_service.find_entity_by_content_hash(
+                session, source_content_hash_bytes, "sha256"
+            )  # Await
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
@@ -451,7 +462,7 @@ async def handle_find_similar_images_query(
 
         if input_phash_obj:
             all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
-            result_phashes = await session.execute(all_phashes_stmt) # Await
+            result_phashes = await session.execute(all_phashes_stmt)  # Await
             db_phashes_components = result_phashes.scalars().all()
             for p_comp in db_phashes_components:
                 if source_entity_id and p_comp.entity_id == source_entity_id:
@@ -461,9 +472,9 @@ async def handle_find_similar_images_query(
                     db_phash_obj = imagehash.hex_to_hash(db_phash_hex)
                     distance = input_phash_obj - db_phash_obj
                     if distance <= event.phash_threshold:
-                        entity = await session.get(Entity, p_comp.entity_id) # Await
+                        entity = await session.get(Entity, p_comp.entity_id)  # Await
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent) # Await
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -478,7 +489,7 @@ async def handle_find_similar_images_query(
 
         if input_ahash_obj:
             all_ahashes_stmt = sql_select(ImagePerceptualAHashComponent)
-            result_ahashes = await session.execute(all_ahashes_stmt) # Await
+            result_ahashes = await session.execute(all_ahashes_stmt)  # Await
             db_ahashes_components = result_ahashes.scalars().all()
             for a_comp in db_ahashes_components:
                 if source_entity_id and a_comp.entity_id == source_entity_id:
@@ -488,9 +499,9 @@ async def handle_find_similar_images_query(
                     db_ahash_obj = imagehash.hex_to_hash(db_ahash_hex)
                     distance = input_ahash_obj - db_ahash_obj
                     if distance <= event.ahash_threshold:
-                        entity = await session.get(Entity, a_comp.entity_id) # Await
+                        entity = await session.get(Entity, a_comp.entity_id)  # Await
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent) # Await
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -505,7 +516,7 @@ async def handle_find_similar_images_query(
 
         if input_dhash_obj:
             all_dhashes_stmt = sql_select(ImagePerceptualDHashComponent)
-            result_dhashes = await session.execute(all_dhashes_stmt) # Await
+            result_dhashes = await session.execute(all_dhashes_stmt)  # Await
             db_dhashes_components = result_dhashes.scalars().all()
             for d_comp in db_dhashes_components:
                 if source_entity_id and d_comp.entity_id == source_entity_id:
@@ -515,9 +526,9 @@ async def handle_find_similar_images_query(
                     db_dhash_obj = imagehash.hex_to_hash(db_dhash_hex)
                     distance = input_dhash_obj - db_dhash_obj
                     if distance <= event.dhash_threshold:
-                        entity = await session.get(Entity, d_comp.entity_id) # Await
+                        entity = await session.get(Entity, d_comp.entity_id)  # Await
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent) # Await
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -588,15 +599,16 @@ async def handle_web_asset_ingestion_request(
     # 1. Find or Create Website Entity
     website_entity: Optional[Entity] = None
     # Query for existing WebsiteProfileComponent by main_url
-    existing_website_profiles = await ecs_service.find_entities_by_component_attribute_value( # Await
+    existing_website_profiles = await ecs_service.find_entities_by_component_attribute_value(  # Await
         session, WebsiteProfileComponent, "main_url", event.website_identifier_url
     )
     if existing_website_profiles:
         website_entity = existing_website_profiles[0]  # Should be unique by main_url due to model constraint
         logger.info(f"Found existing Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
     else:
-        website_entity = await ecs_service.create_entity(session) # Await
-        if website_entity.id is None: await session.flush() # Ensure ID
+        website_entity = await ecs_service.create_entity(session)  # Await
+        if website_entity.id is None:
+            await session.flush()  # Ensure ID
         logger.info(f"Creating new Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
 
         website_name = event.metadata_payload.get("website_name") if event.metadata_payload else None
@@ -615,11 +627,12 @@ async def handle_web_asset_ingestion_request(
             description=event.metadata_payload.get("website_description") if event.metadata_payload else None,
             # icon_url, api_endpoint, parser_rules can also be populated from metadata_payload if available
         )
-        await ecs_service.add_component_to_entity(session, website_entity.id, profile_comp) # Await
+        await ecs_service.add_component_to_entity(session, website_entity.id, profile_comp)  # Await
 
     # 2. Create Asset Entity
-    asset_entity = await ecs_service.create_entity(session) # Await
-    if asset_entity.id is None: await session.flush() # Ensure ID
+    asset_entity = await ecs_service.create_entity(session)  # Await
+    if asset_entity.id is None:
+        await session.flush()  # Ensure ID
     logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {event.source_url}")
 
     # 3. Create OriginalSourceInfoComponent for the Asset Entity
@@ -632,11 +645,10 @@ async def handle_web_asset_ingestion_request(
         except Exception:
             original_filename = f"web_asset_{asset_entity.id}"
 
-
     osi_comp = OriginalSourceInfoComponent(
         source_type=source_types.SOURCE_TYPE_WEB_SOURCE,
     )
-    await ecs_service.add_component_to_entity(session, asset_entity.id, osi_comp) # Await (indentation fixed)
+    await ecs_service.add_component_to_entity(session, asset_entity.id, osi_comp)  # Await (indentation fixed)
 
     # 4. Create WebSourceComponent for the Asset Entity
     web_source_data = {
@@ -687,19 +699,28 @@ async def handle_web_asset_ingestion_request(
 
     # Ensure only valid fields for WebSourceComponent are passed
     valid_web_source_fields = {
-        "website_entity_id", "source_url", "original_file_url", "gallery_id",
-        "uploader_name", "uploader_url", "upload_date", "asset_title",
-        "asset_description", "tags_json", "raw_metadata_dump"
+        "website_entity_id",
+        "source_url",
+        "original_file_url",
+        "gallery_id",
+        "uploader_name",
+        "uploader_url",
+        "upload_date",
+        "asset_title",
+        "asset_description",
+        "tags_json",
+        "raw_metadata_dump",
     }
     # Pass all prepared data, SQLAlchemy model will ignore non-fields if kw_only=True and not in __init__
     # Or if we are sure web_source_data only contains valid fields.
     # The previous **{k:v ... hasattr} was too restrictive if some fields were relationships.
     # Given WebSourceComponent specific fields, this should be fine.
-    cleaned_web_source_data = {k: v for k, v in web_source_data.items() if k in valid_web_source_fields and v is not None}
-
+    cleaned_web_source_data = {
+        k: v for k, v in web_source_data.items() if k in valid_web_source_fields and v is not None
+    }
 
     web_comp = WebSourceComponent(**cleaned_web_source_data)
-    await ecs_service.add_component_to_entity(session, asset_entity.id, web_comp) # Await
+    await ecs_service.add_component_to_entity(session, asset_entity.id, web_comp)  # Await
 
     # For web assets ingested this way (metadata-only), we might not immediately
     # add NeedsMetadataExtractionComponent unless we plan to download and process the file.

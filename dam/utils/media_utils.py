@@ -1,11 +1,14 @@
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
-from typing import Tuple, List
+from typing import List, Tuple
+
 
 class TranscodeError(Exception):
     """Custom exception for transcoding errors."""
+
     pass
+
 
 def _run_command(command: List[str]) -> Tuple[str, str]:
     """
@@ -18,7 +21,7 @@ def _run_command(command: List[str]) -> Tuple[str, str]:
             capture_output=True,
             text=True,
             check=True,  # Raises CalledProcessError on non-zero exit codes
-            encoding='utf-8' # Ensure consistent encoding
+            encoding="utf-8",  # Ensure consistent encoding
         )
         return process.stdout, process.stderr
     except subprocess.CalledProcessError as e:
@@ -31,7 +34,7 @@ def _run_command(command: List[str]) -> Tuple[str, str]:
     except FileNotFoundError as e:
         error_message = f"Command not found: {command[0]}. Please ensure it is installed and in PATH. Details: {e}"
         raise TranscodeError(error_message) from e
-    except Exception as e: # Catch any other unexpected errors
+    except Exception as e:  # Catch any other unexpected errors
         error_message = f"An unexpected error occurred while running command '{' '.join(command)}'. Details: {e}"
         raise TranscodeError(error_message) from e
 
@@ -74,13 +77,13 @@ def transcode_media(
     formatted_params = tool_params.replace("{input}", f'"{str(input_path)}"')
     formatted_params = formatted_params.replace("{output}", f'"{str(output_path)}"')
 
-    command_parts = [tool_name] + formatted_params.split() # Simple split, might need shlex for complex params
+    command_parts = [tool_name] + formatted_params.split()  # Simple split, might need shlex for complex params
 
     # Security Note: Directly using tool_name and parts of tool_params in a command
     # can be a security risk if these values come from untrusted user input without sanitization.
     # Here, we assume tool_name and tool_params are curated (e.g., from TranscodeProfileComponent).
 
-    print(f"Running transcoding command: {' '.join(command_parts)}") # For logging/debugging
+    print(f"Running transcoding command: {' '.join(command_parts)}")  # For logging/debugging
 
     # Check if the tool exists
     if not shutil.which(tool_name):
@@ -96,15 +99,13 @@ def transcode_media(
             except OSError as unlink_e:
                 # Log this, but raise the original TranscodeError
                 print(f"Warning: Could not delete incomplete output file {output_path}: {unlink_e}")
-        raise e # Re-raise the original error
+        raise e  # Re-raise the original error
 
     if not output_path.exists() or output_path.stat().st_size == 0:
         # Additional check in case the tool reported success but produced no/empty output
-        if output_path.exists(): # if empty
+        if output_path.exists():  # if empty
             output_path.unlink(missing_ok=True)
-        raise TranscodeError(
-            f"Transcoding command ran but output file {output_path} was not created or is empty."
-        )
+        raise TranscodeError(f"Transcoding command ran but output file {output_path} was not created or is empty.")
 
     print(f"Transcoding successful. Output: {output_path}")
     return output_path
@@ -119,7 +120,7 @@ if __name__ == "__main__":
 
     current_dir = Path(__file__).parent
     dummy_input = current_dir / "dummy_input.txt"
-    dummy_output_mp4 = current_dir / "dummy_output.mp4" # ffmpeg can create this from various inputs
+    dummy_output_mp4 = current_dir / "dummy_output.mp4"  # ffmpeg can create this from various inputs
     dummy_output_jxl = current_dir / "dummy_output.jxl"
 
     if not dummy_input.exists():
@@ -145,9 +146,9 @@ if __name__ == "__main__":
     # This is just to make the {input} and {output} placeholders meaningful.
 
     ffmpeg_params_template = (
-        "-y -f lavfi -i color=c=blue:s=320x240:d=1 " # Synthetic 1s blue video
+        "-y -f lavfi -i color=c=blue:s=320x240:d=1 "  # Synthetic 1s blue video
         "-vf \"drawtext=textfile='{input}':fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2\" "
-        "-c:v libx264 -preset ultrafast -tune zerolatency -movflags +faststart " # Basic H.264 output
+        "-c:v libx264 -preset ultrafast -tune zerolatency -movflags +faststart "  # Basic H.264 output
         "{output}"
     )
 
@@ -163,15 +164,15 @@ if __name__ == "__main__":
                 input_path=dummy_input,
                 output_path=dummy_output_mp4,
                 tool_name="ffmpeg",
-                tool_params=ffmpeg_params_template # Pass the template string
+                tool_params=ffmpeg_params_template,  # Pass the template string
             )
             print(f"FFmpeg test successful. Output: {dummy_output_mp4}")
             if dummy_output_mp4.exists():
-                dummy_output_mp4.unlink() # Clean up
+                dummy_output_mp4.unlink()  # Clean up
         except TranscodeError as e:
             print(f"FFmpeg test failed: {e}")
         except FileNotFoundError as e:
-             print(f"FFmpeg test skipped, input file missing: {e}")
+            print(f"FFmpeg test skipped, input file missing: {e}")
 
     else:
         print("ffmpeg not found, skipping FFmpeg test.")

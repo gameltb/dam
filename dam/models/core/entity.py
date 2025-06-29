@@ -1,16 +1,17 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column # Removed relationship
-from typing import List, TYPE_CHECKING
+from sqlalchemy.orm import Mapped, mapped_column  # Removed relationship
 
 from .base_class import Base
+
 # BaseComponent no longer needed for a direct relationship here
 # from .base_component import BaseComponent
 
 if TYPE_CHECKING:
     # Still useful if any methods on Entity were to type hint with BaseComponent
-    from .base_component import BaseComponent
+    pass
 
 
 class Entity(Base):

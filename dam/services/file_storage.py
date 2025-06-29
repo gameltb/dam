@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def _get_storage_path_for_world(file_hash: str, world_config: WorldConfig) -> Path:
-    logger.info(f"[_get_storage_path_for_world] World: {world_config.name}, Base path: {Path(world_config.ASSET_STORAGE_PATH)}, Hash: {file_hash}")
+    logger.info(
+        f"[_get_storage_path_for_world] World: {world_config.name}, Base path: {Path(world_config.ASSET_STORAGE_PATH)}, Hash: {file_hash}"
+    )
     """
     Constructs the full path for a given file hash using a nested directory structure,
     specific to the asset storage path defined in the world_config.
@@ -63,7 +65,9 @@ def store_file(
 
     # Get the full absolute storage path using the existing helper
     storage_path = _get_storage_path_for_world(content_hash, world_config)
-    logger.info(f"[store_file] World: {world_config.name}, Original: {original_filename}, Hash: {content_hash}, Target storage_path: {storage_path}")
+    logger.info(
+        f"[store_file] World: {world_config.name}, Original: {original_filename}, Hash: {content_hash}, Target storage_path: {storage_path}"
+    )
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
     log_world_identifier = world_config.name
@@ -100,7 +104,9 @@ def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[P
     # world_config is now passed directly
     try:
         storage_path = _get_storage_path_for_world(file_identifier, world_config)
-        logger.info(f"[get_file_path] World: {world_config.name}, Identifier: {file_identifier}, Checking storage_path: {storage_path}")
+        logger.info(
+            f"[get_file_path] World: {world_config.name}, Identifier: {file_identifier}, Checking storage_path: {storage_path}"
+        )
         if storage_path.exists() and storage_path.is_file():
             return storage_path.resolve()
         return None

@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-from sqlalchemy.orm import Session, sessionmaker # Added sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
+from sqlalchemy.orm import sessionmaker  # Added sessionmaker
 
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
@@ -43,15 +43,17 @@ class World:
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
 
     @property
-    def db_session_maker(self) -> sessionmaker: # Return type might be sessionmaker[AsyncSession] or sessionmaker[Session]
+    def db_session_maker(
+        self,
+    ) -> sessionmaker:  # Return type might be sessionmaker[AsyncSession] or sessionmaker[Session]
         """Returns the SQLAlchemy sessionmaker for this world's database."""
         db_mngr = self.get_resource(DatabaseManager)
-        return db_mngr.session_local # Expose the sessionmaker instance
+        return db_mngr.session_local  # Expose the sessionmaker instance
 
-    def get_db_session(self) -> AsyncSession: # Changed to AsyncSession
+    def get_db_session(self) -> AsyncSession:  # Changed to AsyncSession
         db_mngr = self.get_resource(DatabaseManager)
         # get_db_session in DBManager returns result of session_local(), which is AsyncSession for async engine
-        return db_mngr.get_db_session() # type: ignore
+        return db_mngr.get_db_session()  # type: ignore
 
     async def create_db_and_tables(self) -> None:
         self.logger.info(f"Requesting creation of DB tables for World '{self.name}'.")
@@ -85,7 +87,7 @@ class World:
                 f"System {system_func.__name__} registered for event {event_type.__name__} in world '{self.name}'."
             )
 
-    def _get_world_context(self, session: AsyncSession) -> WorldContext: # Use AsyncSession
+    def _get_world_context(self, session: AsyncSession) -> WorldContext:  # Use AsyncSession
         world_cfg = self.get_resource(WorldConfig)
         return WorldContext(
             session=session,
@@ -93,38 +95,45 @@ class World:
             world_config=world_cfg,
         )
 
-    async def execute_stage(self, stage: SystemStage, session: Optional[AsyncSession] = None) -> None: # Use AsyncSession
+    async def execute_stage(
+        self, stage: SystemStage, session: Optional[AsyncSession] = None
+    ) -> None:  # Use AsyncSession
         self.logger.info(f"Executing stage '{stage.name}' for World '{self.name}'.")
         if session:
             world_context = self._get_world_context(session)
             await self.scheduler.execute_stage(stage, world_context)
         else:
-            db_session = self.get_db_session() # Returns AsyncSession
+            db_session = self.get_db_session()  # Returns AsyncSession
             try:
                 world_context = self._get_world_context(db_session)
                 await self.scheduler.execute_stage(stage, world_context)
             finally:
-                await db_session.close() # Await close for AsyncSession
+                await db_session.close()  # Await close for AsyncSession
                 self.logger.debug(f"Session closed after executing stage '{stage.name}' in World '{self.name}'.")
 
-    async def dispatch_event(self, event: BaseEvent, session: Optional[AsyncSession] = None) -> None: # Use AsyncSession
+    async def dispatch_event(
+        self, event: BaseEvent, session: Optional[AsyncSession] = None
+    ) -> None:  # Use AsyncSession
         self.logger.info(f"Dispatching event '{type(event).__name__}' for World '{self.name}'.")
         if session:
             world_context = self._get_world_context(session)
             await self.scheduler.dispatch_event(event, world_context)
         else:
-            db_session = self.get_db_session() # Returns AsyncSession
+            db_session = self.get_db_session()  # Returns AsyncSession
             try:
                 world_context = self._get_world_context(db_session)
                 await self.scheduler.dispatch_event(event, world_context)
             finally:
-                await db_session.close() # Await close for AsyncSession
+                await db_session.close()  # Await close for AsyncSession
                 self.logger.debug(
                     f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
                 )
 
     async def execute_one_time_system(
-        self, system_func: Callable[..., Any], session: Optional[AsyncSession] = None, **kwargs: Any # Use AsyncSession
+        self,
+        system_func: Callable[..., Any],
+        session: Optional[AsyncSession] = None,
+        **kwargs: Any,  # Use AsyncSession
     ) -> None:
         """
         Executes a single, dynamically provided system function immediately.
@@ -233,11 +242,12 @@ def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings
     logger.info(
         f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)"
     )
-    from .world_setup import register_core_systems # Import here
+    from .world_setup import register_core_systems  # Import here
+
     for name in world_names:
         try:
             world = create_and_register_world(name, app_settings=current_settings)
-            register_core_systems(world) # Register systems after world creation
+            register_core_systems(world)  # Register systems after world creation
             created_worlds.append(world)
         except Exception as e:
             logger.error(f"Failed to create or register world '{name}': {e}", exc_info=True)

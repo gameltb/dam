@@ -44,10 +44,10 @@ class Settings(BaseSettings):
 
     TESTING_MODE: bool = Field(False, validation_alias="TESTING_MODE", description="Enable testing mode behaviors.")
 
-    TRANSCODING_TEMP_DIR: str = Field( # Changed to str, Path will be constructed in code
+    TRANSCODING_TEMP_DIR: str = Field(  # Changed to str, Path will be constructed in code
         default="temp/dam_transcodes",
         validation_alias="DAM_TRANSCODING_TEMP_DIR",
-        description="Temporary directory for transcoding operations before ingestion."
+        description="Temporary directory for transcoding operations before ingestion.",
     )
 
     model_config = SettingsConfigDict(

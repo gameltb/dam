@@ -1,5 +1,5 @@
+from sqlalchemy import Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import ForeignKey, Integer, Float, String, Text
 
 from dam.models.core.base_component import BaseComponent
 
@@ -11,6 +11,7 @@ class EvaluationResultComponent(BaseComponent):
     This component is attached to the entity representing the transcoded file
     that was generated during the evaluation.
     """
+
     __tablename__ = "evaluation_results"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
@@ -33,7 +34,11 @@ class EvaluationResultComponent(BaseComponent):
 
     # Transcoded file specific info (can be redundant with TranscodedVariantComponent, but useful here for direct reporting)
     transcoded_asset_entity_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("entities.id"), nullable=False, index=True, unique=True
+        Integer,
+        ForeignKey("entities.id"),
+        nullable=False,
+        index=True,
+        unique=True,
         # Unique because one evaluation result per transcoded asset from an eval run
     )
     # This is the entity_id of the asset this component is attached to.
@@ -51,10 +56,9 @@ class EvaluationResultComponent(BaseComponent):
     # Notes or comments specific to this evaluation result
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-
     __mapper_args__ = {
         "polymorphic_identity": "evaluation_result",
-        "inherit_condition": id == BaseComponent.id, # type: ignore
+        "inherit_condition": id == BaseComponent.id,  # type: ignore
     }
 
     def __repr__(self) -> str:

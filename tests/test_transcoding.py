@@ -1,41 +1,37 @@
-import pytest
-import asyncio
 from pathlib import Path
-import typer # Added import
-from unittest.mock import AsyncMock, patch, MagicMock # Added MagicMock
+from unittest.mock import AsyncMock, MagicMock  # Added MagicMock
 
-from typer.testing import CliRunner
+import pytest
+import typer  # Added import
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session
 
-from dam import cli as dam_cli # Import cli with an alias
-from dam.cli import app # app is still needed if other tests use click_runner
-from dam.core.world import World, get_world, create_and_register_all_worlds_from_settings
+from dam import cli as dam_cli  # Import cli with an alias
 from dam.core.config import Settings as AppSettings
 from dam.core.events import AssetFileIngestionRequested
 from dam.core.stages import SystemStage
-from dam.models.core.entity import Entity
+from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
+from dam.models.conceptual.entity_tag_link_component import EntityTagLinkComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
-from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.conceptual.tag_concept_component import TagConceptComponent
-from dam.models.conceptual.entity_tag_link_component import EntityTagLinkComponent
-
-
-from dam.services import transcode_service, file_operations, ecs_service as dam_ecs_service, tag_service
+from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.services import ecs_service as dam_ecs_service
+from dam.services import file_operations, tag_service, transcode_service
 
 # Assuming test_environment fixture can be imported or replicated if needed.
 # For now, let's use the one from test_cli by importing it.
 # This might require adjustments if there are import cycles or if it's preferred to keep it separate.
-from .test_cli import test_environment, click_runner, _create_dummy_file
+from .test_cli import _create_dummy_file
 
 # Pytest marker for async tests
 pytestmark = pytest.mark.asyncio
 
 
-async def _add_dummy_asset(world: World, tmp_path: Path, filename: str = "source_asset.txt", content: str = "dummy source content") -> Entity:
+async def _add_dummy_asset(
+    world: World, tmp_path: Path, filename: str = "source_asset.txt", content: str = "dummy source content"
+) -> Entity:
     """Helper to add a dummy asset and return its entity."""
     dummy_file = _create_dummy_file(tmp_path / filename, content)
 
@@ -58,9 +54,8 @@ async def _add_dummy_asset(world: World, tmp_path: Path, filename: str = "source
         # content_hash_bytes = bytes.fromhex(content_hash_val) # SHA256 in DB is string
         content_hash_bytes = bytes.fromhex(content_hash_val)
 
-
         stmt_hash = select(ContentHashSHA256Component).where(
-            ContentHashSHA256Component.hash_value == content_hash_bytes # Query with bytes
+            ContentHashSHA256Component.hash_value == content_hash_bytes  # Query with bytes
         )
         hash_comp_result = await session.execute(stmt_hash)
         hash_component = hash_comp_result.scalar_one_or_none()
@@ -119,14 +114,15 @@ async def test_service_create_transcode_profile(test_environment):
 
         link_stmt = select(EntityTagLinkComponent).where(
             EntityTagLinkComponent.entity_id == profile_entity.id,
-            EntityTagLinkComponent.tag_concept_entity_id == tag_concept.id
+            EntityTagLinkComponent.tag_concept_entity_id == tag_concept.id,
         )
         link_result = await session.execute(link_stmt)
         link = link_result.scalar_one_or_none()
         assert link is not None, "System:TranscodeProfile tag was not applied."
 
+
 # Test for CLI transcode profile-create
-async def test_cli_transcode_profile_create(test_environment, monkeypatch): # Removed click_runner, added monkeypatch
+async def test_cli_transcode_profile_create(test_environment, monkeypatch):  # Removed click_runner, added monkeypatch
     default_world_name = test_environment["default_world_name"]
 
     profile_name = "test_cli_profile"
@@ -139,7 +135,8 @@ async def test_cli_transcode_profile_create(test_environment, monkeypatch): # Re
     # We will call the command function directly due to async issues with CliRunner.
 
     captured_output = []
-    def mock_secho(message="", **kwargs): # Adjusted to match typer.secho signature
+
+    def mock_secho(message="", **kwargs):  # Adjusted to match typer.secho signature
         captured_output.append(str(message))
 
     monkeypatch.setattr(typer, "secho", mock_secho)
@@ -159,7 +156,6 @@ async def test_cli_transcode_profile_create(test_environment, monkeypatch): # Re
     mock_ctx = MagicMock(spec=typer.Context)
     # mock_ctx.obj = global_state # global_state is not defined here, but dam_cli.global_state is what matters
     mock_ctx.obj = dam_cli.global_state
-
 
     try:
         await dam_cli.cli_transcode_profile_create(
@@ -202,7 +198,7 @@ async def test_cli_transcode_profile_create(test_environment, monkeypatch): # Re
 
         link_stmt = select(EntityTagLinkComponent).where(
             EntityTagLinkComponent.entity_id == profile_entity_id,
-            EntityTagLinkComponent.tag_concept_entity_id == tag_concept.id
+            EntityTagLinkComponent.tag_concept_entity_id == tag_concept.id,
         )
         link_result = await session.execute(link_stmt)
         link = link_result.scalar_one_or_none()
@@ -228,7 +224,7 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
         world=target_world,
         profile_name=profile_name,
         tool_name="mocktool",
-            parameters="-mockparams {input} {output}",
+        parameters="-mockparams {input} {output}",
         output_format="mock",
         description="Profile for service apply test",
     )
@@ -251,13 +247,11 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
         return output_path
 
     mock_transcode_media_async = AsyncMock(side_effect=mock_transcode_media_impl)
-    monkeypatch.setattr(transcode_service, "transcode_media", mock_transcode_media_async) # Patch where it's looked up
+    monkeypatch.setattr(transcode_service, "transcode_media", mock_transcode_media_async)  # Patch where it's looked up
 
     # 4. Apply the profile
     transcoded_entity = await transcode_service.apply_transcode_profile(
-        world=target_world,
-        source_asset_entity_id=source_asset_entity.id,
-        profile_entity_id=profile_entity.id
+        world=target_world, source_asset_entity_id=source_asset_entity.id, profile_entity_id=profile_entity.id
     )
 
     assert transcoded_entity is not None
@@ -266,7 +260,9 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
     # 5. Verify results
     async with target_world.db_session_maker() as session:
         # Verify TranscodedVariantComponent
-        tvc_stmt = select(TranscodedVariantComponent).where(TranscodedVariantComponent.entity_id == transcoded_entity.id)
+        tvc_stmt = select(TranscodedVariantComponent).where(
+            TranscodedVariantComponent.entity_id == transcoded_entity.id
+        )
         tvc_res = await session.execute(tvc_stmt)
         tvc = tvc_res.scalar_one_or_none()
 
@@ -278,7 +274,9 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
         # Verify new asset's components (FPC, FLC, Hash)
         fpc = await dam_ecs_service.get_component(session, transcoded_entity.id, FilePropertiesComponent)
         assert fpc is not None
-        source_fpc_for_name = await dam_ecs_service.get_component(session, source_asset_entity.id, FilePropertiesComponent)
+        source_fpc_for_name = await dam_ecs_service.get_component(
+            session, source_asset_entity.id, FilePropertiesComponent
+        )
         assert source_fpc_for_name is not None
         expected_new_filename_base = Path(source_fpc_for_name.original_filename).stem
         expected_new_filename = f"{expected_new_filename_base}_{profile_name.replace(' ', '_')}.mock"
@@ -287,7 +285,7 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
 
         flc = await dam_ecs_service.get_component(session, transcoded_entity.id, FileLocationComponent)
         assert flc is not None
-        assert flc.storage_type == "local_cas" # Assuming default ingestion puts it in CAS
+        assert flc.storage_type == "local_cas"  # Assuming default ingestion puts it in CAS
 
         # Check that the mock was called
         mock_transcode_media_async.assert_called_once()
@@ -295,13 +293,15 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
 
 
 # Test for CLI transcode apply
-async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed click_runner
+async def test_cli_transcode_apply(test_environment, monkeypatch):  # Removed click_runner
     tmp_path = test_environment["tmp_path"]
     default_world_name = test_environment["default_world_name"]
 
     current_test_settings = AppSettings()
     # Ensure worlds are registered using the settings patched by test_environment
-    create_and_register_all_worlds_from_settings(app_settings=dam_cli.app_config.settings) # Use settings from dam_cli's app_config
+    create_and_register_all_worlds_from_settings(
+        app_settings=dam_cli.app_config.settings
+    )  # Use settings from dam_cli's app_config
 
     dam_cli.global_state.world_name = default_world_name
     target_world = get_world(default_world_name)
@@ -317,14 +317,16 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
         world=target_world,
         profile_name=profile_name_cli,
         tool_name="mocktool_cli",
-        parameters="-mockparams_cli {input} {output}", # Added placeholders
+        parameters="-mockparams_cli {input} {output}",  # Added placeholders
         output_format="cli_mock",
     )
 
     # 3. Mock `dam.utils.media_utils.transcode_media`
     mock_transcoded_cli_content = b"cli transcoded content"
 
-    async def mock_transcode_media_cli_impl(input_path: Path, output_path: Path, tool_name: str, tool_params: str) -> Path:
+    async def mock_transcode_media_cli_impl(
+        input_path: Path, output_path: Path, tool_name: str, tool_params: str
+    ) -> Path:
         output_path.write_bytes(mock_transcoded_cli_content)
         return output_path
 
@@ -341,6 +343,7 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
     monkeypatch.setattr(transcode_service, "transcode_media", mock_transcode_media_cli_async)
 
     captured_output_cli = []
+
     def mock_secho_cli(message="", **kwargs):
         captured_output_cli.append(str(message))
 
@@ -355,7 +358,7 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
             ctx=mock_ctx_cli,
             asset_identifier=str(source_asset_entity.id),
             profile_identifier=str(profile_entity_cli.id),
-            output_path_str=None
+            output_path_str=None,
         )
     except typer.Exit as e:
         assert e.exit_code == 0, f"CLI command exited with code {e.exit_code}"
@@ -368,13 +371,17 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
 
     async with target_world.db_session_maker() as session:
         # Find the TranscodedVariantComponent created for this operation
-        tvc_stmt = select(TranscodedVariantComponent).where(
-            TranscodedVariantComponent.original_asset_entity_id == source_asset_entity.id,
-            TranscodedVariantComponent.transcode_profile_entity_id == profile_entity_cli.id
-        ).order_by(TranscodedVariantComponent.id.desc()) # Get the latest one if multiple
+        tvc_stmt = (
+            select(TranscodedVariantComponent)
+            .where(
+                TranscodedVariantComponent.original_asset_entity_id == source_asset_entity.id,
+                TranscodedVariantComponent.transcode_profile_entity_id == profile_entity_cli.id,
+            )
+            .order_by(TranscodedVariantComponent.id.desc())
+        )  # Get the latest one if multiple
 
         tvc_res = await session.execute(tvc_stmt)
-        tvc = tvc_res.scalars().first() # Use scalars().first()
+        tvc = tvc_res.scalars().first()  # Use scalars().first()
 
         assert tvc is not None, "TranscodedVariantComponent not found after CLI apply."
         assert tvc.transcoded_file_size_bytes == len(mock_transcoded_cli_content)
@@ -385,7 +392,9 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
         # Verify new asset's components
         fpc = await dam_ecs_service.get_component(session, transcoded_entity_id_from_cli, FilePropertiesComponent)
         assert fpc is not None
-        source_fpc_for_name_cli = await dam_ecs_service.get_component(session, source_asset_entity.id, FilePropertiesComponent)
+        source_fpc_for_name_cli = await dam_ecs_service.get_component(
+            session, source_asset_entity.id, FilePropertiesComponent
+        )
         assert source_fpc_for_name_cli is not None
         expected_new_filename_base_cli = Path(source_fpc_for_name_cli.original_filename).stem
         expected_new_filename_cli = f"{expected_new_filename_base_cli}_{profile_name_cli.replace(' ', '_')}.cli_mock"
@@ -397,6 +406,7 @@ async def test_cli_transcode_apply(test_environment, monkeypatch): # Removed cli
         assert flc.storage_type == "local_cas"
 
     mock_transcode_media_cli_async.assert_called_once()
+
 
 # TODO: Add test for applying profile by name for asset and profile identifiers in CLI.
 # TODO: Add test for error conditions, e.g., source asset not found, profile not found, transcoding failure.

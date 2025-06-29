@@ -1,12 +1,17 @@
+import asyncio  # For futures
 import json
 import os  # Added for os.path.exists
+import uuid  # For request_id
 from pathlib import Path
-from typing import Iterator
+from typing import (
+    AsyncGenerator,  # For async fixtures
+    Iterator,
+)
 
 import pytest
-from click.testing import Result
+import pytest_asyncio  # For async fixtures
 from sqlalchemy import select  # Ensure select is imported for tests
-from typer.testing import CliRunner # Reverted from IsolatedCliRunner
+from typer.testing import CliRunner  # Reverted from IsolatedCliRunner
 
 # Import the app after patches, if any, are applied.
 # For now, direct import is fine as we're starting simple.
@@ -34,11 +39,9 @@ TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"
 TEST_BETA_WORLD_NAME = "cli_test_world_beta"
 
-import pytest_asyncio # For async fixtures
-from typing import AsyncGenerator # For async fixtures
 
-@pytest_asyncio.fixture(scope="function") # Made async
-async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, None]: # Made async
+@pytest_asyncio.fixture(scope="function")  # Made async
+async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, None]:  # Made async
     """
     Sets up a clean test environment for each test function.
     - Creates temporary directories for asset storage for multiple worlds.
@@ -62,7 +65,7 @@ async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, 
         storage_dir = tmp_path / f"asset_storage_{world_name_key}"
         storage_dir.mkdir(parents=True, exist_ok=True)
         test_worlds_config[world_name_key] = {
-            "DATABASE_URL": f"sqlite+aiosqlite:///{db_file.resolve()}", # Use async URL
+            "DATABASE_URL": f"sqlite+aiosqlite:///{db_file.resolve()}",  # Use async URL
             "ASSET_STORAGE_PATH": str(storage_dir.resolve()),
         }
 
@@ -102,11 +105,12 @@ async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, 
 
     # Create all tables for all test worlds using the db_managers created for the fixture
     from sqlalchemy.ext.asyncio import AsyncEngine
+
     for world_name_setup, db_mgr_instance in test_fixture_db_managers.items():
         if isinstance(db_mgr_instance.engine, AsyncEngine):
             async with db_mgr_instance.engine.begin() as conn:
                 await conn.run_sync(AppBase.metadata.create_all)
-        else: # Sync fallback
+        else:  # Sync fallback
             AppBase.metadata.create_all(bind=db_mgr_instance.engine)
 
     yield {
@@ -182,7 +186,7 @@ async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, 
 
 
 @pytest.fixture
-def click_runner() -> Iterator[CliRunner]: # Removed capsys parameter
+def click_runner() -> Iterator[CliRunner]:  # Removed capsys parameter
     """
     Convenience fixture to return a click.CliRunner for cli testing
     """
@@ -208,13 +212,17 @@ def test_cli_list_worlds(test_environment, click_runner):
     # by interacting with the world registry or checking settings.
     # The test_environment fixture sets up the worlds and patches global_app_settings.
     # The CLI's main_callback populates the world registry from these settings.
+    from dam.core.config import settings as app_settings  # Use the patched global settings
     from dam.core.world import get_all_registered_worlds, get_world
-    from dam.core.config import settings as app_settings # Use the patched global settings
 
     registered_worlds_list = get_all_registered_worlds()
     registered_world_names = [world.name for world in registered_worlds_list]
-    assert TEST_DEFAULT_WORLD_NAME in registered_world_names, f"Default world '{TEST_DEFAULT_WORLD_NAME}' not found in registry."
-    assert TEST_ALPHA_WORLD_NAME in registered_world_names, f"Alpha world '{TEST_ALPHA_WORLD_NAME}' not found in registry."
+    assert TEST_DEFAULT_WORLD_NAME in registered_world_names, (
+        f"Default world '{TEST_DEFAULT_WORLD_NAME}' not found in registry."
+    )
+    assert TEST_ALPHA_WORLD_NAME in registered_world_names, (
+        f"Alpha world '{TEST_ALPHA_WORLD_NAME}' not found in registry."
+    )
     assert TEST_BETA_WORLD_NAME in registered_world_names, f"Beta world '{TEST_BETA_WORLD_NAME}' not found in registry."
 
     default_world_from_registry = get_world(app_settings.DEFAULT_WORLD_NAME)
@@ -229,7 +237,9 @@ def test_cli_list_worlds(test_environment, click_runner):
 
     # Verify that the settings reflect the expected worlds.
     # The CLI command `list-worlds` primarily reflects the configured worlds.
-    assert TEST_DEFAULT_WORLD_NAME in app_settings.worlds, f"Default world '{TEST_DEFAULT_WORLD_NAME}' not in settings.worlds"
+    assert TEST_DEFAULT_WORLD_NAME in app_settings.worlds, (
+        f"Default world '{TEST_DEFAULT_WORLD_NAME}' not in settings.worlds"
+    )
     assert app_settings.DEFAULT_WORLD_NAME == TEST_DEFAULT_WORLD_NAME, "Default world name in settings is incorrect"
     assert TEST_ALPHA_WORLD_NAME in app_settings.worlds, f"Alpha world '{TEST_ALPHA_WORLD_NAME}' not in settings.worlds"
     assert TEST_BETA_WORLD_NAME in app_settings.worlds, f"Beta world '{TEST_BETA_WORLD_NAME}' not in settings.worlds"
@@ -283,7 +293,7 @@ def _create_dummy_image(filepath: Path, size=(32, 32), color="red") -> Path:
 
 
 @pytest.mark.asyncio
-async def test_cli_setup_db(test_environment, click_runner): # Made test async
+async def test_cli_setup_db(test_environment, click_runner):  # Made test async
     """Test the setup-db command's core logic."""
     default_world_name = test_environment["default_world_name"]
     db_file = test_environment["tmp_path"] / f"{default_world_name}.db"
@@ -293,14 +303,13 @@ async def test_cli_setup_db(test_environment, click_runner): # Made test async
         db_file.unlink()
 
     # Directly test the async logic that the 'setup-db' command would invoke
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
-    from dam.core import config as dam_config_module # To re-init settings if necessary for safety
-    import asyncio # Required for asyncio.run if not using pytest-asyncio's auto run
+
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     # Ensure worlds are configured based on test_environment's patched settings
     # Re-initializing settings and worlds within the test ensures it uses the correct patched env.
     # The test_environment fixture patches os.environ, so Settings() will pick those up.
-    current_settings = Settings() # This will use monkeypatched env vars
+    current_settings = Settings()  # This will use monkeypatched env vars
     create_and_register_all_worlds_from_settings(app_settings=current_settings)
 
     world_instance = get_world(default_world_name)
@@ -319,21 +328,23 @@ async def test_cli_setup_db(test_environment, click_runner): # Made test async
     # For this test, let's assume the db_manager associated with the world_instance is the one to use.
     world_db_manager = world_instance.get_resource(DatabaseManager)
 
-    from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
     from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
     if isinstance(world_db_manager.engine, AsyncEngine):
-        async with world_db_manager.session_local() as session: # type: ignore
-            result = await session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'"))
+        async with world_db_manager.session_local() as session:  # type: ignore
+            result = await session.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'")
+            )
             assert result.scalar_one_or_none() == "entities", "Entities table not found after setup-db (async)"
-    else: # Fallback for any synchronous engine scenario (should not happen with aiosqlite)
-        with world_db_manager.get_db_session() as session: # type: ignore
+    else:  # Fallback for any synchronous engine scenario (should not happen with aiosqlite)
+        with world_db_manager.get_db_session() as session:  # type: ignore
             result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'"))
             assert result.scalar_one_or_none() == "entities", "Entities table not found after setup-db (sync)"
 
 
-@pytest.mark.asyncio # Mark as async test
-async def test_cli_add_asset_single_file(test_environment, caplog, click_runner): # Make async
+@pytest.mark.asyncio  # Mark as async test
+async def test_cli_add_asset_single_file(test_environment, caplog, click_runner):  # Make async
     """Test adding a single asset file."""
     caplog.set_level("INFO")
     # test_environment is now an async fixture, so this test needs to be async
@@ -344,13 +355,13 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
     dummy_file = _create_dummy_file(tmp_path / "test_asset_single.txt", dummy_content)
 
     # --- Replicate logic from cli_add_asset's async part ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
-    from dam.core.config import Settings as AppSettings # Alias to avoid conflict if needed
+    from dam.core.config import Settings as AppSettings  # Alias to avoid conflict if needed
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     # Ensure worlds are configured based on test_environment's patched settings
-    current_test_settings = AppSettings() # This will use monkeypatched env vars from test_environment
+    current_test_settings = AppSettings()  # This will use monkeypatched env vars from test_environment
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
 
     target_world = get_world(default_world_name)
@@ -393,33 +404,32 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
 
     content_hash = file_operations.calculate_sha256(dummy_file)
     # Use public get_file_path to verify CAS storage
-    cas_file_path = get_file_path(content_hash, world_config_for_assertion) # Use correct variable
+    cas_file_path = get_file_path(content_hash, world_config_for_assertion)  # Use correct variable
     assert cas_file_path is not None, f"Asset file with hash {content_hash} not found in CAS via get_file_path"
     assert cas_file_path.exists(), f"Asset file not found in CAS at {cas_file_path}"
     assert cas_file_path.read_text() == dummy_content
 
     # Verify database entries
     db_manager = test_environment["db_managers"][default_world_name]
-    expected_props = file_operations.get_file_properties(dummy_file) # Sync op, fine here
+    expected_props = file_operations.get_file_properties(dummy_file)  # Sync op, fine here
 
-    from sqlalchemy.ext.asyncio import AsyncSession
-    async with db_manager.session_local() as session: # Use async session
+    async with db_manager.session_local() as session:  # Use async session
         # Find entity by SHA256 hash (hex string converted to bytes for query)
         content_hash_bytes = bytes.fromhex(content_hash)
         stmt_hash = select(ContentHashSHA256Component).where(
             ContentHashSHA256Component.hash_value == content_hash_bytes
         )
-        result_hash = await session.execute(stmt_hash) # Await
+        result_hash = await session.execute(stmt_hash)  # Await
         hash_component = result_hash.scalar_one_or_none()
         assert hash_component is not None, "ContentHashSHA256Component not found in DB"
         assert hash_component.hash_value == content_hash_bytes
 
         entity_id = hash_component.entity_id
-        entity = await session.get(Entity, entity_id) # Await
+        entity = await session.get(Entity, entity_id)  # Await
         assert entity is not None, "Entity not found in DB"
 
         # Check OriginalSourceInfoComponent
-        result_osi = await session.execute( # Await
+        result_osi = await session.execute(  # Await
             select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
         )
         osi_comp = result_osi.scalar_one_or_none()
@@ -429,7 +439,7 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
         assert not hasattr(osi_comp, "original_path"), "OSI should not have original_path"
 
         # Check FilePropertiesComponent
-        result_fpc = await session.execute( # Await
+        result_fpc = await session.execute(  # Await
             select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
         )
         fpc_comp = result_fpc.scalar_one_or_none()
@@ -440,7 +450,7 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
-        result_loc = await session.execute(stmt_loc) # Await
+        result_loc = await session.execute(stmt_loc)  # Await
         location_component = result_loc.scalar_one_or_none()
         assert location_component is not None, "FileLocationComponent not found"
         assert location_component.contextual_filename == dummy_file.name
@@ -448,8 +458,8 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
         assert location_component.content_identifier == content_hash
 
 
-@pytest.mark.asyncio # Mark as async test
-async def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runner): # Make async
+@pytest.mark.asyncio  # Mark as async test
+async def test_cli_add_asset_directory_recursive(test_environment, caplog, click_runner):  # Make async
     """Test adding assets from a directory recursively."""
     caplog.set_level("INFO")
     tmp_path = test_environment["tmp_path"]
@@ -466,10 +476,10 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
     file2 = _create_dummy_file(sub_dir / "file2_rec.txt", content2)
 
     # --- Replicate logic from cli_add_asset's async part for multiple files ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     current_test_settings = AppSettings()
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
@@ -477,7 +487,7 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
     target_world = get_world(default_world_name)
     assert target_world is not None, f"World '{default_world_name}' not found for test."
 
-    files_to_process_in_test = [file1, file2] # Simplified from CLI's rglob
+    files_to_process_in_test = [file1, file2]  # Simplified from CLI's rglob
 
     for dummy_file_path in files_to_process_in_test:
         original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file_path)
@@ -509,14 +519,16 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
 
     # Use the config from the target_world instance for consistency
     world_config_for_assertion = target_world.config
-    db_manager = test_environment["db_managers"][default_world_name] # db_manager for session is fine from test_environment
+    db_manager = test_environment["db_managers"][
+        default_world_name
+    ]  # db_manager for session is fine from test_environment
 
     files_to_check = [
         {"path": file1, "content": content1},
         {"path": file2, "content": content2},
     ]
 
-    async with db_manager.session_local() as session: # Use async session
+    async with db_manager.session_local() as session:  # Use async session
         for file_info in files_to_check:
             f_path = file_info["path"]
             f_content = file_info["content"]
@@ -525,7 +537,7 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             expected_props = file_operations.get_file_properties(f_path)
 
             # Check CAS
-            cas_file_path = get_file_path(content_hash, world_config_for_assertion) # Use correct config
+            cas_file_path = get_file_path(content_hash, world_config_for_assertion)  # Use correct config
             assert cas_file_path is not None, (
                 f"Asset {f_path.name} (hash {content_hash}) not found in CAS via get_file_path"
             )
@@ -536,17 +548,17 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             stmt_hash = select(ContentHashSHA256Component).where(
                 ContentHashSHA256Component.hash_value == content_hash_bytes
             )
-            result_hash = await session.execute(stmt_hash) # Await
+            result_hash = await session.execute(stmt_hash)  # Await
             hash_component = result_hash.scalar_one_or_none()
             assert hash_component is not None, f"ContentHashSHA256Component for {f_path.name} not found"
             assert hash_component.hash_value == content_hash_bytes
 
             entity_id = hash_component.entity_id
-            entity = await session.get(Entity, entity_id) # Await
+            entity = await session.get(Entity, entity_id)  # Await
             assert entity is not None, f"Entity for {f_path.name} not found"
 
             # Check OriginalSourceInfoComponent
-            result_osi = await session.execute( # Await
+            result_osi = await session.execute(  # Await
                 select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
             )
             osi_comp = result_osi.scalar_one_or_none()  # Assuming one OSI per entity for this test case
@@ -558,7 +570,7 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             assert not hasattr(osi_comp, "original_path"), f"OSI for {f_path.name} should not have original_path"
 
             # Check FilePropertiesComponent
-            result_fpc = await session.execute( # Await
+            result_fpc = await session.execute(  # Await
                 select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
             )
             fpc_comp = result_fpc.scalar_one_or_none()
@@ -575,15 +587,15 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
                 .where(FileLocationComponent.entity_id == entity_id)
                 .where(FileLocationComponent.contextual_filename == f_path.name)
             )
-            result_loc = await session.execute(stmt_loc) # Await
+            result_loc = await session.execute(stmt_loc)  # Await
             location_component = result_loc.scalar_one_or_none()
             assert location_component is not None, f"FileLocationComponent for {f_path.name} not found"
             assert location_component.storage_type == "local_cas"
             assert location_component.content_identifier == content_hash
 
 
-@pytest.mark.asyncio # Mark as async test
-async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # Make async
+@pytest.mark.asyncio  # Mark as async test
+async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):  # Make async
     """Test adding an asset with --no-copy."""
     caplog.set_level("INFO")
     tmp_path = test_environment["tmp_path"]
@@ -591,10 +603,10 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
     dummy_file = _create_dummy_file(tmp_path / "ref_asset.txt", "reference content")
 
     # --- Replicate logic from cli_add_asset's async part for --no-copy ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
-    from dam.core.events import AssetReferenceIngestionRequested # Changed event type
+    from dam.core.events import AssetReferenceIngestionRequested  # Changed event type
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     current_test_settings = AppSettings()
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
@@ -603,7 +615,7 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
     assert target_world is not None, f"World '{default_world_name}' not found for test."
 
     original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
-    event_to_dispatch = AssetReferenceIngestionRequested( # Use correct event
+    event_to_dispatch = AssetReferenceIngestionRequested(  # Use correct event
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
         mime_type=mime_type,
@@ -628,29 +640,29 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
 
     # Use the config from the target_world instance for consistency
     world_config_for_assertion = target_world.config
-    db_manager = test_environment["db_managers"][default_world_name] # db_manager for session is fine
+    db_manager = test_environment["db_managers"][default_world_name]  # db_manager for session is fine
     content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
     expected_props = file_operations.get_file_properties(dummy_file)
 
     # Check that file is NOT in CAS
-    cas_file_path = get_file_path(content_hash, world_config_for_assertion) # Use correct config
+    cas_file_path = get_file_path(content_hash, world_config_for_assertion)  # Use correct config
     assert cas_file_path is None, (
         f"Asset file with hash {content_hash} found in CAS ({cas_file_path}) via get_file_path when --no-copy was used. It should not exist in CAS."
     )
 
-    async with db_manager.session_local() as session: # Use async session
+    async with db_manager.session_local() as session:  # Use async session
         stmt_hash = select(ContentHashSHA256Component).where(
             ContentHashSHA256Component.hash_value == content_hash_bytes
         )
-        result_hash = await session.execute(stmt_hash) # Await
+        result_hash = await session.execute(stmt_hash)  # Await
         hash_component = result_hash.scalar_one_or_none()
         assert hash_component is not None, "ContentHashSHA256Component not found"
         assert hash_component.hash_value == content_hash_bytes
         entity_id = hash_component.entity_id
 
         # Check OriginalSourceInfoComponent
-        result_osi = await session.execute( # Await
+        result_osi = await session.execute(  # Await
             select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
         )
         osi_comp = result_osi.scalar_one_or_none()
@@ -660,7 +672,7 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
         assert not hasattr(osi_comp, "original_path"), "OSI for no-copy should not have original_path"
 
         # Check FilePropertiesComponent
-        result_fpc = await session.execute( # Await
+        result_fpc = await session.execute(  # Await
             select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
         )
         fpc_comp = result_fpc.scalar_one_or_none()
@@ -671,7 +683,7 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
-        result_loc = await session.execute(stmt_loc) # Await
+        result_loc = await session.execute(stmt_loc)  # Await
         location_component = result_loc.scalar_one_or_none()
         assert location_component is not None, "FileLocationComponent not found for no-copy asset"
         assert location_component.contextual_filename == dummy_file.name
@@ -680,8 +692,8 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner): # 
         assert location_component.content_identifier == content_hash
 
 
-@pytest.mark.asyncio # Mark as async test
-async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): # Make async
+@pytest.mark.asyncio  # Mark as async test
+async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner):  # Make async
     """Test adding a duplicate asset."""
     caplog.set_level("INFO")
     tmp_path = test_environment["tmp_path"]
@@ -689,10 +701,10 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
     dummy_file = _create_dummy_file(tmp_path / "dup_asset.txt", "duplicate content")
 
     # --- Replicate logic from cli_add_asset's async part ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     current_test_settings = AppSettings()
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
@@ -719,7 +731,6 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
     await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
     # --- End replicated logic ---
 
-
     # Verify database entries for duplicate handling
     from sqlalchemy import select
 
@@ -733,16 +744,16 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
 
     # Use the config from the target_world instance for consistency for get_file_path later
     world_config_for_assertion = target_world.config
-    db_manager = test_environment["db_managers"][default_world_name] # db_manager for session is fine
+    db_manager = test_environment["db_managers"][default_world_name]  # db_manager for session is fine
     content_hash = file_operations.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
 
-    async with db_manager.session_local() as session: # Use async session
+    async with db_manager.session_local() as session:  # Use async session
         # Expect only one ContentHashSHA256Component for this content
         stmt_hashes = select(ContentHashSHA256Component).where(
             ContentHashSHA256Component.hash_value == content_hash_bytes
         )
-        result_hashes = await session.execute(stmt_hashes) # Await
+        result_hashes = await session.execute(stmt_hashes)  # Await
         hash_components = result_hashes.scalars().all()
         assert len(hash_components) == 1, "Duplicate ContentHashSHA256Component found or none found"
         assert hash_components[0].hash_value == content_hash_bytes
@@ -756,7 +767,7 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         # this might need adjustment. For now, assume one distinct OSI by source_type and potentially other unique factors not filename/path.
         # With filename/path removed from OSI, if the second add re-adds an OSI, it would be identical.
         # Let's assume the system is smart enough to not add a fully identical OSI.
-        result_osi_comps = await session.execute( # Await
+        result_osi_comps = await session.execute(  # Await
             select(OriginalSourceInfoComponent).where(OriginalSourceInfoComponent.entity_id == entity_id)
         )
         osi_comps = result_osi_comps.scalars().all()
@@ -766,7 +777,7 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         assert not hasattr(osi_comps[0], "original_path")
 
         # Check FilePropertiesComponent - should be one, from the first add.
-        result_fpc = await session.execute( # Await
+        result_fpc = await session.execute(  # Await
             select(FilePropertiesComponent).where(FilePropertiesComponent.entity_id == entity_id)
         )
         fpc_comp = result_fpc.scalar_one_or_none()
@@ -786,7 +797,7 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
             .where(FileLocationComponent.entity_id == entity_id)
             .where(FileLocationComponent.contextual_filename == dummy_file.name)
         )
-        result_locs = await session.execute(stmt_locs) # Await
+        result_locs = await session.execute(stmt_locs)  # Await
         location_components = result_locs.scalars().all()
         assert len(location_components) == 1, (
             f"Expected 1 FileLocationComponent for the same file path, found {len(location_components)}"
@@ -796,18 +807,16 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         # Verify that the CAS file still exists and content is correct
         # world_config_for_assertion was defined earlier using target_world.config
         # from dam.services.file_storage import get_file_path # Import at top
-        cas_file_path = get_file_path(content_hash, world_config_for_assertion) # Use correct config
+        cas_file_path = get_file_path(content_hash, world_config_for_assertion)  # Use correct config
         assert cas_file_path is not None, (
             f"Asset file with hash {content_hash} not found in CAS via get_file_path after duplicate add"
         )
         assert cas_file_path.exists(), "Asset file not found in CAS after duplicate add"
         assert cas_file_path.read_text() == "duplicate content"
 
-import uuid # For request_id
-import asyncio # For futures
 
 @pytest.mark.asyncio
-async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, removed click_runner
+async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, removed click_runner
     """Test finding a file by its hash."""
     caplog.set_level("INFO")
     tmp_path = test_environment["tmp_path"]
@@ -816,10 +825,10 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     dummy_file = _create_dummy_file(tmp_path / "hash_test.txt", dummy_content)
 
     # --- Setup: Add the asset first (using direct async logic) ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     current_test_settings = AppSettings()
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
@@ -828,15 +837,18 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
 
     original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
     add_event = AssetFileIngestionRequested(
-        filepath_on_disk=dummy_file, original_filename=original_filename,
-        mime_type=mime_type, size_bytes=size_bytes, world_name=target_world.name
+        filepath_on_disk=dummy_file,
+        original_filename=original_filename,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
+        world_name=target_world.name,
     )
     await target_world.dispatch_event(add_event)
     await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
     # --- End Asset Add ---
 
+    from dam.core.events import FindEntityByHashQuery  # Import the event
     from dam.services.file_operations import calculate_md5, calculate_sha256
-    from dam.core.events import FindEntityByHashQuery # Import the event
 
     sha256_hash = calculate_sha256(dummy_file)
     md5_hash = calculate_md5(dummy_file)
@@ -844,8 +856,7 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     # Test find by SHA256
     request_id_sha256 = str(uuid.uuid4())
     query_event_sha256 = FindEntityByHashQuery(
-        hash_value=sha256_hash, hash_type="sha256",
-        world_name=target_world.name, request_id=request_id_sha256
+        hash_value=sha256_hash, hash_type="sha256", world_name=target_world.name, request_id=request_id_sha256
     )
     query_event_sha256.result_future = asyncio.get_running_loop().create_future()
     await target_world.dispatch_event(query_event_sha256)
@@ -858,8 +869,7 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     # Test find by MD5
     request_id_md5 = str(uuid.uuid4())
     query_event_md5 = FindEntityByHashQuery(
-        hash_value=md5_hash, hash_type="md5",
-        world_name=target_world.name, request_id=request_id_md5
+        hash_value=md5_hash, hash_type="md5", world_name=target_world.name, request_id=request_id_md5
     )
     query_event_md5.result_future = asyncio.get_running_loop().create_future()
     await target_world.dispatch_event(query_event_md5)
@@ -868,7 +878,7 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     assert details_md5 is not None
     assert details_md5["components"]["FilePropertiesComponent"]["original_filename"] == dummy_file.name
     assert details_md5["components"]["ContentHashMD5Component"]["hash_value"] == md5_hash
-    assert details_md5["entity_id"] == details_sha256["entity_id"] # Should be same entity
+    assert details_md5["entity_id"] == details_sha256["entity_id"]  # Should be same entity
 
     # Test find by providing file (calculates sha256 by default)
     # This part of the original test relied on CLI output for "Calculated sha256 hash".
@@ -877,8 +887,10 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     request_id_file = str(uuid.uuid4())
     # Hash is calculated from dummy_file (which is sha256_hash)
     query_event_file = FindEntityByHashQuery(
-        hash_value=sha256_hash, hash_type="sha256", # CLI would calculate this
-        world_name=target_world.name, request_id=request_id_file
+        hash_value=sha256_hash,
+        hash_type="sha256",  # CLI would calculate this
+        world_name=target_world.name,
+        request_id=request_id_file,
     )
     query_event_file.result_future = asyncio.get_running_loop().create_future()
     await target_world.dispatch_event(query_event_file)
@@ -888,8 +900,8 @@ async def test_cli_find_file_by_hash(test_environment, caplog): # Made async, re
     assert details_file["entity_id"] == details_sha256["entity_id"]
 
 
-@pytest.mark.asyncio # Mark as async test
-async def test_cli_find_similar_images(test_environment, caplog): # Made async, removed click_runner
+@pytest.mark.asyncio  # Mark as async test
+async def test_cli_find_similar_images(test_environment, caplog):  # Made async, removed click_runner
     """Test finding similar images."""
     caplog.set_level("INFO")
     tmp_path = test_environment["tmp_path"]
@@ -903,10 +915,10 @@ async def test_cli_find_similar_images(test_environment, caplog): # Made async, 
     img3_path = _create_dummy_image(img_dir / "img3.png", color="blue")  # Different
 
     # --- Setup: Add images (using direct async logic) ---
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
 
     current_test_settings = AppSettings()
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
@@ -916,20 +928,27 @@ async def test_cli_find_similar_images(test_environment, caplog): # Made async, 
     for img_path_to_add in [img1_path, img2_path, img3_path]:
         original_filename, size_bytes, mime_type = file_operations.get_file_properties(img_path_to_add)
         add_event = AssetFileIngestionRequested(
-            filepath_on_disk=img_path_to_add, original_filename=original_filename,
-            mime_type=mime_type, size_bytes=size_bytes, world_name=target_world.name
+            filepath_on_disk=img_path_to_add,
+            original_filename=original_filename,
+            mime_type=mime_type,
+            size_bytes=size_bytes,
+            world_name=target_world.name,
         )
         await target_world.dispatch_event(add_event)
-    await target_world.execute_stage(SystemStage.METADATA_EXTRACTION) # Run once after all images
+    await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)  # Run once after all images
     # --- End Image Add ---
 
-    from dam.core.events import FindSimilarImagesQuery # Import the event
+    from dam.core.events import FindSimilarImagesQuery  # Import the event
 
     # Test find similar with high threshold
     request_id_similar = str(uuid.uuid4())
     query_event_similar = FindSimilarImagesQuery(
-        image_path=img1_path, phash_threshold=10, ahash_threshold=10, dhash_threshold=10,
-        world_name=target_world.name, request_id=request_id_similar
+        image_path=img1_path,
+        phash_threshold=10,
+        ahash_threshold=10,
+        dhash_threshold=10,
+        world_name=target_world.name,
+        request_id=request_id_similar,
     )
     query_event_similar.result_future = asyncio.get_running_loop().create_future()
     await target_world.dispatch_event(query_event_similar)
@@ -946,8 +965,12 @@ async def test_cli_find_similar_images(test_environment, caplog): # Made async, 
     # Test with default thresholds (stricter)
     request_id_strict = str(uuid.uuid4())
     query_event_strict = FindSimilarImagesQuery(
-        image_path=img1_path, phash_threshold=4, ahash_threshold=4, dhash_threshold=4, # Default thresholds from CLI
-        world_name=target_world.name, request_id=request_id_strict
+        image_path=img1_path,
+        phash_threshold=4,
+        ahash_threshold=4,
+        dhash_threshold=4,  # Default thresholds from CLI
+        world_name=target_world.name,
+        request_id=request_id_strict,
     )
     query_event_strict.result_future = asyncio.get_running_loop().create_future()
     await target_world.dispatch_event(query_event_strict)
@@ -980,7 +1003,7 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
         "SourceFile": str(dummy_image_file),
         "EXIF:Make": "TestMake",
         "EXIF:Model": "TestModel",
-        "Composite:ImageSize": "640x480"
+        "Composite:ImageSize": "640x480",
     }
 
     # 3. Mock `_run_exiftool_subprocess`
@@ -992,13 +1015,13 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
     monkeypatch.setattr("dam.systems.metadata_systems._run_exiftool_subprocess", mock_run_exiftool)
 
     # 4. Add the asset programmatically
-    from dam.core.world import get_world, create_and_register_all_worlds_from_settings
     from dam.core.config import Settings as AppSettings
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
+    from dam.core.world import create_and_register_all_worlds_from_settings, get_world
     from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
-    current_test_settings = AppSettings() # Uses monkeypatched env from test_environment
+    current_test_settings = AppSettings()  # Uses monkeypatched env from test_environment
     create_and_register_all_worlds_from_settings(app_settings=current_test_settings)
     target_world = get_world(default_world_name)
     assert target_world is not None
@@ -1018,7 +1041,7 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
 
     # 5. Query for ExiftoolMetadataComponent and assert
     db_manager = test_environment["db_managers"][default_world_name]
-    content_hash = file_operations.calculate_sha256(dummy_image_file) # To find the entity
+    content_hash = file_operations.calculate_sha256(dummy_image_file)  # To find the entity
     content_hash_bytes = bytes.fromhex(content_hash)
 
     entity_id = None
@@ -1039,13 +1062,14 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
         assert exif_component.raw_exif_json is not None, "raw_exif_json is None."
 
         # Compare the dictionaries
-        assert exif_component.raw_exif_json == sample_exif_data_dict, \
+        assert exif_component.raw_exif_json == sample_exif_data_dict, (
             f"Exif data mismatch. DB: {exif_component.raw_exif_json}, Expected: {sample_exif_data_dict}"
+        )
 
     # 6. Assert that the mock was called correctly
     mock_run_exiftool.assert_called_once()
     # The first argument to _run_exiftool_subprocess is the filepath Path object
-    call_args = mock_run_exiftool.call_args[0] # Gets positional arguments
+    call_args = mock_run_exiftool.call_args[0]  # Gets positional arguments
     assert len(call_args) == 1, "Mock called with unexpected number of positional arguments"
 
     # Resolve the path from FLC to compare, as that's what metadata_systems uses
@@ -1061,7 +1085,7 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
     async with db_manager.session_local() as session:
         flc_stmt = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         flc_result = await session.execute(flc_stmt)
-        flc = flc_result.scalar_one() # Assuming one FLC for this test asset
+        flc = flc_result.scalar_one()  # Assuming one FLC for this test asset
 
         world_config = target_world.config
         if flc.storage_type == "local_cas":
@@ -1074,16 +1098,16 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
             # The original code in metadata_systems.py:
             # filepath_on_disk = base_storage_path / cas_loc.physical_path_or_key
             # So, let's reconstruct that.
-            if flc.physical_path_or_key: # Should exist for CAS
-                 filepath_used_by_system = Path(world_config.ASSET_STORAGE_PATH) / flc.physical_path_or_key
-            else: # Should not happen for CAS
-                 filepath_used_by_system = Path("error_path_not_found_in_flc")
+            if flc.physical_path_or_key:  # Should exist for CAS
+                filepath_used_by_system = Path(world_config.ASSET_STORAGE_PATH) / flc.physical_path_or_key
+            else:  # Should not happen for CAS
+                filepath_used_by_system = Path("error_path_not_found_in_flc")
 
         elif flc.storage_type == "local_reference":
             filepath_used_by_system = Path(flc.physical_path_or_key)
-        else: # Should not happen for this test
+        else:  # Should not happen for this test
             filepath_used_by_system = Path("unknown_storage_type_path")
 
-
-    assert call_args[0] == filepath_used_by_system, \
+    assert call_args[0] == filepath_used_by_system, (
         f"Mock called with wrong filepath. Actual: {call_args[0]}, Expected: {filepath_used_by_system}"
+    )

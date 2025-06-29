@@ -1,17 +1,19 @@
+from sqlalchemy import (
+    ForeignKey,  # Added for ForeignKey
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Text
 
-from dam.models.core.base_component import BaseComponent
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
-from sqlalchemy import ForeignKey # Added for ForeignKey
 
 
-class EvaluationRunComponent(BaseConceptualInfoComponent): # Removed BaseComponent
+class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseComponent
     """
     Component defining an evaluation run.
     This is a conceptual asset, representing the concept of a specific
     evaluation setup (e.g., evaluating various profiles on a set of assets).
     """
+
     __tablename__ = "evaluation_runs"
 
     # This 'id' is the primary key of this table AND a foreign key to entities.id
@@ -35,7 +37,4 @@ class EvaluationRunComponent(BaseConceptualInfoComponent): # Removed BaseCompone
     }
 
     def __repr__(self) -> str:
-        return (
-            f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"run_name='{self.run_name}')>"
-        )
+        return f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, run_name='{self.run_name}')>"

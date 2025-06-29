@@ -1,16 +1,16 @@
 import pytest
 from sqlalchemy import select  # Added import
 from sqlalchemy.exc import IntegrityError
-# from sqlalchemy.orm import Session # Not needed for async
 
+# from dam.models.properties import ImagePropertiesComponent # If checking image type
+from sqlalchemy.ext.asyncio import AsyncSession  # For type hinting db_session
+
+from dam.models import Entity  # Import Entity globally for the module
+
+# from sqlalchemy.orm import Session # Not needed for async
 from dam.models.conceptual import ComicBookConceptComponent, ComicBookVariantComponent, PageLink
 from dam.services import comic_book_service as cbs
 from dam.services import ecs_service
-
-# from dam.models.properties import ImagePropertiesComponent # If checking image type
-
-from sqlalchemy.ext.asyncio import AsyncSession # For type hinting db_session
-from dam.models import Entity # Import Entity globally for the module
 
 
 @pytest.mark.asyncio
@@ -104,7 +104,9 @@ async def test_link_comic_variant_error_cases(db_session: AsyncSession):
     with pytest.raises(ValueError, match=f"Entity ID {not_a_concept_entity.id} is not a valid ComicBookConcept."):
         await cbs.link_comic_variant_to_concept(db_session, not_a_concept_entity.id, file_entity_1.id)
 
-    await cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="CBZ")
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_1.id, language="en", format="CBZ"
+    )
     await db_session.commit()
     with pytest.raises(
         ValueError,
@@ -133,7 +135,9 @@ async def test_get_variants_for_comic_concept(db_session: AsyncSession):
     file_entity_3 = await ecs_service.create_entity(db_session)  # Not linked
     await db_session.commit()
 
-    await cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="PDF")
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_1.id, language="en", format="PDF"
+    )
     await cbs.link_comic_variant_to_concept(
         db_session, concept_entity.id, file_entity_2.id, language="jp", format="CBZ", is_primary=True
     )
@@ -165,7 +169,6 @@ async def test_get_variants_for_comic_concept(db_session: AsyncSession):
 
     assert primary_variant_entity is not None and primary_variant_entity.id == file_entity_2.id
     assert non_primary_variant_entity is not None and non_primary_variant_entity.id == file_entity_1.id
-
 
     assert await cbs.get_variants_for_comic_concept(db_session, 999) == []
 
@@ -249,7 +252,7 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Primary Test")
     v1_e = await ecs_service.create_entity(db_session)
     v2_e = await ecs_service.create_entity(db_session)
-    v3_e = await ecs_service.create_entity(db_session) # Belongs to other_concept
+    v3_e = await ecs_service.create_entity(db_session)  # Belongs to other_concept
     other_concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Other Primary")
     await db_session.commit()
 
@@ -257,9 +260,8 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     concept_id = concept_entity.id
     v1_id = v1_e.id
     v2_id = v2_e.id
-    v3_id = v3_e.id # Belongs to other_concept_id
+    v3_id = v3_e.id  # Belongs to other_concept_id
     other_concept_id = other_concept_entity.id
-
 
     vc1 = await cbs.link_comic_variant_to_concept(db_session, concept_id, v1_id, "en", "PDF", is_primary=False)
     vc2 = await cbs.link_comic_variant_to_concept(db_session, concept_id, v2_id, "en", "CBZ", is_primary=False)
@@ -267,7 +269,7 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     await db_session.commit()
 
     assert await cbs.set_primary_comic_variant(db_session, v1_id, concept_id) is True
-    await db_session.commit() # Commit changes from set_primary
+    await db_session.commit()  # Commit changes from set_primary
 
     # Refresh components directly from session to check their state
     refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.id)
@@ -279,10 +281,10 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     assert primary_v_entity is not None and primary_v_entity.id == v1_id
 
     assert await cbs.set_primary_comic_variant(db_session, v2_id, concept_id) is True
-    await db_session.commit() # Commit changes
+    await db_session.commit()  # Commit changes
 
-    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.id) # Re-get after potential change
-    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.id) # Re-get
+    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.id)  # Re-get after potential change
+    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.id)  # Re-get
     assert refreshed_vc1 is not None and refreshed_vc1.is_primary_variant is False
     assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
 
@@ -293,11 +295,13 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
 
     # Error cases
-    assert await cbs.set_primary_comic_variant(db_session, v1_id, 999) is False # Non-existent concept
-    assert await cbs.set_primary_comic_variant(db_session, 998, concept_id) is False # Non-existent variant
-    assert await cbs.set_primary_comic_variant(db_session, v3_id, concept_id) is False # Variant belongs to other concept
+    assert await cbs.set_primary_comic_variant(db_session, v1_id, 999) is False  # Non-existent concept
+    assert await cbs.set_primary_comic_variant(db_session, 998, concept_id) is False  # Non-existent variant
+    assert (
+        await cbs.set_primary_comic_variant(db_session, v3_id, concept_id) is False
+    )  # Variant belongs to other concept
 
-    not_concept_e = await ecs_service.create_entity(db_session) # Entity that is not a concept
+    not_concept_e = await ecs_service.create_entity(db_session)  # Entity that is not a concept
     await db_session.commit()
     assert await cbs.set_primary_comic_variant(db_session, v1_id, not_concept_e.id) is False
 
@@ -316,7 +320,9 @@ async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession):
     primary = await cbs.get_primary_variant_for_comic_concept(db_session, concept.id)
     assert primary is not None and primary.id == v2.id
 
-    concept_no_primary = await cbs.create_comic_book_concept(db_session, comic_title="No Primary Comic") # Corrected title
+    concept_no_primary = await cbs.create_comic_book_concept(
+        db_session, comic_title="No Primary Comic"
+    )  # Corrected title
     v3 = await ecs_service.create_entity(db_session)
     await db_session.commit()
     await cbs.link_comic_variant_to_concept(db_session, concept_no_primary.id, v3.id, "fr", "ePub")
@@ -339,8 +345,8 @@ async def test_unlink_comic_variant(db_session: AsyncSession):
     await db_session.commit()
     assert await ecs_service.get_component(db_session, variant_e.id, ComicBookVariantComponent) is None
 
-    assert await cbs.unlink_comic_variant(db_session, variant_e.id) is False # Already unlinked
-    assert await cbs.unlink_comic_variant(db_session, 999) is False # Non-existent
+    assert await cbs.unlink_comic_variant(db_session, variant_e.id) is False  # Already unlinked
+    assert await cbs.unlink_comic_variant(db_session, 999) is False  # Non-existent
 
 
 @pytest.mark.asyncio
@@ -368,7 +374,7 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
             db_session, concept1_id, file2_id, language="en", format="PDF", variant_description="Scan A"
         )
         await db_session.commit()  # This commit won't be reached
-    await db_session.rollback() # Rollback the failed transaction
+    await db_session.rollback()  # Rollback the failed transaction
 
     # After rollback, the session is clean.
     # Fetch entities again using their IDs to ensure we have fresh state for subsequent operations.
@@ -384,7 +390,12 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
     # Link second variant (associated with file2_entity) with a different description (Scan B)
     # Use the ID of the refreshed concept entity.
     await cbs.link_comic_variant_to_concept(
-        db_session, refreshed_concept1_entity.id, refreshed_file2_entity.id, language="en", format="PDF", variant_description="Scan B"
+        db_session,
+        refreshed_concept1_entity.id,
+        refreshed_file2_entity.id,
+        language="en",
+        format="PDF",
+        variant_description="Scan B",
     )
     await db_session.commit()
 
@@ -393,11 +404,13 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
     variant1_comp = await ecs_service.get_component(db_session, refreshed_file1_entity.id, ComicBookVariantComponent)
     assert variant1_comp is not None, "Failed to get variant component for file1_entity"
     variant1_comp.variant_description = "Scan C"
-    db_session.add(variant1_comp) # Add to session to mark as dirty for update
+    db_session.add(variant1_comp)  # Add to session to mark as dirty for update
     await db_session.commit()
 
     # Verify variants: Fetch all ComicBookVariantComponents associated with the concept
-    stmt_variants = select(ComicBookVariantComponent).where(ComicBookVariantComponent.conceptual_entity_id == refreshed_concept1_entity.id)
+    stmt_variants = select(ComicBookVariantComponent).where(
+        ComicBookVariantComponent.conceptual_entity_id == refreshed_concept1_entity.id
+    )
     result_variants = await db_session.execute(stmt_variants)
     actual_variant_components = result_variants.scalars().all()
 
@@ -430,8 +443,8 @@ async def test_primary_variant_logic_on_link_comic(db_session: AsyncSession):
     vc2_comp = await cbs.link_comic_variant_to_concept(db_session, concept_id, f2_id, "fr", "CBZ", is_primary=True)
     await db_session.commit()
 
-    await db_session.refresh(vc1_comp) # Refresh vc1_comp to get its updated state
-    assert vc1_comp.is_primary_variant is False # Should now be False
+    await db_session.refresh(vc1_comp)  # Refresh vc1_comp to get its updated state
+    assert vc1_comp.is_primary_variant is False  # Should now be False
     assert vc2_comp.is_primary_variant is True
     primary_variant_entity = await cbs.get_primary_variant_for_comic_concept(db_session, concept_id)
     assert primary_variant_entity is not None
@@ -439,8 +452,8 @@ async def test_primary_variant_logic_on_link_comic(db_session: AsyncSession):
 
     vc3_comp = await cbs.link_comic_variant_to_concept(db_session, concept_id, f3_id, "jp", "ZIP", is_primary=False)
     await db_session.commit()
-    await db_session.refresh(vc2_comp) # Refresh vc2_comp
-    assert vc2_comp.is_primary_variant is True # Should remain true
+    await db_session.refresh(vc2_comp)  # Refresh vc2_comp
+    assert vc2_comp.is_primary_variant is True  # Should remain true
     assert vc3_comp.is_primary_variant is False
     primary_variant_entity = await cbs.get_primary_variant_for_comic_concept(db_session, concept_id)
     assert primary_variant_entity is not None
@@ -462,7 +475,6 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession):
     image_entity1_id = image_entity1.id
     image_entity2_id = image_entity2.id
 
-
     page1_comp = await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity1_id, 1)
     page2_comp = await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity2_id, 2)
     await db_session.commit()
@@ -482,10 +494,10 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession):
     image_entity3_id = image_entity3.id
 
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity3_id, 1) is None
-    await db_session.rollback() # Important after expected failure with IntegrityError
+    await db_session.rollback()  # Important after expected failure with IntegrityError
 
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity1_id, 3) is None
-    await db_session.rollback() # Important
+    await db_session.rollback()  # Important
 
 
 @pytest.mark.asyncio
@@ -493,9 +505,8 @@ async def test_get_ordered_pages_for_comic_variant(db_session: AsyncSession):
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Ordered Pages Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id, "en", "CBZ")
-    await db_session.commit() # Commit link before assigning pages
+    await db_session.commit()  # Commit link before assigning pages
     variant_e_id = variant_e.id
-
 
     img1 = await ecs_service.create_entity(db_session)
     img2 = await ecs_service.create_entity(db_session)
@@ -518,7 +529,7 @@ async def test_get_ordered_pages_for_comic_variant(db_session: AsyncSession):
 
     variant_no_pages_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_no_pages_e.id, "fr", "EPUB")
-    await db_session.commit() # Commit link
+    await db_session.commit()  # Commit link
     variant_no_pages_id = variant_no_pages_e.id
 
     pages_empty = await cbs.get_ordered_pages_for_comic_variant(db_session, variant_no_pages_id)
@@ -530,16 +541,14 @@ async def test_remove_page_from_comic_variant(db_session: AsyncSession):
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Remove Page Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id)
-    await db_session.commit() # Commit link
+    await db_session.commit()  # Commit link
     variant_e_id = variant_e.id
-
 
     img1 = await ecs_service.create_entity(db_session)
     img2 = await ecs_service.create_entity(db_session)
     await db_session.commit()
     img1_id = img1.id
     img2_id = img2.id
-
 
     p1_link = await cbs.assign_page_to_comic_variant(db_session, variant_e_id, img1_id, 1)
     await cbs.assign_page_to_comic_variant(db_session, variant_e_id, img2_id, 2)
@@ -556,7 +565,7 @@ async def test_remove_page_from_comic_variant(db_session: AsyncSession):
     assert pages_after_remove[0].id == img2_id
 
     non_existent_image_id = 9999
-    await cbs.remove_page_from_comic_variant(db_session, variant_e_id, non_existent_image_id) # Should do nothing
+    await cbs.remove_page_from_comic_variant(db_session, variant_e_id, non_existent_image_id)  # Should do nothing
     await db_session.commit()
     assert len(await cbs.get_ordered_pages_for_comic_variant(db_session, variant_e_id)) == 1
 
@@ -572,20 +581,18 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
     concept2 = await cbs.create_comic_book_concept(db_session, comic_title="CVCIAP C2")
     variant2_1_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept2.id, variant2_1_e.id, "fr", "PDF")
-    await db_session.commit() # Commit links
+    await db_session.commit()  # Commit links
 
     # IDs
     variant1_1_id = variant1_1_e.id
-    variant1_2_id = variant1_2_e.id # Unused with image1
+    variant1_2_id = variant1_2_e.id  # Unused with image1
     variant2_1_id = variant2_1_e.id
-
 
     image1 = await ecs_service.create_entity(db_session)
     image2 = await ecs_service.create_entity(db_session)
     await db_session.commit()
     image1_id = image1.id
     image2_id = image2.id
-
 
     await cbs.assign_page_to_comic_variant(db_session, variant1_1_id, image1_id, 1)
     await cbs.assign_page_to_comic_variant(db_session, variant2_1_id, image1_id, 5)
@@ -598,7 +605,6 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
     assert variant1_1_id in found_variant_ids_for_image1
     assert variant2_1_id in found_variant_ids_for_image1
 
-
     variants_with_image2 = await cbs.get_comic_variants_containing_image_as_page(db_session, image2_id)
     assert len(variants_with_image2) == 1
     assert variants_with_image2[0][0].id == variant1_1_id
@@ -608,14 +614,14 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
     variants_with_unused_image = await cbs.get_comic_variants_containing_image_as_page(db_session, image_unused.id)
     assert len(variants_with_unused_image) == 0
 
+
 @pytest.mark.asyncio
 async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Update Order Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id)
-    await db_session.commit() # Commit link
+    await db_session.commit()  # Commit link
     variant_e_id = variant_e.id
-
 
     img1 = await ecs_service.create_entity(db_session)
     img2 = await ecs_service.create_entity(db_session)
@@ -624,7 +630,6 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
     img1_id = img1.id
     img2_id = img2.id
     img3_id = img3.id
-
 
     await cbs.assign_page_to_comic_variant(db_session, variant_e_id, img1_id, 1)
     await cbs.assign_page_to_comic_variant(db_session, variant_e_id, img2_id, 2)
@@ -646,7 +651,6 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
     assert links_check[1].page_image_entity_id == img1_id and links_check[1].page_number == 2
     assert links_check[2].page_image_entity_id == img2_id and links_check[2].page_number == 3
 
-
     shorter_order_ids = [img1_id]
     await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, shorter_order_ids)
     await db_session.commit()
@@ -654,7 +658,7 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
     assert len(pages) == 1
     assert pages[0].id == img1_id
 
-    await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, []) # Empty list
+    await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, [])  # Empty list
     await db_session.commit()
     pages = await cbs.get_ordered_pages_for_comic_variant(db_session, variant_e_id)
     assert len(pages) == 0
@@ -674,4 +678,4 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
 
     with pytest.raises(IntegrityError):
         await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, [img1_id, img1_id])
-    await db_session.rollback() # Rollback after expected integrity error
+    await db_session.rollback()  # Rollback after expected integrity error

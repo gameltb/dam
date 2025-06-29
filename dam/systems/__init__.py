@@ -13,7 +13,7 @@ _system_module_names = [
     # ".asset_ingestion_systems", # Removed
     ".metadata_systems",
     ".asset_lifecycle_systems",  # Add new system module
-    ".evaluation_systems", # Added evaluation_systems
+    ".evaluation_systems",  # Added evaluation_systems
 ]
 
 for module_name in _system_module_names:

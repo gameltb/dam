@@ -24,14 +24,14 @@ from .hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashCo
 from .hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from .hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 
+# Metadata components
+from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
+
 # Property components
 from .properties.audio_properties_component import AudioPropertiesComponent
 from .properties.file_properties_component import FilePropertiesComponent
 from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
-
-# Metadata components
-from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
