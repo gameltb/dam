@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
+from typing import List # Import List for type hinting
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,8 @@ class MockSentenceTransformer:
         # For more controlled tests, you might want to set up specific text -> vector mappings.
 
     def encode(self, sentences, convert_to_numpy=True, **kwargs):
+        original_sentences_type = type(sentences) # Store original type
+
         if isinstance(sentences, str):
             sentences = [sentences]
 
@@ -35,30 +38,53 @@ class MockSentenceTransformer:
             embeddings.append(vec)
 
         if not convert_to_numpy: # Though our service uses convert_to_numpy=True
-            return [e.tolist() for e in embeddings]
-        return np.array(embeddings) if len(embeddings) > 1 else embeddings[0] if embeddings else np.array([])
+            embeddings = [e.tolist() for e in embeddings]
+
+        # If the input was a single string AND convert_to_numpy is True,
+        # the original SentenceTransformer returns a single np.ndarray.
+        # If input was a list of strings, it returns a list of np.ndarrays (or list of lists if not convert_to_numpy).
+        # Our mock should try to replicate this.
+        # The semantic_service.update_text_embeddings_for_entity always passes a list to model.encode.
+        # The semantic_service.generate_embedding passes a single string to model.encode.
+
+        if isinstance(original_sentences_type, str): # Check original input type
+            return embeddings[0] if embeddings else np.array([]) # Return single item
+        else: # Original input was a list
+            return np.array(embeddings) if convert_to_numpy else embeddings # Return list of items (or np.array of arrays)
 
 
 @pytest.fixture(autouse=True)
-def mock_sentence_transformer_loader():
+def mock_sentence_transformer_loader(monkeypatch):
     # This fixture will automatically apply the patch for all tests in this module.
-    with patch('sentence_transformers.SentenceTransformer', new=MockSentenceTransformer) as mock_st:
-        # Clear the service's model cache before each test to ensure fresh mocks are used if model names change
-        semantic_service._model_cache.clear()
-        yield mock_st
+
+    # We want _load_model_sync to return an instance of MockSentenceTransformer
+    def mock_load_sync(model_name):
+        # model_name is passed to MockSentenceTransformer to mimic original behavior if needed by mock
+        return MockSentenceTransformer(model_name_or_path=model_name)
+
+    monkeypatch.setattr('dam.services.semantic_service._load_model_sync', mock_load_sync)
+
+    # Clear the service's model cache before each test
+    semantic_service._model_cache.clear()
+
+    # Yielding something is not strictly necessary unless the test needs to access the mock object directly,
+    # but it's good practice if you might need it later. Here, direct access to mock_st isn't used.
+    # For simplicity, we can remove the yield if not used, or yield a generic marker.
+    # For now, let's assume we don't need to yield the mock object itself from this fixture.
+    # If specific mock instances are needed, they can be created directly in tests or specific fixtures.
 
 
 @pytest.mark.asyncio
 async def test_generate_embedding_and_conversion():
     text = "Hello world"
-    embedding_np = semantic_service.generate_embedding(text, model_name="mock-model")
+    embedding_np = await semantic_service.generate_embedding(text, model_name="mock-model")
     assert embedding_np is not None
     assert isinstance(embedding_np, np.ndarray)
     assert embedding_np.shape == (384,) # Mocked shape, based on all-MiniLM-L6-v2
 
     # Test empty text
-    assert semantic_service.generate_embedding("", model_name="mock-model") is None
-    assert semantic_service.generate_embedding("   ", model_name="mock-model") is None
+    assert await semantic_service.generate_embedding("", model_name="mock-model") is None
+    assert await semantic_service.generate_embedding("   ", model_name="mock-model") is None
 
     # Test conversion
     embedding_bytes = semantic_service.convert_embedding_to_bytes(embedding_np)
@@ -97,7 +123,9 @@ async def test_update_text_embeddings_for_entity(db_session: AsyncSession):
         found_sources.add(source_key)
         # Verify embedding content (optional, depends on mock predictability)
         original_text = text_map[source_key]
-        expected_mock_emb = MockSentenceTransformer(model_name).encode(original_text)
+            # Use the service to generate the expected embedding, which will use the mocked model
+            expected_mock_emb = await semantic_service.generate_embedding(original_text, model_name=model_name) # type: ignore
+            assert expected_mock_emb is not None, f"Expected embedding for '{original_text}' was None"
         assert np.array_equal(semantic_service.convert_bytes_to_embedding(comp.embedding_vector), expected_mock_emb)
 
     assert "FilePropertiesComponent.original_filename" in found_sources
@@ -120,21 +148,23 @@ async def test_update_text_embeddings_for_entity(db_session: AsyncSession):
     for comp in db_emb_comps_after_update:
         source_key = f"{comp.source_component_name}.{comp.source_field_name}"
         original_text = text_map_updated[source_key]
-        expected_mock_emb = MockSentenceTransformer(model_name).encode(original_text)
+        expected_mock_emb = await semantic_service.generate_embedding(original_text, model_name=model_name)
+        assert expected_mock_emb is not None, f"Expected embedding for updated '{original_text}' was None"
         actual_emb = semantic_service.convert_bytes_to_embedding(comp.embedding_vector)
         assert np.array_equal(actual_emb, expected_mock_emb)
         if source_key == "FilePropertiesComponent.original_filename":
             # This one should have a different vector than the very first one
             original_first_text = text_map["FilePropertiesComponent.original_filename"]
-            original_first_emb = MockSentenceTransformer(model_name).encode(original_first_text)
+            original_first_emb = await semantic_service.generate_embedding(original_first_text, model_name=model_name)
+            assert original_first_emb is not None, f"Expected embedding for original '{original_first_text}' was None"
             assert not np.array_equal(actual_emb, original_first_emb)
 
     # Test with batch_texts
     await ecs_service.delete_entity(db_session, entity.id) # Clean up previous entity
     entity2 = await ecs_service.create_entity(db_session)
-    batch = [
-        ("SourceA", "field1", "Text for A1"),
-        ("SourceA", "field2", "Text for A2"),
+    batch: List[semantic_service.BatchTextItem] = [
+        {"component_name": "SourceA", "field_name": "field1", "text_content": "Text for A1"},
+        {"component_name": "SourceA", "field_name": "field2", "text_content": "Text for A2"},
     ]
     batched_comps = await semantic_service.update_text_embeddings_for_entity(
         db_session, entity2.id, {}, model_name=model_name, batch_texts=batch
@@ -142,6 +172,41 @@ async def test_update_text_embeddings_for_entity(db_session: AsyncSession):
     assert len(batched_comps) == 2
     db_batch_comps = await ecs_service.get_components(db_session, entity2.id, TextEmbeddingComponent)
     assert len(db_batch_comps) == 2
+
+    # Test error handling during batch embedding generation
+    entity3 = await ecs_service.create_entity(db_session)
+    batch_for_error: List[semantic_service.BatchTextItem] = [
+        {"component_name": "SourceE", "field_name": "field1", "text_content": "Error text 1"},
+        {"component_name": "SourceE", "field_name": "field2", "text_content": "Error text 2"},
+    ]
+
+    # Simulate model.encode failing by making _load_model_sync return a mock that has a failing encode
+    failing_mock_model_instance = MagicMock(spec=MockSentenceTransformer)
+    failing_mock_model_instance.encode.side_effect = RuntimeError("Simulated encoding error")
+
+    with patch('dam.services.semantic_service._load_model_sync', return_value=failing_mock_model_instance):
+        semantic_service._model_cache.clear() # Ensure our new mock is used for "error-model"
+        error_comps = await semantic_service.update_text_embeddings_for_entity(
+            db_session, entity3.id, {}, model_name="error-model", batch_texts=batch_for_error
+        )
+        assert len(error_comps) == 0 # Should return empty list
+        db_error_comps = await ecs_service.get_components(db_session, entity3.id, TextEmbeddingComponent)
+        assert len(db_error_comps) == 0 # No components should be created
+    semantic_service._model_cache.clear() # Reset cache
+
+    # Simulate model.encode returning wrong number of embeddings
+    wrong_count_mock_model_instance = MagicMock(spec=MockSentenceTransformer)
+    wrong_count_mock_model_instance.encode.return_value = np.array([]) # Empty array
+
+    with patch('dam.services.semantic_service._load_model_sync', return_value=wrong_count_mock_model_instance):
+        semantic_service._model_cache.clear() # Ensure our new mock is used
+        error_comps_wrong_count = await semantic_service.update_text_embeddings_for_entity(
+            db_session, entity3.id, {}, model_name="wrong-count-model", batch_texts=batch_for_error
+        )
+        assert len(error_comps_wrong_count) == 0
+        db_error_comps_wrong_count = await ecs_service.get_components(db_session, entity3.id, TextEmbeddingComponent)
+        assert len(db_error_comps_wrong_count) == 0
+    semantic_service._model_cache.clear() # Reset cache
 
 
 @pytest.mark.asyncio

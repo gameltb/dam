@@ -18,6 +18,7 @@ class TextEmbeddingComponent(BaseComponent):
     # For PostgreSQL, ARRAY(Float) might be more natural for querying with pgvector.
     # For simplicity and broader compatibility first, LargeBinary.
     # Consider a fixed size based on the model used, e.g., 384 floats * 4 bytes/float = 1536 bytes for 'all-MiniLM-L6-v2'
+    # This stores a numpy array (e.g., np.ndarray of dtype float32, shape (384,)) converted to bytes.
     embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False) # Store as bytes
 
     # Name of the sentence transformer model used to generate this embedding.

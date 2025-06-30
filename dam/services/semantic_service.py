@@ -1,8 +1,10 @@
+import asyncio # Added asyncio
 import logging
-from typing import List, Dict, Any, Optional, Type, Tuple # Added Tuple
+from typing import List, Dict, Any, Optional, Type, Tuple, TypedDict # Added TypedDict
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam.models.semantic import TextEmbeddingComponent
@@ -20,21 +22,34 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL_NAME = 'all-MiniLM-L6-v2'
 _model_cache: Dict[str, SentenceTransformer] = {}
 
-def get_sentence_transformer_model(model_name: str = DEFAULT_MODEL_NAME) -> SentenceTransformer:
+def _load_model_sync(model_name: str) -> SentenceTransformer:
+    """Synchronous helper to load the model, intended to be patched for tests."""
+    logger.info(f"Attempting to load SentenceTransformer model: {model_name} (sync)")
+    # This is where the actual SentenceTransformer class is instantiated.
+    # The mock should replace SentenceTransformer before this function is called.
+    model = SentenceTransformer(model_name)
+    logger.info(f"Model {model_name} loaded successfully via sync helper.")
+    return model
+
+async def get_sentence_transformer_model(model_name: str = DEFAULT_MODEL_NAME) -> SentenceTransformer:
     """
     Loads and caches a SentenceTransformer model.
     """
     if model_name not in _model_cache:
         try:
-            logger.info(f"Loading SentenceTransformer model: {model_name}")
-            _model_cache[model_name] = SentenceTransformer(model_name)
-            logger.info(f"Model {model_name} loaded successfully.")
+            # Run the synchronous model loading in a thread to avoid blocking asyncio event loop
+            # if the actual loading (not mocked) takes time.
+            # For tests, with MockSentenceTransformer, this should be quick.
+            loop = asyncio.get_event_loop()
+            # The key is that SentenceTransformer() is called within _load_model_sync,
+            # which is what our test mock patches.
+            _model_cache[model_name] = await loop.run_in_executor(None, _load_model_sync, model_name)
         except Exception as e:
             logger.error(f"Failed to load SentenceTransformer model {model_name}: {e}", exc_info=True)
             raise
     return _model_cache[model_name]
 
-def generate_embedding(text: str, model_name: str = DEFAULT_MODEL_NAME) -> Optional[np.ndarray]:
+async def generate_embedding(text: str, model_name: str = DEFAULT_MODEL_NAME) -> Optional[np.ndarray]:
     """
     Generates a text embedding for the given text using the specified model.
     Returns a numpy array of floats, or None if generation fails.
@@ -43,7 +58,8 @@ def generate_embedding(text: str, model_name: str = DEFAULT_MODEL_NAME) -> Optio
         logger.warning("Cannot generate embedding for empty or whitespace-only text.")
         return None
     try:
-        model = get_sentence_transformer_model(model_name)
+        model = await get_sentence_transformer_model(model_name)
+        # Expect single text string here based on previous logic flow
         embedding = model.encode(text, convert_to_numpy=True)
         return embedding
     except Exception as e:
@@ -61,12 +77,18 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.n
     return np.frombuffer(embedding_bytes, dtype=dtype)
 
 
+class BatchTextItem(TypedDict):
+    component_name: str
+    field_name: str
+    text_content: str
+
+
 async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
     text_fields_map: Dict[str, Any], # e.g., {"ComponentName.field_name": "text content", ...}
     model_name: str = DEFAULT_MODEL_NAME,
-    batch_texts: Optional[List[Tuple[str, str, str]]] = None, # (component_name, field_name, text_content)
+    batch_texts: Optional[List[BatchTextItem]] = None,
 ) -> List[TextEmbeddingComponent]:
     """
     Generates and stores TextEmbeddingComponents for an entity based on a map of its text fields
@@ -78,7 +100,7 @@ async def update_text_embeddings_for_entity(
         text_fields_map: A dictionary where keys are "ComponentName.FieldName" and values are the text content.
                          Used if `batch_texts` is not provided.
         model_name: The name of the sentence transformer model to use.
-        batch_texts: Optional pre-compiled list of (component_name, field_name, text_content) tuples.
+        batch_texts: Optional pre-compiled list of BatchTextItem dictionaries.
                      If provided, `text_fields_map` is ignored. This is useful for batch processing.
 
     Returns:
@@ -86,53 +108,75 @@ async def update_text_embeddings_for_entity(
     """
     processed_embeddings: List[TextEmbeddingComponent] = []
 
-    texts_to_embed: List[Tuple[str, str, str]] = [] # (component_name, field_name, text_content)
+    current_batch_items: List[BatchTextItem] = []
 
     if batch_texts:
-        texts_to_embed = batch_texts
+        current_batch_items = batch_texts
     else:
-        for source_key, text_content in text_fields_map.items():
-            if not text_content or not isinstance(text_content, str) or not text_content.strip():
+        for source_key, text_content_val in text_fields_map.items():
+            if not text_content_val or not isinstance(text_content_val, str) or not text_content_val.strip():
                 logger.debug(f"Skipping empty or invalid text content for {source_key} on entity {entity_id}")
                 continue
             try:
                 comp_name, field_name = source_key.split('.', 1)
-                texts_to_embed.append((comp_name, field_name, text_content))
+                current_batch_items.append(
+                    BatchTextItem(component_name=comp_name, field_name=field_name, text_content=text_content_val)
+                )
             except ValueError:
                 logger.warning(f"Invalid source_key format '{source_key}'. Should be 'ComponentName.FieldName'. Skipping.")
                 continue
 
-    if not texts_to_embed:
+    if not current_batch_items:
         logger.info(f"No valid text fields to embed for entity {entity_id}.")
         return processed_embeddings
 
     # Batch encode all texts for the entity
-    all_text_contents = [item[2] for item in texts_to_embed]
+    all_text_contents = [item["text_content"] for item in current_batch_items]
+    embeddings_np_list: Optional[List[np.ndarray]] = None # Initialize as Optional List
 
     # Ensure model is loaded before attempting to encode
     try:
-        get_sentence_transformer_model(model_name)
-    except Exception: # Model loading failed
-        logger.error(f"Cannot proceed with embedding generation for entity {entity_id} due to model loading failure.")
+        # This time, we ensure the model is loaded, then pass all texts at once to encode
+        # This is more efficient for sentence-transformers
+        model = await get_sentence_transformer_model(model_name)
+        # The model.encode method itself can handle a list of texts and return a list of embeddings
+        embeddings_np_list = model.encode(all_text_contents, convert_to_numpy=True)
+
+        if embeddings_np_list is None or len(embeddings_np_list) != len(all_text_contents):
+             logger.error(f"Batch embedding generation returned unexpected result for entity {entity_id}. "
+                          f"Expected {len(all_text_contents)} embeddings, got {len(embeddings_np_list) if embeddings_np_list is not None else 'None'}.")
+             # Decide if to proceed with partial results or fail all. For now, fail all for this batch.
+             return processed_embeddings
+
+    except Exception as e: # Model loading or encoding failed
+        logger.error(f"Cannot proceed with embedding generation for entity {entity_id} due to: {e}", exc_info=True)
         return processed_embeddings # Return empty list as no embeddings could be generated
 
-    embeddings_np = generate_embedding(all_text_contents, model_name=model_name) # generate_embedding handles list input
 
-    if embeddings_np is None or len(embeddings_np) != len(all_text_contents):
-        logger.error(f"Batch embedding generation failed or returned unexpected number of embeddings for entity {entity_id}.")
-        return processed_embeddings
+    for i, batch_item in enumerate(current_batch_items):
+        comp_name = batch_item["component_name"]
+        field_name = batch_item["field_name"]
+        # text_content = batch_item["text_content"] # Not needed here, but available
 
-    for i, (comp_name, field_name, text_content) in enumerate(texts_to_embed):
-        embedding_np = embeddings_np[i]
+        embedding_np = embeddings_np_list[i] # Directly use the i-th embedding from the batch result
+
+        # This check might be redundant if model.encode guarantees non-None for valid inputs,
+        # but good for safety if any individual text in the batch could cause a specific failure
+        # that results in a None or placeholder in the output list.
+        # However, sentence-transformers usually throws an error or returns valid (possibly zero) vectors.
+        # For simplicity, we assume valid ndarray outputs if no exception during model.encode(list).
+        # If an individual text caused an issue, it's more likely to be an exception from model.encode
+        # or a "bad" vector (e.g. zeros) rather than a None in the list.
+
         embedding_bytes = convert_embedding_to_bytes(embedding_np)
 
         # Check if an embedding for this source already exists and update it, or create a new one.
         # This simplistic check might need to be more robust (e.g., if multiple embeddings per source are allowed).
-        existing_embeddings = await ecs_service.find_components_by_attributes(
+        existing_embeddings = await ecs_service.get_components_by_value(
             session,
             entity_id,
             TextEmbeddingComponent,
-            {
+            attributes_values={ # Explicitly pass as attributes_values
                 "model_name": model_name,
                 "source_component_name": comp_name,
                 "source_field_name": field_name,
@@ -173,16 +217,21 @@ async def get_text_embeddings_for_entity(
     """
     Retrieves all TextEmbeddingComponents for a given entity, optionally filtered by model name.
     """
-    filters = {}
     if model_name:
-        filters["model_name"] = model_name
-
-    return await ecs_service.find_components_by_attributes(
-        session,
-        entity_id,
-        TextEmbeddingComponent,
-        filters if filters else None # Pass None if no filters to get all
-    )
+        # Filter by model name
+        return await ecs_service.get_components_by_value(
+            session,
+            entity_id,
+            TextEmbeddingComponent,
+            attributes_values={"model_name": model_name}
+        )
+    else:
+        # Get all TextEmbeddingComponents for the entity
+        return await ecs_service.get_components(
+            session,
+            entity_id,
+            TextEmbeddingComponent
+        )
 
 async def find_similar_entities_by_text_embedding(
     session: AsyncSession,
@@ -196,7 +245,7 @@ async def find_similar_entities_by_text_embedding(
     Finds entities similar to the query text using cosine similarity on stored text embeddings.
     This is a brute-force search and may be slow on large datasets.
     """
-    query_embedding_np = generate_embedding(query_text, model_name)
+    query_embedding_np = await generate_embedding(query_text, model_name)
     if query_embedding_np is None:
         logger.error(f"Could not generate embedding for query text: '{query_text[:100]}...'")
         return []
