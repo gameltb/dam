@@ -100,10 +100,9 @@ class MimeTypeFetcher(QRunnable):
                 )
                 self.logger.info("Executing MIME type query.")
                 result = await session.execute(stmt)
-                # If result.scalars() returns a coroutine, it must be awaited.
-                # This change is based on the error "coroutine object has no attribute 'all'".
-                scalars_obj = await result.scalars()
-                distinct_mime_types = scalars_obj.all()
+                # result.scalars() should be a synchronous method call on AsyncResult
+                scalars_obj = result.scalars()
+                distinct_mime_types = scalars_obj.all() # .all() is also synchronous on AsyncScalarResult
                 self.logger.info(f"MIME type query executed, found {len(distinct_mime_types)} types.")
                 return distinct_mime_types
 

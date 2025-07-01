@@ -834,26 +834,43 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world,
     mock_mime_types = ["image/jpeg", "image/png", "application/pdf"]
 
     # Mock the async session and its execute method
-    mock_async_session = AsyncMock() # This is the session object
+    mock_async_session = AsyncMock() # This is the 'session' object yielded by 'async with'
 
-    # This is the result of 'await session.execute()'
+    # This is the object returned by 'await session.execute()'
     mock_execution_result = MagicMock()
 
-    # This is the object returned by 'await result.scalars()' if the app code changes
-    mock_scalar_object_with_all_method = MagicMock()
-    mock_scalar_object_with_all_method.all.return_value = mock_mime_types
+    # This is the object returned by 'result.scalars()' (synchronous call)
+    mock_scalar_result_object = MagicMock()
+    mock_scalar_result_object.all.return_value = mock_mime_types # .all() is sync, returns the list
 
-    # Configure mock_execution_result.scalars to be an AsyncMock
-    # that returns mock_scalar_object_with_all_method when awaited
-    mock_execution_result.scalars = AsyncMock(return_value=mock_scalar_object_with_all_method)
+    # Configure mock_execution_result.scalars (the method) to return mock_scalar_result_object
+    mock_execution_result.scalars = MagicMock(return_value=mock_scalar_result_object)
 
-    # Configure session.execute to be an AsyncMock returning mock_execution_result
+    # Configure session.execute (the async method) to return mock_execution_result
     mock_async_session.execute = AsyncMock(return_value=mock_execution_result)
 
-    # Patch the world's get_db_session to return our async session context manager
-    mock_session_context_manager = AsyncMock()
-    mock_session_context_manager.__aenter__.return_value = mock_async_session
-    mock_world.get_db_session = MagicMock(return_value=mock_session_context_manager)
+    # Patch the world's get_db_session to return an async context manager
+    # that yields our mock_async_session
+    mock_session_context_manager = AsyncMock() # This is the async context manager itself
+    mock_session_context_manager.__aenter__.return_value = mock_async_session # __aenter__ yields the session
+    # __aexit__ can be a simple AsyncMock or MagicMock
+    mock_session_context_manager.__aexit__ = AsyncMock(return_value=None)
+
+    # mock_world.get_db_session is a MagicMock that returns the async context manager
+    # This was already correctly set up in the mock_world fixture update.
+    # We are just re-confirming the chain here for clarity.
+    # mock_world.get_db_session = MagicMock(return_value=mock_session_context_manager)
+    # The above line is not strictly needed here if mock_world fixture already does this.
+    # The key is that world.mock_db_session_instance (which is mock_async_session) is configured.
+
+    # The mock_world fixture already sets up:
+    # world.get_db_session = MagicMock(return_value=async_cm)
+    # async_cm.__aenter__.return_value = mock_async_session_instance (which is our mock_async_session)
+    # world.mock_db_session_instance = mock_async_session_instance
+    # So, we just need to configure world.mock_db_session_instance.execute
+
+    mock_world.mock_db_session_instance.execute = AsyncMock(return_value=mock_execution_result)
+
 
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
