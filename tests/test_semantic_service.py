@@ -53,25 +53,7 @@ class MockSentenceTransformer:
             return np.array(embeddings) if convert_to_numpy else embeddings # Return list of items (or np.array of arrays)
 
 
-@pytest.fixture(autouse=True)
-def mock_sentence_transformer_loader(monkeypatch):
-    # This fixture will automatically apply the patch for all tests in this module.
-
-    # We want _load_model_sync to return an instance of MockSentenceTransformer
-    def mock_load_sync(model_name):
-        # model_name is passed to MockSentenceTransformer to mimic original behavior if needed by mock
-        return MockSentenceTransformer(model_name_or_path=model_name)
-
-    monkeypatch.setattr('dam.services.semantic_service._load_model_sync', mock_load_sync)
-
-    # Clear the service's model cache before each test
-    semantic_service._model_cache.clear()
-
-    # Yielding something is not strictly necessary unless the test needs to access the mock object directly,
-    # but it's good practice if you might need it later. Here, direct access to mock_st isn't used.
-    # For simplicity, we can remove the yield if not used, or yield a generic marker.
-    # For now, let's assume we don't need to yield the mock object itself from this fixture.
-    # If specific mock instances are needed, they can be created directly in tests or specific fixtures.
+# Removed local mock_sentence_transformer_loader fixture, now handled by conftest.py
 
 
 @pytest.mark.asyncio

@@ -8,18 +8,19 @@ from dam.services import semantic_service, ecs_service # For setting up test dat
 from dam.models.properties import FilePropertiesComponent
 from dam.models.semantic import TextEmbeddingComponent # To verify what the CLI might display
 
-# Mock SentenceTransformer for CLI tests as well, to avoid real model loading
-from .test_semantic_service import MockSentenceTransformer
+# MockSentenceTransformer is now globally available from conftest.py
+# from .test_semantic_service import MockSentenceTransformer # Removed
 
 # runner = CliRunner() # Removed global runner
 
-@pytest.fixture(autouse=True)
-def mock_sentence_transformer_for_cli_tests(monkeypatch):
-    # Apply the same mock logic as in test_semantic_service
-    monkeypatch.setattr('sentence_transformers.SentenceTransformer', MockSentenceTransformer)
-    # Clear the service's model cache before each test
-    if 'semantic_service' in globals(): # Ensure service is imported
-        semantic_service._model_cache.clear()
+# Removed local mock_sentence_transformer_for_cli_tests, now handled by conftest.py
+# @pytest.fixture(autouse=True)
+# def mock_sentence_transformer_for_cli_tests(monkeypatch):
+#     # Apply the same mock logic as in test_semantic_service
+#     monkeypatch.setattr('sentence_transformers.SentenceTransformer', MockSentenceTransformer)
+#     # Clear the service's model cache before each test
+#     if 'semantic_service' in globals(): # Ensure service is imported
+#         semantic_service._model_cache.clear()
 
 
 @pytest.fixture(autouse=True)
