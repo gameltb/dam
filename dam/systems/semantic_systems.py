@@ -132,6 +132,9 @@ async def handle_semantic_search_query(
     """
     Handles a SemanticSearchQuery event, performs the search, and sets the result on the event's future.
     """
+    # Ensure this log appears to confirm entry
+    logger.critical(f"CRITICAL_LOG: ENTERING handle_semantic_search_query for Req ID: {event.request_id}")
+
     logger.info(
         f"SemanticSearchSystem: Handling SemanticSearchQuery (Req ID: {event.request_id}) "
         f"for query: '{event.query_text[:50]}...' in world '{event.world_name}'"

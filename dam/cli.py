@@ -1297,6 +1297,7 @@ async def cli_character_create(
                     f"Character concept '{name}' (Entity ID: {char_entity.id}) created successfully in world '{target_world.name}'.",
                     fg=typer.colors.GREEN,
                 )
+                await session.commit() # Commit the transaction
             else:
                 # This case might happen if the character already exists and create_character_concept returns it
                 # Or if there was an error logged by the service but no exception raised to here.
@@ -1305,6 +1306,7 @@ async def cli_character_create(
 
         except ValueError as e: # From service if name is empty
             typer.secho(f"Error: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
         except Exception as e_inner: # Catch any other exception during the service call
             typer.secho(f"INNER EXCEPTION in character create: {type(e_inner).__name__}: {e_inner}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
@@ -1377,6 +1379,7 @@ async def cli_character_apply(
                     f"Successfully linked character '{character_identifier}' to asset '{asset_identifier}' with role '{role}'.",
                     fg=typer.colors.GREEN,
                 )
+                await session.commit() # Commit the transaction
             else:
                 # This might happen if the link already exists and the service returns None or the existing link.
                 # The service logs a warning in such cases.
@@ -1494,6 +1497,10 @@ async def cli_character_find_assets(
             if character_concept_entity_id is None:
                 raise typer.Exit(code=1)
 
+            # Fetch character name for display *before* using it in messages
+            char_comp_for_display = await dam_ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+            display_character_name = char_comp_for_display.concept_name if char_comp_for_display else character_identifier # Fallback
+
             linked_assets = await character_service.get_entities_for_character(
                 session,
                 character_concept_entity_id,
@@ -1501,11 +1508,15 @@ async def cli_character_find_assets(
                 filter_by_role_presence=filter_by_role_presence
             )
 
+            # Fetch character name for display
+            char_comp_for_display = await dam_ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+            display_character_name = char_comp_for_display.concept_name if char_comp_for_display else character_identifier # Fallback
+
             if not linked_assets:
-                typer.secho(f"No assets found for character '{character_identifier}' with specified role filter.", fg=typer.colors.YELLOW)
+                typer.secho(f"No assets found for character '{display_character_name}' with specified role filter.", fg=typer.colors.YELLOW)
                 return
 
-            typer.echo(f"Assets linked to character '{character_identifier}' (Concept ID: {character_concept_entity_id}):")
+            typer.echo(f"Assets linked to character '{display_character_name}' (Concept ID: {character_concept_entity_id}):")
             for asset_entity in linked_assets:
                 fpc = await dam_ecs_service.get_component(session, asset_entity.id, FilePropertiesComponent)
                 filename = fpc.original_filename if fpc else "N/A"
@@ -1575,13 +1586,17 @@ async def cli_search_semantic(
                     )
         except asyncio.TimeoutError:
             typer.secho(f"Semantic search query timed out for Request ID: {request_id}.", fg=typer.colors.RED)
+            raise typer.Exit(code=1) # Exit on timeout
         except Exception as e:
             typer.secho(f"Semantic search query failed for Request ID: {request_id}. Error: {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1) # Exit on other future errors
 
     try:
         await dispatch_and_await_results()
-    except Exception as e:
+    except typer.Exit: # Re-raise typer.Exit if it comes from dispatch_and_await_results
+        raise
+    except Exception as e: # Catch other errors from dispatch_and_await_results setup
         typer.secho(f"Error during semantic search dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)

@@ -25,6 +25,7 @@ def mock_world(mocker):
     return world
 
 
+@pytest.mark.ui
 def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
     """
     Test that EXIF metadata is displayed in the ComponentViewerDialog.
@@ -143,6 +144,7 @@ def test_exif_metadata_display(qtbot: QtBot, mock_world, mocker):
 from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog, TranscodeWorker
 
 
+@pytest.mark.ui
 def test_transcode_asset_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of TranscodeAssetDialog."""
     entity_id = 1
@@ -209,6 +211,7 @@ from dam.ui.dialogs.evaluation_result_dialog import EvaluationResultDialog
 from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog, EvaluationWorker
 
 
+@pytest.mark.ui
 def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of EvaluationSetupDialog."""
     original_id = 10
@@ -265,6 +268,7 @@ def test_evaluation_setup_dialog_basic(qtbot: QtBot, mock_world, mocker):
     # dialog.cancel_or_close() # This would call reject
 
 
+@pytest.mark.ui
 def test_evaluation_result_dialog_basic(qtbot: QtBot, mock_world):
     """Test basic functionality of EvaluationResultDialog."""
     eval_data = {"original_entity_id": 10, "transcoded_entity_id": 20, "metrics": {"PSNR": 35.0, "SSIM": 0.98}}
@@ -291,6 +295,7 @@ from pathlib import Path
 from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
 
 
+@pytest.mark.ui
 def test_add_asset_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of AddAssetDialog."""
     # Mock file_operations.get_file_properties
@@ -380,6 +385,7 @@ from dam.core.events import FindEntityByHashQuery  # For type checking
 from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
 
 
+@pytest.mark.ui
 def test_find_asset_by_hash_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of FindAssetByHashDialog."""
     # Mock world event dispatch
@@ -465,6 +471,7 @@ from dam.core.events import FindSimilarImagesQuery
 from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog
 
 
+@pytest.mark.ui
 def test_find_similar_images_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of FindSimilarImagesDialog."""
     # Mock _pil_available if it's False in the test environment, to allow UI to proceed
@@ -523,6 +530,7 @@ from dam.ui.dialogs.world_operations_dialogs import (
 )
 
 
+@pytest.mark.ui
 def test_export_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of ExportWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
@@ -548,6 +556,7 @@ def test_export_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     mock_worker_instance.start.assert_called_once()
 
 
+@pytest.mark.ui
 def test_import_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     """Test basic functionality of ImportWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
@@ -574,6 +583,7 @@ def test_import_world_dialog_basic(qtbot: QtBot, mock_world, mocker, tmp_path):
     mock_worker_instance.start.assert_called_once()
 
 
+@pytest.mark.ui
 def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of MergeWorldsDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
@@ -605,6 +615,7 @@ def test_merge_worlds_dialog_basic(qtbot: QtBot, mock_world, mocker):
     mock_worker_instance.start.assert_called_once()
 
 
+@pytest.mark.ui
 def test_split_world_dialog_basic(qtbot: QtBot, mock_world, mocker):
     """Test basic functionality of SplitWorldDialog."""
     mock_worker_instance = mocker.MagicMock(spec=WorldOperationWorker)
@@ -662,6 +673,7 @@ def test_split_world_dialog_basic(qtbot: QtBot, mock_world, mocker):
 
 # Basic check to ensure tests can run headlessly
 # pytest-qt should handle this if Xvfb is available or by using offscreen platform plugin.
+@pytest.mark.ui
 def test_headless_capability_check(qtbot: QtBot):
     """
     A simple test to ensure QtBot is functional, indicating headless setup is likely working.

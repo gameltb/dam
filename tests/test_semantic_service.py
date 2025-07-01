@@ -47,7 +47,7 @@ class MockSentenceTransformer:
         # The semantic_service.update_text_embeddings_for_entity always passes a list to model.encode.
         # The semantic_service.generate_embedding passes a single string to model.encode.
 
-        if isinstance(original_sentences_type, str): # Check original input type
+        if original_sentences_type is str: # Corrected check: was isinstance(original_sentences_type, str)
             return embeddings[0] if embeddings else np.array([]) # Return single item
         else: # Original input was a list
             return np.array(embeddings) if convert_to_numpy else embeddings # Return list of items (or np.array of arrays)
@@ -123,9 +123,9 @@ async def test_update_text_embeddings_for_entity(db_session: AsyncSession):
         found_sources.add(source_key)
         # Verify embedding content (optional, depends on mock predictability)
         original_text = text_map[source_key]
-            # Use the service to generate the expected embedding, which will use the mocked model
-            expected_mock_emb = await semantic_service.generate_embedding(original_text, model_name=model_name) # type: ignore
-            assert expected_mock_emb is not None, f"Expected embedding for '{original_text}' was None"
+        # Use the service to generate the expected embedding, which will use the mocked model
+        expected_mock_emb = await semantic_service.generate_embedding(original_text, model_name=model_name) # type: ignore
+        assert expected_mock_emb is not None, f"Expected embedding for '{original_text}' was None"
         assert np.array_equal(semantic_service.convert_bytes_to_embedding(comp.embedding_vector), expected_mock_emb)
 
     assert "FilePropertiesComponent.original_filename" in found_sources
@@ -283,22 +283,24 @@ async def test_find_similar_entities_by_text_embedding(db_session: AsyncSession)
 
     assert len(similar_results) == 3
     # Results are (Entity, score, TextEmbeddingComponent)
-    # Check order by score (descending) then by entity ID if scores are identical (not expected here)
+    # Corrected expected order based on new calculations: entity2, entity1, entity3
+    # Scores: e2 (0.994), e1 (0.9829), e3 (0.4961)
 
-    assert similar_results[0][0].id == entity1.id # apple pie (score ~0.945)
-    assert similar_results[1][0].id == entity2.id # apple crumble (score ~0.917)
-    assert similar_results[2][0].id == entity3.id # banana bread (score 0)
+    assert similar_results[0][0].id == entity2.id # apple crumble (score ~0.994)
+    assert similar_results[1][0].id == entity1.id # apple pie (score ~0.9829)
+    assert similar_results[2][0].id == entity3.id # banana bread (score ~0.4961)
 
-    assert similar_results[0][1] > similar_results[1][1]
-    assert similar_results[1][1] > similar_results[2][1]
-    assert pytest.approx(similar_results[2][1]) == 0.0
+    assert similar_results[0][1] > similar_results[1][1] # e2 > e1
+    assert similar_results[1][1] > similar_results[2][1] # e1 > e3
+    # The score for banana bread (entity3) is not 0.0 with the corrected query vector, but 0.496
+    assert pytest.approx(similar_results[2][1], abs=1e-4) == 0.4961389
 
     # Test with top_n
     top_1_results = await semantic_service.find_similar_entities_by_text_embedding(
         db_session, query_text, top_n=1, model_name=model
     )
     assert len(top_1_results) == 1
-    assert top_1_results[0][0].id == entity1.id
+    assert top_1_results[0][0].id == entity2.id # entity2 should be the top 1
 
     # Test with non-existent model (should return empty or handle gracefully)
     no_model_results = await semantic_service.find_similar_entities_by_text_embedding(

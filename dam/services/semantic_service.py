@@ -285,9 +285,16 @@ async def find_similar_entities_by_text_embedding(
         # Filter out very low scores if needed, though sorting will handle it.
         # if score > some_threshold:
         similarities.append((emb_comp.entity_id, score, emb_comp))
+        # logger.debug(f"Similarity: query vs entity {emb_comp.entity_id} "
+        #              f"(source: {emb_comp.source_component_name}.{emb_comp.source_field_name}, model: {emb_comp.model_name}) "
+        #              f"= {score:.4f}")
 
+    # print(f"DEBUG_SEMANTIC: Similarities before sort: {[(s[0], round(s[1], 4) if isinstance(s[1], float) else s[1]) for s in similarities]}")
     # Sort by similarity score in descending order
     similarities.sort(key=lambda x: x[1], reverse=True)
+    # logger.debug(f"Sorted similarities (top {top_n+2}): {[(s[0], round(s[1], 4)) for s in similarities[:top_n+2]]}")
+    # print(f"DEBUG_SEMANTIC: Similarities after sort (top {top_n+2}): {[(s[0], round(s[1], 4) if isinstance(s[1], float) else s[1]) for s in similarities[:top_n+2]]}")
+
 
     # Get top N results and fetch their entities
     top_results: List[Tuple[Entity, float, TextEmbeddingComponent]] = []

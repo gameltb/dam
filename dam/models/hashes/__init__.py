@@ -1,8 +1,15 @@
 # This file makes the 'hashes' directory a Python package.
 
-# Optionally, import specific components to make them available directly
-# from the package, e.g.:
-# from .content_hash_md5_component import ContentHashMD5Component
+from .content_hash_md5_component import ContentHashMD5Component
+from .content_hash_sha256_component import ContentHashSHA256Component
+from .image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
+from .image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
+from .image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 
-# Or use __all__ to define the public API of this package
-# __all__ = ["ContentHashMD5Component", "ContentHashSHA256Component", ...]
+__all__ = [
+    "ContentHashMD5Component",
+    "ContentHashSHA256Component",
+    "ImagePerceptualAHashComponent",
+    "ImagePerceptualDHashComponent",
+    "ImagePerceptualPHashComponent",
+]

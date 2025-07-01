@@ -15,6 +15,9 @@ class AsyncTyper(Typer):
 
             @wraps(func)
             def runner(*args: Any, **kwargs: Any) -> Any:
+                # This is the simplest version. If a test calling this is async,
+                # it will fail with "asyncio.run() cannot be called from a running event loop".
+                # If the test is sync, this will work.
                 return asyncio.run(func(*args, **kwargs))
 
             decorator(runner)
