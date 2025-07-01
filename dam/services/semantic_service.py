@@ -1,15 +1,14 @@
-import asyncio # Added asyncio
+import asyncio  # Added asyncio
 import logging
-from typing import List, Dict, Any, Optional, Type, Tuple, TypedDict # Added TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict  # Added TypedDict
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.models.core.entity import Entity  # For type hinting if needed
 from dam.models.semantic import TextEmbeddingComponent
-from dam.models.core.base_component import BaseComponent
-from dam.models.core.entity import Entity # For type hinting if needed
 from dam.services import ecs_service
 
 logger = logging.getLogger(__name__)
@@ -19,8 +18,9 @@ logger = logging.getLogger(__name__)
 # managing model loading more robustly (e.g., as a resource or singleton).
 # Default model: 'all-MiniLM-L6-v2' (384 dimensions)
 # Other options: 'multi-qa-MiniLM-L6-cos-v1' (good for semantic search)
-DEFAULT_MODEL_NAME = 'all-MiniLM-L6-v2'
+DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 _model_cache: Dict[str, SentenceTransformer] = {}
+
 
 def _load_model_sync(model_name: str) -> SentenceTransformer:
     """Synchronous helper to load the model, intended to be patched for tests."""
@@ -30,6 +30,7 @@ def _load_model_sync(model_name: str) -> SentenceTransformer:
     model = SentenceTransformer(model_name)
     logger.info(f"Model {model_name} loaded successfully via sync helper.")
     return model
+
 
 async def get_sentence_transformer_model(model_name: str = DEFAULT_MODEL_NAME) -> SentenceTransformer:
     """
@@ -49,6 +50,7 @@ async def get_sentence_transformer_model(model_name: str = DEFAULT_MODEL_NAME) -
             raise
     return _model_cache[model_name]
 
+
 async def generate_embedding(text: str, model_name: str = DEFAULT_MODEL_NAME) -> Optional[np.ndarray]:
     """
     Generates a text embedding for the given text using the specified model.
@@ -66,11 +68,13 @@ async def generate_embedding(text: str, model_name: str = DEFAULT_MODEL_NAME) ->
         logger.error(f"Error generating embedding for text '{text[:100]}...': {e}", exc_info=True)
         return None
 
+
 def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
     """Converts a numpy float32 embedding to bytes."""
     if embedding.dtype != np.float32:
-        embedding = embedding.astype(np.float32) # Ensure float32 for consistent byte representation
+        embedding = embedding.astype(np.float32)  # Ensure float32 for consistent byte representation
     return embedding.tobytes()
+
 
 def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.ndarray:
     """Converts bytes back to a numpy embedding."""
@@ -86,7 +90,7 @@ class BatchTextItem(TypedDict):
 async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
-    text_fields_map: Dict[str, Any], # e.g., {"ComponentName.field_name": "text content", ...}
+    text_fields_map: Dict[str, Any],  # e.g., {"ComponentName.field_name": "text content", ...}
     model_name: str = DEFAULT_MODEL_NAME,
     batch_texts: Optional[List[BatchTextItem]] = None,
 ) -> List[TextEmbeddingComponent]:
@@ -118,12 +122,14 @@ async def update_text_embeddings_for_entity(
                 logger.debug(f"Skipping empty or invalid text content for {source_key} on entity {entity_id}")
                 continue
             try:
-                comp_name, field_name = source_key.split('.', 1)
+                comp_name, field_name = source_key.split(".", 1)
                 current_batch_items.append(
                     BatchTextItem(component_name=comp_name, field_name=field_name, text_content=text_content_val)
                 )
             except ValueError:
-                logger.warning(f"Invalid source_key format '{source_key}'. Should be 'ComponentName.FieldName'. Skipping.")
+                logger.warning(
+                    f"Invalid source_key format '{source_key}'. Should be 'ComponentName.FieldName'. Skipping."
+                )
                 continue
 
     if not current_batch_items:
@@ -132,7 +138,7 @@ async def update_text_embeddings_for_entity(
 
     # Batch encode all texts for the entity
     all_text_contents = [item["text_content"] for item in current_batch_items]
-    embeddings_np_list: Optional[List[np.ndarray]] = None # Initialize as Optional List
+    embeddings_np_list: Optional[List[np.ndarray]] = None  # Initialize as Optional List
 
     # Ensure model is loaded before attempting to encode
     try:
@@ -143,22 +149,23 @@ async def update_text_embeddings_for_entity(
         embeddings_np_list = model.encode(all_text_contents, convert_to_numpy=True)
 
         if embeddings_np_list is None or len(embeddings_np_list) != len(all_text_contents):
-             logger.error(f"Batch embedding generation returned unexpected result for entity {entity_id}. "
-                          f"Expected {len(all_text_contents)} embeddings, got {len(embeddings_np_list) if embeddings_np_list is not None else 'None'}.")
-             # Decide if to proceed with partial results or fail all. For now, fail all for this batch.
-             return processed_embeddings
+            logger.error(
+                f"Batch embedding generation returned unexpected result for entity {entity_id}. "
+                f"Expected {len(all_text_contents)} embeddings, got {len(embeddings_np_list) if embeddings_np_list is not None else 'None'}."
+            )
+            # Decide if to proceed with partial results or fail all. For now, fail all for this batch.
+            return processed_embeddings
 
-    except Exception as e: # Model loading or encoding failed
+    except Exception as e:  # Model loading or encoding failed
         logger.error(f"Cannot proceed with embedding generation for entity {entity_id} due to: {e}", exc_info=True)
-        return processed_embeddings # Return empty list as no embeddings could be generated
-
+        return processed_embeddings  # Return empty list as no embeddings could be generated
 
     for i, batch_item in enumerate(current_batch_items):
         comp_name = batch_item["component_name"]
         field_name = batch_item["field_name"]
         # text_content = batch_item["text_content"] # Not needed here, but available
 
-        embedding_np = embeddings_np_list[i] # Directly use the i-th embedding from the batch result
+        embedding_np = embeddings_np_list[i]  # Directly use the i-th embedding from the batch result
 
         # This check might be redundant if model.encode guarantees non-None for valid inputs,
         # but good for safety if any individual text in the batch could cause a specific failure
@@ -176,7 +183,7 @@ async def update_text_embeddings_for_entity(
             session,
             entity_id,
             TextEmbeddingComponent,
-            attributes_values={ # Explicitly pass as attributes_values
+            attributes_values={  # Explicitly pass as attributes_values
                 "model_name": model_name,
                 "source_component_name": comp_name,
                 "source_field_name": field_name,
@@ -189,11 +196,15 @@ async def update_text_embeddings_for_entity(
             if emb_comp.embedding_vector != embedding_bytes:
                 emb_comp.embedding_vector = embedding_bytes
                 session.add(emb_comp)
-                logger.info(f"Updated TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name}, model: {model_name}")
+                logger.info(
+                    f"Updated TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name}, model: {model_name}"
+                )
                 processed_embeddings.append(emb_comp)
             else:
-                logger.debug(f"TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name} is already up-to-date.")
-                processed_embeddings.append(emb_comp) # Still include it as "processed"
+                logger.debug(
+                    f"TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name} is already up-to-date."
+                )
+                processed_embeddings.append(emb_comp)  # Still include it as "processed"
         else:
             emb_comp = TextEmbeddingComponent(
                 embedding_vector=embedding_bytes,
@@ -202,7 +213,9 @@ async def update_text_embeddings_for_entity(
                 source_field_name=field_name,
             )
             await ecs_service.add_component_to_entity(session, entity_id, emb_comp)
-            logger.info(f"Created TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name}, model: {model_name}")
+            logger.info(
+                f"Created TextEmbeddingComponent for entity {entity_id}, source: {comp_name}.{field_name}, model: {model_name}"
+            )
             processed_embeddings.append(emb_comp)
 
     # The session flush will be handled by the WorldScheduler or calling system.
@@ -210,9 +223,7 @@ async def update_text_embeddings_for_entity(
 
 
 async def get_text_embeddings_for_entity(
-    session: AsyncSession,
-    entity_id: int,
-    model_name: Optional[str] = None
+    session: AsyncSession, entity_id: int, model_name: Optional[str] = None
 ) -> List[TextEmbeddingComponent]:
     """
     Retrieves all TextEmbeddingComponents for a given entity, optionally filtered by model name.
@@ -220,18 +231,12 @@ async def get_text_embeddings_for_entity(
     if model_name:
         # Filter by model name
         return await ecs_service.get_components_by_value(
-            session,
-            entity_id,
-            TextEmbeddingComponent,
-            attributes_values={"model_name": model_name}
+            session, entity_id, TextEmbeddingComponent, attributes_values={"model_name": model_name}
         )
     else:
         # Get all TextEmbeddingComponents for the entity
-        return await ecs_service.get_components(
-            session,
-            entity_id,
-            TextEmbeddingComponent
-        )
+        return await ecs_service.get_components(session, entity_id, TextEmbeddingComponent)
+
 
 async def find_similar_entities_by_text_embedding(
     session: AsyncSession,
@@ -240,7 +245,7 @@ async def find_similar_entities_by_text_embedding(
     model_name: str = DEFAULT_MODEL_NAME,
     # target_source_component: Optional[str] = None, # Future: filter by which field was embedded
     # target_source_field: Optional[str] = None,     # Future: filter by which field was embedded
-) -> List[Tuple[Entity, float, TextEmbeddingComponent]]: # (Entity, similarity_score, TextEmbeddingComponent)
+) -> List[Tuple[Entity, float, TextEmbeddingComponent]]:  # (Entity, similarity_score, TextEmbeddingComponent)
     """
     Finds entities similar to the query text using cosine similarity on stored text embeddings.
     This is a brute-force search and may be slow on large datasets.
@@ -277,7 +282,7 @@ async def find_similar_entities_by_text_embedding(
         norm_query = np.linalg.norm(query_embedding_np)
         norm_db = np.linalg.norm(db_embedding_np)
 
-        if norm_query == 0 or norm_db == 0: # Avoid division by zero
+        if norm_query == 0 or norm_db == 0:  # Avoid division by zero
             score = 0.0
         else:
             score = dot_product / (norm_query * norm_db)
@@ -295,7 +300,6 @@ async def find_similar_entities_by_text_embedding(
     # logger.debug(f"Sorted similarities (top {top_n+2}): {[(s[0], round(s[1], 4)) for s in similarities[:top_n+2]]}")
     # print(f"DEBUG_SEMANTIC: Similarities after sort (top {top_n+2}): {[(s[0], round(s[1], 4) if isinstance(s[1], float) else s[1]) for s in similarities[:top_n+2]]}")
 
-
     # Get top N results and fetch their entities
     top_results: List[Tuple[Entity, float, TextEmbeddingComponent]] = []
     entity_ids_processed = set()
@@ -303,7 +307,7 @@ async def find_similar_entities_by_text_embedding(
     for entity_id, score, emb_comp_instance in similarities:
         if len(top_results) >= top_n:
             break
-        if entity_id in entity_ids_processed: # Avoid duplicate entities if multiple embeddings from same entity match
+        if entity_id in entity_ids_processed:  # Avoid duplicate entities if multiple embeddings from same entity match
             continue
 
         entity = await ecs_service.get_entity(session, entity_id)

@@ -143,7 +143,7 @@ async def extract_metadata_on_asset_ingested(
     world_config: WorldConfig,
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
-    if not createParser or not extractMetadata: # Hachoir check
+    if not createParser or not extractMetadata:  # Hachoir check
         logger.warning("Hachoir library not installed. Skipping metadata extraction system.")
         for entity in entities_to_process:
             # Attempt to remove marker even if Hachoir is not there
@@ -163,14 +163,16 @@ async def extract_metadata_on_asset_ingested(
     )
 
     for entity in entities_to_process:
-        original_entity_id_for_log = entity.id # Capture for logging in case entity becomes None
+        original_entity_id_for_log = entity.id  # Capture for logging in case entity becomes None
         logger.debug(f"Processing entity ID {original_entity_id_for_log} for metadata extraction.")
 
         # Workaround for potential duplicate markers:
         # Fetch all markers, process based on the entity, and ensure all markers for this entity are cleared.
         current_markers = await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent)
         if not current_markers:
-            logger.info(f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed.")
+            logger.info(
+                f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed."
+            )
             continue
 
         if len(current_markers) > 1:
@@ -187,7 +189,7 @@ async def extract_metadata_on_asset_ingested(
         if not file_props:
             logger.warning(f"No FilePropertiesComponent found for Entity ID {entity.id}. Cannot extract metadata.")
             # Still try to remove markers
-            for m_to_del in current_markers: # Iterate over the fetched list
+            for m_to_del in current_markers:  # Iterate over the fetched list
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
 
@@ -195,7 +197,7 @@ async def extract_metadata_on_asset_ingested(
         all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)
         if not all_locations:
             logger.warning(f"No FileLocationComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            for m_to_del in current_markers: # Iterate over the fetched list
+            for m_to_del in current_markers:  # Iterate over the fetched list
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
 
@@ -213,7 +215,7 @@ async def extract_metadata_on_asset_ingested(
             logger.error(
                 f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
             )
-            for m_to_del in current_markers: # Iterate over the fetched list
+            for m_to_del in current_markers:  # Iterate over the fetched list
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
 
@@ -315,9 +317,7 @@ async def extract_metadata_on_asset_ingested(
                         video_frame_comp.frame_count = int(
                             video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
                         )
-                    await ecs_service.add_component_to_entity(
-                        session, entity.id, video_frame_comp, flush=False
-                    )
+                    await ecs_service.add_component_to_entity(session, entity.id, video_frame_comp, flush=False)
                     logger.info(f"Added FramePropertiesComponent for video/animated Entity ID {entity.id}")
 
                 if has_audio_codec and not await ecs_service.get_components(
@@ -330,9 +330,7 @@ async def extract_metadata_on_asset_ingested(
                     video_audio_comp.codec_name = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
                     video_audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
                     video_audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-                    await ecs_service.add_component_to_entity(
-                        session, entity.id, video_audio_comp, flush=False
-                    )
+                    await ecs_service.add_component_to_entity(session, entity.id, video_audio_comp, flush=False)
                     logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
 
             if mime_type == "image/gif":
@@ -350,7 +348,6 @@ async def extract_metadata_on_asset_ingested(
                             frame_comp.nominal_frame_rate = nb_frames_gif / duration_sec
                     await ecs_service.add_component_to_entity(session, entity.id, frame_comp, flush=False)
                     logger.info(f"Added FramePropertiesComponent for animated GIF Entity ID {entity.id}")
-
 
         # Exiftool metadata extraction
         logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity.id})")
@@ -370,7 +367,7 @@ async def extract_metadata_on_asset_ingested(
 
         # Clean up ALL marker components found at the beginning
         # The `current_markers` list was fetched at the start of the loop for this entity.
-        for marker_to_remove_loop_var in current_markers: # Use a different loop variable name
+        for marker_to_remove_loop_var in current_markers:  # Use a different loop variable name
             # Double check it still exists before removing.
             # This check might be redundant if remove_component is idempotent or handles missing gracefully.
             # To be safe, fetch by specific marker ID if possible, or re-fetch by entity_id + type if only one should exist.
@@ -388,8 +385,9 @@ async def extract_metadata_on_asset_ingested(
             # Let's rely on remove_component to handle the instance correctly.
             # The logger inside remove_component can tell us if it did something.
             await ecs_service.remove_component(session, marker_to_remove_loop_var, flush=False)
-            logger.debug(f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}")
-
+            logger.debug(
+                f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}"
+            )
 
     logger.info("MetadataExtractionSystem finished processing entities.")
     # Session flush will be handled by the WorldScheduler after the stage execution.

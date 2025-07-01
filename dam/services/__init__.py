@@ -2,13 +2,29 @@
 
 # Import functions from the new tag service
 from . import (
+    character_service,
     ecs_service,
     file_operations,
+    semantic_service,  # Added semantic_service
     tag_service,  # noqa: F401
     transcode_service,
     world_service,
-    character_service,
-    semantic_service, # Added semantic_service
+)
+
+# Import functions from the new character service
+from .character_service import (
+    CharacterConceptNotFoundError,  # Exceptions
+    CharacterLinkNotFoundError,
+    apply_character_to_entity,
+    create_character_concept,
+    delete_character_concept,
+    find_character_concepts,
+    get_character_concept_by_id,
+    get_character_concept_by_name,
+    get_characters_for_entity,
+    get_entities_for_character,
+    remove_character_from_entity,
+    update_character_concept,
 )
 
 # Import functions from the new comic book service
@@ -35,6 +51,18 @@ from .ecs_service import (
     get_entity,
     remove_component,
 )
+
+# Import functions from the new semantic service
+from .semantic_service import (
+    DEFAULT_MODEL_NAME,  # Expose default model name for consistency
+    convert_bytes_to_embedding,
+    convert_embedding_to_bytes,
+    find_similar_entities_by_text_embedding,
+    generate_embedding,
+    get_sentence_transformer_model,  # Expose if direct model access is needed elsewhere
+    get_text_embeddings_for_entity,
+    update_text_embeddings_for_entity,
+)
 from .tag_service import (
     apply_tag_to_entity,
     create_tag_concept,
@@ -56,34 +84,6 @@ from .transcode_service import (
     get_assets_using_profile,
     get_transcode_profile_by_name_or_id,
     get_transcoded_variants_for_original,
-)
-
-# Import functions from the new character service
-from .character_service import (
-    CharacterConceptNotFoundError, # Exceptions
-    CharacterLinkNotFoundError,
-    create_character_concept,
-    get_character_concept_by_name,
-    get_character_concept_by_id,
-    find_character_concepts,
-    update_character_concept,
-    delete_character_concept,
-    apply_character_to_entity,
-    remove_character_from_entity,
-    get_characters_for_entity,
-    get_entities_for_character,
-)
-
-# Import functions from the new semantic service
-from .semantic_service import (
-    generate_embedding,
-    convert_embedding_to_bytes,
-    convert_bytes_to_embedding,
-    update_text_embeddings_for_entity,
-    get_text_embeddings_for_entity,
-    find_similar_entities_by_text_embedding,
-    get_sentence_transformer_model, # Expose if direct model access is needed elsewhere
-    DEFAULT_MODEL_NAME, # Expose default model name for consistency
 )
 
 __all__ = [
@@ -131,7 +131,7 @@ __all__ = [
     "get_assets_using_profile",
     "TranscodeServiceError",
     # Character service and functions
-    "character_service", # Module itself
+    "character_service",  # Module itself
     "create_character_concept",
     "get_character_concept_by_name",
     "get_character_concept_by_id",
@@ -143,7 +143,7 @@ __all__ = [
     "get_characters_for_entity",
     "get_entities_for_character",
     # Semantic service and functions
-    "semantic_service", # Module itself
+    "semantic_service",  # Module itself
     "generate_embedding",
     "convert_embedding_to_bytes",
     "convert_bytes_to_embedding",

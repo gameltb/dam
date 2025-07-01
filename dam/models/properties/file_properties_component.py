@@ -31,7 +31,9 @@ class FilePropertiesComponent(BaseComponent):
 
     original_filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
-    mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True, default=None)  # Task 4.2: Added index
+    mime_type: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True, index=True, default=None
+    )  # Task 4.2: Added index
     # Could add other fields like 'last_modified_on_disk' etc. if needed.
 
     __table_args__ = (

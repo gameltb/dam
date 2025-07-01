@@ -3,13 +3,13 @@ from pathlib import Path
 from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
-    Iterator, # Added for click_runner
+    Iterator,  # Added for click_runner
 )
 
 import pytest
 import pytest_asyncio
-from typer.testing import CliRunner, Result # Added for click_runner
 from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
+from typer.testing import CliRunner, Result  # Added for click_runner
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -170,8 +170,10 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     yield world
     await _teardown_world_async(world)  # Await async teardown
 
+
 # Mock SentenceTransformer class for global use
-import numpy as np # Added for MockSentenceTransformer
+import numpy as np  # Added for MockSentenceTransformer
+
 
 class MockSentenceTransformer:
     def __init__(self, model_name_or_path=None):
@@ -180,15 +182,15 @@ class MockSentenceTransformer:
         # For more controlled tests, you might want to set up specific text -> vector mappings.
 
     def encode(self, sentences, convert_to_numpy=True, **kwargs):
-        original_sentences_type = type(sentences) # Store original type
+        original_sentences_type = type(sentences)  # Store original type
 
         if isinstance(sentences, str):
             sentences = [sentences]
 
         embeddings = []
         for s in sentences:
-            if not s or not s.strip(): # Handle empty strings like the service does
-                embeddings.append(np.zeros(384, dtype=np.float32)) # Assuming 384 dim like 'all-MiniLM-L6-v2'
+            if not s or not s.strip():  # Handle empty strings like the service does
+                embeddings.append(np.zeros(384, dtype=np.float32))  # Assuming 384 dim like 'all-MiniLM-L6-v2'
                 continue
 
             # Create a simple deterministic "embedding"
@@ -224,20 +226,23 @@ def click_runner(capsys: pytest.CaptureFixture[str]) -> Iterator[CliRunner]:
 
     yield MyCliRunner()
 
-@pytest.fixture(autouse=True, scope="function") # Changed scope to function for cache clearing
+
+@pytest.fixture(autouse=True, scope="function")  # Changed scope to function for cache clearing
 def global_mock_sentence_transformer_loader(monkeypatch):
     """
     Globally mocks sentence transformer loading for all tests.
     Ensures that _load_model_sync returns MockSentenceTransformer.
     Clears the model cache before each test.
     """
-    from dam.services import semantic_service # Import here to avoid circularity if semantic_service imports something from conftest
+    from dam.services import (
+        semantic_service,
+    )  # Import here to avoid circularity if semantic_service imports something from conftest
 
     def mock_load_sync(model_name):
         return MockSentenceTransformer(model_name_or_path=model_name)
 
-    monkeypatch.setattr('dam.services.semantic_service._load_model_sync', mock_load_sync)
-    semantic_service._model_cache.clear() # Clear cache before each test
+    monkeypatch.setattr("dam.services.semantic_service._load_model_sync", mock_load_sync)
+    semantic_service._model_cache.clear()  # Clear cache before each test
 
 
 @pytest.fixture(scope="session", autouse=True)

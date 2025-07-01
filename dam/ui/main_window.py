@@ -34,10 +34,12 @@ from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service
 from dam.ui.dialogs.add_asset_dialog import AddAssetDialog
+from dam.ui.dialogs.character_management_dialog import CharacterManagementDialog
 from dam.ui.dialogs.component_viewerd_dialog import ComponentViewerDialog
 from dam.ui.dialogs.evaluation_setup_dialog import EvaluationSetupDialog
 from dam.ui.dialogs.find_asset_by_hash_dialog import FindAssetByHashDialog
 from dam.ui.dialogs.find_similar_images_dialog import FindSimilarImagesDialog, _pil_available
+from dam.ui.dialogs.semantic_search_dialog import SemanticSearchDialog
 from dam.ui.dialogs.transcode_asset_dialog import TranscodeAssetDialog
 from dam.ui.dialogs.world_operations_dialogs import (
     ExportWorldDialog,
@@ -45,8 +47,6 @@ from dam.ui.dialogs.world_operations_dialogs import (
     MergeWorldsDialog,
     SplitWorldDialog,
 )
-from dam.ui.dialogs.character_management_dialog import CharacterManagementDialog
-from dam.ui.dialogs.semantic_search_dialog import SemanticSearchDialog
 
 
 class MimeTypeFetcherSignals(QObject):
@@ -650,7 +650,9 @@ class MainWindow(QMainWindow):
             if id_item:
                 current_asset_id = id_item.data(Qt.ItemDataRole.UserRole)
 
-        dialog = CharacterManagementDialog(world=self.current_world, current_selected_asset_id=current_asset_id, parent=self)
+        dialog = CharacterManagementDialog(
+            world=self.current_world, current_selected_asset_id=current_asset_id, parent=self
+        )
         dialog.exec()
         # Potentially refresh asset list or component views if characters were applied/changed
 
@@ -674,8 +676,8 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(f"Fetching components for Entity ID: {asset_id} (from search)...")
         fetcher = ComponentFetcher(world=self.current_world, asset_id=asset_id)
-        fetcher.signals.components_ready.connect(self._on_components_fetched) # Reuses existing slot
-        fetcher.signals.error_occurred.connect(self._on_component_fetch_error) # Reuses existing slot
+        fetcher.signals.components_ready.connect(self._on_components_fetched)  # Reuses existing slot
+        fetcher.signals.error_occurred.connect(self._on_component_fetch_error)  # Reuses existing slot
         self.thread_pool.start(fetcher)
 
     def _create_status_bar(self):

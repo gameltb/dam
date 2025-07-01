@@ -1,11 +1,9 @@
 import pytest
+from sqlalchemy import select  # Added import for select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select # Added import for select
 
-from dam.core.world import World # Needed for session context if services expect it
-from dam.services import character_service, ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
-from dam.models.core.entity import Entity
+from dam.services import character_service, ecs_service
 
 
 @pytest.mark.asyncio
@@ -23,11 +21,15 @@ async def test_create_character_concept(db_session: AsyncSession):
     assert char_comp.concept_description == char_desc
 
     # Test creating the same character again (should return existing or handle gracefully)
-    char_entity_again = await character_service.create_character_concept(db_session, char_name, "Updated desc (should not update here)")
+    char_entity_again = await character_service.create_character_concept(
+        db_session, char_name, "Updated desc (should not update here)"
+    )
     assert char_entity_again is not None
-    assert char_entity_again.id == char_entity.id # Should return the existing one
+    assert char_entity_again.id == char_entity.id  # Should return the existing one
     char_comp_again = await ecs_service.get_component(db_session, char_entity_again.id, CharacterConceptComponent)
-    assert char_comp_again.concept_description == char_desc # Description should not have changed by calling create again
+    assert (
+        char_comp_again.concept_description == char_desc
+    )  # Description should not have changed by calling create again
 
     with pytest.raises(ValueError, match="Character name cannot be empty"):
         await character_service.create_character_concept(db_session, "")
@@ -61,7 +63,7 @@ async def test_find_character_concepts(db_session: AsyncSession):
     await character_service.create_character_concept(db_session, "Gamma Person", "Desc C")
 
     all_chars = await character_service.find_character_concepts(db_session)
-    assert len(all_chars) >= 3 # Greater or equal due to potential chars from other tests
+    assert len(all_chars) >= 3  # Greater or equal due to potential chars from other tests
 
     alpha_search = await character_service.find_character_concepts(db_session, query_name="Alpha")
     assert len(alpha_search) == 1
@@ -83,7 +85,7 @@ async def test_find_character_concepts(db_session: AsyncSession):
 
     assert "Alpha Char" in names_found
     assert "Beta Char" in names_found
-    assert "Gamma Person" not in names_found # "Person" does not contain "Char"
+    assert "Gamma Person" not in names_found  # "Person" does not contain "Char"
 
 
 @pytest.mark.asyncio
@@ -103,7 +105,7 @@ async def test_update_character_concept(db_session: AsyncSession):
     conflict_update = await character_service.update_character_concept(
         db_session, char_entity.id, name="Existing Name For Update Test"
     )
-    assert conflict_update is None # Should fail due to name conflict
+    assert conflict_update is None  # Should fail due to name conflict
 
     # Test updating non-existent character
     non_existent_update = await character_service.update_character_concept(db_session, -999, name="No Such Char")
@@ -134,7 +136,7 @@ async def test_delete_character_concept(db_session: AsyncSession):
     links_after_delete = await character_service.get_characters_for_entity(db_session, asset_entity.id)
     assert len(links_after_delete) == 0
 
-    assert not await character_service.delete_character_concept(db_session, -999) # Delete non-existent
+    assert not await character_service.delete_character_concept(db_session, -999)  # Delete non-existent
 
 
 @pytest.mark.asyncio
@@ -160,9 +162,11 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     assert link3 is not None
 
     # Test applying again (should return existing or handle gracefully)
-    link1_again = await character_service.apply_character_to_entity(db_session, asset1.id, char_entity.id, role="Protagonist")
+    link1_again = await character_service.apply_character_to_entity(
+        db_session, asset1.id, char_entity.id, role="Protagonist"
+    )
     assert link1_again is not None
-    assert link1_again.id == link1.id # Should be the same link component
+    assert link1_again.id == link1.id  # Should be the same link component
 
     # Get characters for asset1
     chars_on_asset1 = await character_service.get_characters_for_entity(db_session, asset1.id)
@@ -173,39 +177,45 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     # Expected: None (empty string) sorts before "Protagonist"
     assert roles_on_asset1 == ["", "Protagonist"]
 
-
     # Get assets for character
     assets_for_char = await character_service.get_entities_for_character(db_session, char_entity.id)
-    assert len(assets_for_char) == 2 # asset1, asset2
+    assert len(assets_for_char) == 2  # asset1, asset2
     asset_ids_for_char = sorted([e.id for e in assets_for_char])
     assert asset_ids_for_char == sorted([asset1.id, asset2.id])
 
-    assets_with_role_protagonist = await character_service.get_entities_for_character(db_session, char_entity.id, role_filter="Protagonist")
+    assets_with_role_protagonist = await character_service.get_entities_for_character(
+        db_session, char_entity.id, role_filter="Protagonist"
+    )
     assert len(assets_with_role_protagonist) == 1
     assert assets_with_role_protagonist[0].id == asset1.id
 
-    assets_with_no_role = await character_service.get_entities_for_character(db_session, char_entity.id, filter_by_role_presence=False)
+    assets_with_no_role = await character_service.get_entities_for_character(
+        db_session, char_entity.id, filter_by_role_presence=False
+    )
     assert len(assets_with_no_role) == 1
     assert assets_with_no_role[0].id == asset1.id
 
-    assets_with_any_role = await character_service.get_entities_for_character(db_session, char_entity.id, filter_by_role_presence=True)
-    assert len(assets_with_any_role) == 2 # Protagonist on asset1, Antagonist on asset2
+    assets_with_any_role = await character_service.get_entities_for_character(
+        db_session, char_entity.id, filter_by_role_presence=True
+    )
+    assert len(assets_with_any_role) == 2  # Protagonist on asset1, Antagonist on asset2
     # Check if asset1 and asset2 are among them (order might vary)
     ids_with_any_role = {e.id for e in assets_with_any_role}
     assert asset1.id in ids_with_any_role
     assert asset2.id in ids_with_any_role
 
-
     # Remove character with role
-    remove_success1 = await character_service.remove_character_from_entity(db_session, asset1.id, char_entity.id, role="Protagonist")
+    remove_success1 = await character_service.remove_character_from_entity(
+        db_session, asset1.id, char_entity.id, role="Protagonist"
+    )
     assert remove_success1
-    await db_session.commit() # Commit the deletion
+    await db_session.commit()  # Commit the deletion
 
     # Explicitly try to fetch the supposedly deleted component to confirm deletion
     deleted_link_check_stmt = select(EntityCharacterLinkComponent).where(
         EntityCharacterLinkComponent.entity_id == asset1.id,
         EntityCharacterLinkComponent.character_concept_entity_id == char_entity.id,
-        EntityCharacterLinkComponent.role_in_asset == "Protagonist"
+        EntityCharacterLinkComponent.role_in_asset == "Protagonist",
     )
     result_deleted_check = await db_session.execute(deleted_link_check_stmt)
     still_exists = result_deleted_check.scalar_one_or_none()
@@ -213,22 +223,26 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
 
     chars_on_asset1_after_remove = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1_after_remove) == 1
-    assert chars_on_asset1_after_remove[0][1] is None # Only the no-role link should remain
+    assert chars_on_asset1_after_remove[0][1] is None  # Only the no-role link should remain
 
     # Remove character without role
-    remove_success2 = await character_service.remove_character_from_entity(db_session, asset1.id, char_entity.id, role=None)
+    remove_success2 = await character_service.remove_character_from_entity(
+        db_session, asset1.id, char_entity.id, role=None
+    )
     assert remove_success2
-    await db_session.commit() # Commit this deletion as well
+    await db_session.commit()  # Commit this deletion as well
 
     chars_on_asset1_final = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1_final) == 0
 
     # Test removing non-existent link
-    assert not await character_service.remove_character_from_entity(db_session, asset2.id, char_entity.id, role="NonExistentRole")
+    assert not await character_service.remove_character_from_entity(
+        db_session, asset2.id, char_entity.id, role="NonExistentRole"
+    )
 
     # Test applying to non-existent asset/character
     assert await character_service.apply_character_to_entity(db_session, -999, char_entity.id) is None
-    non_char_entity = await ecs_service.create_entity(db_session) # An entity without CharacterConceptComponent
+    non_char_entity = await ecs_service.create_entity(db_session)  # An entity without CharacterConceptComponent
     assert await character_service.apply_character_to_entity(db_session, asset1.id, non_char_entity.id) is None
     # (The service currently checks if character_concept_entity_id has CharacterConceptComponent via get_character_concept_by_id)
 

@@ -5,13 +5,11 @@ import uuid  # For request_id
 from pathlib import Path
 from typing import (
     AsyncGenerator,  # For async fixtures
-    Iterator,
 )
 
 import pytest
 import pytest_asyncio  # For async fixtures
 from sqlalchemy import select  # Ensure select is imported for tests
-from typer.testing import CliRunner  # Reverted from IsolatedCliRunner
 
 # Import the app after patches, if any, are applied.
 # For now, direct import is fine as we're starting simple.

@@ -1,26 +1,39 @@
 import asyncio
 import logging
-from typing import Optional, List as TypingList, Tuple
+from typing import List as TypingList
+from typing import Optional, Tuple
 
-from PyQt6.QtCore import Qt, QRunnable, QObject, pyqtSignal, QThreadPool
+from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit,
-    QPushButton, QTableWidget, QTableWidgetItem, QMessageBox, QHeaderView,
-    QDialogButtonBox, QApplication
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
 )
 
 from dam.core.world import World
-from dam.services import character_service, ecs_service as dam_ecs_service
 from dam.models.conceptual import CharacterConceptComponent
 from dam.models.core.entity import Entity
-
+from dam.services import character_service
+from dam.services import ecs_service as dam_ecs_service
 
 logger = logging.getLogger(__name__)
 
+
 # --- Worker for fetching characters ---
 class CharacterFetcherSignals(QObject):
-    characters_ready = pyqtSignal(list) # List[Tuple[int, str, str]] (id, name, description)
+    characters_ready = pyqtSignal(list)  # List[Tuple[int, str, str]] (id, name, description)
     error_occurred = pyqtSignal(str)
+
 
 class CharacterFetcher(QRunnable):
     def __init__(self, world: World, search_term: Optional[str] = None):
@@ -32,13 +45,16 @@ class CharacterFetcher(QRunnable):
     def run(self):
         async def _fetch():
             async with self.world.get_db_session() as session:
-                char_entities: TypingList[Entity] = await character_service.find_character_concepts(session, query_name=self.search_term)
+                char_entities: TypingList[Entity] = await character_service.find_character_concepts(
+                    session, query_name=self.search_term
+                )
                 results = []
                 for entity in char_entities:
                     comp = await dam_ecs_service.get_component(session, entity.id, CharacterConceptComponent)
                     if comp:
                         results.append((entity.id, comp.concept_name, comp.concept_description or ""))
                 return results
+
         try:
             characters = asyncio.run(_fetch())
             self.signals.characters_ready.emit(characters)
@@ -46,10 +62,12 @@ class CharacterFetcher(QRunnable):
             logger.error(f"Error fetching characters: {e}", exc_info=True)
             self.signals.error_occurred.emit(str(e))
 
+
 # --- Worker for creating a character ---
 class CharacterCreatorSignals(QObject):
-    creation_complete = pyqtSignal(int, str) # entity_id, name
+    creation_complete = pyqtSignal(int, str)  # entity_id, name
     creation_error = pyqtSignal(str)
+
 
 class CharacterCreator(QRunnable):
     def __init__(self, world: World, name: str, description: Optional[str]):
@@ -70,10 +88,11 @@ class CharacterCreator(QRunnable):
                     try:
                         existing_char = await character_service.get_character_concept_by_name(session, self.name)
                         if existing_char:
-                             raise ValueError(f"Character '{self.name}' already exists with ID {existing_char.id}.")
+                            raise ValueError(f"Character '{self.name}' already exists with ID {existing_char.id}.")
                     except character_service.CharacterConceptNotFoundError:
-                        pass # Should have been created or raised other error
+                        pass  # Should have been created or raised other error
                     raise Exception(f"Failed to create character '{self.name}'.")
+
         try:
             entity_id, name = asyncio.run(_create())
             self.signals.creation_complete.emit(entity_id, name)
@@ -84,8 +103,9 @@ class CharacterCreator(QRunnable):
 
 # --- Worker for applying a character to an asset ---
 class CharacterApplierSignals(QObject):
-    apply_complete = pyqtSignal(str) # success message
+    apply_complete = pyqtSignal(str)  # success message
     apply_error = pyqtSignal(str)
+
 
 class CharacterApplier(QRunnable):
     def __init__(self, world: World, asset_entity_id: int, character_concept_entity_id: int, role: Optional[str]):
@@ -103,11 +123,14 @@ class CharacterApplier(QRunnable):
                     session, self.asset_entity_id, self.character_concept_entity_id, self.role
                 )
                 if link_comp:
-                    char_comp = await dam_ecs_service.get_component(session, self.character_concept_entity_id, CharacterConceptComponent)
+                    char_comp = await dam_ecs_service.get_component(
+                        session, self.character_concept_entity_id, CharacterConceptComponent
+                    )
                     char_name = char_comp.concept_name if char_comp else "Unknown Character"
                     return f"Character '{char_name}' applied to asset ID {self.asset_entity_id}."
                 else:
                     raise Exception("Failed to apply character. Link might already exist or another error occurred.")
+
         try:
             message = asyncio.run(_apply())
             self.signals.apply_complete.emit(message)
@@ -188,7 +211,7 @@ class CharacterManagementDialog(QDialog):
     def _load_characters(self):
         search_term = self.char_search_input.text().strip()
         self.char_search_button.setEnabled(False)
-        self.char_table.setRowCount(0) # Clear table
+        self.char_table.setRowCount(0)  # Clear table
 
         fetcher = CharacterFetcher(self.world, search_term)
         fetcher.signals.characters_ready.connect(self._on_characters_fetched)
@@ -199,7 +222,7 @@ class CharacterManagementDialog(QDialog):
         self.char_table.setRowCount(len(characters))
         for row, (char_id, name, description) in enumerate(characters):
             id_item = QTableWidgetItem(str(char_id))
-            id_item.setData(Qt.ItemDataRole.UserRole, char_id) # Store ID
+            id_item.setData(Qt.ItemDataRole.UserRole, char_id)  # Store ID
             name_item = QTableWidgetItem(name)
             desc_item = QTableWidgetItem(description)
 
@@ -212,7 +235,7 @@ class CharacterManagementDialog(QDialog):
             self.char_table.setItem(row, 1, name_item)
             self.char_table.setItem(row, 2, desc_item)
         self.char_search_button.setEnabled(True)
-        QApplication.processEvents() # Update UI
+        QApplication.processEvents()  # Update UI
 
     def _on_fetch_error(self, error_message: str):
         QMessageBox.critical(self, "Error Fetching Characters", error_message)
@@ -237,7 +260,7 @@ class CharacterManagementDialog(QDialog):
         self.new_char_name_input.clear()
         self.new_char_desc_input.clear()
         self.create_char_button.setEnabled(True)
-        self._load_characters() # Refresh list
+        self._load_characters()  # Refresh list
 
     def _on_creation_error(self, error_message: str):
         QMessageBox.critical(self, "Error Creating Character", error_message)
@@ -260,7 +283,7 @@ class CharacterManagementDialog(QDialog):
             return
 
         character_concept_entity_id = character_id_item.data(Qt.ItemDataRole.UserRole)
-        role = self.role_input.text().strip() or None # Pass None if empty
+        role = self.role_input.text().strip() or None  # Pass None if empty
 
         self.apply_char_button.setEnabled(False)
         applier = CharacterApplier(self.world, self.current_selected_asset_id, character_concept_entity_id, role)
@@ -277,11 +300,13 @@ class CharacterManagementDialog(QDialog):
         QMessageBox.critical(self, "Error Applying Character", error_message)
         self.apply_char_button.setEnabled(True)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Example usage (requires a dummy world or proper setup)
-    from dam.core.world import World, WorldConfig
-    from dam.core.database import DatabaseManager
     import tempfile
+
+    from dam.core.database import DatabaseManager
+    from dam.core.world import World, WorldConfig
 
     logging.basicConfig(level=logging.DEBUG)
 
@@ -293,16 +318,15 @@ if __name__ == '__main__':
         name="test_char_dialog_world",
         DATABASE_URL=f"sqlite+aiosqlite:///{db_path}",
         ASSET_STORAGE_PATH=f"{temp_dir}/assets",
-        LOG_LEVEL="DEBUG"
+        LOG_LEVEL="DEBUG",
     )
-    db_manager = DatabaseManager(test_config.DATABASE_URL, is_memory_db=False) # Not in memory for this test
+    db_manager = DatabaseManager(test_config.DATABASE_URL, is_memory_db=False)  # Not in memory for this test
     test_world = World(name="test_char_dialog_world", config=test_config, db_manager=db_manager)
 
     async def setup_db_for_dialog_test(world_instance):
-        await world_instance.create_db_and_tables() # Ensure tables exist
+        await world_instance.create_db_and_tables()  # Ensure tables exist
 
     asyncio.run(setup_db_for_dialog_test(test_world))
-
 
     app = QApplication([])
     # Simulate a selected asset ID
@@ -312,6 +336,7 @@ if __name__ == '__main__':
 
     # Clean up test DB
     import os
+
     os.unlink(db_path)
     os.rmdir(f"{temp_dir}/assets")
     os.rmdir(temp_dir)

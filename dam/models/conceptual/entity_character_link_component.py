@@ -3,10 +3,11 @@ from typing import Optional
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.base_component import BaseComponent # Corrected import path from ..core import BaseComponent
+from ..core.base_component import BaseComponent  # Corrected import path from ..core import BaseComponent
+
 # from ..core.types import مفهوم_موجودیت_آی_دی # Assuming this is EntityId - Removed for now, will use int
 # from .character_concept_component import CharacterConceptComponent # This component links to Entity that has CharacterConceptComponent
-from ..core.entity import Entity # For relationship typing
+from ..core.entity import Entity  # For relationship typing
 
 
 class EntityCharacterLinkComponent(BaseComponent):
@@ -19,7 +20,7 @@ class EntityCharacterLinkComponent(BaseComponent):
 
     # This is the Entity ID of the Entity that *has* the CharacterConceptComponent
     character_concept_entity_id: Mapped[int] = mapped_column(
-        ForeignKey("entities.id"), # Corrected FK to the 'entities' table
+        ForeignKey("entities.id"),  # Corrected FK to the 'entities' table
         nullable=False,
         index=True,
     )
@@ -29,7 +30,7 @@ class EntityCharacterLinkComponent(BaseComponent):
     # This Entity is expected to have a CharacterConceptComponent attached to it.
     character_concept: Mapped["Entity"] = relationship(
         "Entity",
-        foreign_keys=[character_concept_entity_id], # Specify foreign_keys for clarity
+        foreign_keys=[character_concept_entity_id],  # Specify foreign_keys for clarity
         # If CharacterConceptComponent defines a backref, it can be added here.
         # e.g. back_populates="linked_assets"
     )
@@ -41,8 +42,8 @@ class EntityCharacterLinkComponent(BaseComponent):
     # For now, assuming (entity_id, character_concept_entity_id, role_in_asset) should be unique.
     __table_args__ = (
         UniqueConstraint(
-            "entity_id", # The entity being tagged with a character
-            "character_concept_entity_id", # The entity representing the character
+            "entity_id",  # The entity being tagged with a character
+            "character_concept_entity_id",  # The entity representing the character
             "role_in_asset",
             name="uq_entity_character_role",
         ),

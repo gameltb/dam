@@ -1,7 +1,7 @@
-from typing import Optional, List # List for the embedding itself
-from sqlalchemy import Column, LargeBinary, String, Text, Float # For embedding storage
+from typing import Optional  # List for the embedding itself
+
+from sqlalchemy import LargeBinary, String  # For embedding storage
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import ARRAY # For PostgreSQL array type
 
 from ..core import BaseComponent
 
@@ -19,7 +19,7 @@ class TextEmbeddingComponent(BaseComponent):
     # For simplicity and broader compatibility first, LargeBinary.
     # Consider a fixed size based on the model used, e.g., 384 floats * 4 bytes/float = 1536 bytes for 'all-MiniLM-L6-v2'
     # This stores a numpy array (e.g., np.ndarray of dtype float32, shape (384,)) converted to bytes.
-    embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False) # Store as bytes
+    embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)  # Store as bytes
 
     # Name of the sentence transformer model used to generate this embedding.
     model_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -31,10 +31,8 @@ class TextEmbeddingComponent(BaseComponent):
     # Could also store original text for inspection, but might be redundant if source component is versioned.
     # source_text_preview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-
     # Example for PostgreSQL specific type (requires pgvector or similar for useful indexing/search)
     # embedding_vector_pg: Mapped[Optional[List[float]]] = mapped_column(ARRAY(Float), nullable=True)
-
 
     def __repr__(self):
         return (

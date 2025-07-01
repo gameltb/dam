@@ -33,14 +33,13 @@ from .properties.file_properties_component import FilePropertiesComponent
 from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
 
+# Semantic components
+from .semantic.text_embedding_component import TextEmbeddingComponent
+
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
 from .source_info.web_source_component import WebSourceComponent
 from .source_info.website_profile_component import WebsiteProfileComponent
-
-# Semantic components
-from .semantic.text_embedding_component import TextEmbeddingComponent
-
 
 # Base abstract conceptual components like BaseConceptualInfoComponent and BaseVariantInfoComponent
 # are typically not re-exported here unless specifically needed for widespread type hinting.

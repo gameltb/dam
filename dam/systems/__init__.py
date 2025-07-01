@@ -14,7 +14,7 @@ _system_module_names = [
     ".metadata_systems",
     ".asset_lifecycle_systems",
     ".evaluation_systems",
-    ".semantic_systems", # Added semantic_systems
+    ".semantic_systems",  # Added semantic_systems
 ]
 
 for module_name in _system_module_names:

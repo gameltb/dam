@@ -1,18 +1,14 @@
 import logging
-from typing import List, Dict, Any, Optional, Tuple, Type
+from typing import Dict, List
 
 from dam.core.events import SemanticSearchQuery
+from dam.core.stages import SystemStage  # For scheduling embedding generation
+from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
 from dam.core.systems import listens_for, system
-from dam.core.system_params import WorldSession, WorldConfig # Assuming WorldConfig might be needed for model config
-from dam.core.stages import SystemStage # For scheduling embedding generation
-
-from dam.services import semantic_service, ecs_service
-from dam.models.core.entity import Entity
-from dam.models.semantic import TextEmbeddingComponent
 
 # Placeholder for components that might trigger embedding generation
-from dam.models.properties import FilePropertiesComponent
-from dam.models.conceptual import TagConceptComponent, CharacterConceptComponent, EntityTagLinkComponent
+from dam.services import semantic_service
+
 # from dam.models.metadata import ExiftoolMetadataComponent # If we decide to embed exif data
 
 logger = logging.getLogger(__name__)
@@ -21,15 +17,15 @@ logger = logging.getLogger(__name__)
 # This could be moved to a config file or resource later
 # Format: { ComponentClassName: ["field_name1", "field_name2", ...], ... }
 TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
-    "FilePropertiesComponent": ["original_filename"], # filename might be good for some types of semantic search
-    "TagConceptComponent": ["concept_name", "concept_description"], # For tags themselves
-    "CharacterConceptComponent": ["concept_name", "concept_description"], # For characters
+    "FilePropertiesComponent": ["original_filename"],  # filename might be good for some types of semantic search
+    "TagConceptComponent": ["concept_name", "concept_description"],  # For tags themselves
+    "CharacterConceptComponent": ["concept_name", "concept_description"],  # For characters
     # Add more components and their text fields as needed
     # "ExiftoolMetadataComponent": ["UserComment", "Description", "Title"] # Example for EXIF fields
 }
 
 
-@system(stage=SystemStage.POST_PROCESSING) # Or a new SEMANTIC_PROCESSING stage
+@system(stage=SystemStage.POST_PROCESSING)  # Or a new SEMANTIC_PROCESSING stage
 async def generate_embeddings_system(
     session: WorldSession,
     # world_config: WorldConfig, # If model name or other settings come from world config
@@ -42,7 +38,6 @@ async def generate_embeddings_system(
     # For simplicity, let's assume for now this system runs periodically or is manually triggered
     # on a selection of entities, or it queries for entities with relevant components
     # that don't yet have embeddings for the current default model.
-
     # Let's try a simple approach: find entities with text source components that lack embeddings.
     # This won't handle updates to existing text fields well without more state.
 ):
@@ -51,7 +46,7 @@ async def generate_embeddings_system(
     This is a simplified version. A more robust implementation would track changes.
     """
     logger.info("SemanticEmbeddingSystem: Starting embedding generation pass.")
-    model_name_to_use = semantic_service.DEFAULT_MODEL_NAME # Or from world_config
+    model_name_to_use = semantic_service.DEFAULT_MODEL_NAME  # Or from world_config
 
     entities_processed_count = 0
     embeddings_created_count = 0
@@ -102,7 +97,7 @@ async def generate_embeddings_system(
 
         # For the purpose of this step, the system structure is the focus.
         # The actual logic for selecting entities to process will be refined later if needed.
-        pass # Placeholder for entity iteration logic
+        pass  # Placeholder for entity iteration logic
 
     # logger.info(f"SemanticEmbeddingSystem: Finished. Processed {entities_processed_count} entities, created/updated {embeddings_created_count} embeddings.")
     # Actual implementation of entity iteration and text gathering would go here.
@@ -141,7 +136,9 @@ async def handle_semantic_search_query(
     )
 
     if not event.result_future:
-        logger.error(f"Result future not set on SemanticSearchQuery event (Req ID: {event.request_id}). Cannot proceed.")
+        logger.error(
+            f"Result future not set on SemanticSearchQuery event (Req ID: {event.request_id}). Cannot proceed."
+        )
         return
 
     model_to_use = event.model_name if event.model_name else semantic_service.DEFAULT_MODEL_NAME
@@ -164,12 +161,15 @@ async def handle_semantic_search_query(
 
         if not event.result_future.done():
             event.result_future.set_result(similar_entities_data)
-        logger.info(f"SemanticSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results.")
+        logger.info(
+            f"SemanticSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results."
+        )
 
     except Exception as e:
         logger.error(f"Error in handle_semantic_search_query (Req ID: {event.request_id}): {e}", exc_info=True)
         if not event.result_future.done():
             event.result_future.set_exception(e)
+
 
 # __all__ needs to be defined if systems are imported elsewhere using `from ... import *`
 # For explicit imports, it's not strictly necessary.
