@@ -14,6 +14,11 @@ This file provides instructions for AI agents working with this codebase.
         QT_QPA_PLATFORM=offscreen uv run pytest -x
         ```
         The `QT_QPA_PLATFORM=offscreen` environment variable ensures that Qt does not require a windowing system, allowing UI tests to run in CI environments or headless servers. `pytest-qt` and `pytest-mock` are required dev dependencies (included in `.[all]`).
+    *   **Skipping UI Tests:** In environments where UI tests cannot be run (e.g., some sandboxed environments), you can skip them using `pytest`'s `-k` option:
+        ```bash
+        uv run pytest -x -k "not test_ui_features"
+        ```
+        This command will run all tests *except* those in files or functions matching `test_ui_features`.
     *   To run tests with coverage locally, use `uv run pytest --cov=dam --cov-report=term-missing` (ensure `pytest-cov` is installed via dev dependencies). For UI tests with coverage: `QT_QPA_PLATFORM=offscreen uv run pytest --cov=dam --cov-report=term-missing`.
     *   **Environment Setup:** It is recommended to use `uv` for managing virtual environments and dependencies.
         *   Install dependencies (including `pytest`, `pytest-cov`, `pytest-qt`, `pytest-mock`): `uv run pip install -e .[all]` (as specified in `pyproject.toml`, includes all optional groups).
