@@ -100,9 +100,9 @@ class MimeTypeFetcher(QRunnable):
                 )
                 self.logger.info("Executing MIME type query.")
                 result = await session.execute(stmt)
-                # result.scalars() should be a synchronous method call on AsyncResult
-                scalars_obj = result.scalars()
-                distinct_mime_types = scalars_obj.all() # .all() is also synchronous on AsyncScalarResult
+                # Assuming result.scalars() is behaving as an async method based on CI error
+                scalars_obj = await result.scalars()
+                distinct_mime_types = scalars_obj.all()
                 self.logger.info(f"MIME type query executed, found {len(distinct_mime_types)} types.")
                 return distinct_mime_types
 

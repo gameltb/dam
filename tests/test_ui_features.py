@@ -14,22 +14,33 @@ def mock_world(mocker):
     world = mocker.MagicMock(spec=World)
     world.name = "test_ui_world"
 
-    # Setup for async with world.get_db_session() as session:
-    mock_async_session_instance = mocker.AsyncMock() # This is the 'session' object tests can configure
+    # This is the 'session' object that 'async with world.get_db_session() as session:' yields.
+    # Tests will configure this session's 'execute' method as needed.
+    mock_async_session_instance = mocker.AsyncMock()
 
+    # Default behavior for session.execute() for calls during MainWindow.__init__
+    # These should generally not fail and return empty results.
+    default_execute_result = mocker.MagicMock() # This is the result of 'await session.execute()'
+
+    # For MimeTypeFetcher (await result.scalars()).all()
+    default_scalars_resolved_obj = mocker.MagicMock()
+    default_scalars_resolved_obj.all.return_value = []
+    default_execute_result.scalars = mocker.AsyncMock(return_value=default_scalars_resolved_obj) # .scalars() is AsyncMock
+
+    # For AssetLoader (result.all())
+    default_execute_result.all.return_value = []
+
+    mock_async_session_instance.execute = mocker.AsyncMock(return_value=default_execute_result)
+
+    # Setup for 'async with world.get_db_session() as session:'
     async_cm = mocker.AsyncMock()
     async_cm.__aenter__.return_value = mock_async_session_instance
     async_cm.__aexit__ = mocker.AsyncMock(return_value=None)
-
     world.get_db_session = mocker.MagicMock(return_value=async_cm)
 
-    # Make the session instance accessible for tests to configure further
+    # Expose the session instance so tests can override its 'execute' method for specific scenarios.
     world.mock_db_session_instance = mock_async_session_instance
 
-    # Store registered components for ecs_service mocking if needed elsewhere
-    # from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
-    # world.REGISTERED_COMPONENT_TYPES = REGISTERED_COMPONENT_TYPES
-    # For this test, direct mocking of get_components is simpler
     return world
 
 
@@ -869,14 +880,20 @@ def test_main_window_populate_mime_type_filter_success(main_window_with_mocks: M
     mock_mime_types = ["image/jpeg", "image/png", "application/pdf"]
 
     # Configure the mock_db_session_instance (provided by mock_world) for this specific test's needs.
-    # This overrides the default empty list behavior set in mock_world fixture.
-    mock_execution_result = MagicMock()
-    mock_scalar_result_object = MagicMock()
-    mock_scalar_result_object.all.return_value = mock_mime_types
-    mock_execution_result.scalars = MagicMock(return_value=mock_scalar_result_object)
+    # This overrides the default behavior set in mock_world fixture.
+    mock_execution_result = MagicMock() # Result of 'await session.execute()'
+
+    # This is the object that 'await result.scalars()' resolves to
+    mock_scalars_resolved_obj = MagicMock()
+    mock_scalars_resolved_obj.all.return_value = mock_mime_types # This object has .all()
+
+    # Configure mock_execution_result.scalars to be an AsyncMock that returns mock_scalars_resolved_obj
+    mock_execution_result.scalars = AsyncMock(return_value=mock_scalars_resolved_obj)
+
     mock_world.mock_db_session_instance.execute = AsyncMock(return_value=mock_execution_result)
 
-    # MainWindow.__init__ (called by fixture) already triggered populate_mime_type_filter.
+    # MainWindow.__init__ (called by fixture) already triggered populate_mime_type_filter
+    # which used the default mock_world DB settings (empty results).
     # That initial call used the default mock_db_session_instance behavior (empty list).
     # We need to re-trigger populate_mime_type_filter to use the new mock setup for *this test*.
     main_window.populate_mime_type_filter() # Explicitly call with new DB mock behavior
