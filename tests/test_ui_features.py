@@ -14,9 +14,17 @@ def mock_world(mocker):
     world = mocker.MagicMock(spec=World)
     world.name = "test_ui_world"
 
-    # Mock the session and component fetching
-    mock_session = mocker.MagicMock()
-    world.get_db_session.return_value.__enter__.return_value = mock_session
+    # Setup for async with world.get_db_session() as session:
+    mock_async_session_instance = mocker.AsyncMock() # This is the 'session' object tests can configure
+
+    async_cm = mocker.AsyncMock()
+    async_cm.__aenter__.return_value = mock_async_session_instance
+    async_cm.__aexit__ = mocker.AsyncMock(return_value=None)
+
+    world.get_db_session = mocker.MagicMock(return_value=async_cm)
+
+    # Make the session instance accessible for tests to configure further
+    world.mock_db_session_instance = mock_async_session_instance
 
     # Store registered components for ecs_service mocking if needed elsewhere
     # from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
@@ -825,19 +833,25 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world,
     mock_mime_types = ["image/jpeg", "image/png", "application/pdf"]
 
     # Mock the async session and its execute method
-    mock_async_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = mock_mime_types
-    mock_async_session.execute = AsyncMock(return_value=mock_result)
+    mock_async_session = AsyncMock() # This is the session object
+
+    # This is the result of 'await session.execute()'
+    mock_execution_result = MagicMock()
+
+    # This is the object returned by 'await result.scalars()' if the app code changes
+    mock_scalar_object_with_all_method = MagicMock()
+    mock_scalar_object_with_all_method.all.return_value = mock_mime_types
+
+    # Configure mock_execution_result.scalars to be an AsyncMock
+    # that returns mock_scalar_object_with_all_method when awaited
+    mock_execution_result.scalars = AsyncMock(return_value=mock_scalar_object_with_all_method)
+
+    # Configure session.execute to be an AsyncMock returning mock_execution_result
+    mock_async_session.execute = AsyncMock(return_value=mock_execution_result)
 
     # Patch the world's get_db_session to return our async session context manager
-    # The actual get_db_session returns an AsyncSession, not a context manager directly.
-    # The context manager protocol is used with `async with world.get_db_session() as session:`
-    # So, get_db_session should return an object whose __aenter__ returns the mock_async_session
-
     mock_session_context_manager = AsyncMock()
     mock_session_context_manager.__aenter__.return_value = mock_async_session
-
     mock_world.get_db_session = MagicMock(return_value=mock_session_context_manager)
 
     main_window = MainWindow(current_world=mock_world)
@@ -959,6 +973,15 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     # Patch the AssetLoader class to return our mocked instance
     mock_asset_loader_class = mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
 
+    # Configure the mock_db_session_instance from mock_world for this test
+    mock_db_execute_result = mocker.MagicMock()
+    # Create mock Row objects that AssetLoader expects from result.all()
+    mock_rows = [
+        mocker.MagicMock(entity_id=d[0], original_filename=d[1], mime_type=d[2]) for d in mock_assets_data
+    ]
+    mock_db_execute_result.all.return_value = mock_rows
+    mock_world.mock_db_session_instance.execute = mocker.AsyncMock(return_value=mock_db_execute_result)
+
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
     main_window.show()
@@ -1002,6 +1025,11 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)
     mock_asset_loader_class = mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
 
+    # Configure DB mock to return empty list of rows for this filter test
+    mock_db_execute_result = mocker.MagicMock()
+    mock_db_execute_result.all.return_value = [] # No rows
+    mock_world.mock_db_session_instance.execute = mocker.AsyncMock(return_value=mock_db_execute_result)
+
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
     main_window.show()
@@ -1042,6 +1070,11 @@ def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     mock_asset_loader_instance = mocker.MagicMock()
     mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)
     mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
+
+    # Configure DB mock to return empty list of rows
+    mock_db_execute_result = mocker.MagicMock()
+    mock_db_execute_result.all.return_value = [] # No rows
+    mock_world.mock_db_session_instance.execute = mocker.AsyncMock(return_value=mock_db_execute_result)
 
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
