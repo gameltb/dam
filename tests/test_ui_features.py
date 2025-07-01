@@ -829,6 +829,7 @@ from dam.ui.main_window import MainWindow
 @pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world, mocker):
     """Test successful population of the MIME type filter in MainWindow."""
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.warning") # Ensure error path is mocked
     # Mock the database result for MimeTypeFetcher
     mock_mime_types = ["image/jpeg", "image/png", "application/pdf"]
 
@@ -960,6 +961,7 @@ from dam.ui.main_window import AssetLoaderSignals, ComponentFetcherSignals, DbSe
 @pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     """Test successful loading and display of assets."""
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical") # Ensure error path is mocked
     mock_assets_data = [
         (1, "asset1.jpg", "image/jpeg"),
         (2, "asset2.png", "image/png"),
@@ -1021,6 +1023,7 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
 @pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     """Test that search term and MIME type are passed to AssetLoader."""
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical") # Ensure error path is mocked
     mock_asset_loader_instance = mocker.MagicMock()
     mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)
     mock_asset_loader_class = mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
@@ -1067,6 +1070,7 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
 @pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     """Test asset loading when no assets are found."""
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical") # Ensure error path is mocked
     mock_asset_loader_instance = mocker.MagicMock()
     mock_asset_loader_instance.signals = mocker.MagicMock(spec=AssetLoaderSignals)
     mocker.patch("dam.ui.main_window.AssetLoader", return_value=mock_asset_loader_instance)
@@ -1164,6 +1168,7 @@ def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
         "PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes
     )
     mock_qmessagebox_info = mocker.patch("PyQt6.QtWidgets.QMessageBox.information")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical") # Ensure error path is mocked
 
     # Mock load_assets to prevent it from actually running during this test
     mock_load_assets = mocker.patch.object(MainWindow, "load_assets")
@@ -1266,6 +1271,7 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     )
 
     mock_component_viewer_dialog_class = mocker.patch("dam.ui.main_window.ComponentViewerDialog")
+    mocker.patch("PyQt6.QtWidgets.QMessageBox.critical") # Ensure error path is mocked
 
     main_window = MainWindow(current_world=mock_world)
     qtbot.addWidget(main_window)
