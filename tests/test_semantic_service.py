@@ -283,24 +283,28 @@ async def test_find_similar_entities_by_text_embedding(db_session: AsyncSession)
 
     assert len(similar_results) == 3
     # Results are (Entity, score, TextEmbeddingComponent)
-    # Corrected expected order based on new calculations: entity2, entity1, entity3
-    # Scores: e2 (0.994), e1 (0.9829), e3 (0.4961)
+    # Expected order based on re-calculated similarities (sum_ords % 100, len % 100):
+    # vec_query (apple pie recipe) = [44, 16]
+    # vec1 (apple pie) = [80, 9] -> sim1 ~0.9721 (Entity1)
+    # vec2 (apple crumble) = [8, 13] -> sim2 ~0.7837 (Entity2)
+    # vec3 (banana bread) = [51, 12] -> sim3 ~0.9930 (Entity3)
+    # Order: entity3, entity1, entity2
 
-    assert similar_results[0][0].id == entity2.id # apple crumble (score ~0.994)
-    assert similar_results[1][0].id == entity1.id # apple pie (score ~0.9829)
-    assert similar_results[2][0].id == entity3.id # banana bread (score ~0.4961)
+    assert similar_results[0][0].id == entity3.id # banana bread (sim3 ~0.9930)
+    assert similar_results[1][0].id == entity1.id # apple pie (sim1 ~0.9721)
+    assert similar_results[2][0].id == entity2.id # apple crumble (sim2 ~0.7837)
 
-    assert similar_results[0][1] > similar_results[1][1] # e2 > e1
-    assert similar_results[1][1] > similar_results[2][1] # e1 > e3
-    # The score for banana bread (entity3) is not 0.0 with the corrected query vector, but 0.496
-    assert pytest.approx(similar_results[2][1], abs=1e-4) == 0.4961389
+    assert similar_results[0][1] > similar_results[1][1] # e3 > e1
+    assert similar_results[1][1] > similar_results[2][1] # e1 > e2
+    # Score for entity2 (apple crumble)
+    assert pytest.approx(similar_results[2][1], abs=1e-4) == 0.7837
 
     # Test with top_n
     top_1_results = await semantic_service.find_similar_entities_by_text_embedding(
         db_session, query_text, top_n=1, model_name=model
     )
     assert len(top_1_results) == 1
-    assert top_1_results[0][0].id == entity2.id # entity2 should be the top 1
+    assert top_1_results[0][0].id == entity3.id # entity3 should be the top 1
 
     # Test with non-existent model (should return empty or handle gracefully)
     no_model_results = await semantic_service.find_similar_entities_by_text_embedding(

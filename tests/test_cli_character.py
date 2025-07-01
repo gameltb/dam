@@ -9,7 +9,6 @@ from dam.services import character_service, ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.properties import FilePropertiesComponent # For creating dummy assets
 
-
 # Fixture to ensure a clean world for each test function in this file
 @pytest.fixture(autouse=True)
 async def current_test_world(test_world_alpha: World):
@@ -26,7 +25,7 @@ async def current_test_world(test_world_alpha: World):
 import asyncio # Add import for asyncio
 
 # @pytest.mark.asyncio # Removed
-def test_cli_character_create(current_test_world: World, click_runner: CliRunner): # Removed async, added click_runner
+def test_cli_character_create(current_test_world: World, click_runner: CliRunner): # Removed async
     world_name = current_test_world.name
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
@@ -68,7 +67,7 @@ def test_cli_character_create(current_test_world: World, click_runner: CliRunner
 
 
 # @pytest.mark.asyncio # Removed
-def test_cli_character_apply_list_find(current_test_world: World, sample_text_file: str, click_runner: CliRunner): # Removed async, added click_runner
+def test_cli_character_apply_list_find(current_test_world: World, sample_text_file: str, click_runner: CliRunner): # Removed async
     world_name = current_test_world.name
 
     # 1. Create a character
@@ -126,46 +125,46 @@ def test_cli_character_apply_list_find(current_test_world: World, sample_text_fi
     asyncio.run(verify_link_in_db())
 
     # 4. List characters for the asset
-    result_list = runner.invoke(app, ["--world", world_name, "character", "list-for-asset", "--asset", asset_id_str_from_db]) # Corrected
+    result_list = click_runner.invoke(app, ["--world", world_name, "character", "list-for-asset", "--asset", asset_id_str_from_db])
     print(f"CLI character list-for-asset output: {result_list.stdout}")
     assert result_list.exit_code == 0
-    assert f"Characters linked to asset '{asset_id_str_from_db}'" in result_list.stdout # Corrected
-    assert f"- {char_name} (Concept ID: {char_id_str_from_db})" in result_list.stdout # Corrected
+    assert f"Characters linked to asset '{asset_id_str_from_db}'" in result_list.stdout
+    assert f"- {char_name} (Concept ID: {char_id_str_from_db})" in result_list.stdout
     assert f"(Role: {role})" in result_list.stdout
 
     # 5. Find assets for the character (using character ID)
-    result_find = runner.invoke(app, ["--world", world_name, "character", "find-assets", "--character", char_id_str_from_db]) # Corrected
+    result_find = click_runner.invoke(app, ["--world", world_name, "character", "find-assets", "--character", char_id_str_from_db])
     print(f"CLI character find-assets output: {result_find.stdout}")
     assert result_find.exit_code == 0
-    assert f"Assets linked to character '{char_name}'" in result_find.stdout # Service uses name in its log for the entity
-    assert f"Asset ID: {asset_id_str_from_db}" in result_find.stdout # Corrected
+    assert f"Assets linked to character '{char_name}'" in result_find.stdout
+    assert f"Asset ID: {asset_id_str_from_db}" in result_find.stdout
     assert "asset_for_char_link.txt" in result_find.stdout
 
     # 6. Find assets for character with role filter
-    result_find_role = runner.invoke(app, [
+    result_find_role = click_runner.invoke(app, [
         "--world", world_name, "character", "find-assets",
-        "--character", char_name, "--role", role # char_name is correct, role is correct
+        "--character", char_name, "--role", role
     ])
     assert result_find_role.exit_code == 0
-    assert f"Asset ID: {asset_id_str_from_db}" in result_find_role.stdout # Corrected
+    assert f"Asset ID: {asset_id_str_from_db}" in result_find_role.stdout
 
     # Test finding with non-existent role
-    result_find_wrong_role = runner.invoke(app, [
+    result_find_wrong_role = click_runner.invoke(app, [
         "--world", world_name, "character", "find-assets",
         "--character", char_name, "--role", "NonExistentRole"
     ])
-    assert result_find_wrong_role.exit_code == 0 # Command succeeds, but finds no assets
+    assert result_find_wrong_role.exit_code == 0
     assert "No assets found for character" in result_find_wrong_role.stdout
 
 
 # @pytest.mark.asyncio # Removed
-def test_cli_character_apply_with_identifiers(current_test_world: World, sample_image_a: Path): # Removed async
+def test_cli_character_apply_with_identifiers(current_test_world: World, sample_image_a: Path, click_runner: CliRunner): # Removed async
     # This test uses asset SHA256 hash and character name for identification
     world_name = current_test_world.name
 
     # 1. Add an asset to get its SHA256 hash
     # Using the CLI to add an asset to ensure it's properly ingested with hashes
-    add_result = runner.invoke(app, ["--world", world_name, "add-asset", str(sample_image_a)])
+    add_result = click_runner.invoke(app, ["--world", world_name, "add-asset", str(sample_image_a)])
     assert add_result.exit_code == 0
 
     asset_sha256_from_db: Optional[str] = None # Renamed to avoid conflict if asset_sha256 was a parameter
@@ -191,21 +190,21 @@ def test_cli_character_apply_with_identifiers(current_test_world: World, sample_
 
     # 2. Create a character
     char_name_for_hash_test = "CharForHashAssetTest"
-    runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name_for_hash_test])
+    click_runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name_for_hash_test])
 
     # 3. Apply character using asset hash and character name
-    result_apply_hash = runner.invoke(app, [
+    result_apply_hash = click_runner.invoke(app, [
         "--world", world_name, "character", "apply",
-        "--asset", asset_sha256_from_db,  # Corrected variable name
-        "--character", char_name_for_hash_test # Using name
+        "--asset", asset_sha256_from_db,
+        "--character", char_name_for_hash_test
     ])
     print(f"CLI apply with hash output: {result_apply_hash.stdout}")
     assert result_apply_hash.exit_code == 0
     assert f"Successfully linked character '{char_name_for_hash_test}' to asset '{asset_sha256_from_db}'" in result_apply_hash.stdout
 
     # 4. List characters for asset using asset hash
-    result_list_hash = runner.invoke(app, ["--world", world_name, "character", "list-for-asset", "--asset", asset_sha256_from_db]) # Corrected
+    result_list_hash = click_runner.invoke(app, ["--world", world_name, "character", "list-for-asset", "--asset", asset_sha256_from_db])
     print(f"CLI list with hash output: {result_list_hash.stdout}")
     assert result_list_hash.exit_code == 0
-    assert f"Characters linked to asset '{asset_sha256_from_db}'" in result_list_hash.stdout # Corrected
+    assert f"Characters linked to asset '{asset_sha256_from_db}'" in result_list_hash.stdout
     assert char_name_for_hash_test in result_list_hash.stdout

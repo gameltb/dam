@@ -818,9 +818,7 @@ from dam.ui.main_window import MainWindow
 
 # Test for MainWindow's MIME type filter population
 # @pytest.mark.asyncio # Removed: Test function itself doesn't need to be async
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world, mocker):
     """Test successful population of the MIME type filter in MainWindow."""
     # Mock the database result for MimeTypeFetcher
@@ -867,9 +865,7 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, mock_world,
 
 
 # @pytest.mark.asyncio # Removed
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_populate_mime_type_filter_db_error(qtbot: QtBot, mock_world, mocker):
     """Test MIME type filter population when database query fails."""
     # Mock get_db_session to raise an exception
@@ -909,9 +905,7 @@ def test_main_window_populate_mime_type_filter_db_error(qtbot: QtBot, mock_world
 
 
 # @pytest.mark.asyncio # Removed
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt. Needs further investigation into async/threading interactions in test environment."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mocker):
     """Test MIME type filter population when no world is selected."""
     mock_qmessagebox_warning = mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
@@ -949,9 +943,7 @@ from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem  # For QMessageBox.Sta
 from dam.ui.main_window import AssetLoaderSignals, ComponentFetcherSignals, DbSetupWorkerSignals
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     """Test successful loading and display of assets."""
     mock_assets_data = [
@@ -1003,9 +995,7 @@ def test_main_window_load_assets_success(qtbot: QtBot, mock_world, mocker):
     assert main_window.asset_table_widget.isSortingEnabled()
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     """Test that search term and MIME type are passed to AssetLoader."""
     mock_asset_loader_instance = mocker.MagicMock()
@@ -1046,9 +1036,7 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, mock_world, mocker):
     assert main_window.search_input.isEnabled()
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     """Test asset loading when no assets are found."""
     mock_asset_loader_instance = mocker.MagicMock()
@@ -1071,9 +1059,7 @@ def test_main_window_load_assets_no_results(qtbot: QtBot, mock_world, mocker):
     assert main_window.search_input.isEnabled()
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_error(qtbot: QtBot, mock_world, mocker):
     """Test asset loading when an error occurs."""
     error_message = "Test DB Error"
@@ -1104,9 +1090,7 @@ def test_main_window_load_assets_error(qtbot: QtBot, mock_world, mocker):
     assert main_window.search_input.isEnabled()
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_load_assets_no_world(qtbot: QtBot, mocker):
     """Test asset loading when no world is selected."""
     mock_qmessagebox_critical = mocker.patch("PyQt6.QtWidgets.QMessageBox.critical")
@@ -1134,9 +1118,7 @@ def test_main_window_load_assets_no_world(qtbot: QtBot, mocker):
 # Tests for MainWindow.setup_current_world_db
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
     """Test successful database setup for the current world."""
     mock_db_setup_worker_instance = mocker.MagicMock()
@@ -1180,9 +1162,7 @@ def test_main_window_setup_db_success(qtbot: QtBot, mock_world, mocker):
     mock_load_assets.assert_called()  # Check if assets are refreshed
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_setup_db_error(qtbot: QtBot, mock_world, mocker):
     """Test error handling during database setup."""
     error_message = "DB setup failed spectacularly"
@@ -1218,9 +1198,7 @@ def test_main_window_setup_db_error(qtbot: QtBot, mock_world, mocker):
     assert error_message in args[2]
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_setup_db_no_world(qtbot: QtBot, mocker):
     """Test database setup attempt when no world is current."""
     mock_qmessagebox_warning = mocker.patch("PyQt6.QtWidgets.QMessageBox.warning")
@@ -1242,9 +1220,7 @@ def test_main_window_setup_db_no_world(qtbot: QtBot, mocker):
 # Tests for ComponentFetcher integration (on_asset_double_clicked)
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, mocker):
     """Test successful component fetching and dialog display on asset double click."""
     asset_id_to_test = 123
@@ -1298,9 +1274,7 @@ def test_main_window_on_asset_double_clicked_success(qtbot: QtBot, mock_world, m
     mock_component_viewer_dialog_class.return_value.exec.assert_called_once()
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) related to aiosqlite in QRunnable under pytest-qt."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, mocker):
     """Test error handling for component fetching on asset double click."""
     asset_id_to_test = 456
@@ -1338,9 +1312,8 @@ def test_main_window_on_asset_double_clicked_error(qtbot: QtBot, mock_world, moc
     assert error_msg in args[2]
 
 
-@pytest.mark.skip(
-    reason="Skipping due to fatal Python error (Abort) and general difficulty in testing Qt app exit reliably."
-)
+@pytest.mark.ui # Ensure it's marked as a UI test
+# @pytest.mark.skip(reason="This test might still be flaky depending on CI event loop handling for closeEvent.")
 def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
     """
     Test that MainWindow attempts to wait for thread pool on close.
@@ -1404,7 +1377,7 @@ def test_main_window_graceful_exit(qtbot: QtBot, mock_world, mocker):
 
 
 # Tests for Column Filtering
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and UI test instability.")
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, mock_world, mocker):
     """Test that column filter texts are collected and passed to AssetLoader."""
     mock_asset_loader_instance = mocker.MagicMock()
@@ -1437,7 +1410,7 @@ def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, mock_world, moc
     )
 
 
-@pytest.mark.skip(reason="Skipping due to fatal Python error (Abort) and UI test instability.")
+@pytest.mark.ui # Ensure it's marked as a UI test
 def test_main_window_clear_filters_clears_column_filters(qtbot: QtBot, mock_world, mocker):
     """Test that _clear_filters_and_refresh clears column filter QLineEdits."""
     main_window = MainWindow(current_world=mock_world)
