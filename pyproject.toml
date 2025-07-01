@@ -65,14 +65,13 @@ all-transcode = [
 ]
 
 ui = [
-    "PyQt6"
+    "gradio"
 ]
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
     "aiosqlite", # Added for async SQLite in tests
-    "pytest-qt", # Added for UI testing
     "pytest-mock", # Added for mocking
     # "ruff",
     # "mypy"
@@ -117,7 +116,6 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-qt_api = "pyqt6"
 asyncio_mode = "auto" # Try auto mode for pytest-asyncio
 log_cli = false
 log_cli_level = "WARNING"

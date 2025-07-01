@@ -1193,71 +1193,55 @@ async def cli_eval_report(  # Made async
 @app.command(name="ui")
 def cli_ui(ctx: typer.Context):
     """
-    Launches the PyQt6 UI for the Digital Asset Management system.
+    Launches the Gradio UI for the Digital Asset Management system.
     """
-    typer.echo("Launching DAM UI...")
+    typer.echo("Launching DAM Gradio UI...")
     try:
-        import sys
+        from dam.gradio_ui import launch_ui
 
-        from PyQt6.QtWidgets import QApplication
+        # Get the current world name to pass to the UI launcher
+        # The launch_ui function in gradio_ui.py will handle fetching the world instance.
+        world_to_launch_with = global_state.world_name
 
-        from dam.ui.main_window import MainWindow
+        if not world_to_launch_with:
+            # If no world is selected via --world or default,
+            # we might allow Gradio to launch and pick one, or show an error.
+            # For now, let's be consistent with previous UI behavior: require a world.
+            # However, Gradio UI itself can have a world selector, so this might be relaxed.
+            # Let's check if any worlds are configured at all.
+            if not get_all_registered_worlds():
+                 typer.secho(
+                    "Error: No DAM worlds are configured. Cannot launch UI.",
+                    fg=typer.colors.RED,
+                )
+                 typer.echo("Please configure worlds using DAM_WORLDS_CONFIG environment variable.")
+                 raise typer.Exit(code=1)
+            else:
+                typer.echo("No specific world pre-selected. Gradio UI will allow selection from available worlds.")
+                # world_to_launch_with will be None, and launch_ui should handle it gracefully.
 
-        # Check if a QApplication instance already exists.
-        # This is important if the CLI is run multiple times in the same process (e.g., testing)
-        # or if other parts of the application might also create a QApplication.
-        app_instance = QApplication.instance()
-        if app_instance is None:
-            app_instance = QApplication(sys.argv)
-        else:
-            typer.echo("Reusing existing QApplication instance.")
 
-        # Get the current world context to pass to the UI
-        current_world_instance = None
-        if global_state.world_name:
-            current_world_instance = get_world(global_state.world_name)
+        typer.echo(f"Attempting to launch Gradio UI. Pre-selected world: '{world_to_launch_with if world_to_launch_with else 'None'}'")
+        # The launch_ui function will start the Gradio server, which is blocking.
+        launch_ui(world_name=world_to_launch_with)
 
-        if not current_world_instance:
-            # This case should ideally be handled by main_callback for most commands,
-            # but for UI, we might want to allow launching even if no world is immediately active,
-            # or prompt the user. For now, let's be strict.
-            typer.secho(
-                f"Error: Cannot launch UI. Active world '{global_state.world_name}' not found or no world selected.",
-                fg=typer.colors.RED,
-            )
-            typer.echo("Use --world <world_name> or ensure a default world is configured.")
-            raise typer.Exit(code=1)
-
-        typer.echo(f"Launching UI with world context: '{current_world_instance.name}'")
-        main_window = MainWindow(current_world=current_world_instance)
-        main_window.show()
-
-        # Start the Qt event loop.
-        # sys.exit(app_instance.exec()) # This would exit the CLI.
-        # For a CLI command that launches a GUI, we usually want the GUI to run
-        # and the CLI command to finish, allowing the GUI to operate independently
-        # or for the CLI to return to the prompt.
-        # If the GUI is modal or the main point, app_instance.exec() is correct.
-        # If it's a non-blocking launch, we might not call exec() here,
-        # or ensure it doesn't block the CLI from exiting.
-        # For now, let's assume we want the UI to run and the CLI to wait.
-        exit_code = app_instance.exec()
-        sys.exit(exit_code)
+        # If launch_ui returns, it means the Gradio server was stopped.
+        typer.echo("Gradio UI server has been stopped.")
 
     except ImportError as e:
-        if "PyQt6" in str(e):
+        if "gradio" in str(e).lower():
             typer.secho(
-                "Error: PyQt6 is not installed. Please install it to use the UI.",
+                "Error: Gradio is not installed. Please install it to use the UI.",
                 fg=typer.colors.RED,
             )
             typer.echo("You can typically install it using: pip install ecs-dam-system[ui]")
             typer.echo(f"Details: {e}")
         else:
-            typer.secho(f"Error launching UI: {e}", fg=typer.colors.RED)
+            typer.secho(f"Error launching Gradio UI (ImportError): {e}", fg=typer.colors.RED)
             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
     except Exception as e:
-        typer.secho(f"An unexpected error occurred while launching the UI: {e}", fg=typer.colors.RED)
+        typer.secho(f"An unexpected error occurred while launching the Gradio UI: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 

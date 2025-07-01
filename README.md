@@ -170,7 +170,7 @@ The system provides several ways to search for assets:
 *   **`dam-cli export-world <filepath.json>`**: Exports world data to JSON.
 *   **`dam-cli import-world <filepath.json>`**: Imports world data from JSON.
     *   Option: `--merge` (merge with existing data).
-*   **`dam-cli ui`**: Launches the PyQt6 UI (if UI dependencies are installed).
+*   **`dam-cli ui`**: Launches the Gradio web UI (if UI dependencies are installed).
 
 (Details of asset ingestion, versioning, and tagging remain as described previously.)
 
