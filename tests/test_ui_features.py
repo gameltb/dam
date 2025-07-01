@@ -14,6 +14,7 @@ from dam.ui.main_window import (
     DbSetupWorkerSignals,
     MainWindow,
 )
+from PyQt6.QtCore import Qt # Import Qt
 
 import logging # Import the logging module
 
@@ -56,25 +57,36 @@ def mock_world(mocker):
     mock_async_session_instance = mocker.AsyncMock()
 
     # --- Default behavior for session.execute() and its result chain ---
-    default_execute_result = mocker.MagicMock()  # This is the result of 'await session.execute()'
-    mock_async_session_instance.execute = mocker.AsyncMock(return_value=default_execute_result)
+    mock_execute_result = AsyncMock() # Result of 'await session.execute()'
+    mock_async_session_instance.execute = AsyncMock(return_value=mock_execute_result)
 
-    # For MimeTypeFetcher: result.scalars().all() (scalars() is sync)
-    default_sync_scalars_obj = mocker.MagicMock()
-    default_sync_scalars_obj.all.return_value = []
-    default_execute_result.scalars = mocker.MagicMock(return_value=default_sync_scalars_obj)
+    # For MimeTypeFetcher: await result.scalars() -> then sync .all()
+    # So, result.scalars() must be an awaitable that returns an object with a sync .all()
+    mock_scalars_obj = MagicMock()
+    mock_scalars_obj.all.return_value = [] # Default: no mime types
+    mock_execute_result.scalars = AsyncMock(return_value=mock_scalars_obj) # scalars() is async
 
-    # For AssetLoader: await result.all() (so .all() itself is an AsyncMock)
-    default_execute_result.all = mocker.AsyncMock(return_value=[])
+    # For AssetLoader: await result.all()
+    mock_execute_result.all = AsyncMock(return_value=[]) # Default: no assets
     # --- End of default behavior setup ---
+
+    # Expose a container for tests to set the return value of scalars().all()
+    # This allows tests to specify what mime types or other scalar results are returned.
+    world.db_scalars_all_return_value = []
+
+    # Modify mock_scalars_obj.all to use this configurable list
+    mock_scalars_obj.all = lambda: world.db_scalars_all_return_value
 
     # Setup for 'async with world.get_db_session() as session:'
     async_cm = mocker.AsyncMock()
     async_cm.__aenter__.return_value = mock_async_session_instance
     async_cm.__aexit__ = mocker.AsyncMock(return_value=None)
-    world.get_db_session = mocker.MagicMock(return_value=async_cm)
+    world.get_db_session = MagicMock(return_value=async_cm) # Keep this as MagicMock for direct configuration
 
-    world.mock_db_session_instance = mock_async_session_instance  # Expose for tests to override
+    # Store refs for tests to potentially configure further if needed, though direct config of `world` attributes is often easier.
+    world._db_session_mock = mock_async_session_instance
+    world._db_execute_result_mock = mock_execute_result
+    world._db_scalars_obj_mock = mock_scalars_obj
 
     return world
 
@@ -879,24 +891,13 @@ def test_main_window_populate_mime_type_filter_success(qtbot: QtBot, main_window
     """Test successful population of the MIME type filter in MainWindow."""
     main_window = main_window_with_mocks # Get the main_window instance
 
-    # Mock the database result for MimeTypeFetcher
+        # Configure the mock_world (used by main_window) to return specific mime types
     mock_mime_types = ["image/jpeg", "image/png", "application/pdf"]
+        mock_world.db_scalars_all_return_value = mock_mime_types
 
-    # Mock the async session and its execute method
-    mock_async_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = mock_mime_types
-    mock_async_session.execute = AsyncMock(return_value=mock_result)
-
-    # Patch the world's get_db_session to return our async session context manager
-    # The actual get_db_session returns an AsyncSession, not a context manager directly.
-    # The context manager protocol is used with `async with world.get_db_session() as session:`
-    # So, get_db_session should return an object whose __aenter__ returns the mock_async_session
-
-    mock_session_context_manager = AsyncMock()
-    mock_session_context_manager.__aenter__.return_value = mock_async_session
-
-    mock_world.get_db_session = MagicMock(return_value=mock_session_context_manager) # This mock_world is from the argument, not from main_window_with_mocks's internal one.
+        # MainWindow.__init__ already called populate_mime_type_filter with the default (likely empty) db_scalars_all_return_value.
+        # We need to re-trigger it now that mock_world is configured for this test.
+        main_window.populate_mime_type_filter()
 
     # main_window is already created and shown by main_window_with_mocks fixture
     # qtbot.addWidget(main_window) # Already handled by main_window_with_mocks
@@ -931,46 +932,59 @@ def test_main_window_populate_mime_type_filter_db_error(qtbot: QtBot, mock_qmess
 
     # The MimeTypeFetcher's run method catches exceptions from fetch_mime_types_async
     # So we need to make fetch_mime_types_async (or the db call within it) raise an error.
-    # This mock_world is the one passed to this test, not the one inside a MainWindow instance if we were to create one here.
-    mock_world.get_db_session = MagicMock() # Ensure it's a fresh MagicMock for this specific setup
+    # This mock_world is the one passed to this test.
+    mock_world.get_db_session = MagicMock()
     mock_world.get_db_session.return_value.__aenter__ = AsyncMock(side_effect=Exception(error_message))
 
+    # Spy on QMessageBox.warning BEFORE MainWindow is initialized
+    qmessagebox_warning_spy = mocker.spy(QMessageBox, "warning")
 
     # Instantiate MainWindow AFTER setting up the mock_world's specific behavior for this test.
-    # The mock_qmessageboxes fixture is active.
+    # The mock_qmessageboxes fixture is active (it will still log, but we won't assert logs).
     main_window = MainWindow(current_world=mock_world) # This will trigger populate_mime_type_filter
     qtbot.addWidget(main_window)
     main_window.show()
     qtbot.waitForWindowShown(main_window)
 
+    # Wait for the filter to be in its final state (enabled, with one item)
+    def check_filter_state():
+        return main_window.mime_type_filter.isEnabled() and main_window.mime_type_filter.count() == 1
 
-    # Wait for the error signal to be processed. The QMessageBox warning will be logged by mock_qmessageboxes.
-    def check_warning_shown_or_filter_enabled():
-        # Check if filter is re-enabled (happens in both success/error paths after processing)
-        # And if message box was called.
-        if main_window.mime_type_filter.isEnabled():
-            return mock_qmessagebox_warning.called
-        return False
+    qtbot.waitUntil(check_filter_state, timeout=5000)
 
-    qtbot.waitUntil(check_warning_shown_or_filter_enabled, timeout=5000) # check_warning_shown_or_filter_enabled might need adjustment for caplog
+    # Assert final UI state
+    assert main_window.mime_type_filter.count() == 1
+    assert main_window.mime_type_filter.itemText(0) == "All Types"
+    assert main_window.mime_type_filter.isEnabled()
 
-    # Verify through caplog
-    assert any(
-        "QMessageBox.warning called" in record.message and
-        "Could not populate MIME type filter" in record.message and
-        error_message in record.message
-        for record in caplog.records
-    ), "Expected QMessageBox.warning was not logged or had incorrect content."
+    # Assert that the warning dialog was invoked, by checking the spy
+    assert qmessagebox_warning_spy.called
+    # Optionally, check arguments if critical to the test's intent
+    # Check that the *last* call to warning (if there could be multiple) has the expected args.
+    # Or, if only one call is expected:
+    # qmessagebox_warning_spy.assert_called_once() # This might be too strict if other warnings can occur.
 
-    assert main_window.mime_type_filter.count() == 1  # Only "All Types"
-    assert main_window.mime_type_filter.isEnabled()  # Should be re-enabled even on error
+    # Check the arguments of the relevant call.
+    # The MimeTypeFetcher error should trigger one. AssetLoader might trigger another if it also fails.
+    # We are interested in the MimeTypeFetcher one.
+    found_mime_fetcher_error_warning = False
+    for call_args_item in qmessagebox_warning_spy.call_args_list:
+        args, _ = call_args_item
+        # args are (parent, title, text)
+        if args[1] == "Filter Error" and error_message in args[2]:
+            found_mime_fetcher_error_warning = True
+            break
+    assert found_mime_fetcher_error_warning, "QMessageBox.warning for MimeTypeFetcher error not called with expected arguments."
 
 
 # @pytest.mark.asyncio # Removed
 @pytest.mark.ui
 def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mock_qmessageboxes, mocker, caplog): # Added mock_qmessageboxes, caplog
     """Test MIME type filter population when no world is selected."""
-    # mock_qmessageboxes fixture is active.
+    # mock_qmessageboxes fixture is active (it will log, but we won't assert logs).
+
+    # Spy on QMessageBox.warning BEFORE MainWindow is initialized
+    qmessagebox_warning_spy = mocker.spy(QMessageBox, "warning")
 
     main_window = MainWindow(current_world=None)  # No world
     qtbot.addWidget(main_window)
@@ -978,22 +992,29 @@ def test_main_window_populate_mime_type_filter_no_world(qtbot: QtBot, mock_qmess
     qtbot.waitForWindowShown(main_window)
 
     # In this case, _update_mime_type_filter_ui is called directly with an error message.
-    # The QMessageBox.warning call will be caught by mock_qmessageboxes and logged.
-
-    # Let's ensure the event loop processes any posted events, though likely synchronous here.
+    # Let's ensure the event loop processes any posted events.
     qtbot.wait(100)
 
-    # Verify through caplog
-    assert any(
-        "QMessageBox.warning called" in record.message and
-        "Could not populate MIME type filter" in record.message and
-        "No world selected" in record.message
-        for record in caplog.records
-    ), "Expected QMessageBox.warning for 'No world selected' was not logged or had incorrect content."
-
+    # Assert final UI state
     assert main_window.mime_type_filter.count() == 1  # Only "All Types"
     assert main_window.mime_type_filter.itemText(0) == "All Types"
     assert main_window.mime_type_filter.isEnabled()
+
+    # Assert that the warning dialog was invoked with correct arguments
+    # MainWindow.__init__ calls _update_mime_type_filter_ui and _on_asset_fetch_error.
+    # _update_mime_type_filter_ui shows a QMessageBox.warning.
+    # _on_asset_fetch_error shows a QMessageBox.critical.
+
+    # Check the specific warning from _update_mime_type_filter_ui
+    found_expected_warning = False
+    expected_title = "Filter Error"
+    expected_text_substring = "No world selected"
+    for call_args_item in qmessagebox_warning_spy.call_args_list:
+        args, _ = call_args_item # parent, title, text
+        if args[1] == expected_title and expected_text_substring in args[2]:
+            found_expected_warning = True
+            break
+    assert found_expected_warning, f"Expected QMessageBox.warning with title '{expected_title}' and text containing '{expected_text_substring}' not found."
 
 
 # Tests for MainWindow's asset loading
@@ -1082,11 +1103,19 @@ def test_main_window_load_assets_with_filters(qtbot: QtBot, main_window_with_moc
     main_window.mime_type_filter.addItem(mime_type, mime_type)  # Add item for test
     main_window.mime_type_filter.setCurrentIndex(main_window.mime_type_filter.findData(mime_type))
 
-    main_window.load_assets()
+    # main_window.load_assets() # This is called by search_input.setText if signals are connected
+    # Need to ensure the signal from setText has been processed and load_assets called.
+    # If textChanged directly calls load_assets, AssetLoader should be called once.
+    # The fixture main_window_with_mocks already creates the window and connections.
+    # The search_input.setText() will trigger _on_search_or_filter_changed -> load_assets.
+
+    # To ensure the call triggered by setText is the one we check:
+    # We might need a brief wait for the event loop to process the signal.
+    qtbot.wait(50) # Small wait for signal processing leading to load_assets call
 
     mock_asset_loader_class.assert_called_once_with(
-        world=mock_world,
-        search_term=search_term.lower(),  # load_assets converts to lower
+        world=mock_world, # This mock_world is the one from the fixture, used by MainWindow
+        search_term=search_term.lower(),
         selected_mime_type=mime_type,
     )
     # Simulate empty result to complete the flow
@@ -1188,41 +1217,31 @@ def test_main_window_setup_db_success(qtbot: QtBot, main_window_with_mocks, mock
         "dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance
     )
 
-    # mock_qmessagebox_question and info are handled by main_window_with_mocks -> mock_qmessageboxes
-    # If a specific response to 'question' is needed (e.g., Yes):
+    # Override the mock_qmessageboxes fixture's behavior for QMessageBox.question for this test
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes)
+    qmessagebox_info_spy = mocker.spy(QMessageBox, "information")
 
-
-    # Mock load_assets to prevent it from actually running during this test,
-    # but we still want to check if it's called.
-    # main_window instance already exists.
     mock_load_assets = mocker.patch.object(main_window, "load_assets")
-
-
-    # mocker.patch.object(main_window, "populate_mime_type_filter") # Already handled by fixture if init calls it
-
 
     main_window.setup_current_world_db()  # Trigger the action
 
-    # Check that question was asked (and logged)
-    assert any("QMessageBox.question called" in record.message for record in caplog.records)
-    mock_db_setup_worker_class.assert_called_once_with(mock_world) # mock_world here is the one from main_window_with_mocks
+    # Assert DbSetupWorker was called
+    mock_db_setup_worker_class.assert_called_once_with(mock_world) # mock_world from fixture
 
     # Simulate worker success
-    main_window._on_db_setup_complete(main_window.current_world.name) # Use main_window's world
+    main_window._on_db_setup_complete(main_window.current_world.name)
 
-    # Check that information was logged
-    assert any(
-        "QMessageBox.information called" in record.message and
-        "Database Setup Successful" in record.message and
-        f"Database setup complete for world '{main_window.current_world.name}'" in record.message
-        for record in caplog.records
-    )
+    # Assert QMessageBox.information was called
+    assert qmessagebox_info_spy.called
+    args, _ = qmessagebox_info_spy.call_args
+    assert args[1] == "Database Setup Successful" # Title
+    assert f"Database setup complete for world '{main_window.current_world.name}'" in args[2] # Text
+
     mock_load_assets.assert_called()  # Check if assets are refreshed
 
 
 @pytest.mark.ui
-def test_main_window_setup_db_error(qtbot: QtBot, main_window_with_mocks, mock_world, mocker, caplog): # Used main_window_with_mocks, caplog
+def test_main_window_setup_db_error(qtbot: QtBot, main_window_with_mocks, mock_world, mocker, caplog): # Removed caplog, use spy
     """Test error handling during database setup."""
     main_window = main_window_with_mocks
     error_message = "DB setup failed spectacularly"
@@ -1233,27 +1252,23 @@ def test_main_window_setup_db_error(qtbot: QtBot, main_window_with_mocks, mock_w
         "dam.ui.main_window.DbSetupWorker", return_value=mock_db_setup_worker_instance
     )
 
-    # If a specific response to 'question' is needed (e.g., Yes):
+    # Override mock_qmessageboxes for QMessageBox.question
     mocker.patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes)
-    # mock_qmessagebox_critical is handled by the fixture.
-    mocker.patch.object(main_window, "load_assets")  # Mock out to prevent side effects
+    qmessagebox_critical_spy = mocker.spy(QMessageBox, "critical")
 
-    # mocker.patch.object(main_window, "populate_mime_type_filter") # Handled by fixture
+    mocker.patch.object(main_window, "load_assets")  # Mock out to prevent side effects
 
     main_window.setup_current_world_db()
 
-    assert any("QMessageBox.question called" in record.message for record in caplog.records)
     mock_db_setup_worker_class.assert_called_once_with(main_window.current_world)
 
     # Simulate worker error
     main_window._on_db_setup_error(main_window.current_world.name, error_message)
 
-    assert any(
-        "QMessageBox.critical called" in record.message and
-        "Database Setup Error" in record.message and
-        error_message in record.message
-        for record in caplog.records
-    )
+    assert qmessagebox_critical_spy.called
+    args, _ = qmessagebox_critical_spy.call_args
+    assert args[1] == "Database Setup Error" # Title
+    assert error_message in args[2] # Text
 
 
 @pytest.mark.ui
@@ -1387,16 +1402,10 @@ def test_main_window_graceful_exit(qtbot: QtBot, main_window_with_mocks, mock_wo
     # mocker.patch.object(main_window, "load_assets") # Handled
 
 
-    # Spy on thread_pool.waitForDone
-    mock_wait_for_done = mocker.spy(main_window.thread_pool, "waitForDone")
-
-    # mock_qmessagebox_warning is handled by fixture.
-
-    # To simulate a timeout in waitForDone, we can make it return False
-    mocker.patch.object(main_window.thread_pool, "waitForDone", return_value=False)
-
-    # Attempt to close the window
-    # main_window.close() # This will trigger closeEvent
+    # Patch main_window.thread_pool.waitForDone to control its return value and spy on it.
+    # The mock_qmessageboxes fixture handles QMessageBox.warning logging, but we'll spy for assertion.
+    mock_wait_for_done_patch = mocker.patch.object(main_window.thread_pool, 'waitForDone', return_value=False)
+    qmessagebox_warning_spy = mocker.spy(QMessageBox, "warning")
 
     # Instead of main_window.close(), directly call the event handler
     # to ensure it's tested even if event propagation is tricky in tests.
@@ -1421,16 +1430,20 @@ def test_main_window_graceful_exit(qtbot: QtBot, main_window_with_mocks, mock_wo
         main_window.close()  # Request window close
         qtbot.wait(100)  # Allow event loop to process the close event
 
-    # Check if waitForDone was called
-    mock_wait_for_done.assert_called_once_with(5000)  # Check it was called with the timeout
+    # Check if waitForDone was called (using the mock object from patch.object)
+    mock_wait_for_done_patch.assert_called_once_with(5000)
 
-    # Since we mocked waitForDone to return False (timeout), check if QMessageBox.warning was logged
-    assert any(
-        "QMessageBox.warning called" in record.message and
-        "Shutdown Warning" in record.message and
-        "Some background tasks did not finish quickly" in record.message
-        for record in caplog.records
-    ), "Expected QMessageBox.warning for shutdown timeout was not logged or had incorrect content."
+    # Since waitForDone was mocked to return False, check if QMessageBox.warning was called (using the spy)
+    assert qmessagebox_warning_spy.called
+
+    # Check the arguments of the warning spy for the specific shutdown warning
+    found_shutdown_warning = False
+    for call_args_item in qmessagebox_warning_spy.call_args_list:
+        args, _ = call_args_item # parent, title, text
+        if args[1] == "Shutdown Warning" and "Some background tasks did not finish quickly" in args[2]:
+            found_shutdown_warning = True
+            break
+    assert found_shutdown_warning, "Expected QMessageBox.warning for shutdown timeout not called with correct arguments."
 
     # Ensure no unexpected exceptions during close
     assert not exceptions, f"Exceptions during close: {exceptions}"
@@ -1457,14 +1470,28 @@ def test_main_window_column_filters_pass_to_loader(qtbot: QtBot, main_window_wit
     # main_window.search_input.setText("") # Ensure global search is empty for this test
     # main_window.mime_type_filter.setCurrentIndex(0) # Ensure combobox filter is "All Types"
 
-    # load_assets should be triggered by textChanged, or call it directly to test its collection logic
+    # Prevent load_assets from being called by setText signals temporarily
+    # Store the original method
+    original_load_assets_method = main_window.load_assets
+    # Mock it on the instance
+    main_window.load_assets = MagicMock()
+
+    main_window.column_filter_inputs["id"].setText(filter_values["id"])
+    main_window.column_filter_inputs["filename"].setText(filter_values["filename"])
+    main_window.column_filter_inputs["mime_type"].setText(filter_values["mime_type"])
+
+    # Restore the original method
+    main_window.load_assets = original_load_assets_method
+    # Now call the actual load_assets method once
     main_window.load_assets()
+
+    qtbot.wait(50) # Ensure the call is processed if it involves signals/event loop
 
     expected_column_filters = {"id": "123", "filename": "test", "mime_type": "image"}
     mock_asset_loader_class.assert_called_once_with(
-        world=mock_world,
-        search_term="",  # Assuming global search is empty
-        selected_mime_type="",  # Assuming combobox is "All types"
+        world=main_window.current_world, # Should be the mock_world from the fixture
+        search_term="",  # Assuming global search is empty as per commented out lines
+        selected_mime_type="",  # Assuming combobox is "All types" as per commented out lines
         column_filters=expected_column_filters,
     )
 
