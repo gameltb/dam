@@ -11,7 +11,7 @@ from dam.models.semantic import TextEmbeddingComponent # To verify what the CLI 
 # Mock SentenceTransformer for CLI tests as well, to avoid real model loading
 from .test_semantic_service import MockSentenceTransformer
 
-runner = CliRunner()
+# runner = CliRunner() # Removed global runner
 
 @pytest.fixture(autouse=True)
 def mock_sentence_transformer_for_cli_tests(monkeypatch):
@@ -31,18 +31,18 @@ async def current_test_world_for_search_cli(test_world_alpha: World):
 import asyncio # Add asyncio import if not already present at top
 
 # @pytest.mark.asyncio # Removed
-def test_cli_search_semantic_no_results(current_test_world_for_search_cli: World): # Removed async
+def test_cli_search_semantic_no_results(current_test_world_for_search_cli: World, click_runner: CliRunner): # Removed async, Added click_runner
     world_name = current_test_world_for_search_cli.name
     query = "non_existent_semantic_query"
 
-    result = runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query])
+    result = click_runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query])
     print(f"CLI search semantic (no results) output: {result.stdout}")
     assert result.exit_code == 0
     assert f"No semantic matches found for query: '{query}" in result.stdout
 
 
 # @pytest.mark.asyncio # Removed
-def test_cli_search_semantic_with_results(current_test_world_for_search_cli: World): # Removed async
+def test_cli_search_semantic_with_results(current_test_world_for_search_cli: World, click_runner: CliRunner): # Removed async, Added click_runner
     world = current_test_world_for_search_cli
     world_name = world.name
 
@@ -73,7 +73,7 @@ def test_cli_search_semantic_with_results(current_test_world_for_search_cli: Wor
 
     query = "delicious apple pie recipe" # Mock will make this more similar to "apple pie"
 
-    result = runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query, "--top-n", "1"])
+    result = click_runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query, "--top-n", "1"])
     print(f"CLI search semantic (with results) output: {result.stdout}")
     assert result.exit_code == 0
     assert "Semantic Search Results" in result.stdout
@@ -87,7 +87,7 @@ def test_cli_search_semantic_with_results(current_test_world_for_search_cli: Wor
     assert f"Entity ID: {entity2_id}" not in result.stdout # Use entity2_id
 
     # Test with higher top_n to get both
-    result_top2 = runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query, "--top-n", "2"])
+    result_top2 = click_runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query, "--top-n", "2"])
     assert result_top2.exit_code == 0
     assert f"Found 2 results" in result_top2.stdout
     assert f"Entity ID: {entity1_id}" in result_top2.stdout # Use entity1_id
@@ -108,14 +108,14 @@ def test_cli_search_semantic_with_results(current_test_world_for_search_cli: Wor
 
 
 # @pytest.mark.asyncio # Removed
-def test_cli_search_semantic_model_loading_error(current_test_world_for_search_cli: World): # Removed async
+def test_cli_search_semantic_model_loading_error(current_test_world_for_search_cli: World, click_runner: CliRunner): # Removed async, Added click_runner
     world_name = current_test_world_for_search_cli.name
     query = "test query"
 
     # Mock find_similar_entities_by_text_embedding to raise an error directly
     # This simulates a failure within the core search logic that should propagate.
     with patch('dam.services.semantic_service.find_similar_entities_by_text_embedding', side_effect=Exception("Mock Search Service Fail")):
-        result = runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query])
+        result = click_runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query])
         print(f"CLI search semantic (model error) output: {result.stdout}")
         assert result.exit_code != 0 # Should indicate failure
         assert "Semantic search query failed" in result.stdout

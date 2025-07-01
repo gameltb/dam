@@ -185,15 +185,6 @@ async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, 
     #         shutil.rmtree(storage_dir)
 
 
-@pytest.fixture
-def click_runner() -> Iterator[CliRunner]:  # Removed capsys parameter
-    """
-    Convenience fixture to return a click.CliRunner for cli testing
-    """
-    # Removed MyCliRunner and capsys.disabled() for diagnostics
-    yield CliRunner()
-
-
 def test_cli_help(test_environment, click_runner):
     """Test the main help message for the CLI."""
     result = click_runner.invoke(app, ["--help"])

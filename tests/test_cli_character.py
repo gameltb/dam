@@ -9,7 +9,6 @@ from dam.services import character_service, ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.properties import FilePropertiesComponent # For creating dummy assets
 
-runner = CliRunner()
 
 # Fixture to ensure a clean world for each test function in this file
 @pytest.fixture(autouse=True)
@@ -27,12 +26,12 @@ async def current_test_world(test_world_alpha: World):
 import asyncio # Add import for asyncio
 
 # @pytest.mark.asyncio # Removed
-def test_cli_character_create(current_test_world: World): # Removed async
+def test_cli_character_create(current_test_world: World, click_runner: CliRunner): # Removed async, added click_runner
     world_name = current_test_world.name
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
 
-    result = runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name, "--desc", char_desc], catch_exceptions=False)
+    result = click_runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name, "--desc", char_desc], catch_exceptions=False)
     print(f"CLI character create output: {result.stdout}")
     assert result.exit_code == 0
     assert f"Character concept '{char_name}'" in result.stdout
@@ -56,25 +55,25 @@ def test_cli_character_create(current_test_world: World): # Removed async
     # Test creating again (should indicate existence or handle gracefully)
     # Ensure char_entity_id is available from the async check
     assert char_entity_id is not None, "Character entity ID was not captured from DB checks"
-    result_again = runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name])
+    result_again = click_runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name])
     assert result_again.exit_code == 0 # Service function handles this gracefully by returning existing
     assert f"Character concept '{char_name}' might already exist" in result_again.stdout or \
            f"Character concept '{char_name}' (Entity ID: {char_entity_id}) created successfully" in result_again.stdout
 
 
     # Test validation (e.g., empty name)
-    result_empty_name = runner.invoke(app, ["--world", world_name, "character", "create", "--name", ""])
+    result_empty_name = click_runner.invoke(app, ["--world", world_name, "character", "create", "--name", ""])
     assert result_empty_name.exit_code != 0 # Should fail due to ValueError in service
     assert "Error: Character name cannot be empty." in result_empty_name.stdout
 
 
 # @pytest.mark.asyncio # Removed
-def test_cli_character_apply_list_find(current_test_world: World, sample_text_file: str): # Removed async
+def test_cli_character_apply_list_find(current_test_world: World, sample_text_file: str, click_runner: CliRunner): # Removed async, added click_runner
     world_name = current_test_world.name
 
     # 1. Create a character
     char_name = "Linkable CLI Char"
-    runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name])
+    click_runner.invoke(app, ["--world", world_name, "character", "create", "--name", char_name])
 
     char_id_str_from_db: Optional[str] = None # Variable to store char_id_str
 
@@ -106,10 +105,10 @@ def test_cli_character_apply_list_find(current_test_world: World, sample_text_fi
 
     # 3. Apply character to asset (using character name and asset ID)
     role = "Main Protagonist"
-    result_apply = runner.invoke(app, [
+    result_apply = click_runner.invoke(app, [
         "--world", world_name, "character", "apply",
-            "--asset", asset_id_str_from_db, # Corrected variable name
-            "--character", char_name, # char_name is correct as it's defined in the test scope
+            "--asset", asset_id_str_from_db,
+            "--character", char_name,
         "--role", role
     ])
     print(f"CLI character apply output: {result_apply.stdout}")

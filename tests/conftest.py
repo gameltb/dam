@@ -3,10 +3,12 @@ from pathlib import Path
 from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
+    Iterator, # Added for click_runner
 )
 
 import pytest
 import pytest_asyncio
+from typer.testing import CliRunner, Result # Added for click_runner
 from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
 
 # Ensure models are imported so Base knows about them for table creation
@@ -167,6 +169,26 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     world = await _setup_world("test_world_alpha", settings_override)  # Await async setup
     yield world
     await _teardown_world_async(world)  # Await async teardown
+
+
+@pytest.fixture
+def click_runner(capsys: pytest.CaptureFixture[str]) -> Iterator[CliRunner]:
+    """
+    Convenience fixture to return a click.CliRunner for cli testing.
+    This version disables capsys during invoke to prevent I/O errors with Click/Typer.
+    See: https://github.com/pallets/click/issues/824
+    """
+
+    class MyCliRunner(CliRunner):
+        """Override CliRunner to disable capsys."""
+
+        def invoke(self, *args, **kwargs) -> Result:
+            # Disable capsys for the duration of the invoke call
+            with capsys.disabled():
+                result = super().invoke(*args, **kwargs)
+            return result
+
+    yield MyCliRunner()
 
 
 @pytest.fixture(scope="session", autouse=True)
