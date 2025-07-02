@@ -752,6 +752,12 @@ async def setup_db_ui() -> str:
         return f"Error: Could not set up database for world '{_active_world.name}'. {str(e)}"
 
 # --- Gradio Interface Definition ---
+
+# Helper async function for the .then() clause to ensure await is handled.
+async def refresh_assets_default():
+    """Calls list_assets_gr with default empty filters and page 1."""
+    return await list_assets_gr(filename_filter="", mime_type_filter="", current_page=1)
+
 def create_dam_ui():
     with gr.Blocks(title="ECS DAM System") as dam_interface:
         gr.Markdown("# ECS Digital Asset Management System")
@@ -974,7 +980,7 @@ def create_dam_ui():
                 eval_run_report_dropdown
             ]
         ).then(
-            lambda: list_assets_gr(filename_filter="", mime_type_filter="", current_page=1),
+            refresh_assets_default, # Replaced lambda with the async helper function
             inputs=[],
             outputs=[assets_df, asset_status_output]
         )
