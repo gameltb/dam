@@ -21,17 +21,16 @@ from dam.systems.evaluation_systems import EvaluationError
 
 # Helper function to get world choices
 def get_world_choices() -> List[str]:
-    return [world.name for world in app_settings.worlds] if app_settings.worlds else ["Info: No worlds configured"]
+    # app_settings.worlds is Dict[str, WorldConfig]
+    return [wc.name for wc in app_settings.worlds.values()] if app_settings.worlds else ["Info: No worlds configured"]
 
 # Helper function to get current world
 def get_current_world(world_name: Optional[str]) -> Optional[World]:
     if not world_name or world_name.startswith("Info:") or world_name.startswith("Error:"):
         return None
-    if app_settings.worlds:
-        for world_instance in app_settings.worlds:
-            if world_instance.name == world_name:
-                return world_instance
-    return None
+    # Import get_world here to avoid circular dependency at module level if world.py imports gradio_ui indirectly
+    from dam.core.world import get_world
+    return get_world(world_name)
 
 _active_world: Optional[World] = None
 
