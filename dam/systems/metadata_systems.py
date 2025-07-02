@@ -116,18 +116,34 @@ def _parse_metadata_sync_worker(filepath_str: str) -> Any | None:
         logger.info("Hachoir library not available. Cannot perform sync extraction.")
         return None
 
-    parser = createParser(filepath_str)
-    if not parser:
-        logger.warning(f"Hachoir could not create a parser for file: {filepath_str}")
-        return None
+    try:
+        file_size = Path(filepath_str).stat().st_size
+        logger.info(f"Hachoir worker attempting to parse: {filepath_str}, size: {file_size} bytes")
+    except Exception as e_stat:
+        logger.error(f"Hachoir worker: Error stating file {filepath_str}: {e_stat}")
+        # Proceed to createParser, it will likely fail and log its own error.
 
-    with parser:
-        try:
-            metadata = extractMetadata(parser)
-            return metadata
-        except Exception as e:
-            logger.error(f"Hachoir failed to extract metadata for {filepath_str}: {e}", exc_info=True)
+    parser = None # Initialize parser to None
+    try:
+        parser = createParser(filepath_str)
+        if not parser:
+            logger.warning(f"Hachoir could not create a parser for file: {filepath_str} (createParser returned None)")
             return None
+
+        with parser: # parser is guaranteed to be non-None here
+            try:
+                metadata = extractMetadata(parser)
+                return metadata
+            except Exception as e_extract: # More specific exception variable
+                logger.error(f"Hachoir failed to extract metadata for {filepath_str}: {e_extract}", exc_info=True)
+                return None
+    except HachoirConfig.HachoirError as e_hachoir: # Catch Hachoir specific errors like NullStreamError
+        # HachoirError is a base class for many hachoir exceptions including NullStreamError
+        logger.warning(f"Hachoir error during parsing or metadata extraction for {filepath_str}: {e_hachoir}")
+        return None
+    except Exception as e_general: # Catch any other unexpected errors during createParser or context management
+        logger.error(f"Unexpected error with Hachoir for {filepath_str}: {e_general}", exc_info=True)
+        return None
 
 
 async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | None:
