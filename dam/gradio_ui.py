@@ -181,13 +181,31 @@ async def list_assets_gr(filename_filter: str, mime_type_filter: str, current_pa
 async def get_asset_details_gr(evt: gr.SelectData) -> gr.JSON:
     if not _active_world:
         return gr.JSON(value={"error": "Error: No active world selected."}, label="Asset Details")
-    if evt.value is None or not isinstance(evt.index, tuple) or len(evt.index) != 2:
-        return gr.JSON(value={"info": "Info: Click on an Asset ID in the table above to view its details."}, label="Asset Details")
+
+    # Check if the event itself or its index is None (e.g. if nothing is selected or event is malformed)
+    if evt is None or evt.index is None:
+        return gr.JSON(value={"info": "Info: Select a row in the table to view asset details."}, label="Asset Details")
+
+    # Ensure evt.index is a tuple of 2 elements (row, col)
+    if not isinstance(evt.index, tuple) or len(evt.index) != 2:
+        return gr.JSON(value={"info": f"Info: Invalid selection event data. Expected (row, col) index. Got: {evt.index}"}, label="Asset Details")
+
+    # Ensure evt.value is not None if we plan to use it directly.
+    # If user clicks on a cell that has a None value (e.g. an empty optional field), evt.value would be None.
+    # It's safer to rely on evt.index to get the row, and then get the ID from the first column of that row's data.
+    # However, the current DataFrame `assets_df` is populated by `list_assets_gr`, and its first column is "ID".
+    # The `evt.value` should be the content of the clicked cell.
+    # The user wants to click on the ID. So, if they click the ID cell, evt.value should be the ID.
+
+    if evt.value is None: # If they clicked an empty cell, or if selection event is odd.
+        return gr.JSON(value={"info": "Info: Click on a cell containing the Asset ID (first column)."}, label="Asset Details")
 
     try:
-        asset_id = int(evt.value) # Assuming evt.value is the ID from the first column
+        asset_id = int(evt.value)
     except ValueError:
-        return gr.JSON(value={"error": f"Error: Invalid Asset ID format from table selection: {evt.value}"}, label="Asset Details")
+        # This means the clicked cell's value (evt.value) is not a valid integer.
+        # This is the primary case to give helpful feedback for.
+        return gr.JSON(value={"error": f"Error: Please click on the numeric ID in the first column to see details. You clicked on a cell with value: '{evt.value}'."}, label="Asset Details")
 
     tree_data = {}
     try:
@@ -770,15 +788,21 @@ def create_dam_ui():
 
         with gr.Tabs() as main_tabs:
             with gr.TabItem("Assets"):
-                asset_status_output = gr.Textbox(label="Asset List Status", interactive=False, elem_id="asset_status")
+                gr.Markdown("### Filter Assets")
                 with gr.Row():
-                    filename_filter_input = gr.Textbox(label="Filter by Filename", elem_id="filename_filter")
-                    mime_type_filter_input = gr.Dropdown(label="Filter by MIME Type", choices=[""], value="", elem_id="mime_type_filter")
-                current_page_input = gr.Number(label="Page", value=1, minimum=1, step=1, interactive=True, elem_id="current_page")
-                load_assets_button = gr.Button("Load/Refresh Assets")
-                # Updated headers and col_count
+                    filename_filter_input = gr.Textbox(label="Filter by Filename", elem_id="filename_filter", scale=3)
+                    mime_type_filter_input = gr.Dropdown(label="Filter by MIME Type", choices=[""], value="", elem_id="mime_type_filter", scale=2)
+
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=1, min_width=150):
+                        current_page_input = gr.Number(label="Page", value=1, minimum=1, step=1, interactive=True, elem_id="current_page")
+                    with gr.Column(scale=1, min_width=150):
+                        load_assets_button = gr.Button("Load/Refresh Assets", variant="primary", elem_id="load_assets_button") # Added variant
+                    with gr.Column(scale=3): # Status output takes more space but can be dynamic
+                        asset_status_output = gr.Textbox(label="Status", interactive=False, elem_id="asset_status", lines=1, max_lines=1) # Single line for status
+
                 assets_df = gr.DataFrame(
-                    headers=["ID", "Filename", "MIME Type", "File Size (Bytes)", "Created At"], # Updated header text
+                    headers=["ID", "Filename", "MIME Type", "File Size (Bytes)", "Created At"],
                     label="Assets",
                     interactive=True,
                     row_count=(20, "dynamic"),
