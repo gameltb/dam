@@ -852,8 +852,11 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
     details_sha256 = await asyncio.wait_for(query_event_sha256.result_future, timeout=10.0)
 
     assert details_sha256 is not None
-    assert details_sha256["components"]["FilePropertiesComponent"]["original_filename"] == dummy_file.name
-    assert details_sha256["components"]["ContentHashSHA256Component"]["hash_value"] == sha256_hash
+    assert details_sha256["components"]["FilePropertiesComponent"][0]["original_filename"] == dummy_file.name
+    assert details_sha256["components"]["ContentHashSHA256Component"][0]["hash_value"] == sha256_hash
+    # Assuming ContentHashMD5Component is also returned as a list by the handler
+    assert details_sha256["components"]["ContentHashMD5Component"][0]["hash_value"] == md5_hash
+
 
     # Test find by MD5
     request_id_md5 = str(uuid.uuid4())
@@ -865,8 +868,9 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
     details_md5 = await asyncio.wait_for(query_event_md5.result_future, timeout=10.0)
 
     assert details_md5 is not None
-    assert details_md5["components"]["FilePropertiesComponent"]["original_filename"] == dummy_file.name
-    assert details_md5["components"]["ContentHashMD5Component"]["hash_value"] == md5_hash
+    assert details_md5["components"]["FilePropertiesComponent"][0]["original_filename"] == dummy_file.name
+    # Assuming ContentHashMD5Component is also returned as a list by the handler
+    assert details_md5["components"]["ContentHashMD5Component"][0]["hash_value"] == md5_hash
     assert details_md5["entity_id"] == details_sha256["entity_id"]  # Should be same entity
 
     # Test find by providing file (calculates sha256 by default)
@@ -887,6 +891,10 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
 
     assert details_file is not None
     assert details_file["entity_id"] == details_sha256["entity_id"]
+    # This assertion was missing from the original search block but needs update
+    # assert details_file["components"]["FilePropertiesComponent"]["original_filename"] == dummy_file.name
+    # Corrected version:
+    assert details_file["components"]["FilePropertiesComponent"][0]["original_filename"] == dummy_file.name
 
 
 @pytest.mark.asyncio  # Mark as async test

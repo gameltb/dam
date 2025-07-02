@@ -11,6 +11,7 @@ from dam.services import ecs_service, world_service, character_service, semantic
 from dam.models.core.entity import Entity
 from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested, FindEntityByHashQuery, FindSimilarImagesQuery, SemanticSearchQuery
 from dam.services import file_operations
+import dam.core.stages # Added import
 from dam.services.transcode_service import TranscodeServiceError
 from dam.services.character_service import CharacterConceptNotFoundError, CharacterLinkNotFoundError # Corrected import
 from dam.services import ecs_service as dam_ecs_service # For EntityNotFoundError
@@ -223,7 +224,7 @@ async def add_assets_ui(files: List[gr.File], no_copy: bool) -> str:
                 mime_type=mime_type, size_bytes=size_bytes, world_name=_active_world.name,
             )
             await _active_world.dispatch_event(event_to_dispatch)
-            await _active_world.execute_stage(ecs_service.SystemStage.METADATA_EXTRACTION)
+            await _active_world.execute_stage(dam.core.stages.SystemStage.METADATA_EXTRACTION)
             results.append(f"Success: Dispatched ingestion for '{original_filename}' (Type: {event_type_str}).")
             success_count += 1
         except Exception as e:
@@ -572,7 +573,7 @@ async def export_world_ui(export_path: str) -> str:
     export_file_path = Path(export_path.strip())
     if not export_file_path.is_absolute() and export_file_path.parent != Path("."): # Check parent if not current dir
         if not export_file_path.parent.exists():
-            return f"Error: Parent directory '{export_file_path.parent}' for export does not exist."
+            return f"Error: Parent directory '{str(export_file_path.parent)}' for export does not exist."
     if export_file_path.is_dir():
         return f"Error: Export path '{export_file_path}' is a directory, must be a file path."
 
@@ -887,8 +888,9 @@ if __name__ == "__main__":
     print("Attempting to initialize worlds for standalone Gradio UI...")
     try:
         from dam.core import config as app_config
-        from dam.core.world import get_world, create_and_register_all_worlds_from_settings
-        from dam.core.world_setup import register_core_systems, get_world_by_name
+        # Changed import for get_world_by_name
+        from dam.core.world import get_world as get_world_by_name, create_and_register_all_worlds_from_settings
+        from dam.core.world_setup import register_core_systems
 
         initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
         for world_instance in initialized_worlds:
@@ -930,7 +932,7 @@ if __name__ == "__main__":
 def launch_ui(world_name: Optional[str] = None):
     global _active_world
     if world_name:
-        from dam.core.world_setup import get_world_by_name
+        from dam.core.world import get_world as get_world_by_name # Changed import
         _active_world = get_world_by_name(world_name)
     elif app_settings.worlds:
         _active_world = app_settings.worlds[0]

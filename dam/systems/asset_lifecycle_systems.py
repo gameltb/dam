@@ -370,11 +370,11 @@ async def handle_find_entity_by_hash_query(
 
             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
             if fpc:
-                entity_details_dict["components"]["FilePropertiesComponent"] = {
+                entity_details_dict["components"]["FilePropertiesComponent"] = [{
                     "original_filename": fpc.original_filename,
                     "file_size_bytes": fpc.file_size_bytes,
                     "mime_type": fpc.mime_type,
-                }
+                }]
 
             flcs = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
             if flcs:
@@ -390,13 +390,13 @@ async def handle_find_entity_by_hash_query(
 
             sha256_comp = await ecs_service.get_component(session, entity.id, ContentHashSHA256Component)  # Await
             if sha256_comp:
-                entity_details_dict["components"]["ContentHashSHA256Component"] = {
+                entity_details_dict["components"]["ContentHashSHA256Component"] = [{
                     "hash_value": sha256_comp.hash_value.hex()
-                }
+                }]
 
             md5_comp = await ecs_service.get_component(session, entity.id, ContentHashMD5Component)  # Await
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = {"hash_value": md5_comp.hash_value.hex()}
+                entity_details_dict["components"]["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
         else:
             logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
 
