@@ -19,6 +19,7 @@ from dam.core.world import World
 from dam.services import ecs_service, world_service, file_operations
 from dam.core.events import FindEntityByHashQuery, AssetFileIngestionRequested, AssetReferenceIngestionRequested
 from dam.models.core.entity import Entity
+import dam.core.stages # Added import
 from dam.models.properties import FilePropertiesComponent
 
 
@@ -195,7 +196,7 @@ async def test_get_asset_details_gr_success(active_test_world):
         await ecs_service.add_component_to_entity(session, entity.id, FilePropertiesComponent(original_filename="f.jpg", mime_type="image/jpeg"))
         await session.commit()
 
-    with patch("dam.gradio_ui.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
+    with patch("dam.models.core.base_component.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
         json_update = await get_asset_details_gr(mock_select_event)
 
     assert "FilePropertiesComponent" in json_update.value
@@ -208,12 +209,14 @@ async def test_get_asset_details_gr_success(active_test_world):
 async def test_get_asset_details_gr_db_error(active_test_world, monkeypatch):
     mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = 1; mock_select_event.index = (0,0)
     async with active_test_world.get_db_session() as session:
-        await ecs_service.create_entity(session, entity_id=1); await session.commit()
+        # Create an entity. In a fresh test DB, its ID will likely be 1.
+        # The mock_select_event.value = 1 relies on this assumption for the test.
+        await ecs_service.create_entity(session); await session.commit()
 
     async_mock_get_components = AsyncMock(side_effect=Exception("DB Comp Error"))
     monkeypatch.setattr(ecs_service, "get_components", async_mock_get_components)
 
-    with patch("dam.gradio_ui.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
+    with patch("dam.models.core.base_component.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
         json_update = await get_asset_details_gr(mock_select_event)
 
     assert "Error: Could not fetch details" in json_update.value["error"]
@@ -249,7 +252,7 @@ async def test_add_assets_ui_success_copy(active_test_world, mock_file_obj, monk
     m_gp.assert_called_once_with(Path("/tmp/fake_uploaded_file.jpg"))
     mock_dispatch.assert_called_once()
     assert isinstance(mock_dispatch.call_args[0][0], AssetFileIngestionRequested)
-    mock_execute_stage.assert_called_once_with(ecs_service.SystemStage.METADATA_EXTRACTION)
+    mock_execute_stage.assert_called_once_with(dam.core.stages.SystemStage.METADATA_EXTRACTION)
     assert "Success: Dispatched ingestion for 't.jpg' (Type: Copy)." in status
 
 async def test_add_assets_ui_success_no_copy(active_test_world, mock_file_obj, monkeypatch):
@@ -293,29 +296,36 @@ async def test_find_by_hash_ui_empty_hash_value(active_test_world):
     assert json_update.value == {"error": "Error: Hash value cannot be empty."}
 
 async def test_find_by_hash_ui_success(active_test_world):
-    hash_val = "testhashsuccessful"
+    import hashlib
+    raw_hash_str = "testhashsuccessful"
+    hash_hex = hashlib.sha256(raw_hash_str.encode('utf-8')).hexdigest()
+    hash_bytes = bytes.fromhex(hash_hex)
+
     expected_entity_id = -1
     async with active_test_world.get_db_session() as session:
         entity = await ecs_service.create_entity(session)
         expected_entity_id = entity.id
-        await ecs_service.add_component_to_entity(session, entity.id, FilePropertiesComponent(original_filename="hashed_file.jpg", entity_id=entity.id))
+        await ecs_service.add_component_to_entity(session, entity.id, FilePropertiesComponent(original_filename="hashed_file.jpg"))
         from dam.models.hashes import ContentHashSHA256Component
-        await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA256Component(hash_value=hash_val, entity_id=entity.id))
+        await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA256Component(hash_value=hash_bytes))
         await session.commit()
 
-    json_update = await find_by_hash_ui(hash_value=hash_val, hash_type="sha256")
+    json_update = await find_by_hash_ui(hash_value=hash_hex, hash_type="sha256")
 
     assert "Asset Found" in json_update.label
     assert json_update.value["entity_id"] == expected_entity_id
     assert "FilePropertiesComponent" in json_update.value["components"]
     assert json_update.value["components"]["FilePropertiesComponent"][0]["original_filename"] == "hashed_file.jpg"
     assert "ContentHashSHA256Component" in json_update.value["components"]
-    assert json_update.value["components"]["ContentHashSHA256Component"][0]["hash_value"] == hash_val
+    assert json_update.value["components"]["ContentHashSHA256Component"][0]["hash_value"] == hash_hex
 
 
 async def test_find_by_hash_ui_not_found(active_test_world):
-    json_update = await find_by_hash_ui(hash_value="unknownhash", hash_type="md5")
+    # Use a valid hex string that is unlikely to exist
+    valid_non_existent_hash = "aabbccddeeff00112233445566778899" # 16 bytes, valid hex
+    json_update = await find_by_hash_ui(hash_value=valid_non_existent_hash, hash_type="md5")
     assert "Info: No asset found" in json_update.value["info"]
+    assert valid_non_existent_hash in json_update.value["info"]
 
 async def test_find_by_hash_ui_timeout(active_test_world, monkeypatch):
     hanging_future = asyncio.Future()
@@ -343,7 +353,9 @@ async def test_export_world_ui_no_export_path(active_test_world):
 async def test_export_world_ui_parent_dir_not_exist(active_test_world):
     with patch("pathlib.Path.is_absolute", return_value=False), \
          patch("pathlib.Path.parent") as mp:
-        mp.exists.return_value = False; mp.__ne__.return_value = True # parent is not "."
+        mp.exists.return_value = False
+        mp.__ne__.return_value = True # To satisfy `parent != Path(".")`
+        mp.__str__.return_value = "parent" # Configure string representation
         status = await export_world_ui(export_path="parent/p.json")
     assert "Error: Parent directory 'parent' for export does not exist." in status
 
