@@ -186,9 +186,9 @@ async def get_asset_details_gr(evt: gr.SelectData) -> gr.JSON:
     if evt is None or evt.index is None:
         return gr.JSON(value={"info": "Info: Select a row in the table to view asset details."}, label="Asset Details")
 
-    # Ensure evt.index is a tuple of 2 elements (row, col)
-    if not isinstance(evt.index, tuple) or len(evt.index) != 2:
-        return gr.JSON(value={"info": f"Info: Invalid selection event data. Expected (row, col) index. Got: {evt.index}"}, label="Asset Details")
+    # Ensure evt.index is a list or tuple of 2 elements (row, col)
+    if not (isinstance(evt.index, (tuple, list)) and len(evt.index) == 2): # Accept list or tuple
+        return gr.JSON(value={"info": f"Info: Invalid selection event data. Expected (row, col) index as a tuple or list. Got: {evt.index}"}, label="Asset Details")
 
     # Ensure evt.value is not None if we plan to use it directly.
     # If user clicks on a cell that has a None value (e.g. an empty optional field), evt.value would be None.
