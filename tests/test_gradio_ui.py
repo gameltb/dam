@@ -120,39 +120,68 @@ async def test_list_assets_gr_no_active_world(monkeypatch):
 async def test_list_assets_gr_success_no_filters(active_test_world):
     async with active_test_world.get_db_session() as session:
         e1 = await ecs_service.create_entity(session)
-        await ecs_service.add_component_to_entity(session, e1.id, FilePropertiesComponent(original_filename="file1.jpg", mime_type="image/jpeg"))
+        fpc1 = FilePropertiesComponent(original_filename="file1.jpg", mime_type="image/jpeg", file_size_bytes=100)
+        await ecs_service.add_component_to_entity(session, e1.id, fpc1)
+
         e2 = await ecs_service.create_entity(session)
-        await ecs_service.add_component_to_entity(session, e2.id, FilePropertiesComponent(original_filename="file2.png", mime_type="image/png"))
+        fpc2 = FilePropertiesComponent(original_filename="file2.png", mime_type="image/png", file_size_bytes=200)
+        await ecs_service.add_component_to_entity(session, e2.id, fpc2)
         await session.commit()
+
+        # Refetch to get created_at
+        fpc1_db = await ecs_service.get_component(session, e1.id, FilePropertiesComponent)
+        fpc2_db = await ecs_service.get_component(session, e2.id, FilePropertiesComponent)
+
     df_update, status = await list_assets_gr(filename_filter="", mime_type_filter="")
     assert "Info: Displaying 2 of 2 assets (Page 1)." in status
     actual_data_as_tuples = [tuple(row) for row in df_update.value["data"]]
-    expected_data_as_tuples = sorted([(e1.id, "file1.jpg", "image/jpeg"), (e2.id, "file2.png", "image/png")], key=lambda x: x[0])
-    assert sorted(actual_data_as_tuples, key=lambda x: x[0]) == expected_data_as_tuples
+
+    expected_data_as_tuples = sorted([
+        (e1.id, "file1.jpg", "image/jpeg", 100, fpc1_db.created_at.strftime("%Y-%m-%d %H:%M:%S")),
+        (e2.id, "file2.png", "image/png", 200, fpc2_db.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+    ], key=lambda x: x[0])
+
+    # Sort actual data by entity_id before comparison
+    actual_data_sorted = sorted(actual_data_as_tuples, key=lambda x: x[0])
+    assert actual_data_sorted == expected_data_as_tuples
 
 async def test_list_assets_gr_with_filters(active_test_world):
     async with active_test_world.get_db_session() as session:
         e1 = await ecs_service.create_entity(session)
-        await ecs_service.add_component_to_entity(session, e1.id, FilePropertiesComponent(original_filename="test_file.jpg", mime_type="image/jpeg"))
+        fpc1 = FilePropertiesComponent(original_filename="test_file.jpg", mime_type="image/jpeg", file_size_bytes=300)
+        await ecs_service.add_component_to_entity(session, e1.id, fpc1)
+
         e2 = await ecs_service.create_entity(session)
-        await ecs_service.add_component_to_entity(session, e2.id, FilePropertiesComponent(original_filename="another.txt", mime_type="text/plain"))
+        fpc2 = FilePropertiesComponent(original_filename="another.txt", mime_type="text/plain", file_size_bytes=400)
+        await ecs_service.add_component_to_entity(session, e2.id, fpc2)
         await session.commit()
+
+        fpc1_db = await ecs_service.get_component(session, e1.id, FilePropertiesComponent)
+
     df_update, status = await list_assets_gr(filename_filter="test_file", mime_type_filter="image/jpeg")
     assert "Info: Displaying 1 of 1 assets (Page 1)." in status
     actual_data_as_tuples = [tuple(row) for row in df_update.value["data"]]
-    expected_data = [(e1.id, "test_file.jpg", "image/jpeg")]
+    expected_data = [(e1.id, "test_file.jpg", "image/jpeg", 300, fpc1_db.created_at.strftime("%Y-%m-%d %H:%M:%S"))]
     assert actual_data_as_tuples == expected_data
 
 async def test_list_assets_gr_pagination(active_test_world):
+    all_expected_filenames_sorted = []
     async with active_test_world.get_db_session() as session:
         for i in range(1, 26):
             e = await ecs_service.create_entity(session)
-            await ecs_service.add_component_to_entity(session, e.id, FilePropertiesComponent(original_filename=f"file{i:02d}.txt", mime_type="text/plain"))
+            filename = f"file{i:02d}.txt"
+            all_expected_filenames_sorted.append(filename)
+            await ecs_service.add_component_to_entity(session, e.id, FilePropertiesComponent(original_filename=filename, mime_type="text/plain", file_size_bytes=i*10))
         await session.commit()
-    df_update, status = await list_assets_gr(filename_filter="", mime_type_filter="", current_page=2)
-    assert "Info: Displaying 5 of 25 assets (Page 2)." in status
-    assert len(df_update.value["data"]) == 5
-    assert df_update.value["data"][0][1] == "file21.txt"
+    all_expected_filenames_sorted.sort() # Default sort is by filename
+
+    df_update, status = await list_assets_gr(filename_filter="", mime_type_filter="", current_page=2, page_size=10) # Use page_size 10 for easier indexing
+    assert "Info: Displaying 10 of 25 assets (Page 2)." in status
+    assert len(df_update.value["data"]) == 10
+    # Filenames are file01.txt, file02.txt ... file25.txt
+    # Page 1: file01 .. file10
+    # Page 2: file11 .. file20
+    assert df_update.value["data"][0][1] == all_expected_filenames_sorted[10] # Should be file11.txt if page_size is 10
 
 async def test_list_assets_gr_no_results(active_test_world):
     df_update, status = await list_assets_gr(filename_filter="nonexistent", mime_type_filter="")
@@ -184,7 +213,7 @@ async def test_get_asset_details_gr_invalid_selection_event(active_test_world):
 async def test_get_asset_details_gr_asset_not_found(active_test_world):
     mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = 999; mock_select_event.index = (0,0)
     json_update = await get_asset_details_gr(mock_select_event)
-    assert json_update.value == {"error": "Error: Asset ID 999 not found."}
+    assert json_update.value == {"error": "Error: Asset (Entity ID: 999) not found."} # Updated expected message
 
 async def test_get_asset_details_gr_success(active_test_world):
     mock_select_event = MagicMock(spec=gr.SelectData)
@@ -199,12 +228,27 @@ async def test_get_asset_details_gr_success(active_test_world):
     with patch("dam.models.core.base_component.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
         json_update = await get_asset_details_gr(mock_select_event)
 
-    assert "FilePropertiesComponent" in json_update.value
-    assert len(json_update.value["FilePropertiesComponent"]) == 1
-    fpc_data = json_update.value["FilePropertiesComponent"][0]
-    assert fpc_data["original_filename"] == "f.jpg"
-    assert fpc_data["mime_type"] == "image/jpeg"
-    assert fpc_data["entity_id"] == entity.id
+    # Access data according to the new tree structure
+    entity_node_key = f"Entity ID: {entity.id}"
+    assert entity_node_key in json_update.value
+
+    component_type_node_key = "Component Type: FilePropertiesComponent"
+    assert component_type_node_key in json_update.value[entity_node_key]
+
+    # Find the instance key (could be "Instance Data" or "Instance (ID: X)")
+    instance_keys = list(json_update.value[entity_node_key][component_type_node_key].keys())
+    assert len(instance_keys) == 1 # Expecting one instance for this test
+    instance_node_key = instance_keys[0]
+
+    attributes_node = json_update.value[entity_node_key][component_type_node_key][instance_node_key]["Attributes"]
+
+    assert attributes_node["original_filename"] == "f.jpg"
+    assert attributes_node["mime_type"] == "image/jpeg"
+    assert attributes_node["entity_id"] == entity.id
+    # file_size_bytes would be None as it wasn't set, created_at would be a string
+    assert attributes_node["file_size_bytes"] is None
+    assert isinstance(attributes_node["created_at"], str)
+
 
 async def test_get_asset_details_gr_db_error(active_test_world, monkeypatch):
     mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = 1; mock_select_event.index = (0,0)
@@ -219,7 +263,7 @@ async def test_get_asset_details_gr_db_error(active_test_world, monkeypatch):
     with patch("dam.models.core.base_component.REGISTERED_COMPONENT_TYPES", [FilePropertiesComponent]):
         json_update = await get_asset_details_gr(mock_select_event)
 
-    assert "Error: Could not fetch details" in json_update.value["error"]
+    assert "Error: Could not fetch or structure details" in json_update.value["error"] # Updated to match actual message
     assert "DB Comp Error" in json_update.value["error"]
 
 
@@ -231,59 +275,94 @@ def mock_file_obj():
 
 async def test_add_assets_ui_no_active_world(mock_file_obj, monkeypatch):
     monkeypatch.setattr("dam.gradio_ui._active_world", None)
-    status = await add_assets_ui(files=[mock_file_obj], no_copy=False)
+    # Pass the path string from mock_file_obj.name
+    status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=False)
     assert status == "Error: No active world selected. Please select a world first."
 
 async def test_add_assets_ui_no_files(active_test_world):
-    status = await add_assets_ui(files=[], no_copy=False)
-    assert status == "Info: No files selected to add."
+    status = await add_assets_ui(selected_paths=[], no_copy=False) # Pass empty list for selected_paths
+    assert status == "Info: No files or folders selected to add." # Updated message
 
 async def test_add_assets_ui_success_copy(active_test_world, mock_file_obj, monkeypatch):
+    # For FileExplorer, the input is a list of path strings.
+    # Path.is_dir will be called by the function itself.
+    # The mock_file_obj represents a single file selection.
     with patch("dam.gradio_ui.file_operations.get_file_properties", return_value=("t.jpg",1, "i/j")) as m_gp, \
-         patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.is_file", return_value=True):
+         patch("pathlib.Path.exists", return_value=True), \
+         patch("pathlib.Path.is_file", return_value=True), \
+         patch("pathlib.Path.is_dir", return_value=False): # Mock that it's not a directory for this test
 
         mock_dispatch = AsyncMock()
         mock_execute_stage = AsyncMock()
         monkeypatch.setattr(active_test_world, "dispatch_event", mock_dispatch)
         monkeypatch.setattr(active_test_world, "execute_stage", mock_execute_stage)
 
-        status = await add_assets_ui(files=[mock_file_obj], no_copy=False)
+        status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=False)
 
     m_gp.assert_called_once_with(Path("/tmp/fake_uploaded_file.jpg"))
     mock_dispatch.assert_called_once()
     assert isinstance(mock_dispatch.call_args[0][0], AssetFileIngestionRequested)
     mock_execute_stage.assert_called_once_with(dam.core.stages.SystemStage.METADATA_EXTRACTION)
     assert "Success: Dispatched ingestion for 't.jpg' (Type: Copy)." in status
+    assert str(Path(mock_file_obj.name)) in status # Check if path is in status
 
 async def test_add_assets_ui_success_no_copy(active_test_world, mock_file_obj, monkeypatch):
     with patch("dam.gradio_ui.file_operations.get_file_properties", return_value=("r.txt",1,"t/p")) as m_gp, \
-         patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.is_file", return_value=True):
+         patch("pathlib.Path.exists", return_value=True), \
+         patch("pathlib.Path.is_file", return_value=True), \
+         patch("pathlib.Path.is_dir", return_value=False):
         mock_dispatch = AsyncMock()
         mock_execute_stage = AsyncMock()
         monkeypatch.setattr(active_test_world, "dispatch_event", mock_dispatch)
         monkeypatch.setattr(active_test_world, "execute_stage", mock_execute_stage)
-        status = await add_assets_ui(files=[mock_file_obj], no_copy=True)
+        status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=True)
     m_gp.assert_called_once()
     assert isinstance(mock_dispatch.call_args[0][0], AssetReferenceIngestionRequested)
     assert "Success: Dispatched ingestion for 'r.txt' (Type: Reference (no copy))." in status
+    assert str(Path(mock_file_obj.name)) in status
+
 
 async def test_add_assets_ui_file_processing_error(active_test_world, mock_file_obj, monkeypatch):
     with patch("dam.gradio_ui.file_operations.get_file_properties", side_effect=Exception("Read error")) as m_gp, \
-         patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.is_file", return_value=True):
+         patch("pathlib.Path.exists", return_value=True), \
+         patch("pathlib.Path.is_file", return_value=True), \
+         patch("pathlib.Path.is_dir", return_value=False):
         mock_dispatch = AsyncMock()
         monkeypatch.setattr(active_test_world, "dispatch_event", mock_dispatch)
-        status = await add_assets_ui(files=[mock_file_obj], no_copy=False)
+        status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=False)
     m_gp.assert_called_once()
     mock_dispatch.assert_not_called()
     assert "Error processing file 'fake_uploaded_file.jpg': Read error" in status
 
 async def test_add_assets_ui_temp_file_not_found(active_test_world, mock_file_obj, monkeypatch):
-    with patch("pathlib.Path.exists", return_value=False):
+    # This test needs to check the behavior when a path from FileExplorer doesn't exist
+    # The file existence is checked inside add_assets_ui after rglob for directories,
+    # or directly for files.
+    # If the selected path itself (from FileExplorer) doesn't resolve to file/dir, it's a warning.
+    # If a file found via rglob then fails `exists()` (unlikely if rglob found it), it's an error.
+
+    # Scenario 1: Selected path is neither file nor dir (e.g. broken symlink passed by FileExplorer)
+    with patch("pathlib.Path.is_file", return_value=False), \
+         patch("pathlib.Path.is_dir", return_value=False):
         mock_dispatch = AsyncMock()
         monkeypatch.setattr(active_test_world, "dispatch_event", mock_dispatch)
-        status = await add_assets_ui(files=[mock_file_obj], no_copy=False)
-    assert f"Error: File 'fake_uploaded_file.jpg' (temp path: {mock_file_obj.name}) not found" in status
+        status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=False)
+    assert f"Warning: Selected path '{mock_file_obj.name}' is neither a file nor a directory. Skipping." in status
+    assert "No valid files found to process." in status # Since only one path was given and it was invalid
     mock_dispatch.assert_not_called()
+
+    # Scenario 2: Selected path is a file, but then .exists() returns False (less likely for FileExplorer output)
+    # Patch is_file to True for the initial check, then exists to False for the processing check
+    with patch("pathlib.Path.is_file", MagicMock(side_effect=[True, False])), \
+         patch("pathlib.Path.is_dir", return_value=False), \
+         patch("pathlib.Path.exists", return_value=False) as mock_path_exists_inner:
+        mock_dispatch = AsyncMock()
+        monkeypatch.setattr(active_test_world, "dispatch_event", mock_dispatch)
+        status = await add_assets_ui(selected_paths=[mock_file_obj.name], no_copy=False)
+    # The error message for this case inside the loop is different
+    assert f"Error: File '{Path(mock_file_obj.name).name}' (path: {mock_file_obj.name}) not found or is not a valid file during processing." in status
+    mock_dispatch.assert_not_called()
+
 
 # --- Tests for find_by_hash_ui ---
 async def test_find_by_hash_ui_no_active_world(monkeypatch):

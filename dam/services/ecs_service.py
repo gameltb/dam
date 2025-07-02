@@ -96,6 +96,21 @@ async def get_components(session: AsyncSession, entity_id: int, component_type: 
     result = await session.execute(stmt)  # Await execute
     return result.scalars().all()
 
+async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[BaseComponent]:
+    """
+    Retrieves all component instances associated with a given entity_id,
+    checking against all REGISTERED_COMPONENT_TYPES.
+    """
+    all_components: List[BaseComponent] = []
+    if not await get_entity(session, entity_id): # Check if entity exists
+        logger.warning(f"Entity with ID {entity_id} not found when trying to get all its components.")
+        return [] # Or raise an error, depending on desired behavior
+
+    for component_type in REGISTERED_COMPONENT_TYPES:
+        components_of_type = await get_components(session, entity_id, component_type)
+        all_components.extend(components_of_type)
+    return all_components
+
 
 async def remove_component(session: AsyncSession, component: BaseComponent, flush: bool = False) -> None:  # Made async
     """
