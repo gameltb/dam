@@ -128,6 +128,35 @@ The system supports defining transcoding profiles and evaluating their results.
 *   **Reporting**:
     *   View results of an evaluation run: `dam-cli evaluate report --run <run_id_or_name>`
 
+### Character Management
+
+The system allows defining character concepts and linking them to assets. This is useful for tracking characters appearing in images, stories, etc.
+
+*   **`CharacterConceptComponent`**: Defines a character (name, description). Attached to a dedicated "character concept entity."
+*   **`EntityCharacterLinkComponent`**: Links an asset entity to a character concept entity. Can store an optional `role_in_asset` string (e.g., "protagonist", "mentioned").
+*   **Services (`dam.services.character_service`):**
+    *   Functions for creating character concepts, applying them to entities, and querying links.
+*   **CLI Commands (`dam-cli character ...`):**
+    *   `dam-cli character create --name <name> [--desc <description>]`: Defines a new character.
+    *   `dam-cli character apply --asset <asset_id_or_hash> --character <char_name_or_id> [--role <role>]`: Links a character to an asset.
+    *   `dam-cli character list-for-asset --asset <asset_id_or_hash>`: Lists characters linked to a specific asset.
+    *   `dam-cli character find-assets --character <char_name_or_id> [--role <role_filter>]`: Finds assets linked to a character.
+
+### Search Capabilities
+
+The system provides several ways to search for assets:
+
+*   **Exact File Search by Content Hash:**
+    *   `dam-cli find-file-by-hash <hash_value_or_path> [--hash-type <type>]`: Finds an asset by its MD5 or SHA256 content hash.
+*   **Image Similarity Search (Perceptual Hashes):**
+    *   `dam-cli find-similar-images <image_filepath>`: Finds images similar to a given image using pHash, aHash, and dHash. Thresholds can be configured.
+*   **Semantic Search (Text Embeddings):**
+    *   Requires `sentence-transformers` and `numpy` (install via `pip install ecs-dam-system[semantic]`).
+    *   Embeddings are generated for configured text fields of assets (e.g., filenames, tag names, character names/descriptions).
+    *   `dam-cli search semantic --query "<text_query>" [--top-n <N>]`: Searches for assets based on semantic similarity of their text content to the query.
+*   **Item Search (Keyword, Tag, Character - WIP):**
+    *   `dam-cli search items --text "<keyword>" [--tag <tag_name>] [--character <char_name>] ...`: A work-in-progress command to combine various filters.
+
 ### General CLI Commands
 
 *   **`dam-cli --help`**: Shows all available commands and subcommands.
@@ -136,13 +165,12 @@ The system supports defining transcoding profiles and evaluating their results.
 *   **`dam-cli setup-db`**: Initializes/Resets database schema for the selected world.
 *   **`dam-cli add-asset <filepath_or_dir>`**: Adds new asset file(s).
     *   Options: `--no-copy` (add by reference), `-r, --recursive` (process directory recursively).
-*   **`dam-cli find-file-by-hash <hash_value_or_path>`**: Finds asset by content hash.
-    *   Options: `--hash-type <type>` (md5, sha256), `--file <path>` (calculate hash from file).
-*   **`dam-cli find-similar-images <image_filepath>`**: Finds similar images using perceptual hashes.
+*   **`dam-cli character ...`**: Subcommands for managing characters (see "Character Management" section).
+*   **`dam-cli search ...`**: Subcommands for searching assets (see "Search Capabilities" section).
 *   **`dam-cli export-world <filepath.json>`**: Exports world data to JSON.
 *   **`dam-cli import-world <filepath.json>`**: Imports world data from JSON.
     *   Option: `--merge` (merge with existing data).
-*   **`dam-cli ui`**: Launches the PyQt6 UI (if UI dependencies are installed).
+*   **`dam-cli ui`**: Launches the Gradio web UI (if UI dependencies are installed).
 
 (Details of asset ingestion, versioning, and tagging remain as described previously.)
 

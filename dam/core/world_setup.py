@@ -13,6 +13,7 @@ from dam.core.events import (
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
+    SemanticSearchQuery,  # Already imported but good to note
 )
 from dam.core.resources import FileOperationsResource  # ResourceManager no longer needed here directly
 from dam.core.stages import SystemStage
@@ -27,6 +28,9 @@ from dam.systems.asset_lifecycle_systems import (
 from dam.systems.metadata_systems import (
     extract_metadata_on_asset_ingested,
 )
+
+# Import semantic systems and event
+from dam.systems.semantic_systems import handle_semantic_search_query  # Added
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -115,5 +119,9 @@ def register_core_systems(world_instance: "World") -> None:
 
     world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
     logger.debug("Registered system: handle_find_similar_images_query for event FindSimilarImagesQuery")
+
+    # Semantic Systems
+    world_instance.register_system(handle_semantic_search_query, event_type=SemanticSearchQuery)  # Added
+    logger.debug("Registered system: handle_semantic_search_query for event SemanticSearchQuery")  # Added
 
     logger.info(f"Core system registration complete for world: {world_instance.name}")

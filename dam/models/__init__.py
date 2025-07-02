@@ -33,6 +33,9 @@ from .properties.file_properties_component import FilePropertiesComponent
 from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
 
+# Semantic components
+from .semantic.text_embedding_component import TextEmbeddingComponent
+
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
 from .source_info.web_source_component import WebSourceComponent
@@ -69,7 +72,9 @@ __all__ = [
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
     "PageLink",
-    "TagConceptComponent",  # Added
-    "EntityTagLinkComponent",  # Added
+    "TagConceptComponent",
+    "EntityTagLinkComponent",
+    # Semantic
+    "TextEmbeddingComponent",
     # Marker components are usually imported via dam.core.components_markers where needed
 ]

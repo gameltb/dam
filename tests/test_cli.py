@@ -5,13 +5,11 @@ import uuid  # For request_id
 from pathlib import Path
 from typing import (
     AsyncGenerator,  # For async fixtures
-    Iterator,
 )
 
 import pytest
 import pytest_asyncio  # For async fixtures
 from sqlalchemy import select  # Ensure select is imported for tests
-from typer.testing import CliRunner  # Reverted from IsolatedCliRunner
 
 # Import the app after patches, if any, are applied.
 # For now, direct import is fine as we're starting simple.
@@ -183,15 +181,6 @@ async def test_environment(tmp_path: Path, monkeypatch) -> AsyncGenerator[dict, 
     #     storage_dir = tmp_path / f"asset_storage_{world_name_key}"
     #     if storage_dir.exists():
     #         shutil.rmtree(storage_dir)
-
-
-@pytest.fixture
-def click_runner() -> Iterator[CliRunner]:  # Removed capsys parameter
-    """
-    Convenience fixture to return a click.CliRunner for cli testing
-    """
-    # Removed MyCliRunner and capsys.disabled() for diagnostics
-    yield CliRunner()
 
 
 def test_cli_help(test_environment, click_runner):
