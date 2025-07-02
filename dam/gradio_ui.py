@@ -12,7 +12,7 @@ from dam.models.core.entity import Entity
 from dam.core.events import AssetFileIngestionRequested, AssetReferenceIngestionRequested, FindEntityByHashQuery, FindSimilarImagesQuery, SemanticSearchQuery
 from dam.services import file_operations
 from dam.services.transcode_service import TranscodeServiceError
-from dam.services.character_service import CharacterConceptNotFoundError, CharacterLinkError
+from dam.services.character_service import CharacterConceptNotFoundError, CharacterLinkNotFoundError # Corrected import
 from dam.services import ecs_service as dam_ecs_service # For EntityNotFoundError
 from dam.models.properties import FilePropertiesComponent
 from dam.systems import evaluation_systems
@@ -53,7 +53,23 @@ async def set_active_world_and_refresh_dropdowns(world_name: str) -> tuple[str, 
                 from dam.models.properties.file_properties_component import FilePropertiesComponent
                 stmt = select(FilePropertiesComponent.mime_type).distinct().order_by(FilePropertiesComponent.mime_type)
                 result = await session.execute(stmt)
-                distinct_mime_types = [row[0] for row in result.all() if row[0]]
+                # Assuming result.scalars() might be async or return an awaitable before .all()
+                # It's safer to await it if the error indicates a coroutine.
+                # However, typical SQLAlchemy 2.0 async has .scalars() sync after awaited execute.
+                # Let's try with await on scalars() if the error persists.
+                # For now, keeping as is, but if error is 'coroutine' object has no attribute 'all'
+                # on result.scalars(), then await result.scalars() is needed.
+                # The error was: 'coroutine' object has no attribute 'all' referring to the object before .all()
+                # result.scalars() is synchronous after await session.execute()
+                # and returns a result object on which .all() is also synchronous.
+                scalar_results_obj = result.scalars() # No await
+                all_items = scalar_results_obj.all()    # No await
+                distinct_mime_types = []
+                if all_items: # Check if it's not None or empty
+                    for s in all_items:
+                        if s:
+                            distinct_mime_types.append(s)
+
                 if distinct_mime_types:
                     mime_type_choices.extend(distinct_mime_types)
                 else:
@@ -413,7 +429,7 @@ async def manage_characters_ui(
                 return "\n".join(output_lines)
             else:
                 return f"Error: Unknown character management action '{action}'."
-    except (CharacterConceptNotFoundError, dam_ecs_service.EntityNotFoundError, CharacterLinkError) as e:
+    except (CharacterConceptNotFoundError, dam_ecs_service.EntityNotFoundError, CharacterLinkNotFoundError) as e: # Corrected exception type
         return f"Error: {str(e)}"
     except ValueError as e:
         return f"Error: Invalid input. {str(e)}"
