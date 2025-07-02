@@ -206,9 +206,9 @@ async def test_get_asset_details_gr_no_active_world(monkeypatch):
     assert json_update.value == {"error": "Error: No active world selected."}
 
 async def test_get_asset_details_gr_invalid_selection_event(active_test_world):
-    mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = None; mock_select_event.index = (None, None)
+    mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = None; mock_select_event.index = (None, None) # Test case for evt.value is None
     json_update = await get_asset_details_gr(mock_select_event)
-    assert json_update.value == {"info": "Info: Click on an Asset ID in the table above to view its details."}
+    assert json_update.value == {"info": "Info: Click on a cell containing the Asset ID (first column)."} # Updated expected message
 
 async def test_get_asset_details_gr_asset_not_found(active_test_world):
     mock_select_event = MagicMock(spec=gr.SelectData); mock_select_event.value = 999; mock_select_event.index = (0,0)
