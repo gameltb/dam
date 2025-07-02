@@ -108,10 +108,13 @@ async def list_assets_gr(filename_filter: str, mime_type_filter: str, current_pa
             from dam.models.properties.file_properties_component import FilePropertiesComponent
             from sqlalchemy import select, func
 
+            # Added FilePropertiesComponent.file_size_bytes and FilePropertiesComponent.created_at
             query = select(
                 FilePropertiesComponent.entity_id,
                 FilePropertiesComponent.original_filename,
-                FilePropertiesComponent.mime_type
+                FilePropertiesComponent.mime_type,
+                FilePropertiesComponent.file_size_bytes, # Corrected field name
+                FilePropertiesComponent.created_at       # Corrected field name (inherited)
             )
             count_query = select(func.count(FilePropertiesComponent.entity_id))
 
@@ -127,11 +130,30 @@ async def list_assets_gr(filename_filter: str, mime_type_filter: str, current_pa
             total_count_result = await session.execute(count_query)
             total_count = total_count_result.scalar_one_or_none() or 0
 
-            query = query.order_by(FilePropertiesComponent.original_filename)
+            query = query.order_by(FilePropertiesComponent.original_filename) # Default sort
             query = query.offset((current_page - 1) * page_size).limit(page_size)
 
             result = await session.execute(query)
-            assets_data = [(row.entity_id, row.original_filename, row.mime_type) for row in result.all()]
+            # Fetching more details: size and creation date
+            # Need to join with Entity table for creation date if it's there, or use FilePropertiesComponent.creation_date if available
+            # For now, let's assume FilePropertiesComponent has `size_bytes` and `creation_date`
+            # If `creation_date` is not directly on FilePropertiesComponent, this needs adjustment
+            # Based on schema, FilePropertiesComponent has `creation_date` and `modification_date`
+
+            assets_data = []
+            for row_tuple in result.all(): # Assuming result.all() returns list of Row objects
+                # Access by attribute name for clarity, ensure these attributes exist on the SELECTed component
+                entity_id = row_tuple[0]
+                original_filename = row_tuple[1]
+                mime_type = row_tuple[2]
+                file_size_bytes = row_tuple[3]  # Corrected variable name
+                created_at = row_tuple[4]       # Corrected variable name
+
+                # Format created_at if it's a datetime object
+                formatted_created_at = created_at.strftime("%Y-%m-%d %H:%M:%S") if created_at else "N/A"
+
+                assets_data.append((entity_id, original_filename, mime_type, file_size_bytes, formatted_created_at))
+
 
         status_message = f"Info: Displaying {len(assets_data)} of {total_count} assets (Page {current_page})."
         if not assets_data and total_count == 0 :
@@ -139,83 +161,143 @@ async def list_assets_gr(filename_filter: str, mime_type_filter: str, current_pa
         elif not assets_data and total_count > 0 and current_page > 1 :
             status_message = f"Info: No assets on page {current_page} (Total: {total_count}). Try a lower page number."
 
-        df_value = {"data": assets_data, "headers": ["ID", "Filename", "MIME Type"]}
-        return gr.DataFrame(value=df_value, label=f"Assets (Page {current_page})"), status_message
+        headers = ["ID", "Filename", "MIME Type", "File Size (Bytes)", "Created At"] # Updated header text
+        df_value = {"data": assets_data, "headers": headers}
+
+        # Enable sorting for Gradio DataFrame (Note: client-side sorting for the current page)
+        # Gradio's DataFrame doesn't have a direct server-side sort toggle by clicking headers in the same way
+        # some other dataframe libraries might. Sorting is typically handled by re-querying the data.
+        # The `interactive=True` makes cells selectable, not headers sortable by default.
+        # For now, the sorting is fixed by `order_by` in the query.
+        # If more dynamic sorting is needed, the UI would need sort controls that re-trigger `list_assets_gr`.
+        return gr.DataFrame(value=df_value, label=f"Assets (Page {current_page})", headers=headers), status_message
     except Exception as e:
+        # Log the error
+        print(f"Error in list_assets_gr: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return gr.DataFrame(value=None, headers=["ID", "Filename", "MIME Type"]), f"Error: Could not load assets. Details: {str(e)}"
 
 async def get_asset_details_gr(evt: gr.SelectData) -> gr.JSON:
     if not _active_world:
-        return gr.JSON(value={"error": "Error: No active world selected."}, label="Asset Components")
+        return gr.JSON(value={"error": "Error: No active world selected."}, label="Asset Details")
     if evt.value is None or not isinstance(evt.index, tuple) or len(evt.index) != 2:
-        return gr.JSON(value={"info": "Info: Click on an Asset ID in the table above to view its details."}, label="Asset Components")
+        return gr.JSON(value={"info": "Info: Click on an Asset ID in the table above to view its details."}, label="Asset Details")
 
     try:
-        asset_id = int(evt.value)
+        asset_id = int(evt.value) # Assuming evt.value is the ID from the first column
     except ValueError:
-        return gr.JSON(value={"error": f"Error: Invalid Asset ID format from table selection: {evt.value}"}, label="Asset Components")
+        return gr.JSON(value={"error": f"Error: Invalid Asset ID format from table selection: {evt.value}"}, label="Asset Details")
 
-    components_data = {}
+    tree_data = {}
     try:
         async with _active_world.get_db_session() as session:
+            entity = await ecs_service.get_entity(session, asset_id)
+            if not entity:
+                return gr.JSON(value={"error": f"Error: Asset (Entity ID: {asset_id}) not found."}, label="Asset Details")
+
+            entity_node_label = f"Entity ID: {entity.id}"
+            tree_data[entity_node_label] = {}
+
             from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
+            all_components_on_entity = await ecs_service.get_all_components_for_entity(session, asset_id)
 
-            entity_check = await ecs_service.get_entity(session, asset_id)
-            if not entity_check:
-                return gr.JSON(value={"error": f"Error: Asset ID {asset_id} not found."}, label="Asset Components")
+            # Group components by type name
+            components_by_type = {}
+            for comp_instance in all_components_on_entity:
+                comp_type_name = comp_instance.__class__.__name__
+                if comp_type_name not in components_by_type:
+                    components_by_type[comp_type_name] = []
+                components_by_type[comp_type_name].append(comp_instance)
 
-            for comp_type_cls in REGISTERED_COMPONENT_TYPES:
-                comp_type_name = comp_type_cls.__name__
-                component_instances = await ecs_service.get_components(session, asset_id, comp_type_cls)
+            if not components_by_type:
+                tree_data[entity_node_label] = {"info": "No components found for this entity."}
+                return gr.JSON(value=tree_data, label=f"Details for Entity ID: {asset_id}")
 
-                if component_instances:
-                    component_instances_data = []
-                    for comp_instance in component_instances:
-                        instance_data = {}
-                        for c in comp_instance.__table__.columns:
-                            if not c.key.startswith("_sa_"):
-                                value = getattr(comp_instance, c.key)
-                                if isinstance(value, bytes):
-                                    try: instance_data[c.key] = value.decode('utf-8', errors='replace')
-                                    except: instance_data[c.key] = f"<bytes data of length {len(value)}>"
-                                elif not isinstance(value, (str, int, float, bool, type(None), list, dict)):
-                                    instance_data[c.key] = str(value)
-                                else:
-                                    instance_data[c.key] = value
-                        component_instances_data.append(instance_data)
-                    components_data[comp_type_name] = component_instances_data
+            for comp_type_name, component_instances in components_by_type.items():
+                component_type_node_label = f"Component Type: {comp_type_name}"
+                tree_data[entity_node_label][component_type_node_label] = {}
 
-        if not components_data:
-            return gr.JSON(value={"info": f"Info: No components found for Asset ID: {asset_id}."}, label=f"Components for Asset ID: {asset_id}")
-        return gr.JSON(value=components_data, label=f"Components for Asset ID: {asset_id}")
+                for i, comp_instance in enumerate(component_instances):
+                    # If multiple instances of the same component type, distinguish them.
+                    # Usually, there's one, but the system might allow multiple for some types.
+                    instance_label_suffix = f" (Instance {i+1})" if len(component_instances) > 1 else ""
+                    component_instance_node_label = f"Instance Data{instance_label_suffix}"
+
+                    # For components that have an 'id' or a 'name' attribute, use it for better labeling if possible.
+                    # This is a heuristic.
+                    if hasattr(comp_instance, 'id') and getattr(comp_instance, 'id') is not None:
+                         component_instance_node_label = f"Instance (ID: {getattr(comp_instance, 'id')}){instance_label_suffix}"
+                    elif hasattr(comp_instance, 'name') and getattr(comp_instance, 'name') is not None:
+                         component_instance_node_label = f"Instance (Name: {getattr(comp_instance, 'name')}){instance_label_suffix}"
+                    elif hasattr(comp_instance, 'profile_name') and getattr(comp_instance, 'profile_name') is not None: # Specific for TranscodeProfileComponent
+                         component_instance_node_label = f"Instance (Profile: {getattr(comp_instance, 'profile_name')}){instance_label_suffix}"
+
+
+                    tree_data[entity_node_label][component_type_node_label][component_instance_node_label] = {}
+                    instance_data_node = tree_data[entity_node_label][component_type_node_label][component_instance_node_label]
+
+                    attributes = {}
+                    for c in comp_instance.__table__.columns:
+                        if not c.key.startswith("_sa_"): # Exclude SQLAlchemy internal attributes
+                            value = getattr(comp_instance, c.key)
+                            attr_name = c.key
+                            if isinstance(value, bytes):
+                                try: attributes[attr_name] = value.decode('utf-8', errors='replace')
+                                except: attributes[attr_name] = f"<bytes data of length {len(value)}>"
+                            elif not isinstance(value, (str, int, float, bool, type(None), list, dict)):
+                                attributes[attr_name] = str(value) # Convert other complex types to string
+                            else:
+                                attributes[attr_name] = value
+                    instance_data_node["Attributes"] = attributes
+
+        if not tree_data[entity_node_label]: # Should not happen if entity exists, but as a fallback
+             tree_data[entity_node_label] = {"info": "No components found for this entity."}
+
+        return gr.JSON(value=tree_data, label=f"Details for Entity ID: {asset_id}")
     except Exception as e:
-        return gr.JSON(value={"error": f"Error: Could not fetch details for Asset ID {asset_id}. Details: {str(e)}"}, label="Asset Components")
+        # Log the full error for debugging
+        print(f"Error generating asset detail tree for ID {asset_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return gr.JSON(value={"error": f"Error: Could not fetch or structure details for Entity ID {asset_id}. Details: {str(e)}"}, label="Asset Details")
 
 # --- Operation Functions ---
-async def add_assets_ui(files: List[gr.File], no_copy: bool) -> str:
+async def add_assets_ui(selected_paths: List[str], no_copy: bool) -> str:
     if not _active_world:
         return "Error: No active world selected. Please select a world first."
-    if not files:
-        return "Info: No files selected to add."
+    if not selected_paths:
+        return "Info: No files or folders selected to add."
 
     results = []
     success_count = 0
     error_count = 0
 
-    for file_obj in files:
-        if file_obj is None or not hasattr(file_obj, 'name'):
-            results.append("Info: Skipped an invalid file entry.")
-            error_count +=1
-            continue
+    all_files_to_process = []
 
-        filepath = Path(file_obj.name)
+    for selected_path_str in selected_paths:
+        selected_path = Path(selected_path_str)
+        if selected_path.is_file():
+            all_files_to_process.append(selected_path)
+        elif selected_path.is_dir():
+            for item in selected_path.rglob('*'): # Recursively find all files
+                if item.is_file():
+                    all_files_to_process.append(item)
+        else:
+            results.append(f"Warning: Selected path '{selected_path_str}' is neither a file nor a directory. Skipping.")
+            error_count += 1
 
-        if not filepath.exists() or not filepath.is_file():
-            results.append(f"Error: File '{filepath.name}' (temp path: {str(filepath)}) not found or is not a valid file.")
-            error_count +=1
-            continue
+    if not all_files_to_process:
+        summary = f"Operation Summary: 0 succeeded, {error_count} failed (initial path checks).\n"
+        return summary + "\n".join(results) + "\nNo valid files found to process."
 
+    for filepath in all_files_to_process:
         try:
+            if not filepath.exists() or not filepath.is_file(): # Double check, especially for symlinks etc.
+                results.append(f"Error: File '{filepath.name}' (path: {str(filepath)}) not found or is not a valid file during processing.")
+                error_count +=1
+                continue
+
             original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
             event_type_str = "Reference (no copy)" if no_copy else "Copy"
             event_to_dispatch = (AssetReferenceIngestionRequested if no_copy else AssetFileIngestionRequested)(
@@ -223,11 +305,13 @@ async def add_assets_ui(files: List[gr.File], no_copy: bool) -> str:
                 mime_type=mime_type, size_bytes=size_bytes, world_name=_active_world.name,
             )
             await _active_world.dispatch_event(event_to_dispatch)
+            # Consider if METADATA_EXTRACTION should be run per file or batched after all dispatches.
+            # For now, keeping it per file as it was.
             await _active_world.execute_stage(dam.core.stages.SystemStage.METADATA_EXTRACTION)
-            results.append(f"Success: Dispatched ingestion for '{original_filename}' (Type: {event_type_str}).")
+            results.append(f"Success: Dispatched ingestion for '{original_filename}' (Type: {event_type_str}). Path: {filepath}")
             success_count += 1
         except Exception as e:
-            results.append(f"Error processing file '{original_filename if 'original_filename' in locals() else filepath.name}': {str(e)}")
+            results.append(f"Error processing file '{filepath.name}': {str(e)}")
             error_count += 1
 
     summary = f"Operation Summary: {success_count} succeeded, {error_count} failed.\n"
@@ -686,8 +770,16 @@ def create_dam_ui():
                     mime_type_filter_input = gr.Dropdown(label="Filter by MIME Type", choices=[""], value="", elem_id="mime_type_filter")
                 current_page_input = gr.Number(label="Page", value=1, minimum=1, step=1, interactive=True, elem_id="current_page")
                 load_assets_button = gr.Button("Load/Refresh Assets")
-                assets_df = gr.DataFrame(headers=["ID", "Filename", "MIME Type"], label="Assets", interactive=True, row_count=(20, "dynamic"), col_count=(3,"fixed"), elem_id="assets_dataframe")
-                asset_detail_json = gr.JSON(label="Asset Components", elem_id="asset_detail_json")
+                # Updated headers and col_count
+                assets_df = gr.DataFrame(
+                    headers=["ID", "Filename", "MIME Type", "File Size (Bytes)", "Created At"], # Updated header text
+                    label="Assets",
+                    interactive=True,
+                    row_count=(20, "dynamic"),
+                    col_count=(5,"fixed"),
+                    elem_id="assets_dataframe"
+                )
+                asset_detail_json = gr.JSON(label="Asset Details (Tree View)", elem_id="asset_detail_json")
 
                 load_assets_button.click(
                     list_assets_gr,
@@ -698,7 +790,12 @@ def create_dam_ui():
 
             with gr.TabItem("Operations"):
                 with gr.Accordion("Add Assets", open=False):
-                    add_asset_files_input = gr.File(label="Select Files to Add", file_count="multiple", type="filepath", elem_id="add_asset_files")
+                    # Configure FileExplorer: allow selection of files and directories.
+                    # The root directory can be configured, e.g., to user's home or a specific data directory.
+                    # For now, let it default or be configurable if Gradio supports it easily.
+                    # glob parameter can be used to filter file types if needed, e.g. "*.jpg", "*.png"
+                    # file_count="multiple" allows selecting multiple files/folders.
+                    add_asset_files_input = gr.FileExplorer(label="Select Files or Folders to Add", file_count="multiple", root_dir="/", glob="*", elem_id="add_asset_files_explorer")
                     add_asset_no_copy_checkbox = gr.Checkbox(label="Add by reference (no copy)", value=False, elem_id="add_asset_no_copy")
                     add_asset_button = gr.Button("Add Selected Assets")
                     add_asset_output = gr.Textbox(label="Add Asset Status", lines=5, interactive=False, elem_id="add_asset_status")
