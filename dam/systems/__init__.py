@@ -15,6 +15,7 @@ _system_module_names = [
     ".asset_lifecycle_systems",
     ".evaluation_systems",
     ".semantic_systems",  # Added semantic_systems
+    ".auto_tagging_system", # Added new auto-tagging system
 ]
 
 for module_name in _system_module_names:

@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 
 from dam.core.config import Settings as AppSettings
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
-from dam.models.conceptual.entity_tag_link_component import EntityTagLinkComponent
+from dam.models.tags import EntityTagLinkComponent # Updated import
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent

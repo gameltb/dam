@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_conceptual_info_component import BaseConceptualInfoComponent
+from ..conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 
 # It might be useful to have an Enum for scope types
 # from enum import Enum

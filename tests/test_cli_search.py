@@ -9,19 +9,12 @@ from dam.models.properties import FilePropertiesComponent
 from dam.services import ecs_service, semantic_service  # For setting up test data
 
 # Mock SentenceTransformer for CLI tests as well, to avoid real model loading
-from .test_semantic_service import MockSentenceTransformer
+from .conftest import MockSentenceTransformer # Updated import
 
 runner = CliRunner()
 
-
-@pytest.fixture(autouse=True)
-def mock_sentence_transformer_for_cli_tests(monkeypatch):
-    # Apply the same mock logic as in test_semantic_service
-    monkeypatch.setattr("sentence_transformers.SentenceTransformer", MockSentenceTransformer)
-    # Clear the service's model cache before each test
-    if "semantic_service" in globals():  # Ensure service is imported
-        semantic_service._model_cache.clear()
-
+# Removed mock_sentence_transformer_for_cli_tests fixture,
+# as global_mock_sentence_transformer_loader in conftest.py should handle it.
 
 @pytest.fixture(autouse=True)
 async def current_test_world_for_search_cli(test_world_alpha: World):

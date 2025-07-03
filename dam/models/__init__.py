@@ -7,9 +7,13 @@ from ..core.components_markers import *  # noqa: F403
 # Import the concrete components that are intended for direct use/instantiation
 from .conceptual.comic_book_concept_component import ComicBookConceptComponent
 from .conceptual.comic_book_variant_component import ComicBookVariantComponent
-from .conceptual.entity_tag_link_component import EntityTagLinkComponent  # Added
+# EntityTagLinkComponent and TagConceptComponent moved to .tags
 from .conceptual.page_link import PageLink
-from .conceptual.tag_concept_component import TagConceptComponent  # Added
+
+# Tag related components (now in their own package)
+from .tags.tag_concept_component import TagConceptComponent
+from .tags.entity_tag_link_component import EntityTagLinkComponent
+from .tags.model_generated_tag_link_component import ModelGeneratedTagLinkComponent
 
 # Core model elements
 from .core.base_class import Base
@@ -34,7 +38,7 @@ from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
 
 # Semantic components
-from .semantic.text_embedding_component import TextEmbeddingComponent
+from .semantic.text_embedding_component import OldTextEmbeddingComponent as TextEmbeddingComponent
 
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
@@ -72,9 +76,12 @@ __all__ = [
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
     "PageLink",
-    "TagConceptComponent",
-    "EntityTagLinkComponent",
+    # Conceptual (Tag related components are now under their own section)
     # Semantic
     "TextEmbeddingComponent",
+    # Tags
+    "TagConceptComponent",
+    "EntityTagLinkComponent",
+    "ModelGeneratedTagLinkComponent",
     # Marker components are usually imported via dam.core.components_markers where needed
 ]

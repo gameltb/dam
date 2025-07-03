@@ -173,29 +173,51 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
 
 # Mock SentenceTransformer class for global use
 import numpy as np  # Added for MockSentenceTransformer
-
+from typing import Optional, Dict, Any # For type hints
 
 class MockSentenceTransformer:
-    def __init__(self, model_name_or_path=None):
+    def __init__(self, model_name_or_path=None, **kwargs): # Accept **kwargs
         self.model_name = model_name_or_path
-        # Simple mock: return a fixed vector based on text length or a hash
-        # For more controlled tests, you might want to set up specific text -> vector mappings.
+        # Determine embedding dimension based on model_name for more realistic mock
+        if model_name_or_path and "clip" in model_name_or_path.lower():
+            self.dim = 512
+        elif model_name_or_path and "MiniLM-L6-v2" in model_name_or_path: # Default for tests
+            self.dim = 384
+        else: # Fallback dim
+            self.dim = 384
+
 
     def encode(self, sentences, convert_to_numpy=True, **kwargs):
-        original_sentences_type = type(sentences)  # Store original type
-
+        original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
 
         embeddings = []
         for s in sentences:
-            if not s or not s.strip():  # Handle empty strings like the service does
-                embeddings.append(np.zeros(384, dtype=np.float32))  # Assuming 384 dim like 'all-MiniLM-L6-v2'
+            if not s or not s.strip():
+                embeddings.append(np.zeros(self.dim, dtype=np.float32))
                 continue
 
-            # Create a simple deterministic "embedding"
             sum_ords = sum(ord(c) for c in s)
-            vec = np.array([sum_ords % 100, len(s) % 100] + [0.0] * 382, dtype=np.float32)
+            # Incorporate model name to make embeddings different for different models
+            model_ord_sum = sum(ord(c) for c in (self.model_name or "default"))
+
+            # Ensure we don't go out of bounds for the vector if dim < 3
+            vec_elements = [sum_ords % 100, len(s) % 100, model_ord_sum % 100]
+            if self.dim >= 3:
+                vec = np.array(vec_elements[:self.dim] + [0.0] * (self.dim - min(3, self.dim)), dtype=np.float32)
+            elif self.dim > 0 : # Handle dim 1 or 2
+                 vec = np.array(vec_elements[:self.dim], dtype=np.float32)
+            else: # dim 0 or negative (should not happen)
+                vec = np.array([], dtype=np.float32)
+
+            if vec.shape[0] != self.dim and self.dim > 0 : # Pad if initial elements were less than dim
+                padding = np.zeros(self.dim - vec.shape[0], dtype=np.float32)
+                vec = np.concatenate((vec, padding))
+            elif vec.shape[0] != self.dim and self.dim == 0: # Handle zero dimension case
+                vec = np.array([], dtype=np.float32)
+
+
             embeddings.append(vec)
 
         if not convert_to_numpy:
@@ -238,8 +260,10 @@ def global_mock_sentence_transformer_loader(monkeypatch):
         semantic_service,
     )  # Import here to avoid circularity if semantic_service imports something from conftest
 
-    def mock_load_sync(model_name):
-        return MockSentenceTransformer(model_name_or_path=model_name)
+    # Ensure mock_load_sync matches the signature of the actual _load_model_sync
+    def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
+        # The MockSentenceTransformer defined above accepts **kwargs, so it can handle model_load_params
+        return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
 
     monkeypatch.setattr("dam.services.semantic_service._load_model_sync", mock_load_sync)
     semantic_service._model_cache.clear()  # Clear cache before each test
