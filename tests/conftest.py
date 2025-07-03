@@ -6,10 +6,12 @@ from typing import (
     Iterator,  # Added for click_runner
 )
 
+import asyncio # Required for asyncio.get_running_loop()
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
 from typer.testing import CliRunner, Result  # Added for click_runner
+from functools import partial # Required for partial
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -152,13 +154,24 @@ class MockSentenceTransformer:
             return np.array(embeddings) if convert_to_numpy else embeddings
 
 @pytest.fixture
-def click_runner(capsys: pytest.CaptureFixture[str]) -> Iterator[CliRunner]:
-    class MyCliRunner(CliRunner):
+def click_runner() -> Iterator[CliRunner]:
+    class AsyncAwareCliRunner(CliRunner):
         def invoke(self, *args, **kwargs) -> Result:
-            with capsys.disabled():
-                result = super().invoke(*args, **kwargs)
-            return result
-    yield MyCliRunner()
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running(): # Called from an async test
+                    # Run the synchronous Click/Typer invoke in a thread executor
+                    invoke_callable = partial(super().invoke, *args, **kwargs)
+                    return loop.run_until_complete(loop.run_in_executor(None, invoke_callable))
+                else:
+                    # Loop exists but is not running (e.g. default loop in sync context)
+                    # Standard invocation is fine.
+                    return super().invoke(*args, **kwargs)
+            except RuntimeError:
+                # No running loop, so we're in a purely sync test. Standard invocation.
+                return super().invoke(*args, **kwargs)
+
+    yield AsyncAwareCliRunner()
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):

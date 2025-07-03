@@ -11,19 +11,12 @@ from typer import Typer
 class AsyncTyper(Typer):
     @staticmethod
     def maybe_run_async(decorator: Callable, func: Callable) -> Any:
-        if inspect.iscoroutinefunction(func):
-
-            @wraps(func)
-            def runner(*args: Any, **kwargs: Any) -> Any:
-                # This is the simplest version. If a test calling this is async,
-                # it will fail with "asyncio.run() cannot be called from a running event loop".
-                # If the test is sync, this will work.
-                return asyncio.run(func(*args, **kwargs))
-
-            decorator(runner)
-        else:
-            decorator(func)
-        return func
+        # Always pass the function (async or sync) directly to the underlying
+        # Typer decorator. We will rely on Typer's own handling of async functions
+        # when invoked via CliRunner.
+        # The decorator (e.g., Typer.command) should handle wrapping if needed
+        # and return the callable that Typer expects.
+        return decorator(func)
 
     def callback(self, *args: Any, **kwargs: Any) -> Any:
         decorator = super().callback(*args, **kwargs)
