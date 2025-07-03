@@ -34,7 +34,7 @@ from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
 
 # Semantic components
-from .semantic.text_embedding_component import TextEmbeddingComponent
+from .semantic.text_embedding_component import OldTextEmbeddingComponent as TextEmbeddingComponent
 
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
