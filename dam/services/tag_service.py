@@ -6,12 +6,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
-from dam.models.conceptual import (
+# Updated imports for tag components
+from dam.models.tags import (
+    EntityTagLinkComponent,
+    TagConceptComponent,
+)
+from dam.models.conceptual import ( # Keep conceptual imports that are still relevant
     BaseConceptualInfoComponent,
     BaseVariantInfoComponent,
     ComicBookConceptComponent,
-    EntityTagLinkComponent,
-    TagConceptComponent,
 )
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.models.core.entity import Entity

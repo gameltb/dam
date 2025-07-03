@@ -16,6 +16,7 @@ from dam.models.semantic import (
 )
 from dam.services import ecs_service, semantic_service
 from dam.services.semantic_service import BatchTextItem # Keep this for type hints
+from .conftest import MockSentenceTransformer # Import the mock from conftest
 
 # Define model names and params to be used in tests, corresponding to registered models
 TEST_MODEL_MINILM = "all-MiniLM-L6-v2"
@@ -32,57 +33,9 @@ ClipEmbeddingComponent = get_embedding_component_class(TEST_MODEL_CLIP, TEST_PAR
 assert MiniLMEmbeddingComponent is not None, "Test MiniLM model not registered or class not found"
 assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or class not found"
 
-
-# Mock SentenceTransformer class (remains largely the same)
-class MockSentenceTransformer:
-    def __init__(self, model_name_or_path=None, **kwargs): # Added **kwargs to accept potential device args
-        self.model_name = model_name_or_path
-        # Determine embedding dimension based on model_name for more realistic mock
-        if "clip" in model_name_or_path.lower():
-            self.dim = 512
-        else: # Default to MiniLM dimension
-            self.dim = 384
-
-
-    def encode(self, sentences, convert_to_numpy=True, **kwargs):
-        original_sentences_type = type(sentences)
-        if isinstance(sentences, str):
-            sentences = [sentences]
-
-        embeddings = []
-        for s in sentences:
-            if not s or not s.strip():
-                embeddings.append(np.zeros(self.dim, dtype=np.float32))
-                continue
-            sum_ords = sum(ord(c) for c in s)
-            # Incorporate model name to make embeddings different for different models
-            model_ord_sum = sum(ord(c) for c in self.model_name)
-            vec = np.array([sum_ords % 100, len(s) % 100, model_ord_sum % 100] + [0.0] * (self.dim - 3), dtype=np.float32)
-            embeddings.append(vec)
-
-        if not convert_to_numpy:
-            embeddings = [e.tolist() for e in embeddings]
-
-        if original_sentences_type is str:
-            return embeddings[0] if embeddings else np.array([])
-        else:
-            return np.array(embeddings) if convert_to_numpy else embeddings
-
-
-@pytest.fixture(autouse=True)
-def clear_model_cache_and_mock_load_sync():
-    """Clears the model cache before and after each test, and mocks _load_model_sync."""
-    semantic_service._model_cache.clear()
-    # Patch _load_model_sync within semantic_service to use MockSentenceTransformer
-    # The mock_load_model_sync_func will be called instead of the real _load_model_sync
-    def mock_load_model_sync_func(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
-        # print(f"Mock _load_model_sync called with: {model_name_str}, {model_load_params}")
-        return MockSentenceTransformer(model_name_or_path=model_name_str)
-
-    with patch("dam.services.semantic_service._load_model_sync", side_effect=mock_load_model_sync_func) as mock_loader:
-        yield mock_loader # Provide the mock to the test if needed, though usually not directly
-    semantic_service._model_cache.clear()
-
+# MockSentenceTransformer class is now defined in conftest.py
+# The global_mock_sentence_transformer_loader fixture in conftest.py also handles
+# patching _load_model_sync and clearing the cache.
 
 @pytest.mark.asyncio
 async def test_generate_embedding_and_conversion():

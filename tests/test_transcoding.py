@@ -10,7 +10,7 @@ from dam.core.config import Settings as AppSettings
 from dam.core.events import AssetFileIngestionRequested
 from dam.core.stages import SystemStage
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
-from dam.models.conceptual.entity_tag_link_component import EntityTagLinkComponent
+from dam.models.tags import EntityTagLinkComponent, TagConceptComponent # Updated imports
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity

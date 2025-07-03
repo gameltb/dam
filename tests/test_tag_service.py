@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession  # For type hint
 
 from dam.models.conceptual import (
     ComicBookVariantComponent,  # For testing scope
+)
+# Updated imports for tag components
+from dam.models.tags import (
     EntityTagLinkComponent,
     TagConceptComponent,
 )

@@ -17,7 +17,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
     __tablename__ = "component_model_generated_tag_link"
 
     entity_id: Mapped[int] = mapped_column(
-        ForeignKey("entity.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True
     )
     tag_concept_id: Mapped[int] = mapped_column(
         ForeignKey("component_tag_concept.id", ondelete="CASCADE"), nullable=False, index=True
