@@ -16,7 +16,17 @@ _system_module_names = [
     ".evaluation_systems",
     ".semantic_systems",  # Added semantic_systems
     ".auto_tagging_system", # Added new auto-tagging system
+    ".audio_systems", # Added audio_systems
 ]
+
+# Explicitly import and re-export specific items like markers if needed for direct import elsewhere
+try:
+    from .audio_systems import NeedsAudioProcessingMarker
+    __all__ = ["NeedsAudioProcessingMarker"]
+except ImportError:
+    logger.warning("Could not import NeedsAudioProcessingMarker from .audio_systems. It might not be defined yet or the module has issues.")
+    __all__ = []
+
 
 for module_name in _system_module_names:
     try:

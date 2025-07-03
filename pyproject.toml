@@ -27,6 +27,7 @@ dependencies = [
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
+    "psutil", # Added for system resource detection
     # "hachoir", # Moved to optional
     # "sentence-transformers", # Moved to optional
     # "numpy", # Moved to optional
@@ -70,11 +71,12 @@ all-transcode = [
 dev = [
     "pytest",
     "pytest-cov",
-    "pytest-asyncio",
+    "pytest-asyncio", # Already present, ensure it stays
     "aiosqlite", # Added for async SQLite in tests
     "pytest-mock", # Added for mocking
-    # "ruff",
-    # "mypy"
+    # "ruff", # Assuming ruff is installed via uv directly or globally
+    # "mypy", # Assuming mypy is installed via uv directly or globally
+    # types-tomlkit was here, removing it
 ]
 
 # Convenience group to install all optional dependencies
@@ -88,6 +90,12 @@ all = [
     "ecs_dam_system[dev]",
     "ecs_dam_system[all-transcode]",
 ]
+
+# Adding uv sources for packages not on PyPI or for specific versions
+[tool.uv.sources]
+# Example: psycopg2 = { url = "psycopg2-binary-2.9.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", type = "wheel" }
+# pytest-asyncio is a standard PyPI package, so it does not need an entry here unless overriding.
+# Removing the incorrect entry for pytest-asyncio.
 
 
 [project.urls]

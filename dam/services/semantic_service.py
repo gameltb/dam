@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper # Used for inspecting mapped properties
 
+from dam.core import get_default_world # To get ModelExecutionManager resource
+from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
 from dam.models.semantic import (
     get_embedding_component_class,
@@ -27,68 +29,67 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2" # This should match a key in EMBEDDING_MODEL_REGISTRY
 DEFAULT_MODEL_PARAMS: ModelHyperparameters = {} # Default params, if any, might be better fetched from registry
 
+SENTENCE_TRANSFORMER_IDENTIFIER = "sentence_transformer"
 
-# Cache key: (model_name, frozenset(params.items()))
-_model_cache: Dict[Tuple[str, FrozenSet[Tuple[str, Any]]], SentenceTransformer] = {}
-
-
-def _load_model_sync(model_name: str, model_load_params: Optional[Dict[str, Any]] = None) -> SentenceTransformer:
+def _load_sentence_transformer_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> SentenceTransformer:
     """
-    Synchronous helper to load the model.
-    `model_load_params` are parameters passed directly to SentenceTransformer constructor if any.
+    Synchronous helper to load a SentenceTransformer model.
+    `params` can include device, cache_folder, etc. for SentenceTransformer constructor.
     """
-    logger.info(f"Attempting to load SentenceTransformer model: {model_name} with params {model_load_params} (sync)")
-    # For now, we assume model_name is sufficient for SentenceTransformer,
-    # and model_load_params might be for future use (e.g. device, cache_folder)
-    # If specific params from ModelHyperparameters directly map to ST constructor args, pass them.
-    model = SentenceTransformer(model_name, **(model_load_params or {}))
-    logger.info(f"Model {model_name} loaded successfully via sync helper.")
+    logger.info(f"Attempting to load SentenceTransformer model: {model_name_or_path} with params {params}")
+    # If device is not in params, ModelExecutionManager might set a default one later,
+    # or SentenceTransformer might pick one.
+    # For now, pass all params.
+    device = params.pop("device", None) # Pop device if present, ST handles it.
+    model = SentenceTransformer(model_name_or_path, device=device, **(params or {}))
+    logger.info(f"SentenceTransformer model {model_name_or_path} loaded successfully.")
     return model
 
-
 async def get_sentence_transformer_model(
-    model_name: str = DEFAULT_MODEL_NAME,
-    params: Optional[ModelHyperparameters] = None,
+    model_name_or_path: str = DEFAULT_MODEL_NAME,
+    params: Optional[ModelHyperparameters] = None, # Conceptual params
+    world_name: Optional[str] = None, # To get world-specific ModelExecutionManager
 ) -> SentenceTransformer:
     """
-    Loads and caches a SentenceTransformer model based on its name and relevant parameters.
-    `params` here are the conceptual hyperparameters of the embedding (e.g., dimension),
-    not necessarily direct arguments to SentenceTransformer constructor unless they overlap.
+    Loads a SentenceTransformer model using the ModelExecutionManager.
+    `params` are conceptual hyperparameters; they might be mapped to loader params.
     """
-    # Use default params from registry if not provided, ensuring consistency
-    if params is None:
-        registry_entry = EMBEDDING_MODEL_REGISTRY.get(model_name)
-        if registry_entry:
-            params = registry_entry.get("default_params", {})
+    world = get_default_world() # Assuming default world context or this service is world-aware
+    if world_name:
+        from dam.core import get_world
+        _w = get_world(world_name)
+        if not _w:
+            logger.error(f"World {world_name} not found for getting ModelExecutionManager. Using default world's manager.")
         else:
-            # This case should ideally not happen if model_name is always valid and registered
-            logger.warning(f"Model {model_name} not found in registry, using empty params for caching.")
-            params = {}
+            world = _w
 
-    # Some parameters might be relevant for model loading itself (e.g. device, specific sub-model path)
-    # For now, we assume model_name is the primary identifier for SentenceTransformer library.
-    # The `params` dict helps differentiate between variations if needed for caching or logic,
-    # but might not all be passed to `SentenceTransformer()`.
-    model_load_params = {} # Extract relevant params for SentenceTransformer() if any from `params`
+    if not world:
+        raise RuntimeError("Default world not found, cannot access ModelExecutionManager.")
 
-    cache_key = (model_name, frozenset(params.items()))
+    model_manager = world.get_resource(ModelExecutionManager) # Type is ModelExecutionManager[SentenceTransformer] implicitly if loader returns ST
 
-    if cache_key not in _model_cache:
-        try:
-            loop = asyncio.get_event_loop()
-            _model_cache[cache_key] = await loop.run_in_executor(
-                None, _load_model_sync, model_name, model_load_params
-            )
-        except Exception as e:
-            logger.error(f"Failed to load SentenceTransformer model {model_name} with params {params}: {e}", exc_info=True)
-            raise
-    return _model_cache[cache_key]
+    # Ensure loader is registered if not already
+    if SENTENCE_TRANSFORMER_IDENTIFIER not in model_manager._model_loaders:
+        model_manager.register_model_loader(SENTENCE_TRANSFORMER_IDENTIFIER, _load_sentence_transformer_model_sync)
+
+    # Map conceptual params to loader params if needed. For ST, model_name_or_path is key.
+    # `params` might include things like `device` or `cache_folder` for the loader.
+    loader_params = params.copy() if params else {}
+    if "device" not in loader_params: # Add default device preference if not specified
+        loader_params["device"] = model_manager.get_model_device_preference()
+
+    return await model_manager.get_model(
+        model_identifier=SENTENCE_TRANSFORMER_IDENTIFIER,
+        model_name_or_path=model_name_or_path,
+        params=loader_params
+    )
 
 
 async def generate_embedding(
     text: str,
     model_name: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,
+    world_name: Optional[str] = None,
 ) -> Optional[np.ndarray]:
     """
     Generates a text embedding for the given text using the specified model and parameters.
@@ -98,7 +99,8 @@ async def generate_embedding(
         logger.warning("Cannot generate embedding for empty or whitespace-only text.")
         return None
     try:
-        model = await get_sentence_transformer_model(model_name, params)
+        # Pass world_name to get_sentence_transformer_model if this service becomes world-aware
+        model = await get_sentence_transformer_model(model_name, params, world_name=world_name)
         embedding = model.encode(text, convert_to_numpy=True)
         # TODO: Validate embedding dimension against expected from params if applicable
         # registry_entry = EMBEDDING_MODEL_REGISTRY.get(model_name)
@@ -142,6 +144,7 @@ async def update_text_embeddings_for_entity(
     include_manual_tags: bool = True,
     include_model_tags_config: Optional[List[Dict[str, Any]]] = None, # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
     tag_concatenation_strategy: str = " [TAGS] {tags_string}", # How to append tags
+    world_name: Optional[str] = None, # For ModelExecutionManager context
 ) -> List[BaseSpecificEmbeddingComponent]:
     """
     Generates and stores specific TextEmbeddingComponents for an entity.
@@ -257,7 +260,18 @@ async def update_text_embeddings_for_entity(
     all_text_contents_for_model = [item["text_content"] for item in current_batch_items]
     embeddings_np_list: Optional[List[np.ndarray]] = None
     try:
-        model_instance = await get_sentence_transformer_model(model_name, model_params)
+        # Pass world_name for context
+        model_instance = await get_sentence_transformer_model(model_name, model_params, world_name=world_name)
+
+        # Get optimal batch size from model_manager if possible (conceptual)
+        # For now, SentenceTransformer handles its own batching internally for encode()
+        # If we were to implement manual batching:
+        # world = get_default_world(world_name)
+        # model_manager = world.get_resource(ModelExecutionManager)
+        # item_size_estimate = 5 # MB, very rough estimate for a text string tensor
+        # batch_size = model_manager.get_optimal_batch_size(SENTENCE_TRANSFORMER_IDENTIFIER, model_name, item_size_estimate)
+        # # And then loop through all_text_contents_for_model in batches of batch_size
+
         embeddings_np_list = model_instance.encode(all_text_contents_for_model, convert_to_numpy=True)
         if embeddings_np_list is None or len(embeddings_np_list) != len(all_text_contents_for_model):
             logger.error(f"Batch embedding generation returned unexpected result for entity {entity_id}.")
@@ -346,6 +360,7 @@ async def find_similar_entities_by_text_embedding(
     model_name: str, # Must specify which model/table to search
     model_params: Optional[ModelHyperparameters] = None,
     top_n: int = 10,
+    world_name: Optional[str] = None, # For ModelExecutionManager context
 ) -> List[Tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
     """
     Finds entities similar to the query text using cosine similarity on stored text embeddings
@@ -364,8 +379,8 @@ async def find_similar_entities_by_text_embedding(
         else:
             model_params = {}
 
-
-    query_embedding_np = await generate_embedding(query_text, model_name, model_params)
+    # Pass world_name for context
+    query_embedding_np = await generate_embedding(query_text, model_name, model_params, world_name=world_name)
     if query_embedding_np is None:
         logger.error(f"Could not generate query embedding for '{query_text[:100]}...' with model {model_name}.")
         return []

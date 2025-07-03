@@ -4,8 +4,9 @@ from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type hints
 
-from dam.models import BaseComponent, Entity
-from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES
+# Corrected imports for BaseComponent and Entity
+from dam.models.core.base_component import BaseComponent, REGISTERED_COMPONENT_TYPES
+from dam.models.core.entity import Entity
 
 # No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
 

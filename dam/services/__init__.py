@@ -10,12 +10,14 @@ from . import (
     tagging_service,
     transcode_service,
     world_service,
+    audio_service, # Added audio_service
 )
 from .tagging_service import ( # Import functions to be exported
     generate_tags_from_image,
     get_tagging_model,
-    TAGGING_MODEL_REGISTRY,
+    TAGGING_MODEL_CONCEPTUAL_PARAMS, # Changed from TAGGING_MODEL_REGISTRY
     update_entity_model_tags,
+    TaggingService, # Added TaggingService class
 )
 
 
@@ -165,5 +167,19 @@ __all__ = [
     "update_entity_model_tags",
     "generate_tags_from_image",
     "get_tagging_model",
-    "TAGGING_MODEL_REGISTRY", # Might be useful for external configuration/inspection
+    "TAGGING_MODEL_CONCEPTUAL_PARAMS", # Changed from TAGGING_MODEL_REGISTRY
+    "TaggingService", # Added TaggingService class
+    # Audio service and functions
+    "audio_service", # Module itself
+    "generate_audio_embedding_for_entity",
+    "get_audio_embeddings_for_entity",
+    "find_similar_entities_by_audio_embedding",
+    "DEFAULT_AUDIO_MODEL_NAME",
 ]
+
+from .audio_service import (
+    generate_audio_embedding_for_entity,
+    get_audio_embeddings_for_entity,
+    find_similar_entities_by_audio_embedding,
+    DEFAULT_AUDIO_MODEL_NAME,
+)

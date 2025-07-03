@@ -20,14 +20,13 @@ from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldSession
 from dam.core.systems import system
-from dam.models import (
-    AudioPropertiesComponent,
-    Entity,
-    FileLocationComponent,
-    FilePropertiesComponent,
-    FramePropertiesComponent,
-    ImageDimensionsComponent,
-)
+# Corrected direct imports for models
+from dam.models.properties.audio_properties_component import AudioPropertiesComponent
+from dam.models.core.entity import Entity
+from dam.models.core.file_location_component import FileLocationComponent
+from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.models.properties.frame_properties_component import FramePropertiesComponent
+from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam.services import ecs_service
 

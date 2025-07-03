@@ -1,7 +1,7 @@
 from sqlalchemy import LargeBinary, UniqueConstraint  # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .. import BaseComponent
+from ..core.base_component import BaseComponent # Corrected import
 
 
 class ImagePerceptualAHashComponent(BaseComponent):

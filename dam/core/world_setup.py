@@ -13,12 +13,15 @@ from dam.core.events import (
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
-    SemanticSearchQuery,  # Already imported but good to note
+    SemanticSearchQuery,
+    AudioSearchQuery, # Added AudioSearchQuery
 )
-from dam.core.resources import FileOperationsResource  # ResourceManager no longer needed here directly
+from dam.core.resources import FileOperationsResource
+from dam.core.model_manager import ModelExecutionManager # Added ModelExecutionManager
 from dam.core.stages import SystemStage
-from dam.core.world import World  # Import World for type hinting
+from dam.core.world import World
 from dam.resources.file_storage_resource import FileStorageResource
+# Import systems
 from dam.systems.asset_lifecycle_systems import (
     handle_asset_file_ingestion_request,
     handle_asset_reference_ingestion_request,
@@ -28,9 +31,11 @@ from dam.systems.asset_lifecycle_systems import (
 from dam.systems.metadata_systems import (
     extract_metadata_on_asset_ingested,
 )
+# Import semantic systems and event (text and audio)
+from dam.systems.semantic_systems import handle_semantic_search_query, handle_audio_search_query # Added audio handler
+# Import audio processing system
+from dam.systems.audio_systems import audio_embedding_generation_system, NeedsAudioProcessingMarker
 
-# Import semantic systems and event
-from dam.systems.semantic_systems import handle_semantic_search_query  # Added
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -79,6 +84,13 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(FileOperationsResource())
     world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
+    # 5. ModelExecutionManager
+    # This manager is typically global or per-application, but can be world-specific if models differ significantly
+    # For now, let's assume a single instance shared or a new one per world if config dictates
+    model_manager = ModelExecutionManager() # Initialize with default model type Any, or a more specific one
+    resource_manager.add_resource(model_manager, ModelExecutionManager)
+    world.logger.debug(f"Added ModelExecutionManager resource for World '{world_name}'.")
+
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
     )
@@ -120,8 +132,16 @@ def register_core_systems(world_instance: "World") -> None:
     world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
     logger.debug("Registered system: handle_find_similar_images_query for event FindSimilarImagesQuery")
 
-    # Semantic Systems
-    world_instance.register_system(handle_semantic_search_query, event_type=SemanticSearchQuery)  # Added
-    logger.debug("Registered system: handle_semantic_search_query for event SemanticSearchQuery")  # Added
+    # Semantic Systems (Text)
+    world_instance.register_system(handle_semantic_search_query, event_type=SemanticSearchQuery)
+    logger.debug("Registered system: handle_semantic_search_query for event SemanticSearchQuery")
+
+    # Audio Processing and Search Systems
+    # Note: NeedsAudioProcessingMarker is implicitly handled by the MarkedEntityList in audio_embedding_generation_system
+    world_instance.register_system(audio_embedding_generation_system, stage=SystemStage.CONTENT_ANALYSIS)
+    logger.debug("Registered system: audio_embedding_generation_system for stage CONTENT_ANALYSIS")
+
+    world_instance.register_system(handle_audio_search_query, event_type=AudioSearchQuery)
+    logger.debug("Registered system: handle_audio_search_query for event AudioSearchQuery")
 
     logger.info(f"Core system registration complete for world: {world_instance.name}")
