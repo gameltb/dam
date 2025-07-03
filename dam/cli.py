@@ -42,7 +42,7 @@ from dam.services import (
     ecs_service as dam_ecs_service,  # Alias to avoid conflict with local ecs_service module
 )
 from dam.systems import evaluation_systems
-# from dam.utils.async_typer import AsyncTyper # Replacing with standard Typer
+from dam.utils.async_typer import AsyncTyper
 from dam.utils.media_utils import TranscodeError
 
 # Systems will be imported and then registered manually to worlds.
@@ -52,7 +52,7 @@ from dam.utils.media_utils import TranscodeError
 # Import specific system functions that need to be registered
 # This is an example; a more dynamic way might be needed for many systems.
 
-app = typer.Typer( # Changed from AsyncTyper to typer.Typer
+app = AsyncTyper(
     name="dam-cli",
     help="Digital Asset Management System CLI",
     add_completion=True,
@@ -827,7 +827,7 @@ def run_cli_directly():
 
 
 # --- Transcoding Commands ---
-transcode_app = typer.Typer(name="transcode", help="Manage transcoding profiles and operations.") # Changed from AsyncTyper
+transcode_app = AsyncTyper(name="transcode", help="Manage transcoding profiles and operations.")
 app.add_typer(transcode_app)
 
 
@@ -992,7 +992,7 @@ async def cli_transcode_apply(  # Made async
 
 
 # --- Evaluation Commands ---
-eval_app = typer.Typer(name="evaluate", help="Manage and run transcoding evaluations.") # Changed from AsyncTyper
+eval_app = AsyncTyper(name="evaluate", help="Manage and run transcoding evaluations.")
 app.add_typer(eval_app)
 
 
@@ -1251,7 +1251,7 @@ if __name__ == "__main__":
 
 
 # --- Character Commands ---
-character_app = typer.Typer(name="character", help="Manage character concepts and their links to assets.") # Changed from AsyncTyper
+character_app = AsyncTyper(name="character", help="Manage character concepts and their links to assets.")
 app.add_typer(character_app)
 
 
@@ -1558,7 +1558,7 @@ async def cli_character_find_assets(
 
 
 # --- Search Commands ---
-search_app = typer.Typer(name="search", help="Search for assets using various methods.") # Changed from AsyncTyper
+search_app = AsyncTyper(name="search", help="Search for assets using various methods.")
 app.add_typer(search_app)
 
 
