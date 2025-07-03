@@ -4,10 +4,12 @@ from typing import Annotated, List
 from dam.core.system_params import (
     WorldContext,
 )  # For getting session, world name, config (WorldContext is in system_params)
+from dam.core.model_manager import ModelExecutionManager # Added
 from dam.core.systems import SystemStage, system
 from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
 from dam.models.core.entity import Entity  # Corrected Entity import
-from dam.services.tagging_service import TaggingService  # Assuming tagging_service is in dam.services
+from dam.services import ecs_service
+from dam.services import tagging_service as tagging_service_module # Renamed import
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +30,11 @@ class AutoTaggingCompleteMarker(BaseComponent):  # Inherit from BaseComponent
     pass  # No extra fields needed for now
 
 
-@system(stage=SystemStage.CONTENT_ANALYSIS, depends_on_resources=[TaggingService])  # Changed stage to CONTENT_ANALYSIS
+@system(stage=SystemStage.CONTENT_ANALYSIS) # Removed depends_on_resources
 async def auto_tag_entities_system(
     world_context: Annotated[WorldContext, "WorldContext"],
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Changed to inject MEM
     marked_entities: Annotated[List[Entity], "MarkedEntityList", NeedsAutoTaggingMarker],
-    tagging_service: Annotated[TaggingService, "Resource"],  # Injected TaggingService
 ):
     """
     System that processes entities marked with NeedsAutoTaggingMarker,
@@ -80,10 +82,11 @@ async def auto_tag_entities_system(
         )
 
         try:
-            await tagging_service.update_entity_model_tags(
+            await tagging_service_module.update_entity_model_tags( # Call module function
                 session,
+                model_execution_manager, # Pass MEM
                 entity.id,
-                image_path,  # Pass the image path
+                image_path,
                 model_to_use,
             )
             logger.info(f"Successfully applied tags from model '{model_to_use}' to entity {entity.id}.")

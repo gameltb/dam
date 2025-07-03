@@ -67,30 +67,16 @@ TAGGING_MODEL_CONCEPTUAL_PARAMS: Dict[str, Dict[str, Any]] = {
 
 
 async def get_tagging_model(
+    model_execution_manager: ModelExecutionManager, # Added
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
     model_load_params: Optional[Dict[str, Any]] = None,  # Params for actual loading (e.g. device)
-    world_name: Optional[str] = None,
+    # world_name: Optional[str] = None, # Removed
 ) -> Optional[MockWd14Tagger]:  # Specific to mock for now
     """
-    Loads a tagging model using the ModelExecutionManager.
+    Loads a tagging model using the provided ModelExecutionManager.
     """
-    world = get_default_world()
-    if world_name:
-        from dam.core import get_world as get_world_dyn
-
-        _w = get_world_dyn(world_name)
-        if _w:
-            world = _w
-        else:
-            logger.error(f"World {world_name} not found for tagging model. Using default.")
-
-    if not world:
-        raise RuntimeError("Default world not found, cannot access ModelExecutionManager for tagging.")
-
-    model_manager = world.get_resource(ModelExecutionManager)
-
-    if TAGGING_MODEL_IDENTIFIER not in model_manager._model_loaders:
-        model_manager.register_model_loader(TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync)
+    if TAGGING_MODEL_IDENTIFIER not in model_execution_manager._model_loaders:
+        model_execution_manager.register_model_loader(TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync)
 
     final_load_params = model_load_params.copy() if model_load_params else {}
     # Merge with any default load params from conceptual registry if they exist for this model_name
@@ -99,23 +85,24 @@ async def get_tagging_model(
     final_load_params = {**default_loader_params_for_model, **final_load_params}
 
     if "device" not in final_load_params:
-        final_load_params["device"] = model_manager.get_model_device_preference()
+        final_load_params["device"] = model_execution_manager.get_model_device_preference()
 
     # The `model_name` (e.g., "wd-v1-4-moat-tagger-v2") is passed as `model_name_or_path`
     # to the ModelExecutionManager, which then passes it to the loader.
-    return await model_manager.get_model(
+    return await model_execution_manager.get_model(
         model_identifier=TAGGING_MODEL_IDENTIFIER, model_name_or_path=model_name, params=final_load_params
     )
 
 
 async def generate_tags_from_image(
+    model_execution_manager: ModelExecutionManager, # Added
     image_path: str,
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
     conceptual_params: Dict[str, Any],  # e.g., threshold, tag_limit for prediction behavior
-    world_name: Optional[str] = None,
+    # world_name: Optional[str] = None, # Removed
 ) -> List[Dict[str, Any]]:
     """
-    Generates tags for a given image using the specified model and parameters.
+    Generates tags for a given image using the specified model and parameters, via the provided ModelExecutionManager.
     """
     # model_load_params could be extracted from conceptual_params or TAGGING_MODEL_CONCEPTUAL_PARAMS
     # if some conceptual params also affect loading for this model type.
@@ -123,8 +110,8 @@ async def generate_tags_from_image(
     model_load_params_from_conceptual = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name, {}).get("model_load_params")
 
     model = await get_tagging_model(
-        model_name, model_load_params=model_load_params_from_conceptual, world_name=world_name
-    )  # type: ignore
+        model_execution_manager, model_name, model_load_params=model_load_params_from_conceptual # Pass MEM
+    )
     if not model:
         return []
 
@@ -146,13 +133,14 @@ async def generate_tags_from_image(
 
 async def update_entity_model_tags(
     session: AsyncSession,
+    model_execution_manager: ModelExecutionManager, # Added
     entity_id: int,
     image_path: str,
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
-    world_name: Optional[str] = None,
+    # world_name: Optional[str] = None, # Removed
 ) -> List[ModelGeneratedTagLinkComponent]:
     """
-    Updates the AI-generated tags for an entity using a specified model.
+    Updates the AI-generated tags for an entity using a specified model, via the provided ModelExecutionManager.
     It will remove all existing tags from this specific model for the entity
     and then add the newly generated ones.
     """
@@ -167,9 +155,8 @@ async def update_entity_model_tags(
     conceptual_params = conceptual_registry_entry.get("default_conceptual_params", {})
 
     # 1. Generate new tags using the model
-    # Pass world_name to generate_tags_from_image
     generated_raw_tags = await generate_tags_from_image(
-        image_path, model_name, conceptual_params, world_name=world_name
+        model_execution_manager, image_path, model_name, conceptual_params # Pass MEM
     )
 
     if not generated_raw_tags:
@@ -214,49 +201,11 @@ async def update_entity_model_tags(
     return created_tag_links
 
 
-class TaggingService:
-    """
-    A service class for tagging operations. This class itself can be registered
-    as a resource. Its methods will wrap the module-level service functions.
-    """
-
-    async def update_entity_model_tags(
-        self,
-        session: AsyncSession,
-        entity_id: int,
-        image_path: str,
-        model_name: str,
-        world_name: Optional[str] = None,
-    ) -> List[ModelGeneratedTagLinkComponent]:
-        return await update_entity_model_tags(session, entity_id, image_path, model_name, world_name)
-
-    async def generate_tags_from_image(
-        self,
-        image_path: str,
-        model_name: str,
-        conceptual_params: Dict[str, Any],
-        world_name: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        return await generate_tags_from_image(image_path, model_name, conceptual_params, world_name)
-
-    async def get_tagging_model(
-        self,
-        model_name: str,
-        model_load_params: Optional[Dict[str, Any]] = None,
-        world_name: Optional[str] = None,
-    ) -> Optional[MockWd14Tagger]:  # Specific to mock for now
-        return await get_tagging_model(
-            model_name,
-            model_load_params,
-            world_name,  # type: ignore
-        )
-
-
 # Module-level exports for direct use if needed, and for __init__.py
 __all__ = [
     "generate_tags_from_image",
     "get_tagging_model",
     "TAGGING_MODEL_CONCEPTUAL_PARAMS",
     "update_entity_model_tags",
-    "TaggingService",  # Export the class
+    # TaggingService class removed
 ]
