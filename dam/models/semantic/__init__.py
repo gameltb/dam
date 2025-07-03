@@ -21,4 +21,22 @@ __all__ = [
     "ModelHyperparameters",
     "EmbeddingModelInfo",
     "OldTextEmbeddingComponent", # Keep for now for transition
+    # Audio Embedding Components
+    "BaseSpecificAudioEmbeddingComponent",
+    "AudioEmbeddingVggishDim128Component",
+    "AudioEmbeddingPannsCnn14Dim2048Component",
+    "AUDIO_EMBEDDING_MODEL_REGISTRY",
+    "get_audio_embedding_component_class",
+    "AudioModelHyperparameters",
+    "AudioEmbeddingModelInfo",
 ]
+
+from .audio_embedding_component import (
+    BaseSpecificAudioEmbeddingComponent,
+    AudioEmbeddingVggishDim128Component,
+    AudioEmbeddingPannsCnn14Dim2048Component,
+    AUDIO_EMBEDDING_MODEL_REGISTRY,
+    get_audio_embedding_component_class,
+    AudioModelHyperparameters, # Optional: if used by other modules
+    AudioEmbeddingModelInfo, # Optional: if used by other modules
+)

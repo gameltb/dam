@@ -27,6 +27,7 @@ dependencies = [
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
+    "psutil", # Added for system resource detection
     # "hachoir", # Moved to optional
     # "sentence-transformers", # Moved to optional
     # "numpy", # Moved to optional

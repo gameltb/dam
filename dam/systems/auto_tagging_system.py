@@ -3,10 +3,10 @@ from typing import List, Annotated
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core.config import AppConfig
-from dam.core.core_types import WorldContext # For getting session, world name, config
-from dam.core.entity import Entity
-from dam.core.components_markers import MarkEntityForProcessingComponent, ProcessingScope
+from dam.core.config import settings as app_global_settings # Changed AppConfig to settings
+from dam.core.system_params import WorldContext # For getting session, world name, config (WorldContext is in system_params)
+from dam.models.core.entity import Entity # Corrected Entity import
+from dam.models.core.base_component import BaseComponent # Import BaseComponent directly
 from dam.core.systems import system, SystemStage
 from dam.services.tagging_service import TaggingService # Assuming tagging_service is in dam.services
 from dam.models.core.file_location_component import FileLocationComponent # To get image path
@@ -14,16 +14,20 @@ from dam.models.core.file_location_component import FileLocationComponent # To g
 logger = logging.getLogger(__name__)
 
 # Define a specific marker for auto-tagging
-class NeedsAutoTaggingMarker(MarkEntityForProcessingComponent):
-    processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY
+class NeedsAutoTaggingMarker(BaseComponent): # Inherit from BaseComponent
+    __tablename__ = "component_marker_needs_auto_tagging" # Needs a tablename
+    # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
     # Add any specific fields if needed for this marker, e.g., model_to_use
     # model_name_to_apply: str = "wd-v1-4-moat-tagger-v2" # Could be a field in the marker
+    pass # No extra fields needed for now
 
-class AutoTaggingCompleteMarker(MarkEntityForProcessingComponent):
-    processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY
+class AutoTaggingCompleteMarker(BaseComponent): # Inherit from BaseComponent
+    __tablename__ = "component_marker_auto_tagging_complete" # Needs a tablename
+    # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
     # model_name_applied: str # Store which model was applied
+    pass # No extra fields needed for now
 
-@system(stage=SystemStage.PROCESSING, depends_on_resources=[TaggingService])
+@system(stage=SystemStage.CONTENT_ANALYSIS, depends_on_resources=[TaggingService]) # Changed stage to CONTENT_ANALYSIS
 async def auto_tag_entities_system(
     world_context: Annotated[WorldContext, "WorldContext"],
     marked_entities: Annotated[List[Entity], "MarkedEntityList", NeedsAutoTaggingMarker],
@@ -47,7 +51,8 @@ async def auto_tag_entities_system(
     logger.info(f"Found {len(marked_entities)} entities marked for auto-tagging with model '{default_tagging_model}'.")
 
     for entity in marked_entities:
-        marker = await world_context.ecs.get_component(session, entity.id, NeedsAutoTaggingMarker)
+        # Corrected: Use ecs_service directly
+        marker = await ecs_service.get_component(session, entity.id, NeedsAutoTaggingMarker)
         if not marker: # Should not happen if marked_entities list is correct
             continue
 
@@ -55,16 +60,14 @@ async def auto_tag_entities_system(
         model_to_use = default_tagging_model # Using the default for now
 
         # Get the image path for the entity.
-        # This assumes the entity has a FileLocationComponent pointing to an image.
-        # You might need more sophisticated logic to find the "primary" image of an entity.
-        file_location_comp = await world_context.ecs.get_component(session, entity.id, FileLocationComponent)
-        if not file_location_comp or not file_location_comp.full_path:
-            logger.warning(f"Entity {entity.id} marked for auto-tagging has no FileLocationComponent or path. Skipping.")
-            # Optionally, remove marker or add error marker
-            await world_context.ecs.remove_component_from_entity(session, entity.id, NeedsAutoTaggingMarker)
-            continue
+        # Use the get_file_path_for_entity utility
+        from dam.utils.media_utils import get_file_path_for_entity
+        image_path = await get_file_path_for_entity(session, entity.id, world_context.world_config.ASSET_STORAGE_PATH)
 
-        image_path = file_location_comp.full_path
+        if not image_path:
+            logger.warning(f"Entity {entity.id} marked for auto-tagging: Could not determine image file path. Skipping.")
+            await ecs_service.remove_component(session, marker) # Pass the marker instance to remove
+            continue
         # Ensure this path is accessible by the tagging model.
         # If models run in different containers/environments, path translation might be needed.
 
@@ -79,19 +82,19 @@ async def auto_tag_entities_system(
             )
             logger.info(f"Successfully applied tags from model '{model_to_use}' to entity {entity.id}.")
 
-            # Remove the NeedsAutoTaggingMarker
-            await world_context.ecs.remove_component_from_entity(session, entity.id, NeedsAutoTaggingMarker)
+            # Remove the NeedsAutoTaggingMarker by passing the marker instance
+            await ecs_service.remove_component(session, marker)
 
             # Add AutoTaggingCompleteMarker (optional, for tracking)
-            # completion_marker = AutoTaggingCompleteMarker(model_name_applied=model_to_use)
-            # await world_context.ecs.add_component_to_entity(session, entity.id, completion_marker)
+            # completion_marker = AutoTaggingCompleteMarker(model_name_applied=model_to_use) # Create instance
+            # await ecs_service.add_component_to_entity(session, entity.id, completion_marker) # Use ecs_service
 
         except Exception as e:
             logger.error(f"Error auto-tagging entity {entity.id} with model '{model_to_use}': {e}", exc_info=True)
             # Optionally, add an error marker component to the entity
-            # await world_context.ecs.remove_component_from_entity(session, entity.id, NeedsAutoTaggingMarker) # Remove to avoid reprocessing loop on same error
-            # error_marker = AutoTaggingErrorMarker(model_name=model_to_use, error_message=str(e))
-            # await world_context.ecs.add_component_to_entity(session, entity.id, error_marker)
+            # await ecs_service.remove_component(session, marker) # Remove to avoid reprocessing loop
+            # error_marker = AutoTaggingErrorMarker(model_name=model_to_use, error_message=str(e)) # Create instance
+            # await ecs_service.add_component_to_entity(session, entity.id, error_marker) # Use ecs_service
 
     # Session flush/commit is typically handled by the WorldScheduler after all systems in a stage run.
     # If immediate commit is needed for some reason (rare for systems), it should be done carefully.

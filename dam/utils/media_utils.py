@@ -208,3 +208,84 @@ if __name__ == "__main__":
         print(f"Cleaned up dummy input: {dummy_input}")
 
     print("\nMedia utils tests finished.")
+
+
+import logging
+import os
+from typing import Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from dam.services import ecs_service
+from dam.models.core import FileLocationComponent # Assuming this component stores relative path
+
+logger = logging.getLogger(__name__)
+
+async def get_file_path_for_entity(
+    session: AsyncSession,
+    entity_id: int,
+    base_asset_storage_path: str, # Get this from world_config.ASSET_STORAGE_PATH
+    variant_name: Optional[str] = "original" # Or some other way to specify which file if multiple exist
+) -> Optional[str]:
+    """
+    Retrieves the full file path for a given entity.
+    This is a mock implementation and needs to be adapted to the actual
+    FileLocationComponent structure and storage layout.
+
+    Args:
+        session: The SQLAlchemy async session.
+        entity_id: The ID of the entity.
+        base_asset_storage_path: The root path where assets are stored for the current world.
+        variant_name: Specifies which variant of the file to retrieve (e.g., "original", "thumbnail").
+                      The logic to handle variants needs to be implemented based on how they are stored.
+
+    Returns:
+        The full path to the file, or None if not found.
+    """
+    logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
+
+    file_location_comps = await ecs_service.get_components(session, entity_id, FileLocationComponent)
+
+    if not file_location_comps:
+        logger.warning(f"No FileLocationComponent found for entity {entity_id}.")
+        return None
+
+    target_file_loc: Optional[FileLocationComponent] = None
+
+    if len(file_location_comps) == 1:
+        target_file_loc = file_location_comps[0]
+    else:
+        # This logic needs to be adapted based on how FileLocationComponent stores variant info.
+        # For example, if it has a 'variant_type' or 'name' field:
+        # target_file_loc = next((flc for flc in file_location_comps if flc.variant_name == variant_name), None)
+        # For now, defaulting to the first one if specific variant logic isn't implemented/matched.
+        logger.debug(f"Multiple FileLocationComponents found for entity {entity_id}. Attempting to find variant '{variant_name}'. Defaulting to first if not specific match.")
+        # Pseudo-code for variant matching:
+        # if hasattr(FileLocationComponent, 'variant_name_column'): # Replace with actual attribute name
+        #     target_file_loc = next((flc for flc in file_location_comps if getattr(flc, 'variant_name_column', None) == variant_name), None)
+
+        if not target_file_loc: # If no specific match or variant logic not fully implemented here
+            target_file_loc = file_location_comps[0]
+
+
+    if not target_file_loc:
+        logger.warning(f"No suitable FileLocationComponent found for entity {entity_id} and variant '{variant_name}'.")
+        return None
+
+    relative_path = getattr(target_file_loc, 'stored_path_relative', None)
+
+    if not relative_path:
+        logger.error(f"FileLocationComponent for entity {entity_id} (variant {variant_name}, component_id {target_file_loc.id}) does not have a 'stored_path_relative' attribute or it's empty.")
+        return None
+
+    full_path = os.path.join(base_asset_storage_path, relative_path)
+
+    # It's good practice to check if the file actually exists
+    if not os.path.exists(full_path):
+        logger.warning(f"File path constructed for entity {entity_id} (variant {variant_name}) does not exist: {full_path} (from relative: {relative_path})")
+        # Return None if physical file doesn't exist, as the path is invalid for processing
+        return None
+
+    logger.info(f"Resolved file path for entity {entity_id} (variant {variant_name}): {full_path}")
+    return full_path
+
+__all__ = ["transcode_media", "TranscodeError", "get_file_path_for_entity"]
