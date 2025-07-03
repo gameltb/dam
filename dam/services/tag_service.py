@@ -6,18 +6,19 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
-# Updated imports for tag components
-from dam.models.tags import (
-    EntityTagLinkComponent,
-    TagConceptComponent,
-)
-from dam.models.conceptual import ( # Keep conceptual imports that are still relevant
+from dam.models.conceptual import (  # Keep conceptual imports that are still relevant
     BaseConceptualInfoComponent,
     BaseVariantInfoComponent,
     ComicBookConceptComponent,
 )
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.models.core.entity import Entity
+
+# Updated imports for tag components
+from dam.models.tags import (
+    EntityTagLinkComponent,
+    TagConceptComponent,
+)
 from dam.services import ecs_service
 
 logger = logging.getLogger(__name__)
@@ -435,10 +436,10 @@ async def get_entities_for_tag(  # Made async
 async def get_or_create_tag_concept(
     session: AsyncSession,
     tag_name: str,
-    scope_type: str = "GLOBAL", # Default for auto-generated tags, can be configured
+    scope_type: str = "GLOBAL",  # Default for auto-generated tags, can be configured
     scope_detail: Optional[str] = None,
-    description: Optional[str] = None, # Auto-tags might not have detailed descriptions initially
-    allow_values: bool = False, # Auto-tags are usually labels
+    description: Optional[str] = None,  # Auto-tags might not have detailed descriptions initially
+    allow_values: bool = False,  # Auto-tags are usually labels
 ) -> Optional[TagConceptComponent]:
     """
     Retrieves an existing TagConceptComponent by name, or creates a new one if not found.
@@ -453,23 +454,23 @@ async def get_or_create_tag_concept(
         tag_entity = await get_tag_concept_by_name(session, clean_tag_name)
         if tag_entity:
             # Fetch the component from the entity
-            tag_concept_comp = await ecs_service.get_component(
-                session, tag_entity.id, TagConceptComponent
-            )
+            tag_concept_comp = await ecs_service.get_component(session, tag_entity.id, TagConceptComponent)
             if tag_concept_comp:
                 return tag_concept_comp
             else:
                 # This case should ideally not happen if get_tag_concept_by_name returned an entity
                 # that is supposed to be a tag concept.
-                logger.error(f"TagConceptEntity {tag_entity.id} found for name '{clean_tag_name}', but it lacks TagConceptComponent.")
+                logger.error(
+                    f"TagConceptEntity {tag_entity.id} found for name '{clean_tag_name}', but it lacks TagConceptComponent."
+                )
                 # Fall through to attempt creation, though this indicates an issue.
                 # Or, one might choose to raise an error here.
                 # For robustness, trying to create if component is missing.
-                pass # Fall through to create logic below if component is missing.
+                pass  # Fall through to create logic below if component is missing.
 
     except TagConceptNotFoundError:
         logger.info(f"TagConcept '{clean_tag_name}' not found, attempting to create.")
-        pass # Tag not found, will proceed to create
+        pass  # Tag not found, will proceed to create
 
     # If not found or component was missing, create it
     # create_tag_concept already checks for existing name before creating entity and component.
@@ -485,13 +486,13 @@ async def get_or_create_tag_concept(
 
     if new_tag_entity:
         # Fetch the component from the newly created entity
-        new_tag_concept_comp = await ecs_service.get_component(
-            session, new_tag_entity.id, TagConceptComponent
-        )
+        new_tag_concept_comp = await ecs_service.get_component(session, new_tag_entity.id, TagConceptComponent)
         if new_tag_concept_comp:
             return new_tag_concept_comp
         else:
-            logger.error(f"Failed to retrieve TagConceptComponent from newly created TagConceptEntity {new_tag_entity.id} for '{clean_tag_name}'.")
+            logger.error(
+                f"Failed to retrieve TagConceptComponent from newly created TagConceptEntity {new_tag_entity.id} for '{clean_tag_name}'."
+            )
             return None
     else:
         # Creation might have failed (e.g. race condition if another process created it, caught by create_tag_concept's internal check)
@@ -503,4 +504,4 @@ async def get_or_create_tag_concept(
         except TagConceptNotFoundError:
             logger.error(f"Failed to create and subsequently retrieve TagConcept '{clean_tag_name}'.")
             return None
-    return None # Should be unreachable if logic is correct
+    return None  # Should be unreachable if logic is correct

@@ -1,48 +1,49 @@
 import logging
-from typing import List, Annotated
+from typing import Annotated, List
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from dam.core.config import settings as app_global_settings # Changed AppConfig to settings
-from dam.core.system_params import WorldContext # For getting session, world name, config (WorldContext is in system_params)
-from dam.models.core.entity import Entity # Corrected Entity import
-from dam.models.core.base_component import BaseComponent # Import BaseComponent directly
-from dam.core.systems import system, SystemStage
-from dam.services.tagging_service import TaggingService # Assuming tagging_service is in dam.services
-from dam.models.core.file_location_component import FileLocationComponent # To get image path
+from dam.core.system_params import (
+    WorldContext,
+)  # For getting session, world name, config (WorldContext is in system_params)
+from dam.core.systems import SystemStage, system
+from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
+from dam.models.core.entity import Entity  # Corrected Entity import
+from dam.services.tagging_service import TaggingService  # Assuming tagging_service is in dam.services
 
 logger = logging.getLogger(__name__)
 
+
 # Define a specific marker for auto-tagging
-class NeedsAutoTaggingMarker(BaseComponent): # Inherit from BaseComponent
-    __tablename__ = "component_marker_needs_auto_tagging" # Needs a tablename
+class NeedsAutoTaggingMarker(BaseComponent):  # Inherit from BaseComponent
+    __tablename__ = "component_marker_needs_auto_tagging"  # Needs a tablename
     # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
     # Add any specific fields if needed for this marker, e.g., model_to_use
     # model_name_to_apply: str = "wd-v1-4-moat-tagger-v2" # Could be a field in the marker
-    pass # No extra fields needed for now
+    pass  # No extra fields needed for now
 
-class AutoTaggingCompleteMarker(BaseComponent): # Inherit from BaseComponent
-    __tablename__ = "component_marker_auto_tagging_complete" # Needs a tablename
+
+class AutoTaggingCompleteMarker(BaseComponent):  # Inherit from BaseComponent
+    __tablename__ = "component_marker_auto_tagging_complete"  # Needs a tablename
     # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
     # model_name_applied: str # Store which model was applied
-    pass # No extra fields needed for now
+    pass  # No extra fields needed for now
 
-@system(stage=SystemStage.CONTENT_ANALYSIS, depends_on_resources=[TaggingService]) # Changed stage to CONTENT_ANALYSIS
+
+@system(stage=SystemStage.CONTENT_ANALYSIS, depends_on_resources=[TaggingService])  # Changed stage to CONTENT_ANALYSIS
 async def auto_tag_entities_system(
     world_context: Annotated[WorldContext, "WorldContext"],
     marked_entities: Annotated[List[Entity], "MarkedEntityList", NeedsAutoTaggingMarker],
-    tagging_service: Annotated[TaggingService, "Resource"], # Injected TaggingService
+    tagging_service: Annotated[TaggingService, "Resource"],  # Injected TaggingService
 ):
     """
     System that processes entities marked with NeedsAutoTaggingMarker,
     generates tags using a configured model, and stores them.
     """
     session = world_context.session
-    config = world_context.config # Access AppConfig if needed for model names, etc.
+    config = world_context.config  # Access AppConfig if needed for model names, etc.
 
     # Example: Get default model name from config or use a fixed one
     # default_tagging_model = config.get("DEFAULT_AUTO_TAGGING_MODEL", "wd-v1-4-moat-tagger-v2")
-    default_tagging_model = "wd-v1-4-moat-tagger-v2" # Hardcoded for now
+    default_tagging_model = "wd-v1-4-moat-tagger-v2"  # Hardcoded for now
 
     if not marked_entities:
         logger.debug("No entities marked for auto-tagging in this cycle.")
@@ -53,32 +54,37 @@ async def auto_tag_entities_system(
     for entity in marked_entities:
         # Corrected: Use ecs_service directly
         marker = await ecs_service.get_component(session, entity.id, NeedsAutoTaggingMarker)
-        if not marker: # Should not happen if marked_entities list is correct
+        if not marker:  # Should not happen if marked_entities list is correct
             continue
 
         # model_to_use = getattr(marker, 'model_name_to_apply', default_tagging_model)
-        model_to_use = default_tagging_model # Using the default for now
+        model_to_use = default_tagging_model  # Using the default for now
 
         # Get the image path for the entity.
         # Use the get_file_path_for_entity utility
         from dam.utils.media_utils import get_file_path_for_entity
+
         image_path = await get_file_path_for_entity(session, entity.id, world_context.world_config.ASSET_STORAGE_PATH)
 
         if not image_path:
-            logger.warning(f"Entity {entity.id} marked for auto-tagging: Could not determine image file path. Skipping.")
-            await ecs_service.remove_component(session, marker) # Pass the marker instance to remove
+            logger.warning(
+                f"Entity {entity.id} marked for auto-tagging: Could not determine image file path. Skipping."
+            )
+            await ecs_service.remove_component(session, marker)  # Pass the marker instance to remove
             continue
         # Ensure this path is accessible by the tagging model.
         # If models run in different containers/environments, path translation might be needed.
 
-        logger.info(f"Processing entity {entity.id} for auto-tagging with model '{model_to_use}' using image: {image_path}")
+        logger.info(
+            f"Processing entity {entity.id} for auto-tagging with model '{model_to_use}' using image: {image_path}"
+        )
 
         try:
             await tagging_service.update_entity_model_tags(
                 session,
                 entity.id,
-                image_path, # Pass the image path
-                model_to_use
+                image_path,  # Pass the image path
+                model_to_use,
             )
             logger.info(f"Successfully applied tags from model '{model_to_use}' to entity {entity.id}.")
 
@@ -99,6 +105,7 @@ async def auto_tag_entities_system(
     # Session flush/commit is typically handled by the WorldScheduler after all systems in a stage run.
     # If immediate commit is needed for some reason (rare for systems), it should be done carefully.
     # await session.commit() # Usually not done here.
+
 
 # To make this system runnable, it needs to be registered with the WorldScheduler,
 # typically in world_setup.py or a similar central setup location.

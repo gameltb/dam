@@ -1,37 +1,40 @@
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, Type, FrozenSet
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import class_mapper # Used for inspecting mapped properties
 
-from dam.core import get_default_world # To get ModelExecutionManager resource
+from dam.core import get_default_world  # To get ModelExecutionManager resource
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
 from dam.models.semantic import (
-    get_embedding_component_class,
+    EMBEDDING_MODEL_REGISTRY,  # For default params
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
-    EMBEDDING_MODEL_REGISTRY, # For default params
+    get_embedding_component_class,
 )
-from dam.services import ecs_service
+
 # Import necessary tag components and service to fetch tags
-from dam.models.tags import TagConceptComponent, EntityTagLinkComponent, ModelGeneratedTagLinkComponent
-from dam.services.tag_service import get_tags_for_entity # For manual tags
+from dam.models.tags import ModelGeneratedTagLinkComponent, TagConceptComponent
+from dam.services import ecs_service
+from dam.services.tag_service import get_tags_for_entity  # For manual tags
+
 # For model-generated tags, we might need a function in tagging_service or query directly for now
 # from dam.services.tagging_service import get_model_generated_tags_for_entity # Assuming this will exist
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2" # This should match a key in EMBEDDING_MODEL_REGISTRY
-DEFAULT_MODEL_PARAMS: ModelHyperparameters = {} # Default params, if any, might be better fetched from registry
+DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"  # This should match a key in EMBEDDING_MODEL_REGISTRY
+DEFAULT_MODEL_PARAMS: ModelHyperparameters = {}  # Default params, if any, might be better fetched from registry
 
 SENTENCE_TRANSFORMER_IDENTIFIER = "sentence_transformer"
 
-def _load_sentence_transformer_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> SentenceTransformer:
+
+def _load_sentence_transformer_model_sync(
+    model_name_or_path: str, params: Optional[Dict[str, Any]] = None
+) -> SentenceTransformer:
     """
     Synchronous helper to load a SentenceTransformer model.
     `params` can include device, cache_folder, etc. for SentenceTransformer constructor.
@@ -40,33 +43,39 @@ def _load_sentence_transformer_model_sync(model_name_or_path: str, params: Optio
     # If device is not in params, ModelExecutionManager might set a default one later,
     # or SentenceTransformer might pick one.
     # For now, pass all params.
-    device = params.pop("device", None) # Pop device if present, ST handles it.
+    device = params.pop("device", None)  # Pop device if present, ST handles it.
     model = SentenceTransformer(model_name_or_path, device=device, **(params or {}))
     logger.info(f"SentenceTransformer model {model_name_or_path} loaded successfully.")
     return model
 
+
 async def get_sentence_transformer_model(
     model_name_or_path: str = DEFAULT_MODEL_NAME,
-    params: Optional[ModelHyperparameters] = None, # Conceptual params
-    world_name: Optional[str] = None, # To get world-specific ModelExecutionManager
+    params: Optional[ModelHyperparameters] = None,  # Conceptual params
+    world_name: Optional[str] = None,  # To get world-specific ModelExecutionManager
 ) -> SentenceTransformer:
     """
     Loads a SentenceTransformer model using the ModelExecutionManager.
     `params` are conceptual hyperparameters; they might be mapped to loader params.
     """
-    world = get_default_world() # Assuming default world context or this service is world-aware
+    world = get_default_world()  # Assuming default world context or this service is world-aware
     if world_name:
         from dam.core import get_world
+
         _w = get_world(world_name)
         if not _w:
-            logger.error(f"World {world_name} not found for getting ModelExecutionManager. Using default world's manager.")
+            logger.error(
+                f"World {world_name} not found for getting ModelExecutionManager. Using default world's manager."
+            )
         else:
             world = _w
 
     if not world:
         raise RuntimeError("Default world not found, cannot access ModelExecutionManager.")
 
-    model_manager = world.get_resource(ModelExecutionManager) # Type is ModelExecutionManager[SentenceTransformer] implicitly if loader returns ST
+    model_manager = world.get_resource(
+        ModelExecutionManager
+    )  # Type is ModelExecutionManager[SentenceTransformer] implicitly if loader returns ST
 
     # Ensure loader is registered if not already
     if SENTENCE_TRANSFORMER_IDENTIFIER not in model_manager._model_loaders:
@@ -75,13 +84,11 @@ async def get_sentence_transformer_model(
     # Map conceptual params to loader params if needed. For ST, model_name_or_path is key.
     # `params` might include things like `device` or `cache_folder` for the loader.
     loader_params = params.copy() if params else {}
-    if "device" not in loader_params: # Add default device preference if not specified
+    if "device" not in loader_params:  # Add default device preference if not specified
         loader_params["device"] = model_manager.get_model_device_preference()
 
     return await model_manager.get_model(
-        model_identifier=SENTENCE_TRANSFORMER_IDENTIFIER,
-        model_name_or_path=model_name_or_path,
-        params=loader_params
+        model_identifier=SENTENCE_TRANSFORMER_IDENTIFIER, model_name_or_path=model_name_or_path, params=loader_params
     )
 
 
@@ -111,7 +118,10 @@ async def generate_embedding(
         #         return None
         return embedding
     except Exception as e:
-        logger.error(f"Error generating embedding for text '{text[:100]}...' with model {model_name}, params {params}: {e}", exc_info=True)
+        logger.error(
+            f"Error generating embedding for text '{text[:100]}...' with model {model_name}, params {params}: {e}",
+            exc_info=True,
+        )
         return None
 
 
@@ -129,22 +139,24 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.n
 
 class BatchTextItem(TypedDict):
     component_name: str  # Source component name
-    field_name: str      # Source field name
+    field_name: str  # Source field name
     text_content: str
 
 
 async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
-    text_fields_map: Dict[str, Any], # e.g., {"ComponentName.field_name": "text content"}
+    text_fields_map: Dict[str, Any],  # e.g., {"ComponentName.field_name": "text content"}
     model_name: str = DEFAULT_MODEL_NAME,
-    model_params: Optional[ModelHyperparameters] = None, # Conceptual params for model version
+    model_params: Optional[ModelHyperparameters] = None,  # Conceptual params for model version
     batch_texts: Optional[List[BatchTextItem]] = None,
     # Configuration for including tags
     include_manual_tags: bool = True,
-    include_model_tags_config: Optional[List[Dict[str, Any]]] = None, # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
-    tag_concatenation_strategy: str = " [TAGS] {tags_string}", # How to append tags
-    world_name: Optional[str] = None, # For ModelExecutionManager context
+    include_model_tags_config: Optional[
+        List[Dict[str, Any]]
+    ] = None,  # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
+    tag_concatenation_strategy: str = " [TAGS] {tags_string}",  # How to append tags
+    world_name: Optional[str] = None,  # For ModelExecutionManager context
 ) -> List[BaseSpecificEmbeddingComponent]:
     """
     Generates and stores specific TextEmbeddingComponents for an entity.
@@ -165,9 +177,8 @@ async def update_text_embeddings_for_entity(
         registry_entry = EMBEDDING_MODEL_REGISTRY.get(model_name)
         if registry_entry:
             model_params = registry_entry.get("default_params", {})
-        else: # Should not happen if get_embedding_component_class succeeded
+        else:  # Should not happen if get_embedding_component_class succeeded
             model_params = {}
-
 
     processed_embeddings: List[BaseSpecificEmbeddingComponent] = []
     current_batch_items: List[BatchTextItem] = []
@@ -180,14 +191,15 @@ async def update_text_embeddings_for_entity(
 
         # Fetch manual tags
         if include_manual_tags:
-            manual_tag_tuples = await get_tags_for_entity(session, entity_id) # Returns List[Tuple[Entity, Optional[str]]]
+            manual_tag_tuples = await get_tags_for_entity(
+                session, entity_id
+            )  # Returns List[Tuple[Entity, Optional[str]]]
             for tag_entity, _ in manual_tag_tuples:
                 tag_concept = await ecs_service.get_component(session, tag_entity.id, TagConceptComponent)
                 if tag_concept and tag_concept.tag_name:
                     all_tag_names_for_entity.append(tag_concept.tag_name)
             if manual_tag_tuples:
-                 augmented_source_field_suffix += "_manualtags"
-
+                augmented_source_field_suffix += "_manualtags"
 
         # Fetch model-generated tags
         if include_model_tags_config:
@@ -200,7 +212,7 @@ async def update_text_embeddings_for_entity(
                 # Query for ModelGeneratedTagLinkComponent
                 stmt = select(ModelGeneratedTagLinkComponent).where(
                     ModelGeneratedTagLinkComponent.entity_id == entity_id,
-                    ModelGeneratedTagLinkComponent.source_model_name == model_tag_name
+                    ModelGeneratedTagLinkComponent.source_model_name == model_tag_name,
                 )
                 if min_confidence > 0:
                     stmt = stmt.where(ModelGeneratedTagLinkComponent.confidence >= min_confidence)
@@ -220,18 +232,17 @@ async def update_text_embeddings_for_entity(
                     safe_model_suffix = "".join(c if c.isalnum() else "_" for c in model_tag_name)
                     augmented_source_field_suffix += f"_model_{safe_model_suffix}"
 
-
         if all_tag_names_for_entity:
             # Remove duplicates while preserving order (Python 3.7+)
             unique_tags = list(dict.fromkeys(all_tag_names_for_entity))
             tags_to_concatenate_str = ", ".join(unique_tags)
 
     # Prepare batch items
-    if batch_texts: # If batch_texts is provided, assume it's already prepared (possibly with tags)
+    if batch_texts:  # If batch_texts is provided, assume it's already prepared (possibly with tags)
         current_batch_items = batch_texts
         # If using batch_texts, augmented_source_field_suffix might not be accurate unless batch_texts also reflect it.
         # For simplicity, if batch_texts is used, we assume tag augmentation is handled by the caller or not desired for this specific call.
-        augmented_source_field_suffix = "_batch" # Indicate it's from a pre-compiled batch
+        augmented_source_field_suffix = "_batch"  # Indicate it's from a pre-compiled batch
     else:
         for source_key, text_content_val in text_fields_map.items():
             if not text_content_val or not isinstance(text_content_val, str) or not text_content_val.strip():
@@ -253,7 +264,9 @@ async def update_text_embeddings_for_entity(
                 continue
 
     if not current_batch_items:
-        logger.info(f"No valid text fields (with or without tags) to embed for entity {entity_id} with model {model_name}.")
+        logger.info(
+            f"No valid text fields (with or without tags) to embed for entity {entity_id} with model {model_name}."
+        )
         return processed_embeddings
 
     # Generate embeddings for all prepared text contents
@@ -288,11 +301,12 @@ async def update_text_embeddings_for_entity(
         # Adjust field_name if tags were added and not using pre-compiled batch_texts
         # For pre-compiled batch_texts, the source field name is taken as is.
         final_field_name = original_field_name
-        if not batch_texts and tags_to_concatenate_str: # only add suffix if tags were actually added and not from batch
+        if (
+            not batch_texts and tags_to_concatenate_str
+        ):  # only add suffix if tags were actually added and not from batch
             final_field_name += augmented_source_field_suffix
-        elif batch_texts and augmented_source_field_suffix == "_batch": # if it IS from batch, use original field name
-             final_field_name = original_field_name
-
+        elif batch_texts and augmented_source_field_suffix == "_batch":  # if it IS from batch, use original field name
+            final_field_name = original_field_name
 
         embedding_np = embeddings_np_list[i]
         embedding_bytes = convert_embedding_to_bytes(embedding_np)
@@ -303,7 +317,7 @@ async def update_text_embeddings_for_entity(
             EmbeddingComponentClass,
             attributes_values={
                 "source_component_name": original_comp_name,
-                "source_field_name": final_field_name, # Use potentially augmented field name
+                "source_field_name": final_field_name,  # Use potentially augmented field name
             },
         )
 
@@ -324,7 +338,7 @@ async def update_text_embeddings_for_entity(
             emb_comp = EmbeddingComponentClass(
                 embedding_vector=embedding_bytes,
                 source_component_name=original_comp_name,
-                source_field_name=final_field_name, # Use potentially augmented field name
+                source_field_name=final_field_name,  # Use potentially augmented field name
             )
             await ecs_service.add_component_to_entity(session, entity_id, emb_comp)
             logger.info(
@@ -338,7 +352,7 @@ async def update_text_embeddings_for_entity(
 async def get_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
-    model_name: str, # Must specify which table to query
+    model_name: str,  # Must specify which table to query
     model_params: Optional[ModelHyperparameters] = None,
 ) -> List[BaseSpecificEmbeddingComponent]:
     """
@@ -357,10 +371,10 @@ async def get_text_embeddings_for_entity(
 async def find_similar_entities_by_text_embedding(
     session: AsyncSession,
     query_text: str,
-    model_name: str, # Must specify which model/table to search
+    model_name: str,  # Must specify which model/table to search
     model_params: Optional[ModelHyperparameters] = None,
     top_n: int = 10,
-    world_name: Optional[str] = None, # For ModelExecutionManager context
+    world_name: Optional[str] = None,  # For ModelExecutionManager context
 ) -> List[Tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
     """
     Finds entities similar to the query text using cosine similarity on stored text embeddings
@@ -423,6 +437,7 @@ async def find_similar_entities_by_text_embedding(
             entity_ids_processed.add(entity_id)
 
     return top_results
+
 
 # Cleanup: remove old TextEmbeddingComponent if it's truly replaced.
 # from dam.models.semantic import TextEmbeddingComponent # This would be the old one

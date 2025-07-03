@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Type
 
-from sqlalchemy import JSON, LargeBinary, String
+from sqlalchemy import LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core import BaseComponent
@@ -79,11 +79,11 @@ class EmbeddingModelInfo(Dict[str, Any]):
 EMBEDDING_MODEL_REGISTRY: Dict[str, EmbeddingModelInfo] = {
     "all-MiniLM-L6-v2": {
         "model_class": TextEmbeddingAllMiniLML6V2Dim384Component,
-        "default_params": {"dimensions": 384}, # Example, actual params might vary
+        "default_params": {"dimensions": 384},  # Example, actual params might vary
     },
     "clip-ViT-B-32": {
         "model_class": TextEmbeddingClipVitB32Dim512Component,
-        "default_params": {"dimensions": 512}, # Example
+        "default_params": {"dimensions": 512},  # Example
     },
     # Add other models here as they are defined
     # e.g. "multi-qa-MiniLM-L6-cos-v1": {
@@ -121,10 +121,12 @@ def get_embedding_component_class(
         return registry_entry["model_class"]
     return None
 
+
 # The old TextEmbeddingComponent should be removed or commented out if no longer used.
 # For now, let's comment it out to avoid conflicts and signal it's deprecated.
 # Renaming to OldTextEmbeddingComponent and uncommenting for transition period
 # until migrations and dependent code are fully updated.
+
 
 class OldTextEmbeddingComponent(BaseComponent):
     """
@@ -132,9 +134,10 @@ class OldTextEmbeddingComponent(BaseComponent):
     Replaced by specific embedding component tables. This class is kept temporarily for
     module imports and Alembic transition.
     """
-    __tablename__ = "component_text_embedding" # This table will be removed by migrations
+
+    __tablename__ = "component_text_embedding"  # This table will be removed by migrations
     embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    model_name: Mapped[str] = mapped_column(String(255), nullable=False) # Kept for old table structure
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Kept for old table structure
     source_component_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # model_parameters: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True) # Was from a previous iteration
@@ -145,6 +148,7 @@ class OldTextEmbeddingComponent(BaseComponent):
             f"model_name='{self.model_name}', source='{self.source_component_name}.{self.source_field_name}', "
             f"embedding_vector_len={len(self.embedding_vector) if self.embedding_vector else 0} bytes)"
         )
+
 
 # Ensure __init__.py in dam/models/semantic/ is updated
 # to export the new classes and the registry/getter function if needed by other modules.

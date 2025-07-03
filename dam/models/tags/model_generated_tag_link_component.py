@@ -1,10 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core import BaseComponent, Entity
-from .tag_concept_component import TagConceptComponent
+from ..core import BaseComponent
 
 
 class ModelGeneratedTagLinkComponent(BaseComponent):
@@ -16,9 +15,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
 
     __tablename__ = "component_model_generated_tag_link"
 
-    entity_id: Mapped[int] = mapped_column(
-        ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
     tag_concept_id: Mapped[int] = mapped_column(
         ForeignKey("component_tag_concept.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -32,7 +29,6 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
     # Relationships (optional, but can be useful for ORM-level access)
     # entity: Mapped["Entity"] = relationship(back_populates="model_generated_tags")
     # tag_concept: Mapped["TagConceptComponent"] = relationship()
-
 
     __table_args__ = (
         UniqueConstraint(
@@ -49,6 +45,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
             f"tag_concept_id={self.tag_concept_id}, source_model_name='{self.source_model_name}', "
             f"confidence={self.confidence:.4f})"
         )
+
 
 # Note: For relationships to work uncommented, forward references might need
 # 'Entity' and 'TagConceptComponent' to be imported or defined if not using strings,

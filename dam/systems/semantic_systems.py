@@ -1,13 +1,13 @@
 import logging
 from typing import Dict, List
 
-from dam.core.events import SemanticSearchQuery, AudioSearchQuery # Added AudioSearchQuery
+from dam.core.events import AudioSearchQuery, SemanticSearchQuery  # Added AudioSearchQuery
 from dam.core.stages import SystemStage  # For scheduling embedding generation
 from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
 from dam.core.systems import listens_for, system
 
 # Placeholder for components that might trigger embedding generation
-from dam.services import semantic_service, audio_service # Added audio_service
+from dam.services import audio_service, semantic_service  # Added audio_service
 
 # from dam.models.metadata import ExiftoolMetadataComponent # If we decide to embed exif data
 
@@ -176,7 +176,7 @@ async def handle_semantic_search_query(
 __all__ = [
     "generate_embeddings_system",
     "handle_semantic_search_query",
-    "handle_audio_search_query", # Added new handler
+    "handle_audio_search_query",  # Added new handler
 ]
 
 
@@ -195,9 +195,7 @@ async def handle_audio_search_query(
     )
 
     if not event.result_future:
-        logger.error(
-            f"Result future not set on AudioSearchQuery event (Req ID: {event.request_id}). Cannot proceed."
-        )
+        logger.error(f"Result future not set on AudioSearchQuery event (Req ID: {event.request_id}). Cannot proceed.")
         return
 
     model_to_use = event.model_name if event.model_name else audio_service.DEFAULT_AUDIO_MODEL_NAME
@@ -205,7 +203,7 @@ async def handle_audio_search_query(
     try:
         similar_entities_data = await audio_service.find_similar_entities_by_audio_embedding(
             session=session,
-            query_audio_path=str(event.query_audio_path), # Ensure path is string
+            query_audio_path=str(event.query_audio_path),  # Ensure path is string
             top_n=event.top_n,
             model_name=model_to_use,
             # model_params can be passed if event schema supports it

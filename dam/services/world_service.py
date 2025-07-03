@@ -6,12 +6,12 @@ from typing import Any, Optional, Tuple, Type  # Removed List
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import joinedload
 
+# Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
+from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
+
 # Corrected specific imports instead of from top-level dam.models
 from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
-
-# Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
-from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.services import ecs_service
 
 # No longer need db_manager here if session is always passed in.

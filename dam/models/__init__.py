@@ -7,13 +7,9 @@ from ..core.components_markers import *  # noqa: F403
 # Import the concrete components that are intended for direct use/instantiation
 from .conceptual.comic_book_concept_component import ComicBookConceptComponent
 from .conceptual.comic_book_variant_component import ComicBookVariantComponent
+
 # EntityTagLinkComponent and TagConceptComponent moved to .tags
 from .conceptual.page_link import PageLink
-
-# Tag related components (now in their own package)
-from .tags.tag_concept_component import TagConceptComponent
-from .tags.entity_tag_link_component import EntityTagLinkComponent
-from .tags.model_generated_tag_link_component import ModelGeneratedTagLinkComponent
 
 # Core model elements
 from .core.base_class import Base
@@ -44,6 +40,11 @@ from .semantic.text_embedding_component import OldTextEmbeddingComponent as Text
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
 from .source_info.web_source_component import WebSourceComponent
 from .source_info.website_profile_component import WebsiteProfileComponent
+from .tags.entity_tag_link_component import EntityTagLinkComponent
+from .tags.model_generated_tag_link_component import ModelGeneratedTagLinkComponent
+
+# Tag related components (now in their own package)
+from .tags.tag_concept_component import TagConceptComponent
 
 # Base abstract conceptual components like BaseConceptualInfoComponent and BaseVariantInfoComponent
 # are typically not re-exported here unless specifically needed for widespread type hinting.

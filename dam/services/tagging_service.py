@@ -1,22 +1,21 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Any, Dict, List, Optional
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 
 from dam.core import get_default_world
 from dam.core.model_manager import ModelExecutionManager
-from dam.models.core.entity import Entity
 from dam.models.tags import (
-    TagConceptComponent,
     ModelGeneratedTagLinkComponent,
 )
-from dam.services import ecs_service, tag_service as existing_tag_service
+from dam.services import tag_service as existing_tag_service
 
 logger = logging.getLogger(__name__)
 
 # Identifier for tagging models within ModelExecutionManager
 TAGGING_MODEL_IDENTIFIER = "image_tagger"
+
 
 # --- Mock Model Definition (kept for this refactoring) ---
 class MockWd14Tagger:
@@ -26,13 +25,25 @@ class MockWd14Tagger:
         logger.info(f"MockWd14Tagger '{self.model_name}' initialized with params {self.params}")
 
     def predict(self, image_path: str, threshold: float, tag_limit: int) -> List[Dict[str, Any]]:
-        logger.info(f"MockWd14Tagger '{self.model_name}' predicting for {image_path} with threshold {threshold}, limit {tag_limit}")
+        logger.info(
+            f"MockWd14Tagger '{self.model_name}' predicting for {image_path} with threshold {threshold}, limit {tag_limit}"
+        )
         if "cat" in image_path.lower():
-            return [{"tag_name": "animal", "confidence": 0.95}, {"tag_name": "cat", "confidence": 0.92}, {"tag_name": "pet", "confidence": 0.88}]
+            return [
+                {"tag_name": "animal", "confidence": 0.95},
+                {"tag_name": "cat", "confidence": 0.92},
+                {"tag_name": "pet", "confidence": 0.88},
+            ]
         elif "dog" in image_path.lower():
-            return [{"tag_name": "animal", "confidence": 0.96}, {"tag_name": "dog", "confidence": 0.93}, {"tag_name": "pet", "confidence": 0.89}, {"tag_name": "canine", "confidence": 0.75}]
+            return [
+                {"tag_name": "animal", "confidence": 0.96},
+                {"tag_name": "dog", "confidence": 0.93},
+                {"tag_name": "pet", "confidence": 0.89},
+                {"tag_name": "canine", "confidence": 0.75},
+            ]
         else:
             return [{"tag_name": "generic_tag1", "confidence": 0.80}, {"tag_name": "generic_tag2", "confidence": 0.70}]
+
 
 # --- Model Loader for ModelExecutionManager ---
 def _load_mock_tagging_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> MockWd14Tagger:
@@ -56,19 +67,22 @@ TAGGING_MODEL_CONCEPTUAL_PARAMS: Dict[str, Dict[str, Any]] = {
 
 
 async def get_tagging_model(
-    model_name: str, # e.g., "wd-v1-4-moat-tagger-v2"
-    model_load_params: Optional[Dict[str, Any]] = None, # Params for actual loading (e.g. device)
+    model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
+    model_load_params: Optional[Dict[str, Any]] = None,  # Params for actual loading (e.g. device)
     world_name: Optional[str] = None,
-) -> Optional[MockWd14Tagger]: # Specific to mock for now
+) -> Optional[MockWd14Tagger]:  # Specific to mock for now
     """
     Loads a tagging model using the ModelExecutionManager.
     """
     world = get_default_world()
     if world_name:
         from dam.core import get_world as get_world_dyn
+
         _w = get_world_dyn(world_name)
-        if _w: world = _w
-        else: logger.error(f"World {world_name} not found for tagging model. Using default.")
+        if _w:
+            world = _w
+        else:
+            logger.error(f"World {world_name} not found for tagging model. Using default.")
 
     if not world:
         raise RuntimeError("Default world not found, cannot access ModelExecutionManager for tagging.")
@@ -81,9 +95,8 @@ async def get_tagging_model(
     final_load_params = model_load_params.copy() if model_load_params else {}
     # Merge with any default load params from conceptual registry if they exist for this model_name
     conceptual_entry = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name, {})
-    default_loader_params_for_model = conceptual_entry.get("model_load_params", {}) # type: ignore
+    default_loader_params_for_model = conceptual_entry.get("model_load_params", {})  # type: ignore
     final_load_params = {**default_loader_params_for_model, **final_load_params}
-
 
     if "device" not in final_load_params:
         final_load_params["device"] = model_manager.get_model_device_preference()
@@ -91,16 +104,14 @@ async def get_tagging_model(
     # The `model_name` (e.g., "wd-v1-4-moat-tagger-v2") is passed as `model_name_or_path`
     # to the ModelExecutionManager, which then passes it to the loader.
     return await model_manager.get_model(
-        model_identifier=TAGGING_MODEL_IDENTIFIER,
-        model_name_or_path=model_name,
-        params=final_load_params
+        model_identifier=TAGGING_MODEL_IDENTIFIER, model_name_or_path=model_name, params=final_load_params
     )
 
 
 async def generate_tags_from_image(
     image_path: str,
-    model_name: str, # e.g., "wd-v1-4-moat-tagger-v2"
-    conceptual_params: Dict[str, Any], # e.g., threshold, tag_limit for prediction behavior
+    model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
+    conceptual_params: Dict[str, Any],  # e.g., threshold, tag_limit for prediction behavior
     world_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -111,7 +122,9 @@ async def generate_tags_from_image(
     # For now, assume model_load_params are empty or handled by defaults in get_tagging_model.
     model_load_params_from_conceptual = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name, {}).get("model_load_params")
 
-    model = await get_tagging_model(model_name, model_load_params=model_load_params_from_conceptual, world_name=world_name) # type: ignore
+    model = await get_tagging_model(
+        model_name, model_load_params=model_load_params_from_conceptual, world_name=world_name
+    )  # type: ignore
     if not model:
         return []
 
@@ -120,7 +133,7 @@ async def generate_tags_from_image(
             raw_tags = model.predict(
                 image_path,
                 threshold=conceptual_params.get("threshold", 0.1),
-                tag_limit=conceptual_params.get("tag_limit", 100)
+                tag_limit=conceptual_params.get("tag_limit", 100),
             )
             return raw_tags
         else:
@@ -135,7 +148,7 @@ async def update_entity_model_tags(
     session: AsyncSession,
     entity_id: int,
     image_path: str,
-    model_name: str, # e.g., "wd-v1-4-moat-tagger-v2"
+    model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
     world_name: Optional[str] = None,
 ) -> List[ModelGeneratedTagLinkComponent]:
     """
@@ -145,16 +158,19 @@ async def update_entity_model_tags(
     """
     conceptual_registry_entry = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name)
     if not conceptual_registry_entry:
-        logger.error(f"Cannot update tags: Model '{model_name}' not found in TAGGING_MODEL_CONCEPTUAL_PARAMS for its conceptual params.")
+        logger.error(
+            f"Cannot update tags: Model '{model_name}' not found in TAGGING_MODEL_CONCEPTUAL_PARAMS for its conceptual params."
+        )
         return []
 
     # Get conceptual parameters (e.g., confidence threshold for filtering tags)
     conceptual_params = conceptual_registry_entry.get("default_conceptual_params", {})
 
-
     # 1. Generate new tags using the model
     # Pass world_name to generate_tags_from_image
-    generated_raw_tags = await generate_tags_from_image(image_path, model_name, conceptual_params, world_name=world_name)
+    generated_raw_tags = await generate_tags_from_image(
+        image_path, model_name, conceptual_params, world_name=world_name
+    )
 
     if not generated_raw_tags:
         logger.info(f"No tags generated by {model_name} for entity {entity_id} (image: {image_path}).")
@@ -179,13 +195,13 @@ async def update_entity_model_tags(
             continue
 
         tag_concept = await existing_tag_service.get_or_create_tag_concept(session, tag_name.strip().lower())
-        if not tag_concept: # Should not happen if get_or_create always returns or raises
+        if not tag_concept:  # Should not happen if get_or_create always returns or raises
             logger.error(f"Could not get or create TagConceptComponent for tag: {tag_name}")
             continue
 
         model_tag_link = ModelGeneratedTagLinkComponent(
-            entity_id=entity_id, # type: ignore
-            tag_concept_id=tag_concept.id, # type: ignore
+            entity_id=entity_id,  # type: ignore
+            tag_concept_id=tag_concept.id,  # type: ignore
             source_model_name=model_name,
             confidence=float(confidence) if confidence is not None else None,
         )
@@ -203,6 +219,7 @@ class TaggingService:
     A service class for tagging operations. This class itself can be registered
     as a resource. Its methods will wrap the module-level service functions.
     """
+
     async def update_entity_model_tags(
         self,
         session: AsyncSession,
@@ -211,9 +228,7 @@ class TaggingService:
         model_name: str,
         world_name: Optional[str] = None,
     ) -> List[ModelGeneratedTagLinkComponent]:
-        return await update_entity_model_tags(
-            session, entity_id, image_path, model_name, world_name
-        )
+        return await update_entity_model_tags(session, entity_id, image_path, model_name, world_name)
 
     async def generate_tags_from_image(
         self,
@@ -222,19 +237,20 @@ class TaggingService:
         conceptual_params: Dict[str, Any],
         world_name: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        return await generate_tags_from_image(
-            image_path, model_name, conceptual_params, world_name
-        )
+        return await generate_tags_from_image(image_path, model_name, conceptual_params, world_name)
 
     async def get_tagging_model(
         self,
         model_name: str,
         model_load_params: Optional[Dict[str, Any]] = None,
         world_name: Optional[str] = None,
-    ) -> Optional[MockWd14Tagger]: # Specific to mock for now
+    ) -> Optional[MockWd14Tagger]:  # Specific to mock for now
         return await get_tagging_model(
-            model_name, model_load_params, world_name # type: ignore
+            model_name,
+            model_load_params,
+            world_name,  # type: ignore
         )
+
 
 # Module-level exports for direct use if needed, and for __init__.py
 __all__ = [
@@ -242,5 +258,5 @@ __all__ = [
     "get_tagging_model",
     "TAGGING_MODEL_CONCEPTUAL_PARAMS",
     "update_entity_model_tags",
-    "TaggingService", # Export the class
+    "TaggingService",  # Export the class
 ]

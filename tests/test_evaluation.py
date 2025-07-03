@@ -5,12 +5,12 @@ from sqlalchemy.future import select
 
 from dam.core.config import Settings as AppSettings
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
-from dam.models.tags import EntityTagLinkComponent # Updated import
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
 from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.models.tags import EntityTagLinkComponent  # Updated import
 from dam.services import ecs_service as dam_ecs_service
 from dam.services import tag_service, transcode_service
 from dam.systems import evaluation_systems

@@ -2,6 +2,7 @@
 
 # Import functions from the new tag service
 from . import (
+    audio_service,  # Added audio_service
     character_service,
     ecs_service,
     file_operations,
@@ -10,16 +11,7 @@ from . import (
     tagging_service,
     transcode_service,
     world_service,
-    audio_service, # Added audio_service
 )
-from .tagging_service import ( # Import functions to be exported
-    generate_tags_from_image,
-    get_tagging_model,
-    TAGGING_MODEL_CONCEPTUAL_PARAMS, # Changed from TAGGING_MODEL_REGISTRY
-    update_entity_model_tags,
-    TaggingService, # Added TaggingService class
-)
-
 
 # Import functions from the new character service
 from .character_service import (
@@ -84,6 +76,13 @@ from .tag_service import (
     get_tags_for_entity,
     remove_tag_from_entity,
     update_tag_concept,
+)
+from .tagging_service import (  # Import functions to be exported
+    TAGGING_MODEL_CONCEPTUAL_PARAMS,  # Changed from TAGGING_MODEL_REGISTRY
+    TaggingService,  # Added TaggingService class
+    generate_tags_from_image,
+    get_tagging_model,
+    update_entity_model_tags,
 )
 
 # Import functions from the new transcode service
@@ -163,14 +162,14 @@ __all__ = [
     "get_sentence_transformer_model",
     "DEFAULT_MODEL_NAME",
     # Tagging service (model-based tagging)
-    "tagging_service", # Module itself
+    "tagging_service",  # Module itself
     "update_entity_model_tags",
     "generate_tags_from_image",
     "get_tagging_model",
-    "TAGGING_MODEL_CONCEPTUAL_PARAMS", # Changed from TAGGING_MODEL_REGISTRY
-    "TaggingService", # Added TaggingService class
+    "TAGGING_MODEL_CONCEPTUAL_PARAMS",  # Changed from TAGGING_MODEL_REGISTRY
+    "TaggingService",  # Added TaggingService class
     # Audio service and functions
-    "audio_service", # Module itself
+    "audio_service",  # Module itself
     "generate_audio_embedding_for_entity",
     "get_audio_embeddings_for_entity",
     "find_similar_entities_by_audio_embedding",
@@ -178,8 +177,8 @@ __all__ = [
 ]
 
 from .audio_service import (
+    DEFAULT_AUDIO_MODEL_NAME,
+    find_similar_entities_by_audio_embedding,
     generate_audio_embedding_for_entity,
     get_audio_embeddings_for_entity,
-    find_similar_entities_by_audio_embedding,
-    DEFAULT_AUDIO_MODEL_NAME,
 )

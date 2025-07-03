@@ -857,7 +857,6 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
     # Assuming ContentHashMD5Component is also returned as a list by the handler
     assert details_sha256["components"]["ContentHashMD5Component"][0]["hash_value"] == md5_hash
 
-
     # Test find by MD5
     request_id_md5 = str(uuid.uuid4())
     query_event_md5 = FindEntityByHashQuery(

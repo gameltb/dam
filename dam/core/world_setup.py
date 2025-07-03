@@ -11,16 +11,17 @@ from dam.core.database import DatabaseManager
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
+    AudioSearchQuery,  # Added AudioSearchQuery
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
     SemanticSearchQuery,
-    AudioSearchQuery, # Added AudioSearchQuery
 )
+from dam.core.model_manager import ModelExecutionManager  # Added ModelExecutionManager
 from dam.core.resources import FileOperationsResource
-from dam.core.model_manager import ModelExecutionManager # Added ModelExecutionManager
 from dam.core.stages import SystemStage
 from dam.core.world import World
 from dam.resources.file_storage_resource import FileStorageResource
+
 # Import systems
 from dam.systems.asset_lifecycle_systems import (
     handle_asset_file_ingestion_request,
@@ -28,14 +29,15 @@ from dam.systems.asset_lifecycle_systems import (
     handle_find_entity_by_hash_query,
     handle_find_similar_images_query,
 )
+
+# Import audio processing system
+from dam.systems.audio_systems import audio_embedding_generation_system
 from dam.systems.metadata_systems import (
     extract_metadata_on_asset_ingested,
 )
-# Import semantic systems and event (text and audio)
-from dam.systems.semantic_systems import handle_semantic_search_query, handle_audio_search_query # Added audio handler
-# Import audio processing system
-from dam.systems.audio_systems import audio_embedding_generation_system, NeedsAudioProcessingMarker
 
+# Import semantic systems and event (text and audio)
+from dam.systems.semantic_systems import handle_audio_search_query, handle_semantic_search_query  # Added audio handler
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -87,7 +89,7 @@ def initialize_world_resources(world: World) -> None:
     # 5. ModelExecutionManager
     # This manager is typically global or per-application, but can be world-specific if models differ significantly
     # For now, let's assume a single instance shared or a new one per world if config dictates
-    model_manager = ModelExecutionManager() # Initialize with default model type Any, or a more specific one
+    model_manager = ModelExecutionManager()  # Initialize with default model type Any, or a more specific one
     resource_manager.add_resource(model_manager, ModelExecutionManager)
     world.logger.debug(f"Added ModelExecutionManager resource for World '{world_name}'.")
 

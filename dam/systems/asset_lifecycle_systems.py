@@ -13,19 +13,20 @@ from dam.core.events import (
 )
 from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
 from dam.core.systems import listens_for
+from dam.models.core.entity import Entity
+from dam.models.core.file_location_component import FileLocationComponent
+
 # Corrected direct imports for models
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
-from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
 from dam.models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
 from dam.models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
-from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.models.source_info.website_profile_component import WebsiteProfileComponent
-from dam.models.source_info.web_source_component import WebSourceComponent
+from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types  # Import source_types
+from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+from dam.models.source_info.web_source_component import WebSourceComponent
+from dam.models.source_info.website_profile_component import WebsiteProfileComponent
 from dam.resources.file_storage_resource import FileStorageResource  # Resource
 from dam.services import ecs_service, file_operations
 
@@ -369,11 +370,13 @@ async def handle_find_entity_by_hash_query(
 
             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
             if fpc:
-                entity_details_dict["components"]["FilePropertiesComponent"] = [{
-                    "original_filename": fpc.original_filename,
-                    "file_size_bytes": fpc.file_size_bytes,
-                    "mime_type": fpc.mime_type,
-                }]
+                entity_details_dict["components"]["FilePropertiesComponent"] = [
+                    {
+                        "original_filename": fpc.original_filename,
+                        "file_size_bytes": fpc.file_size_bytes,
+                        "mime_type": fpc.mime_type,
+                    }
+                ]
 
             flcs = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
             if flcs:
@@ -389,13 +392,15 @@ async def handle_find_entity_by_hash_query(
 
             sha256_comp = await ecs_service.get_component(session, entity.id, ContentHashSHA256Component)  # Await
             if sha256_comp:
-                entity_details_dict["components"]["ContentHashSHA256Component"] = [{
-                    "hash_value": sha256_comp.hash_value.hex()
-                }]
+                entity_details_dict["components"]["ContentHashSHA256Component"] = [
+                    {"hash_value": sha256_comp.hash_value.hex()}
+                ]
 
             md5_comp = await ecs_service.get_component(session, entity.id, ContentHashMD5Component)  # Await
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
+                entity_details_dict["components"]["ContentHashMD5Component"] = [
+                    {"hash_value": md5_comp.hash_value.hex()}
+                ]
         else:
             logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
 

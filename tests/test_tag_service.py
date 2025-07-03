@@ -7,12 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession  # For type hint
 from dam.models.conceptual import (
     ComicBookVariantComponent,  # For testing scope
 )
+from dam.models.core.entity import Entity
+
 # Updated imports for tag components
 from dam.models.tags import (
     EntityTagLinkComponent,
     TagConceptComponent,
 )
-from dam.models.core.entity import Entity
 from dam.services import comic_book_service as cbs
 from dam.services import ecs_service
 from dam.services import tag_service as ts

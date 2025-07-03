@@ -1,23 +1,25 @@
+import asyncio  # Ensure asyncio is imported
+from typing import Optional  # Ensure Optional is imported
 from unittest.mock import patch
+
 import pytest
 from typer.testing import CliRunner
-import asyncio # Ensure asyncio is imported
-from typing import Optional # Ensure Optional is imported
 
 from dam.cli import app
 from dam.core.world import World
 from dam.models.properties import FilePropertiesComponent
 from dam.services import ecs_service, semantic_service
-from .conftest import MockSentenceTransformer
 
 runner = CliRunner()
 
+
 @pytest.fixture(autouse=True)
-async def current_test_world_for_search_cli(test_world_alpha: World) -> World: # Added return type hint
+async def current_test_world_for_search_cli(test_world_alpha: World) -> World:  # Added return type hint
     yield test_world_alpha
 
+
 @pytest.mark.asyncio
-async def test_cli_search_semantic_no_results(current_test_world_for_search_cli: World): # Made async
+async def test_cli_search_semantic_no_results(current_test_world_for_search_cli: World):  # Made async
     # world_name = current_test_world_for_search_cli.name # Not needed for direct service call if world object is used
     query = "non_existent_semantic_query"
     # result = runner.invoke(app, ["--world", world_name, "search", "semantic", "--query", query]) # Replaced
@@ -29,12 +31,13 @@ async def test_cli_search_semantic_no_results(current_test_world_for_search_cli:
         results = await semantic_service.find_similar_entities_by_text_embedding(
             session=session,
             query_text=query,
-            model_name=semantic_service.DEFAULT_MODEL_NAME, # Use a default or test-specific model
-            world_name=current_test_world_for_search_cli.name # Pass world_name for ModelExecutionManager
+            model_name=semantic_service.DEFAULT_MODEL_NAME,  # Use a default or test-specific model
+            world_name=current_test_world_for_search_cli.name,  # Pass world_name for ModelExecutionManager
         )
         assert len(results) == 0
 
-@pytest.mark.asyncio # Ensure this is marked async if not already
+
+@pytest.mark.asyncio  # Ensure this is marked async if not already
 async def test_cli_search_semantic_with_results(current_test_world_for_search_cli: World, click_runner: CliRunner):
     world = current_test_world_for_search_cli
     # world_name = world.name # Not needed for direct service call if world object is used
@@ -56,9 +59,11 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             )
             # Pass world_name here
             await semantic_service.update_text_embeddings_for_entity(
-                session, entity1.id, {"Data.text": "apple pie"},
+                session,
+                entity1.id,
+                {"Data.text": "apple pie"},
                 model_name=semantic_service.DEFAULT_MODEL_NAME,
-                world_name=world.name
+                world_name=world.name,
             )
 
             entity2 = await ecs_service.create_entity(session)
@@ -72,13 +77,15 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             )
             # world_name is already correctly passed here in the provided snippet
             await semantic_service.update_text_embeddings_for_entity(
-                    session, entity2.id, {"Data.text": "banana bread"},
-                    model_name=semantic_service.DEFAULT_MODEL_NAME,
-                    world_name=world.name
+                session,
+                entity2.id,
+                {"Data.text": "banana bread"},
+                model_name=semantic_service.DEFAULT_MODEL_NAME,
+                world_name=world.name,
             )
             await session.commit()
 
-    await setup_data() # Changed from asyncio.run()
+    await setup_data()  # Changed from asyncio.run()
     assert entity1_id is not None and entity2_id is not None
 
     query = "delicious apple pie recipe"
@@ -100,7 +107,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             query_text=query,
             model_name=semantic_service.DEFAULT_MODEL_NAME,
             top_n=1,
-            world_name=world.name
+            world_name=world.name,
         )
         assert len(results_top1) == 1
         found_entity, score, emb_comp = results_top1[0]
@@ -113,7 +120,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             query_text=query,
             model_name=semantic_service.DEFAULT_MODEL_NAME,
             top_n=2,
-            world_name=world.name
+            world_name=world.name,
         )
         assert len(results_top2) == 2
         # Based on re-calculation with query "delicious apple pie recipe":
@@ -121,14 +128,15 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
         # vec1 (apple pie, id1) = [26, 9, 41]
         # vec2 (banana bread, id2) = [19, 12, 41]
         # vec2 is closer to query_vec.
-        assert results_top2[0][0].id == entity2_id # banana bread is more similar
-        assert results_top2[1][0].id == entity1_id # apple pie is less similar
-        assert results_top2[0][1] > results_top2[1][1] # Score of e2 > score of e1
+        assert results_top2[0][0].id == entity2_id  # banana bread is more similar
+        assert results_top2[1][0].id == entity1_id  # apple pie is less similar
+        assert results_top2[0][1] > results_top2[1][1]  # Score of e2 > score of e1
 
 
 @pytest.mark.asyncio
-async def test_cli_search_semantic_model_loading_error( # Made async
-    current_test_world_for_search_cli: World, click_runner: CliRunner # click_runner not used
+async def test_cli_search_semantic_model_loading_error(  # Made async
+    current_test_world_for_search_cli: World,
+    click_runner: CliRunner,  # click_runner not used
 ):
     # world_name = current_test_world_for_search_cli.name # Not needed
     query = "test query"
@@ -140,19 +148,22 @@ async def test_cli_search_semantic_model_loading_error( # Made async
     # semantic_service.find_similar_entities_by_text_embedding.
     # So, we patch that service function.
 
-    with patch("dam.services.semantic_service.find_similar_entities_by_text_embedding",
-               side_effect=Exception("Mocked Search Service Failure")) as mock_find:
+    with patch(
+        "dam.services.semantic_service.find_similar_entities_by_text_embedding",
+        side_effect=Exception("Mocked Search Service Failure"),
+    ) as mock_find:
         # To test this, we need to simulate the event dispatch that the CLI would do.
-        from dam.core.events import SemanticSearchQuery
         import uuid
+
+        from dam.core.events import SemanticSearchQuery
 
         request_id = str(uuid.uuid4())
         query_event = SemanticSearchQuery(
             query_text=query,
             world_name=current_test_world_for_search_cli.name,
             request_id=request_id,
-            top_n=10, # Default top_n
-            model_name=semantic_service.DEFAULT_MODEL_NAME # Default model
+            top_n=10,  # Default top_n
+            model_name=semantic_service.DEFAULT_MODEL_NAME,  # Default model
         )
         query_event.result_future = asyncio.get_running_loop().create_future()
 

@@ -1,16 +1,15 @@
 import asyncio
 import functools
 import logging
-from typing import Callable, Any, Tuple, List, Dict
+from typing import Any, Callable
 
-import torch # For torch.cuda.OutOfMemoryError
+import torch  # For torch.cuda.OutOfMemoryError
 
 logger = logging.getLogger(__name__)
 
+
 def oom_retry_batch_adjustment(
-    max_retries: int = 3,
-    batch_size_reduction_factor: float = 0.5,
-    min_batch_size: int = 1
+    max_retries: int = 3, batch_size_reduction_factor: float = 0.5, min_batch_size: int = 1
 ) -> Callable:
     """
     Decorator for an async function that performs batched model inference.
@@ -29,6 +28,7 @@ def oom_retry_batch_adjustment(
         batch_size_reduction_factor: Factor to reduce batch_size by on each retry (e.g., 0.5 for halving).
         min_batch_size: The minimum batch size to attempt.
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -41,7 +41,7 @@ def oom_retry_batch_adjustment(
                 # Proceed without batch adjustment, but retries might still happen if OOM occurs
                 # and the function can somehow recover or if the error is transient.
                 # However, without batch_size, it can't adapt.
-                current_batch_size = -1 # Indicates no batch_size to adjust
+                current_batch_size = -1  # Indicates no batch_size to adjust
             else:
                 current_batch_size = original_batch_size
 
@@ -50,26 +50,30 @@ def oom_retry_batch_adjustment(
 
             while retries <= max_retries:
                 try:
-                    if current_batch_size != -1 : # Only update kwarg if it was originally present
+                    if current_batch_size != -1:  # Only update kwarg if it was originally present
                         kwargs["batch_size"] = current_batch_size
 
-                    logger.debug(f"Attempting {func.__name__} with batch_size: {current_batch_size if current_batch_size != -1 else 'N/A'}. Retry: {retries}/{max_retries}")
+                    logger.debug(
+                        f"Attempting {func.__name__} with batch_size: {current_batch_size if current_batch_size != -1 else 'N/A'}. Retry: {retries}/{max_retries}"
+                    )
                     return await func(*args, **kwargs)
 
-                except torch.cuda.OutOfMemoryError as e: # Specific to PyTorch CUDA
+                except torch.cuda.OutOfMemoryError as e:  # Specific to PyTorch CUDA
                     last_exception = e
                     logger.warning(
                         f"OOM error in {func.__name__} with batch_size {current_batch_size if current_batch_size != -1 else 'N/A'}. "
-                        f"Retrying ({retries+1}/{max_retries}). Error: {e}"
+                        f"Retrying ({retries + 1}/{max_retries}). Error: {e}"
                     )
                     retries += 1
                     if retries > max_retries:
                         logger.error(f"Max retries ({max_retries}) reached for {func.__name__} after OOM. Giving up.")
                         raise last_exception
 
-                    if current_batch_size == -1: # Cannot adjust batch size
-                        logger.error(f"OOM in {func.__name__}, but no 'batch_size' kwarg to adjust. Retrying without change, may loop.")
-                        await asyncio.sleep(1) # Small delay before retrying same params
+                    if current_batch_size == -1:  # Cannot adjust batch size
+                        logger.error(
+                            f"OOM in {func.__name__}, but no 'batch_size' kwarg to adjust. Retrying without change, may loop."
+                        )
+                        await asyncio.sleep(1)  # Small delay before retrying same params
                         continue
 
                     new_batch_size = int(current_batch_size * batch_size_reduction_factor)
@@ -77,18 +81,20 @@ def oom_retry_batch_adjustment(
 
                     if current_batch_size == kwargs.get("batch_size") and current_batch_size == min_batch_size:
                         # If batch size is already at minimum and still OOMing
-                        logger.error(f"OOM error in {func.__name__} even with minimum batch_size {min_batch_size}. Giving up.")
+                        logger.error(
+                            f"OOM error in {func.__name__} even with minimum batch_size {min_batch_size}. Giving up."
+                        )
                         raise last_exception
 
                     logger.info(f"Reducing batch size to {current_batch_size} for next attempt.")
                     # Optional: Add a small delay or GPU cache clearing before retrying
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
-                    await asyncio.sleep(0.5) # Brief pause
+                    await asyncio.sleep(0.5)  # Brief pause
 
-                except Exception as e: # Catch other errors
+                except Exception as e:  # Catch other errors
                     logger.error(f"Non-OOM exception in {func.__name__} during retry wrapper: {e}", exc_info=True)
-                    raise # Re-throw non-OOM errors immediately
+                    raise  # Re-throw non-OOM errors immediately
 
             # Should not be reached if logic is correct, but as a fallback:
             if last_exception:
@@ -100,7 +106,9 @@ def oom_retry_batch_adjustment(
             return None
 
         return wrapper
+
     return decorator
+
 
 # Example of how a service function might use this:
 # class MyService:

@@ -1596,14 +1596,13 @@ async def cli_search_semantic(
     async def dispatch_and_await_results():
         # Explicitly import semantic_service here to ensure it's in scope for this async function
         from dam.services import semantic_service as local_semantic_service
+
         effective_display_model_name = query_event.model_name or local_semantic_service.DEFAULT_MODEL_NAME
 
         query_event.result_future = asyncio.get_running_loop().create_future()
         await target_world.dispatch_event(query_event)
         try:
-            results = await asyncio.wait_for(
-                query_event.result_future, timeout=60.0
-            )
+            results = await asyncio.wait_for(query_event.result_future, timeout=60.0)
 
             if not results:
                 typer.secho(

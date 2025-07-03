@@ -5,7 +5,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Adde
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
 
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
-from ..core.base_component import BaseComponent # Corrected import
+from ..core.base_component import BaseComponent  # Corrected import
 from ..core.entity import Entity  # Corrected import
 
 

@@ -1,34 +1,36 @@
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Tuple, FrozenSet
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core import get_default_world # To get ModelExecutionManager resource
+from dam.core import get_default_world  # To get ModelExecutionManager resource
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
 from dam.models.semantic.audio_embedding_component import (
-    get_audio_embedding_component_class,
-    BaseSpecificAudioEmbeddingComponent,
-    AudioModelHyperparameters,
     AUDIO_EMBEDDING_MODEL_REGISTRY,
+    AudioModelHyperparameters,
+    BaseSpecificAudioEmbeddingComponent,
+    get_audio_embedding_component_class,
 )
 from dam.services import ecs_service
-from dam.utils.media_utils import get_file_path_for_entity
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_AUDIO_MODEL_NAME = "vggish" # This should match a key in AUDIO_EMBEDDING_MODEL_REGISTRY
-MOCK_AUDIO_MODEL_IDENTIFIER = "mock_audio_model" # Identifier for ModelExecutionManager
+DEFAULT_AUDIO_MODEL_NAME = "vggish"  # This should match a key in AUDIO_EMBEDDING_MODEL_REGISTRY
+MOCK_AUDIO_MODEL_IDENTIFIER = "mock_audio_model"  # Identifier for ModelExecutionManager
+
 
 # This class remains as it defines the mock model's behavior
 class MockAudioModel:
     def __init__(self, model_name: str, params: Optional[AudioModelHyperparameters]):
         self.model_name = model_name
         self.params = params
-        self.output_dim = AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name, {}).get("default_params", {}).get("dimensions", 128)
+        self.output_dim = (
+            AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name, {}).get("default_params", {}).get("dimensions", 128)
+        )
         logger.info(f"MockAudioModel '{model_name}' initialized with output_dim: {self.output_dim}")
 
     def encode(self, audio_path: str, **kwargs) -> np.ndarray:
@@ -42,6 +44,7 @@ class MockAudioModel:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.encode, audio_path, **kwargs)
 
+
 # This is the loader function that ModelExecutionManager will use.
 def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> MockAudioModel:
     """
@@ -52,6 +55,7 @@ def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[s
     logger.info(f"Attempting to load MockAudioModel: {model_name_or_path} with params {params}")
     # model_name_or_path here corresponds to the conceptual model_name like "vggish"
     return MockAudioModel(model_name_or_path, params)
+
 
 async def get_mock_audio_model(
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
@@ -64,9 +68,12 @@ async def get_mock_audio_model(
     world = get_default_world()
     if world_name:
         from dam.core import get_world
+
         _w = get_world(world_name)
-        if _w: world = _w
-        else: logger.error(f"World {world_name} not found for audio model. Using default.")
+        if _w:
+            world = _w
+        else:
+            logger.error(f"World {world_name} not found for audio model. Using default.")
 
     if not world:
         raise RuntimeError("Default world not found, cannot access ModelExecutionManager for audio models.")
@@ -87,16 +94,16 @@ async def get_mock_audio_model(
             logger.warning(f"Audio model {model_name} not in registry, using empty params for MockAudioModel.")
 
     # Add device preference to loader_params if not already specified by caller
-    if "device" not in loader_params: # Mock model doesn't use device, but good practice
+    if "device" not in loader_params:  # Mock model doesn't use device, but good practice
         loader_params["device"] = model_manager.get_model_device_preference()
-
 
     # model_name for MockAudioModel is passed as model_name_or_path to manager.get_model
     return await model_manager.get_model(
         model_identifier=MOCK_AUDIO_MODEL_IDENTIFIER,
-        model_name_or_path=model_name, # This is "vggish", "panns_cnn14", etc.
-        params=loader_params
+        model_name_or_path=model_name,  # This is "vggish", "panns_cnn14", etc.
+        params=loader_params,
     )
+
 
 def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
     """Converts a numpy float32 embedding to bytes."""
@@ -115,8 +122,8 @@ async def generate_audio_embedding_for_entity(
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     model_params: Optional[AudioModelHyperparameters] = None,
-    audio_file_path: Optional[str] = None, # Allow passing path directly, e.g. during ingestion
-    world_name: Optional[str] = None, # For ModelExecutionManager context
+    audio_file_path: Optional[str] = None,  # Allow passing path directly, e.g. during ingestion
+    world_name: Optional[str] = None,  # For ModelExecutionManager context
 ) -> Optional[BaseSpecificAudioEmbeddingComponent]:
     """
     Generates and stores a specific AudioEmbeddingComponent for an entity's audio file.
@@ -152,7 +159,9 @@ async def generate_audio_embedding_for_entity(
             # If we can't get a path, we can't proceed.
             # This function might need to be part of a resource that has access to storage configuration.
             # For example: file_storage_resource.get_entity_file_path(entity_id, preferred_variant="original_audio")
-            logger.warning(f"audio_file_path not provided for entity {entity_id}, and dynamic path retrieval is not fully implemented. Attempting mock path.")
+            logger.warning(
+                f"audio_file_path not provided for entity {entity_id}, and dynamic path retrieval is not fully implemented. Attempting mock path."
+            )
             # This is a placeholder. The actual file path retrieval needs to be implemented.
             # It should likely use a FileStorageResource or similar to get the path to the asset.
             # For testing, we can assume it's passed or use a known dummy path if this service is called directly.
@@ -168,7 +177,6 @@ async def generate_audio_embedding_for_entity(
             return None
     else:
         file_path = audio_file_path
-
 
     logger.info(f"Generating audio embedding for entity {entity_id} using model {model_name} from file: {file_path}")
 
@@ -190,7 +198,10 @@ async def generate_audio_embedding_for_entity(
             logger.error(f"Audio embedding generation returned None for entity {entity_id}, file {file_path}")
             return None
     except Exception as e:
-        logger.error(f"Audio embedding generation failed for entity {entity_id}, file {file_path}, model {model_name}: {e}", exc_info=True)
+        logger.error(
+            f"Audio embedding generation failed for entity {entity_id}, file {file_path}, model {model_name}: {e}",
+            exc_info=True,
+        )
         return None
 
     embedding_bytes = convert_embedding_to_bytes(embedding_np)
@@ -201,7 +212,7 @@ async def generate_audio_embedding_for_entity(
         session,
         entity_id,
         AudioEmbeddingComponentClass,
-        attributes_values={"model_name": model_name}, # Query by model_name within the specific table
+        attributes_values={"model_name": model_name},  # Query by model_name within the specific table
     )
 
     emb_comp: BaseSpecificAudioEmbeddingComponent
@@ -211,9 +222,7 @@ async def generate_audio_embedding_for_entity(
             emb_comp.embedding_vector = embedding_bytes
             # emb_comp.model_name = model_name # Already set, and table implies model type
             session.add(emb_comp)
-            logger.info(
-                f"Updated {AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name}"
-            )
+            logger.info(f"Updated {AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name}")
         else:
             logger.debug(
                 f"{AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name} is up-to-date."
@@ -221,14 +230,12 @@ async def generate_audio_embedding_for_entity(
     else:
         emb_comp = AudioEmbeddingComponentClass(
             embedding_vector=embedding_bytes,
-            model_name=model_name, # Explicitly set model_name
+            model_name=model_name,  # Explicitly set model_name
         )
         await ecs_service.add_component_to_entity(session, entity_id, emb_comp)
-        logger.info(
-            f"Created {AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name}"
-        )
+        logger.info(f"Created {AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name}")
 
-    await session.flush() # Ensure component ID is populated if new
+    await session.flush()  # Ensure component ID is populated if new
     return emb_comp
 
 
@@ -244,21 +251,20 @@ async def get_audio_embeddings_for_entity(
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
-        logger.warning(f"No component class for audio model {model_name}, params {model_params}. Cannot get embeddings.")
+        logger.warning(
+            f"No component class for audio model {model_name}, params {model_params}. Cannot get embeddings."
+        )
         return []
 
     # Filter by model_name as it's a column in BaseSpecificAudioEmbeddingComponent
     return await ecs_service.get_components_by_value(
-        session,
-        entity_id,
-        AudioEmbeddingComponentClass,
-        attributes_values={"model_name": model_name}
+        session, entity_id, AudioEmbeddingComponentClass, attributes_values={"model_name": model_name}
     )
 
 
 async def find_similar_entities_by_audio_embedding(
     session: AsyncSession,
-    query_audio_path: str, # Path to the query audio file
+    query_audio_path: str,  # Path to the query audio file
     model_name: str,
     model_params: Optional[AudioModelHyperparameters] = None,
     top_n: int = 10,
@@ -269,7 +275,9 @@ async def find_similar_entities_by_audio_embedding(
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
-        logger.error(f"No component class for audio model {model_name}, params {model_params}. Cannot find similar entities.")
+        logger.error(
+            f"No component class for audio model {model_name}, params {model_params}. Cannot find similar entities."
+        )
         return []
 
     if model_params is None:
@@ -289,7 +297,6 @@ async def find_similar_entities_by_audio_embedding(
         logger.error(f"Failed to generate query audio embedding for '{query_audio_path}': {e}", exc_info=True)
         return []
 
-
     # Fetch all relevant embeddings from the specific table, filtering by model_name
     all_embedding_components_stmt = select(AudioEmbeddingComponentClass).where(
         AudioEmbeddingComponentClass.model_name == model_name
@@ -298,7 +305,9 @@ async def find_similar_entities_by_audio_embedding(
     all_embedding_components = result.scalars().all()
 
     if not all_embedding_components:
-        logger.info(f"No audio embeddings found in table for {AudioEmbeddingComponentClass.__name__} with model_name '{model_name}' to compare against.")
+        logger.info(
+            f"No audio embeddings found in table for {AudioEmbeddingComponentClass.__name__} with model_name '{model_name}' to compare against."
+        )
         return []
 
     similarities = []
@@ -327,21 +336,20 @@ async def find_similar_entities_by_audio_embedding(
         if entity_id in entity_ids_processed:
             continue
 
-
         entity = await ecs_service.get_entity(session, entity_id)
         if entity:
             top_results.append((entity, float(score), emb_comp_instance))
             entity_ids_processed.add(entity_id)
-            if len(entity_ids_processed) >=top_n : # if we only want unique entities
-                 break
-
+            if len(entity_ids_processed) >= top_n:  # if we only want unique entities
+                break
 
     return top_results
+
 
 __all__ = [
     "generate_audio_embedding_for_entity",
     "get_audio_embeddings_for_entity",
     "find_similar_entities_by_audio_embedding",
     "DEFAULT_AUDIO_MODEL_NAME",
-    "get_mock_audio_model", # Exporting for potential direct use/testing
+    "get_mock_audio_model",  # Exporting for potential direct use/testing
 ]

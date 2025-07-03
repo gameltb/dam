@@ -85,6 +85,7 @@ def get_audio_embedding_component_class(
         return registry_entry["model_class"]
     return None
 
+
 __all__ = [
     "BaseSpecificAudioEmbeddingComponent",
     "AudioEmbeddingVggishDim128Component",

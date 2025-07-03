@@ -4,7 +4,6 @@ from typing import Optional  # For asset_sha256 type hint
 import pytest
 from typer.testing import CliRunner
 
-from dam.cli import app  # main Typer app
 from dam.core.world import World
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.properties import FilePropertiesComponent  # For creating dummy assets
@@ -24,10 +23,7 @@ async def current_test_world(test_world_alpha: World):
     yield test_world_alpha
 
 
-import asyncio  # Add import for asyncio
-
-
-@pytest.mark.asyncio # Added async marker
+@pytest.mark.asyncio  # Added async marker
 async def test_cli_character_create(current_test_world: World, click_runner: CliRunner):  # Made async
     world_name = current_test_world.name
     char_name = "CLI Test Char 1"
@@ -56,26 +52,30 @@ async def test_cli_character_create(current_test_world: World, click_runner: Cli
         # Test creating again (should return existing or handle gracefully by service)
         # The service function create_character_concept logs a warning and returns existing if found.
         existing_char_entity_again = await character_service.create_character_concept(
-            session=session, name=char_name, description="Different desc" # Try different desc
+            session=session,
+            name=char_name,
+            description="Different desc",  # Try different desc
         )
-        await session.commit() # Should not create a new one
+        await session.commit()  # Should not create a new one
         assert existing_char_entity_again is not None
-        assert existing_char_entity_again.id == char_entity_id # Should be the same entity
+        assert existing_char_entity_again.id == char_entity_id  # Should be the same entity
 
         # Verify that the description was NOT updated (service returns existing, doesn't update)
-        char_comp_after_dupe_attempt = await ecs_service.get_component(session, char_entity_id, CharacterConceptComponent)
+        char_comp_after_dupe_attempt = await ecs_service.get_component(
+            session, char_entity_id, CharacterConceptComponent
+        )
         assert char_comp_after_dupe_attempt is not None
-        assert char_comp_after_dupe_attempt.concept_description == char_desc # Original description
+        assert char_comp_after_dupe_attempt.concept_description == char_desc  # Original description
 
     # Test validation (e.g., empty name) by trying to call the service function
     with pytest.raises(ValueError, match="Character name cannot be empty."):
         async with current_test_world.db_session_maker() as session:
             await character_service.create_character_concept(session=session, name="", description="Test empty name")
-            await session.commit() # Should not be reached
+            await session.commit()  # Should not be reached
 
 
-@pytest.mark.asyncio # Added async marker
-async def test_cli_character_apply_list_find( # Made async
+@pytest.mark.asyncio  # Added async marker
+async def test_cli_character_apply_list_find(  # Made async
     current_test_world: World, sample_text_file: str, click_runner: CliRunner
 ):
     world_name = current_test_world.name
@@ -133,7 +133,6 @@ async def test_cli_character_apply_list_find( # Made async
         assert char_comp is not None
         assert char_comp.concept_name == char_name
 
-
     # 5. Find assets for the character (using service call)
     async with current_test_world.db_session_maker() as session:
         linked_assets = await character_service.get_entities_for_character(session, char_id)
@@ -159,8 +158,8 @@ async def test_cli_character_apply_list_find( # Made async
         assert len(linked_assets_wrong_role) == 0
 
 
-@pytest.mark.asyncio # Added async marker
-async def test_cli_character_apply_with_identifiers( # Made async
+@pytest.mark.asyncio  # Added async marker
+async def test_cli_character_apply_with_identifiers(  # Made async
     current_test_world: World, sample_image_a: Path, click_runner: CliRunner
 ):
     # This test uses asset SHA256 hash and character name for identification
@@ -197,7 +196,7 @@ async def test_cli_character_apply_with_identifiers( # Made async
         original_filename=original_filename,
         mime_type=mime_type,
         size_bytes=size_bytes,
-        world_name=current_test_world.name, # Use current_test_world directly
+        world_name=current_test_world.name,  # Use current_test_world directly
     )
     await current_test_world.dispatch_event(add_event)
     await current_test_world.execute_stage(SystemStage.METADATA_EXTRACTION)
@@ -215,6 +214,7 @@ async def test_cli_character_apply_with_identifiers( # Made async
         asset_id_for_test = asset_entity.id
 
         from dam.models.hashes import ContentHashSHA256Component
+
         sha_comp = await ecs_service.get_component(session, asset_id_for_test, ContentHashSHA256Component)
         assert sha_comp is not None
         asset_sha256_from_db = sha_comp.hash_value.hex()

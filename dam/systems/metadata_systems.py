@@ -20,14 +20,15 @@ from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldSession
 from dam.core.systems import system
-# Corrected direct imports for models
-from dam.models.properties.audio_properties_component import AudioPropertiesComponent
 from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
+from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
+
+# Corrected direct imports for models
+from dam.models.properties.audio_properties_component import AudioPropertiesComponent
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.properties.frame_properties_component import FramePropertiesComponent
 from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
-from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam.services import ecs_service
 
 try:
@@ -122,25 +123,25 @@ def _parse_metadata_sync_worker(filepath_str: str) -> Any | None:
         logger.error(f"Hachoir worker: Error stating file {filepath_str}: {e_stat}")
         # Proceed to createParser, it will likely fail and log its own error.
 
-    parser = None # Initialize parser to None
+    parser = None  # Initialize parser to None
     try:
         parser = createParser(filepath_str)
         if not parser:
             logger.warning(f"Hachoir could not create a parser for file: {filepath_str} (createParser returned None)")
             return None
 
-        with parser: # parser is guaranteed to be non-None here
+        with parser:  # parser is guaranteed to be non-None here
             try:
                 metadata = extractMetadata(parser)
                 return metadata
-            except Exception as e_extract: # More specific exception variable
+            except Exception as e_extract:  # More specific exception variable
                 logger.error(f"Hachoir failed to extract metadata for {filepath_str}: {e_extract}", exc_info=True)
                 return None
-    except HachoirConfig.HachoirError as e_hachoir: # Catch Hachoir specific errors like NullStreamError
+    except HachoirConfig.HachoirError as e_hachoir:  # Catch Hachoir specific errors like NullStreamError
         # HachoirError is a base class for many hachoir exceptions including NullStreamError
         logger.warning(f"Hachoir error during parsing or metadata extraction for {filepath_str}: {e_hachoir}")
         return None
-    except Exception as e_general: # Catch any other unexpected errors during createParser or context management
+    except Exception as e_general:  # Catch any other unexpected errors during createParser or context management
         logger.error(f"Unexpected error with Hachoir for {filepath_str}: {e_general}", exc_info=True)
         return None
 
