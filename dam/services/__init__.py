@@ -7,9 +7,17 @@ from . import (
     file_operations,
     semantic_service,  # Added semantic_service
     tag_service,  # noqa: F401
+    tagging_service,
     transcode_service,
     world_service,
 )
+from .tagging_service import ( # Import functions to be exported
+    generate_tags_from_image,
+    get_tagging_model,
+    TAGGING_MODEL_REGISTRY,
+    update_entity_model_tags,
+)
+
 
 # Import functions from the new character service
 from .character_service import (
@@ -152,4 +160,10 @@ __all__ = [
     "find_similar_entities_by_text_embedding",
     "get_sentence_transformer_model",
     "DEFAULT_MODEL_NAME",
+    # Tagging service (model-based tagging)
+    "tagging_service", # Module itself
+    "update_entity_model_tags",
+    "generate_tags_from_image",
+    "get_tagging_model",
+    "TAGGING_MODEL_REGISTRY", # Might be useful for external configuration/inspection
 ]

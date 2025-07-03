@@ -16,6 +16,11 @@ from dam.models.semantic import (
     EMBEDDING_MODEL_REGISTRY, # For default params
 )
 from dam.services import ecs_service
+# Import necessary tag components and service to fetch tags
+from dam.models.tags import TagConceptComponent, EntityTagLinkComponent, ModelGeneratedTagLinkComponent
+from dam.services.tag_service import get_tags_for_entity # For manual tags
+# For model-generated tags, we might need a function in tagging_service or query directly for now
+# from dam.services.tagging_service import get_model_generated_tags_for_entity # Assuming this will exist
 
 logger = logging.getLogger(__name__)
 
@@ -133,10 +138,16 @@ async def update_text_embeddings_for_entity(
     model_name: str = DEFAULT_MODEL_NAME,
     model_params: Optional[ModelHyperparameters] = None, # Conceptual params for model version
     batch_texts: Optional[List[BatchTextItem]] = None,
+    # Configuration for including tags
+    include_manual_tags: bool = True,
+    include_model_tags_config: Optional[List[Dict[str, Any]]] = None, # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
+    tag_concatenation_strategy: str = " [TAGS] {tags_string}", # How to append tags
 ) -> List[BaseSpecificEmbeddingComponent]:
     """
     Generates and stores specific TextEmbeddingComponents for an entity.
-    Uses the registry to determine the correct table/component class.
+    Optionally fetches manual and/or model-generated tags associated with the entity,
+    concatenates them to the text fields, and then generates embeddings.
+    Uses the registry to determine the correct table/component class for storing the embedding.
     """
     # Determine the specific embedding component class
     EmbeddingComponentClass = get_embedding_component_class(model_name, model_params)
@@ -157,57 +168,128 @@ async def update_text_embeddings_for_entity(
 
     processed_embeddings: List[BaseSpecificEmbeddingComponent] = []
     current_batch_items: List[BatchTextItem] = []
+    augmented_source_field_suffix = ""
 
-    if batch_texts:
+    # Prepare tag string if needed
+    tags_to_concatenate_str = ""
+    if include_manual_tags or include_model_tags_config:
+        all_tag_names_for_entity: List[str] = []
+
+        # Fetch manual tags
+        if include_manual_tags:
+            manual_tag_tuples = await get_tags_for_entity(session, entity_id) # Returns List[Tuple[Entity, Optional[str]]]
+            for tag_entity, _ in manual_tag_tuples:
+                tag_concept = await ecs_service.get_component(session, tag_entity.id, TagConceptComponent)
+                if tag_concept and tag_concept.tag_name:
+                    all_tag_names_for_entity.append(tag_concept.tag_name)
+            if manual_tag_tuples:
+                 augmented_source_field_suffix += "_manualtags"
+
+
+        # Fetch model-generated tags
+        if include_model_tags_config:
+            for model_tag_conf in include_model_tags_config:
+                model_tag_name = model_tag_conf.get("model_name")
+                min_confidence = model_tag_conf.get("min_confidence", 0.0)
+                if not model_tag_name:
+                    continue
+
+                # Query for ModelGeneratedTagLinkComponent
+                stmt = select(ModelGeneratedTagLinkComponent).where(
+                    ModelGeneratedTagLinkComponent.entity_id == entity_id,
+                    ModelGeneratedTagLinkComponent.source_model_name == model_tag_name
+                )
+                if min_confidence > 0:
+                    stmt = stmt.where(ModelGeneratedTagLinkComponent.confidence >= min_confidence)
+
+                result = await session.execute(stmt)
+                model_tag_links = result.scalars().all()
+
+                model_tags_fetched_this_model = []
+                for link in model_tag_links:
+                    tag_concept = await ecs_service.get_component(session, link.tag_concept_id, TagConceptComponent)
+                    if tag_concept and tag_concept.tag_name:
+                        model_tags_fetched_this_model.append(tag_concept.tag_name)
+
+                if model_tags_fetched_this_model:
+                    all_tag_names_for_entity.extend(model_tags_fetched_this_model)
+                    # Sanitize model_tag_name for suffix
+                    safe_model_suffix = "".join(c if c.isalnum() else "_" for c in model_tag_name)
+                    augmented_source_field_suffix += f"_model_{safe_model_suffix}"
+
+
+        if all_tag_names_for_entity:
+            # Remove duplicates while preserving order (Python 3.7+)
+            unique_tags = list(dict.fromkeys(all_tag_names_for_entity))
+            tags_to_concatenate_str = ", ".join(unique_tags)
+
+    # Prepare batch items
+    if batch_texts: # If batch_texts is provided, assume it's already prepared (possibly with tags)
         current_batch_items = batch_texts
+        # If using batch_texts, augmented_source_field_suffix might not be accurate unless batch_texts also reflect it.
+        # For simplicity, if batch_texts is used, we assume tag augmentation is handled by the caller or not desired for this specific call.
+        augmented_source_field_suffix = "_batch" # Indicate it's from a pre-compiled batch
     else:
         for source_key, text_content_val in text_fields_map.items():
             if not text_content_val or not isinstance(text_content_val, str) or not text_content_val.strip():
                 logger.debug(f"Skipping empty/invalid text for {source_key} on entity {entity_id}")
                 continue
+
+            final_text_to_embed = text_content_val
+            if tags_to_concatenate_str:
+                # Apply the concatenation strategy
+                final_text_to_embed += tag_concatenation_strategy.format(tags_string=tags_to_concatenate_str)
+
             try:
                 comp_name, field_name = source_key.split(".", 1)
                 current_batch_items.append(
-                    BatchTextItem(component_name=comp_name, field_name=field_name, text_content=text_content_val)
+                    BatchTextItem(component_name=comp_name, field_name=field_name, text_content=final_text_to_embed)
                 )
             except ValueError:
                 logger.warning(f"Invalid source_key '{source_key}'. Skipping.")
                 continue
 
     if not current_batch_items:
-        logger.info(f"No valid text fields to embed for entity {entity_id} with model {model_name}.")
+        logger.info(f"No valid text fields (with or without tags) to embed for entity {entity_id} with model {model_name}.")
         return processed_embeddings
 
-    all_text_contents = [item["text_content"] for item in current_batch_items]
+    # Generate embeddings for all prepared text contents
+    all_text_contents_for_model = [item["text_content"] for item in current_batch_items]
     embeddings_np_list: Optional[List[np.ndarray]] = None
-
     try:
-        # Pass model_params to get_sentence_transformer_model for consistent model instance usage
         model_instance = await get_sentence_transformer_model(model_name, model_params)
-        embeddings_np_list = model_instance.encode(all_text_contents, convert_to_numpy=True)
-
-        if embeddings_np_list is None or len(embeddings_np_list) != len(all_text_contents):
-            logger.error(f"Batch embedding failed for entity {entity_id}, model {model_name}.")
+        embeddings_np_list = model_instance.encode(all_text_contents_for_model, convert_to_numpy=True)
+        if embeddings_np_list is None or len(embeddings_np_list) != len(all_text_contents_for_model):
+            logger.error(f"Batch embedding generation returned unexpected result for entity {entity_id}.")
             return processed_embeddings
     except Exception as e:
         logger.error(f"Embedding generation failed for entity {entity_id}, model {model_name}: {e}", exc_info=True)
         return processed_embeddings
 
+    # Store each generated embedding
     for i, batch_item in enumerate(current_batch_items):
-        comp_name = batch_item["component_name"]
-        field_name = batch_item["field_name"]
+        original_comp_name = batch_item["component_name"]
+        original_field_name = batch_item["field_name"]
+
+        # Adjust field_name if tags were added and not using pre-compiled batch_texts
+        # For pre-compiled batch_texts, the source field name is taken as is.
+        final_field_name = original_field_name
+        if not batch_texts and tags_to_concatenate_str: # only add suffix if tags were actually added and not from batch
+            final_field_name += augmented_source_field_suffix
+        elif batch_texts and augmented_source_field_suffix == "_batch": # if it IS from batch, use original field name
+             final_field_name = original_field_name
+
+
         embedding_np = embeddings_np_list[i]
         embedding_bytes = convert_embedding_to_bytes(embedding_np)
 
-        # Query for existing component of the specific type
-        # Since model_name and params define the table, they are not attributes for filtering within the table.
         existing_embeddings = await ecs_service.get_components_by_value(
             session,
             entity_id,
-            EmbeddingComponentClass, # Query the specific table
+            EmbeddingComponentClass,
             attributes_values={
-                "source_component_name": comp_name,
-                "source_field_name": field_name,
+                "source_component_name": original_comp_name,
+                "source_field_name": final_field_name, # Use potentially augmented field name
             },
         )
 
@@ -217,23 +299,22 @@ async def update_text_embeddings_for_entity(
                 emb_comp.embedding_vector = embedding_bytes
                 session.add(emb_comp)
                 logger.info(
-                    f"Updated {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {comp_name}.{field_name}"
+                    f"Updated {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}"
                 )
             else:
                 logger.debug(
-                    f"{EmbeddingComponentClass.__name__} for entity {entity_id}, src: {comp_name}.{field_name} is up-to-date."
+                    f"{EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name} is up-to-date."
                 )
             processed_embeddings.append(emb_comp)
         else:
-            # Create new instance of the specific component class
             emb_comp = EmbeddingComponentClass(
                 embedding_vector=embedding_bytes,
-                source_component_name=comp_name,
-                source_field_name=field_name,
+                source_component_name=original_comp_name,
+                source_field_name=final_field_name, # Use potentially augmented field name
             )
             await ecs_service.add_component_to_entity(session, entity_id, emb_comp)
             logger.info(
-                f"Created {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {comp_name}.{field_name}"
+                f"Created {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}"
             )
             processed_embeddings.append(emb_comp)
 

@@ -427,3 +427,77 @@ async def get_entities_for_tag(  # Made async
     stmt = stmt.distinct()
     result = await session.execute(stmt)  # Await
     return result.scalars().all()
+
+
+async def get_or_create_tag_concept(
+    session: AsyncSession,
+    tag_name: str,
+    scope_type: str = "GLOBAL", # Default for auto-generated tags, can be configured
+    scope_detail: Optional[str] = None,
+    description: Optional[str] = None, # Auto-tags might not have detailed descriptions initially
+    allow_values: bool = False, # Auto-tags are usually labels
+) -> Optional[TagConceptComponent]:
+    """
+    Retrieves an existing TagConceptComponent by name, or creates a new one if not found.
+    Returns the TagConceptComponent instance, or None if creation fails.
+    """
+    clean_tag_name = tag_name.strip()
+    if not clean_tag_name:
+        logger.warning("Attempted to get or create a tag with an empty name.")
+        return None
+
+    try:
+        tag_entity = await get_tag_concept_by_name(session, clean_tag_name)
+        if tag_entity:
+            # Fetch the component from the entity
+            tag_concept_comp = await ecs_service.get_component(
+                session, tag_entity.id, TagConceptComponent
+            )
+            if tag_concept_comp:
+                return tag_concept_comp
+            else:
+                # This case should ideally not happen if get_tag_concept_by_name returned an entity
+                # that is supposed to be a tag concept.
+                logger.error(f"TagConceptEntity {tag_entity.id} found for name '{clean_tag_name}', but it lacks TagConceptComponent.")
+                # Fall through to attempt creation, though this indicates an issue.
+                # Or, one might choose to raise an error here.
+                # For robustness, trying to create if component is missing.
+                pass # Fall through to create logic below if component is missing.
+
+    except TagConceptNotFoundError:
+        logger.info(f"TagConcept '{clean_tag_name}' not found, attempting to create.")
+        pass # Tag not found, will proceed to create
+
+    # If not found or component was missing, create it
+    # create_tag_concept already checks for existing name before creating entity and component.
+    # It returns the Entity.
+    new_tag_entity = await create_tag_concept(
+        session,
+        tag_name=clean_tag_name,
+        scope_type=scope_type,
+        scope_detail=scope_detail,
+        description=description,
+        allow_values=allow_values,
+    )
+
+    if new_tag_entity:
+        # Fetch the component from the newly created entity
+        new_tag_concept_comp = await ecs_service.get_component(
+            session, new_tag_entity.id, TagConceptComponent
+        )
+        if new_tag_concept_comp:
+            return new_tag_concept_comp
+        else:
+            logger.error(f"Failed to retrieve TagConceptComponent from newly created TagConceptEntity {new_tag_entity.id} for '{clean_tag_name}'.")
+            return None
+    else:
+        # Creation might have failed (e.g. race condition if another process created it, caught by create_tag_concept's internal check)
+        # Try one more time to get it, in case of a race condition where another call created it.
+        try:
+            tag_entity_after_failed_create = await get_tag_concept_by_name(session, clean_tag_name)
+            if tag_entity_after_failed_create:
+                return await ecs_service.get_component(session, tag_entity_after_failed_create.id, TagConceptComponent)
+        except TagConceptNotFoundError:
+            logger.error(f"Failed to create and subsequently retrieve TagConcept '{clean_tag_name}'.")
+            return None
+    return None # Should be unreachable if logic is correct
