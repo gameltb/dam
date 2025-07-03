@@ -269,7 +269,7 @@ ecs_dam_system/
 ├── dam/
 │   ├── __init__.py
 │   ├── cli.py              # Typer CLI application
-│   ├── gradio_ui.py        # Gradio UI code
+# │   ├── gradio_ui.py        # Gradio UI code (Removed)
 │   ├── models/             # SQLAlchemy models (Components & Association Objects)
 │   │   ├── __init__.py
 │   │   ├── core/

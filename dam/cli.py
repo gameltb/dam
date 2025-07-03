@@ -1190,60 +1190,60 @@ async def cli_eval_report(  # Made async
     await _report()  # Await async call
 
 
-@app.command(name="ui")
-def cli_ui(ctx: typer.Context):
-    """
-    Launches the Gradio UI for the Digital Asset Management system.
-    """
-    typer.echo("Launching DAM Gradio UI...")
-    try:
-        from dam.gradio_ui import launch_ui
+# @app.command(name="ui")
+# def cli_ui(ctx: typer.Context):
+#     """
+#     Launches the Gradio UI for the Digital Asset Management system.
+#     """
+#     typer.echo("Launching DAM Gradio UI...")
+#     try:
+#         from dam.gradio_ui import launch_ui # This import will also be problematic as gradio_ui.py is deleted
 
-        # Get the current world name to pass to the UI launcher
-        # The launch_ui function in gradio_ui.py will handle fetching the world instance.
-        world_to_launch_with = global_state.world_name
+#         # Get the current world name to pass to the UI launcher
+#         # The launch_ui function in gradio_ui.py will handle fetching the world instance.
+#         world_to_launch_with = global_state.world_name
 
-        if not world_to_launch_with:
-            # If no world is selected via --world or default,
-            # we might allow Gradio to launch and pick one, or show an error.
-            # For now, let's be consistent with previous UI behavior: require a world.
-            # However, Gradio UI itself can have a world selector, so this might be relaxed.
-            # Let's check if any worlds are configured at all.
-            if not get_all_registered_worlds():
-                 typer.secho(
-                    "Error: No DAM worlds are configured. Cannot launch UI.",
-                    fg=typer.colors.RED,
-                )
-                 typer.echo("Please configure worlds using DAM_WORLDS_CONFIG environment variable.")
-                 raise typer.Exit(code=1)
-            else:
-                typer.echo("No specific world pre-selected. Gradio UI will allow selection from available worlds.")
-                # world_to_launch_with will be None, and launch_ui should handle it gracefully.
+#         if not world_to_launch_with:
+#             # If no world is selected via --world or default,
+#             # we might allow Gradio to launch and pick one, or show an error.
+#             # For now, let's be consistent with previous UI behavior: require a world.
+#             # However, Gradio UI itself can have a world selector, so this might be relaxed.
+#             # Let's check if any worlds are configured at all.
+#             if not get_all_registered_worlds():
+#                  typer.secho(
+#                     "Error: No DAM worlds are configured. Cannot launch UI.",
+#                     fg=typer.colors.RED,
+#                 )
+#                  typer.echo("Please configure worlds using DAM_WORLDS_CONFIG environment variable.")
+#                  raise typer.Exit(code=1)
+#             else:
+#                 typer.echo("No specific world pre-selected. Gradio UI will allow selection from available worlds.")
+#                 # world_to_launch_with will be None, and launch_ui should handle it gracefully.
 
 
-        typer.echo(f"Attempting to launch Gradio UI. Pre-selected world: '{world_to_launch_with if world_to_launch_with else 'None'}'")
-        # The launch_ui function will start the Gradio server, which is blocking.
-        launch_ui(world_name=world_to_launch_with)
+#         typer.echo(f"Attempting to launch Gradio UI. Pre-selected world: '{world_to_launch_with if world_to_launch_with else 'None'}'")
+#         # The launch_ui function will start the Gradio server, which is blocking.
+#         launch_ui(world_name=world_to_launch_with)
 
-        # If launch_ui returns, it means the Gradio server was stopped.
-        typer.echo("Gradio UI server has been stopped.")
+#         # If launch_ui returns, it means the Gradio server was stopped.
+#         typer.echo("Gradio UI server has been stopped.")
 
-    except ImportError as e:
-        if "gradio" in str(e).lower():
-            typer.secho(
-                "Error: Gradio is not installed. Please install it to use the UI.",
-                fg=typer.colors.RED,
-            )
-            typer.echo("You can typically install it using: pip install ecs-dam-system[ui]")
-            typer.echo(f"Details: {e}")
-        else:
-            typer.secho(f"Error launching Gradio UI (ImportError): {e}", fg=typer.colors.RED)
-            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        typer.secho(f"An unexpected error occurred while launching the Gradio UI: {e}", fg=typer.colors.RED)
-        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+#     except ImportError as e:
+#         if "gradio" in str(e).lower() or "dam.gradio_ui" in str(e).lower(): # Broader check
+#             typer.secho(
+#                 "Error: The Gradio UI is not available (e.g., not installed or UI module removed).",
+#                 fg=typer.colors.RED,
+#             )
+#             # typer.echo("You can typically install it using: pip install ecs-dam-system[ui]")
+#             typer.echo(f"Details: {e}")
+#         else:
+#             typer.secho(f"Error launching Gradio UI (ImportError): {e}", fg=typer.colors.RED)
+#             typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+#         raise typer.Exit(code=1)
+#     except Exception as e:
+#         typer.secho(f"An unexpected error occurred while launching the Gradio UI: {e}", fg=typer.colors.RED)
+#         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+#         raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

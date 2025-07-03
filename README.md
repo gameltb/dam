@@ -29,7 +29,7 @@ This project implements a Digital Asset Management system using an Entity-Compon
     *   CLI for creating runs, executing them, and reporting results.
 *   **CLI**: Typer-based interface.
 *   **Database Transactions**: Managed by `WorldScheduler`.
-
+# Removed Gradio UI from Key Technologies
 ## Project Structure
 
 ```
@@ -66,7 +66,7 @@ ecs_dam_system/
 ## Setup Instructions
 
 1.  **Clone, create venv, activate.**
-2.  **Install dependencies:** `pip install -e ."[dev,image,ui]"` (or `uv pip install ...`)
+2.  **Install dependencies:** `pip install -e ."[dev,image]"` (or `uv pip install ...`)
 3.  **Set up `.env`** from `.env.example`.
 4.  **Initialize database:** `dam-cli setup-db` (Alembic paused).
 
@@ -170,7 +170,6 @@ The system provides several ways to search for assets:
 *   **`dam-cli export-world <filepath.json>`**: Exports world data to JSON.
 *   **`dam-cli import-world <filepath.json>`**: Imports world data from JSON.
     *   Option: `--merge` (merge with existing data).
-*   **`dam-cli ui`**: Launches the Gradio web UI (if UI dependencies are installed).
 
 (Details of asset ingestion, versioning, and tagging remain as described previously.)
 
