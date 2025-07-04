@@ -3,6 +3,7 @@ from typing import Annotated, List
 
 from sqlalchemy.orm import Mapped, mapped_column
 
+from dam.core.model_manager import ModelExecutionManager # Added
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext, WorldSession
 from dam.core.systems import system
@@ -34,11 +35,12 @@ logger = logging.getLogger(__name__)
 async def audio_embedding_generation_system(
     session: WorldSession,
     world_context: WorldContext,  # For accessing world-specific config if needed
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Added
     # Get entities that have the NeedsAudioProcessingMarker
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsAudioProcessingMarker],
 ):
     """
-    Generates audio embeddings for entities marked with NeedsAudioProcessingMarker.
+    Generates audio embeddings for entities marked with NeedsAudioProcessingMarker, using the provided ModelExecutionManager.
     This system iterates through entities that have been explicitly marked for audio processing.
     """
     if not entities_to_process:
@@ -107,6 +109,7 @@ async def audio_embedding_generation_system(
             )
             embedding_component = await audio_service.generate_audio_embedding_for_entity(
                 session,
+                model_execution_manager, # Pass MEM
                 entity_id=entity.id,
                 model_name=default_model_name,
                 # model_params can be added if specific params are needed beyond default

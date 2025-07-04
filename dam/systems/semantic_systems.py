@@ -1,13 +1,14 @@
 import logging
-from typing import Dict, List
+from typing import Annotated, Dict, List # Added Annotated
 
 from dam.core.events import AudioSearchQuery, SemanticSearchQuery  # Added AudioSearchQuery
+from dam.core.model_manager import ModelExecutionManager # Added
 from dam.core.stages import SystemStage  # For scheduling embedding generation
 from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
 from dam.core.systems import listens_for, system
 
 # Placeholder for components that might trigger embedding generation
-from dam.services import audio_service, semantic_service  # Added audio_service
+from dam.services import audio_service, ecs_service, semantic_service  # Added ecs_service, audio_service
 
 # from dam.models.metadata import ExiftoolMetadataComponent # If we decide to embed exif data
 
@@ -25,9 +26,10 @@ TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
 }
 
 
-@system(stage=SystemStage.POST_PROCESSING)  # Or a new SEMANTIC_PROCESSING stage
+@system(stage=SystemStage.POST_PROCESSING)
 async def generate_embeddings_system(
     session: WorldSession,
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Added
     # world_config: WorldConfig, # If model name or other settings come from world config
     # For now, using default model from semantic_service
     # We need a way to get entities that were created/updated in the current transaction/tick
@@ -115,17 +117,22 @@ async def generate_embeddings_system(
     #                 if isinstance(text_val, str) and text_val.strip():
     #                     texts_to_batch_for_entity.append( (comp_class_name, field_name, text_val) )
     # if texts_to_batch_for_entity:
-    #    await semantic_service.update_text_embeddings_for_entity(session, entity_id, {}, model_name_to_use, batch_texts=texts_to_batch_for_entity)
+    #    await semantic_service.update_text_embeddings_for_entity(
+    #        session, entity_id, {}, model_execution_manager, # Pass MEM
+    #        model_name=model_name_to_use, batch_texts=texts_to_batch_for_entity
+    #    )
 
 
 @listens_for(SemanticSearchQuery)
 async def handle_semantic_search_query(
     event: SemanticSearchQuery,
     session: WorldSession,
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Added
     # world_config: WorldConfig, # If model name could come from world config
 ):
     """
-    Handles a SemanticSearchQuery event, performs the search, and sets the result on the event's future.
+    Handles a SemanticSearchQuery event, performs the search using the provided ModelExecutionManager,
+    and sets the result on the event's future.
     """
     # Ensure this log appears to confirm entry
     logger.critical(f"CRITICAL_LOG: ENTERING handle_semantic_search_query for Req ID: {event.request_id}")
@@ -148,6 +155,7 @@ async def handle_semantic_search_query(
         # The future expects List[Tuple[Any, float, Any]] to avoid model imports in events.py
         similar_entities_data = await semantic_service.find_similar_entities_by_text_embedding(
             session=session,
+            model_execution_manager=model_execution_manager, # Pass MEM
             query_text=event.query_text,
             top_n=event.top_n,
             model_name=model_to_use,
@@ -184,9 +192,10 @@ __all__ = [
 async def handle_audio_search_query(
     event: AudioSearchQuery,
     session: WorldSession,
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Added
 ):
     """
-    Handles an AudioSearchQuery event, performs the search using AudioService,
+    Handles an AudioSearchQuery event, performs the search using AudioService and the provided ModelExecutionManager,
     and sets the result on the event's future.
     """
     logger.info(
@@ -203,6 +212,7 @@ async def handle_audio_search_query(
     try:
         similar_entities_data = await audio_service.find_similar_entities_by_audio_embedding(
             session=session,
+            model_execution_manager=model_execution_manager, # Pass MEM
             query_audio_path=str(event.query_audio_path),  # Ensure path is string
             top_n=event.top_n,
             model_name=model_to_use,

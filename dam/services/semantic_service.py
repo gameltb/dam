@@ -50,64 +50,52 @@ def _load_sentence_transformer_model_sync(
 
 
 async def get_sentence_transformer_model(
+    model_execution_manager: ModelExecutionManager, # Added: MEM must be passed in
     model_name_or_path: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,  # Conceptual params
-    world_name: Optional[str] = None,  # To get world-specific ModelExecutionManager
+    # world_name: Optional[str] = None, # Removed: MEM is global, world_name not needed for its context
 ) -> SentenceTransformer:
     """
-    Loads a SentenceTransformer model using the ModelExecutionManager.
+    Loads a SentenceTransformer model using the provided ModelExecutionManager.
     `params` are conceptual hyperparameters; they might be mapped to loader params.
     """
-    world = get_default_world()  # Assuming default world context or this service is world-aware
-    if world_name:
-        from dam.core import get_world
-
-        _w = get_world(world_name)
-        if not _w:
-            logger.error(
-                f"World {world_name} not found for getting ModelExecutionManager. Using default world's manager."
-            )
-        else:
-            world = _w
-
-    if not world:
-        raise RuntimeError("Default world not found, cannot access ModelExecutionManager.")
-
-    model_manager = world.get_resource(
-        ModelExecutionManager
-    )  # Type is ModelExecutionManager[SentenceTransformer] implicitly if loader returns ST
-
     # Ensure loader is registered if not already
-    if SENTENCE_TRANSFORMER_IDENTIFIER not in model_manager._model_loaders:
-        model_manager.register_model_loader(SENTENCE_TRANSFORMER_IDENTIFIER, _load_sentence_transformer_model_sync)
+    # This registration is now idempotent or should be handled at MEM initialization.
+    if SENTENCE_TRANSFORMER_IDENTIFIER not in model_execution_manager._model_loaders:
+        model_execution_manager.register_model_loader(
+            SENTENCE_TRANSFORMER_IDENTIFIER, _load_sentence_transformer_model_sync
+        )
 
     # Map conceptual params to loader params if needed. For ST, model_name_or_path is key.
     # `params` might include things like `device` or `cache_folder` for the loader.
     loader_params = params.copy() if params else {}
     if "device" not in loader_params:  # Add default device preference if not specified
-        loader_params["device"] = model_manager.get_model_device_preference()
+        loader_params["device"] = model_execution_manager.get_model_device_preference()
 
-    return await model_manager.get_model(
+    return await model_execution_manager.get_model(
         model_identifier=SENTENCE_TRANSFORMER_IDENTIFIER, model_name_or_path=model_name_or_path, params=loader_params
     )
 
 
 async def generate_embedding(
+    model_execution_manager: ModelExecutionManager, # Added
     text: str,
     model_name: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,
-    world_name: Optional[str] = None,
+    # world_name: Optional[str] = None, # Removed
 ) -> Optional[np.ndarray]:
     """
-    Generates a text embedding for the given text using the specified model and parameters.
+    Generates a text embedding for the given text using the specified model and parameters,
+    via the provided ModelExecutionManager.
     Returns a numpy array of floats, or None if generation fails.
     """
     if not text or not text.strip():
         logger.warning("Cannot generate embedding for empty or whitespace-only text.")
         return None
     try:
-        # Pass world_name to get_sentence_transformer_model if this service becomes world-aware
-        model = await get_sentence_transformer_model(model_name, params, world_name=world_name)
+        model = await get_sentence_transformer_model(
+            model_execution_manager, model_name, params # Pass MEM
+        )
         embedding = model.encode(text, convert_to_numpy=True)
         # TODO: Validate embedding dimension against expected from params if applicable
         # registry_entry = EMBEDDING_MODEL_REGISTRY.get(model_name)
@@ -147,6 +135,7 @@ async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
     text_fields_map: Dict[str, Any],  # e.g., {"ComponentName.field_name": "text content"}
+    model_execution_manager: ModelExecutionManager, # Moved up
     model_name: str = DEFAULT_MODEL_NAME,
     model_params: Optional[ModelHyperparameters] = None,  # Conceptual params for model version
     batch_texts: Optional[List[BatchTextItem]] = None,
@@ -156,10 +145,10 @@ async def update_text_embeddings_for_entity(
         List[Dict[str, Any]]
     ] = None,  # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
     tag_concatenation_strategy: str = " [TAGS] {tags_string}",  # How to append tags
-    world_name: Optional[str] = None,  # For ModelExecutionManager context
+    # world_name: Optional[str] = None, # Removed
 ) -> List[BaseSpecificEmbeddingComponent]:
     """
-    Generates and stores specific TextEmbeddingComponents for an entity.
+    Generates and stores specific TextEmbeddingComponents for an entity using the provided ModelExecutionManager.
     Optionally fetches manual and/or model-generated tags associated with the entity,
     concatenates them to the text fields, and then generates embeddings.
     Uses the registry to determine the correct table/component class for storing the embedding.
@@ -273,8 +262,9 @@ async def update_text_embeddings_for_entity(
     all_text_contents_for_model = [item["text_content"] for item in current_batch_items]
     embeddings_np_list: Optional[List[np.ndarray]] = None
     try:
-        # Pass world_name for context
-        model_instance = await get_sentence_transformer_model(model_name, model_params, world_name=world_name)
+        model_instance = await get_sentence_transformer_model(
+            model_execution_manager, model_name, model_params # Pass MEM
+        )
 
         # Get optimal batch size from model_manager if possible (conceptual)
         # For now, SentenceTransformer handles its own batching internally for encode()
@@ -371,13 +361,14 @@ async def get_text_embeddings_for_entity(
 async def find_similar_entities_by_text_embedding(
     session: AsyncSession,
     query_text: str,
+    model_execution_manager: ModelExecutionManager, # Added
     model_name: str,  # Must specify which model/table to search
     model_params: Optional[ModelHyperparameters] = None,
     top_n: int = 10,
-    world_name: Optional[str] = None,  # For ModelExecutionManager context
+    # world_name: Optional[str] = None, # Removed
 ) -> List[Tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
     """
-    Finds entities similar to the query text using cosine similarity on stored text embeddings
+    Finds entities similar to the query text using cosine similarity on stored text embeddings,
     from the table specified by model_name and model_params.
     """
     EmbeddingComponentClass = get_embedding_component_class(model_name, model_params)
@@ -393,8 +384,9 @@ async def find_similar_entities_by_text_embedding(
         else:
             model_params = {}
 
-    # Pass world_name for context
-    query_embedding_np = await generate_embedding(query_text, model_name, model_params, world_name=world_name)
+    query_embedding_np = await generate_embedding(
+        model_execution_manager, query_text, model_name, model_params # Pass MEM
+    )
     if query_embedding_np is None:
         logger.error(f"Could not generate query embedding for '{query_text[:100]}...' with model {model_name}.")
         return []

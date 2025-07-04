@@ -275,8 +275,8 @@ async def assign_page_to_comic_variant(  # Made async
         return None
 
     page_link = PageLink(
-        owner=owner_entity,  # Pass Entity object for relationship
-        page_image=page_image_entity,  # Pass Entity object for relationship
+        owner=owner_entity,
+        page_image=page_image_entity,
         page_number=page_number,
     )
     try:
@@ -399,8 +399,8 @@ async def update_page_order_for_comic_variant(  # Made async
             continue
 
         page_link = PageLink(
-            owner=owner_entity,  # Pass Entity object
-            page_image=page_image_entity,  # Pass Entity object
+            owner=owner_entity,
+            page_image=page_image_entity,
             page_number=page_number,
         )
         session.add(page_link)

@@ -87,11 +87,18 @@ def initialize_world_resources(world: World) -> None:
     world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
     # 5. ModelExecutionManager
-    # This manager is typically global or per-application, but can be world-specific if models differ significantly
-    # For now, let's assume a single instance shared or a new one per world if config dictates
-    model_manager = ModelExecutionManager()  # Initialize with default model type Any, or a more specific one
-    resource_manager.add_resource(model_manager, ModelExecutionManager)
-    world.logger.debug(f"Added ModelExecutionManager resource for World '{world_name}'.")
+    # Use the global singleton instance.
+    # The ResourceManager's add_resource will handle if this type is already registered,
+    # potentially replacing it or warning. For a global singleton, we want all worlds
+    # to use the same instance.
+    from dam.core.global_resources import get_global_model_execution_manager
+    global_model_manager = get_global_model_execution_manager()
+    resource_manager.add_resource(global_model_manager, ModelExecutionManager)
+    world.logger.debug(f"Added global ModelExecutionManager instance as a resource for World '{world_name}'.")
+
+    # TaggingService is no longer a resource class.
+    # Systems needing tagging functions will import them from the tagging_service module
+    # and use the injected ModelExecutionManager.
 
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
@@ -145,5 +152,10 @@ def register_core_systems(world_instance: "World") -> None:
 
     world_instance.register_system(handle_audio_search_query, event_type=AudioSearchQuery)
     logger.debug("Registered system: handle_audio_search_query for event AudioSearchQuery")
+
+    # Auto-Tagging System
+    from dam.systems.auto_tagging_system import auto_tag_entities_system # Added
+    world_instance.register_system(auto_tag_entities_system, stage=SystemStage.CONTENT_ANALYSIS) # Added
+    logger.debug("Registered system: auto_tag_entities_system for stage CONTENT_ANALYSIS") # Added
 
     logger.info(f"Core system registration complete for world: {world_instance.name}")

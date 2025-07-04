@@ -79,7 +79,6 @@ from .tag_service import (
 )
 from .tagging_service import (  # Import functions to be exported
     TAGGING_MODEL_CONCEPTUAL_PARAMS,  # Changed from TAGGING_MODEL_REGISTRY
-    TaggingService,  # Added TaggingService class
     generate_tags_from_image,
     get_tagging_model,
     update_entity_model_tags,
@@ -167,7 +166,6 @@ __all__ = [
     "generate_tags_from_image",
     "get_tagging_model",
     "TAGGING_MODEL_CONCEPTUAL_PARAMS",  # Changed from TAGGING_MODEL_REGISTRY
-    "TaggingService",  # Added TaggingService class
     # Audio service and functions
     "audio_service",  # Module itself
     "generate_audio_embedding_for_entity",

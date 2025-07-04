@@ -58,30 +58,16 @@ def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[s
 
 
 async def get_mock_audio_model(
+    model_execution_manager: ModelExecutionManager, # Added
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     params: Optional[AudioModelHyperparameters] = None,
-    world_name: Optional[str] = None,
+    # world_name: Optional[str] = None, # Removed
 ) -> MockAudioModel:
     """
-    Loads a MockAudioModel using the ModelExecutionManager.
+    Loads a MockAudioModel using the provided ModelExecutionManager.
     """
-    world = get_default_world()
-    if world_name:
-        from dam.core import get_world
-
-        _w = get_world(world_name)
-        if _w:
-            world = _w
-        else:
-            logger.error(f"World {world_name} not found for audio model. Using default.")
-
-    if not world:
-        raise RuntimeError("Default world not found, cannot access ModelExecutionManager for audio models.")
-
-    model_manager = world.get_resource(ModelExecutionManager)
-
-    if MOCK_AUDIO_MODEL_IDENTIFIER not in model_manager._model_loaders:
-        model_manager.register_model_loader(MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync)
+    if MOCK_AUDIO_MODEL_IDENTIFIER not in model_execution_manager._model_loaders:
+        model_execution_manager.register_model_loader(MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync)
 
     # Ensure conceptual params from AUDIO_EMBEDDING_MODEL_REGISTRY are used if no specific params given
     loader_params = params
@@ -95,10 +81,10 @@ async def get_mock_audio_model(
 
     # Add device preference to loader_params if not already specified by caller
     if "device" not in loader_params:  # Mock model doesn't use device, but good practice
-        loader_params["device"] = model_manager.get_model_device_preference()
+        loader_params["device"] = model_execution_manager.get_model_device_preference()
 
     # model_name for MockAudioModel is passed as model_name_or_path to manager.get_model
-    return await model_manager.get_model(
+    return await model_execution_manager.get_model(
         model_identifier=MOCK_AUDIO_MODEL_IDENTIFIER,
         model_name_or_path=model_name,  # This is "vggish", "panns_cnn14", etc.
         params=loader_params,
@@ -119,14 +105,15 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.n
 
 async def generate_audio_embedding_for_entity(
     session: AsyncSession,
+    model_execution_manager: ModelExecutionManager, # Added
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     model_params: Optional[AudioModelHyperparameters] = None,
     audio_file_path: Optional[str] = None,  # Allow passing path directly, e.g. during ingestion
-    world_name: Optional[str] = None,  # For ModelExecutionManager context
+    # world_name: Optional[str] = None, # Removed
 ) -> Optional[BaseSpecificAudioEmbeddingComponent]:
     """
-    Generates and stores a specific AudioEmbeddingComponent for an entity's audio file.
+    Generates and stores a specific AudioEmbeddingComponent for an entity's audio file using the provided ModelExecutionManager.
     Uses the registry to determine the correct table/component class.
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
@@ -181,8 +168,9 @@ async def generate_audio_embedding_for_entity(
     logger.info(f"Generating audio embedding for entity {entity_id} using model {model_name} from file: {file_path}")
 
     try:
-        # Pass world_name for context
-        model_instance = await get_mock_audio_model(model_name, model_params, world_name=world_name)
+        model_instance = await get_mock_audio_model(
+            model_execution_manager, model_name, model_params # Pass MEM
+        )
         # In a real scenario, this would involve loading the audio, preprocessing, and then encoding.
         # The mock model just needs the path for logging.
 
@@ -264,6 +252,7 @@ async def get_audio_embeddings_for_entity(
 
 async def find_similar_entities_by_audio_embedding(
     session: AsyncSession,
+    model_execution_manager: ModelExecutionManager, # Added
     query_audio_path: str,  # Path to the query audio file
     model_name: str,
     model_params: Optional[AudioModelHyperparameters] = None,
@@ -271,7 +260,7 @@ async def find_similar_entities_by_audio_embedding(
 ) -> List[Tuple[Entity, float, BaseSpecificAudioEmbeddingComponent]]:
     """
     Finds entities with similar audio content to the query audio file using cosine similarity
-    on stored audio embeddings from the table specified by model_name.
+    on stored audio embeddings from the table specified by model_name, using the provided ModelExecutionManager.
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
@@ -288,7 +277,9 @@ async def find_similar_entities_by_audio_embedding(
             model_params = {}
 
     try:
-        model_instance = await get_mock_audio_model(model_name, model_params)
+        model_instance = await get_mock_audio_model(
+            model_execution_manager, model_name, model_params # Pass MEM
+        )
         query_embedding_np = await model_instance.encode_async(query_audio_path)
         if query_embedding_np is None:
             logger.error(f"Could not generate query audio embedding for '{query_audio_path}' with model {model_name}.")
