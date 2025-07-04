@@ -50,14 +50,6 @@ def _load_sentence_transformer_model_sync(
 
 
 async def get_sentence_transformer_model(
-    model_name_or_path: str = DEFAULT_MODEL_NAME,
-    params: Optional[ModelHyperparameters] = None,  # Conceptual params
-    world_name: Optional[str] = None,  # To get world-specific ModelExecutionManager
-) -> SentenceTransformer:
-    """
-    Loads a SentenceTransformer model using the ModelExecutionManager.
-    `params` are conceptual hyperparameters; they might be mapped to loader params.
-    """
     model_execution_manager: ModelExecutionManager, # Added: MEM must be passed in
     model_name_or_path: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,  # Conceptual params
@@ -143,10 +135,10 @@ async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
     text_fields_map: Dict[str, Any],  # e.g., {"ComponentName.field_name": "text content"}
+    model_execution_manager: ModelExecutionManager, # Moved up
     model_name: str = DEFAULT_MODEL_NAME,
     model_params: Optional[ModelHyperparameters] = None,  # Conceptual params for model version
     batch_texts: Optional[List[BatchTextItem]] = None,
-    model_execution_manager: ModelExecutionManager, # Added
     # Configuration for including tags
     include_manual_tags: bool = True,
     include_model_tags_config: Optional[

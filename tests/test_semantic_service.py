@@ -124,9 +124,9 @@ async def test_update_text_embeddings_for_entity_specific_tables(
     # Update with MiniLM model
     created_minilm = await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity.id,
         text_map,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -150,9 +150,9 @@ async def test_update_text_embeddings_for_entity_specific_tables(
     # Update with CLIP model (should go to a different table)
     created_clip = await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity.id,
         text_map,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -181,9 +181,9 @@ async def test_update_text_embeddings_for_entity_specific_tables(
     text_map_updated = {"File.name": "new_document.pdf", "Desc.text": "Sample content."}
     updated_minilm = await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity.id,
         text_map_updated,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -213,7 +213,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
 
     # Test with an unregistered model - should return empty list and log error
     unregistered_results = await semantic_service.update_text_embeddings_for_entity(
-        db_session, global_model_execution_manager, entity.id, text_map, model_name="unregistered-model", model_params={}
+        db_session, entity.id, text_map, global_model_execution_manager, model_name="unregistered-model", model_params={}
     )
     assert len(unregistered_results) == 0
 
@@ -227,17 +227,17 @@ async def test_get_text_embeddings_for_entity(
 
     await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity.id,
         text_map,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
     await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity.id,
         {"CompC.field3": "Text C"},
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -279,17 +279,17 @@ async def test_find_similar_entities_by_text_embedding(
     # Text2: "apple crumble" -> sum_ords=1230, len=13. vec2_minilm = [30, 13, 41, 0...]
     await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity1.id,
         {"Data.text": "apple pie"},
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
     await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity2.id,
         {"Data.text": "apple crumble"},
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -299,9 +299,9 @@ async def test_find_similar_entities_by_text_embedding(
     # Text3: "apple pie" (same text, different model) -> vec3_clip = [26, 9, 30, 0...]
     await semantic_service.update_text_embeddings_for_entity(
         db_session,
-        global_model_execution_manager, # Pass MEM
         entity3.id,
         {"Data.text": "apple pie"},
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -317,8 +317,8 @@ async def test_find_similar_entities_by_text_embedding(
 
     similar_minilm = await semantic_service.find_similar_entities_by_text_embedding(
         db_session,
-        global_model_execution_manager, # Pass MEM
         query_text,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
         top_n=2,
@@ -334,8 +334,8 @@ async def test_find_similar_entities_by_text_embedding(
     # e3 (apple pie): [26, 9, 30, ...]
     similar_clip = await semantic_service.find_similar_entities_by_text_embedding(
         db_session,
-        global_model_execution_manager, # Pass MEM
         query_text,
+        global_model_execution_manager, # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
         top_n=1,
@@ -346,13 +346,13 @@ async def test_find_similar_entities_by_text_embedding(
 
     # Test with non-existent model in find_similar
     no_model_results = await semantic_service.find_similar_entities_by_text_embedding(
-        db_session, global_model_execution_manager, query_text, model_name="non-existent-model", model_params={}
+        db_session, query_text, global_model_execution_manager, model_name="non-existent-model", model_params={}
     )
     assert len(no_model_results) == 0
 
     # Test with empty query text
     empty_query_results = await semantic_service.find_similar_entities_by_text_embedding(
-        db_session, global_model_execution_manager, "", model_name=TEST_MODEL_MINILM, model_params=TEST_PARAMS_MINILM
+        db_session, "", global_model_execution_manager, model_name=TEST_MODEL_MINILM, model_params=TEST_PARAMS_MINILM
     )
     assert len(empty_query_results) == 0
 
@@ -390,9 +390,9 @@ async def test_error_handling_in_update_embeddings(
     ):
         error_comps = await semantic_service.update_text_embeddings_for_entity(
             db_session,
-            global_model_execution_manager, # This call will fail due to the patch above
-            entity.id, # Corrected order
+            entity.id,
             {},
+            global_model_execution_manager, # This call will fail due to the patch above
             batch_texts=batch_for_error,
             model_name=TEST_MODEL_MINILM,
             model_params=TEST_PARAMS_MINILM, # world_name removed
@@ -418,9 +418,9 @@ async def test_error_handling_in_update_embeddings(
     ):
         error_comps_encode_fail = await semantic_service.update_text_embeddings_for_entity(
             db_session,
-            global_model_execution_manager, # This will be used by the patched get_sentence_transformer_model
-            entity.id, # Corrected order
+            entity.id,
             {},
+            global_model_execution_manager, # This will be used by the patched get_sentence_transformer_model
             batch_texts=batch_for_error,
             model_name=TEST_MODEL_MINILM,
             model_params=TEST_PARAMS_MINILM, # world_name removed

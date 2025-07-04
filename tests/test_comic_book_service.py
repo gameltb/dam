@@ -480,9 +480,9 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession):
     await db_session.commit()
 
     assert page1_comp is not None and page1_comp.page_number == 1
-    assert page1_comp is not None and page1_comp.page_image_entity_id == image_entity1_id
+    assert page1_comp is not None and page1_comp.page_image.id == image_entity1_id
     assert page2_comp is not None and page2_comp.page_number == 2
-    assert page2_comp is not None and page2_comp.page_image_entity_id == image_entity2_id
+    assert page2_comp is not None and page2_comp.page_image.id == image_entity2_id
 
     pages = await cbs.get_ordered_pages_for_comic_variant(db_session, variant_entity_id)
     assert len(pages) == 2
@@ -557,7 +557,7 @@ async def test_remove_page_from_comic_variant(db_session: AsyncSession):
     assert len(await cbs.get_ordered_pages_for_comic_variant(db_session, variant_e_id)) == 2
 
     assert p1_link is not None
-    await cbs.remove_page_from_comic_variant(db_session, variant_e_id, p1_link.page_image_entity_id)
+    await cbs.remove_page_from_comic_variant(db_session, variant_e_id, p1_link.page_image.id)
     await db_session.commit()
 
     pages_after_remove = await cbs.get_ordered_pages_for_comic_variant(db_session, variant_e_id)
@@ -647,9 +647,14 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
     stmt_check = select(PageLink).where(PageLink.owner_entity_id == variant_e_id).order_by(PageLink.page_number)
     res_check = await db_session.execute(stmt_check)
     links_check = res_check.scalars().all()
-    assert links_check[0].page_image_entity_id == img3_id and links_check[0].page_number == 1
-    assert links_check[1].page_image_entity_id == img1_id and links_check[1].page_number == 2
-    assert links_check[2].page_image_entity_id == img2_id and links_check[2].page_number == 3
+    # Ensure relationships are loaded if not already. However, direct fetch like this usually loads scalar attributes.
+    # For robustness, if these were accessed via an object already in session, refreshing with relationships might be needed.
+    # Here, we are fetching new PageLink objects, so their scalar FKs should be populated.
+    # If issues arise, explicit loading options on the select statement would be the next step.
+    # For now, assuming scalar FKs are loaded.
+    assert links_check[0].page_image.id == img3_id and links_check[0].page_number == 1
+    assert links_check[1].page_image.id == img1_id and links_check[1].page_number == 2
+    assert links_check[2].page_image.id == img2_id and links_check[2].page_number == 3
 
     shorter_order_ids = [img1_id]
     await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, shorter_order_ids)
