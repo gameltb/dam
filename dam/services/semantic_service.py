@@ -6,7 +6,6 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core import get_default_world  # To get ModelExecutionManager resource
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
 from dam.models.semantic import (
@@ -50,7 +49,7 @@ def _load_sentence_transformer_model_sync(
 
 
 async def get_sentence_transformer_model(
-    model_execution_manager: ModelExecutionManager, # Added: MEM must be passed in
+    model_execution_manager: ModelExecutionManager,  # Added: MEM must be passed in
     model_name_or_path: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,  # Conceptual params
     # world_name: Optional[str] = None, # Removed: MEM is global, world_name not needed for its context
@@ -78,7 +77,7 @@ async def get_sentence_transformer_model(
 
 
 async def generate_embedding(
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     text: str,
     model_name: str = DEFAULT_MODEL_NAME,
     params: Optional[ModelHyperparameters] = None,
@@ -94,7 +93,9 @@ async def generate_embedding(
         return None
     try:
         model = await get_sentence_transformer_model(
-            model_execution_manager, model_name, params # Pass MEM
+            model_execution_manager,
+            model_name,
+            params,  # Pass MEM
         )
         embedding = model.encode(text, convert_to_numpy=True)
         # TODO: Validate embedding dimension against expected from params if applicable
@@ -135,7 +136,7 @@ async def update_text_embeddings_for_entity(
     session: AsyncSession,
     entity_id: int,
     text_fields_map: Dict[str, Any],  # e.g., {"ComponentName.field_name": "text content"}
-    model_execution_manager: ModelExecutionManager, # Moved up
+    model_execution_manager: ModelExecutionManager,  # Moved up
     model_name: str = DEFAULT_MODEL_NAME,
     model_params: Optional[ModelHyperparameters] = None,  # Conceptual params for model version
     batch_texts: Optional[List[BatchTextItem]] = None,
@@ -263,7 +264,9 @@ async def update_text_embeddings_for_entity(
     embeddings_np_list: Optional[List[np.ndarray]] = None
     try:
         model_instance = await get_sentence_transformer_model(
-            model_execution_manager, model_name, model_params # Pass MEM
+            model_execution_manager,
+            model_name,
+            model_params,  # Pass MEM
         )
 
         # Get optimal batch size from model_manager if possible (conceptual)
@@ -361,7 +364,7 @@ async def get_text_embeddings_for_entity(
 async def find_similar_entities_by_text_embedding(
     session: AsyncSession,
     query_text: str,
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     model_name: str,  # Must specify which model/table to search
     model_params: Optional[ModelHyperparameters] = None,
     top_n: int = 10,
@@ -385,7 +388,10 @@ async def find_similar_entities_by_text_embedding(
             model_params = {}
 
     query_embedding_np = await generate_embedding(
-        model_execution_manager, query_text, model_name, model_params # Pass MEM
+        model_execution_manager,
+        query_text,
+        model_name,
+        model_params,  # Pass MEM
     )
     if query_embedding_np is None:
         logger.error(f"Could not generate query embedding for '{query_text[:100]}...' with model {model_name}.")

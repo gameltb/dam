@@ -6,7 +6,6 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core import get_default_world  # To get ModelExecutionManager resource
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
 from dam.models.semantic.audio_embedding_component import (
@@ -58,7 +57,7 @@ def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[s
 
 
 async def get_mock_audio_model(
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     params: Optional[AudioModelHyperparameters] = None,
     # world_name: Optional[str] = None, # Removed
@@ -105,7 +104,7 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.n
 
 async def generate_audio_embedding_for_entity(
     session: AsyncSession,
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     model_params: Optional[AudioModelHyperparameters] = None,
@@ -169,7 +168,9 @@ async def generate_audio_embedding_for_entity(
 
     try:
         model_instance = await get_mock_audio_model(
-            model_execution_manager, model_name, model_params # Pass MEM
+            model_execution_manager,
+            model_name,
+            model_params,  # Pass MEM
         )
         # In a real scenario, this would involve loading the audio, preprocessing, and then encoding.
         # The mock model just needs the path for logging.
@@ -252,7 +253,7 @@ async def get_audio_embeddings_for_entity(
 
 async def find_similar_entities_by_audio_embedding(
     session: AsyncSession,
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     query_audio_path: str,  # Path to the query audio file
     model_name: str,
     model_params: Optional[AudioModelHyperparameters] = None,
@@ -278,7 +279,9 @@ async def find_similar_entities_by_audio_embedding(
 
     try:
         model_instance = await get_mock_audio_model(
-            model_execution_manager, model_name, model_params # Pass MEM
+            model_execution_manager,
+            model_name,
+            model_params,  # Pass MEM
         )
         query_embedding_np = await model_instance.encode_async(query_audio_path)
         if query_embedding_np is None:

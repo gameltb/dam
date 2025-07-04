@@ -6,9 +6,9 @@ import pytest
 from typer.testing import CliRunner
 
 from dam.cli import app
+from dam.core.model_manager import ModelExecutionManager
 from dam.core.world import World
 from dam.models.properties import FilePropertiesComponent
-from dam.core.model_manager import ModelExecutionManager
 from dam.services import ecs_service, semantic_service
 
 runner = CliRunner()
@@ -42,7 +42,7 @@ async def test_cli_search_semantic_no_results(current_test_world_for_search_cli:
 @pytest.mark.asyncio  # Ensure this is marked async if not already
 async def test_cli_search_semantic_with_results(current_test_world_for_search_cli: World, click_runner: CliRunner):
     world = current_test_world_for_search_cli
-    model_manager = world.get_resource(ModelExecutionManager) # Define model_manager in the test scope
+    model_manager = world.get_resource(ModelExecutionManager)  # Define model_manager in the test scope
     # world_name = world.name # Not needed for direct service call if world object is used
 
     entity1_id: Optional[int] = None
@@ -65,7 +65,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
                 session,
                 entity1.id,
                 {"Data.text": "apple pie"},
-                model_execution_manager=model_manager, # model_manager will be from outer scope
+                model_execution_manager=model_manager,  # model_manager will be from outer scope
                 model_name=semantic_service.DEFAULT_MODEL_NAME,
             )
 
@@ -83,7 +83,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
                 session,
                 entity2.id,
                 {"Data.text": "banana bread"},
-                    model_execution_manager=model_manager, # Assuming model_manager is in scope from previous call
+                model_execution_manager=model_manager,  # Assuming model_manager is in scope from previous call
                 model_name=semantic_service.DEFAULT_MODEL_NAME,
             )
             await session.commit()
@@ -108,7 +108,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
         results_top1 = await semantic_service.find_similar_entities_by_text_embedding(
             session=session,
             query_text=query,
-            model_execution_manager=model_manager, # Assuming model_manager defined earlier in test
+            model_execution_manager=model_manager,  # Assuming model_manager defined earlier in test
             model_name=semantic_service.DEFAULT_MODEL_NAME,
             top_n=1,
         )
@@ -121,7 +121,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
         results_top2 = await semantic_service.find_similar_entities_by_text_embedding(
             session=session,
             query_text=query,
-            model_execution_manager=model_manager, # Assuming model_manager defined earlier in test
+            model_execution_manager=model_manager,  # Assuming model_manager defined earlier in test
             model_name=semantic_service.DEFAULT_MODEL_NAME,
             top_n=2,
         )

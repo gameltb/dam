@@ -1,15 +1,15 @@
 import logging
 from typing import Annotated, List
 
+from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.system_params import (
     WorldContext,
 )  # For getting session, world name, config (WorldContext is in system_params)
-from dam.core.model_manager import ModelExecutionManager # Added
 from dam.core.systems import SystemStage, system
 from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
 from dam.models.core.entity import Entity  # Corrected Entity import
 from dam.services import ecs_service
-from dam.services import tagging_service as tagging_service_module # Renamed import
+from dam.services import tagging_service as tagging_service_module  # Renamed import
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,10 @@ class AutoTaggingCompleteMarker(BaseComponent):  # Inherit from BaseComponent
     pass  # No extra fields needed for now
 
 
-@system(stage=SystemStage.CONTENT_ANALYSIS) # Removed depends_on_resources
+@system(stage=SystemStage.CONTENT_ANALYSIS)  # Removed depends_on_resources
 async def auto_tag_entities_system(
     world_context: Annotated[WorldContext, "WorldContext"],
-    model_execution_manager: Annotated[ModelExecutionManager, "Resource"], # Changed to inject MEM
+    model_execution_manager: Annotated[ModelExecutionManager, "Resource"],  # Changed to inject MEM
     marked_entities: Annotated[List[Entity], "MarkedEntityList", NeedsAutoTaggingMarker],
 ):
     """
@@ -82,9 +82,9 @@ async def auto_tag_entities_system(
         )
 
         try:
-            await tagging_service_module.update_entity_model_tags( # Call module function
+            await tagging_service_module.update_entity_model_tags(  # Call module function
                 session,
-                model_execution_manager, # Pass MEM
+                model_execution_manager,  # Pass MEM
                 entity.id,
                 image_path,
                 model_to_use,

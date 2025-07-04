@@ -19,7 +19,7 @@ import dam.models  # This line can sometimes be problematic if dam.models itself
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.model_manager import ModelExecutionManager # Added
+from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
 
@@ -120,16 +120,16 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
 
 @pytest.fixture(scope="function")
 def global_model_execution_manager(
-    global_mock_sentence_transformer_loader, # Ensures mock loader is patched
+    global_mock_sentence_transformer_loader,  # Ensures mock loader is patched
     # Add other global mock loaders here if needed for audio, tagging in the future
-) -> ModelExecutionManager: # Imported ModelExecutionManager
+) -> ModelExecutionManager:  # Imported ModelExecutionManager
     """
     Provides the global ModelExecutionManager instance.
     Ensures that mock model loaders (e.g., for sentence transformers) are active
     on this instance for the duration of the test.
     """
     from dam.core.global_resources import model_execution_manager as global_mem_instance
-    from dam.services import semantic_service # To access SENTENCE_TRANSFORMER_IDENTIFIER and loader
+    from dam.services import semantic_service  # To access SENTENCE_TRANSFORMER_IDENTIFIER and loader
     # from dam.services import audio_service # Future: For MOCK_AUDIO_MODEL_IDENTIFIER
     # from dam.services import tagging_service # Future: For TAGGING_MODEL_IDENTIFIER
 
@@ -141,7 +141,7 @@ def global_model_execution_manager(
     if semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER not in global_mem_instance._model_loaders:
         global_mem_instance.register_model_loader(
             semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER,
-            semantic_service._load_sentence_transformer_model_sync # This is the already patched one
+            semantic_service._load_sentence_transformer_model_sync,  # This is the already patched one
         )
 
     # TODO: Register mock loaders for audio and tagging models here as well

@@ -1,12 +1,14 @@
 """
 Module to hold globally accessible singleton resources.
 """
+
 from dam.core.model_manager import ModelExecutionManager
 
 # Global singleton instance of ModelExecutionManager
 # This instance will be initialized once when the application starts.
 # For now, direct instantiation. Configuration might be loaded from environment or a global config file.
 model_execution_manager = ModelExecutionManager()
+
 
 def get_global_model_execution_manager() -> ModelExecutionManager:
     """

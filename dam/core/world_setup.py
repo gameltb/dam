@@ -92,6 +92,7 @@ def initialize_world_resources(world: World) -> None:
     # potentially replacing it or warning. For a global singleton, we want all worlds
     # to use the same instance.
     from dam.core.global_resources import get_global_model_execution_manager
+
     global_model_manager = get_global_model_execution_manager()
     resource_manager.add_resource(global_model_manager, ModelExecutionManager)
     world.logger.debug(f"Added global ModelExecutionManager instance as a resource for World '{world_name}'.")
@@ -154,8 +155,9 @@ def register_core_systems(world_instance: "World") -> None:
     logger.debug("Registered system: handle_audio_search_query for event AudioSearchQuery")
 
     # Auto-Tagging System
-    from dam.systems.auto_tagging_system import auto_tag_entities_system # Added
-    world_instance.register_system(auto_tag_entities_system, stage=SystemStage.CONTENT_ANALYSIS) # Added
-    logger.debug("Registered system: auto_tag_entities_system for stage CONTENT_ANALYSIS") # Added
+    from dam.systems.auto_tagging_system import auto_tag_entities_system  # Added
+
+    world_instance.register_system(auto_tag_entities_system, stage=SystemStage.CONTENT_ANALYSIS)  # Added
+    logger.debug("Registered system: auto_tag_entities_system for stage CONTENT_ANALYSIS")  # Added
 
     logger.info(f"Core system registration complete for world: {world_instance.name}")

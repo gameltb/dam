@@ -5,6 +5,9 @@ import numpy as np
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# ModelExecutionManager fixture from conftest.py
+from dam.core.model_manager import ModelExecutionManager
+
 # Models to be tested (actual specific component classes)
 from dam.models.semantic import (
     ModelHyperparameters,
@@ -14,8 +17,6 @@ from dam.services import ecs_service, semantic_service
 from dam.services.semantic_service import BatchTextItem  # Keep this for type hints
 
 from .conftest import MockSentenceTransformer  # Import the mock from conftest
-# ModelExecutionManager fixture from conftest.py
-from dam.core.model_manager import ModelExecutionManager
 
 # Define model names and params to be used in tests, corresponding to registered models
 TEST_MODEL_MINILM = "all-MiniLM-L6-v2"
@@ -39,13 +40,14 @@ assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or cl
 
 @pytest.mark.asyncio
 async def test_generate_embedding_and_conversion(
-    test_world_alpha: Any, global_model_execution_manager: ModelExecutionManager # Use fixture
+    test_world_alpha: Any,
+    global_model_execution_manager: ModelExecutionManager,  # Use fixture
 ):
     # test_world_alpha fixture ensures the world "test_world_alpha" is created and registered.
     text = "Hello world"
     # Test with MiniLM
     embedding_minilm_np = await semantic_service.generate_embedding(
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         text,
         model_name=TEST_MODEL_MINILM,
         params=TEST_PARAMS_MINILM,
@@ -57,7 +59,7 @@ async def test_generate_embedding_and_conversion(
 
     # Test with CLIP
     embedding_clip_np = await semantic_service.generate_embedding(
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         text,
         model_name=TEST_MODEL_CLIP,
         params=TEST_PARAMS_CLIP,
@@ -113,7 +115,8 @@ async def test_generate_embedding_and_conversion(
 
 @pytest.mark.asyncio
 async def test_update_text_embeddings_for_entity_specific_tables(
-    db_session: AsyncSession, global_model_execution_manager: ModelExecutionManager # Use fixture
+    db_session: AsyncSession,
+    global_model_execution_manager: ModelExecutionManager,  # Use fixture
 ):
     entity = await ecs_service.create_entity(db_session)
     text_map = {
@@ -126,7 +129,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
         db_session,
         entity.id,
         text_map,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -140,7 +143,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
         source_key = f"{comp.source_component_name}.{comp.source_field_name}"
         original_text = text_map[source_key]
         expected_emb = await semantic_service.generate_embedding(
-            global_model_execution_manager, # Pass MEM
+            global_model_execution_manager,  # Pass MEM
             original_text,
             model_name=TEST_MODEL_MINILM,
             params=TEST_PARAMS_MINILM,
@@ -152,7 +155,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
         db_session,
         entity.id,
         text_map,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -166,7 +169,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
         source_key = f"{comp.source_component_name}.{comp.source_field_name}"
         original_text = text_map[source_key]
         expected_emb = await semantic_service.generate_embedding(
-            global_model_execution_manager, # Pass MEM
+            global_model_execution_manager,  # Pass MEM
             original_text,
             model_name=TEST_MODEL_CLIP,
             params=TEST_PARAMS_CLIP,
@@ -183,7 +186,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
         db_session,
         entity.id,
         text_map_updated,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -193,7 +196,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
     for comp in db_minilm_updated:
         if comp.source_component_name == "File":
             expected_emb_updated = await semantic_service.generate_embedding(
-                global_model_execution_manager, # Pass MEM
+                global_model_execution_manager,  # Pass MEM
                 "new_document.pdf",
                 model_name=TEST_MODEL_MINILM,
                 params=TEST_PARAMS_MINILM,
@@ -202,7 +205,7 @@ async def test_update_text_embeddings_for_entity_specific_tables(
                 semantic_service.convert_bytes_to_embedding(comp.embedding_vector), expected_emb_updated
             )
             original_emb_old = await semantic_service.generate_embedding(
-                global_model_execution_manager, # Pass MEM
+                global_model_execution_manager,  # Pass MEM
                 "document.pdf",
                 model_name=TEST_MODEL_MINILM,
                 params=TEST_PARAMS_MINILM,
@@ -213,14 +216,20 @@ async def test_update_text_embeddings_for_entity_specific_tables(
 
     # Test with an unregistered model - should return empty list and log error
     unregistered_results = await semantic_service.update_text_embeddings_for_entity(
-        db_session, entity.id, text_map, global_model_execution_manager, model_name="unregistered-model", model_params={}
+        db_session,
+        entity.id,
+        text_map,
+        global_model_execution_manager,
+        model_name="unregistered-model",
+        model_params={},
     )
     assert len(unregistered_results) == 0
 
 
 @pytest.mark.asyncio
 async def test_get_text_embeddings_for_entity(
-    db_session: AsyncSession, global_model_execution_manager: ModelExecutionManager # Use fixture
+    db_session: AsyncSession,
+    global_model_execution_manager: ModelExecutionManager,  # Use fixture
 ):
     entity = await ecs_service.create_entity(db_session)
     text_map = {"CompA.field1": "Text A", "CompB.field2": "Text B"}
@@ -229,7 +238,7 @@ async def test_get_text_embeddings_for_entity(
         db_session,
         entity.id,
         text_map,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -237,7 +246,7 @@ async def test_get_text_embeddings_for_entity(
         db_session,
         entity.id,
         {"CompC.field3": "Text C"},
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -266,7 +275,8 @@ async def test_get_text_embeddings_for_entity(
 
 @pytest.mark.asyncio
 async def test_find_similar_entities_by_text_embedding(
-    db_session: AsyncSession, global_model_execution_manager: ModelExecutionManager # Use fixture
+    db_session: AsyncSession,
+    global_model_execution_manager: ModelExecutionManager,  # Use fixture
 ):
     entity1 = await ecs_service.create_entity(db_session)  # Target for MiniLM
     entity2 = await ecs_service.create_entity(db_session)  # Target for MiniLM
@@ -281,7 +291,7 @@ async def test_find_similar_entities_by_text_embedding(
         db_session,
         entity1.id,
         {"Data.text": "apple pie"},
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -289,7 +299,7 @@ async def test_find_similar_entities_by_text_embedding(
         db_session,
         entity2.id,
         {"Data.text": "apple crumble"},
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
     )
@@ -301,7 +311,7 @@ async def test_find_similar_entities_by_text_embedding(
         db_session,
         entity3.id,
         {"Data.text": "apple pie"},
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
     )
@@ -318,7 +328,7 @@ async def test_find_similar_entities_by_text_embedding(
     similar_minilm = await semantic_service.find_similar_entities_by_text_embedding(
         db_session,
         query_text,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_MINILM,
         model_params=TEST_PARAMS_MINILM,
         top_n=2,
@@ -335,7 +345,7 @@ async def test_find_similar_entities_by_text_embedding(
     similar_clip = await semantic_service.find_similar_entities_by_text_embedding(
         db_session,
         query_text,
-        global_model_execution_manager, # Pass MEM
+        global_model_execution_manager,  # Pass MEM
         model_name=TEST_MODEL_CLIP,
         model_params=TEST_PARAMS_CLIP,
         top_n=1,
@@ -359,7 +369,8 @@ async def test_find_similar_entities_by_text_embedding(
 
 @pytest.mark.asyncio
 async def test_error_handling_in_update_embeddings(
-    db_session: AsyncSession, global_model_execution_manager: ModelExecutionManager # Use fixture
+    db_session: AsyncSession,
+    global_model_execution_manager: ModelExecutionManager,  # Use fixture
 ):
     entity = await ecs_service.create_entity(db_session)
     batch_for_error: List[BatchTextItem] = [
@@ -392,10 +403,10 @@ async def test_error_handling_in_update_embeddings(
             db_session,
             entity.id,
             {},
-            global_model_execution_manager, # This call will fail due to the patch above
+            global_model_execution_manager,  # This call will fail due to the patch above
             batch_texts=batch_for_error,
             model_name=TEST_MODEL_MINILM,
-            model_params=TEST_PARAMS_MINILM, # world_name removed
+            model_params=TEST_PARAMS_MINILM,  # world_name removed
         )
         assert len(error_comps) == 0  # Expect no components created due to error
         db_error_comps = await ecs_service.get_components(db_session, entity.id, MiniLMEmbeddingComponent)
@@ -420,10 +431,10 @@ async def test_error_handling_in_update_embeddings(
             db_session,
             entity.id,
             {},
-            global_model_execution_manager, # This will be used by the patched get_sentence_transformer_model
+            global_model_execution_manager,  # This will be used by the patched get_sentence_transformer_model
             batch_texts=batch_for_error,
             model_name=TEST_MODEL_MINILM,
-            model_params=TEST_PARAMS_MINILM, # world_name removed
+            model_params=TEST_PARAMS_MINILM,  # world_name removed
         )
         assert len(error_comps_encode_fail) == 0
         db_error_comps_encode_fail = await ecs_service.get_components(db_session, entity.id, MiniLMEmbeddingComponent)

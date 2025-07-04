@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core import get_default_world
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.tags import (
     ModelGeneratedTagLinkComponent,
@@ -67,7 +66,7 @@ TAGGING_MODEL_CONCEPTUAL_PARAMS: Dict[str, Dict[str, Any]] = {
 
 
 async def get_tagging_model(
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
     model_load_params: Optional[Dict[str, Any]] = None,  # Params for actual loading (e.g. device)
     # world_name: Optional[str] = None, # Removed
@@ -95,7 +94,7 @@ async def get_tagging_model(
 
 
 async def generate_tags_from_image(
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     image_path: str,
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
     conceptual_params: Dict[str, Any],  # e.g., threshold, tag_limit for prediction behavior
@@ -110,7 +109,9 @@ async def generate_tags_from_image(
     model_load_params_from_conceptual = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name, {}).get("model_load_params")
 
     model = await get_tagging_model(
-        model_execution_manager, model_name, model_load_params=model_load_params_from_conceptual # Pass MEM
+        model_execution_manager,
+        model_name,
+        model_load_params=model_load_params_from_conceptual,  # Pass MEM
     )
     if not model:
         return []
@@ -133,7 +134,7 @@ async def generate_tags_from_image(
 
 async def update_entity_model_tags(
     session: AsyncSession,
-    model_execution_manager: ModelExecutionManager, # Added
+    model_execution_manager: ModelExecutionManager,  # Added
     entity_id: int,
     image_path: str,
     model_name: str,  # e.g., "wd-v1-4-moat-tagger-v2"
@@ -156,7 +157,10 @@ async def update_entity_model_tags(
 
     # 1. Generate new tags using the model
     generated_raw_tags = await generate_tags_from_image(
-        model_execution_manager, image_path, model_name, conceptual_params # Pass MEM
+        model_execution_manager,
+        image_path,
+        model_name,
+        conceptual_params,  # Pass MEM
     )
 
     if not generated_raw_tags:
