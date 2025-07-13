@@ -1,7 +1,16 @@
+import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
+from dam.services import ecs_service
+
+logger = logging.getLogger(__name__)
 
 
 class TranscodeError(Exception):
@@ -208,18 +217,6 @@ if __name__ == "__main__":
         print(f"Cleaned up dummy input: {dummy_input}")
 
     print("\nMedia utils tests finished.")
-
-
-import logging
-import os
-from typing import Optional
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
-from dam.services import ecs_service
-
-logger = logging.getLogger(__name__)
 
 
 async def get_file_path_for_entity(
