@@ -1,6 +1,6 @@
 import pathlib
 from typer.testing import CliRunner
-from domarkx.domarkx.cli import cli_app
+from domarkx.cli import cli_app
 
 runner = CliRunner()
 
