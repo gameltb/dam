@@ -27,6 +27,9 @@ dependencies = [
     "typer",
 ]
 
+[project.optional-dependencies]
+all = []
+
 [project.scripts]
 domarkx = "domarkx.cli:main"
 
