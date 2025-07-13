@@ -1,8 +1,8 @@
 from typer.testing import CliRunner
-
-from domarkx.domarkx.cli import cli_app
+from utils import setup_test_app
 
 runner = CliRunner()
+cli_app = setup_test_app()
 
 
 def test_app():

@@ -11,22 +11,14 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 
 import domarkx.ui.console
-from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
-from domarkx.tools.execute_command import execute_command
-from domarkx.tools.list_files import list_files
-from domarkx.tools.python_code_handler import python_code_handler
-from domarkx.tools.read_file import read_file
-from domarkx.tools.write_to_file import write_to_file
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser, Message, append_message
+from domarkx.agent_manager import create_agent
+from domarkx.document_parser import parse_document
+from domarkx.utils.chat_doc_parser import Message, append_message
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
-    with doc.open() as f:
-        md_content = f.read()
-
     console = Console(markup=False)
-    parser = MarkdownLLMParser()
-    parsed_doc = parser.parse(md_content, source_path=str(doc.absolute()))
+    parsed_doc = parse_document(doc)
 
     if parsed_doc.config.session_setup_code:
         session_setup_code = parsed_doc.config.session_setup_code
@@ -42,34 +34,13 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 
     system_message = parsed_doc.conversation[0].content
 
-    messages = []
-    for md_message in parsed_doc.conversation[1:]:
-        message_dict = md_message.metadata
-
-        thought, content = parse_r1_content(md_message.content)
-        if "content" not in message_dict:
-            message_dict["content"] = content
-        elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
-            if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
-                message_dict["content"][0]["content"] = content
-        if thought:
-            message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
-        messages.append(message_dict)
-
+    messages = _process_initial_messages(parsed_doc)
     chat_agent_state["llm_context"]["messages"] = messages
 
     if system_message is None or len(system_message) == 0:
         system_message = "You are a helpful AI assistant. "
 
-    chat_agent = ResumeFunCallAssistantAgent(
-        "assistant",
-        model_client=client,
-        system_message=system_message,
-        model_client_stream=True,
-        tools=[list_files, read_file, write_to_file, execute_command, python_code_handler],
-    )
-
-    await chat_agent.load_state(chat_agent_state)
+    chat_agent = await create_agent(client, system_message, chat_agent_state)
 
     # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
@@ -92,23 +63,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 
         new_state = await chat_agent.save_state()
 
-        for message in new_state["llm_context"]["messages"][len(messages) :]:
-            message: dict = copy.deepcopy(message)
-            content = ""
-            if "content" in message:
-                if isinstance(message["content"], str):
-                    content = message.pop("content")
-                elif isinstance(message["content"], list) and len(message["content"]) == 1:
-                    content = message["content"][0].pop("content", "")
-            thought = message.pop("thought", "")
-            if thought:
-                thought = "\n".join("> " + line for line in f"""<think>{thought}</think>""".splitlines())
-                content = f"""
-{thought}
-
-{content}"""
-            with doc.open("a") as f:
-                append_message(f, Message("assistant", content, message))
+        _append_new_messages(doc, new_state, messages)
 
         messages = new_state["llm_context"]["messages"]
 
@@ -118,6 +73,42 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
         user_input = user_input.strip().lower()
         if len(user_input) != 0 and user_input != "r":
             break
+
+
+def _append_new_messages(doc, new_state, messages):
+    for message in new_state["llm_context"]["messages"][len(messages) :]:
+        message: dict = copy.deepcopy(message)
+        content = ""
+        if "content" in message:
+            if isinstance(message["content"], str):
+                content = message.pop("content")
+            elif isinstance(message["content"], list) and len(message["content"]) == 1:
+                content = message["content"][0].pop("content", "")
+        thought = message.pop("thought", "")
+        if thought:
+            thought = "\n".join("> " + line for line in f"""<think>{thought}</think>""".splitlines())
+            content = f"""
+{thought}
+
+{content}"""
+        with doc.open("a") as f:
+            append_message(f, Message("assistant", content, message))
+
+
+def _process_initial_messages(parsed_doc):
+    messages = []
+    for md_message in parsed_doc.conversation[1:]:
+        message_dict = md_message.metadata
+        thought, content = parse_r1_content(md_message.content)
+        if "content" not in message_dict:
+            message_dict["content"] = content
+        elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
+            if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
+                message_dict["content"][0]["content"] = content
+        if thought:
+            message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
+        messages.append(message_dict)
+    return messages
 
 
 def exec_doc(

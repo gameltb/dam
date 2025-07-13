@@ -297,7 +297,11 @@ class LibCstEditor:
                                 self.updated = True
                                 return new_node
                             elif self.target_type == "assignment":
-                                new_assignment_statement = cst.parse_statement(self.new_code_content)
+                                parsed_statement = cst.parse_statement(self.new_code_content)
+                                if not isinstance(parsed_statement, cst.SimpleStatementLine) or not len(parsed_statement.body) == 1:
+                                    raise ToolError("Expected a single statement.")
+                                new_assignment_statement = parsed_statement.body[0]
+
                                 if (
                                     not isinstance(new_assignment_statement, cst.Assign)
                                     or len(new_assignment_statement.targets) != 1
@@ -898,8 +902,8 @@ def python_code_handler(
     *   `FileNotFoundError`: Specified `path` does not exist.
     *   `ToolError`: A custom exception wrapping other exceptions raised by the tool, including `ImportError`, `AttributeError`, `SyntaxError`, `IOError`, `NotADirectoryError`, `IsADirectoryError`, and internal `libcst` related errors.
     """
-    # No need for this log, decorator handles 'started' log
-    # logging.info(f"python_code_handler called with mode: '{mode}'")
+    if mode not in ["list", "modify"]:
+        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list' or 'modify'.")
 
     if not isinstance(target, str):
         raise TypeError("Parameter 'target' must be of type string.")

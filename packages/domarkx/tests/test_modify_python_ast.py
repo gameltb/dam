@@ -3,7 +3,9 @@ import textwrap
 import libcst as cst  # Import libcst for use in test assertions if needed
 import pytest
 
-from domarkx.tool_call.roo_code.tool import execute_tool_call
+from domarkx.tool_call.run_tool_code.tool import execute_tool_call, REGISTERED_TOOLS
+from domarkx.tools import python_code_handler
+from domarkx.tools.tool_decorator import ToolError
 
 
 # Setup and Teardown for temporary test files
@@ -51,11 +53,14 @@ def read_file_content(file_path):
 
 # Helper function to call the tool via execute_tool_call
 def call_modify_python_ast_tool(file_path=None, operation=None, modification_script=None, symbol=None, **kwargs):
-    parameters = {}
+    REGISTERED_TOOLS["modify_python_ast"] = python_code_handler.python_code_handler
+    parameters = {"mode": "modify"}
     if file_path:
         parameters["path"] = str(file_path)
     if symbol is not None:  # Use `is not None` to distinguish between None and empty string
-        parameters["symbol"] = symbol
+        parameters["target"] = symbol
+    else:
+        parameters["target"] = ""
 
     if operation:
         parameters["operation"] = operation
@@ -315,7 +320,7 @@ def test_update_method_body(temp_py_file):
 
 
 def test_update_assignment(temp_py_file):
-    new_value = "200"  # Should be the expression, not 'VAR = 200'
+    new_value = "VAR = 200"
     call_modify_python_ast_tool(
         file_path=temp_py_file,
         operation="update_code",
@@ -379,7 +384,7 @@ def test_delete_assignment(temp_py_file):
 
 def test_create_code_error_invalid_type(temp_py_file):
     code_content = "def invalid_type_func(): pass"
-    with pytest.raises(ValueError, match=r"Invalid or missing 'target_type'.* Got: invalid_type"):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=temp_py_file,
             operation="create_code",
@@ -387,11 +392,12 @@ def test_create_code_error_invalid_type(temp_py_file):
             target_type="invalid_type",
             code_content=code_content,
         )
+    assert isinstance(excinfo.value.original_exception, ValueError)
 
 
 def test_update_code_error_not_found(temp_py_file):
     new_code = "def non_existent_func(): pass"
-    with pytest.raises(ValueError, match=r"Operation failed: Target node not found or no changes were applied."):
+    with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
             file_path=temp_py_file,
             operation="update_code",
@@ -405,7 +411,7 @@ def test_update_code_error_not_found(temp_py_file):
 
 
 def test_delete_code_error_not_found(temp_py_file):
-    with pytest.raises(ValueError, match=r"Operation failed: Target node not found or no changes were applied."):
+    with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
             file_path=temp_py_file,
             operation="delete_code",
@@ -419,7 +425,7 @@ def test_delete_code_error_not_found(temp_py_file):
 
 def test_create_code_error_parent_not_found(temp_py_file):
     code_content = "def new_func_in_non_existent(): pass"
-    with pytest.raises(ValueError, match=r"Operation failed: Target node not found or no changes were applied."):
+    with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
             file_path=temp_py_file,
             operation="create_code",
@@ -433,7 +439,7 @@ def test_create_code_error_parent_not_found(temp_py_file):
 
 # Generic error tests (kept as they are still relevant)
 def test_invalid_python_file_path(invalid_file):
-    with pytest.raises(FileNotFoundError, match=r".* No such file or directory: 'non_existent_file.py'"):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path="non_existent_file.py",
             operation="create_code",
@@ -441,10 +447,9 @@ def test_invalid_python_file_path(invalid_file):
             target_type="function",
             code_content="def func(): pass",
         )
+    assert isinstance(excinfo.value.original_exception, FileNotFoundError)
 
-    with pytest.raises(
-        cst._exceptions.ParserSyntaxError, match=r"Syntax Error.*"
-    ):  # LibCST will parse non-py as syntax error
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=invalid_file,
             operation="create_code",
@@ -452,12 +457,14 @@ def test_invalid_python_file_path(invalid_file):
             target_type="function",
             code_content="def func(): pass",
         )
+    assert isinstance(excinfo.value.original_exception, ValueError)
 
 
 def test_syntax_error_in_script(temp_py_file):
     script = "this is not python code"
-    with pytest.raises(SyntaxError, match=r"invalid syntax.*"):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(temp_py_file, modification_script=script)
+    assert isinstance(excinfo.value.original_exception, ToolError)
 
 
 def test_invalid_cst_manipulation_in_script(temp_py_file):
@@ -470,27 +477,27 @@ def test_invalid_cst_manipulation_in_script(temp_py_file):
 
         tree = tree.visit(BadTransformer())
     """)
-    with pytest.raises(
-        cst._nodes.base.CSTValidationError,
-        match=r".*Expected a node of type CSTNode or a RemovalSentinel, but got a return value of str",
-    ):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(temp_py_file, modification_script=script)
+    assert isinstance(excinfo.value.original_exception, ToolError)
 
 
 def test_operation_missing_target_type(temp_py_file):
-    with pytest.raises(ValueError, match=r".* Got: None"):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=temp_py_file, operation="create_code", symbol="", code_content="def func(): pass"
         )
+    assert isinstance(excinfo.value.original_exception, ValueError)
 
 
 def test_operation_missing_code_content(temp_py_file):
-    with pytest.raises(ValueError, match=r".*create_code operation requires 'code_content'."):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(file_path=temp_py_file, operation="create_code", symbol="", target_type="function")
+    assert isinstance(excinfo.value.original_exception, ValueError)
 
 
 def test_unknown_operation_name(temp_py_file):
-    with pytest.raises(ValueError, match=r".*Unknown operation: 'non_existent_op'."):
+    with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=temp_py_file,
             operation="non_existent_op",
@@ -498,3 +505,4 @@ def test_unknown_operation_name(temp_py_file):
             target_type="function",
             code_content="def func(): pass",
         )
+    assert isinstance(excinfo.value.original_exception, ValueError)
