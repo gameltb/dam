@@ -38,6 +38,9 @@ jobs:
       run: |
         uv venv .venv
         source .venv/bin/activate
+        if [ "${{ matrix.package }}" = "dam" ]; then
+          uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+        fi
         uv pip install -e ".[all]"
 
     - name: Test with pytest and generate coverage report

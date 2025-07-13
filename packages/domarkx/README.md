@@ -17,138 +17,74 @@ Domarkx transforms your Markdown documentation and LLM chat logs into powerful, 
 
 ---
 
-## Repository Structure
+## Project Structure
 
 ```
-domarkx/
-│
-├── domarkx.py               # Main Python CLI entry point for document/code block execution
-├── pyproject.toml           # Python project configuration & dependencies
-├── editors/
-│   └── code/
-│        ├── README.md       # Extension for VS Code
-│        └── package.json    # VS Code extension manifest (adds CodeLens to Markdown)
-└── ...
+packages/domarkx/
+├── domarkx/
+│   ├── __init__.py
+│   ├── cli.py               # Main Python CLI entry point
+│   ├── action/
+│   ├── agents/
+│   ├── models/
+│   └── tools/
+├── docs/
+│   ├── developer_guide.md
+│   └── design_specification.md
+├── tests/
+│   └── ...
+└── pyproject.toml
 ```
 
-- **`domarkx.py`**: The main CLI for executing Markdown-based LLM sessions and code blocks.
-- **`editors/code`**: Contains the VS Code extension for integrating Domarkx features (like CodeLenses) in Markdown documents.
+For more details on the project's design and architecture, please see the [Design Specification](docs/design_specification.md). For information on how to contribute to the project, please see the [Developer Guide](docs/developer_guide.md).
 
 ---
 
-## Getting Started
+## Setup Instructions
 
-### 1. Installation
+1.  **Navigate to the `packages/domarkx` directory.**
+2.  **Create a virtual environment and activate it:**
+    ```bash
+    uv venv
+    source .venv/bin/activate
+    ```
+3.  **Install dependencies:**
+    ```bash
+    uv pip install -e .[all]
+    ```
 
-**Python CLI:**
+---
+
+## Usage
+
+The primary way to use `domarkx` is through its command-line interface.
+
+**General help:**
 
 ```bash
-# Clone the repository
-git clone https://github.com/gameltb/domarkx.git
-cd domarkx
-
-# (Optional) Create a virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install .
+domarkx --help
 ```
 
-**VS Code Extension (optional):**
-
-1. Open `editors/code` in VS Code.
-2. Run `npm install` and `npm run package` to create the `.vsix` file.
-3. Install the extension in VS Code using the generated `.vsix`.
-
----
-
-## How to Use Domarkx
-
-### A. Using the Python CLI
-
-#### Execute an Entire LLM Markdown Session
+**Execute an entire LLM Markdown session:**
 
 ```bash
-python domarkx.py exec-doc <your_markdown_file.md>
+domarkx exec-doc <your_markdown_file.md>
 ```
 
-- This will parse your Markdown LLM conversation file, execute session setup code if present, and interactively run the conversation using an LLM agent.
-- All changes and new messages are appended to the Markdown file, preserving history.
-
-#### Execute a Specific Code Block in a Conversation
+**Execute a specific code block in a conversation:**
 
 ```bash
-python domarkx.py exec-doc-code-block <your_markdown_file.md> <message_index> <code_block_in_message_index>
+domarkx exec-doc-code-block <your_markdown_file.md> <message_index> <code_block_in_message_index>
 ```
-
-- This executes a specific code block (by message and block index) in your Markdown file.
-
-### B. Using the VS Code Extension
-
-**Domarkx provides a VS Code extension for deeper integration:**
-
-- **CodeLens for Markdown:** Adds "Execute Document" and "Execute Code Block" actions directly above Markdown chat messages and code blocks.
-- **Custom Commands:** Configure your own commands for message/code block execution via the extension settings (`Domarkx.executionCommand`, `Domarkx.codeBlockCommands`, etc.).
-- **Context Menu & Title Actions:** Quickly run, split, or extract parts of your LLM chat session from the editor interface.
-
-#### Example Configuration
-
-In your VS Code `settings.json`:
-
-```json
-{
-  "Domarkx.executionCommand": "python domarkx.py exec-doc \"${file}\"",
-  "Domarkx.codeBlockCommands": [
-    {
-      "title": "Run Code Block",
-      "command": "python domarkx.py exec-doc-code-block \"${file}\" ${messageIndex} ${codeBlockInMessageIndex}"
-    }
-  ]
-}
-```
-
----
-
-## Example Workflow
-
-1. Write an LLM conversation in Markdown (e.g., with prompts and code snippets).
-2. Use the CLI to execute the session and append results to the file.
-3. Use VS Code to run or extract messages/code blocks interactively.
-
----
-
-## Requirements
-
-- **Python ≥ 3.11**
-- **VS Code** (for the extension, optional)
-- Install Python dependencies via `pip install .` or `pip install -r requirements.txt`.
 
 ---
 
 ## Contributing
 
-Feel free to open issues or submit PRs for new features, bug fixes, or documentation improvements.
+Contributions are welcome! Please see the [Developer Guide](docs/developer_guide.md) for more information.
 
 ---
 
 ## License
 
 MIT License
-
----
-
-## Contact
-
-Author: gameltb & Gemini
-
----
-
-## Advanced
-
-- **Custom Agent Models:** You can modify the session setup code in your Markdown to initialize different LLM clients.
-- **Extend with Your Own Tools:** Add new commands and integrations in the extension or CLI for your specific workflow.
-
----
-
-**Domarkx** — Complete your documentation with the results of code execution, powered by LLMs and your own tools.

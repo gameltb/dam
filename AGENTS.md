@@ -15,6 +15,33 @@ This is a monorepo containing multiple Python packages under the `packages/` dir
 
 It is recommended to use `uv` for managing virtual environments and dependencies.
 
+#### Managing Environment-Specific Dependencies (e.g., CPU-only PyTorch)
+
+Different environments may require different dependencies, such as a CPU-only version of PyTorch in environments without a GPU or with limited disk space. You can manage this by creating separate `requirements.txt` files or by using optional dependency groups in `pyproject.toml`.
+
+**Example using `requirements.txt`:**
+
+You can create a `requirements-cpu.txt` file in the `packages/dam` directory with the following content:
+
+```
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+torchaudio
+```
+
+Then, when installing dependencies for a CPU-only environment, you would run:
+
+```bash
+cd packages/dam
+uv pip install -r requirements-cpu.txt
+uv pip install -e .[all]
+```
+
+This ensures that the CPU-only version of PyTorch is installed before other dependencies.
+
+**Note for Jules:** When running tests in the provided environment, you **must** install the CPU-only version of PyTorch to avoid running out of disk space.
+
 #### Running Tests for a Single Package
 
 To run tests for a single package, navigate to the package's directory and use the following commands:

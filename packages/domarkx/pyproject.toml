@@ -26,3 +26,9 @@ dependencies = [
     "rich",
     "typer",
 ]
+
+[project.scripts]
+domarkx = "domarkx.cli:main"
+
+[tool.setuptools]
+packages = ["domarkx"]
