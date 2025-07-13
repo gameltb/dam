@@ -1,7 +1,6 @@
 import importlib
 import logging
 import os
-
 import typer
 from dotenv import load_dotenv
 
@@ -47,10 +46,14 @@ def load_actions():
                 module.register(cli_app)
 
 
-if __name__ == "__main__":
+def main():
     load_dotenv()
     load_actions()
     try:
         cli_app()
     except Exception as e:
         logger.error(e, exc_info=True)
+
+
+if __name__ == "__main__":
+    main()
