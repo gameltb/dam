@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "dam-domarkx-monorepo"
+version = "0.1.0"
+description = "A monorepo for the dam and domarkx projects."
+authors = ["Your Name <you@example.com>"]
+
+[tool.workspaces]
+packages = [
+    "packages/dam",
+    "packages/domarkx"
+]
