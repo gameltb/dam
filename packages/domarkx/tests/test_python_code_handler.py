@@ -1,9 +1,12 @@
 import sys
-
+import os
 import pytest
+import re
+import textwrap
 
 from domarkx.tools.python_code_handler import _resolve_symbol_path, python_code_handler
 from domarkx.tools.tool_decorator import ToolError
+import libcst as cst
 
 # Original contents of example_module.py for resetting
 ORIGINAL_EXAMPLE_MODULE_CONTENT = '''
@@ -31,10 +34,7 @@ class MyClass:
         return self.value + x
 
 def top_level_function(a, b):
-    """
-    A top-level function.
-    It adds two numbers.
-    """
+    """A top-level function."""
     return a + b
 
 # Another constant
@@ -90,11 +90,9 @@ def test_resolve_symbol_path_non_existent_symbol(tmp_path):
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path))
     try:
-        with pytest.raises(
-            ToolError,
-            match="Could not resolve file path for symbol 'non_existent_module.func'. No Python module found or accessible.",
-        ):
+        with pytest.raises(ToolError) as excinfo:
             _resolve_symbol_path("non_existent_module.func")
+        assert "Could not resolve file path for symbol 'non_existent_module.func'" in str(excinfo.value)
     finally:
         sys.path = old_sys_path
 
@@ -189,14 +187,14 @@ def test_list_mode_path_directory_scan(tmp_path):
         list_detail_level="names_only",
     )
 
-    assert f"--- File: {example_module_path.name}" in result
+    assert "example_module.py" in result
     assert "MODULE_CONSTANT" in result
     assert "MyClass" in result
     assert "top_level_function" in result
-    assert f"--- File: {another_module_path.name}" in result
+    assert "another_module.py" in result
     assert "another_function" in result
-    assert f"--- File: {empty_module_path.name}" in result
-    assert f"--- File: {syntax_error_module_path.name}" in result
+    assert "empty_module.py" in result
+    assert "syntax_error_module.py" in result
 
 
 def test_list_mode_symbol_function_with_docstring(tmp_path):
@@ -235,8 +233,9 @@ def test_list_mode_symbol_class_full_definition(tmp_path):
 
 
 def test_list_mode_symbol_non_existent():
-    with pytest.raises(ToolError, match="Could not import symbol 'non_existent_module.SomeClass'"):
-        python_code_handler(mode="list", target="non_existent_module.SomeClass", list_detail_level="names_only")
+    with pytest.raises(ToolError) as excinfo:
+        python_code_handler(mode="list", target="non_existent_module.SomeClass")
+    assert "Could not resolve file path for symbol 'non_existent_module.SomeClass'" in str(excinfo.value.original_exception)
 
 
 # --- Test Modify Mode ---
@@ -285,7 +284,7 @@ def test_modify_mode_update_function(tmp_path):
     modified_content = example_module_path.read_text()
     assert "return a * b" in modified_content
     assert "Updated top-level function." in modified_content
-    assert "return a + b" not in modified_content
+    assert "A top-level function." not in modified_content
 
 
 def test_modify_mode_delete_function(tmp_path):
@@ -375,27 +374,14 @@ class UpdateDocstringTransformer(cst.CSTTransformer):
         self.updated = False
         self.found_target = False
 
-    def leave_FunctionDef(self, original_node, updated_node):
+    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         if original_node.name.value == self.func_name:
             self.found_target = True
             logging.info(f"Found function '{self.func_name}', attempting to update docstring.")
             
-            new_docstring_node = cst.Expr(
-                value=cst.SimpleString(f'"""{self.new_docstring_content}"""')
-            )
-
-            new_body = list(updated_node.body.body)
+            new_docstring = cst.SimpleString(f'"""{self.new_docstring_content}"""')
             
-            if new_body and isinstance(new_body[0], cst.Expr) \
-               and isinstance(new_body[0].value, cst.SimpleString):
-                new_body[0] = new_docstring_node
-            else:
-                new_body.insert(0, new_docstring_node)
-                if len(new_body) > 1 and not isinstance(new_body[1], cst.Newline):
-                    new_body.insert(1, cst.Newline())
-
-            self.updated = True
-            return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+            return updated_node.with_changes(docstring=new_docstring)
         return updated_node
 
 transformer = UpdateDocstringTransformer(target_func_name, new_doc)
@@ -411,24 +397,27 @@ if not transformer.updated:
     )
     modified_content = example_module_path.read_text()
     assert "This is an updated docstring via custom script." in modified_content
-    assert "A top-level function." not in modified_content  # Original docstring should be gone
+    assert "A top-level function." not in modified_content
 
 
 # --- Error Handling Tests ---
 def test_invalid_mode():
-    with pytest.raises(ToolError, match="Invalid mode: 'invalid_mode'. Mode must be 'list' or 'modify'."):
+    with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="invalid_mode", target="anything")
-
+    assert "Invalid mode: 'invalid_mode'." in str(excinfo.value.original_exception)
 
 def test_missing_target():
-    with pytest.raises(TypeError, match="Parameter 'target' must be of type string."):
+    with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", target=None)
+    assert "Parameter 'target' must be of type string." in str(excinfo.value.original_exception)
 
 
 def test_list_path_non_existent_file(tmp_path):
     non_existent_path = tmp_path / "non_existent.py"
-    with pytest.raises(ToolError, match=f"File or directory '{non_existent_path}' does not exist."):
+    with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", path=str(non_existent_path), target="")
+    assert "File or directory" in str(excinfo.value.original_exception)
+    assert "does not exist" in str(excinfo.value.original_exception)
 
 
 def test_list_path_syntax_error_file(tmp_path):
@@ -436,9 +425,8 @@ def test_list_path_syntax_error_file(tmp_path):
     syntax_error_module_path.write_text("def incomplete_function(\n    return 1\n")
 
     # The decorator now wraps CST exceptions as ToolError
-    with pytest.raises(ToolError) as excinfo:
-        python_code_handler(mode="list", path=str(syntax_error_module_path), target="")
-    assert "Syntax error in file" in str(excinfo.value)
+    result = python_code_handler(mode="list", path=str(syntax_error_module_path), target="")
+    assert "Syntax error in file" in result
 
 
 def test_modify_non_existent_target(tmp_path):

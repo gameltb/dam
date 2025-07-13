@@ -21,9 +21,11 @@ def exec_doc_code_block(
         md_content = f.read()
 
     parser = MarkdownLLMParser()
-    parser.parse(md_content, resolve_inclusions=False)
-
+    doc = parser.parse(md_content)
+    print(f"doc: {doc}")
     message_obj, code_block = parser.get_message_and_code_block(message_index, code_block_in_message_index)
+    print(f"message_obj: {message_obj}")
+    print(f"code_block: {code_block}")
 
     console = Console(markup=False)
     md = rich.markdown.Markdown(message_obj.content)

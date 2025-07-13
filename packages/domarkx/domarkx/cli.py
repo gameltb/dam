@@ -37,11 +37,11 @@ cli_app = typer.Typer()
 
 
 def load_actions():
-    actions_dir = "domarkx/action"
+    actions_dir = os.path.join(os.path.dirname(__file__), "action")
     for filename in os.listdir(actions_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = filename[:-3]
-            module = importlib.import_module(f"{actions_dir.replace('/', '.')}.{module_name}")
+            module = importlib.import_module(f"domarkx.action.{module_name}")
             if hasattr(module, "register"):
                 module.register(cli_app)
 

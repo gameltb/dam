@@ -25,13 +25,18 @@ dependencies = [
     "python-dotenv",
     "rich",
     "typer",
+    "pyyaml"
 ]
 
 [project.optional-dependencies]
-all = []
+all = [
+    "pytest",
+    "typer",
+    "libcst",
+]
 
 [project.scripts]
 domarkx = "domarkx.cli:main"
 
-[tool.setuptools]
-packages = ["domarkx"]
+[tool.setuptools.packages.find]
+where = ["."]
