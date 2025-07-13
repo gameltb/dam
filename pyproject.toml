@@ -9,3 +9,6 @@ packages = [
     "packages/dam",
     "packages/domarkx"
 ]
+
+[tool.ruff]
+line-length = 120

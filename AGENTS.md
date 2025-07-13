@@ -57,6 +57,21 @@ done
 *   **`packages/dam`**: For more specific instructions on the `dam` package, please refer to its [AGENTS.md](packages/dam/AGENTS.md).
 *   **`packages/domarkx`**: This package does not have any special instructions at this time.
 
+### Linting and Formatting
+
+This repository uses `ruff` for linting and formatting. You can run it from the root of the repository using `uv`:
+
+```bash
+# Check for linting errors
+uv run ruff check .
+
+# Fix linting errors automatically
+uv run ruff check . --fix
+
+# Format the code
+uv run ruff format .
+```
+
 ### Assertion Guideline
 
 Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.
