@@ -28,9 +28,6 @@ dependencies = [
     "pydantic",
     "pydantic-settings", # For settings management
     "psutil", # Added for system resource detection
-    # "hachoir", # Moved to optional
-    # "sentence-transformers", # Moved to optional
-    # "numpy", # Moved to optional
 ]
 
 [project.optional-dependencies]
@@ -39,64 +36,39 @@ image = [
     "Pillow"
 ]
 video = [
-    # "ffmpeg-python" # Using subprocess for now
 ]
 audio = [
-    # "mutagen",
 ]
-metadata = [ # New group for metadata extraction
+metadata = [
     "hachoir"
 ]
-semantic = [ # New group for semantic search capabilities
+semantic = [
     "sentence-transformers",
     "numpy"
 ]
-# Transcoding tool specific dependencies (optional, as tools might be system-installed)
-# These are more for tracking/documentation if direct python bindings were used.
-# For now, we assume ffmpeg, cjxl, avifenc, etc., are in PATH.
 transcode-ffmpeg = []
 transcode-cjxl = []
 transcode-avifenc = []
 
-# Group for all transcoding related optional dependencies (if any were added above)
-all-transcode = [
-    # "ecs_dam_system[transcode-ffmpeg]", # Example if they had actual deps
-    # "ecs_dam_system[transcode-cjxl]",
-    # "ecs_dam_system[transcode-avifenc]",
-]
+all-transcode = []
 
-# ui = [
-#     "gradio"
-# ]
 dev = [
     "pytest",
     "pytest-cov",
-    "pytest-asyncio", # Already present, ensure it stays
-    "aiosqlite", # Added for async SQLite in tests
-    "pytest-mock", # Added for mocking
-    # "ruff", # Assuming ruff is installed via uv directly or globally
-    # "mypy", # Assuming mypy is installed via uv directly or globally
-    # types-tomlkit was here, removing it
+    "pytest-asyncio",
+    "aiosqlite",
+    "pytest-mock",
 ]
 
-# Convenience group to install all optional dependencies
 all = [
     "ecs_dam_system[image]",
     "ecs_dam_system[video]",
     "ecs_dam_system[audio]",
     "ecs_dam_system[metadata]",
     "ecs_dam_system[semantic]",
-    # "ecs_dam_system[ui]", # Removed Gradio UI dependency
     "ecs_dam_system[dev]",
     "ecs_dam_system[all-transcode]",
 ]
-
-# Adding uv sources for packages not on PyPI or for specific versions
-[tool.uv.sources]
-# Example: psycopg2 = { url = "psycopg2-binary-2.9.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", type = "wheel" }
-# pytest-asyncio is a standard PyPI package, so it does not need an entry here unless overriding.
-# Removing the incorrect entry for pytest-asyncio.
-
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder
@@ -115,27 +87,27 @@ include = ["dam*"]
 exclude = ["tests*"]
 
 [tool.ruff]
-line-length = 120
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+include = ["dam/**", "tests/**"]
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I001", "I", "F401"] # Enable common flake8 rules and isort
-ignore = ["E501"]
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["dam", "tests"]
+exclude = []
+reportDeprecated = true
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+minversion = "6.0"
 testpaths = ["tests"]
-asyncio_mode = "auto" # Try auto mode for pytest-asyncio
-log_cli = false
-log_cli_level = "WARNING"
-log_level = "WARNING" # Overall log level for pytest
-log_format = "%(asctime)s %(levelname)s %(name)s:%(lineno)d - %(message)s"
-log_date_format = "%Y-%m-%d %H:%M:%S"
-markers = [
-    "ui: marks tests as ui tests to run headlessly or skip.",
-]
+asyncio_mode = "auto"
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-packages = ["dam"]
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+test = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
+mypy.default_item_type = "cmd"
+mypy.sequence = [
+    "mypy --config-file ../../pyproject.toml dam tests",
+]

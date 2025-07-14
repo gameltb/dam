@@ -25,6 +25,4 @@ class BaseConceptualInfoComponent(BaseComponent):
     def __repr__(self):
         # Since this is abstract, direct instantiation isn't typical for __repr__
         # but subclasses might call super().__repr__()
-        return (
-            f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, concept_name='{self.concept_name}')"
-        )
+        return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, concept_name='{self.concept_name}')"

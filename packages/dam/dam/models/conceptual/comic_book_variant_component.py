@@ -15,13 +15,9 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
 
     # id, entity_id, conceptual_entity_id, created_at, updated_at are inherited.
 
-    language: Mapped[str | None] = mapped_column(
-        String(50), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."
-    )
+    language: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp').")
 
-    format: Mapped[str | None] = mapped_column(
-        String(50), nullable=True, index=True, comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub')."
-    )
+    format: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True, comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub').")
 
     scan_quality: Mapped[str | None] = mapped_column(
         String(100),

@@ -1,5 +1,6 @@
 from domarkx.utils.markdown_utils import find_code_blocks, find_macros
 
+
 def test_find_code_blocks():
     text = """
 Some text
@@ -13,6 +14,7 @@ Some more text
     assert blocks[0].language == "python"
     assert blocks[0].attrs == "test.py"
     assert blocks[0].code == 'print("hello")\n'
+
 
 def test_find_macros():
     text = """

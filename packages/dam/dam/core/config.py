@@ -87,12 +87,8 @@ class Settings(BaseSettings):
             except json.JSONDecodeError as e:
                 # If it's not a valid path and not valid JSON, it might be a simple string meant for default.
                 # This path is less likely if default is handled above.
-                logger.warning(
-                    f"DAM_WORLDS_CONFIG_SOURCE '{config_source}' is not a valid file path or JSON string. Attempting default. Error: {e}"
-                )
-                raw_world_configs = {
-                    "default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}
-                }
+                logger.warning(f"DAM_WORLDS_CONFIG_SOURCE '{config_source}' is not a valid file path or JSON string. Attempting default. Error: {e}")
+                raw_world_configs = {"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}
                 if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                     values["DEFAULT_WORLD_NAME"] = "default"
 
@@ -101,9 +97,7 @@ class Settings(BaseSettings):
 
         if not raw_world_configs:  # Ensure there's at least one world
             logger.warning("No worlds found in configuration source. Adding a default world.")
-            raw_world_configs = {
-                "default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}
-            }
+            raw_world_configs = {"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
@@ -140,9 +134,7 @@ class Settings(BaseSettings):
             # No explicit default, 'default' world doesn't exist, pick the first one alphabetically.
             first_world_by_name = sorted(final_worlds_dict.keys())[0]
             values["DEFAULT_WORLD_NAME"] = first_world_by_name
-            logger.info(
-                f"DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '{first_world_by_name}'."
-            )
+            logger.info(f"DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '{first_world_by_name}'.")
 
         logger.debug(f"Final processed worlds: {list(values['worlds'].keys())}")
         logger.debug(f"Default world name set to: {values['DEFAULT_WORLD_NAME']}")

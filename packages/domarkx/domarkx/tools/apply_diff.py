@@ -56,23 +56,17 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 raise ValueError("无效的 diff 格式: ':start_line:' 后行号无效。")
             current_line_in_diff += 1
 
-            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-                r"\s*-------\s*", diff_lines[current_line_in_diff].strip()
-            ):
+            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(r"\s*-------\s*", diff_lines[current_line_in_diff].strip()):
                 raise ValueError("无效的 diff 格式: SEARCH 块后缺少 '-------' 分隔符。")
             current_line_in_diff += 1
 
             search_content_lines = []
-            while current_line_in_diff < len(diff_lines) and not re.fullmatch(
-                r"\s*=======\s*", diff_lines[current_line_in_diff].strip()
-            ):
+            while current_line_in_diff < len(diff_lines) and not re.fullmatch(r"\s*=======\s*", diff_lines[current_line_in_diff].strip()):
                 search_content_lines.append(diff_lines[current_line_in_diff])
                 current_line_in_diff += 1
             search_content = "".join(search_content_lines)
 
-            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-                r"\s*=======\s*", diff_lines[current_line_in_diff].strip()
-            ):
+            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(r"\s*=======\s*", diff_lines[current_line_in_diff].strip()):
                 raise ValueError("无效的 diff 格式: SEARCH 内容后缺少 '=======' 分隔符。")
             current_line_in_diff += 1
 
@@ -85,9 +79,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 current_line_in_diff += 1
             replace_content = "".join(replace_content_lines)
 
-            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-                r"\s*>{5,9} ?REPLACE\s*", diff_lines[current_line_in_diff].strip()
-            ):
+            if current_line_in_diff >= len(diff_lines) or not re.fullmatch(r"\s*>{5,9} ?REPLACE\s*", diff_lines[current_line_in_diff].strip()):
                 raise ValueError("无效的 diff 格式: REPLACE 内容后缺少 '>>>>>>> REPLACE' 结束标记。")
             current_line_in_diff += 1
 
@@ -96,9 +88,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
             normalized_search_lines = search_content.splitlines(keepends=True)
 
             if start_idx < 0 or start_idx > len(original_lines):
-                raise ValueError(
-                    f"Diff 块中的起始行号 {start_line_num} 超出文件 '{path}' 的界限 (1 到 {len(original_lines) + 1})。"
-                )
+                raise ValueError(f"Diff 块中的起始行号 {start_line_num} 超出文件 '{path}' 的界限 (1 到 {len(original_lines) + 1})。")
 
             search_window = 5
             found_match = False
@@ -111,9 +101,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 found_match = True
             else:
                 logging.info(f"在文件 '{path}' 中搜索匹配内容，从行 {start_line_num} +/- {search_window}。")
-                for current_search_idx in range(
-                    max(0, start_idx - search_window), min(original_len - search_len + 1, start_idx + search_window + 1)
-                ):
+                for current_search_idx in range(max(0, start_idx - search_window), min(original_len - search_len + 1, start_idx + search_window + 1)):
                     actual_window_content = original_lines[current_search_idx : current_search_idx + search_len]
 
                     # Normalize both for comparison (strip leading/trailing whitespace)
@@ -139,9 +127,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
                     if actual_l != search_l:
                         mismatch_info.append(f"  行 {start_line_num + i}: 实际='{actual_l}', 期望='{search_l}'")
                 if len(actual_stripped_for_error) != len(search_stripped_for_error):
-                    mismatch_info.append(
-                        f"  行数不匹配: 实际={len(actual_stripped_for_error)}, 期望={len(search_stripped_for_error)}"
-                    )
+                    mismatch_info.append(f"  行数不匹配: 实际={len(actual_stripped_for_error)}, 期望={len(search_stripped_for_error)}")
 
                 error_msg = (
                     f"Diff 块中搜索内容与文件 '{path}' 中的实际内容不精确匹配，从第 {start_line_num} 行开始或附近。\n"

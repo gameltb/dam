@@ -8,20 +8,19 @@ from typing import (
     Iterator,  # Added for click_runner
 )
 
-import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
-from typer.testing import CliRunner, Result  # Added for click_runner
-
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
 import dam.models  # This line can sometimes be problematic if dam.models itself has top-level import issues
+import pytest
+import pytest_asyncio
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
+from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
+from typer.testing import CliRunner, Result  # Added for click_runner
 
 # Store original settings values to be restored
 _original_settings_values = {}
@@ -40,24 +39,12 @@ def backup_original_settings():
 def test_worlds_config_data_factory(tmp_path_factory):
     def _factory():
         return {
-            "test_world_alpha": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"
-            },
-            "test_world_beta": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"
-            },
-            "test_world_gamma": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"
-            },
-            "test_world_alpha_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
-            },
-            "test_world_beta_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
-            },
-            "test_world_gamma_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
-            },
+            "test_world_alpha": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"},
+            "test_world_beta": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"},
+            "test_world_gamma": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"},
+            "test_world_alpha_del_split": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"},
+            "test_world_beta_del_split": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"},
+            "test_world_gamma_del_split": {"DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"},
         }
 
     return _factory

@@ -60,9 +60,7 @@ async def _run_exiftool_subprocess(filepath: Path) -> Dict[str, Any] | None:
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            logger.error(
-                f"Exiftool error for {filepath} (return code {process.returncode}): {stderr.decode(errors='ignore')}"
-            )
+            logger.error(f"Exiftool error for {filepath} (return code {process.returncode}): {stderr.decode(errors='ignore')}")
             return None
 
         try:
@@ -70,14 +68,10 @@ async def _run_exiftool_subprocess(filepath: Path) -> Dict[str, Any] | None:
             data = json.loads(stdout)
             if isinstance(data, list) and len(data) > 0:
                 return data[0]
-            logger.warning(
-                f"Exiftool output for {filepath} was not a list with one element: {stdout.decode(errors='ignore')[:200]}"
-            )
+            logger.warning(f"Exiftool output for {filepath} was not a list with one element: {stdout.decode(errors='ignore')[:200]}")
             return None
         except json.JSONDecodeError as e:
-            logger.error(
-                f"Failed to decode JSON from exiftool for {filepath}: {e}. Output: {stdout.decode(errors='ignore')[:200]}"
-            )
+            logger.error(f"Failed to decode JSON from exiftool for {filepath}: {e}. Output: {stdout.decode(errors='ignore')[:200]}")
             return None
 
     except Exception as e:
@@ -174,9 +168,7 @@ async def extract_metadata_on_asset_ingested(
         logger.debug("No entities marked for metadata extraction in this run.")
         return
 
-    logger.info(
-        f"MetadataExtractionSystem running for {len(entities_to_process)} entities in world '{world_config.DATABASE_URL}'."
-    )
+    logger.info(f"MetadataExtractionSystem running for {len(entities_to_process)} entities in world '{world_config.DATABASE_URL}'.")
 
     for entity in entities_to_process:
         original_entity_id_for_log = entity.id  # Capture for logging in case entity becomes None
@@ -186,9 +178,7 @@ async def extract_metadata_on_asset_ingested(
         # Fetch all markers, process based on the entity, and ensure all markers for this entity are cleared.
         current_markers = await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent)
         if not current_markers:
-            logger.info(
-                f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed."
-            )
+            logger.info(f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed.")
             continue
 
         if len(current_markers) > 1:
@@ -228,9 +218,7 @@ async def extract_metadata_on_asset_ingested(
             filepath_on_disk = Path(ref_loc.physical_path_or_key)
 
         if not filepath_on_disk or not await asyncio.to_thread(filepath_on_disk.exists):
-            logger.error(
-                f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
-            )
+            logger.error(f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata.")
             for m_to_del in current_markers:  # Iterate over the fetched list
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
@@ -247,9 +235,7 @@ async def extract_metadata_on_asset_ingested(
                     keys_to_log = list(hachoir_metadata.keys())
                 except Exception:
                     keys_to_log = ["<error reading Hachoir metadata keys>"]
-            logger.debug(
-                f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
-            )
+            logger.debug(f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}")
 
             if mime_type.startswith("image/") or mime_type.startswith("video/"):
                 if not await ecs_service.get_components(session, entity.id, ImageDimensionsComponent):
@@ -260,9 +246,7 @@ async def extract_metadata_on_asset_ingested(
                         await ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False)
                         logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
                     else:
-                        logger.warning(
-                            f"Could not extract width/height for visual media Entity ID {entity.id} (MIME: {mime_type})"
-                        )
+                        logger.warning(f"Could not extract width/height for visual media Entity ID {entity.id} (MIME: {mime_type})")
             # (The rest of the Hachoir metadata processing logic from the original file would go here)
             # This includes is_video_heuristic, is_audio_file_heuristic, and adding relevant components.
             # For brevity in this diff, it's omitted but assumed to be the same as the original.
@@ -274,11 +258,7 @@ async def extract_metadata_on_asset_ingested(
 
             is_video_heuristic = (
                 mime_type.startswith("video/")
-                or (
-                    mime_type.startswith("image/")
-                    and _get_hachoir_metadata(hachoir_metadata, "nb_frames", 0) > 1
-                    and has_duration
-                )
+                or (mime_type.startswith("image/") and _get_hachoir_metadata(hachoir_metadata, "nb_frames", 0) > 1 and has_duration)
                 or (has_duration and (has_width or has_frame_rate) and not mime_type.startswith("audio/"))
             )
 
@@ -287,12 +267,7 @@ async def extract_metadata_on_asset_ingested(
                 is_audio_file_heuristic = True
             elif has_audio_codec and not is_video_heuristic:
                 is_audio_file_heuristic = True
-            elif (
-                not mime_type.startswith("image/")
-                and not is_video_heuristic
-                and has_duration
-                and (has_sample_rate or has_audio_codec)
-            ):
+            elif not mime_type.startswith("image/") and not is_video_heuristic and has_duration and (has_sample_rate or has_audio_codec):
                 is_audio_file_heuristic = True
 
             if is_audio_file_heuristic:
@@ -316,9 +291,7 @@ async def extract_metadata_on_asset_ingested(
             if is_video_heuristic:
                 if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):
                     video_frame_comp = FramePropertiesComponent()
-                    nb_frames = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
-                        hachoir_metadata, "frame_count"
-                    )
+                    nb_frames = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(hachoir_metadata, "frame_count")
                     video_frame_comp.frame_count = nb_frames
                     video_frame_comp.nominal_frame_rate = _get_hachoir_metadata(hachoir_metadata, "frame_rate")
                     video_duration = _get_hachoir_metadata(hachoir_metadata, "duration")
@@ -330,15 +303,11 @@ async def extract_metadata_on_asset_ingested(
                         and video_frame_comp.animation_duration_seconds
                         and video_frame_comp.animation_duration_seconds > 0
                     ):
-                        video_frame_comp.frame_count = int(
-                            video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
-                        )
+                        video_frame_comp.frame_count = int(video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds)
                     await ecs_service.add_component_to_entity(session, entity.id, video_frame_comp, flush=False)
                     logger.info(f"Added FramePropertiesComponent for video/animated Entity ID {entity.id}")
 
-                if has_audio_codec and not await ecs_service.get_components(
-                    session, entity.id, AudioPropertiesComponent
-                ):
+                if has_audio_codec and not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
                     video_audio_comp = AudioPropertiesComponent()
                     video_duration_audio = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if video_duration_audio:
@@ -352,9 +321,7 @@ async def extract_metadata_on_asset_ingested(
             if mime_type == "image/gif":
                 if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):
                     frame_comp = FramePropertiesComponent()
-                    nb_frames_gif = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
-                        hachoir_metadata, "frame_count"
-                    )
+                    nb_frames_gif = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(hachoir_metadata, "frame_count")
                     frame_comp.frame_count = nb_frames_gif
                     duration_gif_obj = _get_hachoir_metadata(hachoir_metadata, "duration")
                     if duration_gif_obj:
@@ -375,9 +342,7 @@ async def extract_metadata_on_asset_ingested(
                 await ecs_service.add_component_to_entity(session, entity.id, exif_comp, flush=False)
                 logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity.id}")
             else:
-                logger.info(
-                    f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate."
-                )
+                logger.info(f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate.")
         else:
             logger.info(f"No metadata extracted by Exiftool for {filepath_on_disk} (Entity ID {entity.id})")
 
@@ -401,9 +366,7 @@ async def extract_metadata_on_asset_ingested(
             # Let's rely on remove_component to handle the instance correctly.
             # The logger inside remove_component can tell us if it did something.
             await ecs_service.remove_component(session, marker_to_remove_loop_var, flush=False)
-            logger.debug(
-                f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}"
-            )
+            logger.debug(f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}")
 
     logger.info("MetadataExtractionSystem finished processing entities.")
     # Session flush will be handled by the WorldScheduler after the stage execution.

@@ -85,9 +85,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             if "stream_options" in create_params.create_args:
                 stream_options = create_params.create_args["stream_options"]
                 if "include_usage" in stream_options and stream_options["include_usage"] != include_usage:
-                    raise ValueError(
-                        "include_usage and extra_create_args['stream_options']['include_usage'] are both set, but differ in value."
-                    )
+                    raise ValueError("include_usage and extra_create_args['stream_options']['include_usage'] are both set, but differ in value.")
             else:
                 # If stream options are not present, add them.
                 create_params.create_args["stream_options"] = {"include_usage": True}

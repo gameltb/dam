@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # ModelExecutionManager fixture from conftest.py
 from dam.core.model_manager import ModelExecutionManager
@@ -15,6 +14,7 @@ from dam.models.semantic import (
 )
 from dam.services import ecs_service, semantic_service
 from dam.services.semantic_service import BatchTextItem  # Keep this for type hints
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .conftest import MockSentenceTransformer  # Import the mock from conftest
 
@@ -78,18 +78,8 @@ async def test_generate_embedding_and_conversion(
 
     # Test empty text
     # Empty text check is done before model loading, so world_name might not be strictly needed if it bails early.
-    assert (
-        await semantic_service.generate_embedding(
-            global_model_execution_manager, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
-        )
-        is None
-    )
-    assert (
-        await semantic_service.generate_embedding(
-            global_model_execution_manager, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
-        )
-        is None
-    )
+    assert await semantic_service.generate_embedding(global_model_execution_manager, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM) is None
+    assert await semantic_service.generate_embedding(global_model_execution_manager, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM) is None
 
     # Test conversion (using MiniLM embedding)
     embedding_bytes = semantic_service.convert_embedding_to_bytes(embedding_minilm_np)
@@ -105,9 +95,7 @@ async def test_generate_embedding_and_conversion(
     # if the mock loader can handle "unregistered-model".
     # The failure would occur in update_text_embeddings_for_entity.
     # However, get_sentence_transformer_model now uses registry for default params, so it might log warning.
-    unregistered_embedding = await semantic_service.generate_embedding(
-        global_model_execution_manager, "test", model_name="unregistered-model", params={}
-    )
+    unregistered_embedding = await semantic_service.generate_embedding(global_model_execution_manager, "test", model_name="unregistered-model", params={})
     # Depending on mock and error handling, this might return an embedding or raise.
     # MockSentenceTransformer will be created.
     assert unregistered_embedding is not None
@@ -201,18 +189,14 @@ async def test_update_text_embeddings_for_entity_specific_tables(
                 model_name=TEST_MODEL_MINILM,
                 params=TEST_PARAMS_MINILM,
             )
-            assert np.array_equal(
-                semantic_service.convert_bytes_to_embedding(comp.embedding_vector), expected_emb_updated
-            )
+            assert np.array_equal(semantic_service.convert_bytes_to_embedding(comp.embedding_vector), expected_emb_updated)
             original_emb_old = await semantic_service.generate_embedding(
                 global_model_execution_manager,  # Pass MEM
                 "document.pdf",
                 model_name=TEST_MODEL_MINILM,
                 params=TEST_PARAMS_MINILM,
             )
-            assert not np.array_equal(
-                semantic_service.convert_bytes_to_embedding(comp.embedding_vector), original_emb_old
-            )
+            assert not np.array_equal(semantic_service.convert_bytes_to_embedding(comp.embedding_vector), original_emb_old)
 
     # Test with an unregistered model - should return empty list and log error
     unregistered_results = await semantic_service.update_text_embeddings_for_entity(
@@ -252,24 +236,18 @@ async def test_get_text_embeddings_for_entity(
     )
 
     # Get MiniLM embeddings
-    minilm_embs = await semantic_service.get_text_embeddings_for_entity(
-        db_session, entity.id, model_name=TEST_MODEL_MINILM, model_params=TEST_PARAMS_MINILM
-    )
+    minilm_embs = await semantic_service.get_text_embeddings_for_entity(db_session, entity.id, model_name=TEST_MODEL_MINILM, model_params=TEST_PARAMS_MINILM)
     assert len(minilm_embs) == 2
     assert all(isinstance(c, MiniLMEmbeddingComponent) for c in minilm_embs)
 
     # Get CLIP embeddings
-    clip_embs = await semantic_service.get_text_embeddings_for_entity(
-        db_session, entity.id, model_name=TEST_MODEL_CLIP, model_params=TEST_PARAMS_CLIP
-    )
+    clip_embs = await semantic_service.get_text_embeddings_for_entity(db_session, entity.id, model_name=TEST_MODEL_CLIP, model_params=TEST_PARAMS_CLIP)
     assert len(clip_embs) == 1
     assert isinstance(clip_embs[0], ClipEmbeddingComponent)
     assert clip_embs[0].source_component_name == "CompC"
 
     # Get for non-existent model
-    no_model_embs = await semantic_service.get_text_embeddings_for_entity(
-        db_session, entity.id, model_name="non-existent", model_params={}
-    )
+    no_model_embs = await semantic_service.get_text_embeddings_for_entity(db_session, entity.id, model_name="non-existent", model_params={})
     assert len(no_model_embs) == 0
 
 
@@ -424,9 +402,7 @@ async def test_error_handling_in_update_embeddings(
     # Temporarily unpatch the global mock, apply a local failing mock loader, then restore.
     # Or, more simply, make `get_sentence_transformer_model` return our own failing_mock_model_instance.
 
-    with patch(
-        "dam.services.semantic_service.get_sentence_transformer_model", return_value=failing_mock_model_instance
-    ):
+    with patch("dam.services.semantic_service.get_sentence_transformer_model", return_value=failing_mock_model_instance):
         error_comps_encode_fail = await semantic_service.update_text_embeddings_for_entity(
             db_session,
             entity.id,

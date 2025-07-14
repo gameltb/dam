@@ -92,22 +92,15 @@ def get_file_properties(filepath: Path) -> Tuple[str, int, str]:
     try:
         # The '-b' option omits the filename from the output.
         # The '--mime-type' option outputs only the MIME type string.
-        result = subprocess.run(
-            ["file", "-b", "--mime-type", str(filepath)], capture_output=True, text=True, check=True
-        )
+        result = subprocess.run(["file", "-b", "--mime-type", str(filepath)], capture_output=True, text=True, check=True)
         mime_type = result.stdout.strip()
         logger.debug(f"MIME type from 'file' command for {filepath.name}: {mime_type}")
     except FileNotFoundError:
         logger.warning("'file' command not found. Falling back to mimetypes module.")
     except subprocess.CalledProcessError as e:
-        logger.warning(
-            f"'file' command failed for {filepath.name}: {e}. Output: {e.stderr}. Falling back to mimetypes."
-        )
+        logger.warning(f"'file' command failed for {filepath.name}: {e}. Output: {e.stderr}. Falling back to mimetypes.")
     except Exception as e:
-        logger.warning(
-            f"An unexpected error occurred while using 'file' command for {filepath.name}: {e}. "
-            "Falling back to mimetypes."
-        )
+        logger.warning(f"An unexpected error occurred while using 'file' command for {filepath.name}: {e}. " "Falling back to mimetypes.")
 
     # 2. Fallback to mimetypes if 'file' command failed or is not available
     if not mime_type:
@@ -159,9 +152,7 @@ try:
     _PIL_available = True
 except ImportError:
     # This warning can be made more prominent or logged if necessary
-    logger.warning(
-        "Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled."
-    )
+    logger.warning("Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled.")
 
 
 def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
@@ -205,9 +196,7 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
     except FileNotFoundError:
         logger.warning(f"Image file not found at {image_filepath} for perceptual hashing.")
     except Exception as e_open:  # Catches PIL.UnidentifiedImageError etc.
-        logger.warning(
-            f"Could not open or process image {image_filepath.name} for perceptual hashing: {e_open}", exc_info=True
-        )
+        logger.warning(f"Could not open or process image {image_filepath.name} for perceptual hashing: {e_open}", exc_info=True)
 
     return hashes
 

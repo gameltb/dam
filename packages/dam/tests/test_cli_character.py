@@ -2,12 +2,11 @@ from pathlib import Path  # Missing import
 from typing import Optional  # For asset_sha256 type hint
 
 import pytest
-from typer.testing import CliRunner
-
 from dam.core.world import World
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.properties import FilePropertiesComponent  # For creating dummy assets
 from dam.services import character_service, ecs_service
+from typer.testing import CliRunner
 
 
 # Fixture to ensure a clean world for each test function in this file
@@ -33,9 +32,7 @@ async def test_cli_character_create(current_test_world: World, click_runner: Cli
     # Directly test the service layer logic.
     async with current_test_world.db_session_maker() as session:
         # Initial creation
-        char_entity = await character_service.create_character_concept(
-            session=session, name=char_name, description=char_desc
-        )
+        char_entity = await character_service.create_character_concept(session=session, name=char_name, description=char_desc)
         await session.commit()
         assert char_entity is not None
         char_entity_id = char_entity.id
@@ -61,9 +58,7 @@ async def test_cli_character_create(current_test_world: World, click_runner: Cli
         assert existing_char_entity_again.id == char_entity_id  # Should be the same entity
 
         # Verify that the description was NOT updated (service returns existing, doesn't update)
-        char_comp_after_dupe_attempt = await ecs_service.get_component(
-            session, char_entity_id, CharacterConceptComponent
-        )
+        char_comp_after_dupe_attempt = await ecs_service.get_component(session, char_entity_id, CharacterConceptComponent)
         assert char_comp_after_dupe_attempt is not None
         assert char_comp_after_dupe_attempt.concept_description == char_desc  # Original description
 
@@ -95,9 +90,7 @@ async def test_cli_character_apply_list_find(  # Made async
     asset_filename = "asset_for_char_link_service.txt"
     async with current_test_world.db_session_maker() as session:
         asset_entity = await ecs_service.create_entity(session)
-        await ecs_service.add_component_to_entity(
-            session, asset_entity.id, FilePropertiesComponent(original_filename=asset_filename)
-        )
+        await ecs_service.add_component_to_entity(session, asset_entity.id, FilePropertiesComponent(original_filename=asset_filename))
         await session.commit()
         asset_id = asset_entity.id
     assert asset_id is not None
@@ -144,17 +137,13 @@ async def test_cli_character_apply_list_find(  # Made async
 
     # 6. Find assets for character with role filter (using service call)
     async with current_test_world.db_session_maker() as session:
-        linked_assets_role_filter = await character_service.get_entities_for_character(
-            session, char_id, role_filter=role
-        )
+        linked_assets_role_filter = await character_service.get_entities_for_character(session, char_id, role_filter=role)
         assert len(linked_assets_role_filter) == 1
         assert linked_assets_role_filter[0].id == asset_id
 
     # Test finding with non-existent role (using service call)
     async with current_test_world.db_session_maker() as session:
-        linked_assets_wrong_role = await character_service.get_entities_for_character(
-            session, char_id, role_filter="NonExistentRole"
-        )
+        linked_assets_wrong_role = await character_service.get_entities_for_character(session, char_id, role_filter="NonExistentRole")
         assert len(linked_assets_wrong_role) == 0
 
 
@@ -206,9 +195,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     asset_sha256_from_db: Optional[str] = None
 
     async with current_test_world.db_session_maker() as session:
-        entities = await ecs_service.find_entities_by_component_attribute_value(
-            session, FilePropertiesComponent, "original_filename", sample_image_a.name
-        )
+        entities = await ecs_service.find_entities_by_component_attribute_value(session, FilePropertiesComponent, "original_filename", sample_image_a.name)
         assert len(entities) == 1
         asset_entity = entities[0]
         asset_id_for_test = asset_entity.id

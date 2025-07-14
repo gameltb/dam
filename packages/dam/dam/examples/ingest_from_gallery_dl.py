@@ -32,8 +32,6 @@ import logging
 from pathlib import Path
 
 import typer
-from typing_extensions import Annotated
-
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
@@ -52,6 +50,7 @@ from dam.models import (
 from dam.models.source_info import source_types
 from dam.resources.file_storage_resource import FileStorageResource
 from dam.services import ecs_service, file_operations
+from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
 cli_app = typer.Typer()
@@ -59,9 +58,7 @@ cli_app = typer.Typer()
 
 def get_website_entity(session, website_identifier_url: str, metadata_payload: dict) -> Entity:
     """Finds or creates a WebsiteProfile entity."""
-    existing_profiles = ecs_service.find_entities_by_component_attribute_value(
-        session, WebsiteProfileComponent, "main_url", website_identifier_url
-    )
+    existing_profiles = ecs_service.find_entities_by_component_attribute_value(session, WebsiteProfileComponent, "main_url", website_identifier_url)
     if existing_profiles:
         logger.info(f"Found existing Website Entity ID {existing_profiles[0].id} for URL {website_identifier_url}")
         return existing_profiles[0]
@@ -129,9 +126,7 @@ async def ingest_gallery_dl_asset_async(
         logger.error(f"Error getting FileStorageResource: {e}")
         return
 
-    content_hash_sha256_hex, physical_storage_path_suffix = file_storage_resource.store_file(
-        file_content, original_filename=actual_filename
-    )
+    content_hash_sha256_hex, physical_storage_path_suffix = file_storage_resource.store_file(file_content, original_filename=actual_filename)
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256_hex)
 
     async with world.db_manager.get_session() as session:
@@ -142,15 +137,11 @@ async def ingest_gallery_dl_asset_async(
 
         if existing_entity:
             entity = existing_entity
-            logger.info(
-                f"Content SHA256 {content_hash_sha256_hex[:12]} for '{actual_filename}' already exists as Entity ID {entity.id}."
-            )
+            logger.info(f"Content SHA256 {content_hash_sha256_hex[:12]} for '{actual_filename}' already exists as Entity ID {entity.id}.")
         else:
             created_new_entity = True
             entity = ecs_service.create_entity(session)
-            logger.info(
-                f"Creating new Entity ID {entity.id} for '{actual_filename}' (SHA256: {content_hash_sha256_hex[:12]})."
-            )
+            logger.info(f"Creating new Entity ID {entity.id} for '{actual_filename}' (SHA256: {content_hash_sha256_hex[:12]}).")
 
             # Add SHA256 hash component
             chc_sha256 = ContentHashSHA256Component(entity=entity, hash_value=content_hash_sha256_bytes)
@@ -251,9 +242,7 @@ async def ingest_gallery_dl_asset_async(
                         dt_obj = datetime.fromtimestamp(upload_date_str, tz=timezone.utc)
                     else:  # Try ISO format or with spaces
                         dt_obj = datetime.fromisoformat(upload_date_str.replace(" ", "T").replace("Z", "+00:00"))
-                    web_source_data["upload_date"] = (
-                        dt_obj.astimezone(timezone.utc) if dt_obj.tzinfo is None else dt_obj
-                    )
+                    web_source_data["upload_date"] = dt_obj.astimezone(timezone.utc) if dt_obj.tzinfo is None else dt_obj
 
                 except ValueError as e:
                     logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {source_url}: {e}")
@@ -264,18 +253,14 @@ async def ingest_gallery_dl_asset_async(
             if tags_list:
                 web_source_data["tags_json"] = json.dumps(list(set(tags_list)))  # Ensure unique tags
 
-            web_comp = WebSourceComponent(
-                **{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None}
-            )
+            web_comp = WebSourceComponent(**{k: v for k, v in web_source_data.items() if hasattr(WebSourceComponent, k) and v is not None})
             ecs_service.add_component_to_entity(session, entity.id, web_comp)
             logger.info(f"Added WebSourceComponent for Entity ID {entity.id} from URL {source_url}")
         else:
             logger.info(f"WebSourceComponent for Entity ID {entity.id} and URL {source_url} already exists.")
 
         # 6. Add NeedsMetadataExtractionComponent if new entity or if properties were missing
-        if created_new_entity or not ecs_service.get_components(
-            session, entity.id, FilePropertiesComponent
-        ):  # Re-check FPC
+        if created_new_entity or not ecs_service.get_components(session, entity.id, FilePropertiesComponent):  # Re-check FPC
             if not ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):
                 marker_comp = NeedsMetadataExtractionComponent(entity=entity)
                 ecs_service.add_component_to_entity(session, entity.id, marker_comp)
@@ -291,15 +276,11 @@ def main(
     source_url: Annotated[str, typer.Option(help="Original URL of the asset page.")],
     downloaded_filepath_str: Annotated[
         str,
-        typer.Option(
-            "--downloaded-filepath", help="Path to the downloaded asset file.", exists=True, resolve_path=True
-        ),
+        typer.Option("--downloaded-filepath", help="Path to the downloaded asset file.", exists=True, resolve_path=True),
     ],
     metadata_filepath_str: Annotated[
         str,
-        typer.Option(
-            "--metadata-filepath", help="Path to the gallery-dl metadata JSON file.", exists=True, resolve_path=True
-        ),
+        typer.Option("--metadata-filepath", help="Path to the gallery-dl metadata JSON file.", exists=True, resolve_path=True),
     ],
 ):
     """

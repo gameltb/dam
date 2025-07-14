@@ -48,9 +48,7 @@ class FindSimilarImagesQuery(BaseEvent):
     dhash_threshold: int
     world_name: str
     request_id: str
-    result_future: Optional[asyncio.Future[List[Dict[str, Any]]]] = field(
-        default=None, init=False, repr=False
-    )  # Corrected here
+    result_future: Optional[asyncio.Future[List[Dict[str, Any]]]] = field(default=None, init=False, repr=False)  # Corrected here
 
 
 @dataclass

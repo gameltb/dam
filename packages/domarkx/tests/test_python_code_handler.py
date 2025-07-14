@@ -115,9 +115,7 @@ def test_list_mode_path_specific_function_full_definition(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(
-        mode="list", path=str(example_module_path), target="top_level_function", list_detail_level="full_definition"
-    )
+    result = python_code_handler(mode="list", path=str(example_module_path), target="top_level_function", list_detail_level="full_definition")
     assert "function: top_level_function" in result
     assert "A top-level function." in result
     assert "return a + b" in result
@@ -129,9 +127,7 @@ def test_list_mode_path_specific_class_with_docstring(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(
-        mode="list", path=str(example_module_path), target="MyClass", list_detail_level="with_docstring"
-    )
+    result = python_code_handler(mode="list", path=str(example_module_path), target="MyClass", list_detail_level="with_docstring")
     assert "class: MyClass" in result
     assert "This is MyClass." in result
     assert "It has a constructor and a method." in result
@@ -144,9 +140,7 @@ def test_list_mode_path_specific_method_full_definition(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(
-        mode="list", path=str(example_module_path), target="MyClass.my_method", list_detail_level="full_definition"
-    )
+    result = python_code_handler(mode="list", path=str(example_module_path), target="MyClass.my_method", list_detail_level="full_definition")
     assert "method: my_method" in result  # LibCST treats methods as FunctionDef
     assert "A method in MyClass." in result
     assert "return self.value + x" in result
@@ -157,9 +151,7 @@ def test_list_mode_path_non_existent_target(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(
-        mode="list", path=str(example_module_path), target="non_existent_func", list_detail_level="names_only"
-    )
+    result = python_code_handler(mode="list", path=str(example_module_path), target="non_existent_func", list_detail_level="names_only")
     assert "Symbol 'non_existent_func' not found in file" in result
 
 
@@ -204,9 +196,7 @@ def test_list_mode_symbol_function_with_docstring(tmp_path):
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path))
     try:
-        result = python_code_handler(
-            mode="list", target="example_module.top_level_function", list_detail_level="with_docstring"
-        )
+        result = python_code_handler(mode="list", target="example_module.top_level_function", list_detail_level="with_docstring")
         assert "--- Symbol: example_module.top_level_function ---" in result
         assert "Docstring" in result
         assert "A top-level function." in result
@@ -419,6 +409,7 @@ def test_invalid_mode():
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="invalid_mode", target="anything")
     assert "Invalid mode: 'invalid_mode'." in str(excinfo.value.original_exception)
+
 
 def test_missing_target():
     with pytest.raises(ToolError) as excinfo:

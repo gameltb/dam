@@ -35,7 +35,9 @@ class ParsedDocument:
     errors: List[str] = field(default_factory=list)
     raw_lines: List[str] = field(default_factory=list, repr=False)
 
+
 import logging
+
 
 class MarkdownLLMParser:
     def __init__(self):
@@ -60,7 +62,7 @@ class MarkdownLLMParser:
             if i < len(lines) and lines[i].startswith("---"):
                 try:
                     self.document.global_metadata = yaml.safe_load("".join(yaml_lines))
-                    lines = lines[i+1:]
+                    lines = lines[i + 1 :]
                     self.logger.debug(f"Parsed frontmatter: {self.document.global_metadata}")
                 except yaml.YAMLError as e:
                     self.document.errors.append(f"Error parsing YAML front matter: {e}")
@@ -162,6 +164,7 @@ class MarkdownLLMParser:
             i += 1
         i += 1
         return i, CodeBlock(language=language, attrs=attrs, code=code)
+
 
 def append_message(writer: io.StringIO, message: Message):
     writer.write(

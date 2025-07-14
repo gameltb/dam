@@ -39,6 +39,4 @@ class OriginalSourceInfoComponent(BaseComponent):
     )
 
     def __repr__(self):
-        return (
-            f"OriginalSourceInfoComponent(id={self.id}, entity_id={self.entity_id}, source_type='{self.source_type}')"
-        )
+        return f"OriginalSourceInfoComponent(id={self.id}, entity_id={self.entity_id}, source_type='{self.source_type}')"
