@@ -126,22 +126,14 @@ class MarkdownLLMParser:
         i = 0
         while i < len(lines):
             line = lines[i]
-            if self.state == "start":
-                if line.startswith("```session-config"):
-                    i = self._parse_session_config(lines, i)
-                elif line.startswith("---"):
-                    self.state = "message"
-                    i += 1
-                else:
-                    i += 1
-            elif self.state == "message":
-                if line.startswith("## "):
-                    speaker = line[3:].strip()
-                    i, message = self._parse_message(lines, i + 1, speaker)
-                    self.document.conversation.append(message)
-                    self.state = "start"
-                else:
-                    i += 1
+            if line.startswith("```session-config"):
+                i = self._parse_session_config(lines, i)
+            elif line.startswith("## "):
+                speaker = line[3:].strip()
+                i, message = self._parse_message(lines, i + 1, speaker)
+                self.document.conversation.append(message)
+            else:
+                i += 1
 
     def _parse_session_config(self, lines: List[str], start_index: int) -> int:
         i = start_index + 1
@@ -226,7 +218,6 @@ class MarkdownLLMParser:
 def append_message(writer: io.StringIO, message: Message):
     writer.write(
         f"""
----
 ## {message.speaker}
 
 ```json msg-metadata

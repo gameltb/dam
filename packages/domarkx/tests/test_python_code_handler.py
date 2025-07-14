@@ -379,9 +379,23 @@ class UpdateDocstringTransformer(cst.CSTTransformer):
             self.found_target = True
             logging.info(f"Found function '{self.func_name}', attempting to update docstring.")
             
-            new_docstring = cst.SimpleString(f'"""{self.new_docstring_content}"""')
+            new_body = list(updated_node.body.body)
             
-            return updated_node.with_changes(docstring=new_docstring)
+            new_docstring_node = cst.Expr(
+                value=cst.SimpleString(f'"""{self.new_docstring_content}"""')
+            )
+
+            # Check if the first statement is a docstring and replace it
+            if new_body and isinstance(new_body[0], cst.Expr) and isinstance(new_body[0].value, cst.SimpleString):
+                new_body[0] = new_docstring_node
+            else:
+                new_body.insert(0, new_docstring_node)
+
+            self.updated = True
+            # Here's the fix: we need to update the body of the 'updated_node'
+            # and then return a new FunctionDef with this updated body.
+            new_body_suite = updated_node.body.with_changes(body=tuple(new_body))
+            return updated_node.with_changes(body=new_body_suite)
         return updated_node
 
 transformer = UpdateDocstringTransformer(target_func_name, new_doc)

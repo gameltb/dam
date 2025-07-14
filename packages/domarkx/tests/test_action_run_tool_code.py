@@ -7,11 +7,10 @@ cli_app = setup_test_app()
 
 def test_run_tool_code_action(tmp_path: pathlib.Path):
     md_content = """
----
 ## user
 
 >
----
+
 ## assistant
 
 ```python
