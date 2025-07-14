@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
+from domarkx.utils.markdown_utils import find_code_blocks
 
 
 def exec_doc_code_block(
@@ -21,11 +22,20 @@ def exec_doc_code_block(
         md_content = f.read()
 
     parser = MarkdownLLMParser()
-    doc = parser.parse(md_content)
-    print(f"doc: {doc}")
-    message_obj, code_block = parser.get_message_and_code_block(message_index, code_block_in_message_index)
-    print(f"message_obj: {message_obj}")
-    print(f"code_block: {code_block}")
+    parsed_doc = parser.parse(md_content)
+
+    if not 0 <= message_index < len(parsed_doc.conversation):
+        rich.print(f"[bold red]Error:[/bold red] Message index {message_index} is out of bounds.")
+        raise typer.Exit(1)
+
+    message_obj = parsed_doc.conversation[message_index]
+    code_blocks = find_code_blocks(message_obj.content)
+
+    if not 0 <= code_block_in_message_index < len(code_blocks):
+        rich.print(f"[bold red]Error:[/bold red] Code block index {code_block_in_message_index} is out of bounds for message {message_index}.")
+        raise typer.Exit(1)
+
+    code_block = code_blocks[code_block_in_message_index]
 
     console = Console(markup=False)
     md = rich.markdown.Markdown(message_obj.content)

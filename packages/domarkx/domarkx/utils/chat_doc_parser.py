@@ -6,17 +6,12 @@ import yaml
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from domarkx.utils.markdown_utils import CodeBlock
+
 try:
     import frontmatter
 except ImportError:
     frontmatter = None
-
-
-@dataclass
-class CodeBlock:
-    language: Optional[str] = None
-    attrs: Optional[str] = None
-    code: str = ""
 
 
 @dataclass
@@ -39,20 +34,6 @@ class ParsedDocument:
     conversation: List[Message] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     raw_lines: List[str] = field(default_factory=list, repr=False)
-
-def find_file_blocks(text):
-    pattern = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DOTALL)
-    matches = pattern.finditer(text)
-    results = []
-    for i, match in enumerate(matches):
-        block_info = {
-            "id": i + 1,
-            "language": match.group(1) or None,
-            "filename": match.group(2) or None,
-            "content": match.group(3),
-        }
-        results.append(block_info)
-    return results
 
 import logging
 
@@ -88,39 +69,6 @@ class MarkdownLLMParser:
         self.document.raw_lines = lines
         self._parse_lines(lines)
         return self.document
-
-    def get_message_and_code_block(
-        self, messageIndex: int, codeBlockInMessageIndex: Optional[int] = None
-    ) -> Tuple[Optional[Message], Optional[CodeBlock]]:
-        """
-        Retrieves a specific message and a specific code block within that message's content.
-
-        Args:
-            messageIndex: The index of the message in the conversation list.
-            codeBlockInMessageIndex: The index of the code block within the found message's content.
-
-        Returns:
-            A tuple containing (Message, CodeBlock).
-            Returns (None, None) if the messageIndex is out of bounds.
-            Returns (Message, None) if messageIndex is valid but codeBlockInMessageIndex is out of bounds.
-        """
-        self.logger.debug(f"conversation: {self.document.conversation}")
-        if not 0 <= messageIndex < len(self.document.conversation):
-            return (None, None)
-        message_obj = self.document.conversation[messageIndex]
-        if codeBlockInMessageIndex is None:
-            return (message_obj, None)
-        actual_message_content = message_obj.content
-        self.logger.debug(f"actual_message_content: {actual_message_content}")
-        found_code_blocks: List[CodeBlock] = []
-        for match in find_file_blocks(actual_message_content):
-            found_code_blocks.append(
-                CodeBlock(language=match["language"], attrs=match["filename"], code=match["content"])
-            )
-        self.logger.debug(f"found_code_blocks: {found_code_blocks}")
-        if not 0 <= codeBlockInMessageIndex < len(found_code_blocks):
-            return (message_obj, None)
-        return (message_obj, found_code_blocks[codeBlockInMessageIndex])
 
     def _parse_lines(self, lines: List[str]):
         i = 0
