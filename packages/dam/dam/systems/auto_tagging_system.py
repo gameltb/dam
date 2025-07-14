@@ -4,7 +4,9 @@ from typing import Annotated, List
 from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.system_params import (
     WorldContext,
-)  # For getting session, world name, config (WorldContext is in system_params)
+)
+
+# For getting session, world name, config (WorldContext is in system_params)
 from dam.core.systems import SystemStage, system
 from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
 from dam.models.core.entity import Entity  # Corrected Entity import
@@ -69,17 +71,13 @@ async def auto_tag_entities_system(
         image_path = await get_file_path_for_entity(session, entity.id, world_context.world_config.ASSET_STORAGE_PATH)
 
         if not image_path:
-            logger.warning(
-                f"Entity {entity.id} marked for auto-tagging: Could not determine image file path. Skipping."
-            )
+            logger.warning(f"Entity {entity.id} marked for auto-tagging: Could not determine image file path. Skipping.")
             await ecs_service.remove_component(session, marker)  # Pass the marker instance to remove
             continue
         # Ensure this path is accessible by the tagging model.
         # If models run in different containers/environments, path translation might be needed.
 
-        logger.info(
-            f"Processing entity {entity.id} for auto-tagging with model '{model_to_use}' using image: {image_path}"
-        )
+        logger.info(f"Processing entity {entity.id} for auto-tagging with model '{model_to_use}' using image: {image_path}")
 
         try:
             await tagging_service_module.update_entity_model_tags(  # Call module function

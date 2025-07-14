@@ -44,18 +44,12 @@ def _resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
 
     if not module_found:
         # Changed from ValueError to ToolError
-        raise ToolError(
-            f"Could not resolve file path for symbol '{full_symbol}'. No Python module found or accessible."
-        )
+        raise ToolError(f"Could not resolve file path for symbol '{full_symbol}'. No Python module found or accessible.")
 
     # Optional: Check if the resolved file is within the workspace
     workspace_root = "/workspace/domarkx"  # Adjust this if workspace root is dynamic
-    if not os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) == os.path.abspath(
-        workspace_root
-    ):
-        logging.warning(
-            f"Symbol '{full_symbol}' resolves to a file outside the workspace: {file_path}. Modifications might be restricted."
-        )
+    if not os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) == os.path.abspath(workspace_root):
+        logging.warning(f"Symbol '{full_symbol}' resolves to a file outside the workspace: {file_path}. Modifications might be restricted.")
 
     return file_path, ".".join(internal_symbol_parts)
 
@@ -153,8 +147,7 @@ class LibCstEditor:
                 return m.Module()
             else:
                 raise ValueError(
-                    f"Invalid target_type '{target_type}' for empty internal_symbol_path. "
-                    "Only 'module' is supported when internal_symbol_path is empty."
+                    f"Invalid target_type '{target_type}' for empty internal_symbol_path. " "Only 'module' is supported when internal_symbol_path is empty."
                 )
 
         parts = internal_symbol_path.split(".")
@@ -257,9 +250,7 @@ class LibCstEditor:
                                 new_body_elements.append(cst.Newline())  # Add newline after for separation
 
                             self.created = True
-                            return updated_node.with_changes(
-                                body=updated_node.body.with_changes(body=new_body_elements)
-                            )
+                            return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body_elements))
                 return updated_node
 
         self._apply_transformer(CreatorTransformer(target_type, code_content, parent_matcher))
@@ -311,22 +302,17 @@ class LibCstEditor:
                                     )
                                 ):
                                     # Change from ValueError to ToolError
-                                    raise ToolError(
-                                        "New code content for 'assignment' must be a single assignment statement (e.g., 'VAR = 10')."
-                                    )
+                                    raise ToolError("New code content for 'assignment' must be a single assignment statement (e.g., 'VAR = 10').")
 
                                 if not (
                                     isinstance(original_node, cst.Assign)
                                     and isinstance(original_node.targets[0].target, cst.Name)
-                                    and original_node.targets[0].target.value
-                                    == new_assignment_statement.targets[0].target.value
+                                    and original_node.targets[0].target.value == new_assignment_statement.targets[0].target.value
                                 ):
                                     # This check ensures we are updating the value of the same variable
                                     # Not trying to change the variable name itself via update
                                     # Change from ValueError to ToolError
-                                    raise ToolError(
-                                        "Cannot change the variable name during an assignment update. Provide the same variable name."
-                                    )
+                                    raise ToolError("Cannot change the variable name during an assignment update. Provide the same variable name.")
 
                                 new_value = new_assignment_statement.value
 
@@ -366,9 +352,7 @@ class LibCstEditor:
                 self.target_type = target_type
                 self.deleted = False
                 self.found_target = False
-                self.innermost_target_name = (
-                    self.internal_symbol_path_parts[-1] if self.internal_symbol_path_parts else None
-                )
+                self.innermost_target_name = self.internal_symbol_path_parts[-1] if self.internal_symbol_path_parts else None
 
             def on_leave(self, original_node, updated_node):
                 if self.deleted:  # Once deleted, propagate the change up
@@ -384,10 +368,7 @@ class LibCstEditor:
                         method_found_and_removed = False
                         for element in updated_node.body.body:
                             # Check if the element is a function definition and matches the method name
-                            if (
-                                isinstance(element, cst.FunctionDef)
-                                and element.name.value == self.innermost_target_name
-                            ):
+                            if isinstance(element, cst.FunctionDef) and element.name.value == self.innermost_target_name:
                                 logging.info(f"Found and removing method '{self.innermost_target_name}'.")
                                 method_found_and_removed = True
                                 continue  # Skip adding this element to new_body_elements
@@ -395,9 +376,7 @@ class LibCstEditor:
 
                         if method_found_and_removed:
                             self.deleted = True
-                            return updated_node.with_changes(
-                                body=updated_node.body.with_changes(body=tuple(new_body_elements))
-                            )
+                            return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body_elements)))
                     return updated_node
 
                 # For function, class, assignment (top-level or nested non-method)
@@ -453,9 +432,7 @@ def _handle_list_mode_by_symbol(full_symbol: str, target_type: str, list_detail_
                 for i, line in enumerate(source_lines):
                     results.append(f"{start_lineno + i} | {line.rstrip()}")
             except TypeError:
-                results.append(
-                    "Note: Source code is not available for this symbol (might be built-in or dynamically generated)."
-                )
+                results.append("Note: Source code is not available for this symbol (might be built-in or dynamically generated).")
             except OSError as e:
                 results.append(f"Error: Could not retrieve source code file for this symbol: {e}")
 
@@ -580,9 +557,7 @@ def _handle_list_mode_by_path(
                 def_name = name if name else node.name.value
                 logging.debug(f"_add_definition: Adding definition: name={def_name}, type={type_name}")
 
-                if self.target_symbol_path_parts and self._get_current_symbol_path(def_name) == ".".join(
-                    self.target_symbol_path_parts
-                ):
+                if self.target_symbol_path_parts and self._get_current_symbol_path(def_name) == ".".join(self.target_symbol_path_parts):
                     self.found_specific_target = True
 
                 position_data = self.get_metadata(PositionProvider, node)
@@ -640,9 +615,7 @@ def _handle_list_mode_by_path(
                         # Pass 'assignment' as the node_type for assignments to match the filter
                         if self._is_target_match(var_name, "assignment"):
                             logging.debug(f"visit_Assign: Match found for {var_name}. Calling _add_definition.")
-                            self._add_definition(
-                                node, "assignment", name=var_name
-                            )  # Changed from "变量" to "assignment"
+                            self._add_definition(node, "assignment", name=var_name)  # Changed from "变量" to "assignment"
                         else:
                             logging.debug(f"visit_Assign: No match for {var_name} (type: assignment).")
                     else:
@@ -656,9 +629,7 @@ def _handle_list_mode_by_path(
 
         if internal_target_symbol_path and not collector.found_specific_target:
             output.append(f"Symbol '{internal_target_symbol_path}' not found in file '{current_file_path}'.")
-        elif (
-            not collector.definitions and not internal_target_symbol_path
-        ):  # Only report no definitions if not looking for a specific symbol
+        elif not collector.definitions and not internal_target_symbol_path:  # Only report no definitions if not looking for a specific symbol
             output.append("  No code definitions found.")
         else:
             output.extend(collector.definitions)
@@ -690,9 +661,7 @@ def _handle_modify_mode(
     elif operation:
         valid_target_types = {"function", "class", "method", "assignment", "module"}
         if not target_type or target_type not in valid_target_types:
-            raise ValueError(
-                f"Invalid or missing 'target_type'. Must be one of {valid_target_types}. Got: {target_type}"
-            )
+            raise ValueError(f"Invalid or missing 'target_type'. Must be one of {valid_target_types}. Got: {target_type}")
 
         # For create, internal_target_symbol_path can be empty string for module root
         if operation != "create_code" and not internal_target_symbol_path:
@@ -718,9 +687,7 @@ def _handle_modify_mode(
         raise ValueError("Either 'operation' or 'modification_script' must be provided for 'modify' mode.")
 
     final_module_code = editor.module.code
-    if (
-        not final_module_code == initial_module_code
-    ):  # Use string comparison for simplicity, deep_equals is for CST nodes
+    if not final_module_code == initial_module_code:  # Use string comparison for simplicity, deep_equals is for CST nodes
         logging.info("Code changes detected. Showing diff:")
         diff = difflib.unified_diff(
             initial_module_code.splitlines(keepends=True),
@@ -927,9 +894,7 @@ def python_code_handler(
         # If no path, 'target' must be a full importable symbol
         # The _resolve_symbol_path function now raises ToolError directly, so no try...except needed here.
         file_to_process, internal_target_symbol_path = _resolve_symbol_path(target)
-        logging.info(
-            f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
-        )
+        logging.info(f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'")
         if not file_to_process.lower().endswith(".py"):
             raise ValueError(f"Target '{target}' resolved to file '{file_to_process}' which is not a Python file.")
 
@@ -945,9 +910,7 @@ def python_code_handler(
                 list_detail_level,
             )
         else:  # No path, so target must be a full importable symbol
-            return _handle_list_mode_by_symbol(
-                target, target_type, list_detail_level
-            )  # Use original 'target' for inspect
+            return _handle_list_mode_by_symbol(target, target_type, list_detail_level)  # Use original 'target' for inspect
 
     elif mode == "modify":
         # For modify, target is always the internal path relative to the file_to_process

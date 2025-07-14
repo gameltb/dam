@@ -484,9 +484,7 @@ def test_invalid_cst_manipulation_in_script(temp_py_file):
 
 def test_operation_missing_target_type(temp_py_file):
     with pytest.raises(ToolError) as excinfo:
-        call_modify_python_ast_tool(
-            file_path=temp_py_file, operation="create_code", symbol="", code_content="def func(): pass"
-        )
+        call_modify_python_ast_tool(file_path=temp_py_file, operation="create_code", symbol="", code_content="def func(): pass")
     assert isinstance(excinfo.value.original_exception, ValueError)
 
 

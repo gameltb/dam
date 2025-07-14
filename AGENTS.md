@@ -4,16 +4,41 @@ This file provides instructions for AI agents working with this codebase.
 
 This is a monorepo containing multiple Python packages under the `packages/` directory. Each package is a separate project with its own dependencies and tests.
 
-### General Guidelines
+### Quick Start
 
-*   **Coding Conventions:** Please follow PEP 8 for Python code.
-*   **Commit Messages:** Follow conventional commit message formats.
-*   **Worktree/Subtree structure**: This repo is a monorepo, with two main packages `packages/dam` and `packages/domarkx`.
-*   **CI/CD:** The continuous integration pipeline is managed by GitHub Actions, configured in `.github/workflows/ci.yml`. Any changes to the build or test process should be reflected there and in this document.
+**TL;DR**, run all checks with:
 
-### Environment and Testing
+```sh
+uv sync --all-extras
+source .venv/bin/activate
+poe check
+```
 
-It is recommended to use `uv` for managing virtual environments and dependencies.
+### Setup
+
+`uv` is a package manager that assists in creating the necessary environment and installing packages.
+
+- [Install `uv`](https://docs.astral.sh/uv/getting-started/installation/).
+
+To upgrade `uv` to the latest version, run:
+
+```sh
+uv self update
+```
+
+### Virtual Environment
+
+During development, you may need to test changes made to any of the packages.\
+To do so, create a virtual environment where the packages are installed based on the current state of the directory.\
+Run the following commands at the root level of the repository:
+
+```sh
+uv sync --all-extras
+source .venv/bin/activate
+```
+
+- `uv sync --all-extras` will create a `.venv` directory at the current level and install packages from the current directory along with any other dependencies. The `all-extras` flag adds optional dependencies.
+- `source .venv/bin/activate` activates the virtual environment.
 
 #### Managing Environment-Specific Dependencies (e.g., CPU-only PyTorch)
 
@@ -26,63 +51,38 @@ uv pip install torch
 
 This will automatically detect the appropriate backend (CUDA, CPU, etc.) and install the correct version of PyTorch. In the CI environment, this is handled automatically.
 
-#### Running Tests for a Single Package
+### Common Tasks
 
-To run tests for a single package, navigate to the package's directory and use the following commands:
+To create a pull request (PR), ensure the following checks are met. You can run each check individually:
 
-1.  **Navigate to the package directory:**
-    ```bash
-    cd packages/<package-name>
-    ```
-2.  **Install dependencies:**
-    ```bash
-    uv run pip install -e .[all]
-    ```
-3.  **Run tests:**
-    ```bash
-    uv run pytest -x
-    ```
-    For coverage reports, use:
-    ```bash
-    uv run pytest --cov=<package-name> --cov-report=term-missing
-    ```
-    (Replace `<package-name>` with `dam` or `domarkx`).
+- Format: `poe format`
+- Lint: `poe lint`
+- Test: `poe test`
+- Mypy: `poe mypy`
+- Pyright: `poe pyright`
+- Check samples in `python/samples`: `poe samples-code-check`
+  Alternatively, you can run all the checks with:
+- `poe check`
 
-#### Running All Tests
+> [!NOTE]
+> These need to be run in the virtual environment.
 
-To run all tests for all packages, you can use the following script from the root of the repository:
+### Syncing Dependencies
 
-```bash
-#!/bin/bash
-set -e
-for dir in packages/*/; do
-  if [ -f "$dir/pyproject.toml" ]; then
-    echo "Testing in $dir"
-    (cd "$dir" && uv venv && uv run pip install -e .[all] && uv run pytest -x)
-  fi
-done
+When you pull new changes, you may need to update the dependencies.
+To do so, first make sure you are in the virtual environment, and then run:
+
+```sh
+uv sync --all-extras
 ```
+
+This will update the dependencies in the virtual environment.
+
+### Assertion Guideline
+
+Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.
 
 ### Specific Package Instructions
 
 *   **`packages/dam`**: For more specific instructions on the `dam` package, please refer to its [AGENTS.md](packages/dam/AGENTS.md).
 *   **`packages/domarkx`**: This package does not have any special instructions at this time.
-
-### Linting and Formatting
-
-This repository uses `ruff` for linting and formatting. You can run it from the root of the repository using `uv`:
-
-```bash
-# Check for linting errors
-uv run ruff check .
-
-# Fix linting errors automatically
-uv run ruff check . --fix
-
-# Format the code
-uv run ruff format .
-```
-
-### Assertion Guideline
-
-Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.

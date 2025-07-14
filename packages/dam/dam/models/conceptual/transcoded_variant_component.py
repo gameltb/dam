@@ -16,12 +16,8 @@ class TranscodedVariantComponent(BaseComponent):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this component to the transcoded file's entity.
 
-    original_asset_entity_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("entities.id"), nullable=False, index=True
-    )
-    transcode_profile_entity_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("entities.id"), nullable=False, index=True
-    )
+    original_asset_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
+    transcode_profile_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
 
     # Optional metrics
     transcoded_file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)

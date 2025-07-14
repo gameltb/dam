@@ -222,9 +222,7 @@ class RemoteJupyterCodeExecutor(JupyterCodeExecutor):
         )
         self.client = JupyterClient(self.client_config)
 
-    async def _execute_code_block(
-        self, code_block: CodeBlock, cancellation_token: CancellationToken
-    ) -> JupyterCodeResult:
+    async def _execute_code_block(self, code_block: CodeBlock, cancellation_token: CancellationToken) -> JupyterCodeResult:
         messages = await self.client.execute_code(code_block.code)
         return self._process_messages(messages)
 

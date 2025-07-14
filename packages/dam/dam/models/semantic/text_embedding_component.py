@@ -93,9 +93,7 @@ EMBEDDING_MODEL_REGISTRY: Dict[str, EmbeddingModelInfo] = {
 }
 
 
-def get_embedding_component_class(
-    model_name: str, params: Optional[ModelHyperparameters] = None
-) -> Optional[Type[BaseSpecificEmbeddingComponent]]:
+def get_embedding_component_class(model_name: str, params: Optional[ModelHyperparameters] = None) -> Optional[Type[BaseSpecificEmbeddingComponent]]:
     """
     Retrieves the specific embedding component class based on model name and parameters.
 

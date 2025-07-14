@@ -31,9 +31,7 @@ DEFAULT_MODEL_PARAMS: ModelHyperparameters = {}  # Default params, if any, might
 SENTENCE_TRANSFORMER_IDENTIFIER = "sentence_transformer"
 
 
-def _load_sentence_transformer_model_sync(
-    model_name_or_path: str, params: Optional[Dict[str, Any]] = None
-) -> SentenceTransformer:
+def _load_sentence_transformer_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> SentenceTransformer:
     """
     Synchronous helper to load a SentenceTransformer model.
     `params` can include device, cache_folder, etc. for SentenceTransformer constructor.
@@ -61,9 +59,7 @@ async def get_sentence_transformer_model(
     # Ensure loader is registered if not already
     # This registration is now idempotent or should be handled at MEM initialization.
     if SENTENCE_TRANSFORMER_IDENTIFIER not in model_execution_manager._model_loaders:
-        model_execution_manager.register_model_loader(
-            SENTENCE_TRANSFORMER_IDENTIFIER, _load_sentence_transformer_model_sync
-        )
+        model_execution_manager.register_model_loader(SENTENCE_TRANSFORMER_IDENTIFIER, _load_sentence_transformer_model_sync)
 
     # Map conceptual params to loader params if needed. For ST, model_name_or_path is key.
     # `params` might include things like `device` or `cache_folder` for the loader.
@@ -142,9 +138,7 @@ async def update_text_embeddings_for_entity(
     batch_texts: Optional[List[BatchTextItem]] = None,
     # Configuration for including tags
     include_manual_tags: bool = True,
-    include_model_tags_config: Optional[
-        List[Dict[str, Any]]
-    ] = None,  # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
+    include_model_tags_config: Optional[List[Dict[str, Any]]] = None,  # e.g., [{"model_name": "wd-v1...", "min_confidence": 0.5}]
     tag_concatenation_strategy: str = " [TAGS] {tags_string}",  # How to append tags
     # world_name: Optional[str] = None, # Removed
 ) -> List[BaseSpecificEmbeddingComponent]:
@@ -157,9 +151,7 @@ async def update_text_embeddings_for_entity(
     # Determine the specific embedding component class
     EmbeddingComponentClass = get_embedding_component_class(model_name, model_params)
     if not EmbeddingComponentClass:
-        logger.error(
-            f"No embedding component class found for model '{model_name}' and params {model_params}. Skipping embedding update."
-        )
+        logger.error(f"No embedding component class found for model '{model_name}' and params {model_params}. Skipping embedding update.")
         return []
 
     # Use default params from registry if not provided, for consistency in model interaction
@@ -181,9 +173,7 @@ async def update_text_embeddings_for_entity(
 
         # Fetch manual tags
         if include_manual_tags:
-            manual_tag_tuples = await get_tags_for_entity(
-                session, entity_id
-            )  # Returns List[Tuple[Entity, Optional[str]]]
+            manual_tag_tuples = await get_tags_for_entity(session, entity_id)  # Returns List[Tuple[Entity, Optional[str]]]
             for tag_entity, _ in manual_tag_tuples:
                 tag_concept = await ecs_service.get_component(session, tag_entity.id, TagConceptComponent)
                 if tag_concept and tag_concept.tag_name:
@@ -246,17 +236,13 @@ async def update_text_embeddings_for_entity(
 
             try:
                 comp_name, field_name = source_key.split(".", 1)
-                current_batch_items.append(
-                    BatchTextItem(component_name=comp_name, field_name=field_name, text_content=final_text_to_embed)
-                )
+                current_batch_items.append(BatchTextItem(component_name=comp_name, field_name=field_name, text_content=final_text_to_embed))
             except ValueError:
                 logger.warning(f"Invalid source_key '{source_key}'. Skipping.")
                 continue
 
     if not current_batch_items:
-        logger.info(
-            f"No valid text fields (with or without tags) to embed for entity {entity_id} with model {model_name}."
-        )
+        logger.info(f"No valid text fields (with or without tags) to embed for entity {entity_id} with model {model_name}.")
         return processed_embeddings
 
     # Generate embeddings for all prepared text contents
@@ -294,9 +280,7 @@ async def update_text_embeddings_for_entity(
         # Adjust field_name if tags were added and not using pre-compiled batch_texts
         # For pre-compiled batch_texts, the source field name is taken as is.
         final_field_name = original_field_name
-        if (
-            not batch_texts and tags_to_concatenate_str
-        ):  # only add suffix if tags were actually added and not from batch
+        if not batch_texts and tags_to_concatenate_str:  # only add suffix if tags were actually added and not from batch
             final_field_name += augmented_source_field_suffix
         elif batch_texts and augmented_source_field_suffix == "_batch":  # if it IS from batch, use original field name
             final_field_name = original_field_name
@@ -319,13 +303,9 @@ async def update_text_embeddings_for_entity(
             if emb_comp.embedding_vector != embedding_bytes:
                 emb_comp.embedding_vector = embedding_bytes
                 session.add(emb_comp)
-                logger.info(
-                    f"Updated {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}"
-                )
+                logger.info(f"Updated {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}")
             else:
-                logger.debug(
-                    f"{EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name} is up-to-date."
-                )
+                logger.debug(f"{EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name} is up-to-date.")
             processed_embeddings.append(emb_comp)
         else:
             emb_comp = EmbeddingComponentClass(
@@ -334,9 +314,7 @@ async def update_text_embeddings_for_entity(
                 source_field_name=final_field_name,  # Use potentially augmented field name
             )
             await ecs_service.add_component_to_entity(session, entity_id, emb_comp)
-            logger.info(
-                f"Created {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}"
-            )
+            logger.info(f"Created {EmbeddingComponentClass.__name__} for entity {entity_id}, src: {original_comp_name}.{final_field_name}")
             processed_embeddings.append(emb_comp)
 
     return processed_embeddings

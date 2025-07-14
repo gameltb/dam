@@ -93,9 +93,7 @@ if __name__ == "__main__":
     logging.getLogger("dam").handlers.clear()
     print("\nTesting with default log level (no env var)...")
     setup_logging()
-    logger.info(
-        f"Default log level test. Current level: {logging.getLevelName(logging.getLogger('dam').getEffectiveLevel())}"
-    )
+    logger.info(f"Default log level test. Current level: {logging.getLevelName(logging.getLogger('dam').getEffectiveLevel())}")
     logger.debug("This debug message should not be seen with default INFO level.")
 
     # Test specific string level

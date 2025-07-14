@@ -7,6 +7,7 @@ from domarkx.utils.markdown_utils import find_macros
 
 logger = logging.getLogger(__name__)
 
+
 def expand(
     input_file: Annotated[
         pathlib.Path,
@@ -14,7 +15,7 @@ def expand(
     ],
     output_file: Annotated[
         pathlib.Path,
-        typer.Option("--output", "-o", help="Output file path. If not provided, defaults to <input_file>.expanded.md")
+        typer.Option("--output", "-o", help="Output file path. If not provided, defaults to <input_file>.expanded.md"),
     ] = None,
 ):
     """Expands macros in a Markdown document."""
@@ -41,6 +42,7 @@ def expand(
 
     output_path.write_text(content)
     logger.info(f"Expanded document written to {output_path}")
+
 
 def register(main_app: typer.Typer):
     main_app.command()(expand)

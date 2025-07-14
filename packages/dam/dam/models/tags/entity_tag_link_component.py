@@ -55,7 +55,4 @@ class EntityTagLinkComponent(BaseComponent):
     )
 
     def __repr__(self):
-        return (
-            f"<EntityTagLinkComponent id={self.id} entity_id={self.entity_id} "
-            f"tag_concept_id={self.tag_concept_entity_id} value='{self.tag_value}'>"
-        )
+        return f"<EntityTagLinkComponent id={self.id} entity_id={self.entity_id} " f"tag_concept_id={self.tag_concept_entity_id} value='{self.tag_value}'>"

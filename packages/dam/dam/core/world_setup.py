@@ -101,9 +101,7 @@ def initialize_world_resources(world: World) -> None:
     # Systems needing tagging functions will import them from the tagging_service module
     # and use the injected ModelExecutionManager.
 
-    world.logger.info(
-        f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
-    )
+    world.logger.info(f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}")
     # No return value as it modifies the world's resource_manager in-place
 
 
@@ -132,9 +130,7 @@ def register_core_systems(world_instance: "World") -> None:
         handle_asset_reference_ingestion_request,
         event_type=AssetReferenceIngestionRequested,
     )
-    logger.debug(
-        "Registered system: handle_asset_reference_ingestion_request for event AssetReferenceIngestionRequested"
-    )
+    logger.debug("Registered system: handle_asset_reference_ingestion_request for event AssetReferenceIngestionRequested")
 
     world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
     logger.debug("Registered system: handle_find_entity_by_hash_query for event FindEntityByHashQuery")

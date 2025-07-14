@@ -20,6 +20,5 @@ class ImagePerceptualPHashComponent(BaseComponent):
     def __repr__(self):
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return (
-            f"ImagePerceptualPHashComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"hash_value(hex)='{hex_hash}')"  # Show full hex for short hashes
+            f"ImagePerceptualPHashComponent(id={self.id}, entity_id={self.entity_id}, " f"hash_value(hex)='{hex_hash}')"  # Show full hex for short hashes
         )

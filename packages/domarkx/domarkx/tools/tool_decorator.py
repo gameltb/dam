@@ -75,9 +75,7 @@ def tool_handler(log_level=logging.INFO, capture_logs=False):
                 log_time_format="%H:%M:%S",
             )
             logging.getLogger().addHandler(rich_handler)
-            logging.getLogger().propagate = (
-                False  # Prevent logs from propagating to default handlers (e.g., basicConfig)
-            )
+            logging.getLogger().propagate = False  # Prevent logs from propagating to default handlers (e.g., basicConfig)
 
             logging.info(f"Tool '{func.__name__}' started.")
 

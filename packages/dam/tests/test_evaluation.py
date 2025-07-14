@@ -1,8 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from sqlalchemy.future import select
-
 from dam.core.config import Settings as AppSettings
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
@@ -14,6 +12,7 @@ from dam.models.tags import EntityTagLinkComponent  # Updated import
 from dam.services import ecs_service as dam_ecs_service
 from dam.services import tag_service, transcode_service
 from dam.systems import evaluation_systems
+from sqlalchemy.future import select
 
 from .test_cli import (
     test_environment,  # noqa: F401
@@ -26,9 +25,7 @@ from .test_transcoding import _add_dummy_asset  # More specific helper
 pytestmark = pytest.mark.asyncio
 
 
-async def _create_dummy_profile(
-    world: World, name: str, tool: str = "mocktool", params: str = "-p {input} {output}", out_fmt: str = "mock"
-) -> Entity:
+async def _create_dummy_profile(world: World, name: str, tool: str = "mocktool", params: str = "-p {input} {output}", out_fmt: str = "mock") -> Entity:
     """Helper to create a dummy transcode profile."""
     return await transcode_service.create_transcode_profile(
         world=world,
@@ -53,9 +50,7 @@ async def test_system_create_evaluation_run_concept(test_environment):
     run_name = "test_system_eval_run"
     description = "Test system evaluation run description"
 
-    run_entity = await evaluation_systems.create_evaluation_run_concept(
-        world=target_world, run_name=run_name, description=description
-    )
+    run_entity = await evaluation_systems.create_evaluation_run_concept(world=target_world, run_name=run_name, description=description)
 
     assert run_entity is not None
     assert run_entity.id is not None
@@ -96,9 +91,7 @@ async def test_cli_eval_run_create(test_environment):  # Removed click_runner
     description = "Test CLI evaluation run description"
 
     # Directly call the system function, similar to test_system_create_evaluation_run_concept
-    run_entity = await evaluation_systems.create_evaluation_run_concept(
-        world=target_world, run_name=run_name, description=description
-    )
+    run_entity = await evaluation_systems.create_evaluation_run_concept(world=target_world, run_name=run_name, description=description)
     assert run_entity is not None, "Evaluation run entity was not created."
 
     # Verify the component and tag in the database
@@ -179,9 +172,7 @@ async def test_system_execute_evaluation_run(test_environment, monkeypatch):
     # Then, mock `ecs_service.get_entity_by_id` to return our `mock_transcoded_entity`
     # And mock `ecs_service.get_component_for_target_entity` to return `mock_fpc_transcoded`.
 
-    mock_apply_transcode_profile = AsyncMock(
-        return_value=MagicMock(id=mock_transcoded_entity.id)
-    )  # Returns an object with an 'id'
+    mock_apply_transcode_profile = AsyncMock(return_value=MagicMock(id=mock_transcoded_entity.id))  # Returns an object with an 'id'
     monkeypatch.setattr(transcode_service, "apply_transcode_profile", mock_apply_transcode_profile)
 
     # When execute_evaluation_run calls ecs_service.get_entity for the transcoded asset:
@@ -231,9 +222,7 @@ async def test_system_execute_evaluation_run(test_environment, monkeypatch):
     assert eval_result_comp.ssim_score is None
     assert eval_result_comp.psnr_score is None
 
-    mock_apply_transcode_profile.assert_called_once_with(
-        world=target_world, source_asset_entity_id=source_asset.id, profile_entity_id=profile1.id
-    )
+    mock_apply_transcode_profile.assert_called_once_with(world=target_world, source_asset_entity_id=source_asset.id, profile_entity_id=profile1.id)
 
 
 # Test for CLI evaluate run-execute (Refactored to call system directly)
@@ -288,9 +277,7 @@ async def test_cli_eval_run_execute(test_environment, monkeypatch):  # Removed c
             return mock_fpc_transcoded_cli
         return await original_get_component(session, entity_id, component_class)  # Call original correct function
 
-    monkeypatch.setattr(
-        dam_ecs_service, "get_component", AsyncMock(side_effect=mock_get_component_cli_direct)
-    )  # Patch correct function
+    monkeypatch.setattr(dam_ecs_service, "get_component", AsyncMock(side_effect=mock_get_component_cli_direct))  # Patch correct function
 
     # 3. Execute the system function directly
     results = await evaluation_systems.execute_evaluation_run(
@@ -333,13 +320,9 @@ async def test_cli_eval_report(test_environment, monkeypatch):  # Removed click_
     assert target_world is not None
 
     # 1. Setup: Execute a run (mocked) to generate some data
-    source_asset_report = await _add_dummy_asset(
-        target_world, tmp_path, "eval_source_report.txt", "report evaluate this"
-    )
+    source_asset_report = await _add_dummy_asset(target_world, tmp_path, "eval_source_report.txt", "report evaluate this")
     profile_report = await _create_dummy_profile(target_world, "eval_prof_report")
-    eval_run_report_concept = await evaluation_systems.create_evaluation_run_concept(
-        target_world, "report_exec_run_name"
-    )
+    eval_run_report_concept = await evaluation_systems.create_evaluation_run_concept(target_world, "report_exec_run_name")
 
     # Create a real placeholder entity for the "transcoded" asset
     async with target_world.db_session_maker() as session:
@@ -352,9 +335,7 @@ async def test_cli_eval_report(test_environment, monkeypatch):  # Removed click_
         mock_fpc_transcoded_report = FilePropertiesComponent(
             original_filename="transcoded_report_asset.mock", file_size_bytes=9999, mime_type="application/octet-stream"
         )
-        await dam_ecs_service.add_component_to_entity(
-            session, real_mock_transcoded_entity.id, mock_fpc_transcoded_report
-        )
+        await dam_ecs_service.add_component_to_entity(session, real_mock_transcoded_entity.id, mock_fpc_transcoded_report)
         await session.commit()
 
     # Mock apply_transcode_profile to return the ID of this real entity
@@ -390,9 +371,7 @@ async def test_cli_eval_report(test_environment, monkeypatch):  # Removed click_
         evaluation_run_name_for_report = eval_run_comp_for_report.run_name
 
     # 2. Call the system function for generating report data
-    report_data = await evaluation_systems.get_evaluation_results(
-        world=target_world, evaluation_run_id_or_name=evaluation_run_name_for_report
-    )
+    report_data = await evaluation_systems.get_evaluation_results(world=target_world, evaluation_run_id_or_name=evaluation_run_name_for_report)
 
     # Assertions on the structure and content of report_data
     assert report_data is not None
@@ -403,16 +382,12 @@ async def test_cli_eval_report(test_environment, monkeypatch):  # Removed click_
     # Verify original asset details (FilePropertiesComponent for original asset is fetched by get_evaluation_results)
     # We need to ensure the original asset (source_asset_report) and its FPC are in the DB correctly.
     # _add_dummy_asset should have handled this.
-    source_fpc = await dam_ecs_service.get_component(
-        target_world.db_session_maker(), source_asset_report.id, FilePropertiesComponent
-    )  # type: ignore
+    source_fpc = await dam_ecs_service.get_component(target_world.db_session_maker(), source_asset_report.id, FilePropertiesComponent)  # type: ignore
     assert source_fpc is not None
     assert result_item["original_asset_filename"] == source_fpc.original_filename  # type: ignore
 
     # Verify profile details (TranscodeProfileComponent for profile_report is fetched by get_evaluation_results)
-    profile_comp = await dam_ecs_service.get_component(
-        target_world.db_session_maker(), profile_report.id, TranscodeProfileComponent
-    )  # type: ignore
+    profile_comp = await dam_ecs_service.get_component(target_world.db_session_maker(), profile_report.id, TranscodeProfileComponent)  # type: ignore
     assert profile_comp is not None
     assert result_item["profile_name"] == profile_comp.profile_name  # type: ignore
 

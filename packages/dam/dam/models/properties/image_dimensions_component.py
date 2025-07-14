@@ -25,7 +25,4 @@ class ImageDimensionsComponent(BaseComponent):
     )
 
     def __repr__(self):
-        return (
-            f"<ImageDimensionsComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"width={self.width_pixels}, height={self.height_pixels})>"
-        )
+        return f"<ImageDimensionsComponent(id={self.id}, entity_id={self.entity_id}, " f"width={self.width_pixels}, height={self.height_pixels})>"

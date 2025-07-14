@@ -18,6 +18,4 @@ class ContentHashMD5Component(BaseComponent):
 
     def __repr__(self):
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
-        return (
-            f"ContentHashMD5Component(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"
-        )
+        return f"ContentHashMD5Component(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

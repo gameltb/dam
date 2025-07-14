@@ -27,9 +27,7 @@ class MockAudioModel:
     def __init__(self, model_name: str, params: Optional[AudioModelHyperparameters]):
         self.model_name = model_name
         self.params = params
-        self.output_dim = (
-            AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name, {}).get("default_params", {}).get("dimensions", 128)
-        )
+        self.output_dim = AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name, {}).get("default_params", {}).get("dimensions", 128)
         logger.info(f"MockAudioModel '{model_name}' initialized with output_dim: {self.output_dim}")
 
     def encode(self, audio_path: str, **kwargs) -> np.ndarray:
@@ -117,9 +115,7 @@ async def generate_audio_embedding_for_entity(
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
-        logger.error(
-            f"No audio embedding component class found for model '{model_name}' and params {model_params}. Skipping embedding generation."
-        )
+        logger.error(f"No audio embedding component class found for model '{model_name}' and params {model_params}. Skipping embedding generation.")
         return None
 
     if model_params is None:
@@ -145,9 +141,7 @@ async def generate_audio_embedding_for_entity(
             # If we can't get a path, we can't proceed.
             # This function might need to be part of a resource that has access to storage configuration.
             # For example: file_storage_resource.get_entity_file_path(entity_id, preferred_variant="original_audio")
-            logger.warning(
-                f"audio_file_path not provided for entity {entity_id}, and dynamic path retrieval is not fully implemented. Attempting mock path."
-            )
+            logger.warning(f"audio_file_path not provided for entity {entity_id}, and dynamic path retrieval is not fully implemented. Attempting mock path.")
             # This is a placeholder. The actual file path retrieval needs to be implemented.
             # It should likely use a FileStorageResource or similar to get the path to the asset.
             # For testing, we can assume it's passed or use a known dummy path if this service is called directly.
@@ -213,9 +207,7 @@ async def generate_audio_embedding_for_entity(
             session.add(emb_comp)
             logger.info(f"Updated {AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name}")
         else:
-            logger.debug(
-                f"{AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name} is up-to-date."
-            )
+            logger.debug(f"{AudioEmbeddingComponentClass.__name__} for entity {entity_id}, model: {model_name} is up-to-date.")
     else:
         emb_comp = AudioEmbeddingComponentClass(
             embedding_vector=embedding_bytes,
@@ -240,15 +232,11 @@ async def get_audio_embeddings_for_entity(
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
-        logger.warning(
-            f"No component class for audio model {model_name}, params {model_params}. Cannot get embeddings."
-        )
+        logger.warning(f"No component class for audio model {model_name}, params {model_params}. Cannot get embeddings.")
         return []
 
     # Filter by model_name as it's a column in BaseSpecificAudioEmbeddingComponent
-    return await ecs_service.get_components_by_value(
-        session, entity_id, AudioEmbeddingComponentClass, attributes_values={"model_name": model_name}
-    )
+    return await ecs_service.get_components_by_value(session, entity_id, AudioEmbeddingComponentClass, attributes_values={"model_name": model_name})
 
 
 async def find_similar_entities_by_audio_embedding(
@@ -265,9 +253,7 @@ async def find_similar_entities_by_audio_embedding(
     """
     AudioEmbeddingComponentClass = get_audio_embedding_component_class(model_name, model_params)
     if not AudioEmbeddingComponentClass:
-        logger.error(
-            f"No component class for audio model {model_name}, params {model_params}. Cannot find similar entities."
-        )
+        logger.error(f"No component class for audio model {model_name}, params {model_params}. Cannot find similar entities.")
         return []
 
     if model_params is None:
@@ -292,16 +278,12 @@ async def find_similar_entities_by_audio_embedding(
         return []
 
     # Fetch all relevant embeddings from the specific table, filtering by model_name
-    all_embedding_components_stmt = select(AudioEmbeddingComponentClass).where(
-        AudioEmbeddingComponentClass.model_name == model_name
-    )
+    all_embedding_components_stmt = select(AudioEmbeddingComponentClass).where(AudioEmbeddingComponentClass.model_name == model_name)
     result = await session.execute(all_embedding_components_stmt)
     all_embedding_components = result.scalars().all()
 
     if not all_embedding_components:
-        logger.info(
-            f"No audio embeddings found in table for {AudioEmbeddingComponentClass.__name__} with model_name '{model_name}' to compare against."
-        )
+        logger.info(f"No audio embeddings found in table for {AudioEmbeddingComponentClass.__name__} with model_name '{model_name}' to compare against.")
         return []
 
     similarities = []

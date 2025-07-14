@@ -30,10 +30,7 @@ def get_all_component_classes() -> list[Type[BaseComponent]]:
     Relies on REGISTERED_COMPONENT_TYPES being populated by metaclass or __init_subclass__ logic.
     """
     if not REGISTERED_COMPONENT_TYPES:
-        logger.warning(
-            "REGISTERED_COMPONENT_TYPES is empty. "
-            "Ensure component models are imported and BaseComponent's registration mechanism is active."
-        )
+        logger.warning("REGISTERED_COMPONENT_TYPES is empty. " "Ensure component models are imported and BaseComponent's registration mechanism is active.")
     return REGISTERED_COMPONENT_TYPES
 
 
@@ -59,13 +56,7 @@ def export_ecs_world_to_json(export_world: "World", filepath: Path) -> None:
 
     entities = (
         session.query(Entity)
-        .options(
-            *[
-                joinedload(getattr(Entity, comp_model.__tablename__))
-                for comp_model in component_classes
-                if hasattr(Entity, comp_model.__tablename__)
-            ]
-        )
+        .options(*[joinedload(getattr(Entity, comp_model.__tablename__)) for comp_model in component_classes if hasattr(Entity, comp_model.__tablename__)])
         .all()
     )
 
@@ -104,9 +95,7 @@ def export_ecs_world_to_json(export_world: "World", filepath: Path) -> None:
         logger.error(f"Error writing world '{export_world.name}' to {filepath}: {e}", exc_info=True)
         raise
     except Exception as e:
-        logger.error(
-            f"An unexpected error occurred during JSON export for world '{export_world.name}': {e}", exc_info=True
-        )
+        logger.error(f"An unexpected error occurred during JSON export for world '{export_world.name}': {e}", exc_info=True)
         raise
     finally:
         session.close()
@@ -193,8 +182,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
         if existing_entity:
             if not merge:
                 logger.error(
-                    f"Entity ID {entity_id} already exists in the database. "
-                    "Import with merge=False requires a clean target or non-conflicting IDs."
+                    f"Entity ID {entity_id} already exists in the database. " "Import with merge=False requires a clean target or non-conflicting IDs."
                 )
                 # Potentially raise an error or skip. For now, skipping.
                 # raise ValueError(f"Entity ID {entity_id} already exists.")
@@ -283,9 +271,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
                         if "original_filename" in comp_data_cleaned and "contextual_filename" not in comp_data_cleaned:
                             comp_data_cleaned["contextual_filename"] = comp_data_cleaned.pop("original_filename")
                         # physical_path_or_key should ideally be in the JSON. If it was 'filepath', map it.
-                        if (
-                            "filepath" in comp_data_cleaned and "physical_path_or_key" not in comp_data_cleaned
-                        ):  # Assuming old key might be 'filepath'
+                        if "filepath" in comp_data_cleaned and "physical_path_or_key" not in comp_data_cleaned:  # Assuming old key might be 'filepath'
                             comp_data_cleaned["physical_path_or_key"] = comp_data_cleaned.pop("filepath")
                         # Ensure physical_path_or_key exists, it's mandatory. This might be an issue if old JSONs don't have it.
                         if "physical_path_or_key" not in comp_data_cleaned:
@@ -309,8 +295,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
                     logger.debug(f"Added component {comp_type_name} to entity {entity_to_update.id}")
                 except Exception as e:
                     logger.error(
-                        f"Failed to create/add component {comp_type_name} for entity {entity_to_update.id} "
-                        f"with data {comp_data_cleaned}: {e}",
+                        f"Failed to create/add component {comp_type_name} for entity {entity_to_update.id} " f"with data {comp_data_cleaned}: {e}",
                         exc_info=True,
                     )
                     # Depending on policy, might rollback or continue
@@ -320,9 +305,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
         logger.info(f"World '{target_world.name}' successfully imported from {filepath}")
     except Exception as e:
         session.rollback()
-        logger.error(
-            f"Error committing imported data to world '{target_world.name}' from {filepath}: {e}", exc_info=True
-        )
+        logger.error(f"Error committing imported data to world '{target_world.name}' from {filepath}: {e}", exc_info=True)
         raise
     finally:
         session.close()
@@ -342,9 +325,7 @@ def merge_ecs_worlds_db_to_db(
     Merges entities and components from a source World's database to a target World's database.
     Strategy 'add_new': All source entities are treated as new in the target.
     """
-    logger.info(
-        f"Starting DB-to-DB merge from world '{source_world.name}' to '{target_world.name}' with strategy '{strategy}'."
-    )
+    logger.info(f"Starting DB-to-DB merge from world '{source_world.name}' to '{target_world.name}' with strategy '{strategy}'.")
 
     if strategy != "add_new":
         logger.error(
@@ -364,9 +345,7 @@ def merge_ecs_worlds_db_to_db(
         processed_count = 0
         for src_entity in source_entities:
             processed_count += 1
-            logger.debug(
-                f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge to '{target_world.name}'..."
-            )
+            logger.debug(f"Processing source entity {src_entity.id} ({processed_count}/{source_entity_count}) for merge to '{target_world.name}'...")
 
             # Strategy 'add_new': Create a new entity in the target world
             tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
@@ -401,17 +380,11 @@ def merge_ecs_worlds_db_to_db(
                     try:
                         new_comp_instance = ComponentClass(**comp_data_for_new)
                         # Add component to the new target entity. Pass flush=False as we commit at the end.
-                        ecs_service.add_component_to_entity(
-                            target_session, tgt_entity.id, new_comp_instance, flush=False
-                        )
-                        logger.debug(
-                            f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} "
-                            f"to tgt_entity {tgt_entity.id}."
-                        )
+                        ecs_service.add_component_to_entity(target_session, tgt_entity.id, new_comp_instance, flush=False)
+                        logger.debug(f"Copied component {ComponentClass.__name__} from src_entity {src_entity.id} " f"to tgt_entity {tgt_entity.id}.")
                     except Exception as e:
                         logger.error(
-                            f"Failed to copy component {ComponentClass.__name__} for src_entity {src_entity.id} "
-                            f"to tgt_entity {tgt_entity.id}: {e}",
+                            f"Failed to copy component {ComponentClass.__name__} for src_entity {src_entity.id} " f"to tgt_entity {tgt_entity.id}: {e}",
                             exc_info=True,
                         )
                         # Decide on error handling: rollback transaction, skip component, or skip entity?
@@ -419,8 +392,7 @@ def merge_ecs_worlds_db_to_db(
 
         target_session.commit()
         logger.info(
-            f"Successfully merged {source_entity_count} entities from world '{source_world.name}' "
-            f"to '{target_world.name}' using 'add_new' strategy."
+            f"Successfully merged {source_entity_count} entities from world '{source_world.name}' " f"to '{target_world.name}' using 'add_new' strategy."
         )
     except Exception as e:
         target_session.rollback()
@@ -450,8 +422,7 @@ def split_ecs_world(
     The function now manages sessions internally by acquiring them from the World objects.
     """
     logger.info(
-        f"Starting DB-to-DB split from world '{source_world.name}' "
-        f"to selected='{target_world_selected.name}', remaining='{target_world_remaining.name}'."
+        f"Starting DB-to-DB split from world '{source_world.name}' " f"to selected='{target_world_selected.name}', remaining='{target_world_remaining.name}'."
     )
     if criteria_component_name and criteria_component_attr and criteria_value is not None:
         logger.info(
@@ -482,17 +453,13 @@ def split_ecs_world(
                     CriteriaComponentClass = comp_class
                     break
             if not CriteriaComponentClass:
-                logger.error(
-                    f"Criteria component class '{criteria_component_name}' not found for world '{source_world.name}'."
-                )
+                logger.error(f"Criteria component class '{criteria_component_name}' not found for world '{source_world.name}'.")
                 raise ValueError(f"Criteria component class '{criteria_component_name}' not found.")
             if criteria_component_attr and not hasattr(CriteriaComponentClass, criteria_component_attr):
                 logger.error(
                     f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}' for world '{source_world.name}'."
                 )
-                raise ValueError(
-                    f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'."
-                )
+                raise ValueError(f"Criteria attribute '{criteria_component_attr}' not found in component '{criteria_component_name}'.")
 
         count_selected = 0
         count_remaining = 0
@@ -500,9 +467,7 @@ def split_ecs_world(
         for src_entity in source_entities:
             matches_criteria = False
             if CriteriaComponentClass and criteria_component_attr and criteria_value is not None:
-                src_criteria_comp_instance = ecs_service.get_component(
-                    source_session, src_entity.id, CriteriaComponentClass
-                )
+                src_criteria_comp_instance = ecs_service.get_component(source_session, src_entity.id, CriteriaComponentClass)
                 if src_criteria_comp_instance:
                     actual_value = getattr(src_criteria_comp_instance, criteria_component_attr, None)
                     if actual_value is not None:
@@ -525,9 +490,7 @@ def split_ecs_world(
                         elif criteria_op == "le":
                             matches_criteria = actual_value <= criteria_value
                         else:
-                            logger.warning(
-                                f"Unsupported criteria operator '{criteria_op}' for world '{source_world.name}'. Defaulting to no match."
-                            )
+                            logger.warning(f"Unsupported criteria operator '{criteria_op}' for world '{source_world.name}'. Defaulting to no match.")
 
             target_session_for_copy_db = target_session_selected_db if matches_criteria else target_session_remaining_db
             target_world_log_name = target_world_selected.name if matches_criteria else target_world_remaining.name
@@ -537,9 +500,7 @@ def split_ecs_world(
             else:
                 count_remaining += 1
 
-            logger.debug(
-                f"Entity {src_entity.id} from world '{source_world.name}': Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
-            )
+            logger.debug(f"Entity {src_entity.id} from world '{source_world.name}': Criteria match={matches_criteria}. Copying to '{target_world_log_name}'.")
             tgt_entity = ecs_service.create_entity(target_session_for_copy_db)
 
             for ComponentClassToCopy in all_component_types:
@@ -553,9 +514,7 @@ def split_ecs_world(
                     comp_data_for_new = {**comp_data, "entity_id": tgt_entity.id, "entity": tgt_entity}
                     try:
                         new_comp_instance = ComponentClassToCopy(**comp_data_for_new)
-                        ecs_service.add_component_to_entity(
-                            target_session_for_copy_db, tgt_entity.id, new_comp_instance, flush=False
-                        )
+                        ecs_service.add_component_to_entity(target_session_for_copy_db, tgt_entity.id, new_comp_instance, flush=False)
                     except Exception as e:
                         logger.error(
                             f"Failed to copy component {ComponentClassToCopy.__name__} for src_entity {src_entity.id} (world '{source_world.name}') "
@@ -574,14 +533,10 @@ def split_ecs_world(
 
         if delete_from_source:
             source_session.commit()
-            logger.info(
-                f"Committed deletions of {source_entity_count} entities from source world '{source_world.name}'."
-            )
+            logger.info(f"Committed deletions of {source_entity_count} entities from source world '{source_world.name}'.")
 
     except Exception as e:  # Broad catch for issues during processing or commits
-        logger.error(
-            f"Error during split operation initiated from source world '{source_world.name}': {e}", exc_info=True
-        )
+        logger.error(f"Error during split operation initiated from source world '{source_world.name}': {e}", exc_info=True)
         # Rollback all sessions involved if an error occurs before all commits are done
         source_session.rollback()
         target_session_selected_db.rollback()

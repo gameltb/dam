@@ -18,9 +18,7 @@ class FileLocationComponent(BaseComponent):
     # This links this location entry to the intrinsic content of the asset.
     content_identifier: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
 
-    storage_type: Mapped[str] = mapped_column(
-        String(64), nullable=False
-    )  # e.g., "local_cas" (Content Addressable Storage), "local_reference", "s3_cas"
+    storage_type: Mapped[str] = mapped_column(String(64), nullable=False)  # e.g., "local_cas" (Content Addressable Storage), "local_reference", "s3_cas"
 
     # The actual path or key for accessing the file in the given storage_type.
     # For "local_cas": relative path within that CAS store (e.g., "ab/cd/hashvalue")

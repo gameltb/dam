@@ -38,10 +38,7 @@ async def create_comic_book_concept(  # Made async
         concept_description=None,
     )
     await ecs_service.add_component_to_entity(session, concept_entity.id, comic_concept_comp)
-    logger.info(
-        f"Created ComicBookConcept Entity ID {concept_entity.id} for title '{comic_title}'"
-        f"{f', issue {issue_number}' if issue_number else ''}."
-    )
+    logger.info(f"Created ComicBookConcept Entity ID {concept_entity.id} for title '{comic_title}'" f"{f', issue {issue_number}' if issue_number else ''}.")
     return concept_entity
 
 
@@ -65,9 +62,7 @@ async def link_comic_variant_to_concept(  # Made async
         raise ValueError(f"ComicBookConcept Entity with ID {comic_concept_entity_id} not found.")
     # await session.refresh(comic_concept_entity, attribute_names=['components']) # Removed refresh
 
-    comic_concept_comp = await ecs_service.get_component(
-        session, comic_concept_entity_id, ComicBookConceptComponent
-    )  # Await
+    comic_concept_comp = await ecs_service.get_component(session, comic_concept_entity_id, ComicBookConceptComponent)  # Await
     if not comic_concept_comp:
         raise ValueError(f"Entity ID {comic_concept_entity_id} is not a valid ComicBookConcept.")
     await session.refresh(comic_concept_comp)  # Refresh the component
@@ -75,9 +70,7 @@ async def link_comic_variant_to_concept(  # Made async
     existing_variant_comp = await ecs_service.get_component(session, file_entity_id, ComicBookVariantComponent)  # Await
     if existing_variant_comp:
         if existing_variant_comp.conceptual_entity_id == comic_concept_entity_id:
-            raise ValueError(
-                f"File Entity ID {file_entity_id} is already linked as a ComicBookVariant to ComicBookConcept ID {comic_concept_entity_id}."
-            )
+            raise ValueError(f"File Entity ID {file_entity_id} is already linked as a ComicBookVariant to ComicBookConcept ID {comic_concept_entity_id}.")
         else:
             raise ValueError(
                 f"File Entity ID {file_entity_id} is already a ComicBookVariant of a different ComicBookConcept ID {existing_variant_comp.conceptual_entity_id}."
@@ -115,16 +108,12 @@ async def link_comic_variant_to_concept(  # Made async
     return cb_variant_comp
 
 
-async def get_variants_for_comic_concept(
-    session: AsyncSession, comic_concept_entity_id: int
-) -> List[Entity]:  # Made async
+async def get_variants_for_comic_concept(session: AsyncSession, comic_concept_entity_id: int) -> List[Entity]:  # Made async
     comic_concept_entity = await ecs_service.get_entity(session, comic_concept_entity_id)  # Await
     if not comic_concept_entity or not await ecs_service.get_component(  # Await
         session, comic_concept_entity_id, ComicBookConceptComponent
     ):
-        logger.warning(
-            f"ComicBookConcept Entity ID {comic_concept_entity_id} not found or is not a valid comic concept."
-        )
+        logger.warning(f"ComicBookConcept Entity ID {comic_concept_entity_id} not found or is not a valid comic concept.")
         return []
 
     stmt = (
@@ -176,9 +165,7 @@ async def find_comic_book_concepts(  # Made async
     return list(concept_entities)
 
 
-async def set_primary_comic_variant(
-    session: AsyncSession, file_entity_id: int, comic_concept_entity_id: int
-) -> bool:  # Made async
+async def set_primary_comic_variant(session: AsyncSession, file_entity_id: int, comic_concept_entity_id: int) -> bool:  # Made async
     concept_comp = await ecs_service.get_component(session, comic_concept_entity_id, ComicBookConceptComponent)  # Await
     if not concept_comp:
         logger.error(f"Entity ID {comic_concept_entity_id} is not a ComicBookConcept.")
@@ -186,9 +173,7 @@ async def set_primary_comic_variant(
 
     target_variant_comp = await ecs_service.get_component(session, file_entity_id, ComicBookVariantComponent)  # Await
     if not target_variant_comp or target_variant_comp.conceptual_entity_id != comic_concept_entity_id:
-        logger.error(
-            f"File Entity ID {file_entity_id} is not a variant of ComicBookConcept ID {comic_concept_entity_id}."
-        )
+        logger.error(f"File Entity ID {file_entity_id} is not a variant of ComicBookConcept ID {comic_concept_entity_id}.")
         return False
 
     if target_variant_comp.is_primary_variant:
@@ -211,15 +196,11 @@ async def set_primary_comic_variant(
 
     target_variant_comp.is_primary_variant = True
     session.add(target_variant_comp)
-    logger.info(
-        f"Set File Entity ID {file_entity_id} as primary variant for ComicBookConcept ID {comic_concept_entity_id}."
-    )
+    logger.info(f"Set File Entity ID {file_entity_id} as primary variant for ComicBookConcept ID {comic_concept_entity_id}.")
     return True
 
 
-async def get_primary_variant_for_comic_concept(
-    session: AsyncSession, comic_concept_entity_id: int
-) -> Optional[Entity]:  # Made async
+async def get_primary_variant_for_comic_concept(session: AsyncSession, comic_concept_entity_id: int) -> Optional[Entity]:  # Made async
     stmt = (
         select(Entity)
         .join(ComicBookVariantComponent, Entity.id == ComicBookVariantComponent.entity_id)
@@ -255,9 +236,7 @@ async def assign_page_to_comic_variant(  # Made async
 ) -> Optional[PageLink]:
     variant_comp = await ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent)  # Await
     if not variant_comp:
-        logger.error(
-            f"Entity ID {comic_variant_entity_id} does not have a ComicBookVariantComponent. Cannot assign pages."
-        )
+        logger.error(f"Entity ID {comic_variant_entity_id} does not have a ComicBookVariantComponent. Cannot assign pages.")
         return None
 
     owner_entity = await ecs_service.get_entity(session, comic_variant_entity_id)  # Await
@@ -282,9 +261,7 @@ async def assign_page_to_comic_variant(  # Made async
     try:
         session.add(page_link)
         await session.flush()  # Await
-        logger.info(
-            f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
-        )
+        logger.info(f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}.")
         return page_link
     except IntegrityError as e:
         await session.rollback()  # Await
@@ -296,16 +273,12 @@ async def assign_page_to_comic_variant(  # Made async
         raise
 
 
-async def remove_page_from_comic_variant(
-    session: AsyncSession, comic_variant_entity_id: int, page_image_entity_id: int
-) -> bool:  # Made async
+async def remove_page_from_comic_variant(session: AsyncSession, comic_variant_entity_id: int, page_image_entity_id: int) -> bool:  # Made async
     if not await ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):  # Await
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot remove page.")
         return False
 
-    stmt = select(PageLink).where(
-        PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_image_entity_id == page_image_entity_id
-    )
+    stmt = select(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_image_entity_id == page_image_entity_id)
     result = await session.execute(stmt)  # Await
     page_link_instance = result.scalar_one_or_none()
 
@@ -317,16 +290,12 @@ async def remove_page_from_comic_variant(
     return False
 
 
-async def remove_page_at_number_from_comic_variant(
-    session: AsyncSession, comic_variant_entity_id: int, page_number: int
-) -> bool:  # Made async
+async def remove_page_at_number_from_comic_variant(session: AsyncSession, comic_variant_entity_id: int, page_number: int) -> bool:  # Made async
     if not await ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):  # Await
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot remove page.")
         return False
 
-    stmt = select(PageLink).where(
-        PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_number == page_number
-    )
+    stmt = select(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id, PageLink.page_number == page_number)
     result = await session.execute(stmt)  # Await
     page_link_instance = result.scalar_one_or_none()
 
@@ -338,9 +307,7 @@ async def remove_page_at_number_from_comic_variant(
     return False
 
 
-async def get_ordered_pages_for_comic_variant(
-    session: AsyncSession, comic_variant_entity_id: int
-) -> List[Entity]:  # Made async
+async def get_ordered_pages_for_comic_variant(session: AsyncSession, comic_variant_entity_id: int) -> List[Entity]:  # Made async
     if not await ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):  # Await
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot get pages.")
         return []
@@ -359,9 +326,7 @@ async def get_ordered_pages_for_comic_variant(
 async def get_comic_variants_containing_image_as_page(  # Made async
     session: AsyncSession, page_image_entity_id: int
 ) -> List[tuple[Entity, int]]:
-    stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(
-        PageLink.page_image_entity_id == page_image_entity_id
-    )
+    stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(PageLink.page_image_entity_id == page_image_entity_id)
     results = await session.execute(stmt)  # Await
     results = results.all()  # Get all rows from result object
 
@@ -371,9 +336,7 @@ async def get_comic_variants_containing_image_as_page(  # Made async
         if owner_entity and await ecs_service.get_component(session, owner_id, ComicBookVariantComponent):  # Await
             variant_pages_info.append((owner_entity, page_num))
         else:
-            logger.debug(
-                f"Owner Entity ID {owner_id} linked to image ID {page_image_entity_id} is not a ComicBookVariant. Skipping."
-            )
+            logger.debug(f"Owner Entity ID {owner_id} linked to image ID {page_image_entity_id} is not a ComicBookVariant. Skipping.")
 
     return variant_pages_info
 
@@ -382,9 +345,7 @@ async def update_page_order_for_comic_variant(  # Made async
     session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
 ) -> List[PageLink]:
     owner_entity = await ecs_service.get_entity(session, comic_variant_entity_id)  # Await
-    if not owner_entity or not await ecs_service.get_component(
-        session, comic_variant_entity_id, ComicBookVariantComponent
-    ):  # Await
+    if not owner_entity or not await ecs_service.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):  # Await
         raise ValueError(f"Entity ID {comic_variant_entity_id} is not a valid ComicBookVariant.")
 
     stmt_delete = delete(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id)
@@ -408,9 +369,7 @@ async def update_page_order_for_comic_variant(  # Made async
 
     try:
         await session.flush()  # Await
-        logger.info(
-            f"Successfully updated page order for comic variant ID {comic_variant_entity_id} with {len(new_page_links)} pages."
-        )
+        logger.info(f"Successfully updated page order for comic variant ID {comic_variant_entity_id} with {len(new_page_links)} pages.")
     except IntegrityError as e:
         await session.rollback()  # Await
         logger.error(f"Failed to update page order due to integrity error: {e}")

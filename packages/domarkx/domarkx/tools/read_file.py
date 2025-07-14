@@ -64,9 +64,7 @@ def read_file(path: Union[str, List[str]], start_line: int = None, end_line: int
             end_idx = max(0, min(end_idx, len(lines)))
 
             if start_idx >= end_idx and s_line is not None and e_line is not None:
-                error_msg = (
-                    f"指定的行范围 (从 {s_line} 到 {e_line}) 无效或为空，因为文件只有 {len(lines)} 行。没有内容被读取。"
-                )
+                error_msg = f"指定的行范围 (从 {s_line} 到 {e_line}) 无效或为空，因为文件只有 {len(lines)} 行。没有内容被读取。"
                 logging.warning(error_msg)
                 raise ValueError(error_msg)  # 抛出 ValueError 而不是返回字符串
 

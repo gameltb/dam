@@ -57,9 +57,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
                 if len(task_msg.strip()) == 0:
                     task_msg = None
 
-        response = await domarkx.ui.console.Console(
-            chat_agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
-        )
+        response = await domarkx.ui.console.Console(chat_agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall)
 
         new_state = await chat_agent.save_state()
 

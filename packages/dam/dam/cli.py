@@ -160,9 +160,7 @@ def main_callback(
 
         typer.echo(current_selection_info)
 
-        if (
-            not get_all_registered_worlds() and not app_config.settings.worlds
-        ):  # Check both raw config and successfully registered
+        if not get_all_registered_worlds() and not app_config.settings.worlds:  # Check both raw config and successfully registered
             typer.secho("No DAM worlds seem to be configured. Please set DAM_WORLDS_CONFIG.", fg=typer.colors.YELLOW)
 
 
@@ -175,9 +173,7 @@ def cli_list_worlds():
 
         if not registered_worlds:
             typer.secho("No ECS worlds are currently registered or configured correctly.", fg=typer.colors.YELLOW)
-            typer.echo(
-                "Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors."
-            )
+            typer.echo("Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors.")
             # The function will naturally proceed to print "Available ECS worlds:" which will be an empty list,
             # and then handle default world warnings if applicable, or exit cleanly.
             # This is better than an early return making subsequent code unreachable.
@@ -195,8 +191,7 @@ def cli_list_worlds():
         if configured_default:
             if not any(w.name == configured_default for w in registered_worlds):
                 typer.secho(
-                    f"\nWarning: The configured default world '{configured_default}' was not successfully registered. "
-                    "It might have configuration issues.",
+                    f"\nWarning: The configured default world '{configured_default}' was not successfully registered. " "It might have configuration issues.",
                     fg=typer.colors.YELLOW,
                 )
         elif registered_worlds:  # Worlds exist, but no default was determined by settings
@@ -246,9 +241,7 @@ async def cli_add_asset(  # Made async
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     input_path = Path(path_str)
@@ -285,9 +278,7 @@ async def cli_add_asset(  # Made async
 
     for filepath in files_to_process:
         processed_count += 1
-        typer.echo(
-            f"\nProcessing file {processed_count}/{total_files}: {filepath.name} (world: '{global_state.world_name}')"
-        )
+        typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name} (world: '{global_state.world_name}')")
         try:
             original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
         except Exception as e:  # pragma: no cover
@@ -328,9 +319,7 @@ async def cli_add_asset(  # Made async
                     # If an entity was processed by the event, METADATA_EXTRACTION stage will run
                     # on entities marked by NeedsMetadataExtractionComponent.
                     # This marker is added by the ingestion event handlers.
-                    typer.echo(
-                        f"  Running post-ingestion systems (e.g., metadata extraction) in world '{target_world.name}'..."
-                    )
+                    typer.echo(f"  Running post-ingestion systems (e.g., metadata extraction) in world '{target_world.name}'...")
                     await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
                     typer.secho(f"  Post-ingestion systems completed for {original_filename}.", fg=typer.colors.GREEN)
 
@@ -371,9 +360,7 @@ async def setup_db(ctx: typer.Context):  # Added context, made async
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
@@ -389,9 +376,7 @@ async def setup_db(ctx: typer.Context):  # Added context, made async
 @app.command(name="find-file-by-hash")
 async def cli_find_file_by_hash(  # Made async
     ctx: typer.Context,  # Added context
-    hash_value_arg: Annotated[
-        str, typer.Argument(..., help="The hash value of the file to search for.", metavar="HASH_VALUE")
-    ],
+    hash_value_arg: Annotated[str, typer.Argument(..., help="The hash value of the file to search for.", metavar="HASH_VALUE")],
     hash_type: Annotated[str, typer.Option(help="Type of hash ('sha256', 'md5'). Default 'sha256'.")] = "sha256",
     target_filepath: Annotated[
         Optional[Path],
@@ -407,18 +392,14 @@ async def cli_find_file_by_hash(  # Made async
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     actual_hash_value = hash_value_arg
     actual_hash_type = hash_type.lower()
 
     if target_filepath:
-        typer.echo(
-            f"Calculating {actual_hash_type} hash for file: {target_filepath} (for world '{target_world.name}')..."
-        )
+        typer.echo(f"Calculating {actual_hash_type} hash for file: {target_filepath} (for world '{target_world.name}')...")
         try:
             if actual_hash_type == "sha256":
                 actual_hash_value = file_operations.calculate_sha256(target_filepath)
@@ -442,9 +423,7 @@ async def cli_find_file_by_hash(  # Made async
     # Create a future for the result - this needs to be done inside the async function
     # that will run the event loop.
 
-    typer.echo(
-        f"Dispatching FindEntityByHashQuery (Request ID: {request_id}) to world '{target_world.name}' for hash: {actual_hash_value}"
-    )
+    typer.echo(f"Dispatching FindEntityByHashQuery (Request ID: {request_id}) to world '{target_world.name}' for hash: {actual_hash_value}")
 
     async def dispatch_query_and_get_result():
         # Create future inside the async function where the loop is running
@@ -508,9 +487,7 @@ async def cli_find_file_by_hash(  # Made async
 @app.command(name="find-similar-images")
 async def cli_find_similar_images(  # Made async
     ctx: typer.Context,  # Added context
-    image_filepath_str: Annotated[
-        str, typer.Argument(..., help="Path to image for similarity search.", resolve_path=True, exists=True)
-    ],
+    image_filepath_str: Annotated[str, typer.Argument(..., help="Path to image for similarity search.", resolve_path=True, exists=True)],
     phash_threshold: Annotated[int, typer.Option(help="pHash threshold.")] = 4,
     ahash_threshold: Annotated[int, typer.Option(help="aHash threshold.")] = 4,
     dhash_threshold: Annotated[int, typer.Option(help="dHash threshold.")] = 4,
@@ -524,9 +501,7 @@ async def cli_find_similar_images(  # Made async
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     image_filepath = Path(image_filepath_str)
@@ -541,17 +516,13 @@ async def cli_find_similar_images(  # Made async
         request_id=request_id,
     )
 
-    typer.echo(
-        f"Dispatching FindSimilarImagesQuery (Request ID: {request_id}) to world '{target_world.name}' for image: {image_filepath.name}"
-    )
+    typer.echo(f"Dispatching FindSimilarImagesQuery (Request ID: {request_id}) to world '{target_world.name}' for image: {image_filepath.name}")
 
     async def dispatch_query_and_get_result():
         query_event.result_future = asyncio.get_running_loop().create_future()
         await target_world.dispatch_event(query_event)
         try:
-            results = await asyncio.wait_for(
-                query_event.result_future, timeout=30.0
-            )  # Increased timeout for similarity search
+            results = await asyncio.wait_for(query_event.result_future, timeout=30.0)  # Increased timeout for similarity search
 
             if results:
                 typer.secho(f"--- Similar Images Found (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
@@ -609,9 +580,7 @@ def cli_export_world(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     typer.echo(f"Exporting ECS world '{target_world.name}' to: {export_path}")
@@ -628,9 +597,7 @@ def cli_export_world(
 @app.command(name="import-world")
 def cli_import_world(
     ctx: typer.Context,  # Added context
-    filepath_str: Annotated[
-        str, typer.Argument(..., help="Path to ECS world JSON file to import.", resolve_path=True, exists=True)
-    ],
+    filepath_str: Annotated[str, typer.Argument(..., help="Path to ECS world JSON file to import.", resolve_path=True, exists=True)],
     merge: Annotated[bool, typer.Option("--merge", help="Merge with existing data.")] = False,
 ):
     """Imports an ECS world from a JSON file into the specified ECS world."""
@@ -640,9 +607,7 @@ def cli_import_world(
 
     target_world = get_world(global_state.world_name)
     if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     import_path = Path(filepath_str)
@@ -715,9 +680,7 @@ def cli_split_world_db(
     source_world: Annotated[str, typer.Argument(help="Name of the source ECS world to split.")],
     selected_target_world: Annotated[str, typer.Argument(help="Name of the target world for selected entities.")],
     remaining_target_world: Annotated[str, typer.Argument(help="Name of the target world for remaining entities.")],
-    component_name: Annotated[
-        str, typer.Option(..., "--component-name", "-cn", help="Name of the component for criteria.")
-    ],
+    component_name: Annotated[str, typer.Option(..., "--component-name", "-cn", help="Name of the component for criteria.")],
     attribute_name: Annotated[str, typer.Option(..., "--attribute", "-a", help="Attribute name in the component.")],
     attribute_value: Annotated[str, typer.Option(..., "--value", "-v", help="Value to match for the attribute.")],
     operator: Annotated[
@@ -734,9 +697,7 @@ def cli_split_world_db(
     Splits entities from a source ECS world into two target ECS worlds (DB-to-DB)
     based on a component attribute criterion.
     """
-    typer.echo(
-        f"Splitting world '{source_world}' into '{selected_target_world}' (selected) and '{remaining_target_world}' (remaining)."
-    )
+    typer.echo(f"Splitting world '{source_world}' into '{selected_target_world}' (selected) and '{remaining_target_world}' (remaining).")
     typer.echo(f"Criteria: {component_name}.{attribute_name} {operator} '{attribute_value}'")
     if delete_from_source:
         typer.confirm(
@@ -753,11 +714,7 @@ def cli_split_world_db(
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    if (
-        source_world == selected_target_world
-        or source_world == remaining_target_world
-        or selected_target_world == remaining_target_world
-    ):
+    if source_world == selected_target_world or source_world == remaining_target_world or selected_target_world == remaining_target_world:
         typer.secho("Error: Source and target worlds must all be unique for split operation.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
@@ -774,9 +731,7 @@ def cli_split_world_db(
         typer.secho(f"Error: Source world '{source_world}' not found or not initialized.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     if not selected_target_inst:
-        typer.secho(
-            f"Error: Selected target world '{selected_target_world}' not found or not initialized.", fg=typer.colors.RED
-        )
+        typer.secho(f"Error: Selected target world '{selected_target_world}' not found or not initialized.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     if not remaining_target_inst:
         typer.secho(
@@ -798,8 +753,7 @@ def cli_split_world_db(
             delete_from_source=delete_from_source,
         )
         typer.secho(
-            f"Split complete: {count_selected} entities to '{selected_target_inst.name}', "
-            f"{count_remaining} entities to '{remaining_target_inst.name}'.",
+            f"Split complete: {count_selected} entities to '{selected_target_inst.name}', " f"{count_remaining} entities to '{remaining_target_inst.name}'.",
             fg=typer.colors.GREEN,
         )
         if delete_from_source:
@@ -836,12 +790,8 @@ async def cli_transcode_profile_create(  # Made async
     ctx: typer.Context,
     profile_name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the transcode profile.")],
     tool_name: Annotated[str, typer.Option("--tool", "-t", help="Transcoding tool (e.g., ffmpeg, cjxl).")],
-    parameters: Annotated[
-        str, typer.Option("--params", "-p", help="Tool parameters. Use {input} and {output} placeholders.")
-    ],
-    output_format: Annotated[
-        str, typer.Option("--format", "-f", help="Target output format/extension (e.g., avif, jxl, mp4).")
-    ],
+    parameters: Annotated[str, typer.Option("--params", "-p", help="Tool parameters. Use {input} and {output} placeholders.")],
+    output_format: Annotated[str, typer.Option("--format", "-f", help="Target output format/extension (e.g., avif, jxl, mp4).")],
     description: Annotated[Optional[str], typer.Option("--desc", help="Optional description for the profile.")] = None,
 ):
     """Creates a new transcoding profile."""
@@ -882,12 +832,8 @@ async def cli_transcode_profile_create(  # Made async
 @transcode_app.command("apply")
 async def cli_transcode_apply(  # Made async
     ctx: typer.Context,
-    asset_identifier: Annotated[
-        str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the source asset.")
-    ],
-    profile_identifier: Annotated[
-        str, typer.Option("--profile", "-p", help="Entity ID or name of the transcode profile.")
-    ],
+    asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the source asset.")],
+    profile_identifier: Annotated[str, typer.Option("--profile", "-p", help="Entity ID or name of the transcode profile.")],
     output_path_str: Annotated[
         Optional[str],
         typer.Option(
@@ -926,12 +872,8 @@ async def cli_transcode_apply(  # Made async
             try:
                 source_asset_entity_id = int(asset_identifier)
             except ValueError:  # Not an int, assume it's a SHA256 hash
-                typer.echo(
-                    f"Asset identifier '{asset_identifier}' is not an ID, attempting to resolve as SHA256 hash..."
-                )
-                entity_id_from_hash = await ecs_service.find_entity_id_by_hash(
-                    session, hash_value=asset_identifier, hash_type="sha256"
-                )
+                typer.echo(f"Asset identifier '{asset_identifier}' is not an ID, attempting to resolve as SHA256 hash...")
+                entity_id_from_hash = await ecs_service.find_entity_id_by_hash(session, hash_value=asset_identifier, hash_type="sha256")
                 if not entity_id_from_hash:
                     typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
                     raise typer.Exit(code=1)
@@ -939,9 +881,7 @@ async def cli_transcode_apply(  # Made async
                 typer.echo(f"Resolved SHA256 hash '{asset_identifier}' to Entity ID: {source_asset_entity_id}")
 
             if source_asset_entity_id is None:  # Should not happen if logic above is correct
-                typer.secho(
-                    f"Error: Could not determine source asset entity ID from '{asset_identifier}'.", fg=typer.colors.RED
-                )
+                typer.secho(f"Error: Could not determine source asset entity ID from '{asset_identifier}'.", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
             profile_id_to_use: int | str
@@ -951,9 +891,7 @@ async def cli_transcode_apply(  # Made async
                 profile_id_to_use = profile_identifier  # Use as name
 
             try:
-                typer.echo(
-                    f"Applying transcode profile '{profile_identifier}' to asset ID {source_asset_entity_id} in world '{target_world.name}'..."
-                )
+                typer.echo(f"Applying transcode profile '{profile_identifier}' to asset ID {source_asset_entity_id} in world '{target_world.name}'...")
                 transcoded_entity = await transcode_service.apply_transcode_profile(
                     world=target_world,
                     source_asset_entity_id=source_asset_entity_id,
@@ -967,7 +905,7 @@ async def cli_transcode_apply(  # Made async
                 # Optionally display some info about the new asset
                 from dam.models.properties.file_properties_component import (
                     FilePropertiesComponent,
-                )  # Ensure type is imported
+                )
 
                 new_fpc = await ecs_service.get_component(session, transcoded_entity.id, FilePropertiesComponent)
                 if new_fpc:
@@ -1012,9 +950,7 @@ async def cli_eval_run_create(  # Made async
         raise typer.Exit(code=1)
 
     try:
-        run_entity = await evaluation_systems.create_evaluation_run_concept(
-            world=target_world, run_name=run_name, description=description
-        )
+        run_entity = await evaluation_systems.create_evaluation_run_concept(world=target_world, run_name=run_name, description=description)
         typer.secho(
             f"Evaluation run '{run_name}' (Entity ID: {run_entity.id}) created successfully in world '{target_world.name}'.",
             fg=typer.colors.GREEN,
@@ -1032,12 +968,8 @@ async def cli_eval_run_create(  # Made async
 async def cli_eval_run_execute(  # Made async
     ctx: typer.Context,
     run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run.")],
-    asset_identifiers_str: Annotated[
-        str, typer.Option("--assets", "-a", help="Comma-separated list of source asset Entity IDs or SHA256 hashes.")
-    ],
-    profile_identifiers_str: Annotated[
-        str, typer.Option("--profiles", "-p", help="Comma-separated list of transcode profile Entity IDs or names.")
-    ],
+    asset_identifiers_str: Annotated[str, typer.Option("--assets", "-a", help="Comma-separated list of source asset Entity IDs or SHA256 hashes.")],
+    profile_identifiers_str: Annotated[str, typer.Option("--profiles", "-p", help="Comma-separated list of transcode profile Entity IDs or names.")],
 ):
     """Executes a pre-defined evaluation run."""
     if not global_state.world_name:
@@ -1086,9 +1018,7 @@ async def cli_eval_run_execute(  # Made async
                 fg=typer.colors.GREEN,
             )
             if not results:
-                typer.echo(
-                    "No results were generated. Check logs for details on skipped items or errors during processing."
-                )
+                typer.echo("No results were generated. Check logs for details on skipped items or errors during processing.")
             # Optionally, print a summary of results here or direct to use 'evaluate report'
         except evaluation_systems.EvaluationError as e:
             typer.secho(f"Error executing evaluation run: {e}", fg=typer.colors.RED)
@@ -1104,9 +1034,7 @@ async def cli_eval_run_execute(  # Made async
 @eval_app.command("report")
 async def cli_eval_report(  # Made async
     ctx: typer.Context,
-    run_identifier: Annotated[
-        str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run to report on.")
-    ],
+    run_identifier: Annotated[str, typer.Option("--run", "-r", help="Name or Entity ID of the evaluation run to report on.")],
 ):
     """Displays a report for a completed evaluation run."""
     if not global_state.world_name:
@@ -1125,16 +1053,12 @@ async def cli_eval_report(  # Made async
 
     async def _report():
         try:
-            results_data = await evaluation_systems.get_evaluation_results(
-                world=target_world, evaluation_run_id_or_name=run_id_to_use
-            )
+            results_data = await evaluation_systems.get_evaluation_results(world=target_world, evaluation_run_id_or_name=run_id_to_use)
             if not results_data:
                 typer.secho(f"No results found for evaluation run '{run_identifier}'.", fg=typer.colors.YELLOW)
                 return
 
-            typer.secho(
-                f"\n--- Evaluation Report for Run: '{results_data[0]['evaluation_run_name']}' ---", bold=True
-            )  # Assumes all results have same run_name
+            typer.secho(f"\n--- Evaluation Report for Run: '{results_data[0]['evaluation_run_name']}' ---", bold=True)  # Assumes all results have same run_name
 
             # Simple table print using Typer/Rich echo. For complex tables, consider `rich.table.Table`.
             # Headers
@@ -1159,16 +1083,10 @@ async def cli_eval_report(  # Made async
 
             for res in results_data:
                 typer.echo("---")
-                typer.echo(
-                    f"  Original Asset: {res['original_asset_filename']} (ID: {res['original_asset_entity_id']})"
-                )
-                typer.echo(
-                    f"  Profile: {res['profile_name']} (Tool: {res['profile_tool']}, Format: {res['profile_format']})"
-                )
+                typer.echo(f"  Original Asset: {res['original_asset_filename']} (ID: {res['original_asset_entity_id']})")
+                typer.echo(f"  Profile: {res['profile_name']} (Tool: {res['profile_tool']}, Format: {res['profile_format']})")
                 typer.echo(f"    Params: {res['profile_params']}")
-                typer.echo(
-                    f"  Transcoded Asset: {res['transcoded_asset_filename']} (ID: {res['transcoded_asset_entity_id']})"
-                )
+                typer.echo(f"  Transcoded Asset: {res['transcoded_asset_filename']} (ID: {res['transcoded_asset_entity_id']})")
                 typer.echo(f"    File Size: {res['file_size_bytes']} bytes")
                 typer.echo(f"    VMAF: {res['vmaf_score'] if res['vmaf_score'] is not None else 'N/A'}")
                 typer.echo(f"    SSIM: {res['ssim_score'] if res['ssim_score'] is not None else 'N/A'}")
@@ -1259,9 +1177,7 @@ app.add_typer(character_app)
 async def cli_character_create(
     ctx: typer.Context,
     name: Annotated[str, typer.Option("--name", "-n", help="Unique name for the character concept.")],
-    description: Annotated[
-        Optional[str], typer.Option("--desc", "-d", help="Optional description for the character.")
-    ] = None,
+    description: Annotated[Optional[str], typer.Option("--desc", "-d", help="Optional description for the character.")] = None,
 ):
     """Creates a new character concept."""
     if not global_state.world_name:
@@ -1298,9 +1214,7 @@ async def cli_character_create(
             typer.secho(f"Error: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
         except Exception as e_inner:  # Catch any other exception during the service call
-            typer.secho(
-                f"INNER EXCEPTION in character create: {type(e_inner).__name__}: {e_inner}", fg=typer.colors.RED
-            )
+            typer.secho(f"INNER EXCEPTION in character create: {type(e_inner).__name__}: {e_inner}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
         except Exception as e:
             typer.secho(f"Unexpected error creating character concept: {e}", fg=typer.colors.RED)
@@ -1311,15 +1225,9 @@ async def cli_character_create(
 @character_app.command("apply")
 async def cli_character_apply(
     ctx: typer.Context,
-    asset_identifier: Annotated[
-        str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the asset to link.")
-    ],
-    character_identifier: Annotated[
-        str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")
-    ],
-    role: Annotated[
-        Optional[str], typer.Option("--role", "-r", help="Optional role of the character in this asset.")
-    ] = None,
+    asset_identifier: Annotated[str, typer.Option("--asset", "-a", help="Entity ID or SHA256 hash of the asset to link.")],
+    character_identifier: Annotated[str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")],
+    role: Annotated[Optional[str], typer.Option("--role", "-r", help="Optional role of the character in this asset.")] = None,
 ):
     """Applies (links) a character to an asset."""
     if not global_state.world_name:
@@ -1337,9 +1245,7 @@ async def cli_character_apply(
             try:
                 asset_entity_id = int(asset_identifier)
             except ValueError:
-                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(
-                    session, hash_value=asset_identifier, hash_type="sha256"
-                )
+                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(session, hash_value=asset_identifier, hash_type="sha256")
                 if not entity_id_from_hash:
                     typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
                     raise typer.Exit(code=1)
@@ -1356,9 +1262,7 @@ async def cli_character_apply(
                 if not await character_service.get_character_concept_by_id(session, character_concept_entity_id):
                     raise character_service.CharacterConceptNotFoundError
             except ValueError:
-                char_concept_entity = await character_service.get_character_concept_by_name(
-                    session, character_identifier
-                )
+                char_concept_entity = await character_service.get_character_concept_by_name(session, character_identifier)
                 character_concept_entity_id = char_concept_entity.id
             except character_service.CharacterConceptNotFoundError:
                 typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
@@ -1421,9 +1325,7 @@ async def cli_character_list_for_asset(
             try:
                 asset_entity_id = int(asset_identifier)
             except ValueError:
-                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(
-                    session, hash_value=asset_identifier, hash_type="sha256"
-                )
+                entity_id_from_hash = await dam_ecs_service.find_entity_id_by_hash(session, hash_value=asset_identifier, hash_type="sha256")
                 if not entity_id_from_hash:
                     typer.secho(f"Error: No asset found with SHA256 hash '{asset_identifier}'.", fg=typer.colors.RED)
                     raise typer.Exit(code=1)
@@ -1440,9 +1342,7 @@ async def cli_character_list_for_asset(
 
             typer.echo(f"Characters linked to asset '{asset_identifier}' (Entity ID: {asset_entity_id}):")
             for char_concept_entity, role in characters_on_asset:
-                char_comp = await dam_ecs_service.get_component(
-                    session, char_concept_entity.id, CharacterConceptComponent
-                )
+                char_comp = await dam_ecs_service.get_component(session, char_concept_entity.id, CharacterConceptComponent)
                 char_name = char_comp.concept_name if char_comp else "Unknown Character"
                 role_str = f" (Role: {role})" if role else ""
                 typer.echo(f"  - {char_name} (Concept ID: {char_concept_entity.id}){role_str}")
@@ -1459,9 +1359,7 @@ async def cli_character_list_for_asset(
 @character_app.command("find-assets")
 async def cli_character_find_assets(
     ctx: typer.Context,
-    character_identifier: Annotated[
-        str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")
-    ],
+    character_identifier: Annotated[str, typer.Option("--character", "-c", help="Name or Entity ID of the character concept.")],
     role_filter: Annotated[
         Optional[str],
         typer.Option(
@@ -1498,9 +1396,7 @@ async def cli_character_find_assets(
                 if not await character_service.get_character_concept_by_id(session, character_concept_entity_id):
                     raise character_service.CharacterConceptNotFoundError
             except ValueError:
-                char_concept_entity = await character_service.get_character_concept_by_name(
-                    session, character_identifier
-                )
+                char_concept_entity = await character_service.get_character_concept_by_name(session, character_identifier)
                 character_concept_entity_id = char_concept_entity.id
             except character_service.CharacterConceptNotFoundError:
                 typer.secho(f"Error: Character concept '{character_identifier}' not found.", fg=typer.colors.RED)
@@ -1510,12 +1406,8 @@ async def cli_character_find_assets(
                 raise typer.Exit(code=1)
 
             # Fetch character name for display *before* using it in messages
-            char_comp_for_display = await dam_ecs_service.get_component(
-                session, character_concept_entity_id, CharacterConceptComponent
-            )
-            display_character_name = (
-                char_comp_for_display.concept_name if char_comp_for_display else character_identifier
-            )  # Fallback
+            char_comp_for_display = await dam_ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+            display_character_name = char_comp_for_display.concept_name if char_comp_for_display else character_identifier  # Fallback
 
             linked_assets = await character_service.get_entities_for_character(
                 session,
@@ -1525,12 +1417,8 @@ async def cli_character_find_assets(
             )
 
             # Fetch character name for display
-            char_comp_for_display = await dam_ecs_service.get_component(
-                session, character_concept_entity_id, CharacterConceptComponent
-            )
-            display_character_name = (
-                char_comp_for_display.concept_name if char_comp_for_display else character_identifier
-            )  # Fallback
+            char_comp_for_display = await dam_ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+            display_character_name = char_comp_for_display.concept_name if char_comp_for_display else character_identifier  # Fallback
 
             if not linked_assets:
                 typer.secho(
@@ -1539,9 +1427,7 @@ async def cli_character_find_assets(
                 )
                 return
 
-            typer.echo(
-                f"Assets linked to character '{display_character_name}' (Concept ID: {character_concept_entity_id}):"
-            )
+            typer.echo(f"Assets linked to character '{display_character_name}' (Concept ID: {character_concept_entity_id}):")
             for asset_entity in linked_assets:
                 fpc = await dam_ecs_service.get_component(session, asset_entity.id, FilePropertiesComponent)
                 filename = fpc.original_filename if fpc else "N/A"
@@ -1567,9 +1453,7 @@ async def cli_search_semantic(
     ctx: typer.Context,
     query: Annotated[str, typer.Option("--query", "-q", help="Text query for semantic search.")],
     top_n: Annotated[int, typer.Option("--top-n", "-n", help="Number of top results to return.")] = 10,
-    model_name: Annotated[
-        Optional[str], typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional).")
-    ] = None,
+    model_name: Annotated[Optional[str], typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional).")] = None,
 ):
     """Performs semantic search based on text query."""
     if not global_state.world_name:
@@ -1589,9 +1473,7 @@ async def cli_search_semantic(
         model_name=model_name,  # Will use service default if None
     )
 
-    typer.echo(
-        f"Dispatching SemanticSearchQuery (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
-    )
+    typer.echo(f"Dispatching SemanticSearchQuery (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'")
 
     async def dispatch_and_await_results():
         # Explicitly import semantic_service here to ensure it's in scope for this async function
@@ -1617,9 +1499,7 @@ async def cli_search_semantic(
                 for entity, score, emb_comp in results:
                     fpc = await dam_ecs_service.get_component(session, entity.id, FilePropertiesComponent)
                     filename = fpc.original_filename if fpc else "N/A"
-                    source_info = (
-                        f"{emb_comp.source_component_name}.{emb_comp.source_field_name}" if emb_comp else "N/A"
-                    )
+                    source_info = f"{emb_comp.source_component_name}.{emb_comp.source_field_name}" if emb_comp else "N/A"
                     typer.echo(
                         f"  - Entity ID: {entity.id}, Score: {score:.4f}, Filename: {filename}"
                         f"\n    Matched on: {source_info} (Model: {effective_display_model_name})"
@@ -1646,9 +1526,7 @@ async def cli_search_semantic(
 @search_app.command("items")
 async def cli_search_items(
     ctx: typer.Context,
-    text: Annotated[
-        Optional[str], typer.Option("--text", "-t", help="Keyword text to search in filenames/descriptions.")
-    ] = None,
+    text: Annotated[Optional[str], typer.Option("--text", "-t", help="Keyword text to search in filenames/descriptions.")] = None,
     tag: Annotated[Optional[str], typer.Option("--tag", help="Filter by tag name.")] = None,
     character: Annotated[Optional[str], typer.Option("--character", help="Filter by character name or ID.")] = None,
     # Add more filters as needed
