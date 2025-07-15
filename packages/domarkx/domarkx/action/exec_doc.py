@@ -79,6 +79,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 def _append_new_messages(doc, new_state, messages):
     for message in new_state["llm_context"]["messages"][len(messages) :]:
         message: dict = copy.deepcopy(message)
+        role = message.get("role", "assistant")
         content = ""
         if "content" in message:
             if isinstance(message["content"], str):
@@ -93,7 +94,17 @@ def _append_new_messages(doc, new_state, messages):
 
 {content}"""
         with doc.open("a") as f:
-            append_message(f, Message("assistant", content, message))
+            if role == "user":
+                append_message(
+                    f,
+                    Message(
+                        "User",
+                        f"> {content}",
+                        {"source": "user", "type": "UserMessage"},
+                    ),
+                )
+            else:
+                append_message(f, Message("assistant", content, message))
 
 
 def _process_initial_messages(parsed_doc):

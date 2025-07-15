@@ -34,6 +34,15 @@ def expand(
                 content = content.replace(f"[@{macro.link_text}]({macro.url})", include_content)
             else:
                 logger.warning(f"File not found for include macro: {include_path}")
+        elif macro.command == "create_session":
+            template_name = macro.params.get("template_name")
+            template_path = input_path.parent / f"../templates/{template_name}.md"
+            if template_path.exists():
+                template_content = template_path.read_text()
+                expanded_content = macro.expand(template_content)
+                content = content.replace(f"[@{macro.link_text}]({macro.url})", expanded_content)
+            else:
+                logger.warning(f"Template not found for create_session macro: {template_path}")
 
     if output_file:
         output_path = output_file

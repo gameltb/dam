@@ -40,6 +40,13 @@ class Macro:
     link_text: str = ""
     url: str = ""
 
+    def expand(self, content: str) -> str:
+        """Expands the macro in the given content."""
+        # Basic placeholder replacement
+        for key, value in self.params.items():
+            content = content.replace(f"{{{key}}}", value)
+        return content
+
 
 import mistune
 from urllib.parse import urlparse, parse_qs
