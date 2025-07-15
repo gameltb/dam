@@ -33,6 +33,13 @@ client = OpenRouterR1OpenAIChatCompletionClient(
 
 > You are a helpful assistant. Your task is to respond to the user's prompt.
 
-## Conversation
+## User
 
-**User**: [@user_prompt](domarkx://user_prompt)
+```json msg-metadata
+{
+  "source": "user",
+  "type": "UserMessage"
+}
+```
+
+> [@user_prompt](domarkx://user_prompt)

@@ -20,16 +20,13 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     console = Console(markup=False)
     parsed_doc = parse_document(doc)
 
-    client = None
-    tools = []
     if parsed_doc.config.session_setup_code:
         session_setup_code = parsed_doc.config.session_setup_code
         console.print(rich.markdown.Markdown(f"```{session_setup_code.language}\n{session_setup_code.code}\n```"))
         local_vars = {}
         exec(session_setup_code.code, globals(), local_vars)
 
-        client = local_vars.get("client")
-        tools = local_vars.get("tools", [])
+        client = local_vars["client"]
 
     console.print("".join(parsed_doc.raw_lines))
 
@@ -43,7 +40,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     if system_message is None or len(system_message) == 0:
         system_message = "You are a helpful AI assistant. "
 
-    chat_agent = await create_agent(client, system_message, chat_agent_state, tools=tools)
+    chat_agent = await create_agent(client, system_message, chat_agent_state)
 
     # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
@@ -79,7 +76,6 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 def _append_new_messages(doc, new_state, messages):
     for message in new_state["llm_context"]["messages"][len(messages) :]:
         message: dict = copy.deepcopy(message)
-        role = message.get("role", "assistant")
         content = ""
         if "content" in message:
             if isinstance(message["content"], str):
@@ -94,17 +90,7 @@ def _append_new_messages(doc, new_state, messages):
 
 {content}"""
         with doc.open("a") as f:
-            if role == "user":
-                append_message(
-                    f,
-                    Message(
-                        "User",
-                        f"> {content}",
-                        {"source": "user", "type": "UserMessage"},
-                    ),
-                )
-            else:
-                append_message(f, Message("assistant", content, message))
+            append_message(f, Message("assistant", content, message))
 
 
 def _process_initial_messages(parsed_doc):
@@ -133,5 +119,5 @@ def exec_doc(
     asyncio.run(aexec_doc(doc, handle_one_toolcall))
 
 
-def register(main_app: typer.Typer, settings):
+def register(main_app: typer.Typer):
     main_app.command()(exec_doc)
