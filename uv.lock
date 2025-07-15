@@ -791,6 +791,8 @@ all = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "sentence-transformers" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
 ]
 dev = [
     { name = "aiosqlite" },
@@ -798,6 +800,9 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "sentence-transformers" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
 ]
 image = [
     { name = "imagehash" },
@@ -834,8 +839,10 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
+    { name = "sentence-transformers", marker = "extra == 'dev'" },
     { name = "sentence-transformers", marker = "extra == 'semantic'" },
     { name = "sqlalchemy" },
+    { name = "torch", marker = "extra == 'dev'" },
     { name = "typer" },
 ]
 provides-extras = ["image", "video", "audio", "metadata", "semantic", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]

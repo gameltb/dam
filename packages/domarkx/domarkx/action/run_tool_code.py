@@ -48,5 +48,5 @@ def do_roo_code_action(
         append_message(f, Message("user", assistant_responses, {"source": "user", "type": "UserMessage"}))
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(do_roo_code_action)

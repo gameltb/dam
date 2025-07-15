@@ -120,5 +120,5 @@ def extract_code_to_file(
     do_extract_code_to_file(".", code_block.code, filepath_extracted=code_block.attrs)
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(extract_code_to_file)

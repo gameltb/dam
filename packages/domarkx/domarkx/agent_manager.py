@@ -6,13 +6,15 @@ from domarkx.tools.read_file import read_file
 from domarkx.tools.write_to_file import write_to_file
 
 
-async def create_agent(client, system_message, chat_agent_state):
+async def create_agent(client, system_message, chat_agent_state, tools=None):
+    if tools is None:
+        tools = [list_files, read_file, write_to_file, execute_command, python_code_handler]
     agent = ResumeFunCallAssistantAgent(
         "assistant",
         model_client=client,
         system_message=system_message,
         model_client_stream=True,
-        tools=[list_files, read_file, write_to_file, execute_command, python_code_handler],
+        tools=tools,
     )
     await agent.load_state(chat_agent_state)
     return agent

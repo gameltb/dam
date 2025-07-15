@@ -20,13 +20,16 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     console = Console(markup=False)
     parsed_doc = parse_document(doc)
 
+    client = None
+    tools = []
     if parsed_doc.config.session_setup_code:
         session_setup_code = parsed_doc.config.session_setup_code
         console.print(rich.markdown.Markdown(f"```{session_setup_code.language}\n{session_setup_code.code}\n```"))
         local_vars = {}
         exec(session_setup_code.code, globals(), local_vars)
 
-        client = local_vars["client"]
+        client = local_vars.get("client")
+        tools = local_vars.get("tools", [])
 
     console.print("".join(parsed_doc.raw_lines))
 
@@ -40,7 +43,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     if system_message is None or len(system_message) == 0:
         system_message = "You are a helpful AI assistant. "
 
-    chat_agent = await create_agent(client, system_message, chat_agent_state)
+    chat_agent = await create_agent(client, system_message, chat_agent_state, tools=tools)
 
     # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
@@ -119,5 +122,5 @@ def exec_doc(
     asyncio.run(aexec_doc(doc, handle_one_toolcall))
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(exec_doc)

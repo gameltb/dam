@@ -44,5 +44,5 @@ def expand(
     logger.info(f"Expanded document written to {output_path}")
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(expand)
