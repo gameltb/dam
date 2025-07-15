@@ -1,5 +1,5 @@
 ---
-title: "[@session_name]()"
+title: "[@session_name](domarkx://session_name)"
 version: "0.0.1"
 ---
 
@@ -35,4 +35,4 @@ client = OpenRouterR1OpenAIChatCompletionClient(
 
 ## Conversation
 
-**User**: [@user_prompt]()
+**User**: [@user_prompt](domarkx://user_prompt)

@@ -40,13 +40,6 @@ class Macro:
     link_text: str = ""
     url: str = ""
 
-    def expand(self, content: str) -> str:
-        """Expands the macro in the given content."""
-        # Basic placeholder replacement
-        for key, value in self.params.items():
-            content = content.replace(f"{{{key}}}", value)
-        return content
-
 
 import mistune
 from urllib.parse import urlparse, parse_qs
@@ -65,16 +58,15 @@ def find_macros(text: str) -> List[Macro]:
             text = self.render_children(token, state)
             url = token["attrs"]["url"]
             if text and text.startswith("@") and not text.startswith("@@"):
-                macro_match = re.match(r"@(\w+)\((.*)\)", text)
-                if macro_match:
-                    command = macro_match.group(1)
-                    params_str = macro_match.group(2)
-                    params = dict(re.findall(r'(\w+)="([^"]*)"', params_str))
+                if url.startswith("domarkx://"):
+                    parsed_url = urlparse(url)
+                    command = parsed_url.hostname
+                    params = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed_url.query).items()}
                     self.macros.append(
                         Macro(
                             command=command,
                             params=params,
-                            link_text=text,
+                            link_text=text[1:],
                             url=url,
                         )
                     )

@@ -14,17 +14,21 @@ class MacroExpander:
         """Expands all macros in the given content."""
         if parameters is None:
             parameters = {}
+
+        expanded_content = content
         macros = find_macros(content)
         for macro in macros:
             if macro.command in self.macros:
-                content = self.macros[macro.command](macro, content)
+                expanded_content = self.macros[macro.command](macro, expanded_content)
             else:
                 # Handle parameter expansion for other macros
                 macro_content = ""
                 if macro.command in parameters:
                     macro_content = parameters[macro.command]
-                content = content.replace(f"[{macro.link_text}]({macro.url})", macro_content)
-        return content
+
+                # Use a more robust replacement method that considers the macro's position
+                expanded_content = expanded_content.replace(f"[@{macro.link_text}]({macro.url})", macro_content, 1)
+        return expanded_content
 
     def _include_macro(self, macro, content):
         """Handles the @include macro."""
@@ -38,6 +42,6 @@ class MacroExpander:
 
         if include_path.exists():
             include_content = include_path.read_text()
-            return content.replace(f"[{macro.link_text}]({macro.url})", include_content)
+            return content.replace(f"[@{macro.link_text}]({macro.url})", include_content, 1)
         else:
             return content
