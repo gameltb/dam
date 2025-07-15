@@ -8,6 +8,9 @@ from domarkx.utils.markdown_utils import find_macros
 logger = logging.getLogger(__name__)
 
 
+from domarkx.macro_expander import MacroExpander
+
+
 def expand(
     input_file: Annotated[
         pathlib.Path,
@@ -21,35 +24,16 @@ def expand(
     """Expands macros in a Markdown document."""
     input_path = input_file
     content = input_path.read_text()
-    macros = find_macros(content)
 
-    for macro in macros:
-        if macro.command == "include":
-            include_path = pathlib.Path(macro.params.get("path"))
-            if not include_path.is_absolute():
-                include_path = input_path.parent / include_path
-
-            if include_path.exists():
-                include_content = include_path.read_text()
-                content = content.replace(f"[@{macro.link_text}]({macro.url})", include_content)
-            else:
-                logger.warning(f"File not found for include macro: {include_path}")
-        elif macro.command == "create_session":
-            template_name = macro.params.get("template_name")
-            template_path = input_path.parent / f"../templates/{template_name}.md"
-            if template_path.exists():
-                template_content = template_path.read_text()
-                expanded_content = macro.expand(template_content)
-                content = content.replace(f"[@{macro.link_text}]({macro.url})", expanded_content)
-            else:
-                logger.warning(f"Template not found for create_session macro: {template_path}")
+    expander = MacroExpander(base_dir=str(input_path.parent))
+    expanded_content = expander.expand(content)
 
     if output_file:
         output_path = output_file
     else:
         output_path = input_path.with_suffix(".expanded.md")
 
-    output_path.write_text(content)
+    output_path.write_text(expanded_content)
     logger.info(f"Expanded document written to {output_path}")
 
 

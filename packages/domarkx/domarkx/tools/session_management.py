@@ -4,7 +4,10 @@ import subprocess
 from domarkx.config import settings
 
 
-def create_session(template_name: str, session_name: str, parameters: dict = None):
+from domarkx.macro_expander import MacroExpander
+
+
+def create_session(template_name: str, session_name: str, **kwargs):
     """
     Creates a new session from a template.
     """
@@ -14,15 +17,15 @@ def create_session(template_name: str, session_name: str, parameters: dict = Non
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template not found: {template_path}")
 
-    shutil.copy2(template_path, session_path)
+    with open(template_path, "r") as f:
+        template_content = f.read()
 
-    if parameters:
-        with open(session_path, "r") as f:
-            content = f.read()
-        for key, value in parameters.items():
-            content = content.replace(f"{{{key}}}", value)
-        with open(session_path, "w") as f:
-            f.write(content)
+    expander = MacroExpander(base_dir=os.path.join(settings.project_path, "templates"))
+
+    expanded_content = expander.expand(template_content, parameters={"session_name": session_name, **kwargs})
+
+    with open(session_path, "w") as f:
+        f.write(expanded_content)
 
     # Add to git
     subprocess.run(["git", "add", session_path], cwd=settings.project_path)
