@@ -83,7 +83,9 @@ class World:
         if stage:
             self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in world '{self.name}'.")
         elif event_type:
-            self.logger.info(f"System {system_func.__name__} registered for event {event_type.__name__} in world '{self.name}'.")
+            self.logger.info(
+                f"System {system_func.__name__} registered for event {event_type.__name__} in world '{self.name}'."
+            )
 
     def _get_world_context(self, session: AsyncSession) -> WorldContext:  # Use AsyncSession
         world_cfg = self.get_resource(WorldConfig)
@@ -93,7 +95,9 @@ class World:
             world_config=world_cfg,
         )
 
-    async def execute_stage(self, stage: SystemStage, session: Optional[AsyncSession] = None) -> None:  # Use AsyncSession
+    async def execute_stage(
+        self, stage: SystemStage, session: Optional[AsyncSession] = None
+    ) -> None:  # Use AsyncSession
         self.logger.info(f"Executing stage '{stage.name}' for World '{self.name}'.")
         if session:
             world_context = self._get_world_context(session)
@@ -107,7 +111,9 @@ class World:
                 await db_session.close()  # Await close for AsyncSession
                 self.logger.debug(f"Session closed after executing stage '{stage.name}' in World '{self.name}'.")
 
-    async def dispatch_event(self, event: BaseEvent, session: Optional[AsyncSession] = None) -> None:  # Use AsyncSession
+    async def dispatch_event(
+        self, event: BaseEvent, session: Optional[AsyncSession] = None
+    ) -> None:  # Use AsyncSession
         self.logger.info(f"Dispatching event '{type(event).__name__}' for World '{self.name}'.")
         if session:
             world_context = self._get_world_context(session)
@@ -119,7 +125,9 @@ class World:
                 await self.scheduler.dispatch_event(event, world_context)
             finally:
                 await db_session.close()  # Await close for AsyncSession
-                self.logger.debug(f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'.")
+                self.logger.debug(
+                    f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
+                )
 
     async def execute_one_time_system(
         self,
@@ -131,7 +139,9 @@ class World:
         Executes a single, dynamically provided system function immediately.
         Manages session creation and closure if an external session is not provided.
         """
-        self.logger.info(f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}.")
+        self.logger.info(
+            f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
+        )
         if session:
             world_context = self._get_world_context(session)
             await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
@@ -142,7 +152,9 @@ class World:
                 await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
             finally:
                 db_session.close()
-                self.logger.debug(f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'.")
+                self.logger.debug(
+                    f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'."
+                )
 
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"
@@ -193,7 +205,9 @@ def clear_world_registry() -> None:
 
 def create_and_register_world(world_name: str, app_settings: Optional[Settings] = None) -> World:
     current_settings = app_settings or global_app_settings
-    logger.info(f"Attempting to create and register world: {world_name} using settings: {'provided' if app_settings else 'global'}")
+    logger.info(
+        f"Attempting to create and register world: {world_name} using settings: {'provided' if app_settings else 'global'}"
+    )
     try:
         world_cfg = current_settings.get_world_config(world_name)
     except ValueError as e:

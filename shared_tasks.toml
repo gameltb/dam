@@ -1,6 +1,6 @@
 [tool.poe.tasks]
-fmt = "ruff format"
+fmt = "ruff format --exclude \\*.md"
 format.ref = "fmt"
-lint = "ruff check"
+lint = "ruff check --exclude \\*.md"
 mypy = "mypy --config-file $POE_ROOT/../../pyproject.toml src tests"
 pyright = "pyright"

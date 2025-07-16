@@ -24,7 +24,9 @@ class MockWd14Tagger:
         logger.info(f"MockWd14Tagger '{self.model_name}' initialized with params {self.params}")
 
     def predict(self, image_path: str, threshold: float, tag_limit: int) -> List[Dict[str, Any]]:
-        logger.info(f"MockWd14Tagger '{self.model_name}' predicting for {image_path} with threshold {threshold}, limit {tag_limit}")
+        logger.info(
+            f"MockWd14Tagger '{self.model_name}' predicting for {image_path} with threshold {threshold}, limit {tag_limit}"
+        )
         if "cat" in image_path.lower():
             return [
                 {"tag_name": "animal", "confidence": 0.95},
@@ -86,7 +88,9 @@ async def get_tagging_model(
 
     # The `model_name` (e.g., "wd-v1-4-moat-tagger-v2") is passed as `model_name_or_path`
     # to the ModelExecutionManager, which then passes it to the loader.
-    return await model_execution_manager.get_model(model_identifier=TAGGING_MODEL_IDENTIFIER, model_name_or_path=model_name, params=final_load_params)
+    return await model_execution_manager.get_model(
+        model_identifier=TAGGING_MODEL_IDENTIFIER, model_name_or_path=model_name, params=final_load_params
+    )
 
 
 async def generate_tags_from_image(
@@ -143,7 +147,9 @@ async def update_entity_model_tags(
     """
     conceptual_registry_entry = TAGGING_MODEL_CONCEPTUAL_PARAMS.get(model_name)
     if not conceptual_registry_entry:
-        logger.error(f"Cannot update tags: Model '{model_name}' not found in TAGGING_MODEL_CONCEPTUAL_PARAMS for its conceptual params.")
+        logger.error(
+            f"Cannot update tags: Model '{model_name}' not found in TAGGING_MODEL_CONCEPTUAL_PARAMS for its conceptual params."
+        )
         return []
 
     # Get conceptual parameters (e.g., confidence threshold for filtering tags)

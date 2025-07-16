@@ -45,7 +45,9 @@ async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]:
     return result.scalar_one_or_none()
 
 
-async def add_component_to_entity(session: AsyncSession, entity_id: int, component_instance: T, flush: bool = True) -> T:  # Made async
+async def add_component_to_entity(
+    session: AsyncSession, entity_id: int, component_instance: T, flush: bool = True
+) -> T:  # Made async
     """
     Adds a component instance to a specified entity in the given session.
 
@@ -156,7 +158,9 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
     if not REGISTERED_COMPONENT_TYPES:
         # This might be a critical error or warning depending on application structure.
         # For now, we proceed, but ideally, this list is always populated.
-        logger.warning(f"REGISTERED_COMPONENT_TYPES is empty while trying to delete entity {entity_id}. " "Associated components may not be fully deleted.")
+        logger.warning(
+            f"REGISTERED_COMPONENT_TYPES is empty while trying to delete entity {entity_id}. Associated components may not be fully deleted."
+        )
 
     for component_type in REGISTERED_COMPONENT_TYPES:
         components_to_delete = await get_components(session, entity_id, component_type)  # Await async call
@@ -207,7 +211,9 @@ async def find_entities_with_components(  # Made async
     return list(result.scalars().all())
 
 
-async def find_entity_id_by_hash(session: AsyncSession, hash_value: str, hash_type: str = "sha256") -> Optional[int]:  # Use AsyncSession
+async def find_entity_id_by_hash(
+    session: AsyncSession, hash_value: str, hash_type: str = "sha256"
+) -> Optional[int]:  # Use AsyncSession
     """
     Finds an entity ID by its content hash string (hex).
     Returns the Entity ID or None if not found.
@@ -260,7 +266,9 @@ async def get_components_by_value(  # Made async
     return result.scalars().all()
 
 
-async def find_entity_by_content_hash(session: AsyncSession, hash_value: bytes, hash_type: str = "sha256") -> Optional[Entity]:  # Made async
+async def find_entity_by_content_hash(
+    session: AsyncSession, hash_value: bytes, hash_type: str = "sha256"
+) -> Optional[Entity]:  # Made async
     """
     Finds a single entity by its content hash (SHA256 or MD5), provided as bytes.
     Returns the Entity or None if not found.

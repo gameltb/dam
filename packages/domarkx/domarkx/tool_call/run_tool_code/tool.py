@@ -70,7 +70,12 @@ def execute_tool_call(tool_call: dict, return_traceback=False, handle_exception=
         traceback_str = console_output.getvalue()
         return (
             tool_name,
-            f"Error : {error_msg}\n" + (f"Traceback:\n{'\n'.join([line.rstrip() for line in traceback_str.splitlines()])}" if return_traceback else ""),
+            f"Error : {error_msg}\n"
+            + (
+                f"Traceback:\n{'\n'.join([line.rstrip() for line in traceback_str.splitlines()])}"
+                if return_traceback
+                else ""
+            ),
         )
 
 

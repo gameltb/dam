@@ -70,7 +70,9 @@ async def audio_embedding_generation_system(
             # This utility needs to be robust.
             # It might need access to FileStorageResource or similar from world_context's resource_manager
             # For now, it's a direct import.
-            audio_path = await get_file_path_for_entity(session, entity.id, world_context.world_config.ASSET_STORAGE_PATH)
+            audio_path = await get_file_path_for_entity(
+                session, entity.id, world_context.world_config.ASSET_STORAGE_PATH
+            )
             if not audio_path:
                 logger.error(f"Could not retrieve audio file path for entity {entity.id}. Skipping.")
                 failed_count += 1
@@ -83,7 +85,9 @@ async def audio_embedding_generation_system(
         # 3. Check if embedding already exists for the default model
         AudioEmbeddingClass = get_audio_embedding_component_class(default_model_name)
         if not AudioEmbeddingClass:
-            logger.error(f"Could not find audio embedding class for model {default_model_name}. Skipping entity {entity.id}")
+            logger.error(
+                f"Could not find audio embedding class for model {default_model_name}. Skipping entity {entity.id}"
+            )
             failed_count += 1
             continue
 
@@ -91,14 +95,18 @@ async def audio_embedding_generation_system(
             session, entity.id, AudioEmbeddingClass, attributes_values={"model_name": default_model_name}
         )
         if existing_embeddings:
-            logger.info(f"Audio embedding for model {default_model_name} already exists for entity {entity.id}. Skipping generation.")
+            logger.info(
+                f"Audio embedding for model {default_model_name} already exists for entity {entity.id}. Skipping generation."
+            )
             # Marker will be removed automatically if auto_remove_marker=True
             processed_count += 1
             continue
 
         # 4. Generate and store embedding
         try:
-            logger.info(f"Generating audio embedding for entity {entity.id} (path: {audio_path}) with model {default_model_name}.")
+            logger.info(
+                f"Generating audio embedding for entity {entity.id} (path: {audio_path}) with model {default_model_name}."
+            )
             embedding_component = await audio_service.generate_audio_embedding_for_entity(
                 session,
                 model_execution_manager,  # Pass MEM
@@ -108,16 +116,22 @@ async def audio_embedding_generation_system(
                 audio_file_path=audio_path,
             )
             if embedding_component:
-                logger.info(f"Successfully generated audio embedding for entity {entity.id} with model {default_model_name}.")
+                logger.info(
+                    f"Successfully generated audio embedding for entity {entity.id} with model {default_model_name}."
+                )
                 processed_count += 1
             else:
-                logger.warning(f"Audio embedding generation returned None for entity {entity.id} with model {default_model_name}.")
+                logger.warning(
+                    f"Audio embedding generation returned None for entity {entity.id} with model {default_model_name}."
+                )
                 failed_count += 1
         except Exception as e:
             logger.error(f"Error generating audio embedding for entity {entity.id}: {e}", exc_info=True)
             failed_count += 1
 
-    logger.info(f"AudioEmbeddingGenerationSystem: Finished processing. Processed: {processed_count}, Failed: {failed_count}.")
+    logger.info(
+        f"AudioEmbeddingGenerationSystem: Finished processing. Processed: {processed_count}, Failed: {failed_count}."
+    )
 
 
 __all__ = ["audio_embedding_generation_system", "NeedsAudioProcessingMarker"]

@@ -16,7 +16,9 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
     __tablename__ = "component_model_generated_tag_link"
 
     entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
-    tag_concept_id: Mapped[int] = mapped_column(ForeignKey("component_tag_concept.id", ondelete="CASCADE"), nullable=False, index=True)
+    tag_concept_id: Mapped[int] = mapped_column(
+        ForeignKey("component_tag_concept.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Name of the model that generated this tag link (e.g., "wd-v1-4-moat-tagger-v2")
     source_model_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)

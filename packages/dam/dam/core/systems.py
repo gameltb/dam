@@ -43,16 +43,20 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                 identity = string_identities_found[0]
 
             if identity == "MarkedEntityList":
-                marker_component_type = next((m for m in type_based_markers_found if issubclass(m, BaseComponent)), None)
+                marker_component_type = next(
+                    (m for m in type_based_markers_found if issubclass(m, BaseComponent)), None
+                )
                 if not marker_component_type:
                     logger.warning(
-                        f"Parameter '{name}' in system '{func.__name__}' is 'MarkedEntityList' but " f"is missing a BaseComponent subclass in Annotated args."
+                        f"Parameter '{name}' in system '{func.__name__}' is 'MarkedEntityList' but is missing a BaseComponent subclass in Annotated args."
                     )
             elif identity == "Event":
                 if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
                     event_specific_type = actual_type
                 else:
-                    logger.warning(f"Parameter '{name}' in system '{func.__name__}' is 'Event' but its type " f"'{actual_type}' is not a BaseEvent subclass.")
+                    logger.warning(
+                        f"Parameter '{name}' in system '{func.__name__}' is 'Event' but its type '{actual_type}' is not a BaseEvent subclass."
+                    )
 
         if not identity:  # Only set identity if not already set by Annotated string
             # Specific framework types that are not standard resources
@@ -71,8 +75,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                 event_specific_type = actual_type
             else:
                 logger.warning(
-                    f"Parameter '{name}' in system '{func.__name__}' resolved to 'Event' identity, "
-                    f"but its type '{actual_type}' is not a BaseEvent subclass."
+                    f"Parameter '{name}' in system '{func.__name__}' resolved to 'Event' identity, but its type '{actual_type}' is not a BaseEvent subclass."
                 )
 
         param_info[name] = {
@@ -117,10 +120,13 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
         }
         has_event_param = any(p_info.get("event_type_hint") == event_type for p_info in param_info.values())
         if not has_event_param:
-            found_by_direct_type = any(p_info.get("type_hint") == event_type and p_info.get("identity") == "Event" for p_info in param_info.values())
+            found_by_direct_type = any(
+                p_info.get("type_hint") == event_type and p_info.get("identity") == "Event"
+                for p_info in param_info.values()
+            )
             if not found_by_direct_type:
                 logger.warning(
-                    f"System {func.__name__} registered for event {event_type.__name__} but does not " f"seem to have a parameter matching this event type."
+                    f"System {func.__name__} registered for event {event_type.__name__} but does not seem to have a parameter matching this event type."
                 )
         return func
 
@@ -148,14 +154,18 @@ class WorldScheduler:
                 "Attempting to parse its parameters now. Ensure systems are decorated."
             )
             if not _parse_system_params(system_func):
-                self.logger.error(f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register.")
+                self.logger.error(
+                    f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register."
+                )
                 return
         if stage:
             self.system_registry[stage].append(system_func)
             self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in this scheduler.")
         elif event_type:
             self.event_handler_registry[event_type].append(system_func)
-            self.logger.info(f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler.")
+            self.logger.info(
+                f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler."
+            )
         else:
             self.logger.error(f"System {system_func.__name__} must be registered with either a stage or an event_type.")
 
@@ -213,7 +223,9 @@ class WorldScheduler:
         self.logger.info(f"Dispatching event: {event_type.__name__} for world: {world_context.world_name}")
         handlers_to_run = self.event_handler_registry.get(event_type, [])
         if not handlers_to_run:
-            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {world_context.world_name}")
+            self.logger.info(
+                f"No event handlers registered for event type {event_type.__name__} in world {world_context.world_name}"
+            )
             return
 
         active_handler_func_name = "None"
@@ -224,7 +236,9 @@ class WorldScheduler:
                 await self._execute_system_func(handler_func, world_context, event_object=event)
             try:
                 await world_context.session.commit()  # Await
-                self.logger.info(f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}")
+                self.logger.info(
+                    f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}"
+                )
             except Exception as commit_exc:
                 self.logger.error(
                     f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
@@ -253,7 +267,9 @@ class WorldScheduler:
         self.logger.info(f"Attempting to run all stages for world: {initial_world_context.world_name}")
         ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
         for stage in ordered_stages:
-            self.logger.info(f"Running stage {stage.name} as part of run_all_stages for world {initial_world_context.world_name}.")
+            self.logger.info(
+                f"Running stage {stage.name} as part of run_all_stages for world {initial_world_context.world_name}."
+            )
             await self.execute_stage(stage, initial_world_context)
         self.logger.info(f"Finished running all stages for world: {initial_world_context.world_name}")
 
@@ -271,7 +287,7 @@ class WorldScheduler:
         if not metadata:
             # Try to parse dynamically if not found (e.g., for one-time systems not using decorators)
             self.logger.warning(
-                f"No pre-registered metadata for system {system_func.__name__} in world '{world_context.world_name}'. " "Attempting dynamic parameter parsing."
+                f"No pre-registered metadata for system {system_func.__name__} in world '{world_context.world_name}'. Attempting dynamic parameter parsing."
             )
             params_info = _parse_system_params(system_func)
             metadata = {
@@ -291,7 +307,9 @@ class WorldScheduler:
             if param_name in metadata["params"]:
                 kwargs_to_inject[param_name] = value
             else:
-                self.logger.warning(f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored.")
+                self.logger.warning(
+                    f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored."
+                )
 
         # Then, resolve remaining dependencies
         for param_name, param_meta in metadata["params"].items():
@@ -377,7 +395,9 @@ class WorldScheduler:
             is_async_func = metadata["is_async"]
 
         try:
-            kwargs_to_inject = await self._resolve_dependencies(system_func, world_context, event_object, **additional_kwargs)
+            kwargs_to_inject = await self._resolve_dependencies(
+                system_func, world_context, event_object, **additional_kwargs
+            )
         except Exception as e:
             self.logger.error(
                 f"Error resolving dependencies for system {system_func.__name__} in world '{world_context.world_name}': {e}",
@@ -385,7 +405,9 @@ class WorldScheduler:
             )
             raise  # Re-raise to be caught by caller (execute_stage, dispatch_event, or execute_one_time_system)
 
-        self.logger.debug(f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}")
+        self.logger.debug(
+            f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
+        )
 
         if is_async_func:
             await system_func(**kwargs_to_inject)
@@ -410,7 +432,9 @@ class WorldScheduler:
                                 f"Scheduler for world '{world_context.world_name}': Bulk removing {marker_type_to_remove.__name__} from "
                                 f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
                             )
-                            stmt = sql_delete(marker_type_to_remove).where(marker_type_to_remove.entity_id.in_(entity_ids_processed))
+                            stmt = sql_delete(marker_type_to_remove).where(
+                                marker_type_to_remove.entity_id.in_(entity_ids_processed)
+                            )
                             await world_context.session.execute(stmt)  # Await
                             # Flush is important here if subsequent systems in the same stage need to see this change.
                             # For one-time systems, commit/flush is handled by the caller.
@@ -418,13 +442,17 @@ class WorldScheduler:
                                 await world_context.session.flush()  # Await
         return True  # Indicates successful execution of the function itself
 
-    async def execute_one_time_system(self, system_func: Callable[..., Any], world_context: WorldContext, **kwargs: Any):
+    async def execute_one_time_system(
+        self, system_func: Callable[..., Any], world_context: WorldContext, **kwargs: Any
+    ):
         """
         Executes a single, dynamically provided system function immediately.
         Dependencies are resolved, and the system is run.
         The caller (World.execute_one_time_system) is responsible for session management (commit/rollback).
         """
-        self.logger.info(f"Executing one-time system: {system_func.__name__} in world '{world_context.world_name}' with provided kwargs: {kwargs}")
+        self.logger.info(
+            f"Executing one-time system: {system_func.__name__} in world '{world_context.world_name}' with provided kwargs: {kwargs}"
+        )
         try:
             await self._execute_system_func(system_func, world_context, event_object=None, **kwargs)
             # For one-time systems, commit is typically handled by the calling context (e.g., World method)

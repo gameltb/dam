@@ -15,10 +15,12 @@ class CodeBlock:
     attrs: Optional[str] = None
 
 
+CODE_BLOCK_REGEX = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DOTALL)
+
+
 def find_code_blocks(text: str) -> List[CodeBlock]:
     """Finds all code blocks in a Markdown string."""
-    pattern = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DOTALL)
-    matches = pattern.finditer(text)
+    matches = CODE_BLOCK_REGEX.finditer(text)
     results = []
     for match in matches:
         results.append(
@@ -41,57 +43,34 @@ class Macro:
     url: str = ""
 
 
-import mistune
-from urllib.parse import urlparse, parse_qs
+MACRO_REGEX = re.compile(r"\[@([a-zA-Z0-9_]+)\]\(domarkx://([a-zA-Z0-9_]+)(\?[^)]*)?\)")
 
 
 def find_macros(text: str) -> List[Macro]:
-    """Finds all macro commands in a Markdown string."""
+    """Finds all domarkx macros in the text using regex and returns a list of Macro objects."""
     macros = []
-
-    class MacroRenderer(mistune.BaseRenderer):
-        def __init__(self):
-            super().__init__()
-            self.macros = []
-
-        def link(self, token, state):
-            text = self.render_children(token, state)
-            url = token["attrs"]["url"]
-            if text and text.startswith("@") and not text.startswith("@@"):
-                if url.startswith("domarkx://"):
-                    parsed_url = urlparse(url)
-                    command = parsed_url.hostname
-                    params = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed_url.query).items()}
-                    self.macros.append(
-                        Macro(
-                            command=command,
-                            params=params,
-                            link_text=text[1:],
-                            url=url,
-                        )
-                    )
-            return text
-
-        def render_children(self, token, state):
-            children = token.get("children", [])
-            return "".join([self.render_token(child, state) for child in children])
-
-        def render_token(self, token, state):
-            func_name = token["type"]
-            func = getattr(self, func_name, None)
-            if func:
-                return func(token, state)
-            return self.text(token, state)
-
-        def text(self, token, state):
-            return token.get("raw", "")
-
-        def paragraph(self, token, state):
-            return self.render_children(token, state)
-
-    renderer = MacroRenderer()
-    markdown = mistune.create_markdown(renderer=renderer)
-    markdown(text)
-    return renderer.macros
-    markdown(text)
+    for match in MACRO_REGEX.finditer(text):
+        macro_text = match.group(1)
+        macro_name = match.group(2)
+        params_str = match.group(3)
+        params = {}
+        if params_str:
+            # Remove leading '?', split by '&', then '='
+            for pair in params_str[1:].split("&"):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    params[k] = v
+        macros.append(
+            Macro(
+                command=macro_name,
+                params=params,
+                link_text=macro_text,
+                url=f"domarkx://{macro_name}{params_str or ''}",
+            )
+        )
     return macros
+
+
+def find_first_macro(text: str):
+    """Finds the first domarkx macro in the text and returns a regex match object, or None if not found."""
+    return MACRO_REGEX.search(text)

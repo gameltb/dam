@@ -34,19 +34,18 @@ def init_project(
         # TODO: Implement custom template copying
     else:
         print("Initializing project with default template.")
-        default_template_path = os.path.join(
-            os.path.dirname(__file__), "..", "templates", "default"
-        )
+        default_template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "default")
         for item in os.listdir(default_template_path):
             s = os.path.join(default_template_path, item)
             d = os.path.join(project_path, item)
             if os.path.isdir(s):
                 import shutil
+
                 shutil.copytree(s, d, False, dirs_exist_ok=True)
             else:
                 import shutil
-                shutil.copy2(s, d)
 
+                shutil.copy2(s, d)
 
     print(f"Project initialized at: {project_path}")
 

@@ -96,7 +96,9 @@ async def create_transcode_profile(
         except Exception as e:
             # Log this error, but don't let it fail profile creation entirely
             # Or re-raise if this tag is critical
-            world.logger.warning(f"Could not apply system tag to transcode profile '{profile_name}': {e}", exc_info=True)
+            world.logger.warning(
+                f"Could not apply system tag to transcode profile '{profile_name}': {e}", exc_info=True
+            )
 
         await session.commit()
         await session.refresh(profile_entity)
@@ -166,7 +168,9 @@ async def _get_source_asset_filepath(world: World, asset_entity_id: int, session
             else:  # Check content_identifier based path
                 # Use get_file_path which takes the content_identifier (hash)
                 content_id_path = storage_resource.get_file_path(flc.content_identifier)  # type: ignore
-                if content_id_path and content_id_path.exists() and content_id_path.is_file():  # get_file_path can return None
+                if (
+                    content_id_path and content_id_path.exists() and content_id_path.is_file()
+                ):  # get_file_path can return None
                     source_path = content_id_path
                 else:
                     raise TranscodeServiceError(
@@ -192,7 +196,9 @@ async def apply_transcode_profile(
     """
     async with world.db_session_maker() as session:
         # 1. Get Transcode Profile
-        _profile_entity, profile_component = await get_transcode_profile_by_name_or_id(world, profile_entity_id, session=session)
+        _profile_entity, profile_component = await get_transcode_profile_by_name_or_id(
+            world, profile_entity_id, session=session
+        )
 
         # 2. Get Source Asset's File Path
         source_entity = await ecs_service.get_entity(session, source_asset_entity_id)
@@ -227,13 +233,13 @@ async def apply_transcode_profile(
 
         # Generate a unique name for the temporary output file before ingestion
         unique_suffix = uuid.uuid4().hex[:8]
-        temp_output_filename = (
-            f"{Path(source_filepath).stem}_{profile_component.profile_name.replace(' ', '_')}_{unique_suffix}.{profile_component.output_format}"
-        )
+        temp_output_filename = f"{Path(source_filepath).stem}_{profile_component.profile_name.replace(' ', '_')}_{unique_suffix}.{profile_component.output_format}"
         temp_output_filepath = final_output_dir_base / temp_output_filename
 
         # 4. Execute Transcoding
-        print(f"Applying profile '{profile_component.profile_name}' to asset ID {source_asset_entity_id} ({source_filepath})")
+        print(
+            f"Applying profile '{profile_component.profile_name}' to asset ID {source_asset_entity_id} ({source_filepath})"
+        )
         print(f"Output will be temporarily written to: {temp_output_filepath}")
 
         try:
@@ -258,7 +264,9 @@ async def apply_transcode_profile(
         # This uses the existing asset ingestion event flow.
         # The ingestion system will calculate hashes, extract metadata, and create FileLocationComponent.
         try:
-            _ret_original_filename, ret_size_bytes, ret_mime_type = file_operations.get_file_properties(transcoded_filepath)
+            _ret_original_filename, ret_size_bytes, ret_mime_type = file_operations.get_file_properties(
+                transcoded_filepath
+            )
         except Exception as e:
             if transcoded_filepath.exists():  # Check if it exists before unlinking
                 transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
@@ -289,11 +297,15 @@ async def apply_transcode_profile(
 
         # Find the newly ingested asset by its hash.
         # The ingestion system should have added ContentHashSHA256Component.
-        transcoded_file_sha256_bytes = bytes.fromhex(file_operations.calculate_sha256(transcoded_filepath))  # Ensure bytes
+        transcoded_file_sha256_bytes = bytes.fromhex(
+            file_operations.calculate_sha256(transcoded_filepath)
+        )  # Ensure bytes
 
         # Query for the entity with this SHA256 hash
         # Use ecs_service.find_entity_by_content_hash
-        newly_ingested_entity_result = await ecs_service.find_entity_by_content_hash(session, transcoded_file_sha256_bytes, "sha256")
+        newly_ingested_entity_result = await ecs_service.find_entity_by_content_hash(
+            session, transcoded_file_sha256_bytes, "sha256"
+        )
 
         if not newly_ingested_entity_result:
             transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
@@ -370,7 +382,9 @@ async def get_transcoded_variants_for_original(
             return await _get(new_session)
 
 
-async def get_assets_using_profile(world: World, profile_entity_id: int, session: Optional[Session] = None) -> list[Tuple[Entity, TranscodedVariantComponent]]:
+async def get_assets_using_profile(
+    world: World, profile_entity_id: int, session: Optional[Session] = None
+) -> list[Tuple[Entity, TranscodedVariantComponent]]:
     """
     Retrieves all assets that were transcoded using a specific profile.
     Returns a list of tuples: (transcoded_entity, variant_component).

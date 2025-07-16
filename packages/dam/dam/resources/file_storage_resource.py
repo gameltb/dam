@@ -19,7 +19,9 @@ class FileStorageResource:
         Stores file content in this world's configured storage.
         Delegates to `file_storage.store_file`.
         """
-        return file_storage.store_file(file_content=file_content, world_config=self.world_config, original_filename=original_filename)
+        return file_storage.store_file(
+            file_content=file_content, world_config=self.world_config, original_filename=original_filename
+        )
 
     def get_file_path(self, file_identifier: str) -> Optional[Path]:
         """

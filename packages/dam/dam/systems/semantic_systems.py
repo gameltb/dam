@@ -138,12 +138,13 @@ async def handle_semantic_search_query(
     logger.critical(f"CRITICAL_LOG: ENTERING handle_semantic_search_query for Req ID: {event.request_id}")
 
     logger.info(
-        f"SemanticSearchSystem: Handling SemanticSearchQuery (Req ID: {event.request_id}) "
-        f"for query: '{event.query_text[:50]}...' in world '{event.world_name}'"
+        f"SemanticSearchSystem: Handling SemanticSearchQuery (Req ID: {event.request_id}) for query: '{event.query_text[:50]}...' in world '{event.world_name}'"
     )
 
     if not event.result_future:
-        logger.error(f"Result future not set on SemanticSearchQuery event (Req ID: {event.request_id}). Cannot proceed.")
+        logger.error(
+            f"Result future not set on SemanticSearchQuery event (Req ID: {event.request_id}). Cannot proceed."
+        )
         return
 
     model_to_use = event.model_name if event.model_name else semantic_service.DEFAULT_MODEL_NAME
@@ -167,7 +168,9 @@ async def handle_semantic_search_query(
 
         if not event.result_future.done():
             event.result_future.set_result(similar_entities_data)
-        logger.info(f"SemanticSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results.")
+        logger.info(
+            f"SemanticSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results."
+        )
 
     except Exception as e:
         logger.error(f"Error in handle_semantic_search_query (Req ID: {event.request_id}): {e}", exc_info=True)
@@ -217,7 +220,9 @@ async def handle_audio_search_query(
 
         if not event.result_future.done():
             event.result_future.set_result(similar_entities_data)
-        logger.info(f"AudioSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results.")
+        logger.info(
+            f"AudioSearchSystem: Query (Req ID: {event.request_id}) completed. Found {len(similar_entities_data)} results."
+        )
 
     except Exception as e:
         logger.error(f"Error in handle_audio_search_query (Req ID: {event.request_id}): {e}", exc_info=True)

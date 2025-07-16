@@ -53,7 +53,7 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         Boolean,
         default=False,
         nullable=False,
-        comment="If True, this tag can be applied with an associated value (e.g., Tag 'Rating', Value '5 Stars'). " "If False, it's a simple label tag.",
+        comment="If True, this tag can be applied with an associated value (e.g., Tag 'Rating', Value '5 Stars'). If False, it's a simple label tag.",
     )
 
     __table_args__ = (
@@ -64,4 +64,4 @@ class TagConceptComponent(BaseConceptualInfoComponent):
     )
 
     def __repr__(self):
-        return f"<TagConceptComponent id={self.id} entity_id={self.entity_id} " f"name='{self.tag_name}' scope='{self.tag_scope_type}'>"
+        return f"<TagConceptComponent id={self.id} entity_id={self.entity_id} name='{self.tag_name}' scope='{self.tag_scope_type}'>"

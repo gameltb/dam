@@ -53,7 +53,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
     Handles the ingestion of an asset file by copying it, based on an event.
     Logic moved from asset_service.add_asset_file.
     """
-    logger.info(f"System handling AssetFileIngestionRequested for: {event.original_filename} in world {event.world_name}")
+    logger.info(
+        f"System handling AssetFileIngestionRequested for: {event.original_filename} in world {event.world_name}"
+    )
     created_new_entity = False
     filepath_on_disk = event.filepath_on_disk
     original_filename = event.original_filename
@@ -68,17 +70,21 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         return  # Stop processing this event
 
     # FileStorageResource (file_storage_resource) now handles storage using its own world_config
-    content_hash_sha256, physical_storage_path_suffix = file_storage_resource.store_file(file_content, original_filename=original_filename)
+    content_hash_sha256, physical_storage_path_suffix = file_storage_resource.store_file(
+        file_content, original_filename=original_filename
+    )
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256)
 
     # Use a helper for finding existing entity by hash (can be a local helper or from ecs_service)
-    existing_entity = await ecs_service.find_entity_by_content_hash(session, content_hash_sha256_bytes, "sha256")  # Await async call
+    existing_entity = await ecs_service.find_entity_by_content_hash(
+        session, content_hash_sha256_bytes, "sha256"
+    )  # Await async call
     entity: Optional[Entity] = None
 
     if existing_entity:
         entity = existing_entity
         logger.info(
-            f"Content (SHA256: {content_hash_sha256[:12]}...) for '{original_filename}' " f"already exists as Entity ID {entity.id}. Linking original source."
+            f"Content (SHA256: {content_hash_sha256[:12]}...) for '{original_filename}' already exists as Entity ID {entity.id}. Linking original source."
         )
         md5_hash_hex = await file_operations.calculate_md5_async(filepath_on_disk)
         md5_hash_bytes = binascii.unhexlify(md5_hash_hex)
@@ -93,7 +99,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         if entity.id is None:  # Should not happen if create_entity flushes
             await session.flush()  # Or handle error appropriately
 
-        logger.info(f"Creating new Entity ID {entity.id} for '{original_filename}' (SHA256: {content_hash_sha256[:12]}...).")
+        logger.info(
+            f"Creating new Entity ID {entity.id} for '{original_filename}' (SHA256: {content_hash_sha256[:12]}...)."
+        )
         chc_sha256 = ContentHashSHA256Component(hash_value=content_hash_sha256_bytes)
         await ecs_service.add_component_to_entity(session, entity.id, chc_sha256)  # Await
 
@@ -131,7 +139,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
         )
         await ecs_service.add_component_to_entity(session, entity.id, osi_comp)  # Await
     else:
-        logger.debug(f"OriginalSourceInfoComponent with source_type LOCAL_FILE already exists for Entity ID {entity.id}")
+        logger.debug(
+            f"OriginalSourceInfoComponent with source_type LOCAL_FILE already exists for Entity ID {entity.id}"
+        )
 
     if mime_type and mime_type.startswith("image/"):
         perceptual_hashes_hex = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)
@@ -162,7 +172,9 @@ async def handle_asset_file_ingestion_request(  # Renamed function
 
     if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Await
         marker_comp = NeedsMetadataExtractionComponent()
-        await ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False)  # Await, Flush managed by scheduler
+        await ecs_service.add_component_to_entity(
+            session, entity.id, marker_comp, flush=False
+        )  # Await, Flush managed by scheduler
 
     logger.info(f"Finished AssetFileIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}")
     # The result (entity_id, created_new_entity) is not directly returned to CLI via event.
@@ -179,7 +191,9 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
     Handles the ingestion of an asset by reference, based on an event.
     Logic moved from asset_service.add_asset_reference.
     """
-    logger.info(f"System handling AssetReferenceIngestionRequested for: {event.original_filename} in world {event.world_name}")
+    logger.info(
+        f"System handling AssetReferenceIngestionRequested for: {event.original_filename} in world {event.world_name}"
+    )
     created_new_entity = False
     filepath_on_disk = event.filepath_on_disk
     original_filename = event.original_filename
@@ -196,13 +210,15 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256_hex)
     content_hash_md5_bytes = binascii.unhexlify(content_hash_md5_hex)
 
-    existing_entity = await ecs_service.find_entity_by_content_hash(session, content_hash_sha256_bytes, "sha256")  # Await
+    existing_entity = await ecs_service.find_entity_by_content_hash(
+        session, content_hash_sha256_bytes, "sha256"
+    )  # Await
     entity: Optional[Entity] = None
 
     if existing_entity:
         entity = existing_entity
         logger.info(
-            f"Content (SHA256: {content_hash_sha256_hex[:12]}...) for '{original_filename}' " f"already exists as Entity ID {entity.id}. Adding new reference."
+            f"Content (SHA256: {content_hash_sha256_hex[:12]}...) for '{original_filename}' already exists as Entity ID {entity.id}. Adding new reference."
         )
         existing_md5_components = await ecs_service.get_components(session, entity.id, ContentHashMD5Component)  # Await
         if not any(comp.hash_value == content_hash_md5_bytes for comp in existing_md5_components):
@@ -214,7 +230,9 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
         if entity.id is None:
             await session.flush()  # Ensure ID
 
-        logger.info(f"Creating new Entity ID {entity.id} for referenced file '{original_filename}' " f"(SHA256: {content_hash_sha256_hex[:12]}...).")
+        logger.info(
+            f"Creating new Entity ID {entity.id} for referenced file '{original_filename}' (SHA256: {content_hash_sha256_hex[:12]}...)."
+        )
         chc_sha256 = ContentHashSHA256Component(hash_value=content_hash_sha256_bytes)
         await ecs_service.add_component_to_entity(session, entity.id, chc_sha256)  # Await
 
@@ -234,7 +252,10 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
 
     resolved_original_path = str(filepath_on_disk.resolve())
     existing_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)  # Await
-    found_ref_location = any(loc.storage_type == "local_reference" and loc.physical_path_or_key == resolved_original_path for loc in existing_locations)
+    found_ref_location = any(
+        loc.storage_type == "local_reference" and loc.physical_path_or_key == resolved_original_path
+        for loc in existing_locations
+    )
 
     if not found_ref_location:
         flc = FileLocationComponent(
@@ -255,7 +276,9 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
         )
         await ecs_service.add_component_to_entity(session, entity.id, osi_comp)  # Await
     else:
-        logger.debug(f"OriginalSourceInfoComponent with source_type REFERENCED_FILE already exists for Entity ID {entity.id}")
+        logger.debug(
+            f"OriginalSourceInfoComponent with source_type REFERENCED_FILE already exists for Entity ID {entity.id}"
+        )
 
     if mime_type and mime_type.startswith("image/"):
         perceptual_hashes_hex = await file_operations.generate_perceptual_hashes_async(filepath_on_disk)
@@ -286,9 +309,13 @@ async def handle_asset_reference_ingestion_request(  # Renamed function
 
     if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):  # Await
         marker_comp = NeedsMetadataExtractionComponent()
-        await ecs_service.add_component_to_entity(session, entity.id, marker_comp, flush=False)  # Await, Flush managed by scheduler
+        await ecs_service.add_component_to_entity(
+            session, entity.id, marker_comp, flush=False
+        )  # Await, Flush managed by scheduler
 
-    logger.info(f"Finished AssetReferenceIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}")
+    logger.info(
+        f"Finished AssetReferenceIngestionRequested for Entity ID {entity.id}. New entity: {created_new_entity}"
+    )
 
 
 # --- Query Systems (Event Handlers for Queries) ---
@@ -313,21 +340,29 @@ async def handle_find_entity_by_hash_query(
         f"System handling FindEntityByHashQuery for hash: {event.hash_value} (type: {event.hash_type}) in world '{world_config.name}' (Req ID: {event.request_id})"
     )
     if not event.result_future:
-        logger.error(f"Result future not set on FindEntityByHashQuery event (Req ID: {event.request_id}). Cannot proceed.")
+        logger.error(
+            f"Result future not set on FindEntityByHashQuery event (Req ID: {event.request_id}). Cannot proceed."
+        )
         return
 
     try:
         try:
             hash_bytes = binascii.unhexlify(event.hash_value)
         except binascii.Error as e:
-            logger.error(f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}")
-            raise ValueError(f"Invalid hash_value format: {event.hash_value}") from e  # Re-raise to set exception on future
+            logger.error(
+                f"[QueryResult RequestID: {event.request_id}] Invalid hex string for hash_value '{event.hash_value}': {e}"
+            )
+            raise ValueError(
+                f"Invalid hash_value format: {event.hash_value}"
+            ) from e  # Re-raise to set exception on future
 
         entity = await ecs_service.find_entity_by_content_hash(session, hash_bytes, event.hash_type)  # Await
         entity_details_dict = None
 
         if entity:
-            logger.info(f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}")
+            logger.info(
+                f"[QueryResult RequestID: {event.request_id}] Found Entity ID: {entity.id} for hash {event.hash_value}"
+            )
             entity_details_dict = {"entity_id": entity.id, "components": {}}
 
             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)  # Await
@@ -354,11 +389,15 @@ async def handle_find_entity_by_hash_query(
 
             sha256_comp = await ecs_service.get_component(session, entity.id, ContentHashSHA256Component)  # Await
             if sha256_comp:
-                entity_details_dict["components"]["ContentHashSHA256Component"] = [{"hash_value": sha256_comp.hash_value.hex()}]
+                entity_details_dict["components"]["ContentHashSHA256Component"] = [
+                    {"hash_value": sha256_comp.hash_value.hex()}
+                ]
 
             md5_comp = await ecs_service.get_component(session, entity.id, ContentHashMD5Component)  # Await
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
+                entity_details_dict["components"]["ContentHashMD5Component"] = [
+                    {"hash_value": md5_comp.hash_value.hex()}
+                ]
         else:
             logger.info(f"[QueryResult RequestID: {event.request_id}] No entity found for hash {event.hash_value}")
 
@@ -376,9 +415,13 @@ async def handle_find_similar_images_query(
     event: FindSimilarImagesQuery,
     session: WorldSession,
 ):
-    logger.info(f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})")
+    logger.info(
+        f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})"
+    )
     if not event.result_future:
-        logger.error(f"Result future not set on FindSimilarImagesQuery event (Req ID: {event.request_id}). Cannot proceed.")
+        logger.error(
+            f"Result future not set on FindSimilarImagesQuery event (Req ID: {event.request_id}). Cannot proceed."
+        )
         return
 
     try:
@@ -405,11 +448,15 @@ async def handle_find_similar_images_query(
         try:
             source_content_hash_hex = await file_operations.calculate_sha256_async(event.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
-            source_entity = await ecs_service.find_entity_by_content_hash(session, source_content_hash_bytes, "sha256")  # Await
+            source_entity = await ecs_service.find_entity_by_content_hash(
+                session, source_content_hash_bytes, "sha256"
+            )  # Await
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
-            logger.warning(f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}")
+            logger.warning(
+                f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}"
+            )
 
         potential_matches = []
         from sqlalchemy import select as sql_select
@@ -513,7 +560,9 @@ async def handle_find_similar_images_query(
         if not event.result_future.done():
             event.result_future.set_result([{"error": str(ve)}])
     except Exception as e:  # Catch-all for other unexpected errors
-        logger.error(f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True)
+        logger.error(
+            f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
+        )
         if not event.result_future.done():
             event.result_future.set_exception(e)  # Set general exception for unexpected errors
 
@@ -667,7 +716,9 @@ async def handle_web_asset_ingestion_request(
     # Or if we are sure web_source_data only contains valid fields.
     # The previous **{k:v ... hasattr} was too restrictive if some fields were relationships.
     # Given WebSourceComponent specific fields, this should be fine.
-    cleaned_web_source_data = {k: v for k, v in web_source_data.items() if k in valid_web_source_fields and v is not None}
+    cleaned_web_source_data = {
+        k: v for k, v in web_source_data.items() if k in valid_web_source_fields and v is not None
+    }
 
     web_comp = WebSourceComponent(**cleaned_web_source_data)
     await ecs_service.add_component_to_entity(session, asset_entity.id, web_comp)  # Await

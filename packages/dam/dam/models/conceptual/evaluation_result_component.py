@@ -17,13 +17,19 @@ class EvaluationResultComponent(BaseComponent):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True, init=False)
     # entity_id is inherited from BaseComponent, linking this to the transcoded asset's entity.
 
-    evaluation_run_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
+    evaluation_run_entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("entities.id"), nullable=False, index=True
+    )
     # This is the entity ID of the EvaluationRunComponent conceptual asset.
 
-    original_asset_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
+    original_asset_entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("entities.id"), nullable=False, index=True
+    )
     # The original asset that was transcoded.
 
-    transcode_profile_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
+    transcode_profile_entity_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("entities.id"), nullable=False, index=True
+    )
     # The transcode profile (conceptual asset entity ID) used for this specific result.
 
     # Transcoded file specific info (can be redundant with TranscodedVariantComponent, but useful here for direct reporting)

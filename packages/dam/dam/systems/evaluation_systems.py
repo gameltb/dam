@@ -35,7 +35,9 @@ class EvaluationError(Exception):
 # --- Service-like functions for Evaluation ---
 
 
-async def create_evaluation_run_concept(world: World, run_name: str, description: Optional[str] = None, session: Optional[Session] = None) -> Entity:
+async def create_evaluation_run_concept(
+    world: World, run_name: str, description: Optional[str] = None, session: Optional[Session] = None
+) -> Entity:
     """
     Creates a new EvaluationRun conceptual asset.
     """
@@ -44,7 +46,9 @@ async def create_evaluation_run_concept(world: World, run_name: str, description
         existing_run_stmt = select(EvaluationRunComponent).where(EvaluationRunComponent.run_name == run_name)
         existing_run = (await db_session.execute(existing_run_stmt)).scalars().first()
         if existing_run:
-            raise EvaluationError(f"Evaluation run with name '{run_name}' already exists (Entity ID: {existing_run.entity_id}).")
+            raise EvaluationError(
+                f"Evaluation run with name '{run_name}' already exists (Entity ID: {existing_run.entity_id})."
+            )
 
         run_entity = Entity()
         db_session.add(run_entity)
@@ -92,7 +96,9 @@ async def create_evaluation_run_concept(world: World, run_name: str, description
             return await _create(new_session)
 
 
-async def get_evaluation_run_by_name_or_id(world: World, identifier: str | int, session: Optional[Session] = None) -> Tuple[Entity, EvaluationRunComponent]:
+async def get_evaluation_run_by_name_or_id(
+    world: World, identifier: str | int, session: Optional[Session] = None
+) -> Tuple[Entity, EvaluationRunComponent]:
     """Retrieves an evaluation run by its name or entity ID."""
 
     async def _get(db_session: Session):
@@ -145,7 +151,9 @@ async def execute_evaluation_run(
     """
     async with world.db_session_maker() as session:
         try:
-            _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(world, evaluation_run_id_or_name, session=session)
+            _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
+                world, evaluation_run_id_or_name, session=session
+            )
         except EvaluationError as e:
             world.logger.error(f"Failed to start evaluation: {e}")
             raise
@@ -176,7 +184,9 @@ async def execute_evaluation_run(
         profiles_to_run: List[Tuple[Entity, TranscodeProfileComponent]] = []
         for prof_id_or_name in profile_identifiers:
             try:
-                profile_entity, profile_comp = await transcode_service.get_transcode_profile_by_name_or_id(world, prof_id_or_name, session=session)
+                profile_entity, profile_comp = await transcode_service.get_transcode_profile_by_name_or_id(
+                    world, prof_id_or_name, session=session
+                )
                 profiles_to_run.append((profile_entity, profile_comp))
             except transcode_service.TranscodeServiceError as e:
                 world.logger.warning(f"Skipping profile '{prof_id_or_name}': {e}")
@@ -186,12 +196,16 @@ async def execute_evaluation_run(
             raise EvaluationError("No valid transcode profiles found for evaluation.")
 
         world.logger.info(f"Source Assets for Evaluation ({len(source_asset_entity_ids)}): {source_asset_entity_ids}")
-        world.logger.info(f"Transcode Profiles for Evaluation ({len(profiles_to_run)}): {[p[1].profile_name for p in profiles_to_run]}")
+        world.logger.info(
+            f"Transcode Profiles for Evaluation ({len(profiles_to_run)}): {[p[1].profile_name for p in profiles_to_run]}"
+        )
 
         for original_asset_entity_id in source_asset_entity_ids:
             world.logger.info(f"Processing original asset ID: {original_asset_entity_id}")
             # Validate original asset exists
-            original_asset_entity = await ecs_service.get_entity(session, original_asset_entity_id)  # Changed to get_entity
+            original_asset_entity = await ecs_service.get_entity(
+                session, original_asset_entity_id
+            )  # Changed to get_entity
             if not original_asset_entity:
                 world.logger.warning(f"Original asset ID {original_asset_entity_id} not found. Skipping.")
                 continue
@@ -212,7 +226,9 @@ async def execute_evaluation_run(
 
                     # After apply_transcode_profile completes and commits its transaction for the new asset,
                     # we fetch the new entity within *this* evaluation run's session to add the EvaluationResultComponent.
-                    transcoded_asset_entity = await ecs_service.get_entity(session, transcoded_asset_entity_id_from_service)  # Changed to get_entity
+                    transcoded_asset_entity = await ecs_service.get_entity(
+                        session, transcoded_asset_entity_id_from_service
+                    )  # Changed to get_entity
                     if not transcoded_asset_entity:
                         world.logger.error(
                             f"    Failed to retrieve newly transcoded asset ID {transcoded_asset_entity_id_from_service} in current session. Skipping result component."
@@ -255,10 +271,14 @@ async def execute_evaluation_run(
                     session.add(eval_result_comp)
                     await session.flush()
                     results.append(eval_result_comp)
-                    world.logger.info(f"    EvaluationResultComponent created (ID: {eval_result_comp.id}) for asset {transcoded_asset_entity.id}")
+                    world.logger.info(
+                        f"    EvaluationResultComponent created (ID: {eval_result_comp.id}) for asset {transcoded_asset_entity.id}"
+                    )
 
                 except transcode_service.TranscodeServiceError as tse:
-                    world.logger.error(f"    Failed to transcode asset ID {original_asset_entity_id} with profile '{profile_comp.profile_name}': {tse}")
+                    world.logger.error(
+                        f"    Failed to transcode asset ID {original_asset_entity_id} with profile '{profile_comp.profile_name}': {tse}"
+                    )
                 except Exception as e:
                     world.logger.error(
                         f"    Unexpected error processing asset ID {original_asset_entity_id} with profile '{profile_comp.profile_name}': {e}",
@@ -270,13 +290,17 @@ async def execute_evaluation_run(
         return results
 
 
-async def get_evaluation_results(world: World, evaluation_run_id_or_name: str | int, session: Optional[Session] = None) -> List[Dict[str, Any]]:
+async def get_evaluation_results(
+    world: World, evaluation_run_id_or_name: str | int, session: Optional[Session] = None
+) -> List[Dict[str, Any]]:
     """
     Retrieves and formats results for a given evaluation run.
     """
 
     async def _get(db_session: Session):
-        _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(world, evaluation_run_id_or_name, session=db_session)
+        _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
+            world, evaluation_run_id_or_name, session=db_session
+        )
 
         stmt = (
             select(
@@ -300,7 +324,9 @@ async def get_evaluation_results(world: World, evaluation_run_id_or_name: str | 
         formatted_results = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results:  # type: ignore
             # Fetch FilePropertiesComponent for the original asset
-            orig_fpc = await ecs_service.get_component(db_session, res_comp.original_asset_entity_id, FilePropertiesComponent)  # type: ignore
+            orig_fpc = await ecs_service.get_component(
+                db_session, res_comp.original_asset_entity_id, FilePropertiesComponent
+            )  # type: ignore
             original_filename = orig_fpc.original_filename if orig_fpc else "N/A"  # type: ignore
 
             # Fetch FilePropertiesComponent for the transcoded asset

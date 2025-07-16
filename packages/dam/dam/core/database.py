@@ -39,12 +39,14 @@ class DatabaseManager:
 
         # Ensure the DATABASE_URL is compatible with aiosqlite if it's a sqlite URL
         # The project aims to use aiosqlite for async SQLite operations.
-        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith("sqlite+aiosqlite://"):
+        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith(
+            "sqlite+aiosqlite://"
+        ):
             # Automatically adjust sqlite DSNs to use aiosqlite
             # This might be too aggressive if other async sqlite drivers were intended,
             # but for this project, aiosqlite is the standard.
             logger.warning(
-                f"Adjusting DATABASE_URL for world '{self.world_config.name}' to use 'sqlite+aiosqlite'. " f"Original: '{self.world_config.DATABASE_URL}'"
+                f"Adjusting DATABASE_URL for world '{self.world_config.name}' to use 'sqlite+aiosqlite'. Original: '{self.world_config.DATABASE_URL}'"
             )
             self.world_config.DATABASE_URL = self.world_config.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
 
@@ -58,8 +60,12 @@ class DatabaseManager:
             connect_args=connect_args,  # Pass empty connect_args
             # echo=True # Uncomment for debugging SQL statements
         )
-        self._session_local = sessionmaker(autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False)
-        logger.info(f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})")
+        self._session_local = sessionmaker(
+            autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False
+        )
+        logger.info(
+            f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+        )
 
     @property
     def engine(self) -> AsyncEngine:
@@ -81,7 +87,9 @@ class DatabaseManager:
         The caller is responsible for closing the session, typically using `async with`.
         """
         if self._session_local is None:  # Should ideally be caught by property access if it were None
-            raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized and cannot create a session.")
+            raise RuntimeError(
+                f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized and cannot create a session."
+            )
         return self._session_local()
 
     async def create_db_and_tables(self):
@@ -93,22 +101,32 @@ class DatabaseManager:
         logger.info(f"Attempting to create database tables for world '{self.world_config.name}'...")
 
         if self._engine is None:  # Guard against uninitialized engine
-            raise RuntimeError(f"Async engine not initialized for world '{self.world_config.name}'. Cannot create tables.")
+            raise RuntimeError(
+                f"Async engine not initialized for world '{self.world_config.name}'. Cannot create tables."
+            )
 
         # WARNING: Destructive operation in testing mode.
-        if self.testing_mode and ("pytest" in self.world_config.DATABASE_URL or "test" in self.world_config.DATABASE_URL):
+        if self.testing_mode and (
+            "pytest" in self.world_config.DATABASE_URL or "test" in self.world_config.DATABASE_URL
+        ):
             try:
                 async with self._engine.begin() as conn:
                     await conn.run_sync(Base.metadata.drop_all)
-                logger.info(f"Dropped all tables for world '{self.world_config.name}' ({self.world_config.DATABASE_URL}) (testing mode)")
+                logger.info(
+                    f"Dropped all tables for world '{self.world_config.name}' ({self.world_config.DATABASE_URL}) (testing mode)"
+                )
             except Exception as e:
-                logger.error(f"Error dropping tables for world '{self.world_config.name}' in testing mode: {e}", exc_info=True)
+                logger.error(
+                    f"Error dropping tables for world '{self.world_config.name}' in testing mode: {e}", exc_info=True
+                )
                 # Log and continue to create_all, or re-raise depending on desired strictness.
 
         try:
             async with self._engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
-            logger.info(f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})")
+            logger.info(
+                f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+            )
         except Exception as e:
             logger.error(f"Error creating tables for world '{self.world_config.name}': {e}", exc_info=True)
             raise

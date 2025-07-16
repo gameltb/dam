@@ -26,7 +26,6 @@ dependencies = [
     "rich",
     "typer",
     "pyyaml",
-    "mistune"
 ]
 
 [project.optional-dependencies]

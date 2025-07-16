@@ -38,7 +38,9 @@ class WebSourceComponent(BaseComponent):
         nullable=False,
         comment="URL of the asset's page or where it was found. Should be unique per (website_entity_id, gallery_id) or similar.",
     )
-    original_file_url: Mapped[Optional[str]] = mapped_column(String(2048), comment="Direct URL to the media file, if different from source_url.", default=None)
+    original_file_url: Mapped[Optional[str]] = mapped_column(
+        String(2048), comment="Direct URL to the media file, if different from source_url.", default=None
+    )
 
     # website_name is now part of the linked Website Entity via WebsiteProfileComponent
     # gallery_id remains to identify the specific item on the site
@@ -55,18 +57,26 @@ class WebSourceComponent(BaseComponent):
         comment="Username of the uploader or artist on the site.",
         default=None,
     )
-    uploader_url: Mapped[Optional[str]] = mapped_column(String(2048), comment="URL to the uploader's profile page.", default=None)
+    uploader_url: Mapped[Optional[str]] = mapped_column(
+        String(2048), comment="URL to the uploader's profile page.", default=None
+    )
 
     upload_date: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True, comment="Date and time when the asset was originally uploaded or posted.", default=None
     )
 
-    asset_title: Mapped[Optional[str]] = mapped_column(String(1024), comment="Title of the asset on the website.", default=None)
-    asset_description: Mapped[Optional[str]] = mapped_column(Text, comment="Description or caption provided for the asset.", default=None)
+    asset_title: Mapped[Optional[str]] = mapped_column(
+        String(1024), comment="Title of the asset on the website.", default=None
+    )
+    asset_description: Mapped[Optional[str]] = mapped_column(
+        Text, comment="Description or caption provided for the asset.", default=None
+    )
 
     # For tags, a simple text field for comma-separated or JSON string.
     # A dedicated Tagging system/component would be better for advanced tag management.
-    tags_json: Mapped[Optional[str]] = mapped_column(Text, comment="JSON string or comma-separated list of tags from the source.", default=None)
+    tags_json: Mapped[Optional[str]] = mapped_column(
+        Text, comment="JSON string or comma-separated list of tags from the source.", default=None
+    )
 
     # For extensibility with gallery-specific metadata.
     # Using JSON type if database supports it (like PostgreSQL).
@@ -80,10 +90,7 @@ class WebSourceComponent(BaseComponent):
     # Consider a 'last_checked_at' timestamp for link validation.
 
     def __repr__(self):
-        return (
-            f"WebSourceComponent(id={self.id}, entity_id={self.entity_id}, website_entity_id={self.website_entity_id}, "
-            f"source_url='{self.source_url[:50]}...')"
-        )
+        return f"WebSourceComponent(id={self.id}, entity_id={self.entity_id}, website_entity_id={self.website_entity_id}, source_url='{self.source_url[:50]}...')"
 
     # Potential __table_args__:
     # Could add a UniqueConstraint on (entity_id) if an entity can only have one web source.

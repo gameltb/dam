@@ -32,7 +32,9 @@ def exec_doc_code_block(
     code_blocks = find_code_blocks(message_obj.content)
 
     if not 0 <= code_block_in_message_index < len(code_blocks):
-        rich.print(f"[bold red]Error:[/bold red] Code block index {code_block_in_message_index} is out of bounds for message {message_index}.")
+        rich.print(
+            f"[bold red]Error:[/bold red] Code block index {code_block_in_message_index} is out of bounds for message {message_index}."
+        )
         raise typer.Exit(1)
 
     code_block = code_blocks[code_block_in_message_index]

@@ -103,7 +103,9 @@ async def test_link_comic_variant_error_cases(db_session: AsyncSession):
     with pytest.raises(ValueError, match=f"Entity ID {not_a_concept_entity.id} is not a valid ComicBookConcept."):
         await cbs.link_comic_variant_to_concept(db_session, not_a_concept_entity.id, file_entity_1.id)
 
-    await cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="CBZ")
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_1.id, language="en", format="CBZ"
+    )
     await db_session.commit()
     with pytest.raises(
         ValueError,
@@ -132,8 +134,12 @@ async def test_get_variants_for_comic_concept(db_session: AsyncSession):
     file_entity_3 = await ecs_service.create_entity(db_session)  # Not linked
     await db_session.commit()
 
-    await cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_1.id, language="en", format="PDF")
-    await cbs.link_comic_variant_to_concept(db_session, concept_entity.id, file_entity_2.id, language="jp", format="CBZ", is_primary=True)
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_1.id, language="en", format="PDF"
+    )
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept_entity.id, file_entity_2.id, language="jp", format="CBZ", is_primary=True
+    )
     await db_session.commit()
 
     variants = await cbs.get_variants_for_comic_concept(db_session, concept_entity.id)
@@ -290,7 +296,9 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
     # Error cases
     assert await cbs.set_primary_comic_variant(db_session, v1_id, 999) is False  # Non-existent concept
     assert await cbs.set_primary_comic_variant(db_session, 998, concept_id) is False  # Non-existent variant
-    assert await cbs.set_primary_comic_variant(db_session, v3_id, concept_id) is False  # Variant belongs to other concept
+    assert (
+        await cbs.set_primary_comic_variant(db_session, v3_id, concept_id) is False
+    )  # Variant belongs to other concept
 
     not_concept_e = await ecs_service.create_entity(db_session)  # Entity that is not a concept
     await db_session.commit()
@@ -311,7 +319,9 @@ async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession):
     primary = await cbs.get_primary_variant_for_comic_concept(db_session, concept.id)
     assert primary is not None and primary.id == v2.id
 
-    concept_no_primary = await cbs.create_comic_book_concept(db_session, comic_title="No Primary Comic")  # Corrected title
+    concept_no_primary = await cbs.create_comic_book_concept(
+        db_session, comic_title="No Primary Comic"
+    )  # Corrected title
     v3 = await ecs_service.create_entity(db_session)
     await db_session.commit()
     await cbs.link_comic_variant_to_concept(db_session, concept_no_primary.id, v3.id, "fr", "ePub")
@@ -352,12 +362,16 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
     file2_id = file2_entity.id
 
     # Link first variant
-    await cbs.link_comic_variant_to_concept(db_session, concept1_id, file1_id, language="en", format="PDF", variant_description="Scan A")
+    await cbs.link_comic_variant_to_concept(
+        db_session, concept1_id, file1_id, language="en", format="PDF", variant_description="Scan A"
+    )
     await db_session.commit()
 
     # Attempt to link second variant with the same unique attributes, expecting failure
     with pytest.raises(IntegrityError):
-        await cbs.link_comic_variant_to_concept(db_session, concept1_id, file2_id, language="en", format="PDF", variant_description="Scan A")
+        await cbs.link_comic_variant_to_concept(
+            db_session, concept1_id, file2_id, language="en", format="PDF", variant_description="Scan A"
+        )
         await db_session.commit()  # This commit won't be reached
     await db_session.rollback()  # Rollback the failed transaction
 
@@ -393,7 +407,9 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
     await db_session.commit()
 
     # Verify variants: Fetch all ComicBookVariantComponents associated with the concept
-    stmt_variants = select(ComicBookVariantComponent).where(ComicBookVariantComponent.conceptual_entity_id == refreshed_concept1_entity.id)
+    stmt_variants = select(ComicBookVariantComponent).where(
+        ComicBookVariantComponent.conceptual_entity_id == refreshed_concept1_entity.id
+    )
     result_variants = await db_session.execute(stmt_variants)
     actual_variant_components = result_variants.scalars().all()
 

@@ -34,7 +34,7 @@ def _run_command(command: List[str]) -> Tuple[str, str]:
         )
         return process.stdout, process.stderr
     except subprocess.CalledProcessError as e:
-        error_message = f"Command '{' '.join(e.cmd)}' failed with exit code {e.returncode}.\n" f"Stdout:\n{e.stdout}\n" f"Stderr:\n{e.stderr}"
+        error_message = f"Command '{' '.join(e.cmd)}' failed with exit code {e.returncode}.\nStdout:\n{e.stdout}\nStderr:\n{e.stderr}"
         raise TranscodeError(error_message) from e
     except FileNotFoundError as e:
         error_message = f"Command not found: {command[0]}. Please ensure it is installed and in PATH. Details: {e}"
@@ -279,7 +279,9 @@ async def get_file_path_for_entity(
 
     # It's good practice to check if the file actually exists
     if not os.path.exists(full_path):
-        logger.warning(f"File path constructed for entity {entity_id} (variant {variant_name}) does not exist: {full_path} (from relative: {relative_path})")
+        logger.warning(
+            f"File path constructed for entity {entity_id} (variant {variant_name}) does not exist: {full_path} (from relative: {relative_path})"
+        )
         # Return None if physical file doesn't exist, as the path is invalid for processing
         return None
 

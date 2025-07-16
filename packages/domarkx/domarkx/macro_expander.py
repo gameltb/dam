@@ -1,6 +1,6 @@
 import os
 import pathlib
-from domarkx.utils.markdown_utils import find_macros
+from domarkx.utils.markdown_utils import find_macros, find_first_macro
 
 
 class MacroExpander:
@@ -11,23 +11,27 @@ class MacroExpander:
         }
 
     def expand(self, content: str, parameters: dict = None) -> str:
-        """Expands all macros in the given content."""
+        """Expands macros in the content sequentially: find and expand the first macro, repeat until all macros are processed."""
         if parameters is None:
             parameters = {}
 
         expanded_content = content
-        macros = find_macros(content)
-        for macro in macros:
-            if macro.command in self.macros:
-                expanded_content = self.macros[macro.command](macro, expanded_content)
-            else:
-                # Handle parameter expansion for other macros
-                macro_content = ""
-                if macro.command in parameters:
-                    macro_content = parameters[macro.command]
-
-                # Use a more robust replacement method that considers the macro's position
-                expanded_content = expanded_content.replace(f"[@{macro.link_text}]({macro.url})", macro_content, 1)
+        while True:
+            match = find_first_macro(expanded_content)
+            if not match:
+                break
+            macro_name = match.group(2)
+            macro_text = match.group(1)
+            macro_value = parameters.get(macro_name, parameters.get(macro_text, match.group(0)))
+            # If macro_name is a special handler (e.g. include), use handler
+            if hasattr(self, f"_{macro_name}_macro"):
+                macro_obj = type("Macro", (), {})()
+                macro_obj.command = macro_name
+                macro_obj.link_text = macro_text
+                macro_obj.url = f"domarkx://{macro_name}"
+                macro_obj.params = {}
+                macro_value = getattr(self, f"_{macro_name}_macro")(macro_obj, expanded_content)
+            expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match.end() :]
         return expanded_content
 
     def _include_macro(self, macro, content):

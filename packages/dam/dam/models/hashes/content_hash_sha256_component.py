@@ -16,9 +16,11 @@ class ContentHashSHA256Component(BaseComponent):
 
     __table_args__ = (
         UniqueConstraint("entity_id", name="uq_sha256_entity_id"),  # One SHA256 component per entity
-        UniqueConstraint("hash_value", name="uq_sha256_hash_value"),  # Hash values themselves are unique across all components
+        UniqueConstraint(
+            "hash_value", name="uq_sha256_hash_value"
+        ),  # Hash values themselves are unique across all components
     )
 
     def __repr__(self):
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
-        return f"ContentHashSHA256Component(id={self.id}, entity_id={self.entity_id}, " f"hash_value(hex)='{hex_hash[:10]}...')"
+        return f"ContentHashSHA256Component(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

@@ -11,45 +11,65 @@ from domarkx.tools.session_management import (
 
 
 def setup_module(module):
-    if os.path.exists("test_project"):
-        shutil.rmtree("test_project")
-    os.makedirs("test_project/sessions")
-    os.makedirs("test_project/templates")
-    with open("test_project/templates/default.md", "w") as f:
-        f.write("# {session_name}\n\n{user_prompt}")
-    subprocess.run(["git", "init"], cwd="test_project")
-    settings.DOMARKX_PROJECT_PATH = "test_project"
+    pass  # 不再手动创建和清理目录，全部交由 pytest 的 tmp_path fixture 管理
 
 
 def teardown_module(module):
-    shutil.rmtree("test_project")
+    pass
 
 
-def test_create_session():
+def test_create_session(tmp_path):
+    project_path = tmp_path / "test_project"
+    os.makedirs(project_path / "sessions")
+    os.makedirs(project_path / "templates")
+    # 写入模板文件，使用 domarkx 宏格式
+    with open(project_path / "templates" / "default.md", "w") as f:
+        f.write("# [@session_name](domarkx://session_name)\n\n[@user_prompt](domarkx://user_prompt)")
+    settings.DOMARKX_PROJECT_PATH = str(project_path)
     result = create_session("default", "test_session", {"session_name": "Test Session", "user_prompt": "Hello"})
     assert result == "Session 'test_session' created from template 'default'."
-    assert os.path.exists("test_project/sessions/test_session.md")
-    with open("test_project/sessions/test_session.md", "r") as f:
+    session_file = project_path / "sessions" / "test_session.md"
+    assert session_file.exists()
+    with open(session_file, "r") as f:
         content = f.read()
         assert "Test Session" in content
         assert "Hello" in content
 
 
-def test_send_message():
+def test_send_message(tmp_path):
+    project_path = tmp_path / "test_project"
+    settings.DOMARKX_PROJECT_PATH = str(project_path)
+    # 保证 session 文件已存在
+    os.makedirs(project_path / "sessions", exist_ok=True)
+    session_file = project_path / "sessions" / "test_session.md"
+    with open(session_file, "w") as f:
+        f.write("Test Session\nHello")
     result = send_message("test_session", "This is a test message.")
     assert result == "Message sent to session 'test_session'."
-    with open("test_project/sessions/test_session.md", "r") as f:
+    with open(session_file, "r") as f:
         content = f.read()
         assert "This is a test message." in content
 
 
-def test_get_messages():
+def test_get_messages(tmp_path):
+    project_path = tmp_path / "test_project"
+    settings.DOMARKX_PROJECT_PATH = str(project_path)
+    os.makedirs(project_path / "sessions", exist_ok=True)
+    session_file = project_path / "sessions" / "test_session.md"
+    with open(session_file, "w") as f:
+        f.write("Test Session\nHello\nThis is a test message.")
     content = get_messages("test_session")
     assert "Test Session" in content
     assert "Hello" in content
     assert "This is a test message." in content
 
 
-def test_list_sessions():
+def test_list_sessions(tmp_path):
+    project_path = tmp_path / "test_project"
+    settings.DOMARKX_PROJECT_PATH = str(project_path)
+    os.makedirs(project_path / "sessions", exist_ok=True)
+    session_file = project_path / "sessions" / "test_session.md"
+    with open(session_file, "w") as f:
+        f.write("Test Session\nHello")
     sessions = list_sessions()
     assert "test_session.md" in sessions

@@ -25,7 +25,9 @@ try:
 
     __all__ = ["NeedsAudioProcessingMarker"]
 except ImportError:
-    logger.warning("Could not import NeedsAudioProcessingMarker from .audio_systems. It might not be defined yet or the module has issues.")
+    logger.warning(
+        "Could not import NeedsAudioProcessingMarker from .audio_systems. It might not be defined yet or the module has issues."
+    )
     __all__ = []
 
 

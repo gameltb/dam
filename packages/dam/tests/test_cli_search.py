@@ -55,7 +55,9 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             await ecs_service.add_component_to_entity(
                 session,
                 entity1.id,
-                FilePropertiesComponent(original_filename="apple_pie_doc.txt", file_size_bytes=100, mime_type="text/plain"),
+                FilePropertiesComponent(
+                    original_filename="apple_pie_doc.txt", file_size_bytes=100, mime_type="text/plain"
+                ),
             )
             # Pass world_name here
             await semantic_service.update_text_embeddings_for_entity(
@@ -71,7 +73,9 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
             await ecs_service.add_component_to_entity(
                 session,
                 entity2.id,
-                FilePropertiesComponent(original_filename="banana_bread_recipe.md", file_size_bytes=100, mime_type="text/markdown"),
+                FilePropertiesComponent(
+                    original_filename="banana_bread_recipe.md", file_size_bytes=100, mime_type="text/markdown"
+                ),
             )
             # world_name is already correctly passed here in the provided snippet
             await semantic_service.update_text_embeddings_for_entity(

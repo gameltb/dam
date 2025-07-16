@@ -115,7 +115,9 @@ def test_list_mode_path_specific_function_full_definition(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(mode="list", path=str(example_module_path), target="top_level_function", list_detail_level="full_definition")
+    result = python_code_handler(
+        mode="list", path=str(example_module_path), target="top_level_function", list_detail_level="full_definition"
+    )
     assert "function: top_level_function" in result
     assert "A top-level function." in result
     assert "return a + b" in result
@@ -127,7 +129,9 @@ def test_list_mode_path_specific_class_with_docstring(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(mode="list", path=str(example_module_path), target="MyClass", list_detail_level="with_docstring")
+    result = python_code_handler(
+        mode="list", path=str(example_module_path), target="MyClass", list_detail_level="with_docstring"
+    )
     assert "class: MyClass" in result
     assert "This is MyClass." in result
     assert "It has a constructor and a method." in result
@@ -140,7 +144,9 @@ def test_list_mode_path_specific_method_full_definition(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(mode="list", path=str(example_module_path), target="MyClass.my_method", list_detail_level="full_definition")
+    result = python_code_handler(
+        mode="list", path=str(example_module_path), target="MyClass.my_method", list_detail_level="full_definition"
+    )
     assert "method: my_method" in result  # LibCST treats methods as FunctionDef
     assert "A method in MyClass." in result
     assert "return self.value + x" in result
@@ -151,7 +157,9 @@ def test_list_mode_path_non_existent_target(tmp_path):
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    result = python_code_handler(mode="list", path=str(example_module_path), target="non_existent_func", list_detail_level="names_only")
+    result = python_code_handler(
+        mode="list", path=str(example_module_path), target="non_existent_func", list_detail_level="names_only"
+    )
     assert "Symbol 'non_existent_func' not found in file" in result
 
 
@@ -196,7 +204,9 @@ def test_list_mode_symbol_function_with_docstring(tmp_path):
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path))
     try:
-        result = python_code_handler(mode="list", target="example_module.top_level_function", list_detail_level="with_docstring")
+        result = python_code_handler(
+            mode="list", target="example_module.top_level_function", list_detail_level="with_docstring"
+        )
         assert "--- Symbol: example_module.top_level_function ---" in result
         assert "Docstring" in result
         assert "A top-level function." in result
@@ -225,7 +235,9 @@ def test_list_mode_symbol_class_full_definition(tmp_path):
 def test_list_mode_symbol_non_existent():
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", target="non_existent_module.SomeClass")
-    assert "Could not resolve file path for symbol 'non_existent_module.SomeClass'" in str(excinfo.value.original_exception)
+    assert "Could not resolve file path for symbol 'non_existent_module.SomeClass'" in str(
+        excinfo.value.original_exception
+    )
 
 
 # --- Test Modify Mode ---
@@ -368,29 +380,42 @@ class UpdateDocstringTransformer(cst.CSTTransformer):
         if original_node.name.value == self.func_name:
             self.found_target = True
             logging.info(f"Found function '{self.func_name}', attempting to update docstring.")
-            
+
             new_body = list(updated_node.body.body)
-            
             new_docstring_node = cst.Expr(
                 value=cst.SimpleString(f'"""{self.new_docstring_content}"""')
             )
 
-            # Check if the first statement is a docstring and replace it
-            if new_body and isinstance(new_body[0], cst.Expr) and isinstance(new_body[0].value, cst.SimpleString):
-                    # If the original docstring is multi-line, it might be parsed differently
-                    # and might have leading/trailing newlines. We'll replace it regardless.
-                new_body[0] = new_docstring_node
-            else:
-                    # No docstring found, so insert the new one at the beginning of the function body.
-                new_body.insert(0, new_docstring_node)
+            # 打印每个节点的类型和内容
+            for i, stmt in enumerate(new_body):
+                logging.info(f"Statement {i}: type={type(stmt)}, repr={repr(stmt)}")
 
-                # Remove the old docstring if it exists
-                if len(new_body) > 1 and isinstance(new_body[1], cst.Expr) and isinstance(new_body[1].value, cst.SimpleString):
-                    del new_body[1]
+            logging.info(f"Initial function body statements: {[getattr(stmt, 'value', None) for stmt in new_body]}")
+            # 兼容 SimpleStatementLine 节点和 Expr 节点的 docstring
+            filtered_body = []
+            removed_count = 0
+            for stmt in new_body:
+                removed = False
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    expr = stmt.body[0] if stmt.body else None
+                    if isinstance(expr, cst.Expr) and isinstance(expr.value, cst.SimpleString):
+                        logging.info(f"Removing docstring (SimpleStatementLine): {expr.value.value}")
+                        removed = True
+                elif isinstance(stmt, cst.Expr) and isinstance(stmt.value, cst.SimpleString):
+                    logging.info(f"Removing docstring (Expr): {stmt.value.value}")
+                    removed = True
+                if removed:
+                    removed_count += 1
+                else:
+                    filtered_body.append(stmt)
+            logging.info(f"Total docstrings removed: {removed_count}")
+            new_body = filtered_body
+            # 插入新的 docstring到最前面
+            logging.info(f"Inserting new docstring: {self.new_docstring_content}")
+            new_body.insert(0, new_docstring_node)
+            logging.info(f"Final function body statements: {[getattr(stmt, 'value', None) for stmt in new_body]}")
 
             self.updated = True
-            # Here's the fix: we need to update the body of the 'updated_node'
-            # and then return a new FunctionDef with this updated body.
             new_body_suite = updated_node.body.with_changes(body=tuple(new_body))
             return updated_node.with_changes(body=new_body_suite)
         return updated_node

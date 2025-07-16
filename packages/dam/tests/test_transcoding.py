@@ -31,7 +31,9 @@ from .test_cli import (
 pytestmark = pytest.mark.asyncio
 
 
-async def _add_dummy_asset(world: World, tmp_path: Path, filename: str = "source_asset.txt", content: str = "dummy source content") -> Entity:
+async def _add_dummy_asset(
+    world: World, tmp_path: Path, filename: str = "source_asset.txt", content: str = "dummy source content"
+) -> Entity:
     """Helper to add a dummy asset and return its entity."""
     dummy_file = _create_dummy_file(tmp_path / filename, content)
 
@@ -260,7 +262,9 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
     # 5. Verify results
     async with target_world.db_session_maker() as session:
         # Verify TranscodedVariantComponent
-        tvc_stmt = select(TranscodedVariantComponent).where(TranscodedVariantComponent.entity_id == transcoded_entity.id)
+        tvc_stmt = select(TranscodedVariantComponent).where(
+            TranscodedVariantComponent.entity_id == transcoded_entity.id
+        )
         tvc_res = await session.execute(tvc_stmt)
         tvc = tvc_res.scalar_one_or_none()
 
@@ -272,7 +276,9 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
         # Verify new asset's components (FPC, FLC, Hash)
         fpc = await dam_ecs_service.get_component(session, transcoded_entity.id, FilePropertiesComponent)
         assert fpc is not None
-        source_fpc_for_name = await dam_ecs_service.get_component(session, source_asset_entity.id, FilePropertiesComponent)
+        source_fpc_for_name = await dam_ecs_service.get_component(
+            session, source_asset_entity.id, FilePropertiesComponent
+        )
         assert source_fpc_for_name is not None
         expected_new_filename_base = Path(source_fpc_for_name.original_filename).stem
         expected_new_filename = f"{expected_new_filename_base}_{profile_name.replace(' ', '_')}.mock"
@@ -295,7 +301,9 @@ async def test_cli_transcode_apply(test_environment, monkeypatch):  # Removed cl
 
     current_test_settings = AppSettings()
     # Ensure worlds are registered using the settings patched by test_environment
-    create_and_register_all_worlds_from_settings(app_settings=dam_cli.app_config.settings)  # Use settings from dam_cli's app_config
+    create_and_register_all_worlds_from_settings(
+        app_settings=dam_cli.app_config.settings
+    )  # Use settings from dam_cli's app_config
 
     dam_cli.global_state.world_name = default_world_name
     target_world = get_world(default_world_name)
@@ -318,7 +326,9 @@ async def test_cli_transcode_apply(test_environment, monkeypatch):  # Removed cl
     # 3. Mock `dam.utils.media_utils.transcode_media`
     mock_transcoded_cli_content = b"cli transcoded content"
 
-    async def mock_transcode_media_cli_impl(input_path: Path, output_path: Path, tool_name: str, tool_params: str) -> Path:
+    async def mock_transcode_media_cli_impl(
+        input_path: Path, output_path: Path, tool_name: str, tool_params: str
+    ) -> Path:
         output_path.write_bytes(mock_transcoded_cli_content)
         return output_path
 
@@ -384,7 +394,9 @@ async def test_cli_transcode_apply(test_environment, monkeypatch):  # Removed cl
         # Verify new asset's components
         fpc = await dam_ecs_service.get_component(session, transcoded_entity_id_from_cli, FilePropertiesComponent)
         assert fpc is not None
-        source_fpc_for_name_cli = await dam_ecs_service.get_component(session, source_asset_entity.id, FilePropertiesComponent)
+        source_fpc_for_name_cli = await dam_ecs_service.get_component(
+            session, source_asset_entity.id, FilePropertiesComponent
+        )
         assert source_fpc_for_name_cli is not None
         expected_new_filename_base_cli = Path(source_fpc_for_name_cli.original_filename).stem
         expected_new_filename_cli = f"{expected_new_filename_base_cli}_{profile_name_cli.replace(' ', '_')}.cli_mock"

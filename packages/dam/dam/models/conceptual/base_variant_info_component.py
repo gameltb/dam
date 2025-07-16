@@ -49,4 +49,4 @@ class BaseVariantInfoComponent(BaseComponent):
     # and specific subclasses might need different constraints.
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, " f"conceptual_entity_id={self.conceptual_entity_id})"
+        return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"

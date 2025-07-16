@@ -77,7 +77,9 @@ def parse_tool_calls(message: str) -> list:
         temp_idx = 0
         while temp_idx < len(tool_block_content):
             # 查找下一个参数的开始标签
-            param_open_tag_match = re.search(r"<\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*>", tool_block_content[temp_idx:], re.DOTALL)
+            param_open_tag_match = re.search(
+                r"<\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*>", tool_block_content[temp_idx:], re.DOTALL
+            )
 
             if not param_open_tag_match:
                 break  # 没有更多标签，或只剩下空白字符，退出循环
@@ -86,7 +88,9 @@ def parse_tool_calls(message: str) -> list:
             # 这处理了类似 `<tool> 格式错误的文本 <param>...</param> </tool>` 的情况
             text_before_tag = tool_block_content[temp_idx : temp_idx + param_open_tag_match.start()].strip()
             if text_before_tag:
-                raise ToolCallParsingError(f"工具 '{tool_name}' 块中在标签前存在格式错误的非标签内容: '{text_before_tag}'")
+                raise ToolCallParsingError(
+                    f"工具 '{tool_name}' 块中在标签前存在格式错误的非标签内容: '{text_before_tag}'"
+                )
 
             param_name = param_open_tag_match.group(1)
             # 获取参数开始标签结束后的位置
@@ -111,11 +115,15 @@ def parse_tool_calls(message: str) -> list:
             else:
                 # 参数块不完整: 内容延伸到下一个同级参数标签的开始，或当前工具块的末尾。
                 # 这是“尝试修复”的又一部分。
-                next_param_open_tag = re.search(r"<\s*[a-zA-Z_][a-zA-Z0-9_]*\s*>", tool_block_content[param_content_start:], re.DOTALL)
+                next_param_open_tag = re.search(
+                    r"<\s*[a-zA-Z_][a-zA-Z0-9_]*\s*>", tool_block_content[param_content_start:], re.DOTALL
+                )
 
                 if next_param_open_tag:
                     # 内容延伸到下一个参数标签的开始
-                    param_value_raw = tool_block_content[param_content_start : param_content_start + next_param_open_tag.start()]
+                    param_value_raw = tool_block_content[
+                        param_content_start : param_content_start + next_param_open_tag.start()
+                    ]
                     param_block_end_pos = param_content_start + next_param_open_tag.start()
                 else:
                     # 内容延伸到当前工具块的末尾
