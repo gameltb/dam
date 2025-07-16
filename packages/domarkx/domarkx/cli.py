@@ -4,6 +4,7 @@ import os
 import typer
 from dotenv import load_dotenv
 
+from domarkx.config import settings
 from domarkx.utils.no_border_rich_tracebacks import NoBorderRichHandler
 
 # Configure logging
@@ -36,19 +37,19 @@ logging.basicConfig(
 cli_app = typer.Typer()
 
 
-def load_actions():
+def load_actions(settings):
     actions_dir = os.path.join(os.path.dirname(__file__), "action")
     for filename in os.listdir(actions_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
             module_name = filename[:-3]
             module = importlib.import_module(f"domarkx.action.{module_name}")
             if hasattr(module, "register"):
-                module.register(cli_app)
+                module.register(cli_app, settings)
 
 
 def main():
     load_dotenv()
-    load_actions()
+    load_actions(settings)
     try:
         cli_app()
     except Exception as e:

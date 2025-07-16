@@ -8,6 +8,9 @@ from domarkx.utils.markdown_utils import find_macros
 logger = logging.getLogger(__name__)
 
 
+from domarkx.macro_expander import MacroExpander
+
+
 def expand(
     input_file: Annotated[
         pathlib.Path,
@@ -21,28 +24,18 @@ def expand(
     """Expands macros in a Markdown document."""
     input_path = input_file
     content = input_path.read_text()
-    macros = find_macros(content)
 
-    for macro in macros:
-        if macro.command == "include":
-            include_path = pathlib.Path(macro.params.get("path"))
-            if not include_path.is_absolute():
-                include_path = input_path.parent / include_path
-
-            if include_path.exists():
-                include_content = include_path.read_text()
-                content = content.replace(f"[@{macro.link_text}]({macro.url})", include_content)
-            else:
-                logger.warning(f"File not found for include macro: {include_path}")
+    expander = MacroExpander(base_dir=str(input_path.parent))
+    expanded_content = expander.expand(content)
 
     if output_file:
         output_path = output_file
     else:
         output_path = input_path.with_suffix(".expanded.md")
 
-    output_path.write_text(content)
+    output_path.write_text(expanded_content)
     logger.info(f"Expanded document written to {output_path}")
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(expand)

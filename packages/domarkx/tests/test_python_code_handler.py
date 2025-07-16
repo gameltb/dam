@@ -377,9 +377,16 @@ class UpdateDocstringTransformer(cst.CSTTransformer):
 
             # Check if the first statement is a docstring and replace it
             if new_body and isinstance(new_body[0], cst.Expr) and isinstance(new_body[0].value, cst.SimpleString):
+                    # If the original docstring is multi-line, it might be parsed differently
+                    # and might have leading/trailing newlines. We'll replace it regardless.
                 new_body[0] = new_docstring_node
             else:
+                    # No docstring found, so insert the new one at the beginning of the function body.
                 new_body.insert(0, new_docstring_node)
+
+                # Remove the old docstring if it exists
+                if len(new_body) > 1 and isinstance(new_body[1], cst.Expr) and isinstance(new_body[1].value, cst.SimpleString):
+                    del new_body[1]
 
             self.updated = True
             # Here's the fix: we need to update the body of the 'updated_node'

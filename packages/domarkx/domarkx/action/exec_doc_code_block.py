@@ -50,5 +50,5 @@ def exec_doc_code_block(
         exec(code_block.code)
 
 
-def register(main_app: typer.Typer):
+def register(main_app: typer.Typer, settings):
     main_app.command()(exec_doc_code_block)
