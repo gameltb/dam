@@ -4,7 +4,7 @@ import os
 import re
 import yaml
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from domarkx.utils.markdown_utils import CodeBlock
 
@@ -16,20 +16,22 @@ except ImportError:
 
 @dataclass
 class SessionMetadata:
-    session_config: dict = field(default_factory=lambda: {})
-    session_setup_code: Optional[CodeBlock] = None
+    code_blocks: List[CodeBlock] = field(default_factory=list)
+    session_config: Optional[dict] = None
 
 
 @dataclass
 class Message:
     speaker: str
-    content: str
+    code_blocks: List[CodeBlock] = field(default_factory=list)
+    blockquote: Optional[str] = None
     metadata: dict = field(default_factory=lambda: {})
 
 
 @dataclass
 class ParsedDocument:
     global_metadata: dict = field(default_factory=lambda: {})
+    code_blocks: List[CodeBlock] = field(default_factory=list)
     config: SessionMetadata = field(default_factory=SessionMetadata)
     conversation: List[Message] = field(default_factory=list)
     raw_lines: List[str] = field(default_factory=list, repr=False)
@@ -45,38 +47,9 @@ class MarkdownLLMParser:
         self.logger = logging.getLogger(__name__)
         self.source_path = None
 
-    def _validate_message_content(self, lines: List[str], start_index: int, speaker: str):
-        valid_content = False
-        i = start_index
-        while i < len(lines):
-            line_content = lines[i]
-            if line_content.strip() == "":
-                i += 1
-                continue
-            if line_content.startswith("```"):
-                valid_content = True
-                # Skip entire code block
-                i += 1
-                while i < len(lines) and not lines[i].startswith("```"):
-                    i += 1
-                if i < len(lines):
-                    i += 1  # Skip closing ```
-                continue
-            if line_content.startswith(">"):
-                valid_content = True
-                i += 1
-                continue
-            if line_content.startswith("## "):
-                break
-            # Any other content is invalid
-            raise ValueError(
-                f"Section '{speaker}' invalid content at line {i + 1}: '{line_content.strip()}' (file: {self.source_path})"
-            )
-            i += 1
-        if not valid_content:
-            raise ValueError(
-                f"Section '{speaker}' must have at least one blockquote or code block as content. (file: {self.source_path})"
-            )
+    def _validate_message_content(self, code_blocks: List[CodeBlock], blockquote: Optional[str], speaker: str):
+        if not code_blocks and (blockquote is None or blockquote.strip() == ""):
+            raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty blockquote. (file: {self.source_path})")
 
     def parse(self, md_content: str, source_path: str = ".") -> ParsedDocument:
         self.document = ParsedDocument()
@@ -86,90 +59,78 @@ class MarkdownLLMParser:
         lines = md_content.splitlines(keepends=True)
         self.logger.debug(f"Parsing {len(lines)} lines")
 
+        i = 0
+        # Parse YAML frontmatter
         if lines and lines[0].startswith("---"):
             i = 1
             yaml_lines = []
             while i < len(lines) and not lines[i].startswith("---"):
                 yaml_lines.append(lines[i])
                 i += 1
-
             if i < len(lines) and lines[i].startswith("---"):
                 try:
                     self.document.global_metadata = yaml.safe_load("".join(yaml_lines))
-                    lines = lines[i + 1 :]
+                    i += 1
                     self.logger.debug(f"Parsed frontmatter: {self.document.global_metadata}")
                 except yaml.YAMLError as e:
                     raise ValueError(f"Error parsing YAML front matter: {e}")
 
-        self.document.raw_lines = lines
-        self._parse_lines(lines)
-        return self.document
-
-    def _parse_lines(self, lines: List[str]):
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            if line.startswith("```session-config"):
-                i = self._parse_session_config(lines, i)
-            elif line.startswith("## "):
-                speaker = line[3:].strip()
-                msg_start = i + 1
-                # Skip blank lines
-                while msg_start < len(lines) and not lines[msg_start].strip():
-                    msg_start += 1
-                # Validate message content using shared method
-                content_start = msg_start
-                self._validate_message_content(lines, content_start, speaker)
-                # Parse as message if check passes
-                i, message = self._parse_message(lines, content_start, speaker)
-                self.document.conversation.append(message)
+        # Parse document-level code blocks before first message
+        while i < len(lines) and not lines[i].startswith("## "):
+            if lines[i].startswith("```"):
+                _, code_block = self._parse_code_block(lines, i)
+                self.document.code_blocks.append(code_block)
+                # Move i to after code block
+                while i < len(lines) and not lines[i].startswith("```"):
+                    i += 1
+                i += 1
             else:
                 i += 1
 
-    def _parse_session_config(self, lines: List[str], start_index: int) -> int:
-        i = start_index + 1
-        config_str = ""
-        while i < len(lines) and not lines[i].startswith("```"):
-            config_str += lines[i]
-            i += 1
-        i += 1
+        self.document.raw_lines = lines
+        self._parse_lines(lines, i)
+        return self.document
 
-        session_config = {}
-        try:
-            session_config = json.loads(config_str)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Error parsing session-config JSON: {e}")
-
-        session_setup_code = None
-        if i < len(lines) and lines[i].startswith("```"):
-            i, session_setup_code = self._parse_code_block(lines, i)
-
-        self.document.config = SessionMetadata(session_config=session_config, session_setup_code=session_setup_code)
-        return i
-
-    def _parse_message(self, lines: List[str], start_index: int, speaker: str) -> Tuple[int, Message]:
-        metadata = {}
-        content = ""
+    def _parse_lines(self, lines: List[str], start_index: int = 0):
         i = start_index
+        while i < len(lines):
+            if lines[i].startswith("## "):
+                speaker = lines[i][3:].strip()
+                i += 1
+                code_blocks = []
+                blockquote = None
+                metadata = {}
+                # Parse all code blocks and at most one blockquote before next message or EOF
+                blockquote_found = False
+                while i < len(lines) and not lines[i].startswith("## "):
+                    if lines[i].startswith("```json msg-metadata"):
+                        _, metadata = self._parse_metadata_block(lines, i)
+                        while i < len(lines) and not lines[i].startswith("```"):
+                            i += 1
+                        i += 1
+                    elif lines[i].startswith("```"):
+                        _, code_block = self._parse_code_block(lines, i)
+                        code_blocks.append(code_block)
+                        while i < len(lines) and not lines[i].startswith("```"):
+                            i += 1
+                        i += 1
+                    elif lines[i].startswith(">"):
+                        if blockquote_found:
+                            raise ValueError(f"Section '{speaker}' has more than one blockquote. (file: {self.source_path})")
+                        _, blockquote = self._parse_blockquote(lines, i)
+                        blockquote_found = True
+                        # Move i to after all consecutive blockquote lines
+                        while i < len(lines) and lines[i].startswith(">"):
+                            i += 1
+                    elif lines[i].strip() == "":
+                        i += 1
+                    else:
+                        raise ValueError(f"Section '{speaker}' invalid content at line {i + 1}: '{lines[i].strip()}' (file: {self.source_path})")
+                self._validate_message_content(code_blocks, blockquote, speaker)
+                self.document.conversation.append(Message(speaker=speaker, code_blocks=code_blocks, blockquote=blockquote, metadata=metadata))
+            else:
+                i += 1
 
-        # Skip blank lines
-        while i < len(lines) and not lines[i].strip():
-            i += 1
-
-        if i < len(lines) and lines[i].startswith("```json msg-metadata"):
-            i, metadata = self._parse_metadata_block(lines, i)
-
-        # Skip blank lines
-        while i < len(lines) and not lines[i].strip():
-            i += 1
-
-        if i < len(lines) and lines[i].startswith(">"):
-            i, content = self._parse_blockquote(lines, i)
-        elif i < len(lines) and lines[i].startswith("```"):
-            i, code_block = self._parse_code_block(lines, i)
-            content = f"```{code_block.language}\n{code_block.code}```"
-
-        return i, Message(speaker=speaker, metadata=metadata, content=content)
 
     def _parse_metadata_block(self, lines: List[str], start_index: int) -> Tuple[int, dict]:
         i = start_index + 1
@@ -185,11 +146,12 @@ class MarkdownLLMParser:
 
     def _parse_blockquote(self, lines: List[str], start_index: int) -> Tuple[int, str]:
         i = start_index
-        content = ""
+        content_lines = []
         while i < len(lines) and lines[i].startswith(">"):
-            content += lines[i][2:]
+            # Support multi-line blockquote, preserve line breaks
+            content_lines.append(lines[i][1:].lstrip())
             i += 1
-        return i, content
+        return i, "\n".join(content_lines)
 
     def _parse_code_block(self, lines: List[str], start_index: int) -> Tuple[int, CodeBlock]:
         i = start_index

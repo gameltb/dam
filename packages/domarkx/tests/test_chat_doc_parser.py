@@ -1,0 +1,51 @@
+import pytest
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, CodeBlock
+
+def test_parse_message_blocks_and_code():
+    md = '''---\ntitle: "Test Session"\n---\n\n```json session-config\n{"type": "AssistantAgentState"}\n```
+```python setup-script\nprint("setup")\n```
+## User\n\n```json msg-metadata\n{"source": "user", "type": "UserMessage"}\n```
+```python\nprint("hello")\n```
+> User's message content.\n> Second line.\n\n## Assistant\n\n```json msg-metadata\n{"source": "assistant", "type": "AssistantMessage"}\n```
+> Assistant's reply.\n> Multi-line reply.\n'''
+    parser = MarkdownLLMParser()
+    doc = parser.parse(md)
+    assert doc.global_metadata['title'] == "Test Session"
+    assert len(doc.code_blocks) == 2
+    assert doc.code_blocks[0].language == "json"
+    assert doc.code_blocks[0].attrs == "session-config"
+    assert doc.code_blocks[1].language == "python"
+    assert doc.code_blocks[1].attrs == "setup-script"
+    assert len(doc.conversation) == 2
+    user_msg = doc.conversation[0]
+    assert user_msg.speaker == "User"
+    assert len(user_msg.code_blocks) == 2
+    assert user_msg.code_blocks[0].language == "json"
+    assert user_msg.code_blocks[1].language == "python"
+    assert user_msg.blockquote.strip() == "User's message content.\nSecond line."
+    assistant_msg = doc.conversation[1]
+    assert assistant_msg.speaker == "Assistant"
+    assert len(assistant_msg.code_blocks) == 1
+    assert assistant_msg.blockquote.strip() == "Assistant's reply.\nMulti-line reply."
+
+def test_message_requires_code_or_blockquote():
+    md1 = '''## User\n\n'''
+    parser = MarkdownLLMParser()
+    with pytest.raises(ValueError):
+        parser.parse(md1)
+    # Only blockquote, no code block
+    md2 = '''## User\n\n> Only blockquote\n'''
+    doc = parser.parse(md2)
+    assert doc.conversation[0].blockquote.strip() == "Only blockquote"
+    assert len(doc.conversation[0].code_blocks) == 0
+    # Only code block, no blockquote
+    md3 = '''## User\n\n```python\nprint(123)\n```\n'''
+    doc = parser.parse(md3)
+    assert doc.conversation[0].blockquote is None
+    assert len(doc.conversation[0].code_blocks) == 1
+
+def test_message_multiple_blockquotes():
+    md = '''## User\n\n> First blockquote\n\n> Second blockquote\n'''
+    parser = MarkdownLLMParser()
+    with pytest.raises(ValueError):
+        parser.parse(md)

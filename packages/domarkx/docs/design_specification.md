@@ -37,14 +37,23 @@ version: "0.0.1"
 
 ### 3.2. Session Configuration
 
-The session configuration is defined in a JSON code block with the `session-config` language identifier. This block contains the state of the agent, including the LLM context.
 
+At the beginning of the document and before each message, any number of code blocks are allowed. Code blocks can be of any language (e.g., `python setup-script`, `json session-config`, etc.), and `session-config` is just a special type of code block.
+
+Example:
 ```json session-config
 {
   "type": "AssistantAgentState",
   "version": "1.0.0",
   "llm_context": {}
 }
+```
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+import os
+
+client = OpenRouterR1OpenAIChatCompletionClient(...)
+tools = [...]
 ```
 
 ### 3.3. Setup Script
@@ -61,16 +70,22 @@ tools = [...]
 
 ### 3.4. System Message
 
-The system message is defined using a blockquote. It provides the initial instructions and context to the LLM.
 
+Each message may contain at most one blockquote, which serves as the content for system, user, or assistant messages. The blockquote can span multiple consecutive lines, and only one blockquote is allowed per message.
+
+Example:
 ```
 > You are a helpful assistant.
+> This is a multi-line blockquote.
+> It will be parsed as one blockquote content.
 ```
 
-### 3.5. User Messages
+### 3.5. User/Assistant Messages
 
-User messages are defined with a `## User` heading, followed by a metadata block and the message content.
 
+Each message starts with `## User` or `## Assistant`, followed by any number of code blocks (such as metadata blocks, script blocks, etc.), and at most one blockquote (which can span multiple lines). Each message must contain at least one code block or one blockquote, or both.
+
+Example:
 ```markdown
 ## User
 
@@ -81,7 +96,12 @@ User messages are defined with a `## User` heading, followed by a metadata block
 }
 ```
 
+```python
+print("hello")
+```
+
 > User's message content.
+> This is a multi-line blockquote.
 ```
 
 ## 4. Macro Implementation and Extension
