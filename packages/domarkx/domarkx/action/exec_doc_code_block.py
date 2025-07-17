@@ -40,7 +40,7 @@ def exec_doc_code_block(
     code_block = code_blocks[code_block_in_message_index]
 
     console = Console(markup=False)
-    md = rich.markdown.Markdown(message_obj.blockquote)
+    md = rich.markdown.Markdown(message_obj.content)
     console.rule("message")
     console.print(md)
     console.rule("code")

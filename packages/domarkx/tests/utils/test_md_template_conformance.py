@@ -38,9 +38,9 @@ def test_all_templates_md_conformance():
             for msg in parsed.conversation:
                 if not msg.speaker:
                     all_errors.append(f"{md_path}: Message missing speaker")
-                # Check that each message contains at least a code block or blockquote
+                    # Check that each message contains at least a code block or content
                     has_code = len(msg.code_blocks) > 0
-                    has_blockquote = msg.blockquote is not None and msg.blockquote.strip() != ""
-                    if not has_code and not has_blockquote:
-                        all_errors.append(f"{md_path}: Message by {msg.speaker} has no code or blockquote")
+                    has_content = msg.content is not None and msg.content.strip() != ""
+                    if not has_code and not has_content:
+                        all_errors.append(f"{md_path}: Message by {msg.speaker} has no code or content")
         assert not all_errors, "Markdown template errors found:\n" + "\n".join(all_errors)

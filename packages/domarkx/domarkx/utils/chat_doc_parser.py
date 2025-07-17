@@ -24,7 +24,7 @@ class SessionMetadata:
 class Message:
     speaker: str
     code_blocks: List[CodeBlock] = field(default_factory=list)
-    blockquote: Optional[str] = None
+    content: Optional[str] = None
     metadata: dict = field(default_factory=lambda: {})
 
 
@@ -46,9 +46,9 @@ class MarkdownLLMParser:
         self.logger = logging.getLogger(__name__)
         self.source_path = None
 
-    def _validate_message_content(self, code_blocks: List[CodeBlock], blockquote: Optional[str], speaker: str):
-        if not code_blocks and (blockquote is None or not blockquote.strip()):
-            raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty blockquote. (file: {self.source_path})")
+    def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str):
+        if not code_blocks and (content is None or not content.strip()):
+            raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content. (file: {self.source_path})")
 
     def parse(self, md_content: str, source_path: str = ".") -> ParsedDocument:
         self.document = ParsedDocument()
@@ -88,34 +88,31 @@ class MarkdownLLMParser:
         while i < len(lines) and not lines[i].startswith("## "):
             if lines[i].startswith("```"):
                 i, code_block = self._parse_code_block(lines, i)
-                if code_block.attrs == "session-config":
-                    if has_session_config:
-                        raise ValueError(f"Duplicate 'session-config' block found. (file: {self.source_path})")
-                    if isinstance(target, ParsedDocument):
-                        target.config.session_config = json.loads(code_block.code)
-                        target.code_blocks.append(code_block)
-                    has_session_config = True
-                elif code_block.attrs == "setup-script":
-                    if has_setup_script:
-                        raise ValueError(f"Duplicate 'setup-script' block found. (file: {self.source_path})")
-                    if isinstance(target, ParsedDocument):
-                        target.code_blocks.append(code_block)
-                    has_setup_script = True
-                elif code_block.language == "json" and "msg-metadata" in lines[i-1]:
-                    if has_msg_metadata:
-                        raise ValueError(f"Duplicate 'msg-metadata' block found. (file: {self.source_path})")
-                    if isinstance(target, Message):
-                        target.metadata = json.loads(code_block.code)
-                    has_msg_metadata = True
-                else:
-                    if isinstance(target, (ParsedDocument, Message)):
-                        target.code_blocks.append(code_block)
+                if code_block.attrs:
+                    if code_block.attrs == "session-config":
+                        if has_session_config:
+                            raise ValueError(f"Duplicate 'session-config' block found. (file: {self.source_path})")
+                        if isinstance(target, ParsedDocument):
+                            target.config.session_config = json.loads(code_block.code)
+                        has_session_config = True
+                    elif code_block.attrs == "setup-script":
+                        if has_setup_script:
+                            raise ValueError(f"Duplicate 'setup-script' block found. (file: {self.source_path})")
+                        has_setup_script = True
+                    elif code_block.attrs == "msg-metadata":
+                        if has_msg_metadata:
+                            raise ValueError(f"Duplicate 'msg-metadata' block found. (file: {self.source_path})")
+                        if isinstance(target, Message):
+                            target.metadata = json.loads(code_block.code)
+                        has_msg_metadata = True
+                if isinstance(target, (ParsedDocument, Message)):
+                    target.code_blocks.append(code_block)
 
             elif lines[i].startswith(">"):
                 if isinstance(target, Message):
-                    if target.blockquote is not None:
+                    if target.content is not None:
                         raise ValueError(f"Duplicate blockquote found in message. (file: {self.source_path})")
-                    i, target.blockquote = self._parse_blockquote(lines, i)
+                    i, target.content = self._parse_blockquote(lines, i)
                 else:
                     i += 1
             elif lines[i].strip() == "":
@@ -133,7 +130,7 @@ class MarkdownLLMParser:
                 i += 1
                 message = Message(speaker=speaker)
                 i = self._parse_blocks(lines, i, message)
-                self._validate_message_content(message.code_blocks, message.blockquote, speaker)
+                self._validate_message_content(message.code_blocks, message.content, speaker)
                 self.document.conversation.append(message)
             else:
                 i += 1
@@ -164,7 +161,7 @@ def append_message(writer: io.StringIO, message: Message):
     writer.write(f"\n## {message.speaker}\n\n")
     if message.metadata:
         writer.write(f"```json msg-metadata\n{json.dumps(message.metadata, indent=2, ensure_ascii=False)}\n```\n\n")
-    if message.blockquote:
-        writer.write(f"> {message.blockquote}\n")
+    if message.content:
+        writer.write(f"> {message.content}\n")
     for code_block in message.code_blocks:
         writer.write(f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n")
