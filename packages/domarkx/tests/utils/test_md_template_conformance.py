@@ -31,8 +31,8 @@ def test_all_templates_md_conformance():
                 all_errors.append(f"{md_path}: global_metadata is not a dict")
             elif "title" not in parsed.global_metadata:
                 all_errors.append(f"{md_path}: Missing 'title' in global_metadata")
-            if not isinstance(parsed.config.session_config, dict):
-                all_errors.append(f"{md_path}: session_config is not a dict")
+                if not isinstance(parsed.session_config, dict):
+                    all_errors.append(f"{md_path}: session_config is not a dict")
             if len(parsed.conversation) == 0:
                 all_errors.append(f"{md_path}: No conversation found")
             for msg in parsed.conversation:

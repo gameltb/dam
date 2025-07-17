@@ -25,16 +25,42 @@ class Message:
     speaker: str
     code_blocks: List[CodeBlock] = field(default_factory=list)
     content: Optional[str] = None
-    metadata: dict = field(default_factory=lambda: {})
+
+    def get_code_blocks(self, language: str = None, attrs: str = None) -> List[CodeBlock]:
+        return [
+            cb
+            for cb in self.code_blocks
+            if (language is None or cb.language == language) and (attrs is None or cb.attrs == attrs)
+        ]
+
+    @property
+    def metadata(self) -> Optional[dict]:
+        blocks = self.get_code_blocks(attrs="msg-metadata")
+        if not blocks:
+            return None
+        return json.loads(blocks[0].code)
 
 
 @dataclass
 class ParsedDocument:
     global_metadata: dict = field(default_factory=lambda: {})
     code_blocks: List[CodeBlock] = field(default_factory=list)
-    config: SessionMetadata = field(default_factory=SessionMetadata)
     conversation: List[Message] = field(default_factory=list)
     raw_lines: List[str] = field(default_factory=list, repr=False)
+
+    def get_code_blocks(self, language: str = None, attrs: str = None) -> List[CodeBlock]:
+        return [
+            cb
+            for cb in self.code_blocks
+            if (language is None or cb.language == language) and (attrs is None or cb.attrs == attrs)
+        ]
+
+    @property
+    def session_config(self) -> Optional[dict]:
+        blocks = self.get_code_blocks(attrs="session-config")
+        if not blocks:
+            return None
+        return json.loads(blocks[0].code)
 
 
 import logging
@@ -81,30 +107,10 @@ class MarkdownLLMParser:
 
     def _parse_blocks(self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]):
         i = start_index
-        has_session_config = False
-        has_setup_script = False
-        has_msg_metadata = False
 
         while i < len(lines) and not lines[i].startswith("## "):
             if lines[i].startswith("```"):
                 i, code_block = self._parse_code_block(lines, i)
-                if code_block.attrs:
-                    if code_block.attrs == "session-config":
-                        if has_session_config:
-                            raise ValueError(f"Duplicate 'session-config' block found. (file: {self.source_path})")
-                        if isinstance(target, ParsedDocument):
-                            target.config.session_config = json.loads(code_block.code)
-                        has_session_config = True
-                    elif code_block.attrs == "setup-script":
-                        if has_setup_script:
-                            raise ValueError(f"Duplicate 'setup-script' block found. (file: {self.source_path})")
-                        has_setup_script = True
-                    elif code_block.attrs == "msg-metadata":
-                        if has_msg_metadata:
-                            raise ValueError(f"Duplicate 'msg-metadata' block found. (file: {self.source_path})")
-                        if isinstance(target, Message):
-                            target.metadata = json.loads(code_block.code)
-                        has_msg_metadata = True
                 if isinstance(target, (ParsedDocument, Message)):
                     target.code_blocks.append(code_block)
 

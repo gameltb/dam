@@ -33,7 +33,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 
     console.print("".join(parsed_doc.raw_lines))
 
-    chat_agent_state = parsed_doc.config.session_config
+    chat_agent_state = parsed_doc.session_config
 
     system_message = parsed_doc.conversation[0].content
 
