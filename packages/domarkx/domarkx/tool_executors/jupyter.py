@@ -1,14 +1,14 @@
 import inspect
 import json
 from typing import Any, Callable, Dict, Optional
-
-from autogen_ext.code_executors.base import CodeExecutor
-from autogen_ext.code_executors.docker_jupyter import DockerJupyterCodeExecutor
+from autogen_core.code_executor import CodeExecutor, CodeBlock
+from autogen_core import CancellationToken
+from . import remote_tool_handler
 
 
 class JupyterToolExecutor:
-    def __init__(self, code_executor: Optional[CodeExecutor] = None):
-        self.code_executor = code_executor or DockerJupyterCodeExecutor()
+    def __init__(self, code_executor: CodeExecutor):
+        self.code_executor = code_executor
 
     def start(self):
         if hasattr(self.code_executor, "start"):
@@ -22,18 +22,17 @@ class JupyterToolExecutor:
         if hasattr(self.code_executor, "restart"):
             self.code_executor.restart()
 
-    def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
+    async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
         tool_source = inspect.getsource(tool_func)
         tool_name = tool_func.__name__
-
-        with open("packages/domarkx/domarkx/tool_executors/remote_tool_handler.py", "r") as f:
-            remote_tool_handler_source = f.read()
+        remote_tool_handler_source = inspect.getsource(remote_tool_handler)
 
         # Serialize arguments to JSON
         serialized_args = json.dumps(kwargs)
 
         # Create the code to execute in the Jupyter kernel
         code_to_execute = f"""
+import json
 {remote_tool_handler_source}
 {tool_source}
 
@@ -47,7 +46,12 @@ print(result)
 """
 
         # Execute the code
-        execution_result = self.code_executor.execute_code_block(language="python", code=code_to_execute)
+        if hasattr(self.code_executor, "execute_code_block"):
+            execution_result = self.code_executor.execute_code_block(language="python", code=code_to_execute)
+        else:
+            cancellation_token = CancellationToken()
+            code_block = CodeBlock(code=code_to_execute, language="python")
+            execution_result = await self.code_executor._execute_code_block(code_block, cancellation_token)
 
         if execution_result.exit_code != 0:
             raise RuntimeError(f"Tool execution failed: {execution_result.output}")
