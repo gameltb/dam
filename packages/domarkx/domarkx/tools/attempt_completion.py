@@ -1,34 +1,36 @@
 import logging
+from domarkx.tools.tool_decorator import tool_handler
 
 
+@tool_handler()
 def attempt_completion_tool(result: str, command: str = None) -> str:
     """
-    表示任务已完成，并提供结果和可选的展示命令。
+    Indicates that a task is complete, providing the result and an optional display command.
 
-    参数:
-        result (str): 任务的最终结果描述。
-        command (str): 用于展示结果的 CLI 命令。
+    Args:
+        result (str): Description of the final result of the task.
+        command (str): CLI command to display the result.
 
-    返回:
-        str: 格式化后的完成信息字符串。
+    Returns:
+        str: Formatted completion information string.
 
-    抛出:
-        TypeError: 如果 'result' 或 'command' 参数类型不正确。
+    Raises:
+        TypeError: If 'result' or 'command' argument types are incorrect.
     """
-    logging.info("尝试构建任务完成信息。")
+    logging.info("Attempting to format task completion information.")
 
     if not isinstance(result, str):
-        error_msg = f"参数 'result' 必须是字符串类型，但接收到 {type(result).__name__}。"
+        error_msg = f"Argument 'result' must be a string, but received {type(result).__name__}."
         logging.error(error_msg)
         raise TypeError(error_msg)
 
     if command is not None and not isinstance(command, str):
-        error_msg = f"参数 'command' 必须是字符串类型或 None，但接收到 {type(command).__name__}。"
+        error_msg = f"Argument 'command' must be a string or None, but received {type(command).__name__}."
         logging.error(error_msg)
         raise TypeError(error_msg)
 
     command_tag = f"<command>{command}</command>\n" if command else ""
 
     formatted_completion = f"<attempt_completion>\n<result>\n{result}\n</result>\n{command_tag}</attempt_completion>"
-    logging.info("成功格式化任务完成信息。")
+    logging.info("Successfully formatted task completion information.")
     return formatted_completion

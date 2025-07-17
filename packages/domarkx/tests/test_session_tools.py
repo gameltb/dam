@@ -10,14 +10,6 @@ from domarkx.tools.session_management import (
 )
 
 
-def setup_module(module):
-    pass  # 不再手动创建和清理目录，全部交由 pytest 的 tmp_path fixture 管理
-
-
-def teardown_module(module):
-    pass
-
-
 def test_create_session(tmp_path):
     project_path = tmp_path / "test_project"
     os.makedirs(project_path / "sessions")

@@ -13,6 +13,9 @@ captured_rich_logs_buffer = io.StringIO()
 # The console now writes to both the buffer and stderr
 console = Console(file=captured_rich_logs_buffer, stderr=True)
 
+# Global registry for tool_handler-decorated functions
+TOOL_REGISTRY = []
+
 
 class ToolError(Exception):
     """Custom exception for tool-related errors."""
@@ -36,6 +39,9 @@ def tool_handler(log_level=logging.INFO, capture_logs=False):
     """
 
     def decorator(func):
+        # Register the function in the global registry
+        TOOL_REGISTRY.append(func)
+
         # Check for parameter name conflicts
         tool_handler_params = {"log_level", "capture_logs", "show_locals", "show_stacktrace"}
         func_signature = inspect.signature(func)

@@ -4,16 +4,20 @@ from domarkx.config import settings
 from domarkx.tools.session_management import create_session, send_message
 
 
-def rename_session(old_name: str, new_name: str):
+from domarkx.tools.tool_decorator import tool_handler
+
+
+@tool_handler()
+def rename_session(old_name: str, new_name: str) -> str:
     """
-    Rename a session file.
+    Rename a session file in the sessions directory and update git tracking.
 
     Args:
         old_name (str): The current name of the session file (without .md extension).
         new_name (str): The new name of the session file (without .md extension).
 
     Returns:
-        str: Success message.
+        str: Success message indicating the session was renamed.
 
     Raises:
         FileNotFoundError: If the old session file does not exist.
@@ -37,16 +41,17 @@ def rename_session(old_name: str, new_name: str):
     return f"Session '{old_name}' renamed to '{new_name}'."
 
 
-def update_session_metadata(session_name: str, metadata: dict):
+@tool_handler()
+def update_session_metadata(session_name: str, metadata: dict) -> str:
     """
-    Update the metadata in a session file.
+    Update the metadata block in a session file. Appends metadata as a comment for now.
 
     Args:
         session_name (str): The name of the session file (without .md extension).
         metadata (dict): A dictionary of metadata to update.
 
     Returns:
-        str: Success message.
+        str: Success message indicating metadata was updated.
 
     Raises:
         FileNotFoundError: If the session file does not exist.
@@ -74,7 +79,8 @@ def update_session_metadata(session_name: str, metadata: dict):
     return f"Metadata updated for session '{session_name}'."
 
 
-def summarize_conversation(session_name: str):
+@tool_handler()
+def summarize_conversation(session_name: str) -> str:
     """
     Summarize the conversation in a session by delegating to the ConversationSummarizer agent.
 
@@ -82,7 +88,7 @@ def summarize_conversation(session_name: str):
         session_name (str): The name of the session to summarize.
 
     Returns:
-        str: The summary of the conversation.
+        str: Message indicating the summarization request was sent.
     """
     summarizer_session_name = f"summarizer-for-{session_name}"
     create_session(

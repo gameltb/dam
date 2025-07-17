@@ -2,11 +2,12 @@ import os
 import shutil
 import subprocess
 from domarkx.config import settings
-
+from domarkx.tools.tool_decorator import tool_handler
 
 from domarkx.macro_expander import MacroExpander
 
 
+@tool_handler()
 def create_session(template_name: str, session_name: str, parameters: dict):
     """
     Create a new session file from a template and parameters.
@@ -56,6 +57,7 @@ def create_session(template_name: str, session_name: str, parameters: dict):
     return f"Session '{session_name}' created from template '{template_name}'."
 
 
+@tool_handler()
 def send_message(session_name: str, message: str):
     """
     Append a message to a session file.
@@ -94,6 +96,7 @@ def send_message(session_name: str, message: str):
     return f"Message sent to session '{session_name}'."
 
 
+@tool_handler()
 def get_messages(session_name: str):
     """
     Get all messages/content from a session file.
@@ -122,6 +125,7 @@ def get_messages(session_name: str):
     return content
 
 
+@tool_handler()
 def list_sessions():
     """
     List all available session files in the sessions directory.

@@ -32,7 +32,6 @@ class ParsedDocument:
     global_metadata: dict = field(default_factory=lambda: {})
     config: SessionMetadata = field(default_factory=SessionMetadata)
     conversation: List[Message] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
     raw_lines: List[str] = field(default_factory=list, repr=False)
 
 
@@ -44,10 +43,45 @@ class MarkdownLLMParser:
         self.document = ParsedDocument()
         self.state = "start"
         self.logger = logging.getLogger(__name__)
+        self.source_path = None
+
+    def _validate_message_content(self, lines: List[str], start_index: int, speaker: str):
+        valid_content = False
+        i = start_index
+        while i < len(lines):
+            line_content = lines[i]
+            if line_content.strip() == "":
+                i += 1
+                continue
+            if line_content.startswith("```"):
+                valid_content = True
+                # Skip entire code block
+                i += 1
+                while i < len(lines) and not lines[i].startswith("```"):
+                    i += 1
+                if i < len(lines):
+                    i += 1  # Skip closing ```
+                continue
+            if line_content.startswith(">"):
+                valid_content = True
+                i += 1
+                continue
+            if line_content.startswith("## "):
+                break
+            # Any other content is invalid
+            raise ValueError(
+                f"Section '{speaker}' invalid content at line {i + 1}: '{line_content.strip()}' (file: {self.source_path})"
+            )
+            i += 1
+        if not valid_content:
+            raise ValueError(
+                f"Section '{speaker}' must have at least one blockquote or code block as content. (file: {self.source_path})"
+            )
 
     def parse(self, md_content: str, source_path: str = ".") -> ParsedDocument:
         self.document = ParsedDocument()
         self.state = "start"
+        self.source_path = source_path
 
         lines = md_content.splitlines(keepends=True)
         self.logger.debug(f"Parsing {len(lines)} lines")
@@ -65,8 +99,7 @@ class MarkdownLLMParser:
                     lines = lines[i + 1 :]
                     self.logger.debug(f"Parsed frontmatter: {self.document.global_metadata}")
                 except yaml.YAMLError as e:
-                    self.document.errors.append(f"Error parsing YAML front matter: {e}")
-                    self.logger.error(f"Error parsing YAML front matter: {e}")
+                    raise ValueError(f"Error parsing YAML front matter: {e}")
 
         self.document.raw_lines = lines
         self._parse_lines(lines)
@@ -80,7 +113,15 @@ class MarkdownLLMParser:
                 i = self._parse_session_config(lines, i)
             elif line.startswith("## "):
                 speaker = line[3:].strip()
-                i, message = self._parse_message(lines, i + 1, speaker)
+                msg_start = i + 1
+                # Skip blank lines
+                while msg_start < len(lines) and not lines[msg_start].strip():
+                    msg_start += 1
+                # Validate message content using shared method
+                content_start = msg_start
+                self._validate_message_content(lines, content_start, speaker)
+                # Parse as message if check passes
+                i, message = self._parse_message(lines, content_start, speaker)
                 self.document.conversation.append(message)
             else:
                 i += 1
@@ -97,7 +138,7 @@ class MarkdownLLMParser:
         try:
             session_config = json.loads(config_str)
         except json.JSONDecodeError as e:
-            self.document.errors.append(f"Error parsing session-config JSON: {e}")
+            raise ValueError(f"Error parsing session-config JSON: {e}")
 
         session_setup_code = None
         if i < len(lines) and lines[i].startswith("```"):
@@ -140,8 +181,7 @@ class MarkdownLLMParser:
         try:
             return i, json.loads(metadata_str)
         except json.JSONDecodeError as e:
-            self.document.errors.append(f"Error parsing msg-metadata JSON: {e}")
-            return i, {}
+            raise ValueError(f"Error parsing msg-metadata JSON: {e}")
 
     def _parse_blockquote(self, lines: List[str], start_index: int) -> Tuple[int, str]:
         i = start_index
