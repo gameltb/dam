@@ -29,7 +29,7 @@ def exec_doc_code_block(
         raise typer.Exit(1)
 
     message_obj = parsed_doc.conversation[message_index]
-    code_blocks = find_code_blocks(message_obj.content)
+    code_blocks = message_obj.code_blocks
 
     if not 0 <= code_block_in_message_index < len(code_blocks):
         rich.print(

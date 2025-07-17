@@ -24,6 +24,10 @@ To run the test suite, use the following command:
 uv run pytest
 ```
 
+### Temporary Files
+
+When writing tests that create files, it is recommended to use the `runner.isolated_filesystem()` context manager provided by `typer.testing.CliRunner`. This will create a temporary directory for the test and automatically clean it up afterwards. This is preferred over manual creation and cleanup of temporary directories.
+
 ## Coding Conventions
 
 Please follow PEP 8 for Python code. Use `ruff` for linting and formatting:
