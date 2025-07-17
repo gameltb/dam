@@ -8,13 +8,14 @@ from domarkx.tools.tool_decorator import tool_handler
 
 
 @tool_handler()
-def rename_session(old_name: str, new_name: str) -> str:
+def rename_session(old_name: str, new_name: str, project_path: str = None) -> str:
     """
     Rename a session file in the sessions directory and update git tracking.
 
     Args:
         old_name (str): The current name of the session file (without .md extension).
         new_name (str): The new name of the session file (without .md extension).
+        project_path (str, optional): The path to the project. Defaults to None.
 
     Returns:
         str: Success message indicating the session was renamed.
@@ -22,8 +23,10 @@ def rename_session(old_name: str, new_name: str) -> str:
     Raises:
         FileNotFoundError: If the old session file does not exist.
     """
-    old_path = os.path.join(settings.project_path, "sessions", f"{old_name}.md")
-    new_path = os.path.join(settings.project_path, "sessions", f"{new_name}.md")
+    if project_path is None:
+        project_path = settings.project_path
+    old_path = os.path.join(project_path, "sessions", f"{old_name}.md")
+    new_path = os.path.join(project_path, "sessions", f"{new_name}.md")
 
     if not os.path.exists(old_path):
         raise FileNotFoundError(f"Session not found: {old_path}")
@@ -31,24 +34,25 @@ def rename_session(old_name: str, new_name: str) -> str:
     os.rename(old_path, new_path)
 
     # Add to git
-    subprocess.run(["git", "add", new_path], cwd=settings.project_path)
-    subprocess.run(["git", "rm", old_path], cwd=settings.project_path)
+    subprocess.run(["git", "add", new_path], cwd=project_path)
+    subprocess.run(["git", "rm", old_path], cwd=project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Rename session {old_name} to {new_name}"],
-        cwd=settings.project_path,
+        cwd=project_path,
     )
 
     return f"Session '{old_name}' renamed to '{new_name}'."
 
 
 @tool_handler()
-def update_session_metadata(session_name: str, metadata: dict) -> str:
+def update_session_metadata(session_name: str, metadata: dict, project_path: str = None) -> str:
     """
     Update the metadata block in a session file. Appends metadata as a comment for now.
 
     Args:
         session_name (str): The name of the session file (without .md extension).
         metadata (dict): A dictionary of metadata to update.
+        project_path (str, optional): The path to the project. Defaults to None.
 
     Returns:
         str: Success message indicating metadata was updated.
@@ -56,7 +60,9 @@ def update_session_metadata(session_name: str, metadata: dict) -> str:
     Raises:
         FileNotFoundError: If the session file does not exist.
     """
-    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
+    if project_path is None:
+        project_path = settings.project_path
+    session_path = os.path.join(project_path, "sessions", f"{session_name}.md")
 
     if not os.path.exists(session_path):
         raise FileNotFoundError(f"Session not found: {session_path}")
@@ -70,22 +76,23 @@ def update_session_metadata(session_name: str, metadata: dict) -> str:
         f.write(f"\n\n<!-- METADATA: {metadata} -->")
 
     # Add to git
-    subprocess.run(["git", "add", session_path], cwd=settings.project_path)
+    subprocess.run(["git", "add", session_path], cwd=project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Update metadata for session {session_name}"],
-        cwd=settings.project_path,
+        cwd=project_path,
     )
 
     return f"Metadata updated for session '{session_name}'."
 
 
 @tool_handler()
-def summarize_conversation(session_name: str) -> str:
+def summarize_conversation(session_name: str, project_path: str = None) -> str:
     """
     Summarize the conversation in a session by delegating to the ConversationSummarizer agent.
 
     Args:
         session_name (str): The name of the session to summarize.
+        project_path (str, optional): The path to the project. Defaults to None.
 
     Returns:
         str: Message indicating the summarization request was sent.
@@ -95,10 +102,12 @@ def summarize_conversation(session_name: str) -> str:
         "ConversationSummarizer",
         summarizer_session_name,
         {"session_to_summarize": session_name},
+        project_path=project_path,
     )
     send_message(
         summarizer_session_name,
         f"Please summarize the conversation in session '{session_name}'.",
+        project_path=project_path,
     )
     # In a real implementation, we would wait for the summarizer to finish
     # and get the result. For now, we'll just return a message.

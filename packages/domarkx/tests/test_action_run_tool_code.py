@@ -10,10 +10,11 @@ def test_run_tool_code_action(tmp_path: pathlib.Path):
     md_content = """
 ## user
 
->
+>hello
 
 ## assistant
 
+> I will now print "Hello from tool code!"
 ```python
 print("Hello from tool code!")
 ```
