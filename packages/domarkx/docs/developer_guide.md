@@ -61,3 +61,38 @@ packages/domarkx/
 │   └── ...
 └── pyproject.toml
 ```
+
+## Tool Executors
+
+The `domarkx` system uses Tool Executors to provide a flexible way to run tools in different environments. This allows for the same tool to be executed locally or in a remote Jupyter kernel without changing the tool's implementation.
+
+### Creating a Custom Tool
+
+To create a custom tool that can be used with a Tool Executor, follow these steps:
+
+1.  **Create a "clean" tool function.** This function should contain the core logic of your tool and should not have any `domarkx`-specific dependencies. Place this function in the `packages/domarkx/domarkx/tools/unconstrained` directory.
+
+    ```python
+    # packages/domarkx/domarkx/tools/unconstrained/my_tool.py
+    def my_tool(param1: str, param2: int) -> str:
+        # ... tool logic ...
+        return "result"
+    ```
+
+2.  **Use the `ToolWrapper` to make the tool available to `domarkx`.** In your `setup-script`, import the `ToolWrapper` and your clean tool function. Then, create an instance of the `ToolWrapper`, passing your tool function and a `JupyterToolExecutor` instance.
+
+    ```python setup-script
+    from domarkx.tool_executors.jupyter import JupyterToolExecutor
+    from domarkx.tools.unconstrained.my_tool import my_tool
+    from domarkx.tools.tool_wrapper import ToolWrapper
+
+    # Create an executor instance
+    my_executor = JupyterToolExecutor()
+
+    # Wrap the tool
+    my_tool_wrapped = ToolWrapper(tool_func=my_tool, executor=my_executor)
+
+    # Add the wrapped tool to the list of tools
+    tools = [my_tool_wrapped]
+    tool_executors = [my_executor]
+    ```
