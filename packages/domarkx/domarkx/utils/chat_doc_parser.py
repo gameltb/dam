@@ -107,10 +107,15 @@ class MarkdownLLMParser:
 
     def _parse_blocks(self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]):
         i = start_index
+        seen_code_blocks = set()
 
         while i < len(lines) and not lines[i].startswith("## "):
             if lines[i].startswith("```"):
                 i, code_block = self._parse_code_block(lines, i)
+                signature = (code_block.language, code_block.attrs)
+                if signature in seen_code_blocks:
+                    raise ValueError(f"Duplicate code block with language '{signature[0]}' and attrs '{signature[1]}' found. (file: {self.source_path})")
+                seen_code_blocks.add(signature)
                 if isinstance(target, (ParsedDocument, Message)):
                     target.code_blocks.append(code_block)
 
