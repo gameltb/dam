@@ -17,7 +17,10 @@ class Session:
             md_content = f.read()
 
         parser = MarkdownLLMParser()
-        return parser.parse(md_content, source_path=str(self.doc_path.absolute()))
+        try:
+            return parser.parse(md_content)
+        except ValueError as e:
+            raise ValueError(f"Error parsing document at {self.doc_path.absolute()}: {e}") from e
 
     def _get_last_expression(self, code):
         try:

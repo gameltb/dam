@@ -65,17 +65,15 @@ class MarkdownLLMParser:
     def __init__(self):
         self.document = ParsedDocument()
         self.logger = logging.getLogger(__name__)
-        self.source_path = None
 
     def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str):
         if not code_blocks and (content is None or not content.strip()):
             raise ValueError(
-                f"Section '{speaker}' must have at least one code block or a non-empty content. (file: {self.source_path})"
+                f"Section '{speaker}' must have at least one code block or a non-empty content."
             )
 
-    def parse(self, md_content: str, source_path: str = ".") -> ParsedDocument:
+    def parse(self, md_content: str) -> ParsedDocument:
         self.document = ParsedDocument()
-        self.source_path = source_path
         lines = md_content.splitlines(keepends=True)
         self.document.raw_lines = lines
         i = 0
@@ -112,7 +110,7 @@ class MarkdownLLMParser:
                 signature = (code_block.language, code_block.attrs)
                 if signature in seen_code_blocks:
                     raise ValueError(
-                        f"Duplicate code block with language '{signature[0]}' and attrs '{signature[1]}' found. (file: {self.source_path})"
+                        f"Duplicate code block with language '{signature[0]}' and attrs '{signature[1]}' found."
                     )
                 seen_code_blocks.add(signature)
                 if isinstance(target, (ParsedDocument, Message)):
@@ -121,14 +119,14 @@ class MarkdownLLMParser:
             elif lines[i].startswith(">"):
                 if isinstance(target, Message):
                     if target.content is not None:
-                        raise ValueError(f"Duplicate blockquote found in message. (file: {self.source_path})")
+                        raise ValueError("Duplicate blockquote found in message.")
                     i, target.content = self._parse_blockquote(lines, i)
                 else:
                     i += 1
             elif lines[i].strip() == "":
                 i += 1
             else:
-                raise ValueError(f"Invalid content at line {i + 1}: '{lines[i].strip()}' (file: {self.source_path})")
+                raise ValueError(f"Invalid content at line {i + 1}: '{lines[i].strip()}'")
 
         return i
 

@@ -25,7 +25,10 @@ def test_all_templates_md_conformance():
         for md_path in md_files:
             with open(md_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            parsed = parser.parse(content, source_path=md_path)
+                try:
+                    parsed = parser.parse(content)
+                except ValueError as e:
+                    all_errors.append(f"Error parsing {md_path}: {e}")
             if not isinstance(parsed.global_metadata, dict):
                 all_errors.append(f"{md_path}: global_metadata is not a dict")
             elif "title" not in parsed.global_metadata:
