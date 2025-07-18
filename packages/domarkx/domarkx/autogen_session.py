@@ -1,6 +1,8 @@
 import ast
 import pathlib
 
+from autogen_ext.models._utils.parse_r1_content import parse_r1_content
+
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
 
@@ -8,6 +10,8 @@ from domarkx.session import Session
 class AutoGenSession(Session):
     def __init__(self, doc_path: pathlib.Path):
         super().__init__(doc_path)
+        self.messages = []
+        self.system_message = ""
 
     def _get_last_expression(self, code):
         try:
@@ -19,8 +23,30 @@ class AutoGenSession(Session):
         except SyntaxError:
             return None, code
 
+    def _process_initial_messages(self):
+        if self.doc.conversation:
+            self.system_message = self.doc.conversation[0].content
+            if self.system_message is None or len(self.system_message) == 0:
+                self.system_message = "You are a helpful AI assistant. "
+        else:
+            self.system_message = "You are a helpful AI assistant. "
+
+        messages = []
+        for md_message in self.doc.conversation[1:]:
+            message_dict = md_message.metadata
+            thought, content = parse_r1_content(md_message.content)
+            if "content" not in message_dict:
+                message_dict["content"] = content
+            elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
+                if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
+                    message_dict["content"][0]["content"] = content
+            if thought:
+                message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
+            messages.append(message_dict)
+        self.messages = messages
+
     async def setup(self, **kwargs):
-        messages = kwargs.get("messages", [])
+        self._process_initial_messages()
         setup_script_blocks = self.doc.get_code_blocks(language="python", attrs="setup-script")
         if not setup_script_blocks:
             raise ValueError("No setup-script code block found in the document.")
@@ -55,21 +81,14 @@ class AutoGenSession(Session):
             if hasattr(executor, "start"):
                 executor.start()
 
-        if self.doc.conversation:
-            system_message = self.doc.conversation[0].content
-            if system_message is None or len(system_message) == 0:
-                system_message = "You are a helpful AI assistant. "
-        else:
-            system_message = "You are a helpful AI assistant. "
-
         self.agent = ResumeFunCallAssistantAgent(
             "assistant",
             model_client=client,
-            system_message=system_message,
+            system_message=self.system_message,
             model_client_stream=True,
             tools=tools,
         )
         if self.doc.session_config:
             agent_state = self.doc.session_config
-            agent_state["llm_context"]["messages"] = messages
+            agent_state["llm_context"]["messages"] = self.messages
             await self.agent.load_state(agent_state)
