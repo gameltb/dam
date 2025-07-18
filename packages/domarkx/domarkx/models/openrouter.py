@@ -4,6 +4,7 @@ from typing import (
     AsyncGenerator,
     Dict,
     List,
+    Literal,
     Mapping,
     Optional,
     Sequence,
@@ -46,6 +47,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         messages: Sequence[LLMMessage],
         *,
         tools: Sequence[Tool | ToolSchema] = [],
+        tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
         json_output: Optional[bool | type[BaseModel]] = None,
         extra_create_args: Mapping[str, Any] = {},
         cancellation_token: Optional[CancellationToken] = None,
@@ -77,6 +79,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         create_params = self._process_create_args(
             messages,
             tools,
+            tool_choice,
             json_output,
             extra_create_args,
         )
