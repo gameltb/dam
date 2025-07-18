@@ -23,22 +23,26 @@ class JupyterToolExecutor:
             self.code_executor.restart()
 
     async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
-        tool_source = inspect.getsource(tool_func)
+        tool_module = inspect.getmodule(tool_func)
+        if tool_module is None:
+            raise ValueError(f"Could not find module for function {tool_func.__name__}")
+        tool_source = inspect.getsource(tool_module)
         tool_name = tool_func.__name__
-        remote_tool_handler_source = inspect.getsource(remote_tool_handler)
+
+        remote_tool_handler_module = inspect.getmodule(remote_tool_handler)
+        if remote_tool_handler_module is None:
+            raise ValueError("Could not find module for remote_tool_handler")
+        remote_tool_handler_source = inspect.getsource(remote_tool_handler_module)
 
         # Serialize arguments to JSON
         serialized_args = json.dumps(kwargs).replace("\\", "\\\\").replace("'", "\\'")
 
         # Create the code to execute in the Jupyter kernel
         code_to_execute = f"""
-import json
-import os
-import subprocess
-import glob
-from typing import Union, List, Optional
 {remote_tool_handler_source}
 {tool_source}
+
+import json
 
 # Deserialize arguments
 args = json.loads('''{serialized_args}''')
