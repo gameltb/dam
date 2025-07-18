@@ -22,11 +22,15 @@ class JupyterToolExecutor:
         if hasattr(self.code_executor, "restart"):
             self.code_executor.restart()
 
-    async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
-        tool_module = inspect.getmodule(tool_func)
-        if tool_module is None:
-            raise ValueError(f"Could not find module for function {tool_func.__name__}")
-        tool_source = inspect.getsource(tool_module)
+    async def execute(self, tool_func: Callable, setup_code: Optional[str] = None, **kwargs: Any) -> Any:
+        if hasattr(tool_func, "__source_code__"):
+            tool_source = tool_func.__source_code__
+        else:
+            tool_module = inspect.getmodule(tool_func)
+            if tool_module is None:
+                raise ValueError(f"Could not find module for function {tool_func.__name__}")
+            tool_source = inspect.getsource(tool_module)
+
         tool_name = tool_func.__name__
 
         remote_tool_handler_module = inspect.getmodule(remote_tool_handler)
@@ -40,6 +44,11 @@ class JupyterToolExecutor:
         # Create the code to execute in the Jupyter kernel
         code_to_execute = f"""
 {remote_tool_handler_source}
+
+# --- Setup code provided by the user ---
+{setup_code or ""}
+# ------------------------------------
+
 {tool_source}
 
 import json
