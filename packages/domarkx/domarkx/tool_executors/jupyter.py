@@ -28,11 +28,15 @@ class JupyterToolExecutor:
         remote_tool_handler_source = inspect.getsource(remote_tool_handler)
 
         # Serialize arguments to JSON
-        serialized_args = json.dumps(kwargs)
+        serialized_args = json.dumps(kwargs).replace("\\", "\\\\").replace("'", "\\'")
 
         # Create the code to execute in the Jupyter kernel
         code_to_execute = f"""
 import json
+import os
+import subprocess
+import glob
+from typing import Union, List, Optional
 {remote_tool_handler_source}
 {tool_source}
 
