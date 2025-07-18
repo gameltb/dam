@@ -8,9 +8,11 @@ from domarkx.tools.unconstrained.execute_command import execute_command
 from domarkx.tools.unconstrained.read_file import read_file
 from domarkx.tools.unconstrained.write_to_file import write_to_file
 
+
 # A sample tool function to be executed remotely
 def sample_tool(a: int, b: int) -> int:
     return a + b
+
 
 # Fixture to initialize and finalize code executors
 @pytest.fixture(params=[JupyterCodeExecutor, DockerJupyterCodeExecutor])
@@ -30,6 +32,7 @@ async def code_executor(request):
     except Exception as e:
         pytest.skip(f"Could not start {executor_class.__name__}: {e}")
 
+
 async def test_jupyter_tool_executor_with_different_code_executors(code_executor):
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
 
@@ -41,10 +44,12 @@ async def test_jupyter_tool_executor_with_different_code_executors(code_executor
     # The output format is "exit_code\noutput"
     assert "15" in result
 
+
 async def test_execute_command_tool(code_executor):
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
     result = await tool_executor.execute(execute_command, command="echo 'Hello from command'")
     assert "Hello from command" in result
+
 
 async def test_read_and_write_file_tools(code_executor, tmp_path: pathlib.Path):
     tool_executor = JupyterToolExecutor(code_executor=code_executor)

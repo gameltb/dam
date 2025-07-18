@@ -74,7 +74,9 @@ class MarkdownLLMParser:
 
     def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str):
         if not code_blocks and (content is None or not content.strip()):
-            raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content. (file: {self.source_path})")
+            raise ValueError(
+                f"Section '{speaker}' must have at least one code block or a non-empty content. (file: {self.source_path})"
+            )
 
     def parse(self, md_content: str, source_path: str = ".") -> ParsedDocument:
         self.document = ParsedDocument()
@@ -114,7 +116,9 @@ class MarkdownLLMParser:
                 i, code_block = self._parse_code_block(lines, i)
                 signature = (code_block.language, code_block.attrs)
                 if signature in seen_code_blocks:
-                    raise ValueError(f"Duplicate code block with language '{signature[0]}' and attrs '{signature[1]}' found. (file: {self.source_path})")
+                    raise ValueError(
+                        f"Duplicate code block with language '{signature[0]}' and attrs '{signature[1]}' found. (file: {self.source_path})"
+                    )
                 seen_code_blocks.add(signature)
                 if isinstance(target, (ParsedDocument, Message)):
                     target.code_blocks.append(code_block)
@@ -175,4 +179,6 @@ def append_message(writer: io.StringIO, message: Message):
     if message.content:
         writer.write(f"> {message.content}\n")
     for code_block in message.code_blocks:
-        writer.write(f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n")
+        writer.write(
+            f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n"
+        )

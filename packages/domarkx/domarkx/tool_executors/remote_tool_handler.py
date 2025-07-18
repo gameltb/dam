@@ -6,7 +6,7 @@ import traceback
 def remote_tool_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
         logging.info(f"Tool '{func.__name__}' started.")
         try:
             result = func(*args, **kwargs)
@@ -17,4 +17,5 @@ def remote_tool_handler(func):
             # Also print traceback to stderr for visibility in Jupyter
             traceback.print_exc()
             raise
+
     return wrapper
