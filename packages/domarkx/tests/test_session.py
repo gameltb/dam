@@ -1,6 +1,6 @@
 import pytest
 
-from domarkx.session import Session
+from domarkx.autogen_session import AutoGenSession
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def test_session_setup(tmp_path, setup_script):
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
-    session = Session(doc_path)
+    session = AutoGenSession(doc_path)
 
     assert session.doc is not None
 
@@ -30,7 +30,7 @@ async def test_session_setup_async(tmp_path, setup_script):
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
-    session = Session(doc_path)
+    session = AutoGenSession(doc_path)
     await session.setup()
 
     assert session.agent is not None
@@ -50,7 +50,7 @@ print("bar")
     doc_path = tmp_path / "test.md"
     doc_path.write_text(doc_content)
 
-    session = Session(doc_path)
+    session = AutoGenSession(doc_path)
 
     assert session.get_code_block("foo").rstrip() == 'print("foo")'
     assert session.get_code_block("bar").rstrip() == 'print("bar")'
@@ -77,7 +77,7 @@ print(get_code_block("my-tool"))
     doc_path = tmp_path / "test.md"
     doc_path.write_text(doc_content)
 
-    session = Session(doc_path)
+    session = AutoGenSession(doc_path)
     await session.setup()
 
     assert session.agent is not None

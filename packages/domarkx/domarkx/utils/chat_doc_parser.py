@@ -68,9 +68,7 @@ class MarkdownLLMParser:
 
     def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str):
         if not code_blocks and (content is None or not content.strip()):
-            raise ValueError(
-                f"Section '{speaker}' must have at least one code block or a non-empty content."
-            )
+            raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content.")
 
     def parse(self, md_content: str) -> ParsedDocument:
         self.document = ParsedDocument()
