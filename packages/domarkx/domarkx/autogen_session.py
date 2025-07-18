@@ -11,6 +11,7 @@ class AutoGenSession(Session):
     def __init__(self, doc_path: pathlib.Path):
         super().__init__(doc_path)
         self.messages = []
+        self.system_message = ""
 
     def _get_last_expression(self, code):
         try:
@@ -23,6 +24,13 @@ class AutoGenSession(Session):
             return None, code
 
     def _process_initial_messages(self):
+        if self.doc.conversation:
+            self.system_message = self.doc.conversation[0].content
+            if self.system_message is None or len(self.system_message) == 0:
+                self.system_message = "You are a helpful AI assistant. "
+        else:
+            self.system_message = "You are a helpful AI assistant. "
+
         messages = []
         for md_message in self.doc.conversation[1:]:
             message_dict = md_message.metadata
@@ -35,10 +43,10 @@ class AutoGenSession(Session):
             if thought:
                 message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
             messages.append(message_dict)
-        return messages
+        self.messages = messages
 
     async def setup(self, **kwargs):
-        self.messages = self._process_initial_messages()
+        self._process_initial_messages()
         setup_script_blocks = self.doc.get_code_blocks(language="python", attrs="setup-script")
         if not setup_script_blocks:
             raise ValueError("No setup-script code block found in the document.")
@@ -73,17 +81,10 @@ class AutoGenSession(Session):
             if hasattr(executor, "start"):
                 executor.start()
 
-        if self.doc.conversation:
-            system_message = self.doc.conversation[0].content
-            if system_message is None or len(system_message) == 0:
-                system_message = "You are a helpful AI assistant. "
-        else:
-            system_message = "You are a helpful AI assistant. "
-
         self.agent = ResumeFunCallAssistantAgent(
             "assistant",
             model_client=client,
-            system_message=system_message,
+            system_message=self.system_message,
             model_client_stream=True,
             tools=tools,
         )
