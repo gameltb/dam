@@ -15,8 +15,6 @@ from . import (
 
 # Import functions from the new character service
 from .character_service import (
-    CharacterConceptNotFoundError,  # Exceptions
-    CharacterLinkNotFoundError,
     apply_character_to_entity,
     create_character_concept,
     delete_character_concept,
