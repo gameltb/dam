@@ -87,21 +87,19 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
 
 
 def register_tools():
-    from ...tools import (
-        apply_diff,
-        attempt_completion,
-        execute_command,
-        list_files,
-        read_file,
-        write_to_file,
-    )
+    from ...tools.unconstrained.read_file import read_file
+    from ...tools.unconstrained.write_to_file import write_to_file
+    from ...tools.unconstrained.execute_command import execute_command
+    from ...tools.apply_diff import apply_diff_tool
+    from ...tools.attempt_completion import attempt_completion_tool
+    from ...tools.list_files import list_files
 
-    register_tool("apply_diff")(apply_diff.apply_diff_tool)
-    register_tool("attempt_completion")(attempt_completion.attempt_completion_tool)
-    register_tool("execute_command")(execute_command.execute_command)
-    register_tool("list_files")(list_files.list_files)
-    register_tool("read_file")(read_file.read_file)
-    register_tool("write_to_file")(write_to_file.write_to_file)
+    register_tool("apply_diff")(apply_diff_tool)
+    register_tool("attempt_completion")(attempt_completion_tool)
+    register_tool("execute_command")(execute_command)
+    register_tool("list_files")(list_files)
+    register_tool("read_file")(read_file)
+    register_tool("write_to_file")(write_to_file)
 
 
 register_tools()

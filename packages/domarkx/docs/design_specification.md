@@ -139,3 +139,33 @@ This modular design makes it easy to extend `domarkx` with new functionality.
 -   **Improved Error Handling**: Provide more detailed and user-friendly error messages for parsing and execution errors.
 -   **More Execution Engines**: Add support for more code execution engines, such as remote Docker containers.
 -   **GUI**: Develop a graphical user interface for a more user-friendly experience.
+
+## 6. Tool Executors
+
+To provide flexibility in tool execution, `domarkx` introduces the concept of **Tool Executors**. A Tool Executor is a class responsible for running a tool's code in a specific environment. This allows for transparently executing tools locally or in a remote environment, such as a Jupyter kernel running in a Docker container.
+
+### 6.1. Tool Executor Configuration
+
+Tool Executors are configured in the `setup-script` block of a session. This allows users to specify which executor to use for each tool.
+
+```python setup-script
+from domarkx.tool_executors.jupyter import JupyterToolExecutor
+from domarkx.tools.unconstrained.read_file import read_file
+from domarkx.tools.tool_wrapper import ToolWrapper
+
+# Configure the executor
+jupyter_executor = JupyterToolExecutor()
+
+# Wrap the clean tool with the executor
+read_file_tool = ToolWrapper(tool_func=read_file, executor=jupyter_executor)
+
+tools = [read_file_tool]
+```
+
+### 6.2. Clean Tools
+
+To support different execution environments, tool logic is separated from the `domarkx` framework. These **Clean Tools** are simple Python functions that do not have any `domarkx`-specific dependencies or decorators. They are located in the `packages/domarkx/domarkx/tools/unconstrained` subpackage.
+
+### 6.3. Tool Wrappers
+
+A **Tool Wrapper** is a class that inherits from `autogen_core.tools.BaseTool` and makes a clean tool available to the `domarkx` system. The wrapper is responsible for invoking the appropriate Tool Executor to run the tool's logic. This design ensures that the tools remain compatible with the `autogen` ecosystem.

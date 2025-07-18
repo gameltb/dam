@@ -34,6 +34,12 @@ all = [
     "typer",
     "libcst",
 ]
+jupyter-executor = [
+    "autogen-ext[jupyter-executor]",
+]
+docker-jupyter-executor = [
+    "autogen-ext[docker-jupyter-executor]",
+]
 
 [project.scripts]
 domarkx = "domarkx.cli:main"
