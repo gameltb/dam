@@ -7,7 +7,6 @@ import typer
 from rich.console import Console
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
-from domarkx.utils.markdown_utils import find_code_blocks
 
 
 def exec_doc_code_block(

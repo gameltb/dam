@@ -1,5 +1,6 @@
 import pytest
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser, CodeBlock
+
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 
 def test_parse_message_blocks_and_code():

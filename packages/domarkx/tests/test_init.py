@@ -1,7 +1,7 @@
 import os
-import shutil
-import subprocess
+
 from typer.testing import CliRunner
+
 from domarkx.cli import cli_app
 
 runner = CliRunner()

@@ -9,6 +9,7 @@ from typing import (
 
 import pytest
 import pytest_asyncio  # For async fixtures
+from sqlalchemy import select  # Ensure select is imported for tests
 
 # Import the app after patches, if any, are applied.
 # For now, direct import is fine as we're starting simple.
@@ -31,7 +32,6 @@ from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.services import file_operations
 from dam.services.file_storage import get_file_path
-from sqlalchemy import select  # Ensure select is imported for tests
 
 TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"

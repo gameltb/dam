@@ -1,10 +1,9 @@
 import os
-import shutil
 import subprocess
-from domarkx.config import settings
-from domarkx.tools.tool_decorator import tool_handler
 
-from domarkx.session import MacroExpander
+from domarkx.config import settings
+from domarkx.macro_expander import MacroExpander
+from domarkx.tools.tool_decorator import tool_handler
 
 
 @tool_handler()

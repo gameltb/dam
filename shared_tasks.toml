@@ -2,5 +2,6 @@
 fmt = "ruff format --exclude \\*.md"
 format.ref = "fmt"
 lint = "ruff check --exclude \\*.md"
+fix = "ruff check --exclude \\*.md --fix --unsafe-fixes"
 mypy = "mypy --config-file $POE_ROOT/../../pyproject.toml src tests"
 pyright = "pyright"

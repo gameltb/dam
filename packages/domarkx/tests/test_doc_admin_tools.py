@@ -1,15 +1,14 @@
 import os
-import shutil
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+from typer.testing import CliRunner
+
 from domarkx.tools.doc_admin import (
     rename_session,
-    update_session_metadata,
     summarize_conversation,
+    update_session_metadata,
 )
-from domarkx.config import settings
-from typer.testing import CliRunner
-from domarkx.cli import cli_app
 
 runner = CliRunner()
 

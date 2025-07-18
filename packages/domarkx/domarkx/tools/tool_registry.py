@@ -1,4 +1,4 @@
-from domarkx.tools.tool_decorator import tool_handler, TOOL_REGISTRY
+from domarkx.tools.tool_decorator import TOOL_REGISTRY, tool_handler
 
 
 @tool_handler()

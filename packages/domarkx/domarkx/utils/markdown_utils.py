@@ -1,9 +1,6 @@
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
-
 import re
-from typing import List, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

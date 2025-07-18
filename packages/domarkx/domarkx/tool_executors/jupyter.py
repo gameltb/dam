@@ -1,8 +1,10 @@
 import inspect
 import json
-from typing import Any, Callable, Dict, Optional
-from autogen_core.code_executor import CodeExecutor, CodeBlock
+from typing import Any, Callable
+
 from autogen_core import CancellationToken
+from autogen_core.code_executor import CodeBlock, CodeExecutor
+
 from . import remote_tool_handler
 
 
@@ -22,7 +24,7 @@ class JupyterToolExecutor:
         if hasattr(self.code_executor, "restart"):
             self.code_executor.restart()
 
-    async def execute(self, tool_func: Callable, setup_code: Optional[str] = None, **kwargs: Any) -> Any:
+    async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
         if hasattr(tool_func, "__source_code__"):
             tool_source = tool_func.__source_code__
         else:
@@ -43,12 +45,6 @@ class JupyterToolExecutor:
 
         # Create the code to execute in the Jupyter kernel
         code_to_execute = f"""
-{remote_tool_handler_source}
-
-# --- Setup code provided by the user ---
-{setup_code or ""}
-# ------------------------------------
-
 {tool_source}
 
 import json
@@ -57,6 +53,7 @@ import json
 args = json.loads('''{serialized_args}''')
 
 # Decorate and call the function
+{remote_tool_handler_source}
 wrapped_tool = remote_tool_handler({tool_name})
 result = wrapped_tool(**args)
 print(result)

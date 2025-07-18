@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock  # Added MagicMock
 
 import pytest
 import typer  # Added import
+from sqlalchemy.future import select
+
 from dam import cli as dam_cli  # Import cli with an alias
 from dam.core.config import Settings as AppSettings
 from dam.core.events import AssetFileIngestionRequested
@@ -17,7 +19,6 @@ from dam.models.properties.file_properties_component import FilePropertiesCompon
 from dam.models.tags import EntityTagLinkComponent  # Updated imports
 from dam.services import ecs_service as dam_ecs_service
 from dam.services import file_operations, tag_service, transcode_service
-from sqlalchemy.future import select
 
 # Assuming test_environment fixture can be imported or replicated if needed.
 # For now, let's use the one from test_cli by importing it.

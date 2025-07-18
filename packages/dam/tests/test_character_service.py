@@ -1,8 +1,9 @@
 import pytest
-from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
-from dam.services import character_service, ecs_service
 from sqlalchemy import select  # Added import for select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
+from dam.services import character_service, ecs_service
 
 
 @pytest.mark.asyncio

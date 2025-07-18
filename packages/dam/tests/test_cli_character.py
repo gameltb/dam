@@ -2,11 +2,12 @@ from pathlib import Path  # Missing import
 from typing import Optional  # For asset_sha256 type hint
 
 import pytest
+from typer.testing import CliRunner
+
 from dam.core.world import World
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.properties import FilePropertiesComponent  # For creating dummy assets
 from dam.services import character_service, ecs_service
-from typer.testing import CliRunner
 
 
 # Fixture to ensure a clean world for each test function in this file

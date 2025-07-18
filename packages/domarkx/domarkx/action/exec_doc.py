@@ -3,8 +3,6 @@ import copy
 import pathlib
 from typing import Annotated
 
-import rich
-import rich.markdown
 import typer
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 from prompt_toolkit import PromptSession

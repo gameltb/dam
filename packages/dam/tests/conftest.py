@@ -8,19 +8,20 @@ from typing import (
     Iterator,  # Added for click_runner
 )
 
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
+from typer.testing import CliRunner, Result  # Added for click_runner
+
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
 import dam.models  # This line can sometimes be problematic if dam.models itself has top-level import issues
-import pytest
-import pytest_asyncio
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
-from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
-from typer.testing import CliRunner, Result  # Added for click_runner
 
 # Store original settings values to be restored
 _original_settings_values = {}

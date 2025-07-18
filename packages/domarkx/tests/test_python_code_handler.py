@@ -1,12 +1,9 @@
 import sys
-import os
+
 import pytest
-import re
-import textwrap
 
 from domarkx.tools.python_code_handler import _resolve_symbol_path, python_code_handler
 from domarkx.tools.tool_decorator import ToolError
-import libcst as cst
 
 # Original contents of example_module.py for resetting
 ORIGINAL_EXAMPLE_MODULE_CONTENT = '''

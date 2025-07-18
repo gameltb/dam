@@ -14,5 +14,4 @@ class ToolWrapper(FunctionTool):
 
     def call(self, **kwargs: Any) -> Any:
         # Since FunctionTool already validates arguments, we can directly execute.
-        setup_code = getattr(self.fn, "__source_code__", None)
-        return self.executor.execute(self.fn, setup_code=setup_code, **kwargs)
+        return self.executor.execute(self.fn, **kwargs)

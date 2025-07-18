@@ -1,6 +1,8 @@
 import os
 import subprocess
+
 import typer
+
 from domarkx.config import Settings
 
 

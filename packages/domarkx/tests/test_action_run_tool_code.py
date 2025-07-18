@@ -1,4 +1,5 @@
 import pathlib
+
 from typer.testing import CliRunner
 from utils import setup_test_app
 

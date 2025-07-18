@@ -1,10 +1,9 @@
 import glob
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser
-import os
-import shutil
-import subprocess
+
 from typer.testing import CliRunner
+
 from domarkx.cli import cli_app
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 runner = CliRunner()
 

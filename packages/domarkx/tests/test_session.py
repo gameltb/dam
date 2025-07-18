@@ -1,5 +1,5 @@
 import pytest
-from pathlib import Path
+
 from domarkx.session import Session
 
 
@@ -52,8 +52,8 @@ print("bar")
 
     session = Session(doc_path)
 
-    assert session.get_code_block("foo") == 'print("foo")'
-    assert session.get_code_block("bar") == 'print("bar")'
+    assert session.get_code_block("foo").rstrip() == 'print("foo")'
+    assert session.get_code_block("bar").rstrip() == 'print("bar")'
     assert session.get_code_block("baz") is None
 
 

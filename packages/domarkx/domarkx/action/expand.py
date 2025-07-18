@@ -1,14 +1,12 @@
-import pathlib
-import typer
 import logging
+import pathlib
 from typing import Annotated
 
-from domarkx.utils.markdown_utils import find_macros
+import typer
+
+from domarkx.macro_expander import MacroExpander
 
 logger = logging.getLogger(__name__)
-
-
-from domarkx.session import MacroExpander
 
 
 def expand(

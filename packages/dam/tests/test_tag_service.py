@@ -2,6 +2,8 @@ import pytest
 
 # --- Test Data Fixtures ---
 import pytest_asyncio  # For async fixtures
+from sqlalchemy.ext.asyncio import AsyncSession  # For type hint
+
 from dam.models.conceptual import (
     ComicBookVariantComponent,  # For testing scope
 )
@@ -15,7 +17,6 @@ from dam.models.tags import (
 from dam.services import comic_book_service as cbs
 from dam.services import ecs_service
 from dam.services import tag_service as ts
-from sqlalchemy.ext.asyncio import AsyncSession  # For type hint
 
 
 @pytest_asyncio.fixture  # Mark as async fixture

@@ -1,9 +1,8 @@
 import textwrap
 
-import libcst as cst  # Import libcst for use in test assertions if needed
 import pytest
 
-from domarkx.tool_call.run_tool_code.tool import execute_tool_call, REGISTERED_TOOLS
+from domarkx.tool_call.run_tool_code.tool import REGISTERED_TOOLS, execute_tool_call
 from domarkx.tools import python_code_handler
 from domarkx.tools.tool_decorator import ToolError
 
@@ -85,7 +84,7 @@ def test_add_function_with_script(temp_py_file):
             def leave_Module(self, original_node, updated_node):
                 new_function_module = cst.parse_module("def new_function(a, b):\\n    return a - b\\n")
                 new_function_node = new_function_module.body[0]
-                
+
                 new_body = list(updated_node.body)
                 if new_body and not isinstance(new_body[-1], (cst.EmptyLine, cst.Comment)):
                     new_body.append(cst.EmptyLine())
@@ -125,7 +124,7 @@ def test_add_class_with_script(temp_py_file):
             def leave_Module(self, original_node, updated_node):
                 new_class_module = cst.parse_module("class NewClass:\\n    def __init__(self):\\n        pass\\n")
                 new_class_node = new_class_module.body[0]
-                
+
                 new_body = list(updated_node.body)
                 if new_body and not isinstance(new_body[-1], (cst.EmptyLine, cst.Comment)):
                     new_body.append(cst.EmptyLine())
@@ -147,9 +146,9 @@ def test_add_import_with_script(temp_py_file):
                 new_import_line = cst.parse_module("import sys").body[0].with_changes(
                     trailing_whitespace=cst.TrailingWhitespace(newline=cst.Newline())
                 )
-                
+
                 new_body = list(updated_node.body)
-                
+
                 insert_idx = -1
                 for i, node in enumerate(new_body):
                     if isinstance(node, cst.SimpleStatementLine) and \\
@@ -158,10 +157,10 @@ def test_add_import_with_script(temp_py_file):
                        node.body[0].names[0].name.value == "os":
                         insert_idx = i + 1
                         break
-                
+
                 if insert_idx != -1:
                     new_body.insert(insert_idx, new_import_line)
-                    
+
                     if insert_idx + 1 < len(new_body) and \\
                        not isinstance(new_body[insert_idx + 1], cst.EmptyLine) and \\
                        (not isinstance(new_body[insert_idx + 1], cst.SimpleStatementLine) or \\

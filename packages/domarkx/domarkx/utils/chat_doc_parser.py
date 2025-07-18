@@ -1,17 +1,12 @@
 import io
 import json
-import os
 import re
-import yaml
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
+
+import yaml
 
 from domarkx.utils.markdown_utils import CodeBlock
-
-try:
-    import frontmatter
-except ImportError:
-    frontmatter = None
 
 
 @dataclass

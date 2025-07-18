@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ModelExecutionManager fixture from conftest.py
 from dam.core.model_manager import ModelExecutionManager
@@ -14,7 +15,6 @@ from dam.models.semantic import (
 )
 from dam.services import ecs_service, semantic_service
 from dam.services.semantic_service import BatchTextItem  # Keep this for type hints
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .conftest import MockSentenceTransformer  # Import the mock from conftest
 

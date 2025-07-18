@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.future import select
+
 from dam.core.config import Settings as AppSettings
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
@@ -12,7 +14,6 @@ from dam.models.tags import EntityTagLinkComponent  # Updated import
 from dam.services import ecs_service as dam_ecs_service
 from dam.services import tag_service, transcode_service
 from dam.systems import evaluation_systems
-from sqlalchemy.future import select
 
 from .test_cli import (
     test_environment,  # noqa: F401

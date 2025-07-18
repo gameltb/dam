@@ -1,6 +1,6 @@
-import os
 import pathlib
-from domarkx.utils.markdown_utils import find_macros, find_first_macro
+
+from domarkx.utils.markdown_utils import find_first_macro
 
 
 class MacroExpander:

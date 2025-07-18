@@ -1,15 +1,16 @@
 import pytest
+from sqlalchemy import select  # Added import
+from sqlalchemy.exc import IntegrityError
+
+# from dam.models.properties import ImagePropertiesComponent # If checking image type
+from sqlalchemy.ext.asyncio import AsyncSession  # For type hinting db_session
+
 from dam.models import Entity  # Import Entity globally for the module
 
 # from sqlalchemy.orm import Session # Not needed for async
 from dam.models.conceptual import ComicBookConceptComponent, ComicBookVariantComponent, PageLink
 from dam.services import comic_book_service as cbs
 from dam.services import ecs_service
-from sqlalchemy import select  # Added import
-from sqlalchemy.exc import IntegrityError
-
-# from dam.models.properties import ImagePropertiesComponent # If checking image type
-from sqlalchemy.ext.asyncio import AsyncSession  # For type hinting db_session
 
 
 @pytest.mark.asyncio
