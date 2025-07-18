@@ -4,30 +4,29 @@ import pathlib
 from typing import Annotated
 
 import typer
-from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 from prompt_toolkit import PromptSession
 from rich.console import Console
 
 import domarkx.ui.console
-from domarkx.session import Session
+from domarkx.autogen_session import AutoGenSession
 from domarkx.utils.chat_doc_parser import Message, append_message
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     console = Console(markup=False)
-    session = Session(doc)
+    session = AutoGenSession(doc)
     await session.setup()
 
     console.print("".join(session.doc.raw_lines))
-
-    messages = _process_initial_messages(session.doc)
 
     # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
     while True:
         task_msg = None
-        latest_msg = messages[-1] if len(messages) > 0 else None
-        if len(messages) == 0 or (latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg):
+        latest_msg = session.messages[-1] if len(session.messages) > 0 else None
+        if len(session.messages) == 0 or (
+            latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
+        ):
             task_msg: str = await PromptSession().prompt_async(
                 "task > ",
                 multiline=True,
@@ -43,9 +42,9 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 
         new_state = await session.agent.save_state()
 
-        _append_new_messages(doc, new_state, messages)
+        _append_new_messages(doc, new_state, session.messages)
 
-        messages = new_state["llm_context"]["messages"]
+        session.messages = new_state["llm_context"]["messages"]
 
         if handle_one_toolcall:
             break
@@ -73,22 +72,6 @@ def _append_new_messages(doc, new_state, messages):
 {content}"""
         with doc.open("a") as f:
             append_message(f, Message("assistant", content, message))
-
-
-def _process_initial_messages(parsed_doc):
-    messages = []
-    for md_message in parsed_doc.conversation[1:]:
-        message_dict = md_message.metadata
-        thought, content = parse_r1_content(md_message.content)
-        if "content" not in message_dict:
-            message_dict["content"] = content
-        elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
-            if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
-                message_dict["content"][0]["content"] = content
-        if thought:
-            message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
-        messages.append(message_dict)
-    return messages
 
 
 def exec_doc(
