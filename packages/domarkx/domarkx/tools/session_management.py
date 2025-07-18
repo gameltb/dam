@@ -4,7 +4,7 @@ import subprocess
 from domarkx.config import settings
 from domarkx.tools.tool_decorator import tool_handler
 
-from domarkx.macro_expander import MacroExpander
+from domarkx.session import MacroExpander
 
 
 @tool_handler()

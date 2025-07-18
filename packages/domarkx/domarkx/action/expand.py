@@ -8,7 +8,7 @@ from domarkx.utils.markdown_utils import find_macros
 logger = logging.getLogger(__name__)
 
 
-from domarkx.macro_expander import MacroExpander
+from domarkx.session import MacroExpander
 
 
 def expand(

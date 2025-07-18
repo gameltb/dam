@@ -11,39 +11,18 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 
 import domarkx.ui.console
-from domarkx.agent_manager import create_agent
-from domarkx.document_parser import parse_document
+from domarkx.session import Session
 from domarkx.utils.chat_doc_parser import Message, append_message
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     console = Console(markup=False)
-    parsed_doc = parse_document(doc)
+    session = Session(doc)
+    await session.setup()
 
-    client = None
-    tools = []
-    if parsed_doc.config.session_setup_code:
-        session_setup_code = parsed_doc.config.session_setup_code
-        console.print(rich.markdown.Markdown(f"```{session_setup_code.language}\n{session_setup_code.code}\n```"))
-        local_vars = {}
-        exec(session_setup_code.code, globals(), local_vars)
+    console.print("".join(session.doc.raw_lines))
 
-        client = local_vars.get("client")
-        tools = local_vars.get("tools", [])
-
-    console.print("".join(parsed_doc.raw_lines))
-
-    chat_agent_state = parsed_doc.session_config
-
-    system_message = parsed_doc.conversation[0].content
-
-    messages = _process_initial_messages(parsed_doc)
-    chat_agent_state["llm_context"]["messages"] = messages
-
-    if system_message is None or len(system_message) == 0:
-        system_message = "You are a helpful AI assistant. "
-
-    chat_agent = await create_agent(client, system_message, chat_agent_state, tools=tools)
+    messages = _process_initial_messages(session.doc)
 
     # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
@@ -61,10 +40,10 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
                     task_msg = None
 
         response = await domarkx.ui.console.Console(
-            chat_agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
+            session.agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
         )
 
-        new_state = await chat_agent.save_state()
+        new_state = await session.agent.save_state()
 
         _append_new_messages(doc, new_state, messages)
 
