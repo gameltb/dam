@@ -65,6 +65,26 @@ class AutoGenSession(Session):
             messages.append(message_dict)
         self.messages = messages
 
+    def append_new_messages(self, new_state: dict):
+        from domarkx.utils.chat_doc_parser import append_message
+
+        for message in new_state["llm_context"]["messages"][len(self.messages) :]:
+            content = ""
+            if "content" in message:
+                if isinstance(message["content"], str):
+                    content = message.pop("content")
+                elif isinstance(message["content"], list) and len(message["content"]) == 1:
+                    content = message["content"][0].pop("content", "")
+            thought = message.pop("thought", "")
+            if thought:
+                thought = "\n".join("> " + line for line in f"""<think>{thought}</think>""".splitlines())
+                content = f"""
+{thought}
+
+{content}"""
+            with self.doc_path.open("a") as f:
+                append_message(f, self.create_message("assistant", content, message))
+
     async def setup(self, **kwargs):
         self._process_initial_messages()
         setup_script_blocks = self.doc.get_code_blocks(language="python", attrs="setup-script")
