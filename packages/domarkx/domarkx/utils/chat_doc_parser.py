@@ -3,6 +3,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
+import textwrap
 
 import yaml
 
@@ -165,11 +166,10 @@ class MarkdownLLMParser:
 
 def append_message(writer: io.StringIO, message: Message):
     writer.write(f"\n## {message.speaker}\n\n")
-    if message.metadata:
-        writer.write(f"```json msg-metadata\n{json.dumps(message.metadata, indent=2, ensure_ascii=False)}\n```\n\n")
-    if message.content:
-        writer.write(f"> {message.content}\n")
     for code_block in message.code_blocks:
         writer.write(
             f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n"
         )
+    if message.content:
+        writer.write(textwrap.indent(message.content, "> "))
+        writer.write("\n\n")

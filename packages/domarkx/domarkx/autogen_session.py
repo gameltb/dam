@@ -1,6 +1,7 @@
 import ast
 import json
 import pathlib
+import textwrap
 
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
@@ -77,13 +78,13 @@ class AutoGenSession(Session):
                     content = message["content"][0].pop("content", "")
             thought = message.pop("thought", "")
             if thought:
-                thought = "\n".join("> " + line for line in f"""<think>{thought}</think>""".splitlines())
+                thought = textwrap.indent(f"""<think>{thought}</think>""", "> ")
                 content = f"""
 {thought}
 
 {content}"""
             with self.doc_path.open("a") as f:
-                append_message(f, self.create_message("assistant", content, message))
+                append_message(f, self.create_message(message["source"] if "source" in message else "unknow", content, message))
 
     async def setup(self, **kwargs):
         self._process_initial_messages()
