@@ -12,11 +12,17 @@ def tool_list_files(path: str = ".") -> List[str]:
 
     Returns:
         List[str]: A list of files and directories.
+
+    Raises:
+        FileNotFoundError: If the directory is not found.
+        Exception: For other unexpected errors.
     """
     logging.info(f"Listing files in: {path}")
     try:
         return os.listdir(path)
-    except FileNotFoundError:
-        return ["Error: Directory not found."]
+    except FileNotFoundError as e:
+        logging.error(f"Error listing files in {path}: {e}")
+        raise e
     except Exception as e:
-        return [f"An unexpected error occurred: {e}"]
+        logging.error(f"An unexpected error occurred while listing files in {path}: {e}")
+        raise e

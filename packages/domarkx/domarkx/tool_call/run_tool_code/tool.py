@@ -87,9 +87,10 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
 
 
 def register_tools():
+    from domarkx.tools.tool_registry import get_tool
+
     from ...tools.apply_diff import apply_diff_tool
     from ...tools.attempt_completion import attempt_completion_tool
-    from domarkx.tools.tool_registry import get_tool
 
     register_tool("apply_diff")(apply_diff_tool)
     register_tool("attempt_completion")(attempt_completion_tool)

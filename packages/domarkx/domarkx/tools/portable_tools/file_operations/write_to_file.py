@@ -13,13 +13,21 @@ def tool_write_to_file(path: str, content: str, append: bool = False) -> str:
 
     Returns:
         str: A confirmation message.
+
+    Raises:
+        Exception: For any unexpected errors.
     """
     mode = "a" if append else "w"
     logging.info(f"Writing to file: {path} (mode: {mode})")
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        # Create parent directories if they don't exist
+        dir_name = os.path.dirname(path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+
         with open(path, mode, encoding="utf-8") as f:
             f.write(content)
         return f"File '{path}' written successfully."
     except Exception as e:
-        return f"An unexpected error occurred: {e}"
+        logging.error(f"An unexpected error occurred while writing to file {path}: {e}")
+        raise e
