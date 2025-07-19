@@ -1,9 +1,8 @@
 import ast
+import json
 import pathlib
 
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
-
-import json
 
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session

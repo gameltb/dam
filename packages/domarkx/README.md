@@ -36,7 +36,7 @@ packages/domarkx/
 └── pyproject.toml
 ```
 
-For more details on the project's design and architecture, please see the [Design Specification](docs/design_specification.md). For information on how to contribute to the project, please see the [Developer Guide](docs/developer_guide.md).
+For more details on the project's design and architecture, please see the [Documentation Format](docs/documentation_format.md). For information on how to contribute to the project, please see the [Developer Guide](docs/developer_guide.md).
 
 ---
 

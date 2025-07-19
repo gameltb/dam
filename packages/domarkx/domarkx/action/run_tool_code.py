@@ -4,9 +4,9 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
+from domarkx.autogen_session import AutoGenSession
 from domarkx.tool_call.run_tool_code.parser import parse_tool_calls
 from domarkx.tool_call.run_tool_code.tool import execute_tool_call, format_assistant_response
-from domarkx.autogen_session import AutoGenSession
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser, append_message
 
 
