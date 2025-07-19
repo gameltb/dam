@@ -89,8 +89,8 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
 def register_tools():
     from ...tools.apply_diff import apply_diff_tool
     from ...tools.attempt_completion import attempt_completion_tool
-    from ...tools.list_files import list_files
     from ...tools.unconstrained.execute_command import execute_command
+    from ...tools.unconstrained.list_files import list_files
     from ...tools.unconstrained.read_file import read_file
     from ...tools.unconstrained.write_to_file import write_to_file
 
