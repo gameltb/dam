@@ -1,10 +1,7 @@
 import logging
 import os
 
-from domarkx.tools.tool_decorator import tool_handler
 
-
-@tool_handler()
 def list_files(path: str, recursive: bool = False) -> str:
     """
     List files and directories under the specified path, returning their full paths.
@@ -23,8 +20,6 @@ def list_files(path: str, recursive: bool = False) -> str:
         PermissionError: If lacking permission to access directory.
         Exception: For other unexpected errors.
     """
-    if isinstance(recursive, str):
-        recursive = recursive == "true"
     logging.info(f"Attempting to list files and directories in '{path}'. Recursive: {recursive}.")
 
     # 参数类型检查
