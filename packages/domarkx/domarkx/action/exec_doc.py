@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import pathlib
 from typing import Annotated
 
@@ -9,7 +8,6 @@ from rich.console import Console
 
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
-from domarkx.utils.chat_doc_parser import append_message
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
@@ -42,7 +40,7 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
 
         new_state = await session.agent.save_state()
 
-        _append_new_messages(doc, new_state, session.messages)
+        session.append_new_messages(new_state)
 
         session.messages = new_state["llm_context"]["messages"]
 
@@ -52,26 +50,6 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
         user_input = user_input.strip().lower()
         if len(user_input) != 0 and user_input != "r":
             break
-
-
-def _append_new_messages(doc, new_state, messages):
-    for message in new_state["llm_context"]["messages"][len(messages) :]:
-        message: dict = copy.deepcopy(message)
-        content = ""
-        if "content" in message:
-            if isinstance(message["content"], str):
-                content = message.pop("content")
-            elif isinstance(message["content"], list) and len(message["content"]) == 1:
-                content = message["content"][0].pop("content", "")
-        thought = message.pop("thought", "")
-        if thought:
-            thought = "\n".join("> " + line for line in f"""<think>{thought}</think>""".splitlines())
-            content = f"""
-{thought}
-
-{content}"""
-        with doc.open("a") as f:
-            append_message(f, AutoGenSession.create_message("assistant", content, message))
 
 
 def exec_doc(
