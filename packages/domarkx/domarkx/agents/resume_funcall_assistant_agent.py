@@ -2,7 +2,9 @@ from typing import (
     AsyncGenerator,
     List,
     Sequence,
+    Union,
 )
+import uuid
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import Response
@@ -23,10 +25,18 @@ console = Console(markup=False)
 
 class ResumeFunCallAssistantAgent(AssistantAgent):
     async def on_messages_stream(
-        self, messages: Sequence[BaseChatMessage], cancellation_token: CancellationToken
-    ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
-        """
-        Process the incoming messages with the assistant agent and yield events/responses as they happen.
+        self,
+        messages: Sequence[BaseChatMessage],
+        cancellation_token: CancellationToken,
+    ) -> AsyncGenerator[Union[BaseAgentEvent, BaseChatMessage, Response], None]:
+        """Process messages and stream the response.
+
+        Args:
+            messages: Sequence of messages to process
+            cancellation_token: Token for cancelling operation
+
+        Yields:
+            Events, messages and final response during processing
         """
 
         # Gather all relevant state here
@@ -40,10 +50,10 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
         model_client = self._model_client
         model_client_stream = self._model_client_stream
         reflect_on_tool_use = self._reflect_on_tool_use
+        max_tool_iterations = self._max_tool_iterations
         tool_call_summary_format = self._tool_call_summary_format
         tool_call_summary_formatter = self._tool_call_summary_formatter
         output_content_type = self._output_content_type
-        format_string = self._output_content_type_format
         inner_messages: List[BaseAgentEvent | BaseChatMessage] = []
 
         # check if we have
@@ -54,6 +64,7 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             and all(isinstance(item, FunctionCall) for item in model_context_messages[-1].content)
         ):
             fun_model_result = model_context_messages[-1].model_copy(update={"usage": None})
+            message_id = str(uuid.uuid4())
             async for output_event in self._process_model_result(
                 model_result=fun_model_result,
                 inner_messages=inner_messages,
@@ -67,10 +78,12 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
                 model_client=model_client,
                 model_client_stream=model_client_stream,
                 reflect_on_tool_use=reflect_on_tool_use,
+                max_tool_iterations=max_tool_iterations,
                 tool_call_summary_format=tool_call_summary_format,
                 tool_call_summary_formatter=tool_call_summary_formatter,
                 output_content_type=output_content_type,
-                format_string=format_string,
+                message_id=message_id,
+                format_string=self._output_content_type_format,
             ):
                 yield output_event
 
@@ -89,7 +102,10 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             inner_messages.append(event_msg)
             yield event_msg
 
-        # STEP 3: Run the first inference
+        # STEP 3: Generate a message ID for correlation between streaming chunks and final message
+        message_id = str(uuid.uuid4())
+
+        # STEP 4: Run the first inference
         model_result = None
         async for inference_output in self._call_llm(
             model_client=model_client,
@@ -101,6 +117,7 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             agent_name=agent_name,
             cancellation_token=cancellation_token,
             output_content_type=output_content_type,
+            message_id=message_id,
         ):
             if isinstance(inference_output, CreateResult):
                 model_result = inference_output
@@ -125,7 +142,7 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             )
         )
 
-        # STEP 4: Process the model output
+        # STEP 5: Process the model output
         async for output_event in self._process_model_result(
             model_result=model_result,
             inner_messages=inner_messages,
@@ -139,9 +156,11 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             model_client=model_client,
             model_client_stream=model_client_stream,
             reflect_on_tool_use=reflect_on_tool_use,
+            max_tool_iterations=max_tool_iterations,
             tool_call_summary_format=tool_call_summary_format,
             tool_call_summary_formatter=tool_call_summary_formatter,
             output_content_type=output_content_type,
-            format_string=format_string,
+            message_id=message_id,
+            format_string=self._output_content_type_format,
         ):
             yield output_event
