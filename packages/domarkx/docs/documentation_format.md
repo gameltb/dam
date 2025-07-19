@@ -153,7 +153,7 @@ Tool Executors are configured in the `setup-script` block of a session. This all
 
 ```python setup-script
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
-from domarkx.tools.unconstrained.read_file import read_file
+from domarkx.tools.tool_registry import get_tool
 from domarkx.tools.tool_wrapper import ToolWrapper
 
 # Configure the executor
@@ -167,7 +167,7 @@ tools = [read_file_tool]
 
 ### 5.2. Clean Tools
 
-To support different execution environments, tool logic is separated from the `domarkx` framework. These **Clean Tools** are simple Python functions that do not have any `domarkx`-specific dependencies or decorators. They are located in the `packages/domarkx/domarkx/tools/unconstrained` subpackage.
+To support different execution environments, tool logic is separated from the `domarkx` framework. These **Portable Tools** are simple Python functions that do not have any `domarkx`-specific dependencies or decorators. They are located in the `packages/domarkx/domarkx/tools/portable_tools` subpackage.
 
 ### 5.3. Tool Wrappers
 

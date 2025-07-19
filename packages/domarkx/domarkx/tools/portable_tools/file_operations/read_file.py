@@ -4,7 +4,7 @@ import os
 from typing import List, Optional, Union
 
 
-def read_file(path: Union[str, List[str]], start_line: int = None, end_line: int = None) -> str:
+def tool_read_file(path: Union[str, List[str]], start_line: int = None, end_line: int = None) -> str:
     """
     Read the content of the specified file path. Supports reading partial content by specifying `start_line` and `end_line`.
     Supports wildcard `*` to read multiple files at once (e.g., `*.py`, `dir/*.md`).

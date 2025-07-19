@@ -89,17 +89,14 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
 def register_tools():
     from ...tools.apply_diff import apply_diff_tool
     from ...tools.attempt_completion import attempt_completion_tool
-    from ...tools.unconstrained.execute_command import execute_command
-    from ...tools.unconstrained.list_files import list_files
-    from ...tools.unconstrained.read_file import read_file
-    from ...tools.unconstrained.write_to_file import write_to_file
+    from domarkx.tools.tool_registry import get_tool
 
     register_tool("apply_diff")(apply_diff_tool)
     register_tool("attempt_completion")(attempt_completion_tool)
-    register_tool("execute_command")(execute_command)
-    register_tool("list_files")(list_files)
-    register_tool("read_file")(read_file)
-    register_tool("write_to_file")(write_to_file)
+    register_tool("execute_command")(get_tool("tool_execute_command"))
+    register_tool("list_files")(get_tool("tool_list_files"))
+    register_tool("read_file")(get_tool("tool_read_file"))
+    register_tool("write_to_file")(get_tool("tool_write_to_file"))
 
 
 register_tools()

@@ -15,3 +15,12 @@ class ToolWrapper(FunctionTool):
     def call(self, **kwargs: Any) -> Any:
         # Since FunctionTool already validates arguments, we can directly execute.
         return self.executor.execute(self.fn, **kwargs)
+
+    @property
+    def source_code(self) -> str:
+        """
+        Returns the source code of the wrapped tool function.
+        """
+        if hasattr(self.fn, "__source_code__"):
+            return self.fn.__source_code__
+        return inspect.getsource(self.fn)
