@@ -3,8 +3,11 @@ import pathlib
 
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
+import json
+
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
+from domarkx.utils.chat_doc_parser import CodeBlock, Message
 
 
 class AutoGenSession(Session):
@@ -12,6 +15,24 @@ class AutoGenSession(Session):
         super().__init__(doc_path)
         self.messages = []
         self.system_message = ""
+
+    @classmethod
+    def create_message(cls, speaker: str, content: str, metadata: dict) -> "Message":
+        """
+        Creates a Message object with metadata as a code block.
+
+        Args:
+            speaker (str): The speaker of the message.
+            content (str): The content of the message.
+            metadata (dict): The metadata of the message.
+
+        Returns:
+            Message: The created Message object.
+        """
+        metadata_code_block = CodeBlock(
+            language="json", attrs="msg-metadata", code=json.dumps(metadata, indent=2, ensure_ascii=False)
+        )
+        return Message(speaker=speaker, content=content, code_blocks=[metadata_code_block])
 
     def _get_last_expression(self, code):
         try:

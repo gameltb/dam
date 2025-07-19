@@ -6,7 +6,8 @@ from rich.console import Console
 
 from domarkx.tool_call.run_tool_code.parser import parse_tool_calls
 from domarkx.tool_call.run_tool_code.tool import execute_tool_call, format_assistant_response
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser, Message, append_message
+from domarkx.autogen_session import AutoGenSession
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, append_message
 
 
 def do_roo_code_action(
@@ -45,7 +46,9 @@ def do_roo_code_action(
         assistant_responses += assistant_response
 
     with doc.open("a") as f:
-        append_message(f, Message("user", assistant_responses, {"source": "user", "type": "UserMessage"}))
+        append_message(
+            f, AutoGenSession.create_message("user", assistant_responses, {"source": "user", "type": "UserMessage"})
+        )
 
 
 def register(main_app: typer.Typer, settings):
