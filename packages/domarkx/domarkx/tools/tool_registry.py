@@ -1,8 +1,7 @@
 import importlib
 import inspect
 import os
-import pkgutil
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
 
 from domarkx.tools.tool_decorator import tool_handler
 
@@ -23,7 +22,9 @@ def _discover_and_register_tools():
         for file in files:
             if file.endswith(".py") and not file.startswith("__init__"):
                 module_path = os.path.join(root, file)
-                module_name = os.path.splitext(os.path.relpath(module_path, portable_tools_path))[0].replace(os.sep, ".")
+                module_name = os.path.splitext(os.path.relpath(module_path, portable_tools_path))[0].replace(
+                    os.sep, "."
+                )
                 module = importlib.import_module(f"domarkx.tools.portable_tools.{module_name}")
 
                 with open(module_path, "r") as f:

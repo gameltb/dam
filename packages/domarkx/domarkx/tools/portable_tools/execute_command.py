@@ -11,6 +11,9 @@ def tool_execute_command(command: str) -> str:
 
     Returns:
         str: The output of the command.
+
+    Raises:
+        subprocess.CalledProcessError: If the command fails.
     """
     logging.info(f"Executing command: {command}")
     try:
@@ -24,4 +27,5 @@ def tool_execute_command(command: str) -> str:
         )
         return result.stdout
     except subprocess.CalledProcessError as e:
-        return f"Error executing command: {e}\n{e.stderr}"
+        logging.error(f"Error executing command: {e}\n{e.stderr}")
+        raise e

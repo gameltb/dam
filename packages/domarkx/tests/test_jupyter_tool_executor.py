@@ -47,7 +47,9 @@ async def test_jupyter_tool_executor_with_different_code_executors(code_executor
 
 async def test_execute_command_tool(code_executor):
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
-    result = await tool_executor.execute(get_unwrapped_tool("tool_execute_command"), command="echo 'Hello from command'")
+    result = await tool_executor.execute(
+        get_unwrapped_tool("tool_execute_command"), command="echo 'Hello from command'"
+    )
     assert "Hello from command" in result
 
 
