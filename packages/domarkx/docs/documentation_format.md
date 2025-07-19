@@ -1,4 +1,4 @@
-# Domarkx Design Specification
+# Domarkx Documentation Format
 
 ## 1. Introduction
 
@@ -24,84 +24,94 @@ A **session** is a single Markdown file that represents a conversation with an L
 
 To ensure consistency and proper parsing, `domarkx` uses a set of conventions for structuring Markdown documents.
 
-### 3.1. Frontmatter
+### 3.1. Front Matter (Optional)
 
-Every `domarkx` document should start with a YAML frontmatter block that contains metadata about the document.
+You can include a YAML front matter block at the beginning of your document to specify global metadata. This block must be enclosed by triple-dashed lines (`---`).
+
+**Example:**
 
 ```yaml
 ---
-title: "Session Title"
-version: "0.0.1"
+author: Jane Doe
+creation_date: 2023-11-15
+tags: [domarkx, tutorial, conventions]
 ---
 ```
 
-### 3.2. Session Configuration
+### 3.2. Session Configuration (Optional)
 
+You can define a session configuration block to set up the execution environment for the code blocks in the document.
 
-At the beginning of the document and before each message, any number of code blocks are allowed. Code blocks can be of any language (e.g., `python setup-script`, `json session-config`, etc.), and `session-config` is just a special type of code block.
+-   The configuration block starts with `` ```session-config `` and ends with ```` ``` ````.
+-   The content of this block must be a valid JSON object.
+-   Immediately following the configuration block, you can include a code block for session setup tasks, such as importing libraries or defining environment variables.
 
-Example:
-```json session-config
+**Example:**
+
+````markdown
+```session-config
 {
-  "type": "AssistantAgentState",
-  "version": "1.0.0",
-  "llm_context": {}
-}
-```
-```python setup-script
-from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-import os
-
-client = OpenRouterR1OpenAIChatCompletionClient(...)
-tools = [...]
-```
-
-### 3.3. Setup Script
-
-The setup script is a Python code block with the `setup-script` language identifier. This script is executed before the session starts and is used to configure the environment, including the `model_client` and `tools` that the agent will use.
-
-```python setup-script
-from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-import os
-
-client = OpenRouterR1OpenAIChatCompletionClient(...)
-tools = [...]
-```
-
-### 3.4. System Message
-
-
-Each message may contain at most one blockquote, which serves as the content for system, user, or assistant messages. The blockquote can span multiple consecutive lines, and only one blockquote is allowed per message.
-
-Example:
-```
-> You are a helpful assistant.
-> This is a multi-line blockquote.
-> It will be parsed as one blockquote content.
-```
-
-### 3.5. User/Assistant Messages
-
-
-Each message starts with `## User` or `## Assistant`, followed by any number of code blocks (such as metadata blocks, script blocks, etc.), and at most one blockquote (which can span multiple lines). Each message must contain at least one code block or one blockquote, or both.
-
-Example:
-```markdown
-## User
-
-```json msg-metadata
-{
-  "source": "user",
-  "type": "UserMessage"
+  "engine": "local_shell",
+  "timeout": 60
 }
 ```
 
 ```python
-print("hello")
+import os
+import sys
+
+print("Session initialized.")
+print(f"Python version: {sys.version}")
+```
+````
+
+### 3.3. Conversation Format
+
+The main body of the document is structured as a conversation.
+
+-   Each message begins with a level-2 heading (`## `) followed by the speaker's role (e.g., `## user` or `## assistant`).
+
+### 3.4. Message Structure
+
+Each message can consist of three parts: metadata, a blockquote for text, and code blocks.
+
+-   **Message Metadata (Optional):** You can include a JSON block with the language specifier `json msg-metadata` to provide metadata for a specific message.
+
+-   **Blockquote:** Use standard Markdown blockquotes (`> `) for the textual content of the message.
+
+-   **Code Blocks:** Use standard Markdown fenced code blocks (``` ```) to specify executable code.
+    -   You **must** specify the language of the code (e.g., `python`, `bash`).
+    -   You can optionally add a `name` attribute to the code block, which can be used for referencing or saving the code.
+
+**Complete Example:**
+
+```markdown
+---
+title: "Domarkx Design Conventions Demo"
+---
+
+```session-config
+{
+  "engine": "local_shell"
+}
 ```
 
-> User's message content.
-> This is a multi-line blockquote.
+## user
+
+```json msg-metadata
+{
+  "timestamp": "2023-11-15T14:30:00Z"
+}
+```
+
+> Can you show me the files in the current directory?
+
+## assistant
+
+> Certainly. Here is the list of files:
+
+```bash name=list_files.sh
+ls -la
 ```
 
 ## 4. Macro Implementation and Extension
@@ -133,18 +143,11 @@ To add a new macro, you need to:
 
 This modular design makes it easy to extend `domarkx` with new functionality.
 
-## 5. Future Development
-
--   **Context-Aware Macro Expansion**: Enhance the macro expansion process to provide more context to macro handlers, such as the current file path and line number.
--   **Improved Error Handling**: Provide more detailed and user-friendly error messages for parsing and execution errors.
--   **More Execution Engines**: Add support for more code execution engines, such as remote Docker containers.
--   **GUI**: Develop a graphical user interface for a more user-friendly experience.
-
-## 6. Tool Executors
+## 5. Tool Executors
 
 To provide flexibility in tool execution, `domarkx` introduces the concept of **Tool Executors**. A Tool Executor is a class responsible for running a tool's code in a specific environment. This allows for transparently executing tools locally or in a remote environment, such as a Jupyter kernel running in a Docker container.
 
-### 6.1. Tool Executor Configuration
+### 5.1. Tool Executor Configuration
 
 Tool Executors are configured in the `setup-script` block of a session. This allows users to specify which executor to use for each tool.
 
@@ -162,10 +165,17 @@ read_file_tool = ToolWrapper(tool_func=read_file, executor=jupyter_executor)
 tools = [read_file_tool]
 ```
 
-### 6.2. Clean Tools
+### 5.2. Clean Tools
 
 To support different execution environments, tool logic is separated from the `domarkx` framework. These **Clean Tools** are simple Python functions that do not have any `domarkx`-specific dependencies or decorators. They are located in the `packages/domarkx/domarkx/tools/unconstrained` subpackage.
 
-### 6.3. Tool Wrappers
+### 5.3. Tool Wrappers
 
 A **Tool Wrapper** is a class that inherits from `autogen_core.tools.BaseTool` and makes a clean tool available to the `domarkx` system. The wrapper is responsible for invoking the appropriate Tool Executor to run the tool's logic. This design ensures that the tools remain compatible with the `autogen` ecosystem.
+
+## 6. Future Development
+
+-   **Context-Aware Macro Expansion**: Enhance the macro expansion process to provide more context to macro handlers, such as the current file path and line number.
+-   **Improved Error Handling**: Provide more detailed and user-friendly error messages for parsing and execution errors.
+-   **More Execution Engines**: Add support for more code execution engines, such as remote Docker containers.
+-   **GUI**: Develop a graphical user interface for a more user-friendly experience.
