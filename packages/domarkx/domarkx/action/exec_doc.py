@@ -9,7 +9,7 @@ from rich.console import Console
 
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
-from domarkx.utils.chat_doc_parser import Message, append_message
+from domarkx.utils.chat_doc_parser import append_message
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
@@ -71,7 +71,7 @@ def _append_new_messages(doc, new_state, messages):
 
 {content}"""
         with doc.open("a") as f:
-            append_message(f, Message("assistant", content, message))
+            append_message(f, AutoGenSession.create_message("assistant", content, message))
 
 
 def exec_doc(
