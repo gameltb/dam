@@ -1,5 +1,5 @@
 ---
-title: "Simple Tool Call"
+title: "Portable Tool Local Call"
 ---
 
 ```json session-config
@@ -13,6 +13,7 @@ title: "Simple Tool Call"
 ```python setup-script
 from unittest.mock import MagicMock, AsyncMock
 from autogen_core.models._types import CreateResult
+from domarkx.tools.tool_registry import get_tool, _discover_and_register_tools
 
 client = MagicMock()
 async def mock_create_stream(*args, **kwargs):
@@ -25,7 +26,7 @@ async def mock_create_stream(*args, **kwargs):
                     "tool_calls": [
                         {
                             "id": "call_123",
-                            "function": {"name": "add", "arguments": '{"a": 2, "b": 2}'},
+                            "function": {"name": "tool_execute_command", "arguments": '{"command": "ls"}'},
                             "type": "function",
                         }
                     ],
@@ -39,10 +40,8 @@ async def mock_create_stream(*args, **kwargs):
 
 client.create_stream = mock_create_stream
 
-def add(a: int, b: int) -> int:
-    return a + b
-
-tools = [add]
+_discover_and_register_tools()
+tools = [get_tool("tool_execute_command")]
 ```
 
 ## system_message
@@ -60,7 +59,7 @@ tools = [add]
 }
 ```
 
-> Add 2 and 2.
+> list files in current directory
 
 ## assistant
 
@@ -69,8 +68,8 @@ tools = [add]
   "content": [
     {
       "id": "call_123",
-      "arguments": "{\"a\": 2, \"b\": 2}",
-      "name": "add"
+      "arguments": "{\"command\": \"ls\"}",
+      "name": "tool_execute_command"
     }
   ],
   "source": "assistant",
@@ -78,15 +77,13 @@ tools = [add]
 }
 ```
 
-
-
 ## unknow
 
 ```json msg-metadata
 {
   "content": [
     {
-      "name": "add",
+      "name": "tool_execute_command",
       "call_id": "call_123",
       "is_error": false
     }
@@ -95,4 +92,11 @@ tools = [add]
 }
 ```
 
-> 4
+> README.md
+> coverage.xml
+> docs
+> domarkx
+> domarkx.egg-info
+> editors
+> pyproject.toml
+> tests

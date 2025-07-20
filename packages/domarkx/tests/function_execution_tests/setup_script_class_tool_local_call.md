@@ -1,5 +1,5 @@
 ---
-title: "Simple Tool Call"
+title: "Setup Script Class Tool Local Call"
 ---
 
 ```json session-config
@@ -39,10 +39,14 @@ async def mock_create_stream(*args, **kwargs):
 
 client.create_stream = mock_create_stream
 
-def add(a: int, b: int) -> int:
-    return a + b
+class MyTool:
+    def __init__(self):
+        pass
 
-tools = [add]
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+tools = [MyTool().add]
 ```
 
 ## system_message
@@ -77,8 +81,6 @@ tools = [add]
   "type": "AssistantMessage"
 }
 ```
-
-
 
 ## unknow
 

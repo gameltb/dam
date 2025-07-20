@@ -1,5 +1,5 @@
 ---
-title: "Simple Tool Call"
+title: "Setup Script Class Tool Remote Call"
 ---
 
 ```json session-config
@@ -13,6 +13,9 @@ title: "Simple Tool Call"
 ```python setup-script
 from unittest.mock import MagicMock, AsyncMock
 from autogen_core.models._types import CreateResult
+from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tool_executors.jupyter import JupyterToolExecutor
+from autogen_core.code_executor import LocalCodeExecutor
 
 client = MagicMock()
 async def mock_create_stream(*args, **kwargs):
@@ -39,10 +42,20 @@ async def mock_create_stream(*args, **kwargs):
 
 client.create_stream = mock_create_stream
 
-def add(a: int, b: int) -> int:
-    return a + b
+class MyTool:
+    def __init__(self):
+        pass
 
-tools = [add]
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+code_executor = LocalCodeExecutor()
+jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
+my_tool = MyTool()
+add_tool_wrapped = ToolWrapper(tool_func=my_tool.add, executor=jupyter_executor)
+
+tools = [add_tool_wrapped]
+tool_executors = [jupyter_executor]
 ```
 
 ## system_message
@@ -77,22 +90,3 @@ tools = [add]
   "type": "AssistantMessage"
 }
 ```
-
-
-
-## unknow
-
-```json msg-metadata
-{
-  "content": [
-    {
-      "name": "add",
-      "call_id": "call_123",
-      "is_error": false
-    }
-  ],
-  "type": "FunctionExecutionResultMessage"
-}
-```
-
-> 4
