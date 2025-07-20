@@ -53,51 +53,112 @@ packages/domarkx/
 └── pyproject.toml
 ```
 
-## Tool Executors
+## Function Execution
 
-The `domarkx` system uses Tool Executors to provide a flexible way to run tools in different environments. This allows for the same tool to be executed locally or in a remote Jupyter kernel without changing the tool's implementation.
+`domarkx` allows for the execution of functions (tools) as part of a conversation. This is useful for creating interactive documentation and testing tool integrations.
 
-### Creating a Custom Tool
+### Defining Tools
 
-To create a custom tool that can be used with a Tool Executor, follow these steps:
+Tools can be defined in a `setup-script` block within your Markdown document. Here are the different ways you can define and use tools:
 
-1.  **Create a portable tool function.** This function should contain the core logic of your tool. Name the function with a `tool_` prefix and place it in the `packages/domarkx/domarkx/tools/portable_tools` directory. For file operations, place them in the `file_operations` subdirectory.
+#### Plain Local Function Call
 
-    ```python
-    # packages/domarkx/domarkx/tools/portable_tools/my_tool.py
+You can define a simple Python function and add it to the `tools` list.
 
-    def tool_my_tool(param1: str, param2: int) -> str:
-        # Tool logic here
-        return f"Result: {param1}, {param2}"
-    ```
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
 
-2.  **The tool is automatically registered.** The tool registry will automatically discover any function in the `portable_tools` directory that starts with the `tool_` prefix. The `@tool_handler` decorator is also applied automatically.
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
 
-3.  **Use your tool.** You can now get your tool from the tool registry using the `get_tool` function.
+def add(a: int, b: int) -> int:
+    return a + b
 
-    ```python
-    from domarkx.tools.tool_registry import get_tool
+tools = [add]
+```
 
-    my_tool = get_tool("tool_my_tool")
-    ```
+#### Portable Tools (Local and Remote)
 
-    If you need to use the tool with a `JupyterToolExecutor`, you can get the unwrapped tool and wrap it with the `ToolWrapper`.
+"Portable tools" are designed to be executed in different environments (local or remote).
 
-    ```python setup-script
-    from domarkx.tool_executors.jupyter import JupyterToolExecutor
-    from domarkx.tools.tool_registry import get_unwrapped_tool
-    from domarkx.tools.tool_wrapper import ToolWrapper
+##### Local Execution
 
-    # Create an executor instance
-    my_executor = JupyterToolExecutor()
+To use a portable tool locally, import it and add it to the `tools` list.
 
-    # Get the unwrapped tool
-    my_tool_unwrapped = get_unwrapped_tool("tool_my_tool")
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.portable_tools.execute_command import tool_execute_command
 
-    # Wrap the tool
-    my_tool_wrapped = ToolWrapper(tool_func=my_tool_unwrapped, executor=my_executor)
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
 
-    # Add the wrapped tool to the list of tools
-    tools = [my_tool_wrapped]
-    tool_executors = [my_executor]
-    ```
+tools = [tool_execute_command]
+tool_executors = []
+```
+
+##### Remote Execution (Jupyter)
+
+To execute a portable tool remotely, you need a `JupyterToolExecutor` and a `CodeExecutor`.
+
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.portable_tools.execute_command import tool_execute_command
+from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tool_executors.jupyter import JupyterToolExecutor
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
+
+# Create a code executor and a Jupyter tool executor
+code_executor = LocalCommandLineCodeExecutor()
+jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
+
+# Wrap the tool with the executor
+tool_execute_command_wrapped = ToolWrapper(tool_func=tool_execute_command, executor=jupyter_executor)
+
+tools = [tool_execute_command_wrapped]
+tool_executors = [jupyter_executor]
+```
+
+#### Class-Based Tools
+
+You can also define tools as methods of a class.
+
+##### Local Execution
+
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
+
+class MyTool:
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+tools = [MyTool().add]
+tool_executors = []
+```
+
+##### Remote Execution
+
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tool_executors.jupyter import JupyterToolExecutor
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
+
+class MyTool:
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+# Create executors
+code_executor = LocalCommandLineCodeExecutor()
+jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
+
+# Wrap the tool method
+my_tool = MyTool()
+add_tool_wrapped = ToolWrapper(tool_func=my_tool.add, executor=jupyter_executor)
+
+tools = [add_tool_wrapped]
+tool_executors = [jupyter_executor]
+```

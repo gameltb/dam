@@ -27,10 +27,9 @@ client = OpenRouterR1OpenAIChatCompletionClient(
     },
 )
 
-from domarkx.tools.tool_registry import get_tool, _discover_and_register_tools
+from domarkx.tools.portable_tools.execute_command import tool_execute_command
 
-_discover_and_register_tools()
-tools = [get_tool("tool_execute_command")]
+tools = [tool_execute_command]
 tool_executors = []
 ```
 

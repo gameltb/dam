@@ -105,12 +105,18 @@ class AutoGenSession(Session):
         # Try to get the last expression to evaluate
         last_expr, remaining_code = self._get_last_expression(setup_script)
 
-        exec(remaining_code, global_vars, local_vars)
+        try:
+            exec(remaining_code, global_vars, local_vars)
 
-        if last_expr:
-            result = eval(last_expr, global_vars, local_vars)
-        else:
-            result = None
+            if last_expr:
+                result = eval(last_expr, global_vars, local_vars)
+            else:
+                result = None
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+            raise
 
         client = local_vars.get("client")
         tools = local_vars.get("tools")
@@ -124,7 +130,7 @@ class AutoGenSession(Session):
         # Start tool executors
         for executor in self.tool_executors:
             if hasattr(executor, "start"):
-                executor.start()
+                await executor.start()
 
         self.agent = ResumeFunCallAssistantAgent(
             "assistant",

@@ -29,19 +29,13 @@ client = OpenRouterR1OpenAIChatCompletionClient(
     },
 )
 
-from autogen_core.code_executor import CodeExecutor
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 
-class MyCodeExecutor(CodeExecutor):
-    def execute_code_block(self, language: str, code: str):
-        pass
-
-code_executor = MyCodeExecutor()
+code_executor = LocalCommandLineCodeExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
-from domarkx.tools.tool_registry import get_unwrapped_tool, _discover_and_register_tools
+from domarkx.tools.portable_tools.execute_command import tool_execute_command
 
-_discover_and_register_tools()
-tool_execute_command_unwrapped = get_unwrapped_tool("tool_execute_command")
-tool_execute_command_wrapped = ToolWrapper(tool_func=tool_execute_command_unwrapped, executor=jupyter_executor)
+tool_execute_command_wrapped = ToolWrapper(tool_func=tool_execute_command, executor=jupyter_executor)
 
 tools = [tool_execute_command_wrapped]
 tool_executors = [jupyter_executor]

@@ -35,7 +35,7 @@ class MyTool:
     def add(self, a: int, b: int) -> int:
         return a + b
 
-from autogen_core.code_executor import ShellCommandExecutor
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor as ShellCommandExecutor
 
 code_executor = ShellCommandExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
