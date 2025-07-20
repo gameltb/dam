@@ -42,16 +42,7 @@ For more details on the project's design and architecture, please see the [Docum
 
 ## Setup Instructions
 
-1.  **Navigate to the `packages/domarkx` directory.**
-2.  **Create a virtual environment and activate it:**
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    ```
-3.  **Install dependencies:**
-    ```bash
-    uv pip install -e .[all]
-    ```
+Please refer to the setup instructions in the root `AGENTS.md` file of this repository for the most up-to-date and consistent setup process. The recommended approach is to use the `uv sync --all-extras` command from the repository root to ensure all dependencies across the monorepo are correctly installed.
 
 ---
 
