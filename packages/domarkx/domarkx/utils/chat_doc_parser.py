@@ -1,9 +1,9 @@
 import io
 import json
 import re
+import textwrap
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
-import textwrap
 
 import yaml
 

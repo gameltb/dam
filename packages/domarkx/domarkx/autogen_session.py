@@ -55,7 +55,9 @@ class AutoGenSession(Session):
         messages = []
         for md_message in self.doc.conversation[1:]:
             message_dict = md_message.metadata
-            thought, content = parse_r1_content(md_message.content)
+            thought = content = None
+            if md_message.content is not None:
+                thought, content = parse_r1_content(md_message.content)
             if "content" not in message_dict:
                 message_dict["content"] = content
             elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
@@ -84,7 +86,9 @@ class AutoGenSession(Session):
 
 {content}"""
             with self.doc_path.open("a") as f:
-                append_message(f, self.create_message(message["source"] if "source" in message else "unknow", content, message))
+                append_message(
+                    f, self.create_message(message["source"] if "source" in message else "unknow", content, message)
+                )
 
     async def setup(self, **kwargs):
         self._process_initial_messages()

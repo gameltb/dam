@@ -10,7 +10,7 @@ import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
 
 
-async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
+async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_user_message_in_FunctionExecution=True):
     console = Console(markup=False)
     session = AutoGenSession(doc)
     await session.setup()
@@ -22,7 +22,14 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False):
     while True:
         task_msg = None
         latest_msg = session.messages[-1] if len(session.messages) > 0 else None
-        if len(session.messages) == 0 or (
+        if (
+            not allow_user_message_in_FunctionExecution
+            and latest_msg
+            and isinstance(latest_msg.get("content", ""), list)
+        ):
+            # If the last message is a FunctionExecutionMessage, we don't want to prompt for user input.
+            task_msg = None
+        elif len(session.messages) == 0 or (
             latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
         ):
             task_msg: str = await PromptSession().prompt_async(
