@@ -11,40 +11,33 @@ title: "Portable Tool Remote Call"
 ```
 
 ```python setup-script
-from unittest.mock import MagicMock, AsyncMock
-from autogen_core.models._types import CreateResult
-from domarkx.tools.tool_registry import get_unwrapped_tool, _discover_and_register_tools
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.tool_registry import get_unwrapped_tool
 from domarkx.tools.tool_wrapper import ToolWrapper
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
-from autogen_core.code_executor import LocalCodeExecutor
 
-client = MagicMock()
-async def mock_create_stream(*args, **kwargs):
-    yield CreateResult(
-        choices=[
-            {
-                "message": {
-                    "content": "Mocked response",
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "id": "call_123",
-                            "function": {"name": "tool_execute_command", "arguments": '{"command": "ls"}'},
-                            "type": "function",
-                        }
-                    ],
-                }
-            }
-        ],
-        cost=0,
-        model="mock_model",
-        extra_data={},
-    )
+client = OpenRouterR1OpenAIChatCompletionClient(
+    model="deepseek-chat",
+    base_url="https://api.deepseek.com",
+    api_key="mock_key",
+    model_info={
+        "vision": False,
+        "function_calling": True,
+        "json_output": False,
+        "family": "r1",
+        "structured_output": False,
+    },
+)
 
-client.create_stream = mock_create_stream
+from autogen_core.code_executor import CodeExecutor
 
-code_executor = LocalCodeExecutor()
+class MyCodeExecutor(CodeExecutor):
+    def execute_code_block(self, language: str, code: str):
+        pass
+
+code_executor = MyCodeExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
+from domarkx.tools.tool_registry import get_unwrapped_tool, _discover_and_register_tools
 
 _discover_and_register_tools()
 tool_execute_command_unwrapped = get_unwrapped_tool("tool_execute_command")

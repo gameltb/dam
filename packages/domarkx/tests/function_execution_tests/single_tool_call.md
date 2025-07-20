@@ -11,33 +11,21 @@ title: "Simple Tool Call"
 ```
 
 ```python setup-script
-from unittest.mock import MagicMock, AsyncMock
-from autogen_core.models._types import CreateResult
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+import os
 
-client = MagicMock()
-async def mock_create_stream(*args, **kwargs):
-    yield CreateResult(
-        choices=[
-            {
-                "message": {
-                    "content": "Mocked response",
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "id": "call_123",
-                            "function": {"name": "add", "arguments": '{"a": 2, "b": 2}'},
-                            "type": "function",
-                        }
-                    ],
-                }
-            }
-        ],
-        cost=0,
-        model="mock_model",
-        extra_data={},
-    )
-
-client.create_stream = mock_create_stream
+client = OpenRouterR1OpenAIChatCompletionClient(
+    model="deepseek-chat",
+    base_url="https://api.deepseek.com",
+    api_key="mock_key",
+    model_info={
+        "vision": False,
+        "function_calling": True,
+        "json_output": False,
+        "family": "r1",
+        "structured_output": False,
+    },
+)
 
 def add(a: int, b: int) -> int:
     return a + b
@@ -79,20 +67,3 @@ tools = [add]
 ```
 
 
-
-## unknow
-
-```json msg-metadata
-{
-  "content": [
-    {
-      "name": "add",
-      "call_id": "call_123",
-      "is_error": false
-    }
-  ],
-  "type": "FunctionExecutionResultMessage"
-}
-```
-
-> 4

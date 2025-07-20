@@ -11,36 +11,22 @@ title: "Setup Script Class Tool Remote Call"
 ```
 
 ```python setup-script
-from unittest.mock import MagicMock, AsyncMock
-from autogen_core.models._types import CreateResult
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
 from domarkx.tools.tool_wrapper import ToolWrapper
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
-from autogen_core.code_executor import LocalCodeExecutor
 
-client = MagicMock()
-async def mock_create_stream(*args, **kwargs):
-    yield CreateResult(
-        choices=[
-            {
-                "message": {
-                    "content": "Mocked response",
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "id": "call_123",
-                            "function": {"name": "add", "arguments": '{"a": 2, "b": 2}'},
-                            "type": "function",
-                        }
-                    ],
-                }
-            }
-        ],
-        cost=0,
-        model="mock_model",
-        extra_data={},
-    )
-
-client.create_stream = mock_create_stream
+client = OpenRouterR1OpenAIChatCompletionClient(
+    model="deepseek-chat",
+    base_url="https://api.deepseek.com",
+    api_key="mock_key",
+    model_info={
+        "vision": False,
+        "function_calling": True,
+        "json_output": False,
+        "family": "r1",
+        "structured_output": False,
+    },
+)
 
 class MyTool:
     def __init__(self):
@@ -49,7 +35,9 @@ class MyTool:
     def add(self, a: int, b: int) -> int:
         return a + b
 
-code_executor = LocalCodeExecutor()
+from autogen_core.code_executor import ShellCommandExecutor
+
+code_executor = ShellCommandExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
 my_tool = MyTool()
 add_tool_wrapped = ToolWrapper(tool_func=my_tool.add, executor=jupyter_executor)

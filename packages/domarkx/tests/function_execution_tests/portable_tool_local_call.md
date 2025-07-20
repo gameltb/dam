@@ -11,37 +11,27 @@ title: "Portable Tool Local Call"
 ```
 
 ```python setup-script
-from unittest.mock import MagicMock, AsyncMock
-from autogen_core.models._types import CreateResult
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.tool_registry import get_tool
+
+client = OpenRouterR1OpenAIChatCompletionClient(
+    model="deepseek-chat",
+    base_url="https://api.deepseek.com",
+    api_key="mock_key",
+    model_info={
+        "vision": False,
+        "function_calling": True,
+        "json_output": False,
+        "family": "r1",
+        "structured_output": False,
+    },
+)
+
 from domarkx.tools.tool_registry import get_tool, _discover_and_register_tools
-
-client = MagicMock()
-async def mock_create_stream(*args, **kwargs):
-    yield CreateResult(
-        choices=[
-            {
-                "message": {
-                    "content": "Mocked response",
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "id": "call_123",
-                            "function": {"name": "tool_execute_command", "arguments": '{"command": "ls"}'},
-                            "type": "function",
-                        }
-                    ],
-                }
-            }
-        ],
-        cost=0,
-        model="mock_model",
-        extra_data={},
-    )
-
-client.create_stream = mock_create_stream
 
 _discover_and_register_tools()
 tools = [get_tool("tool_execute_command")]
+tool_executors = []
 ```
 
 ## system_message
@@ -76,27 +66,3 @@ tools = [get_tool("tool_execute_command")]
   "type": "AssistantMessage"
 }
 ```
-
-## unknow
-
-```json msg-metadata
-{
-  "content": [
-    {
-      "name": "tool_execute_command",
-      "call_id": "call_123",
-      "is_error": false
-    }
-  ],
-  "type": "FunctionExecutionResultMessage"
-}
-```
-
-> README.md
-> coverage.xml
-> docs
-> domarkx
-> domarkx.egg-info
-> editors
-> pyproject.toml
-> tests
