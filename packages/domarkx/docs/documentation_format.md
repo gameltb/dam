@@ -173,7 +173,17 @@ To support different execution environments, tool logic is separated from the `d
 
 A **Tool Wrapper** is a class that inherits from `autogen_core.tools.BaseTool` and makes a clean tool available to the `domarkx` system. The wrapper is responsible for invoking the appropriate Tool Executor to run the tool's logic. This design ensures that the tools remain compatible with the `autogen` ecosystem.
 
-## 6. Future Development
+## 6. Relationship Between Macros and Tools
+
+In `domarkx`, **Macros** and **Tools** are distinct but related concepts that work together to provide interactivity and extensibility.
+
+-   **Macros**: A macro is a user-facing command embedded in a Markdown document using a special link format (`domarkx://...`). Macros are the primary way for users to trigger actions directly from the documentation. They are discovered and parsed by the `MacroExpander`.
+
+-   **Tools**: A tool is a Python function that encapsulates a specific piece of logic (e.g., reading a file, running a command). Tools are designed to be executed by **Tool Executors**, which allows them to run in different environments (e.g., locally or in a Jupyter kernel).
+
+The relationship between them is as follows: a **Macro**'s primary role is often to invoke a **Tool**. The macro handler function, upon parsing the `domarkx://` link, will typically call the relevant tool, passing along any parameters from the macro. This separation of concerns allows for a clean architecture where user interaction (Macros) is decoupled from the underlying implementation (Tools).
+
+## 7. Future Development
 
 -   **Context-Aware Macro Expansion**: Enhance the macro expansion process to provide more context to macro handlers, such as the current file path and line number.
 -   **Improved Error Handling**: Provide more detailed and user-friendly error messages for parsing and execution errors.

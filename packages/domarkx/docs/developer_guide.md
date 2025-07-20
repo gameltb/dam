@@ -4,17 +4,7 @@ This guide provides instructions for developers working on the `domarkx` codebas
 
 ## Setup Instructions
 
-1.  **Clone the repository.**
-2.  **Navigate to the `packages/domarkx` directory.**
-3.  **Create a virtual environment and activate it:**
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    ```
-4.  **Install dependencies:**
-    ```bash
-    uv pip install -e .[all]
-    ```
+Please refer to the setup instructions in the root `AGENTS.md` file of this repository for the most up-to-date and consistent setup process. The recommended approach is to use the `uv sync --all-extras` command from the repository root to ensure all dependencies across the monorepo are correctly installed.
 
 ## Running Tests
 
@@ -30,18 +20,19 @@ When writing tests that create files, it is recommended to use the `runner.isola
 
 ## Coding Conventions
 
-Please follow PEP 8 for Python code. Use `ruff` for linting and formatting:
+Please follow PEP 8 for Python code. It is recommended to use `poe` to run all checks, as it is configured for the entire monorepo.
 
 ```bash
-# Check for linting errors
-uv run ruff check .
+# Run all checks (format, lint, test, etc.)
+poe check
 
-# Fix linting errors
-uv run ruff check . --fix
-
-# Format code
-uv run ruff format .
+# Or run individual checks
+poe format
+poe lint
+poe test
 ```
+
+This ensures consistency across the entire project.
 
 ## Project Structure
 
