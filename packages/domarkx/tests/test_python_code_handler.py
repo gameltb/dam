@@ -3,7 +3,7 @@ import sys
 import pytest
 
 from domarkx.tools.python_code_handler import _resolve_symbol_path, python_code_handler
-from domarkx.tools.tool_decorator import ToolError
+from domarkx.tools.tool_factory import ToolError
 
 # Original contents of example_module.py for resetting
 ORIGINAL_EXAMPLE_MODULE_CONTENT = '''

@@ -96,12 +96,11 @@ tool_executors = []
 
 ##### Remote Execution (Jupyter)
 
-To execute a portable tool remotely, you need a `JupyterToolExecutor` and a `CodeExecutor`.
+To execute a portable tool remotely, you need a `JupyterToolExecutor` and a `CodeExecutor`. The `ToolFactory` simplifies wrapping the tool.
 
 ```python setup-script
 from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-from domarkx.tools.portable_tools.execute_command import tool_execute_command
-from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tools.tool_factory import default_tool_factory
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 
@@ -111,8 +110,11 @@ client = OpenRouterR1OpenAIChatCompletionClient(model="...")
 code_executor = LocalCommandLineCodeExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
 
-# Wrap the tool with the executor
-tool_execute_command_wrapped = ToolWrapper(tool_func=tool_execute_command, executor=jupyter_executor)
+# Get the unwrapped tool function from the factory
+tool_func = default_tool_factory.get_unwrapped_tool("tool_execute_command")
+
+# Wrap the tool with the executor using the factory
+tool_execute_command_wrapped = default_tool_factory.wrap_function(func=tool_func, executor=jupyter_executor)
 
 tools = [tool_execute_command_wrapped]
 tool_executors = [jupyter_executor]
@@ -141,7 +143,7 @@ tool_executors = []
 
 ```python setup-script
 from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tools.tool_factory import default_tool_factory
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 
@@ -155,10 +157,39 @@ class MyTool:
 code_executor = LocalCommandLineCodeExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
 
-# Wrap the tool method
+# Wrap the tool method using the factory
 my_tool = MyTool()
-add_tool_wrapped = ToolWrapper(tool_func=my_tool.add, executor=jupyter_executor)
+add_tool_wrapped = default_tool_factory.wrap_function(func=my_tool.add, executor=jupyter_executor)
 
 tools = [add_tool_wrapped]
+tool_executors = [jupyter_executor]
+```
+
+### Creating Tools from Strings
+
+The `ToolFactory` also allows you to create tools dynamically from a string of Python code. This is useful for scenarios where tools are generated on the fly.
+
+```python setup-script
+from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
+from domarkx.tools.tool_factory import default_tool_factory
+from domarkx.tool_executors.jupyter import JupyterToolExecutor
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
+client = OpenRouterR1OpenAIChatCompletionClient(model="...")
+
+# Code for the tool as a string
+tool_code = """
+def multiply(a: int, b: int) -> int:
+    return a * b
+"""
+
+# Create executors
+code_executor = LocalCommandLineCodeExecutor()
+jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
+
+# Create the tool from the string
+multiply_tool = default_tool_factory.create_tool_from_string(code=tool_code, executor=jupyter_executor)
+
+tools = [multiply_tool]
 tool_executors = [jupyter_executor]
 ```

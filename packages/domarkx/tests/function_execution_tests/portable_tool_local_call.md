@@ -12,7 +12,7 @@ title: "Portable Tool Local Call"
 
 ```python setup-script
 from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-from domarkx.tools.tool_registry import get_tool
+from domarkx.tools.tool_factory import default_tool_factory
 
 client = OpenRouterR1OpenAIChatCompletionClient(
     model="deepseek-chat",

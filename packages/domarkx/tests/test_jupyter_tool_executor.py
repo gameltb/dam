@@ -6,7 +6,7 @@ from autogen_ext.code_executors.docker_jupyter import DockerJupyterCodeExecutor
 from autogen_ext.code_executors.jupyter import JupyterCodeExecutor
 
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
-from domarkx.tools.tool_registry import get_unwrapped_tool
+from domarkx.tools.tool_factory import default_tool_factory
 
 
 # A sample tool function to be executed remotely
@@ -48,7 +48,7 @@ async def test_jupyter_tool_executor_with_different_code_executors(code_executor
 async def test_execute_command_tool(code_executor):
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
     result = await tool_executor.execute(
-        get_unwrapped_tool("tool_execute_command"), command="echo 'Hello from command'"
+        default_tool_factory.get_unwrapped_tool("tool_execute_command"), command="echo 'Hello from command'"
     )
     assert "Hello from command" in result
 
@@ -63,9 +63,11 @@ And triple quotes: \"\"\"
 """
 
     # Test write_to_file
-    await tool_executor.execute(get_unwrapped_tool("tool_write_to_file"), path=str(file_path), content=content)
+    await tool_executor.execute(
+        default_tool_factory.get_unwrapped_tool("tool_write_to_file"), path=str(file_path), content=content
+    )
 
     # Test read_file
-    result = await tool_executor.execute(get_unwrapped_tool("tool_read_file"), path=str(file_path))
+    result = await tool_executor.execute(default_tool_factory.get_unwrapped_tool("tool_read_file"), path=str(file_path))
 
     assert content in result
