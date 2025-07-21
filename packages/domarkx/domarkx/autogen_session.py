@@ -8,6 +8,7 @@ from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
 from domarkx.utils.chat_doc_parser import CodeBlock, Message
+from domarkx.utils.code_execution import execute_code_block
 
 
 class AutoGenSession(Session):
@@ -105,12 +106,10 @@ class AutoGenSession(Session):
         # Try to get the last expression to evaluate
         last_expr, remaining_code = self._get_last_expression(setup_script)
 
-        exec(remaining_code, global_vars, local_vars)
+        execute_code_block(remaining_code, global_vars, local_vars)
 
         if last_expr:
-            result = eval(last_expr, global_vars, local_vars)
-        else:
-            result = None
+            execute_code_block(f"result = {last_expr}", global_vars, local_vars)
 
         client = local_vars.get("client")
         tools = local_vars.get("tools")
@@ -124,7 +123,7 @@ class AutoGenSession(Session):
         # Start tool executors
         for executor in self.tool_executors:
             if hasattr(executor, "start"):
-                executor.start()
+                await executor.start()
 
         self.agent = ResumeFunCallAssistantAgent(
             "assistant",

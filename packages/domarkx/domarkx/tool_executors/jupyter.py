@@ -12,17 +12,17 @@ class JupyterToolExecutor:
     def __init__(self, code_executor: CodeExecutor):
         self.code_executor = code_executor
 
-    def start(self):
+    async def start(self):
         if hasattr(self.code_executor, "start"):
-            self.code_executor.start()
+            await self.code_executor.start()
 
-    def stop(self):
+    async def stop(self):
         if hasattr(self.code_executor, "stop"):
-            self.code_executor.stop()
+            await self.code_executor.stop()
 
-    def restart(self):
+    async def restart(self):
         if hasattr(self.code_executor, "restart"):
-            self.code_executor.restart()
+            await self.code_executor.restart()
 
     async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
         if hasattr(tool_func, "__source_code__"):
