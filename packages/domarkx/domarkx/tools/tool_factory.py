@@ -181,8 +181,10 @@ class ToolFactory:
         """
         Creates a tool from a string of Python code.
         """
+        from domarkx.utils.code_execution import execute_code_block
+
         local_namespace = {}
-        exec(code, globals(), local_namespace)
+        execute_code_block(code, global_vars=globals(), local_vars=local_namespace)
 
         func_name = [name for name, obj in local_namespace.items() if inspect.isfunction(obj)][0]
         func = local_namespace[func_name]
