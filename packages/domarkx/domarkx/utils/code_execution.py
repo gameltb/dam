@@ -1,5 +1,4 @@
 import linecache
-import time
 import traceback
 
 
@@ -20,7 +19,7 @@ def execute_code_block(code: str, global_vars: dict = None, local_vars: dict = N
 
     try:
         # Add the code to the linecache
-        linecache.cache[filename] = (len(code), None, [line + '\n' for line in code.splitlines()], filename)
+        linecache.cache[filename] = (len(code), None, [line + "\n" for line in code.splitlines()], filename)
 
         # Compile and execute the code
         compiled_code = compile(code, filename, "exec")

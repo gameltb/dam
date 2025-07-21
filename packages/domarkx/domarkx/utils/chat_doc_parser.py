@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -8,12 +9,6 @@ from typing import List, Optional, Tuple, Union
 import yaml
 
 from domarkx.utils.markdown_utils import CodeBlock
-
-
-@dataclass
-class SessionMetadata:
-    code_blocks: List[CodeBlock] = field(default_factory=list)
-    session_config: Optional[dict] = None
 
 
 @dataclass
@@ -57,9 +52,6 @@ class ParsedDocument:
         if not blocks:
             return None
         return json.loads(blocks[0].code)
-
-
-import logging
 
 
 class MarkdownLLMParser:

@@ -1,6 +1,7 @@
 import io
-import pytest
 from contextlib import redirect_stderr
+
+import pytest
 
 from domarkx.utils.code_execution import execute_code_block
 
