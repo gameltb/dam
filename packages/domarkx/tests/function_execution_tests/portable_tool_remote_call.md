@@ -12,8 +12,8 @@ title: "Portable Tool Remote Call"
 
 ```python setup-script
 from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-from domarkx.tools.tool_registry import get_unwrapped_tool
-from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tools.tool_factory import default_tool_factory
+from domarkx.tools.tool_factory import default_tool_factory
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
 
 client = OpenRouterR1OpenAIChatCompletionClient(
@@ -35,7 +35,7 @@ code_executor = LocalCommandLineCodeExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
 from domarkx.tools.portable_tools.execute_command import tool_execute_command
 
-tool_execute_command_wrapped = ToolWrapper(tool_func=tool_execute_command, executor=jupyter_executor)
+tool_execute_command_wrapped = default_tool_factory.wrap_function(func=tool_execute_command, executor=jupyter_executor)
 
 tools = [tool_execute_command_wrapped]
 tool_executors = [jupyter_executor]

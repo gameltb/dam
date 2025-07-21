@@ -4,7 +4,7 @@ import pytest
 
 from domarkx.tool_call.run_tool_code.tool import REGISTERED_TOOLS, execute_tool_call
 from domarkx.tools import python_code_handler
-from domarkx.tools.tool_decorator import ToolError
+from domarkx.tools.tool_factory import ToolError
 
 
 # Setup and Teardown for temporary test files

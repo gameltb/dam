@@ -12,7 +12,7 @@ title: "Setup Script Class Tool Remote Call"
 
 ```python setup-script
 from domarkx.models.openrouter import OpenRouterR1OpenAIChatCompletionClient
-from domarkx.tools.tool_wrapper import ToolWrapper
+from domarkx.tools.tool_factory import default_tool_factory
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
 
 client = OpenRouterR1OpenAIChatCompletionClient(
@@ -40,7 +40,7 @@ from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor as She
 code_executor = ShellCommandExecutor()
 jupyter_executor = JupyterToolExecutor(code_executor=code_executor)
 my_tool = MyTool()
-add_tool_wrapped = ToolWrapper(tool_func=my_tool.add, executor=jupyter_executor)
+add_tool_wrapped = default_tool_factory.wrap_function(func=my_tool.add, executor=jupyter_executor)
 
 tools = [add_tool_wrapped]
 tool_executors = [jupyter_executor]

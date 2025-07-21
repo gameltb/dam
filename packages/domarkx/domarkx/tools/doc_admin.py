@@ -3,7 +3,7 @@ import subprocess
 
 from domarkx.config import settings
 from domarkx.tools.session_management import create_session, send_message
-from domarkx.tools.tool_decorator import tool_handler
+from domarkx.tools.tool_factory import _tool_handler as tool_handler
 
 
 @tool_handler()

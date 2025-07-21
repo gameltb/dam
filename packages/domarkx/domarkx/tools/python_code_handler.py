@@ -10,7 +10,8 @@ import libcst.matchers as m
 from libcst.metadata import MetadataWrapper, PositionProvider
 
 # Import the decorator and custom exception from the new module
-from domarkx.tools.tool_decorator import ToolError, tool_handler
+from domarkx.tools.tool_factory import ToolError
+from domarkx.tools.tool_factory import _tool_handler as tool_handler
 
 
 # Helper for symbol resolution from modify_python_ast.py
