@@ -1,8 +1,10 @@
 import asyncio
 import pathlib
+import tempfile
 from typing import Annotated
 
 import typer
+from domarkx.macro_expander import MacroExpander
 from prompt_toolkit import PromptSession
 from rich.console import Console
 
@@ -13,7 +15,21 @@ from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_user_message_in_FunctionExecution=True):
     console = Console(markup=False)
-    session = AutoGenSession(doc)
+
+    # Read the content from the document
+    with open(doc, "r") as f:
+        content = f.read()
+
+    # Expand macros
+    expander = MacroExpander(base_dir=str(doc.parent))
+    expanded_content = expander.expand(content)
+
+    # Write the expanded content to a temporary file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".md") as temp_f:
+        temp_f.write(expanded_content)
+        temp_doc = pathlib.Path(temp_f.name)
+
+    session = AutoGenSession(temp_doc)
     await session.setup()
 
     while True:
