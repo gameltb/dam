@@ -56,7 +56,7 @@ class AutoGenSession(Session):
         messages = []
         for md_message in self.doc.conversation[1:]:
             message_dict = md_message.metadata
-            thought = content = None
+            thought = content = ""
             if md_message.content is not None:
                 thought, content = parse_r1_content(md_message.content)
             if "content" not in message_dict:

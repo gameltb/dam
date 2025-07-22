@@ -19,7 +19,12 @@ from autogen_agentchat.messages import (
 from autogen_core import CancellationToken
 from autogen_core.models import RequestUsage
 from prompt_toolkit import PromptSession
+import asyncio
+from prompt_toolkit import PromptSession
+from prompt_toolkit.application import get_app
+from prompt_toolkit.filters import Condition
 
+PROMPT_TOOLKIT_IS_MULTILINE_CONDITION = Condition(lambda: bool(get_app().current_buffer.text))
 
 def _is_running_in_iterm() -> bool:
     return os.getenv("TERM_PROGRAM") == "iTerm.app"

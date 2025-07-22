@@ -8,16 +8,13 @@ from rich.console import Console
 
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
+from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
 async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_user_message_in_FunctionExecution=True):
     console = Console(markup=False)
     session = AutoGenSession(doc)
     await session.setup()
-
-    console.print("".join(session.doc.raw_lines))
-
-    # console.input("Press Enter to run stream, Ctrl+C to cancel.")
 
     while True:
         task_msg = None
@@ -34,8 +31,10 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_
         ):
             task_msg: str = await PromptSession().prompt_async(
                 "task > ",
-                multiline=True,
-                bottom_toolbar="press Alt+Enter in order to accept the input. (Or Escape followed by Enter.)",
+                multiline=PROMPT_TOOLKIT_IS_MULTILINE_CONDITION,
+                bottom_toolbar=lambda: "press Alt+Enter in order to accept the input. (Or Escape followed by Enter.)"
+                if PROMPT_TOOLKIT_IS_MULTILINE_CONDITION()
+                else None,
             )
             if latest_msg and latest_msg.get("type", "") in ["FunctionExecutionResultMessage"]:
                 if len(task_msg.strip()) == 0:
