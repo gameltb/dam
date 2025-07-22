@@ -31,6 +31,11 @@ class MacroExpander:
                 macro_obj.url = f"domarkx://{macro_name}"
                 macro_obj.params = {}
                 macro_value = getattr(self, f"_{macro_name}_macro")(macro_obj, expanded_content)
+
+            # Recursively expand macros in the replacement value
+            if isinstance(macro_value, str) and macro_value != match.group(0):
+                macro_value = self.expand(macro_value, parameters)
+
             expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match.end() :]
         return expanded_content
 

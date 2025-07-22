@@ -1,5 +1,6 @@
 import os
 import subprocess
+from datetime import datetime
 
 from domarkx.config import settings
 from domarkx.macro_expander import MacroExpander
@@ -139,3 +140,52 @@ def list_sessions():
     sessions_path = os.path.join(settings.project_path, "sessions")
     sessions = [f for f in os.listdir(sessions_path) if f.endswith(".md")]
     return "\n".join(sessions)
+
+
+@tool_handler()
+def archive_session(session_name: str, topic: str):
+    """
+    Archive a session file based on its topic and creation date.
+
+    Args:
+        session_name (str): The name of the session file (without .md extension).
+        topic (str): The topic of the session.
+
+    Returns:
+        str: Success message.
+
+    Raises:
+        FileNotFoundError: If the session file does not exist.
+
+    Example:
+        >>> archive_session("test_session", "testing")
+        "Session 'test_session' archived to 'archive/testing/2023-11-15_test_session.md'."
+
+    The session file will be moved to the archive directory and the changes will be committed to git.
+    """
+    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
+    if not os.path.exists(session_path):
+        raise FileNotFoundError(f"Session not found: {session_path}")
+
+    # Get creation date
+    creation_timestamp = os.path.getctime(session_path)
+    creation_date = datetime.fromtimestamp(creation_timestamp).strftime("%Y-%m-%d")
+
+    # Create archive directory
+    archive_dir = os.path.join(settings.project_path, "archive", topic)
+    os.makedirs(archive_dir, exist_ok=True)
+
+    # Move and rename session file
+    new_session_name = f"{creation_date}_{session_name}.md"
+    new_session_path = os.path.join(archive_dir, new_session_name)
+    os.rename(session_path, new_session_path)
+
+    # Add to git
+    subprocess.run(["git", "add", new_session_path], cwd=settings.project_path)
+    subprocess.run(["git", "rm", session_path], cwd=settings.project_path)
+    subprocess.run(
+        ["git", "commit", "-m", f"Archive session {session_name} to {topic}"],
+        cwd=settings.project_path,
+    )
+
+    return f"Session '{session_name}' archived to '{new_session_path}'."
