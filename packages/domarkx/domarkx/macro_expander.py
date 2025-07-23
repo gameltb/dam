@@ -37,27 +37,17 @@ class MacroExpander:
 
                 # Combine and overwrite params
                 combined_params = url_params.copy()
-                if "params_override" in override_parameters:
-                    for p in override_parameters["params_override"]:
-                        if p in combined_params:
-                            combined_params[p] = override_parameters.get(p, combined_params[p])
+                if macro_text in override_parameters:
+                    combined_params.update(override_parameters[macro_text])
                 macro_obj.params = combined_params
 
                 macro_value = getattr(self, f"_{macro_name}_macro")(macro_obj, expanded_content)
-            else:
-                # Regular parameter replacement
-                if macro_name in override_parameters:
-                    macro_value = override_parameters[macro_name]
-                elif macro_text in override_parameters:
-                    macro_value = override_parameters[macro_text]
-                else:
-                    macro_value = original_macro_text
 
             # Recursively expand macros in the replacement value
             if isinstance(macro_value, str) and macro_value != original_macro_text:
                 macro_value = self.expand(macro_value, override_parameters)
 
-            expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match_end :]
+            expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match_end:]
         return expanded_content
 
     def _include_macro(self, macro, content):

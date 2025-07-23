@@ -62,8 +62,6 @@ def parse_macro(match, content):
 
     # Check for a following URL which is treated as a parameter
     match_end = match.end()
-    # Check for a following URL which is treated as a parameter
-    match_end = match.end()
     rest_of_content = content[match_end:]
 
     following_links_pattern = re.compile(r"\s*\[(.+?)\]\((.+?)\)")

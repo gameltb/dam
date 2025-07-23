@@ -37,27 +37,23 @@ async def aexec_doc(
     doc_to_exec = doc
     project_path = pathlib.Path(settings.project_path)
     # Check if the file is under the project path
-    if project_path in doc.parents:
-        # Check if the file is in the sessions folder
-        if sessions_dir not in doc.parents:
-            # Create a temporary file in the sessions folder
-            now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            temp_filename = f"{now}_{doc.stem}.md"
-            doc_to_exec = sessions_dir / temp_filename
+    if project_path in doc.parents and sessions_dir not in doc.parents:
+        # Create a temporary file in the sessions folder
+        now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        temp_filename = f"{now}_{doc.stem}.md"
+        doc_to_exec = sessions_dir / temp_filename
 
-            with open(doc_to_exec, "w") as f:
-                f.write(expanded_content)
-        else:
-            if not overwrite:
-                now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                new_filename = f"{doc.stem}_{now}.md"
-                doc_to_exec = doc.with_name(new_filename)
-
-            with open(doc_to_exec, "w") as f:
-                f.write(expanded_content)
+        with open(doc_to_exec, "w") as f:
+            f.write(expanded_content)
     else:
-        # If the file is not under the project path, just execute it directly
-        pass
+        if not overwrite:
+            now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            new_filename = f"{doc.stem}_{now}.md"
+            doc_to_exec = doc.with_name(new_filename)
+
+        with open(doc_to_exec, "w") as f:
+            f.write(expanded_content)
+
 
     session = AutoGenSession(doc_to_exec)
     await session.setup()
