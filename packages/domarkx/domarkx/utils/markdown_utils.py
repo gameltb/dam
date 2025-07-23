@@ -47,6 +47,7 @@ class Macro:
 MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)")
 FOLLOWING_LINKS_PATTERN = re.compile(r"\[(.+?)\]\((.+?)\)")
 
+
 def find_first_macro(content: str) -> Optional[Macro]:
     """Finds the first macro in the content and returns a Macro object if found."""
     match = MACRO_PATTERN.search(content)

@@ -53,3 +53,52 @@ def test_message_multiple_blockquotes():
     parser = MarkdownLLMParser()
     with pytest.raises(ValueError):
         parser.parse(md)
+
+
+def test_to_markdown_serialization():
+    md = """---
+title: Test Session
+---
+
+```json session-config
+{"type": "AssistantAgentState"}
+```
+
+```python setup-script
+print("setup")
+```
+
+## User
+
+```json msg-metadata
+{"source": "user", "type": "UserMessage"}
+```
+
+```python
+print("hello")
+```
+
+> User's message content.
+> Second line.
+
+## Assistant
+
+```json msg-metadata
+{"source": "assistant", "type": "AssistantMessage"}
+```
+
+> Assistant's reply.
+> Multi-line reply.
+"""
+    parser = MarkdownLLMParser()
+    doc = parser.parse(md)
+    serialized_md = doc.to_markdown()
+    # Normalize the markdown by removing leading/trailing whitespace and empty lines
+    normalized_original = "\n".join(filter(None, (line.strip() for line in md.splitlines()))).strip()
+    normalized_serialized = "\n".join(filter(None, (line.strip() for line in serialized_md.splitlines()))).strip()
+
+    # Further normalization to handle subtle differences in YAML and JSON formatting
+    normalized_original = normalized_original.replace("'", '"')
+    normalized_serialized = normalized_serialized.replace("'", '"')
+
+    assert normalized_serialized == normalized_original

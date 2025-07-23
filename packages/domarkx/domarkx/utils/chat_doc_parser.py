@@ -37,7 +37,25 @@ class ParsedDocument:
     global_metadata: dict = field(default_factory=lambda: {})
     code_blocks: List[CodeBlock] = field(default_factory=list)
     conversation: List[Message] = field(default_factory=list)
-    raw_lines: List[str] = field(default_factory=list, repr=False)
+
+    def to_markdown(self) -> str:
+        """Serializes the document back to a markdown string."""
+        writer = io.StringIO()
+
+        if self.global_metadata:
+            writer.write("---\n")
+            yaml.dump(self.global_metadata, writer)
+            writer.write("---\n\n")
+
+        for code_block in self.code_blocks:
+            writer.write(
+                f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n"
+            )
+
+        for message in self.conversation:
+            append_message(writer, message)
+
+        return writer.getvalue()
 
     def get_code_blocks(self, language: str = None, attrs: str = None) -> List[CodeBlock]:
         return [
@@ -66,7 +84,6 @@ class MarkdownLLMParser:
     def parse(self, md_content: str) -> ParsedDocument:
         self.document = ParsedDocument()
         lines = md_content.splitlines(keepends=True)
-        self.document.raw_lines = lines
         i = 0
 
         # Parse frontmatter

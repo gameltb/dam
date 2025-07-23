@@ -10,7 +10,7 @@ from rich.console import Console
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
 from domarkx.config import settings
-from domarkx.macro_expander import MacroExpander
+from domarkx.macro_expander import DocExpander
 from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
@@ -27,8 +27,9 @@ async def aexec_doc(
         content = f.read()
 
     # Expand macros
-    expander = MacroExpander(base_dir=str(doc.parent))
-    expanded_content = expander.expand(content)
+    expander = DocExpander(base_dir=str(doc.parent))
+    expanded_doc = expander.expand(content)
+    expanded_content = expanded_doc.to_markdown()
 
     sessions_dir = pathlib.Path(settings.project_path) / "sessions"
     sessions_dir.mkdir(exist_ok=True)
