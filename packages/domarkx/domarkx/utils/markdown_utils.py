@@ -39,26 +39,29 @@ class Macro:
     params: Dict[str, Any] = field(default_factory=dict)
     link_text: str = ""
     url: str = ""
+    original_text: str = ""
+    start: int = 0
+    end: int = 0
 
 
 MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)(\s*\[(.+?)\]\((.+?)\))?")
 
 
-def find_first_macro(content: str):
-    """Finds the first macro in the content."""
-    return MACRO_PATTERN.search(content)
+def find_first_macro(content: str) -> Optional[Macro]:
+    """Finds the first macro in the content and returns a Macro object if found."""
+    match = MACRO_PATTERN.search(content)
+    if not match:
+        return None
 
-
-def parse_macro(match, content):
-    """Parses a macro match object."""
-    macro_text = match.group(1)
-    url = urlparse(match.group(2))
-    macro_name = url.netloc
+    link_text = match.group(1)
+    url_string = match.group(2)
+    parsed_url = urlparse(url_string)
+    command = parsed_url.netloc
 
     # Extract params from URL query
-    parsed_params = parse_qs(url.query)
+    parsed_params = parse_qs(parsed_url.query)
     # Flatten the lists of params
-    url_params = {k: v[0] for k, v in parsed_params.items()}
+    params = {k: v[0] for k, v in parsed_params.items()}
 
     # Check for a following URL which is treated as a parameter
     match_end = match.end()
@@ -70,10 +73,20 @@ def parse_macro(match, content):
         if following_match:
             param_name = following_match.group(1)
             param_value = following_match.group(2)
-            url_params[param_name] = param_value
+            params[param_name] = param_value
             match_end += following_match.end()
             rest_of_content = content[match_end:]
         else:
             break
 
-    return macro_text, macro_name, url_params, content[match.start():match_end], match_end
+    original_text = content[match.start() : match_end]
+
+    return Macro(
+        command=command,
+        params=params,
+        link_text=link_text,
+        url=url_string,
+        original_text=original_text,
+        start=match.start(),
+        end=match_end,
+    )
