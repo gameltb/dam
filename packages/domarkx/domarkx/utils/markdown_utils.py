@@ -44,8 +44,8 @@ class Macro:
     end: int = 0
 
 
-MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)(\[(.+?)\]\((.+?)\))?")
-
+MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)")
+FOLLOWING_LINKS_PATTERN = re.compile(r"\[(.+?)\]\((.+?)\)")
 
 def find_first_macro(content: str) -> Optional[Macro]:
     """Finds the first macro in the content and returns a Macro object if found."""
@@ -67,9 +67,8 @@ def find_first_macro(content: str) -> Optional[Macro]:
     match_end = match.end()
     rest_of_content = content[match_end:]
 
-    following_links_pattern = re.compile(r"\[(.+?)\]\((.+?)\)")
     while True:
-        following_match = following_links_pattern.match(rest_of_content)
+        following_match = FOLLOWING_LINKS_PATTERN.match(rest_of_content)
         if following_match:
             param_name = following_match.group(1)
             param_value = following_match.group(2)

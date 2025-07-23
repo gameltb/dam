@@ -50,7 +50,7 @@ class MacroExpander:
         """Handles the @include macro."""
         path = macro.params.get("path")
         if not path:
-            return content
+            raise Exception()
 
         include_path = pathlib.Path(path)
         if not include_path.is_absolute():
