@@ -15,7 +15,7 @@ def test_create_session(tmp_path):
     os.makedirs(project_path / "templates")
     # 写入模板文件，使用 domarkx 宏格式
     with open(project_path / "templates" / "default.md", "w") as f:
-        f.write("# [@session_name](domarkx://session_name)\n\n[@user_prompt](domarkx://user_prompt)")
+        f.write("# [@session_name](domarkx://set?value=default)\n\n[@user_prompt](domarkx://set?value=default)")
     settings.DOMARKX_PROJECT_PATH = str(project_path)
     result = create_session("default", "test_session", {"session_name": "Test Session", "user_prompt": "Hello"})
     assert result == "Session 'test_session' created from template 'default'."

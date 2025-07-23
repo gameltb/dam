@@ -40,9 +40,11 @@ def create_session(template_name: str, session_name: str, parameters: dict):
 
     expander = MacroExpander(base_dir=os.path.join(settings.project_path, "templates"))
 
-    expanded_content = expander.expand(
-        template_content, override_parameters={"session_name": session_name, **parameters}
-    )
+    override_parameters = {}
+    for key, value in parameters.items():
+        override_parameters[key] = {"value": value}
+
+    expanded_content = expander.expand(template_content, override_parameters=override_parameters)
 
     with open(session_path, "w") as f:
         f.write(expanded_content)

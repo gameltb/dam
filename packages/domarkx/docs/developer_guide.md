@@ -193,3 +193,22 @@ multiply_tool = default_tool_factory.create_tool_from_string(code=tool_code, exe
 tools = [multiply_tool]
 tool_executors = [jupyter_executor]
 ```
+
+### Overriding Parameters
+
+You can override parameters in your Markdown document by passing an `override_parameters` dictionary to the `AutoGenSession` constructor. This is useful for dynamically setting values at runtime.
+
+For example, if you have a macro in your Markdown document like this:
+
+```markdown
+@[my-variable](value="default")
+```
+
+You can override the value of `my-variable` like this:
+
+```python
+from domarkx.autogen_session import AutoGenSession
+
+override_parameters = {"my-variable": {"value": "overridden"}}
+session = AutoGenSession(doc_path, override_parameters=override_parameters)
+```

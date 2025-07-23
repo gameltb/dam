@@ -25,6 +25,26 @@ def test_session_setup(tmp_path, setup_script):
     assert session.doc is not None
 
 
+def test_create_session_with_override_parameters(tmp_path):
+    doc_content = """
+[@my-variable](domarkx://set?value=default)
+
+```python setup-script
+from unittest.mock import MagicMock
+client = MagicMock()
+tools = []
+```
+"""
+    doc_path = tmp_path / "test.md"
+    doc_path.write_text(doc_content)
+
+    override_parameters = {"my-variable": {"value": "overridden"}}
+    session = AutoGenSession(doc_path, override_parameters=override_parameters)
+    rendered_markdown = session.doc.to_markdown()
+    assert "overridden" in rendered_markdown
+    assert "[@my-variable]" not in rendered_markdown
+
+
 @pytest.mark.asyncio
 async def test_session_setup_async(tmp_path, setup_script):
     doc_path = tmp_path / "test.md"

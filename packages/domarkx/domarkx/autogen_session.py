@@ -12,8 +12,8 @@ from domarkx.utils.code_execution import execute_code_block
 
 
 class AutoGenSession(Session):
-    def __init__(self, doc_path: pathlib.Path):
-        super().__init__(doc_path)
+    def __init__(self, doc_path: pathlib.Path, override_parameters: dict = None):
+        super().__init__(doc_path, override_parameters)
         self.messages = []
         self.system_message = ""
 
