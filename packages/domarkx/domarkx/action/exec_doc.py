@@ -1,17 +1,16 @@
 import asyncio
 import pathlib
-import tempfile
 from datetime import datetime
 from typing import Annotated
 
 import typer
-from domarkx.config import settings
-from domarkx.macro_expander import MacroExpander
 from prompt_toolkit import PromptSession
 from rich.console import Console
 
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
+from domarkx.config import settings
+from domarkx.macro_expander import MacroExpander
 from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
@@ -53,7 +52,6 @@ async def aexec_doc(
 
         with open(doc_to_exec, "w") as f:
             f.write(expanded_content)
-
 
     session = AutoGenSession(doc_to_exec)
     await session.setup()

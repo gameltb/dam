@@ -1,4 +1,5 @@
 import pathlib
+
 from domarkx.utils.markdown_utils import Macro, find_first_macro
 
 
@@ -15,8 +16,9 @@ class MacroExpander:
             override_parameters = {}
 
         expanded_content = content
+        expande_pos = 0
         while True:
-            macro = find_first_macro(expanded_content)
+            macro = find_first_macro(expanded_content[expande_pos:])
             if not macro:
                 break
 
@@ -36,6 +38,7 @@ class MacroExpander:
                 macro_value = self.expand(macro_value, override_parameters)
 
             expanded_content = expanded_content[: macro.start] + str(macro_value) + expanded_content[macro.end :]
+            expande_pos = macro.start + len(str(macro_value))
         return expanded_content
 
     def _include_macro(self, macro: Macro, content: str) -> str:
