@@ -8,6 +8,7 @@ class MacroExpander:
         self.base_dir = base_dir
         self.macros = {
             "include": self._include_macro,
+            "set": self._set_macro,
         }
 
     def expand(self, content: str, override_parameters: dict = None) -> str:
@@ -23,7 +24,7 @@ class MacroExpander:
                 break
 
             # By default, the macro value is the original markdown link
-            macro_value = macro.original_text
+            macro_value = ""
 
             # Special handlers (e.g., include)
             if hasattr(self, f"_{macro.command}_macro"):
@@ -34,7 +35,7 @@ class MacroExpander:
                 macro_value = getattr(self, f"_{macro.command}_macro")(macro, expanded_content)
 
             # Recursively expand macros in the replacement value
-            if isinstance(macro_value, str) and macro_value != macro.original_text:
+            if isinstance(macro_value, str):
                 macro_value = self.expand(macro_value, override_parameters)
 
             expanded_content = expanded_content[: macro.start] + str(macro_value) + expanded_content[macro.end :]
@@ -55,4 +56,8 @@ class MacroExpander:
             return include_path.read_text()
         else:
             # If the path does not exist, return the original macro text to avoid breaking the content.
-            return macro.original_text
+            return ""
+
+    def _set_macro(self, macro: Macro, content: str) -> str:
+        """Handles the @set macro."""
+        return macro.params.get("value", "")
