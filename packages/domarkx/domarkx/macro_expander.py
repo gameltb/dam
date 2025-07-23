@@ -38,8 +38,12 @@ class MacroExpander:
             if isinstance(macro_value, str):
                 macro_value = self.expand(macro_value, override_parameters)
 
-            expanded_content = expanded_content[: macro.start] + str(macro_value) + expanded_content[macro.end :]
-            expande_pos = macro.start + len(str(macro_value))
+            expanded_content = (
+                expanded_content[: macro.start + expande_pos]
+                + str(macro_value)
+                + expanded_content[macro.end + expande_pos :]
+            )
+            expande_pos = expande_pos + macro.start + len(str(macro_value))
         return expanded_content
 
     def _include_macro(self, macro: Macro, content: str) -> str:

@@ -44,7 +44,7 @@ class Macro:
     end: int = 0
 
 
-MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)(\s*\[(.+?)\]\((.+?)\))?")
+MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)(\[(.+?)\]\((.+?)\))?")
 
 
 def find_first_macro(content: str) -> Optional[Macro]:
@@ -67,7 +67,7 @@ def find_first_macro(content: str) -> Optional[Macro]:
     match_end = match.end()
     rest_of_content = content[match_end:]
 
-    following_links_pattern = re.compile(r"\s*\[(.+?)\]\((.+?)\)")
+    following_links_pattern = re.compile(r"\[(.+?)\]\((.+?)\)")
     while True:
         following_match = following_links_pattern.match(rest_of_content)
         if following_match:
