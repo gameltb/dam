@@ -1,9 +1,11 @@
 import asyncio
 import pathlib
 import tempfile
+from datetime import datetime
 from typing import Annotated
 
 import typer
+from domarkx.config import settings
 from domarkx.macro_expander import MacroExpander
 from prompt_toolkit import PromptSession
 from rich.console import Console
@@ -13,7 +15,12 @@ from domarkx.autogen_session import AutoGenSession
 from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
-async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_user_message_in_FunctionExecution=True):
+async def aexec_doc(
+    doc: pathlib.Path,
+    handle_one_toolcall: bool = False,
+    allow_user_message_in_FunctionExecution=True,
+    overwrite: bool = False,
+):
     console = Console(markup=False)
 
     # Read the content from the document
@@ -24,12 +31,35 @@ async def aexec_doc(doc: pathlib.Path, handle_one_toolcall: bool = False, allow_
     expander = MacroExpander(base_dir=str(doc.parent))
     expanded_content = expander.expand(content)
 
-    # Write the expanded content to a temporary file
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".md") as temp_f:
-        temp_f.write(expanded_content)
-        temp_doc = pathlib.Path(temp_f.name)
+    sessions_dir = pathlib.Path(settings.project_path) / "sessions"
+    sessions_dir.mkdir(exist_ok=True)
 
-    session = AutoGenSession(temp_doc)
+    doc_to_exec = doc
+    project_path = pathlib.Path(settings.project_path)
+    # Check if the file is under the project path
+    if project_path in doc.parents:
+        # Check if the file is in the sessions folder
+        if sessions_dir not in doc.parents:
+            # Create a temporary file in the sessions folder
+            now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            temp_filename = f"{now}_{doc.stem}.md"
+            doc_to_exec = sessions_dir / temp_filename
+
+            with open(doc_to_exec, "w") as f:
+                f.write(expanded_content)
+        else:
+            if not overwrite:
+                now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                new_filename = f"{doc.stem}_{now}.md"
+                doc_to_exec = doc.with_name(new_filename)
+
+            with open(doc_to_exec, "w") as f:
+                f.write(expanded_content)
+    else:
+        # If the file is not under the project path, just execute it directly
+        pass
+
+    session = AutoGenSession(doc_to_exec)
     await session.setup()
 
     while True:
@@ -80,8 +110,9 @@ def exec_doc(
         typer.Argument(exists=True, file_okay=True, dir_okay=False, writable=True, readable=True, resolve_path=True),
     ],
     handle_one_toolcall: bool = False,
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite the original file in the sessions folder."),
 ):
-    asyncio.run(aexec_doc(doc, handle_one_toolcall))
+    asyncio.run(aexec_doc(doc, handle_one_toolcall, overwrite=overwrite))
 
 
 def register(main_app: typer.Typer, settings):
