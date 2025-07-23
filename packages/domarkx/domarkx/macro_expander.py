@@ -65,3 +65,26 @@ class MacroExpander:
     def _set_macro(self, macro: Macro, content: str) -> str:
         """Handles the @set macro."""
         return macro.params.get("value", "")
+
+
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument, Message
+
+
+class DocExpander:
+    def __init__(self, base_dir: str):
+        self.base_dir = base_dir
+        self.parser = MarkdownLLMParser()
+
+    def expand(self, content: str) -> ParsedDocument:
+        # Parse the document first
+        parsed_doc = self.parser.parse(content)
+
+        # Create a new MacroExpander with the document's directory as the base
+        macro_expander = MacroExpander(self.base_dir)
+
+        # Expand macros in each message's content
+        for message in parsed_doc.conversation:
+            if message.content:
+                message.content = macro_expander.expand(message.content)
+
+        return parsed_doc
