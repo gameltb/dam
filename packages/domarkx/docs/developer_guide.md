@@ -201,7 +201,7 @@ You can override parameters in your Markdown document by passing an `override_pa
 For example, if you have a macro in your Markdown document like this:
 
 ```markdown
-@[my-variable](value="default")
+@[my-variable](domarkx://set?value=default)
 ```
 
 You can override the value of `my-variable` like this:
@@ -210,5 +210,4 @@ You can override the value of `my-variable` like this:
 from domarkx.autogen_session import AutoGenSession
 
 override_parameters = {"my-variable": {"value": "overridden"}}
-session = AutoGenSession(doc_path, override_parameters=override_parameters)
 ```
