@@ -1,6 +1,8 @@
 import pathlib
+import re
+from urllib.parse import parse_qs, urlparse
 
-from domarkx.utils.markdown_utils import find_first_macro
+from domarkx.utils.markdown_utils import find_first_macro, parse_macro
 
 
 class MacroExpander:
@@ -10,33 +12,52 @@ class MacroExpander:
             "include": self._include_macro,
         }
 
-    def expand(self, content: str, parameters: dict = None) -> str:
+    def expand(self, content: str, override_parameters: dict = None) -> str:
         """Expands macros in the content sequentially: find and expand the first macro, repeat until all macros are processed."""
-        if parameters is None:
-            parameters = {}
+        if override_parameters is None:
+            override_parameters = {}
 
         expanded_content = content
         while True:
             match = find_first_macro(expanded_content)
             if not match:
                 break
-            macro_name = match.group(2)
-            macro_text = match.group(1)
-            macro_value = parameters.get(macro_name, parameters.get(macro_text, match.group(0)))
-            # If macro_name is a special handler (e.g. include), use handler
+
+            macro_text, macro_name, url_params, original_macro_text, match_end = parse_macro(match, expanded_content)
+
+            # By default, the macro value is the original markdown link
+            macro_value = original_macro_text
+
+            # Special handlers (e.g., include)
             if hasattr(self, f"_{macro_name}_macro"):
                 macro_obj = type("Macro", (), {})()
                 macro_obj.command = macro_name
                 macro_obj.link_text = macro_text
-                macro_obj.url = f"domarkx://{macro_name}"
-                macro_obj.params = {}
+                macro_obj.url = match.group(2)
+
+                # Combine and overwrite params
+                combined_params = url_params.copy()
+                if "params_override" in override_parameters:
+                    for p in override_parameters["params_override"]:
+                        if p in combined_params:
+                            combined_params[p] = override_parameters.get(p, combined_params[p])
+                macro_obj.params = combined_params
+
                 macro_value = getattr(self, f"_{macro_name}_macro")(macro_obj, expanded_content)
+            else:
+                # Regular parameter replacement
+                if macro_name in override_parameters:
+                    macro_value = override_parameters[macro_name]
+                elif macro_text in override_parameters:
+                    macro_value = override_parameters[macro_text]
+                else:
+                    macro_value = original_macro_text
 
             # Recursively expand macros in the replacement value
-            if isinstance(macro_value, str) and macro_value != match.group(0):
-                macro_value = self.expand(macro_value, parameters)
+            if isinstance(macro_value, str) and macro_value != original_macro_text:
+                macro_value = self.expand(macro_value, override_parameters)
 
-            expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match.end() :]
+            expanded_content = expanded_content[: match.start()] + str(macro_value) + expanded_content[match_end :]
         return expanded_content
 
     def _include_macro(self, macro, content):
@@ -51,6 +72,9 @@ class MacroExpander:
 
         if include_path.exists():
             include_content = include_path.read_text()
-            return content.replace(f"[@{macro.link_text}]({macro.url})", include_content, 1)
+            # We need to find the original macro in the content and replace it
+            # The macro in content would be f"[@{macro.link_text}]({macro.url})"
+            original_macro_text = f"[@{macro.link_text}]({macro.url})"
+            return content.replace(original_macro_text, include_content, 1)
         else:
             return content

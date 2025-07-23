@@ -42,7 +42,7 @@ def create_session(template_name: str, session_name: str, parameters: dict):
 
     # 兼容 domarkx 设计文档中的宏格式（domarkx://...），参数展开不再用 {param}，而是通过 MacroExpander 的宏机制
     # parameters 只作为宏扩展的参数字典传递，expander.expand 会自动处理 domarkx:// 语法
-    expanded_content = expander.expand(template_content, parameters={"session_name": session_name, **parameters})
+    expanded_content = expander.expand(template_content, override_parameters={"session_name": session_name, **parameters})
 
     with open(session_path, "w") as f:
         f.write(expanded_content)

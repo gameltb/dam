@@ -123,10 +123,12 @@ Macros are the core of `domarkx`'s interactivity. They are parsed from Markdown 
 Macros are defined using a specific link format:
 
 `[@<link_text>](domarkx://<command>?<param1>=<value1>&<param2>=<value2>)`
+`[@<link_text>](domarkx://<command>)[<param_name>](<param_value>)`
 
 -   `@<link_text>`: The display text of the macro.
 -   `<command>`: The name of the command to execute.
--   `<param1>=<value1>&<param2>=<value2>`: The parameters for the command.
+-   `<param1>=<value1>&<param2>=<value2>`: The parameters for the command, passed as a query string.
+-   `[<param_name>](<param_value>)`: An optional second link immediately following the macro, which is treated as a parameter.
 
 ### 4.2. Macro Expansion
 
