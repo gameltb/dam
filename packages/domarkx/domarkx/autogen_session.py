@@ -81,7 +81,7 @@ class AutoGenSession(Session):
                     content = message["content"][0].pop("content", "")
             thought = message.pop("thought", "")
             if thought:
-                thought = textwrap.indent(f"""<think>{thought}</think>""", "> ")
+                thought = textwrap.indent(f"""<think>{thought}</think>""", "> ", predicate=lambda _: True)
                 content = f"""
 {thought}
 

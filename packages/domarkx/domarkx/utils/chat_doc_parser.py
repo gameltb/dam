@@ -180,5 +180,5 @@ def append_message(writer: io.StringIO, message: Message):
             f"```{code_block.language or ''}{' ' + code_block.attrs if code_block.attrs else ''}\n{code_block.code}\n```\n\n"
         )
     if message.content:
-        writer.write(textwrap.indent(message.content, "> "))
+        writer.write(textwrap.indent(message.content, "> ", predicate=lambda _: True))
         writer.write("\n\n")
