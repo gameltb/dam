@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qs, urlparse
 
 
 @dataclass
@@ -40,34 +41,41 @@ class Macro:
     url: str = ""
 
 
-MACRO_REGEX = re.compile(r"\[@([a-zA-Z0-9_]+)\]\(domarkx://([a-zA-Z0-9_]+)(\?[^)]*)?\)")
+MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)(\s*\[(.+?)\]\((.+?)\))?")
 
 
-def find_macros(text: str) -> List[Macro]:
-    """Finds all domarkx macros in the text using regex and returns a list of Macro objects."""
-    macros = []
-    for match in MACRO_REGEX.finditer(text):
-        macro_text = match.group(1)
-        macro_name = match.group(2)
-        params_str = match.group(3)
-        params = {}
-        if params_str:
-            # Remove leading '?', split by '&', then '='
-            for pair in params_str[1:].split("&"):
-                if "=" in pair:
-                    k, v = pair.split("=", 1)
-                    params[k] = v
-        macros.append(
-            Macro(
-                command=macro_name,
-                params=params,
-                link_text=macro_text,
-                url=f"domarkx://{macro_name}{params_str or ''}",
-            )
-        )
-    return macros
+def find_first_macro(content: str):
+    """Finds the first macro in the content."""
+    return MACRO_PATTERN.search(content)
 
 
-def find_first_macro(text: str):
-    """Finds the first domarkx macro in the text and returns a regex match object, or None if not found."""
-    return MACRO_REGEX.search(text)
+def parse_macro(match, content):
+    """Parses a macro match object."""
+    macro_text = match.group(1)
+    url = urlparse(match.group(2))
+    macro_name = url.netloc
+
+    # Extract params from URL query
+    parsed_params = parse_qs(url.query)
+    # Flatten the lists of params
+    url_params = {k: v[0] for k, v in parsed_params.items()}
+
+    # Check for a following URL which is treated as a parameter
+    match_end = match.end()
+    # Check for a following URL which is treated as a parameter
+    match_end = match.end()
+    rest_of_content = content[match_end:]
+
+    following_links_pattern = re.compile(r"\s*\[(.+?)\]\((.+?)\)")
+    while True:
+        following_match = following_links_pattern.match(rest_of_content)
+        if following_match:
+            param_name = following_match.group(1)
+            param_value = following_match.group(2)
+            url_params[param_name] = param_value
+            match_end += following_match.end()
+            rest_of_content = content[match_end:]
+        else:
+            break
+
+    return macro_text, macro_name, url_params, content[match.start():match_end], match_end
