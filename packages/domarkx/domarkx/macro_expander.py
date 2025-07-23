@@ -1,5 +1,6 @@
 import pathlib
 
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 from domarkx.utils.markdown_utils import Macro, find_first_macro
 
 
@@ -67,7 +68,6 @@ class MacroExpander:
         return macro.params.get("value", "")
 
 
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument, Message
 
 
 class DocExpander:

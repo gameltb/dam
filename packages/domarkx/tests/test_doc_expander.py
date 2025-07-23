@@ -1,14 +1,19 @@
 import pathlib
+
 import pytest
-from domarkx.doc_expander import DocExpander
+
+from domarkx.macro_expander import DocExpander
+
 
 @pytest.fixture
 def base_dir(tmp_path: pathlib.Path):
     return tmp_path
 
+
 @pytest.fixture
 def doc_expander(base_dir: pathlib.Path):
     return DocExpander(base_dir=str(base_dir))
+
 
 def test_expand_macros_in_messages(doc_expander: DocExpander, base_dir: pathlib.Path):
     # Create a file to be included
@@ -17,7 +22,7 @@ def test_expand_macros_in_messages(doc_expander: DocExpander, base_dir: pathlib.
 
     md = """## User
 
-> This is the first message. ![@include](path=include.md)
+> This is the first message. [@include](domarkx://include?path=include.md)
 
 ## Assistant
 
