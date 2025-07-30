@@ -1,0 +1,74 @@
+[project]
+name = "sire_pipelines"
+version = "0.1.0"
+description = "Example pipelines and models demonstrating the use of the sire library."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "AI Agent", email = "ai.agent@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "torch",
+    "sire"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "pytest-mock",
+]
+
+all = [
+    "sire_pipelines[dev]",
+]
+
+[project.urls]
+Homepage = "https://example.com/sire" # Placeholder
+Repository = "https://example.com/sire.git" # Placeholder
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sire_pipelines*"]
+exclude = ["tests*"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+include = ["sire_pipelines/**", "tests/**"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["sire_pipelines", "tests"]
+exclude = []
+reportDeprecated = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+test = "pytest -n auto --cov=sire_pipelines --cov-report=term-missing --cov-report=xml"
+mypy.default_item_type = "cmd"
+mypy.sequence = [
+    "mypy --config-file ../../pyproject.toml sire_pipelines tests",
+]

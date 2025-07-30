@@ -14,7 +14,10 @@ T = TypeVar("T")
 
 @contextlib.contextmanager
 def auto_manage(obj: T, user_context=None):
-    am = AutoManageWrapper[T](obj)
+    if isinstance(obj, AutoManageWrapper):
+        am = obj
+    else:
+        am = AutoManageWrapper(obj)
     try:
         am.load(user_context=user_context)
         yield am

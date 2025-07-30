@@ -13,6 +13,7 @@ members = [
     "domarkx",
     "ecs-dam-system",
     "sire",
+    "sire-pipelines",
 ]
 
 [manifest.dependency-groups]
@@ -3831,6 +3832,42 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "sire", extras = ["dev"], marker = "extra == 'all'", editable = "packages/sire" },
+    { name = "torch" },
+]
+provides-extras = ["dev", "all"]
+
+[[package]]
+name = "sire-pipelines"
+version = "0.1.0"
+source = { editable = "packages/sire_pipelines" }
+dependencies = [
+    { name = "sire" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "pytest-mock", marker = "extra == 'dev'" },
+    { name = "sire", editable = "packages/sire" },
+    { name = "sire-pipelines", extras = ["dev"], marker = "extra == 'all'", editable = "packages/sire_pipelines" },
     { name = "torch" },
 ]
 provides-extras = ["dev", "all"]
