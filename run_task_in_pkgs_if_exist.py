@@ -59,6 +59,25 @@ def main() -> None:
         print("Please provide a task name")
         sys.exit(1)
 
+    package_to_run = None
+    # A simple arg parser to not add dependencies
+    if "--package" in sys.argv:
+        try:
+            package_index = sys.argv.index("--package")
+            package_to_run = sys.argv[package_index + 1]
+            # Remove the --package and its value from sys.argv so it's not passed to poe
+            sys.argv.pop(package_index)
+            sys.argv.pop(package_index)
+        except (ValueError, IndexError):
+            print("Error: --package flag must be followed by a package name.")
+            sys.exit(1)
+
+    if package_to_run:
+        projects = [p for p in projects if p.name == package_to_run]
+        if not projects:
+            print(f"Package '{package_to_run}' not found in workspace.")
+            sys.exit(1)
+
     task_name = sys.argv[1]
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
@@ -69,7 +88,8 @@ def main() -> None:
             if result:
                 sys.exit(result)
         else:
-            print(f"Task {task_name} not found in {project}")
+            # This is not an error, some packages might not have all tasks
+            pass
 
 
 if __name__ == "__main__":
