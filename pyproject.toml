@@ -11,6 +11,7 @@ members = ["packages/*"]
 [tool.uv.sources]
 dam = { workspace = true }
 domarkx = { workspace = true }
+sire = { workspace = true }
 
 [dependency-groups]
 dev = [
