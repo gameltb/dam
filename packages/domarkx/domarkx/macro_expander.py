@@ -68,8 +68,6 @@ class MacroExpander:
         return macro.params.get("value", "")
 
 
-
-
 class DocExpander:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir

@@ -738,6 +738,78 @@ def _handle_modify_mode(
     return result_message
 
 
+def _handle_diff_method_mode(target: str) -> str:
+    """
+    Handles the logic for diff_method mode, comparing a method with its parent's implementation.
+    """
+    try:
+        # 1. Parse the target symbol
+        try:
+            module_and_class, method_name = target.rsplit(".", 1)
+            module_name, class_name = module_and_class.rsplit(".", 1)
+        except ValueError:
+            raise ToolError(
+                f"Invalid target format for diff_method: '{target}'. Expected 'package.module.ClassName.method_name'."
+            )
+
+        # 2. Import the class
+        module = importlib.import_module(module_name)
+        subclass = getattr(module, class_name)
+        if not inspect.isclass(subclass):
+            raise ToolError(f"Target '{target}' does not point to a class.")
+
+        subclass_method = getattr(subclass, method_name, None)
+        if not subclass_method or not (inspect.isfunction(subclass_method) or inspect.ismethod(subclass_method)):
+            raise ToolError(f"Method '{method_name}' not found in class '{class_name}'.")
+
+        # 4. Find the parent method and its defining class
+        parent_method = None
+        parent_class = None
+        # Loop through the MRO starting from the parent class
+        for cls in inspect.getmro(subclass)[1:]:
+            if hasattr(cls, method_name):
+                parent_method_candidate = getattr(cls, method_name)
+                # Check if the method is actually overridden
+                if subclass_method is not parent_method_candidate:
+                    parent_method = parent_method_candidate
+                    # Now find the class that actually defined this method for correct naming
+                    for defining_cls in inspect.getmro(cls):
+                        if method_name in defining_cls.__dict__:
+                            parent_class = defining_cls
+                            break
+                    break  # Found the first overridden method, so we stop
+
+        if not parent_method:
+            if any(method_name in bc.__dict__ for bc in inspect.getmro(subclass)[1:]):
+                return f"Method '{class_name}.{method_name}' is not overridden from its parent class."
+            else:
+                return f"Method '{method_name}' is defined on '{class_name}' but not found in any parent class."
+
+        # 5. Get source code for both methods
+        try:
+            subclass_source = textwrap.dedent(inspect.getsource(subclass_method))
+            parent_source = textwrap.dedent(inspect.getsource(parent_method))
+        except TypeError:
+            return "Source code for one of the methods is not available (e.g., it's a built-in or C extension method)."
+
+        # Check if the source code is identical after dedenting
+        if subclass_source == parent_source:
+            return f"Method '{class_name}.{method_name}' has identical implementation to '{parent_class.__name__}.{method_name}'."
+
+        # 6. Generate and return the diff
+        diff = difflib.unified_diff(
+            parent_source.splitlines(keepends=True),
+            subclass_source.splitlines(keepends=True),
+            fromfile=f"a/{parent_class.__name__}.{method_name}",
+            tofile=f"b/{class_name}.{method_name}",
+        )
+
+        return "".join(diff)
+
+    except (ImportError, AttributeError, ValueError) as e:
+        raise ToolError(f"Error processing symbol '{target}': {e}", original_exception=e)
+
+
 # Main tool function
 @tool_handler(log_level=logging.INFO)  # Apply the decorator
 def python_code_handler(
@@ -754,7 +826,7 @@ def python_code_handler(
 ) -> str:
     """
     A comprehensive tool for handling Python code, supporting listing definitions,
-    querying details, and performing code modifications.
+    querying details, performing code modifications, and comparing overridden methods.
 
     This tool leverages the `libcst` library for Python code parsing and AST manipulation,
     ensuring lossless modifications and precise node targeting. It can scan files or
@@ -787,10 +859,15 @@ def python_code_handler(
         - `operation='delete'`: Deletes the code definition at the location specified by `target`.
         Alternatively, a `modification_script` parameter can provide a custom `libcst`
         transformation script for more complex refactoring or modification logic.
+    *   'diff_method':
+        Compares an overridden method in a subclass with its implementation in the parent class.
+        The `target` must be the fully qualified symbol path to the subclass method
+        (e.g., 'my_package.my_module.SubClass.my_method').
+        This mode does not support the `path` parameter.
 
     **Parameter (`parameter`) Details:**
 
-    *   `mode` (str, required): Operation mode, must be 'list' or 'modify'.
+    *   `mode` (str, required): Operation mode, must be 'list', 'modify', or 'diff_method'.
     *   `target` (str, required): The Python code target to process.
                                 - If `path` is not provided, `target` must be a fully importable symbol
                                   (e.g., 'os.path.join', 'my_package.my_module').
@@ -905,8 +982,8 @@ def python_code_handler(
     *   `FileNotFoundError`: Specified `path` does not exist.
     *   `ToolError`: A custom exception wrapping other exceptions raised by the tool, including `ImportError`, `AttributeError`, `SyntaxError`, `IOError`, `NotADirectoryError`, `IsADirectoryError`, and internal `libcst` related errors.
     """
-    if mode not in ["list", "modify"]:
-        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list' or 'modify'.")
+    if mode not in ["list", "modify", "diff_method"]:
+        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list', 'modify', or 'diff_method'.")
 
     if not isinstance(target, str):
         raise TypeError("Parameter 'target' must be of type string.")
@@ -929,12 +1006,13 @@ def python_code_handler(
     else:
         # If no path, 'target' must be a full importable symbol
         # The _resolve_symbol_path function now raises ToolError directly, so no try...except needed here.
-        file_to_process, internal_target_symbol_path = _resolve_symbol_path(target)
-        logging.info(
-            f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
-        )
-        if not file_to_process.lower().endswith(".py"):
-            raise ValueError(f"Target '{target}' resolved to file '{file_to_process}' which is not a Python file.")
+        if mode != "diff_method":
+            file_to_process, internal_target_symbol_path = _resolve_symbol_path(target)
+            logging.info(
+                f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
+            )
+            if not file_to_process.lower().endswith(".py"):
+                raise ValueError(f"Target '{target}' resolved to file '{file_to_process}' which is not a Python file.")
 
     # --- Mode Dispatch ---
     if mode == "list":
@@ -962,5 +1040,10 @@ def python_code_handler(
             textwrap.dedent(code_content) if code_content else code_content,
             modification_script,
         )
+    elif mode == "diff_method":
+        if path:
+            raise ValueError("The 'path' parameter is not supported for 'diff_method' mode.")
+        return _handle_diff_method_mode(target)
     else:
-        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list' or 'modify'.")
+        # This else is now redundant due to the check at the beginning, but kept for safety.
+        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list', 'modify', or 'diff_method'.")

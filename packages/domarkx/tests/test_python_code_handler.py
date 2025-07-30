@@ -543,3 +543,93 @@ def test_list_mode_path_directory_no_target_type(tmp_path):
     assert "MyClass" in result
     assert "top_level_function" in result
     assert "another_function" in result  # From another_module.py
+
+
+# --- Test Diff Method Mode ---
+def test_diff_method_mode_overridden_method(tmp_path):
+    # This test requires the diff_test_module to be in the python path
+    # We can add the tests directory to sys.path
+    old_sys_path = sys.path[:]
+    # By adding the parent of tmp_path, we ensure 'diff_test_module' can be imported
+    sys.path.insert(0, str(tmp_path.parent))
+    try:
+        result = python_code_handler(
+            mode="diff_method",
+            target="diff_test_module.SubClass.greeting",
+        )
+        assert "--- a/BaseClass.greeting" in result
+        assert "+++ b/SubClass.greeting" in result
+        assert '-    return "Hello from BaseClass"' in result
+        assert '+    print("This is a new line")' in result
+        assert '+    return "Hello from SubClass!"' in result
+    finally:
+        sys.path = old_sys_path
+
+
+def test_diff_method_mode_not_overridden(tmp_path):
+    old_sys_path = sys.path[:]
+    sys.path.insert(0, str(tmp_path.parent))
+    try:
+        result = python_code_handler(
+            mode="diff_method",
+            target="diff_test_module.SubClass.farewell",
+        )
+        assert "Method 'SubClass.farewell' is not overridden from its parent class." in result
+    finally:
+        sys.path = old_sys_path
+
+
+def test_diff_method_mode_identical_override(tmp_path):
+    old_sys_path = sys.path[:]
+    sys.path.insert(0, str(tmp_path.parent))
+    try:
+        result = python_code_handler(
+            mode="diff_method",
+            target="diff_test_module.SubClassWithIdenticalOverride.greeting",
+        )
+        assert "has identical implementation to 'BaseClass.greeting'" in result
+    finally:
+        sys.path = old_sys_path
+
+
+def test_diff_method_mode_deep_inheritance(tmp_path):
+    old_sys_path = sys.path[:]
+    sys.path.insert(0, str(tmp_path.parent))
+    try:
+        result = python_code_handler(
+            mode="diff_method",
+            target="diff_test_module.GrandChildClass.farewell",
+        )
+        assert "--- a/BaseClass.farewell" in result
+        assert "+++ b/GrandChildClass.farewell" in result
+        assert '-    return "Goodbye from BaseClass"' in result
+        assert '+    message = "Farewell, and may the force be with you."' in result
+        assert "+    return message" in result
+    finally:
+        sys.path = old_sys_path
+
+
+def test_diff_method_mode_method_not_in_parent(tmp_path):
+    old_sys_path = sys.path[:]
+    sys.path.insert(0, str(tmp_path.parent))
+    try:
+        result = python_code_handler(
+            mode="diff_method",
+            target="diff_test_module.SubClassWithNoOverride.new_method",
+        )
+        assert "not found in any parent class" in result
+    finally:
+        sys.path = old_sys_path
+
+
+def test_diff_method_mode_invalid_target():
+    # Test case for a target string that doesn't fit the package.module.Class.method format
+    with pytest.raises(ToolError) as excinfo:
+        python_code_handler(mode="diff_method", target="InvalidTargetString")
+    assert "Invalid target format for diff_method" in str(excinfo.value.original_exception)
+
+    # Test case for a non-existent module
+    with pytest.raises(ToolError) as excinfo:
+        python_code_handler(mode="diff_method", target="non_existent.module.Class.method")
+    assert "Error processing symbol" in str(excinfo.value)
+    assert "No module named 'non_existent'" in str(excinfo.value.original_exception)
