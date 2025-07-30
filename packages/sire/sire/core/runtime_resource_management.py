@@ -14,7 +14,10 @@ T = TypeVar("T")
 
 @contextlib.contextmanager
 def auto_manage(obj: T, user_context=None):
-    am = AutoManageWrapper[T](obj)
+    if isinstance(obj, AutoManageWrapper):
+        am = obj
+    else:
+        am = AutoManageWrapper(obj)
     try:
         am.load(user_context=user_context)
         yield am
@@ -100,12 +103,11 @@ class ResourcePoolManagement:
         self.user_pool_map: dict[ResourcePoolUserABC, list[ResourcePool]] = {}
 
     def get_resource_pool(self, device: resources_device):
-        if device.index is None:
+        if device.type != "cpu" and device.index is None:
             device = resources_device(device.type, 0)
         return self.resource_pools.get(device, None)
 
     def set_resource_pool(self, device: resources_device, resource_pool):
-        assert device.index is not None
         self.resource_pools[device] = resource_pool
 
     def get_devices(self):

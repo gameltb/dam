@@ -1,7 +1,7 @@
 [project]
-name = "sire"
-version = "0.2.0"
-description = "A dynamic, just-in-time resource manager for PyTorch models, enabling efficient execution on constrained hardware."
+name = "sire_pipelines"
+version = "0.1.0"
+description = "Example pipelines and models demonstrating the use of the sire library."
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -15,14 +15,11 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
 dependencies = [
     "torch",
-    "psutil",
-    "accelerate",
+    "sire"
 ]
 
 [project.optional-dependencies]
@@ -34,7 +31,7 @@ dev = [
 ]
 
 all = [
-    "sire[dev]",
+    "sire_pipelines[dev]",
 ]
 
 [project.urls]
@@ -47,17 +44,17 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["sire*"]
+include = ["sire_pipelines*"]
 exclude = ["tests*"]
 
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
-include = ["sire/**", "tests/**"]
+include = ["sire_pipelines/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
-include = ["sire", "tests"]
+include = ["sire_pipelines", "tests"]
 exclude = []
 reportDeprecated = true
 
@@ -70,8 +67,8 @@ asyncio_mode = "auto"
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto --cov=sire --cov-report=term-missing --cov-report=xml"
+test = "pytest -n auto --cov=sire_pipelines --cov-report=term-missing --cov-report=xml"
 mypy.default_item_type = "cmd"
 mypy.sequence = [
-    "mypy --config-file ../../pyproject.toml sire tests",
+    "mypy --config-file ../../pyproject.toml sire_pipelines tests",
 ]

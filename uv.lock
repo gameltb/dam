@@ -13,6 +13,7 @@ members = [
     "domarkx",
     "ecs-dam-system",
     "sire",
+    "sire-pipelines",
 ]
 
 [manifest.dependency-groups]
@@ -50,6 +51,25 @@ dev = [
     { name = "tomli" },
     { name = "tomli-w" },
     { name = "typer" },
+]
+
+[[package]]
+name = "accelerate"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/25/969456a95a90ed38f73f68d0f0915bdf1d76145d05054c59ad587b171150/accelerate-1.9.0.tar.gz", hash = "sha256:0e8c61f81af7bf37195b6175a545ed292617dd90563c88f49020aea5b6a0b47f", size = 383234, upload-time = "2025-07-16T16:24:54.526Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/1c/a17fb513aeb684fb83bef5f395910f53103ab30308bbdd77fd66d6698c46/accelerate-1.9.0-py3-none-any.whl", hash = "sha256:c24739a97ade1d54af4549a65f8b6b046adc87e2b3e4d6c66516e32c53d5a8f1", size = 367073, upload-time = "2025-07-16T16:24:52.957Z" },
 ]
 
 [[package]]
@@ -3780,15 +3800,13 @@ wheels = [
 
 [[package]]
 name = "sire"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/sire" }
 dependencies = [
+    { name = "accelerate" },
     { name = "psutil" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
-    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -3807,16 +3825,50 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate" },
     { name = "psutil" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "sire", extras = ["dev"], marker = "extra == 'all'", editable = "packages/sire" },
     { name = "torch" },
-    { name = "typer" },
+]
+provides-extras = ["dev", "all"]
+
+[[package]]
+name = "sire-pipelines"
+version = "0.1.0"
+source = { editable = "packages/sire_pipelines" }
+dependencies = [
+    { name = "sire" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "pytest-mock", marker = "extra == 'dev'" },
+    { name = "sire", editable = "packages/sire" },
+    { name = "sire-pipelines", extras = ["dev"], marker = "extra == 'all'", editable = "packages/sire_pipelines" },
+    { name = "torch" },
 ]
 provides-extras = ["dev", "all"]
 

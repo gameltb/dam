@@ -1,17 +1,15 @@
 import logging
 import os
-from typing import Dict, Optional
+from typing import Optional
 from urllib.parse import ParseResult
 
-import requests
-from huggingface_hub import configure_http_backend, file_download, snapshot_download
+from huggingface_hub import snapshot_download
 from huggingface_hub.errors import LocalEntryNotFoundError
 
 from ...common.path_tool import get_local_huggingface_path
 from ..resource_management import GLOBAL_RESOURCE_RESOLVER, FileSystemResource, Resource, ResourceResolver
 
 _logger = logging.getLogger(__name__)
-
 
 
 class HuggingfaceResourceResolver(ResourceResolver):

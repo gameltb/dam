@@ -2,108 +2,48 @@
 
 ## 1. Overview
 
-Sire is a lightweight, single-machine PyTorch model scheduling library designed for simplicity and ease of use. It provides a high-level API to manage the lifecycle of models, automate resource allocation (especially GPU memory), and run inference, while abstracting away the complexities of the underlying hardware and runtimes.
+Sire is a dynamic, just-in-time resource manager for PyTorch models. Its primary goal is to enable the efficient execution of multiple models on a single machine with constrained hardware, particularly GPU memory. It achieves this by abstracting memory management and dynamically moving models between a high-speed "runtime" device (like a GPU) and a larger "offload" storage area (like CPU RAM).
 
-## 2. Core Components
+The design is modular and built on a few core concepts that work together to provide automatic resource management.
 
-The library will be built around a few key components:
+## 2. Core Concepts
 
-- **`ModelManager`**: The main user-facing API for all operations.
-- **`DeviceManager`**: A component for managing and monitoring hardware devices (CPUs and GPUs).
-- **`InferenceRuntime`**: An abstraction for different model execution backends (e.g., PyTorch, ONNX).
+### 2.1. Resource Pools (`ResourcePool`)
 
-## 3. API Design
+A `ResourcePool` represents a source of memory on a specific device.
+- **Implementations**: `ResourcePoolCUDA` and `ResourcePoolCPU` are the default implementations.
+- **Function**: Each pool is responsible for tracking its own available memory. For example, `ResourcePoolCUDA` checks the free VRAM on its assigned GPU.
+- **Management**: A central singleton, `ResourcePoolManagement`, keeps a registry of all available resource pools, keyed by the `torch.device` object.
 
-### 3.1. `ModelManager`
+### 2.2. Resource Users (`ResourcePoolUserABC`)
 
-The `ModelManager` is the central entry point for users.
+A "Resource User" is any object that consumes memory from a `ResourcePool`.
+- **Abstraction**: The `ResourcePoolUserABC` (Abstract Base Class) defines the interface for these objects.
+- **Implementation**: `TorchModuleWrapper` is the primary implementation, designed to wrap a `torch.nn.Module`.
+- **Responsibilities**: A Resource User must be able to:
+    - Report how much memory it is currently using on a given device (`get_used_resource_size`).
+    - Define its "runtime" and "offload" pools (`on_setup`).
+    - Handle being loaded to the runtime device (`on_load`).
+    - Handle being evicted from the runtime device to free up memory (`on_resource_request`).
 
-**Example Usage:**
+### 2.3. Automatic Management (`AutoManageWrapper`, `auto_manage`)
 
-```python
-from sire import ModelManager
+This is the mechanism that automates the just-in-time loading and offloading.
+- **`AutoManageWrapper`**: A generic wrapper that turns any object into a Resource User. It has a type map to select the correct user implementation (e.g., it maps `torch.nn.Module` to `TorchModuleWrapper`). When an object is wrapped, it is registered with the central `ResourcePoolManagement`.
+- **`auto_manage` Context Manager**: This is the primary user-facing tool.
+    1. **`__enter__`**: When the `with` block is entered, the wrapper for the target object is "locked". It then requests the memory it needs from its `runtime_resource_pool`. The pool, if it doesn't have enough free memory, will ask other (unlocked) Resource Users to offload until the required memory is freed. Finally, the target object is moved to the runtime device (e.g., `model.to(gpu)`).
+    2. **`__exit__`**: When the `with` block is exited, the wrapper is "unlocked", making it eligible for eviction if another object needs memory. The `TorchModuleWrapper` is designed to immediately offload its model back to the CPU upon being unlocked.
 
-# Initialize the manager
-manager = ModelManager()
+### 2.4. Hooks (`AutoManageHook`)
 
-# Register a model
-manager.register_model(
-    name="my_classifier",
-    model_path="path/to/model.pth",
-    runtime="pytorch",
-    model_class=MyModelClass, # For PyTorch models
-)
+For convenience, the automatic management logic can be injected directly into a `torch.nn.Module` using an `AutoManageHook`.
+- **Functionality**: This hook attaches to the module's `forward` pass.
+- **`pre_forward`**: Before the original `forward` method is called, the hook runs the `__enter__` logic from the `auto_manage` context, moving the model to the GPU.
+- **`post_forward`**: After the `forward` method completes, it runs the `__exit__` logic, offloading the model back to the CPU.
 
-# Load the model into memory (auto-selects device)
-manager.load_model("my_classifier")
+### 2.5. Commit-based State Management (`CommitObjectProxy`)
 
-# Run inference
-input_data = ...
-result = manager.predict("my_classifier", input_data)
-
-# Unload the model to free up memory
-manager.unload_model("my_classifier")
-```
-
-**Methods:**
-
-- `register_model(name: str, model_path: str, runtime: str, **kwargs)`: Registers a model with the manager. The `runtime` parameter specifies the backend to use (e.g., "pytorch", "onnx"). `kwargs` can contain runtime-specific information, like a `model_class` for PyTorch models.
-- `load_model(name: str, device: str = "auto")`: Loads a registered model onto a device. If `device` is "auto", the `DeviceManager` will select the best available device.
-- `unload_model(name: str)`: Unloads a model from memory.
-- `predict(model_name: str, data: Any) -> Any`: Runs inference on a loaded model.
-- `get_model_stats(name: str) -> dict`: Returns performance metrics for a model (e.g., inference count, average latency, memory usage).
-
-### 3.2. `DeviceManager`
-
-The `DeviceManager` is responsible for abstracting hardware resources.
-
-**Responsibilities:**
-
-- Detect available devices (CPUs and GPUs).
-- Monitor memory usage on each device.
-- Select the optimal device for model loading when requested by the `ModelManager`.
-
-### 3.3. `InferenceRuntime` (Pluggable Runtimes)
-
-To support different backends, we will use a strategy pattern. An abstract base class `InferenceRuntime` will define the interface for runtimes.
-
-**Interface (`InferenceRuntime`):**
-
-```python
-from abc import ABC, abstractmethod
-
-class InferenceRuntime(ABC):
-    @abstractmethod
-    def load(self, model_path: str, **kwargs) -> Any:
-        ...
-
-    @abstractmethod
-    def predict(self, model: Any, data: Any) -> Any:
-        ...
-
-    @abstractmethod
-    def get_memory_footprint(self, model: Any) -> int:
-        ...
-```
-
-Concrete implementations like `PyTorchRuntime` and `ONNXRuntime` will implement this interface. The `ModelManager` will instantiate the appropriate runtime when a model is registered.
-
-## 4. GPU Memory Management
-
-The `ModelManager`, in conjunction with the `DeviceManager`, will manage GPU memory automatically.
-
-- **On-demand Loading:** Models are only loaded into memory when `load_model` is called.
-- **Automatic Placement:** When `load_model` is called with `device="auto"`, the `DeviceManager` will find a GPU with sufficient memory.
-- **LRU Cache (Future):** A potential future enhancement is an LRU (Least Recently Used) cache policy to automatically unload models when GPU memory is scarce.
-
-## 5. Multi-GPU Scheduling
-
-For a single-machine, multi-GPU setup, the `DeviceManager` will provide abstractions for simple load balancing.
-
-- **Device Selection:** The `DeviceManager` can be configured with a strategy for device selection (e.g., "round-robin", "least-memory-used").
-- **Simplified API:** The user will not need to specify device IDs unless they want to override the automatic behavior.
-
-## 6. Monitoring and Error Handling
-
-- **Monitoring:** The `ModelManager` will collect basic metrics. These can be accessed via `get_model_stats`.
-- **Error Handling:** The library will use custom exceptions to provide clear error messages for common issues (e.g., `ModelNotFound`, `InsufficientMemory`, `InferenceError`).
+This is an advanced, optional feature for managing different variations of a single base object without deep copying.
+- **Commit**: A "commit" is an object representing a reversible change, such as applying a LoRA or monkey-patching a function.
+- **`CommitObjectProxy`**: This acts as a proxy to a base object (e.g., a model). You can add a stack of commits to the proxy.
+- **`rebase`**: Before the object is used, the proxy ensures the base object is in the correct state by applying or reverting commits as needed to match the desired commit stack. This allows for efficiently switching between different model configurations.

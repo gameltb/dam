@@ -12,6 +12,7 @@ members = ["packages/*"]
 dam = { workspace = true }
 domarkx = { workspace = true }
 sire = { workspace = true }
+sire_pipelines = { workspace = true }
 
 [dependency-groups]
 dev = [

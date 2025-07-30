@@ -18,9 +18,23 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         self.accelerate_state_dict_pin_memory = False
 
     def on_setup(self, manager):
-        self.runtime_resource_pool = manager.get_resource_pool(torch.device("cuda"))
         self.offload_resource_pool = manager.get_resource_pool(torch.device("cpu"))
-        return [self.runtime_resource_pool, self.offload_resource_pool]
+
+        if torch.cuda.is_available():
+            self.runtime_resource_pool = manager.get_resource_pool(torch.device("cuda"))
+        else:
+            self.runtime_resource_pool = self.offload_resource_pool
+
+        # Collect existing pools
+        pools = []
+        if self.runtime_resource_pool:
+            pools.append(self.runtime_resource_pool)
+
+        # Avoid adding the same pool twice
+        if self.offload_resource_pool and self.offload_resource_pool not in pools:
+            pools.append(self.offload_resource_pool)
+
+        return pools
 
     def on_load(self, user_context=None):
         user_context_changed = False
