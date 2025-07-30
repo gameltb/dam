@@ -1,7 +1,7 @@
 [project]
 name = "sire"
-version = "0.1.0"
-description = "A lightweight, single-machine PyTorch model scheduling library."
+version = "0.2.0"
+description = "A dynamic, just-in-time resource manager for PyTorch models, enabling efficient execution on constrained hardware."
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -21,10 +21,8 @@ classifiers = [
 
 dependencies = [
     "torch",
-    "typer",
-    "pydantic",
-    "pydantic-settings",
     "psutil",
+    "accelerate",
 ]
 
 [project.optional-dependencies]
@@ -42,9 +40,6 @@ all = [
 [project.urls]
 Homepage = "https://example.com/sire" # Placeholder
 Repository = "https://example.com/sire.git" # Placeholder
-
-# [project.scripts]
-# sire-cli = "sire.cli:app"
 
 [build-system]
 requires = ["setuptools>=61.0"]

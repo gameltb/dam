@@ -120,7 +120,5 @@ if __name__ == "__main__":
     GLOBAL_RESOURCE_RESOLVER.registe_identical_resource_urls(["sha256://jdie", "http://1"])
     GLOBAL_RESOURCE_RESOLVER.registe_identical_resource_urls(["http://2", "http://1"])
     print(GLOBAL_RESOURCE_RESOLVER.identical_resource_url_map)
-    with GLOBAL_RESOURCE_RESOLVER.get_resource(
-        "file:////module/core/precision.py"
-    ).get_bytes_io() as f:
+    with GLOBAL_RESOURCE_RESOLVER.get_resource("file:////module/core/precision.py").get_bytes_io() as f:
         print(f.read(15))

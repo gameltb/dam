@@ -19,8 +19,7 @@ class PatchModuleKwargsHook:
 
 
 class RebatchAbleModuleWrapper(torch.nn.Module):
-    """
-    """
+    """ """
 
     def __init__(self, module: torch.nn.Module) -> None:
         super().__init__()

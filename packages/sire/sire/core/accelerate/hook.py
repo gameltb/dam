@@ -736,9 +736,9 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     logger.error(f"No WaitHook on {pf_name} with active prefetch. Abort.")
                     nvtx.range_pop()
                     return
-                
+
                 align_hook = AlignDevicesHookTorchCompilerDisable.from_align_devices_hook(align_hook)
-                
+
                 wait_hook.tied_ptrs_to_rm.clear()
                 wait_hook.pf_submod_hf_hook = align_hook
                 wait_hook.exec_dev = pf_dev
@@ -885,7 +885,7 @@ class ConfigSignatureGenerator:
             raw["type"] = tn
             try:
                 raw["value_str"] = str(val)[:100]
-            except:
+            except Exception:
                 raw["value_str"] = "Error_str_conversion"
 
     def _get_input_parts(self, mod: nn.Module, args: Tuple, kwargs: Dict, raw_in: Dict) -> List[str]:
