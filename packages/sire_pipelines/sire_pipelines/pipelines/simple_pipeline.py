@@ -1,7 +1,8 @@
-import torch
 import sire
+
 from ..models.unet import UNet
 from ..models.vae import VAE
+
 
 class SimplePipeline:
     def __init__(self):
@@ -20,7 +21,6 @@ class SimplePipeline:
             x_on_vae_device = x_vae.to(vae_device)
             x = self._vae(x_on_vae_device)
             print(f"  VAE output is on device: {x.device}")
-
 
         print("\nRunning UNet...")
         with sire.auto_manage(self.unet_managed) as unet_wrapper:

@@ -30,18 +30,3 @@ def simple_model_file(temp_model_dir):
     return model_path
 
 
-@pytest.fixture
-def model_manager():
-    # To ensure tests are isolated, we can mock the device manager
-    # to avoid actual hardware detection during tests.
-    from unittest.mock import patch
-
-    from sire import ModelManager
-
-    with patch("sire.manager.DeviceManager") as MockDeviceManager:
-        mock_device_manager = MockDeviceManager.return_value
-        mock_device_manager.select_device.return_value = "cpu"  # Default mock behavior
-
-        manager = ModelManager()
-        manager._device_manager = mock_device_manager
-        yield manager

@@ -1,7 +1,9 @@
 import pytest
-import torch
-from sire_pipelines.pipelines.simple_pipeline import SimplePipeline
 import sire
+import torch
+
+from sire_pipelines.pipelines.simple_pipeline import SimplePipeline
+
 
 @pytest.fixture(autouse=True)
 def setup_sire_for_testing():
@@ -10,8 +12,10 @@ def setup_sire_for_testing():
     sire.setup_default_pools()
     from sire.core.runtime_resource_management import AutoManageWrapper
     from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
+
     if torch.nn.Module not in AutoManageWrapper.type_wrapper_map:
         AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+
 
 def test_simple_pipeline_instantiation():
     """Tests that the pipeline can be created."""
@@ -21,6 +25,7 @@ def test_simple_pipeline_instantiation():
     assert pipeline._unet is not None
     assert pipeline._vae is not None
     print("Pipeline instantiated successfully.")
+
 
 def test_simple_pipeline_call():
     """Tests that the pipeline can be called without errors."""
