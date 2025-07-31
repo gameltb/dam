@@ -48,13 +48,14 @@ def test_inference_optimizer_hook_first_run_profiling(
     triggering profiling and plan generation.
     """
     # Mock the main methods to trace their calls
-    mock_run_profiling = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._run_profiling")
+    mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
+    mock_profiler_instance = mock_profiler_cls.return_value
     mock_gen_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._gen_opt_plan")
     mock_setup_with_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._setup_module_with_plan")
 
     # Mock the return values
     mock_profiling_data = MagicMock()
-    mock_run_profiling.return_value = mock_profiling_data
+    mock_profiler_instance.run.return_value = mock_profiling_data
 
     mock_plan = OptimizationPlan(optimized_device_map={"layer1": torch.device("cuda:0")})
     mock_gen_plan.return_value = mock_plan
@@ -68,7 +69,7 @@ def test_inference_optimizer_hook_first_run_profiling(
     model(torch.randn(4, 10))
 
     # Assertions
-    mock_run_profiling.assert_called_once()
+    mock_profiler_instance.run.assert_called_once()
     mock_gen_plan.assert_called_once()
     mock_setup_with_plan.assert_called_once()
     # Check that the generated plan was passed to the setup function
@@ -86,7 +87,8 @@ def test_inference_optimizer_hook_second_run_cached(
     Tests the hook's behavior on a second run, verifying it loads from cache.
     """
     # Mock the main methods
-    mock_run_profiling = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._run_profiling")
+    mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
+    mock_profiler_instance = mock_profiler_cls.return_value
     mock_gen_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._gen_opt_plan")
     mock_setup_with_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._setup_module_with_plan")
 
@@ -105,7 +107,7 @@ def test_inference_optimizer_hook_second_run_cached(
     model(torch.randn(4, 10))
 
     # Assertions
-    mock_run_profiling.assert_not_called()
+    mock_profiler_instance.run.assert_not_called()
     mock_gen_plan.assert_not_called()
     mock_setup_with_plan.assert_called_once()
     # Check that the loaded plan was used
@@ -123,7 +125,8 @@ def test_inference_optimizer_hook_force_profiling(
     Tests that `force_profiling=True` re-runs profiling even if caches exist.
     """
     # Mock the main methods
-    mock_run_profiling = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._run_profiling")
+    mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
+    mock_profiler_instance = mock_profiler_cls.return_value
     mock_gen_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._gen_opt_plan")
     mock_setup_with_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._setup_module_with_plan")
 
@@ -140,7 +143,7 @@ def test_inference_optimizer_hook_force_profiling(
     model(torch.randn(4, 10))
 
     # Assertions: Profiling should be called despite the mocked caches
-    mock_run_profiling.assert_called_once()
+    mock_profiler_instance.run.assert_called_once()
     # Plan generation will be called because profiling creates new data
     mock_gen_plan.assert_called_once()
     mock_setup_with_plan.assert_called_once()

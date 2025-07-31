@@ -1,8 +1,7 @@
-import copy
 import logging
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 import torch
 import torch.nn as nn
@@ -12,7 +11,6 @@ from accelerate.hooks import (
     ModelHook,
     SequentialHook,
     add_hook_to_module,
-    clear_device_cache,
     find_device,
     named_module_tensors,
     remove_hook_from_module,
@@ -21,7 +19,7 @@ from accelerate.utils import get_balanced_memory
 from torch.cuda import nvtx
 
 from ...utils.json_helpers import save_to_json_file
-from ..profile_tool import ProfilerHook, ProfilingData, _profile_run_context
+from ..profile_tool import Profiler, ProfilingData
 from .heuristic import HeuristicOptimizer
 from .plan import OptimizationPlan
 from .signature import ConfigSignatureGenerator
@@ -216,47 +214,6 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
             nvtx.range_pop()
 
 
-def infer_fine_grained_device_map(
-    model: nn.Module,
-    max_memory: Optional[Dict[str, int]],  # keys are str
-    no_split: Optional[List[str]],
-    verbose: bool,
-) -> Dict[str, str]:
-    no_split = no_split or []
-    dev_map: Dict[str, str] = {}
-    frozen: Set[str] = set()
-    default_dev = "cpu"
-    if max_memory:
-        gpus = [k for k, v in max_memory.items() if k != "cpu" and v > 0]
-        if gpus:
-            default_dev = min(gpus)
-            logger.debug(f"Initial map using {default_dev} for no_split.")
-
-    def _traverse(mod: nn.Module, path: str = ""):
-        nonlocal dev_map, frozen
-        cls_name = mod.__class__.__name__
-        is_frozen = any(path.startswith(p + ".") for p in frozen if p)
-        if is_frozen:
-            pass
-        elif cls_name in no_split:
-            if path:
-                dev_map[path] = default_dev
-                frozen.add(path)
-            for k_rem in [k for k in dev_map if k.startswith(path + ".")]:
-                del dev_map[k_rem]
-        elif path and (any(True for _ in mod.parameters(False)) or any(True for _ in mod.buffers(False))):
-            dev_map[path] = default_dev
-        for name, child in mod.named_children():
-            child_path = f"{path}.{name}" if path else name
-            if not any(child_path.startswith(p + ".") for p in frozen if p) and child_path not in frozen:
-                _traverse(child, child_path)
-
-    _traverse(model)
-    if not dev_map and (any(True for _ in model.parameters(False)) or any(True for _ in model.buffers(False))):
-        dev_map[""] = default_dev
-    return dev_map
-
-
 class InferenceOptimizerHook(ModelHook):
     def __init__(
         self,
@@ -336,69 +293,6 @@ class InferenceOptimizerHook(ModelHook):
         d = os.path.join(self._get_sig_dir_path(), "plans")
         os.makedirs(d, exist_ok=True)
         return os.path.join(d, f"{self.current_plan_id}.json")
-
-    def _run_profiling(self, args, kwargs, max_mem_prof, conf_sig_hash, raw_sig_details) -> Optional[ProfilingData]:
-        logger.info("=" * 20 + " Profiling Session Start " + "=" * 20)
-        if not self.hooked_module_instance or not self.current_module_dtype:
-            logger.error("Cannot profile: state missing.")
-            return None
-
-        mod_to_prof = self.hooked_module_instance
-        prof_data = ProfilingData()
-        sig_dir_for_save = os.path.join(self.base_cache_dir, conf_sig_hash)
-        os.makedirs(sig_dir_for_save, exist_ok=True)
-        prof_data_path = os.path.join(sig_dir_for_save, "profiling_data.json")
-        raw_details_path = os.path.join(sig_dir_for_save, "raw_signature_details.json")
-        try:
-            save_to_json_file(raw_sig_details, raw_details_path)
-            logger.info(f"Raw sig details saved to {raw_details_path}")
-        except Exception as e:
-            logger.error(f"Failed to save raw sig details: {e}")
-
-        remove_hook_from_module(mod_to_prof, recurse=True)
-        try:
-            logger.info(f"Preparing '{mod_to_prof.__class__.__name__}' for profiling.")
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            init_map = infer_fine_grained_device_map(
-                mod_to_prof, None, self.no_split_module_classes, logger.isEnabledFor(logging.DEBUG)
-            )
-            if not init_map and any(mod_to_prof.parameters()):
-                raise RuntimeError("Failed to create init map for profiling.")
-
-            main_dev_prof = (
-                torch.device("cuda:0") if torch.cuda.is_available() and "0" in max_mem_prof else torch.device("cpu")
-            )
-            dispatch_model(mod_to_prof, init_map, main_dev_prof, force_hooks=True)
-
-            ph_count = 0
-            for name, sub_mod in mod_to_prof.named_modules():
-                if hasattr(sub_mod, "_hf_hook"):
-                    add_hook_to_module(sub_mod, ProfilerHook(name), True)
-                    ph_count += 1
-            logger.info(f"Registered {ph_count} ProfilerHooks.")
-
-            p_args, p_kwargs = copy.deepcopy(args), copy.deepcopy(kwargs)
-            logger.info("Warm-up profiling inference...")
-            with torch.no_grad():
-                _ = mod_to_prof(*p_args, **p_kwargs)
-            clear_device_cache()
-            with _profile_run_context(prof_data), torch.no_grad():
-                logger.info("Main profiling inference...")
-                _ = mod_to_prof(*p_args, **p_kwargs)
-            prof_data.save(prof_data_path)
-        except Exception as e:
-            logger.error(f"Error in profiling: {e}", exc_info=True)
-            if prof_data.module_stats:
-                prof_data.save(os.path.join(sig_dir_for_save, "profiling_data.error.json"))
-            return None
-        finally:
-            logger.info("Cleaning up post-profiling...")
-            remove_hook_from_module(mod_to_prof, recurse=True)
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        logger.info("=" * 20 + " Profiling Session End " + "=" * 20)
-        return prof_data
 
     def _gen_opt_plan(self, prof_data: ProfilingData, max_mem_plan: Dict[str, int]) -> Optional[OptimizationPlan]:
         logger.info("Generating optimization plan...")
@@ -503,31 +397,43 @@ class InferenceOptimizerHook(ModelHook):
                     logger.info(
                         f"Profiling for conf {self.current_config_sig_hash}. Force={self._force_profiling_active}"
                     )
-                    prof_data = self._run_profiling(
-                        args, kwargs, self.current_max_memory_bytes, self.current_config_sig_hash, raw_details
+                    profiler = Profiler(self.hooked_module_instance)
+                    prof_data = profiler.run(
+                        *args,
+                        no_split_module_classes=self.no_split_module_classes,
+                        max_memory=self.current_max_memory_bytes,
+                        **kwargs,
                     )
-                    just_profiled = True  # Mark that we just ran profiling
-                    if not prof_data:
-                        logger.error("Profiling fail.")
+                    just_profiled = True
+                    if prof_data:
+                        prof_data.save(prof_data_path)
+                        raw_details_path = os.path.join(sig_dir, "raw_signature_details.json")
+                        try:
+                            save_to_json_file(raw_details, raw_details_path)
+                        except Exception as e:
+                            logger.error(f"Failed to save raw signature details: {e}")
+                    else:
+                        logger.error("Profiling failed, no data returned.")
                         self.current_plan = None
                         self.active_pf_ctx = None
                         nvtx.range_pop()
                         return args, kwargs
                 else:
-                    logger.error(f"Prof data missing for {self.current_config_sig_hash}, not run.")
+                    logger.error(
+                        f"Profiling data not found for {self.current_config_sig_hash} and profiling is disabled."
+                    )
                     self.current_plan = None
                     self.active_pf_ctx = None
                     nvtx.range_pop()
                     return args, kwargs
             else:
-                logger.info(f"Using existing prof data from {prof_data_path}")
-                raw_det_path = os.path.join(sig_dir, "raw_signature_details.json")
-                if not os.path.exists(raw_det_path):
+                logger.info(f"Using existing profiling data from {prof_data_path}.")
+                raw_details_path = os.path.join(sig_dir, "raw_signature_details.json")
+                if not os.path.exists(raw_details_path):
                     try:
-                        save_to_json_file(raw_details, raw_det_path)
-                        logger.info(f"Raw sig details {raw_det_path} (prof skipped).")
+                        save_to_json_file(raw_details, raw_details_path)
                     except Exception as e:
-                        logger.error(f"Fail save raw sig details (prof skipped): {e}")
+                        logger.error(f"Failed to save raw signature details: {e}")
 
             self.current_plan = None
             if not just_profiled and plan_path:

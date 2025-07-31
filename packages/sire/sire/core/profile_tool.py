@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import csv
 import logging
 import os
@@ -16,14 +17,18 @@ from typing import (
 
 import torch
 import torch.nn as nn
+from accelerate import dispatch_model
 from accelerate.hooks import (
     ModelHook,
+    add_hook_to_module,
+    clear_device_cache,
 )
 from accelerate.utils import (
     find_device,
 )
 
 from ..utils import human_readable_filesize
+from ..utils.hook_manager import HookManager
 from ..utils.json_helpers import load_from_json_file, save_to_json_file
 
 _logger = logging.getLogger(__name__)
@@ -277,6 +282,125 @@ def get_module_size(module: nn.Module, include_children: bool = True) -> int:
     if include_children:
         s += sum(get_module_size(c, True) for c in module.children())
     return s
+
+
+def infer_fine_grained_device_map(
+    model: nn.Module,
+    max_memory: Optional[Dict[str, int]],  # keys are str
+    no_split: Optional[List[str]],
+    verbose: bool,
+) -> Dict[str, str]:
+    no_split = no_split or []
+    dev_map: Dict[str, str] = {}
+    frozen: set[str] = set()
+    default_dev = "cpu"
+    if max_memory:
+        gpus = [k for k, v in max_memory.items() if k != "cpu" and v > 0]
+        if gpus:
+            default_dev = min(gpus)
+            _logger.debug(f"Initial map using {default_dev} for no_split.")
+
+    def _traverse(mod: nn.Module, path: str = ""):
+        nonlocal dev_map, frozen
+        cls_name = mod.__class__.__name__
+        is_frozen = any(path.startswith(p + ".") for p in frozen if p)
+        if is_frozen:
+            pass
+        elif cls_name in no_split:
+            if path:
+                dev_map[path] = default_dev
+                frozen.add(path)
+            for k_rem in [k for k in dev_map if k.startswith(path + ".")]:
+                del dev_map[k_rem]
+        elif path and (any(True for _ in mod.parameters(False)) or any(True for _ in mod.buffers(False))):
+            dev_map[path] = default_dev
+        for name, child in mod.named_children():
+            child_path = f"{path}.{name}" if path else name
+            if not any(child_path.startswith(p + ".") for p in frozen if p) and child_path not in frozen:
+                _traverse(child, child_path)
+
+    _traverse(model)
+    if not dev_map and (any(True for _ in model.parameters(False)) or any(True for _ in model.buffers(False))):
+        dev_map[""] = default_dev
+    return dev_map
+
+
+class Profiler:
+    """
+    Encapsulates the logic for running a profiling pass on a torch.nn.Module
+    to gather performance and memory statistics.
+    """
+
+    def __init__(self, module: nn.Module):
+        self.module = module
+        self.hook_manager = HookManager(self.module)
+
+    def run(
+        self,
+        *args,
+        no_split_module_classes: Optional[List[str]] = None,
+        max_memory: Optional[Dict[str, int]] = None,
+        **kwargs,
+    ) -> ProfilingData:
+        """
+        Runs a profiling pass on the module.
+
+        This involves temporarily replacing the module's hooks with ProfilerHooks,
+        running a warmup and a main inference pass, and collecting data.
+
+        Args:
+            *args: Positional arguments for the module's forward pass.
+            no_split_module_classes: A list of module class names that should not be split during device mapping.
+            max_memory: A dictionary mapping device identifiers to the maximum memory available.
+            **kwargs: Keyword arguments for the module's forward pass.
+
+        Returns:
+            A ProfilingData object containing the collected statistics.
+        """
+        _logger.info("=" * 20 + " Profiling Session Start " + "=" * 20)
+        prof_data = ProfilingData()
+
+        with self.hook_manager.scope():
+            # Inside this scope, the module has no hooks. The original hooks will be
+            # restored automatically on exit.
+            _logger.info(f"Preparing '{self.module.__class__.__name__}' for profiling.")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            init_map = infer_fine_grained_device_map(
+                self.module, None, no_split_module_classes or [], _logger.isEnabledFor(logging.DEBUG)
+            )
+            if not init_map and any(self.module.parameters()):
+                raise RuntimeError("Failed to create initial device map for profiling.")
+
+            main_dev_prof = (
+                torch.device("cuda:0")
+                if torch.cuda.is_available() and max_memory and "0" in max_memory
+                else torch.device("cpu")
+            )
+            # dispatch_model will add AlignDevicesHook where needed.
+            dispatch_model(self.module, init_map, main_dev_prof, force_hooks=True)
+
+            # Now, append ProfilerHook to the hooks created by dispatch_model.
+            ph_count = 0
+            for name, sub_mod in self.module.named_modules():
+                if hasattr(sub_mod, "_hf_hook"):
+                    add_hook_to_module(sub_mod, ProfilerHook(name), append=True)
+                    ph_count += 1
+            _logger.info(f"Registered {ph_count} ProfilerHooks.")
+
+            p_args, p_kwargs = copy.deepcopy(args), copy.deepcopy(kwargs)
+            _logger.info("Warm-up profiling inference...")
+            with torch.no_grad():
+                _ = self.module(*p_args, **p_kwargs)
+
+            clear_device_cache()
+            _logger.info("Main profiling inference...")
+            with _profile_run_context(prof_data), torch.no_grad():
+                _ = self.module(*p_args, **p_kwargs)
+
+        _logger.info("=" * 20 + " Profiling Session End " + "=" * 20)
+        return prof_data
 
 
 class ProfilerHook(ModelHook):

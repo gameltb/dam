@@ -13,8 +13,12 @@ T = TypeVar("T")
 
 
 class CommitObjectProxyWrapper(WeakRefResourcePoolUser[CommitObjectProxy[T]]):
+    def __init__(self, obj, **kwargs) -> None:
+        super().__init__(obj)
+        self.wrapper_kwargs = kwargs
+
     def on_setup(self, manager):
-        self.base_object_am = AutoManageWrapper(self.manage_object.base_object)
+        self.base_object_am = AutoManageWrapper(self.manage_object.base_object, **self.wrapper_kwargs)
         self.resource_pool = manager.get_user_pools(self.base_object_am)
         return self.resource_pool
 

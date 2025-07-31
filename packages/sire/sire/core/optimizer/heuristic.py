@@ -177,7 +177,9 @@ class HeuristicOptimizer:
                 opt_map_str[name] = cpu
 
         final_map = {name: _parse_device_str(dev_str) for name, dev_str in opt_map_str.items()}
+        footprints = {name: stats.get_runtime_footprint() for name, stats in self.avg_stats.items()}
+
         logger.info(
             f"Heuristic optimization complete. Map: {len(final_map)} entries. Prefetch: {len(prefetch_sched)} instr."
         )
-        return OptimizationPlan(final_map, prefetch_sched)
+        return OptimizationPlan(final_map, prefetch_sched, footprints)

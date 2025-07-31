@@ -29,9 +29,21 @@ class OptimizationPlan:
 
     optimized_device_map: Dict[str, torch.device] = field(default_factory=dict)
     prefetch_schedule: List[PrefetchInstruction] = field(default_factory=list)
+    module_footprints: Dict[str, int] = field(default_factory=dict)
     trigger_index: Dict[str, List[PrefetchInstruction]] = field(
         default_factory=lambda: defaultdict(list), repr=False, compare=False
     )
+
+    def get_total_runtime_vram(self) -> int:
+        """
+        Calculates the total VRAM required by this plan, summing the footprints
+        of all modules assigned to a CUDA device.
+        """
+        total_vram = 0
+        for module_name, device in self.optimized_device_map.items():
+            if device.type == "cuda":
+                total_vram += self.module_footprints.get(module_name, 0)
+        return total_vram
 
     def __post_init__(self):
         self._build_trigger_index()

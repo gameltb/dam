@@ -13,11 +13,11 @@ T = TypeVar("T")
 
 
 @contextlib.contextmanager
-def auto_manage(obj: T, user_context=None):
+def auto_manage(obj: T, user_context=None, **kwargs):
     if isinstance(obj, AutoManageWrapper):
         am = obj
     else:
-        am = AutoManageWrapper(obj)
+        am = AutoManageWrapper(obj, **kwargs)
     try:
         am.load(user_context=user_context)
         yield am
@@ -29,13 +29,13 @@ class AutoManageWrapper(Generic[T]):
     type_wrapper_map = {}
     wrapper_obj_map = weakref.WeakKeyDictionary()
 
-    def __init__(self, obj) -> None:
+    def __init__(self, obj, **kwargs) -> None:
         if not isinstance(obj, ResourcePoolUserABC):
             user = self.wrapper_obj_map.get(obj, None)
             if user is None:
                 for tp, wrapper_cls in self.type_wrapper_map.items():
                     if isinstance(obj, tp):
-                        user = wrapper_cls(obj)
+                        user = wrapper_cls(obj, **kwargs)
                         self.wrapper_obj_map[obj] = user
                         break
             if user is None:
