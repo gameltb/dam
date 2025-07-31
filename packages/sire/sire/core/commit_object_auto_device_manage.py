@@ -52,14 +52,12 @@ class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]
 
 
 class CommitAutoManage(CommitABC[T]):
-    def __init__(self, am: AutoManageWrapper, am_user_context=None):
+    def __init__(self, am: AutoManageWrapper):
         super().__init__()
         self.am = am
-        self.am_user_context = am_user_context
 
     def apply(self, base_object, **kwargs):
-        self.am.load(user_context=self.am_user_context)
-        self.am_user_context = None
+        self.am.load()
 
     def revert(self, base_object):
         if hasattr(self.am.user, "use_accelerate") and self.am.user.use_accelerate:
@@ -85,8 +83,6 @@ class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
     def __init__(self, base_object):
         super().__init__(base_object)
         self.am = None
-        self.am_user_context = None
-
         self.am_commit = CommitAutoManage(None)
 
     def apply_commit(self, commit_list):
@@ -94,7 +90,6 @@ class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
             self.am = AutoManageWrapper(self.base_object)
 
         self.am_commit.am = self.am
-        self.am_commit.am_user_context = self.am_user_context
 
         for commit in commit_list:
             if isinstance(commit, CommitWithAutoManage):

@@ -24,7 +24,7 @@ A "Resource User" is any object that consumes memory from a `ResourcePool`. The 
 
 This is the main user-facing tool, provided as a context manager.
 - **`auto_manage(model, **kwargs)`**: This function wraps an object (like a `torch.nn.Module`) in an `AutoManageWrapper`, which selects the correct `ResourcePoolUser` implementation (e.g., `TorchModuleWrapper` for a module).
-- **`__enter__`**: When the `with` block is entered, the wrapper requests the memory it needs. If the pool is full, it asks other, unlocked users to offload their resources. Once memory is secured, the target object is loaded.
+- **`__enter__`**: When the `with` block is entered, the `AutoManageWrapper` is created and yielded. If using a model with an `AutoManageHook`, the hook will automatically call `load()` before the forward pass. For manual management, the user would call `load()` on the yielded wrapper instance.
 - **`__exit__`**: When the block is exited, the wrapper is "unlocked", making it eligible for eviction.
 
 ### 2.4. Decoupled Components
@@ -35,7 +35,7 @@ The key to Sire's flexibility is its decoupled architecture. The core components
 The `TorchModuleWrapper` is responsible *only* for memory management. It is completely agnostic to any optimization hooks that may be attached to the model it is managing. Its behavior can be configured via the `auto_manage` context manager:
 - **`inference_memory_estimator`**: This argument to `auto_manage` controls how the wrapper estimates the additional VRAM needed for an inference pass. It can be:
     - An `int`: A fixed size in bytes.
-    - A `callable`: A function with the signature `(model, user_context) -> int` that returns the required size.
+    - A `callable`: A function with the signature `(model, *args, **kwargs) -> int` that returns the required size. It will be passed the model and the runtime arguments from the forward call.
     - A `Profiler` instance: The wrapper will invoke the profiler to automatically determine the required memory.
     - An `OptimizationPlan` instance: The wrapper will read the memory requirement from a pre-computed plan.
 
@@ -60,6 +60,12 @@ with hook_manager.scope():
 ```
 This provides a standardized and safe paradigm for temporarily modifying a model's hook state, and is used internally by the `Profiler`.
 
+### 2.6. Implicit Inference Context
+
+To avoid manually passing runtime information (like the arguments to a `forward()` call) through multiple layers of wrappers, Sire uses an implicit, thread-safe context system (`contextvars`).
+
+When a managed model is called (e.g., via an `AutoManageHook`), the hook places the `*args` and `**kwargs` of the call into this context. Downstream components, like a callable `inference_memory_estimator`, can then access this information directly without needing it to be passed in every function call. This decouples the consumers of runtime information from the producers.
+
 ## 3. Usage Patterns & Composition
 
 The decoupled design allows for flexible composition to suit different needs.
@@ -74,7 +80,9 @@ from sire import auto_manage
 
 model = torch.nn.Linear(100, 100)
 
-with auto_manage(model):
+with auto_manage(model) as am:
+    # For manual management, explicitly load the model.
+    am.load()
     # Model is moved to the runtime device (e.g., GPU) here
     model(torch.randn(1, 100))
 # Model is offloaded back to CPU here
@@ -82,24 +90,25 @@ with auto_manage(model):
 
 ### 3.2. Management with a Custom Memory Estimator
 
-Provide a fixed integer value for the inference memory.
+Provide a fixed integer value for the inference memory. When using a hook, `load()` is called automatically.
 
 ```python
-# Reserve 1 GiB for inference
-with auto_manage(model, inference_memory_estimator=1024**3):
-    model(torch.randn(1, 100))
+hook = AutoManageHook.manage_module(model, inference_memory_estimator=1024**3)
+
+# The hook will load with the estimator before the forward pass
+model(torch.randn(1, 100))
 ```
 
-Or, provide a callable function to estimate memory based on input shape.
+Or, provide a callable function to estimate memory based on input shape. The model and its runtime arguments are passed to the function.
 
 ```python
-def estimate_mem(model, context):
-    input_tensor = context['args'][0]
+def estimate_mem(model, *args, **kwargs):
+    input_tensor = args[0]
     # Custom logic to calculate memory based on input shape
     return input_tensor.shape[0] * 1024 * 500
 
-with auto_manage(model, inference_memory_estimator=estimate_mem):
-    model(torch.randn(1, 100))
+hook = AutoManageHook.manage_module(model, inference_memory_estimator=estimate_mem)
+model(torch.randn(1, 100))
 ```
 
 ### 3.3. JIT Optimization with `InferenceOptimizerHook`

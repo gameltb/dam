@@ -7,6 +7,7 @@ import accelerate.hooks
 import torch
 
 from ...utils import human_readable_filesize
+from ..context import get_sire_inference_context
 from ..optimizer.plan import OptimizationPlan
 from ..profile_tool import Profiler
 from . import WeakRefResourcePoolUser
@@ -25,16 +26,19 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         self.accelerate_state_dict = None
         self.accelerate_state_dict_pin_memory = False
 
-    def _estimate_inference_memory(self, user_context=None) -> int:
+    def _estimate_inference_memory(self) -> int:
         estimator = self.inference_memory_estimator
         if isinstance(estimator, int):
             return estimator
-        if callable(estimator):
-            # Assumes the callable has a signature of (model, user_context) -> int
-            return estimator(self.manage_object, user_context)
 
-        args = user_context.get("args", []) if user_context else []
-        kwargs = user_context.get("kwargs", {}) if user_context else {}
+        # For estimators that depend on runtime context, get it from the context var.
+        context = get_sire_inference_context()
+        args = context.get("args", []) if context else []
+        kwargs = context.get("kwargs", {}) if context else {}
+
+        if callable(estimator):
+            # The new signature for a callable estimator is (model, *args, **kwargs) -> int
+            return estimator(self.manage_object, *args, **kwargs)
 
         if isinstance(estimator, Profiler):
             profiling_data = estimator.run(*args, **kwargs)
@@ -78,7 +82,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         return pools
 
-    def on_load(self, user_context=None):
+    def on_load(self):
         if self.loaded:
             return
 
@@ -86,7 +90,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         runtime_device = self.get_runtime_device()
 
         # Step 1: Estimate the required memory for this inference operation.
-        inference_memory_size = self._estimate_inference_memory(user_context)
+        inference_memory_size = self._estimate_inference_memory()
 
         # Step 2: Calculate the memory needed for the model's weights.
         # This only includes weights currently offloaded that need to be moved.
