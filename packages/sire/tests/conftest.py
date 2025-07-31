@@ -28,5 +28,3 @@ def simple_model_file(temp_model_dir):
     model_path = os.path.join(temp_model_dir, "simple_test_model.pth")
     torch.save(model.state_dict(), model_path)
     return model_path
-
-
