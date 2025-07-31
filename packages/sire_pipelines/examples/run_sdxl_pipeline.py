@@ -3,11 +3,11 @@ import os
 import sys
 
 import torch
+from accelerate.hooks import add_hook_to_module
 from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import (
     StableDiffusionXLPipeline,
 )
 from sire.core.optimizer.hooks import InferenceOptimizerHook
-from accelerate.hooks import add_hook_to_module
 
 
 def main():
