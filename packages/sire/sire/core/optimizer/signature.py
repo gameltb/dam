@@ -1,12 +1,19 @@
 import hashlib
 import logging
 import sys
+from enum import Enum
 from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
+
+
+class SignatureType(Enum):
+    INPUT_ONLY = "input_only"  # Basic info and input shapes.
+    WITH_WEIGHT_SHAPES = "with_weight_shapes"  # Adds model structure and weight shapes.
+    WITH_WEIGHT_HASH = "with_weight_hash"  # Adds weight value hashes.
 
 
 class ConfigSignatureGenerator:
@@ -85,40 +92,63 @@ class ConfigSignatureGenerator:
             self._serialize_value_recursive(v_, [f"kw_{k_}"], s_p, node)
         return s_p
 
-    def _get_weights_parts(self, mod: nn.Module, raw_w: Dict) -> List[str]:
+    def _get_weights_parts(self, mod: nn.Module, raw_w: Dict, include_hash: bool) -> List[str]:
         s_p = []
         raw_w.update({"parameters": {}, "buffers": {}})
         for n, p_ in sorted(mod.named_parameters(recurse=True), key=lambda x: x[0]):
             s, dt = "_".join(map(str, p_.shape)), str(p_.dtype).split(".")[-1]
-            # Add a hash of the tensor's values to be sensitive to weight changes.
-            # Using sum is fast and effective for change detection.
-            val_hash = p_.sum().item()
-            s_p.append(f"p_{n}_s{s}_dt{dt}_v{val_hash}")
-            raw_w["parameters"][n] = {"shape": list(p_.shape), "dtype": str(p_.dtype), "val_hash": val_hash}
+            part = f"p_{n}_s{s}_dt{dt}"
+            raw_w["parameters"][n] = {"shape": list(p_.shape), "dtype": str(p_.dtype)}
+            if include_hash:
+                val_hash = p_.sum().item()
+                part += f"_v{val_hash}"
+                raw_w["parameters"][n]["val_hash"] = val_hash
+            s_p.append(part)
         for n, b_ in sorted(mod.named_buffers(recurse=True), key=lambda x: x[0]):
             s, dt = "_".join(map(str, b_.shape)), str(b_.dtype).split(".")[-1]
-            val_hash = b_.sum().item()
-            s_p.append(f"b_{n}_s{s}_dt{dt}_v{val_hash}")
-            raw_w["buffers"][n] = {"shape": list(b_.shape), "dtype": str(b_.dtype), "val_hash": val_hash}
+            part = f"b_{n}_s{s}_dt{dt}"
+            raw_w["buffers"][n] = {"shape": list(b_.shape), "dtype": str(b_.dtype)}
+            if include_hash:
+                val_hash = b_.sum().item()
+                part += f"_v{val_hash}"
+                raw_w["buffers"][n]["val_hash"] = val_hash
+            s_p.append(part)
         return s_p
 
     def generate_config_signature(
-        self, mod: nn.Module, args: Tuple, kwargs: Dict, dtype: torch.dtype, cb=None
+        self,
+        mod: nn.Module,
+        args: Tuple,
+        kwargs: Dict,
+        dtype: torch.dtype,
+        cb=None,
+        level: SignatureType = SignatureType.WITH_WEIGHT_HASH,
     ) -> Tuple[str, Dict[str, Any]]:
+        class_name = f"{mod.__class__.__module__}.{mod.__class__.__name__}"
         raw: Dict[str, Any] = {
             "inputs": {},
-            "module_structure": {"class_name": mod.__class__.__name__},
+            "module_structure": {"class_name": class_name},
             "weights": {},
             "config": {},
         }
-        s_p = [f"cls_{mod.__class__.__name__}"]
+        s_p: List[str] = [f"cls_{class_name}"]
+
+        # Level 1: Inputs
         s_p.extend(self._get_input_parts(mod, args, kwargs, raw["inputs"]) or ["inputs_empty"])
-        w_parts = self._get_weights_parts(mod, raw["weights"])
-        if w_parts:
-            s_p.append(f"w_{hashlib.md5('_'.join(w_parts).encode()).hexdigest()[:16]}")
-            raw["weights"]["hash"] = s_p[-1]
+
+        # Level 2 & 3: Model structure, weights
+        if level in [SignatureType.WITH_WEIGHT_SHAPES, SignatureType.WITH_WEIGHT_HASH]:
+            include_weight_hash = level == SignatureType.WITH_WEIGHT_HASH
+            w_parts = self._get_weights_parts(mod, raw["weights"], include_hash=include_weight_hash)
+            if w_parts:
+                s_p.append(f"w_{hashlib.md5('_'.join(w_parts).encode()).hexdigest()[:16]}")
+                raw["weights"]["hash"] = s_p[-1]
+            else:
+                s_p.append("w_empty")
         else:
-            s_p.append("w_empty")
+            raw.pop("weights")
+            raw.pop("module_structure")
+
         if cb:
             try:
                 custom = cb(mod, args, kwargs)
@@ -130,12 +160,14 @@ class ConfigSignatureGenerator:
             except Exception as e:
                 logger.error(f"Custom sig cb fail: {e}", exc_info=True)
                 raw["config"]["custom_cb_out"] = {"error": str(e)}
+
         s_p.append(f"moddt_{str(dtype).split('.')[-1]}")
         raw["config"]["mod_dtype"] = str(dtype)
         s_p.append(f"py_{sys.version_info.major}.{sys.version_info.minor}")
         raw["config"]["py_ver"] = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         s_p.append(f"pt_{torch.__version__}")
         raw["config"]["pt_ver"] = torch.__version__
+
         full_sig = "_".join(s_p)
         raw["full_sig_unhashed"] = full_sig
         hashed_sig = hashlib.md5(full_sig.encode()).hexdigest()
