@@ -22,7 +22,7 @@ from ...utils.json_helpers import save_to_json_file
 from ..profile_tool import Profiler, ProfilingData
 from .heuristic import HeuristicOptimizer
 from .plan import OptimizationPlan
-from .signature import ConfigSignatureGenerator
+from .signature import ConfigSignatureGenerator, SignatureType
 
 logger = logging.getLogger(__name__)
 
@@ -241,13 +241,13 @@ class InferenceOptimizerHook(ModelHook):
         self.sig_gen = ConfigSignatureGenerator()
         self.current_plan: Optional[OptimizationPlan] = None
         self.current_config_sig_hash: Optional[str] = None
+        self.current_input_sig_hash: Optional[str] = None
         self.current_max_memory_bytes: Optional[Dict[str, int]] = None
         self.current_plan_id: Optional[str] = None
         self.last_module_id_processed: Optional[int] = None
         self.active_pf_ctx: Optional[PrefetchContext] = None
         self.hooked_module_instance: Optional[nn.Module] = None
         self.current_module_dtype: Optional[torch.dtype] = None
-        self.is_first_forward = True
         self.module: Optional[nn.Module] = None
         logger.info(f"IOHook init. Cache: {self.base_cache_dir}, Prefetch: {self.num_prefetch_streams}")
 
@@ -343,8 +343,10 @@ class InferenceOptimizerHook(ModelHook):
     @torch.compiler.disable()
     def pre_forward(self, module: nn.Module, *args, **kwargs):
         nvtx.range_push("IOHook.pre_forward")
-        if self.is_first_forward:
-            self.hooked_module_instance = module
+        self.hooked_module_instance = module
+
+        # One-time setup
+        if self.current_module_dtype is None:
             logger.info(f"Hook first fwd: {module.__class__.__name__} (id:{id(module)})")
             try:
                 p_dt = next((p.dtype for p in module.parameters(False)), None)
@@ -355,32 +357,48 @@ class InferenceOptimizerHook(ModelHook):
                 logger.warning(f"Dtype infer fail: {e}. Using {self.current_module_dtype}")
             logger.info(f"Module dtype: {self.current_module_dtype}")
             self.current_max_memory_bytes = self._get_max_mem_bytes()
-            self.is_first_forward = False
 
         if not all([self.hooked_module_instance, self.current_module_dtype, self.current_max_memory_bytes]):
-            logger.error("Hook state not init.")
+            logger.error("Hook state not initialized.")
             nvtx.range_pop()
             return args, kwargs
 
-        new_conf_hash, raw_details = self.sig_gen.generate_config_signature(
-            self.hooked_module_instance, args, kwargs, self.current_module_dtype, self.custom_signature_callback
+        # Determine if a plan update is needed
+        needs_plan_update = (
+            id(module) != self.last_module_id_processed or self.current_plan is None or self._force_profiling_active
         )
-        new_plan_id = self.sig_gen.generate_plan_identifier(self.current_max_memory_bytes)
-
-        needs_update = (
-            id(self.hooked_module_instance) != self.last_module_id_processed
-            or new_conf_hash != self.current_config_sig_hash
-            or new_plan_id != self.current_plan_id
-            or self.current_plan is None
-            or self._force_profiling_active
-        )
-
-        if needs_update:
-            logger.info(
-                f"Plan update triggered. ModID:{id(self.hooked_module_instance) != self.last_module_id_processed}, "
-                f"ConfHash:{new_conf_hash != self.current_config_sig_hash}, PlanID:{new_plan_id != self.current_plan_id}, "
-                f"NoPlan:{self.current_plan is None}, ForceProf:{self._force_profiling_active}"
+        input_sig_changed = False
+        if not needs_plan_update:
+            new_input_sig, _ = self.sig_gen.generate_config_signature(
+                module,
+                args,
+                kwargs,
+                self.current_module_dtype,
+                self.custom_signature_callback,
+                level=SignatureType.INPUT_ONLY,
             )
+            if new_input_sig != self.current_input_sig_hash:
+                logger.info("Input signature changed, triggering plan update.")
+                needs_plan_update = True
+                input_sig_changed = True
+
+        if needs_plan_update:
+            logger.info(
+                f"Plan update triggered. ModID_changed:{id(module) != self.last_module_id_processed}, "
+                f"NoPlan:{self.current_plan is None}, ForceProf:{self._force_profiling_active}, "
+                f"InputSig_changed:{input_sig_changed}"
+            )
+
+            # Generate model config signature (with weight shapes) to find matching profiling data
+            new_conf_hash, raw_details = self.sig_gen.generate_config_signature(
+                self.hooked_module_instance,
+                args,
+                kwargs,
+                self.current_module_dtype,
+                self.custom_signature_callback,
+                level=SignatureType.WITH_WEIGHT_SHAPES,
+            )
+            new_plan_id = self.sig_gen.generate_plan_identifier(self.current_max_memory_bytes)
             self.current_config_sig_hash, self.current_plan_id = new_conf_hash, new_plan_id
 
             sig_dir = self._get_sig_dir_path()
@@ -463,15 +481,21 @@ class InferenceOptimizerHook(ModelHook):
                 nvtx.range_pop()
                 return args, kwargs
 
+            # After a successful plan setup, store the input signature for future checks
+            self.current_input_sig_hash, _ = self.sig_gen.generate_config_signature(
+                module,
+                args,
+                kwargs,
+                self.current_module_dtype,
+                self.custom_signature_callback,
+                level=SignatureType.INPUT_ONLY,
+            )
             self.last_module_id_processed = id(self.hooked_module_instance)
             self._force_profiling_active = False
 
             # Arg alignment by the module's current hook (set up by _setup_module_with_plan).
-            # This is complex because our own hook is in the sequence. We need to find the
-            # real AlignDevicesHook and call it, without causing infinite recursion.
             hf_hook = getattr(self.hooked_module_instance, "_hf_hook", None)
             if isinstance(hf_hook, SequentialHook):
-                # Find the AlignDevicesHook, but avoid the InferenceOptimizerHook itself
                 align_hook = next((h for h in hf_hook.hooks if isinstance(h, AlignDevicesHook) and h is not self), None)
                 if align_hook:
                     logger.debug(f"Manually calling pre_forward of AlignDevicesHook: {type(align_hook)}")
@@ -479,7 +503,6 @@ class InferenceOptimizerHook(ModelHook):
                 else:
                     logger.warning("No AlignDevicesHook found in SequentialHook post-setup.")
             elif hf_hook is not self and isinstance(hf_hook, AlignDevicesHook):
-                # The only hook is the AlignDevicesHook
                 logger.debug(f"Manually calling pre_forward of sole AlignDevicesHook: {type(hf_hook)}")
                 args, kwargs = hf_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)
             else:
