@@ -6,6 +6,7 @@ from accelerate.hooks import ModelHook, add_hook_to_module
 from accelerate.utils import send_to_device
 
 from ..utils.runtime_resource_util import clear_device_cache_and_libc_alloc
+from .context import sire_inference_context
 from .runtime_resource_pool import ResourcePool, resources_device
 from .runtime_resource_user import ResourcePoolUserABC
 
@@ -13,13 +14,23 @@ T = TypeVar("T")
 
 
 @contextlib.contextmanager
-def auto_manage(obj: T, user_context=None):
+def auto_manage(obj: T, **kwargs):
+    """
+    A context manager to automatically manage the memory of a resource,
+    such as a PyTorch model.
+
+    Args:
+        obj: The object to manage.
+        **kwargs: Configuration options passed to the underlying resource wrapper
+                  (e.g., `inference_memory_estimator` for a `TorchModuleWrapper`).
+    """
     if isinstance(obj, AutoManageWrapper):
         am = obj
     else:
-        am = AutoManageWrapper(obj)
+        am = AutoManageWrapper(obj, **kwargs)
     try:
-        am.load(user_context=user_context)
+        # Note: Loading is no longer done automatically on entry.
+        # The user should call am.load() explicitly if not using a hook.
         yield am
     finally:
         am.offload()
@@ -29,13 +40,13 @@ class AutoManageWrapper(Generic[T]):
     type_wrapper_map = {}
     wrapper_obj_map = weakref.WeakKeyDictionary()
 
-    def __init__(self, obj) -> None:
+    def __init__(self, obj, **kwargs) -> None:
         if not isinstance(obj, ResourcePoolUserABC):
             user = self.wrapper_obj_map.get(obj, None)
             if user is None:
                 for tp, wrapper_cls in self.type_wrapper_map.items():
                     if isinstance(obj, tp):
-                        user = wrapper_cls(obj)
+                        user = wrapper_cls(obj, **kwargs)
                         self.wrapper_obj_map[obj] = user
                         break
             if user is None:
@@ -47,9 +58,9 @@ class AutoManageWrapper(Generic[T]):
         get_management().clean_user()
         get_management().setup_user(self.user)
 
-    def load(self, user_context=None):
+    def load(self):
         self.user.lock()
-        self.user.on_load(user_context=user_context)
+        self.user.on_load()
 
     def offload(self):
         self.user.unlock()
@@ -78,13 +89,17 @@ class AutoManageHook(ModelHook):
         return self.am.get_execution_device()
 
     def pre_forward(self, module, *args, **kwargs):
-        self.am.load(user_context={"args": args, "kwargs": kwargs})
+        self.context_token = sire_inference_context.set({"args": args, "kwargs": kwargs})
+        self.am.load()
         return send_to_device(args, self.am.get_execution_device()), send_to_device(
             kwargs, self.am.get_execution_device()
         )
 
     def post_forward(self, module, output):
         self.am.offload()
+        if hasattr(self, "context_token"):
+            sire_inference_context.reset(self.context_token)
+            del self.context_token
         return output
 
     @classmethod

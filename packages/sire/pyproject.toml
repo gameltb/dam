@@ -23,6 +23,8 @@ dependencies = [
     "torch",
     "psutil",
     "accelerate",
+    "diffusers",
+    "transformers",
 ]
 
 [project.optional-dependencies]

@@ -34,6 +34,10 @@ def manage(model_object):
     return AutoManageWrapper(model_object)
 
 
+# Register the default wrapper for torch.nn.Module
+AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+
+
 # Expose the core components for advanced users
 __all__ = [
     "__version__",

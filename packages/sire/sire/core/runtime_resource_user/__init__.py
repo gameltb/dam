@@ -32,7 +32,7 @@ class ResourcePoolUserABC(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def on_load(self, user_context=None):
+    def on_load(self):
         self.loaded = True
 
     @abstractmethod

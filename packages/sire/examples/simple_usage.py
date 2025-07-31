@@ -1,69 +1,62 @@
 import torch
-import torch.nn as nn
-import os
-from sire import ModelManager
-import time
+import sire
 
-# 1. Define a simple PyTorch model
-class SimpleModel(nn.Module):
+# 1. Initialize Sire's resource pools
+# This scans for available devices (CPU and CUDA) and creates a resource pool for each.
+sire.setup_default_pools()
+
+# 2. Create your PyTorch model
+class MyModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.linear = nn.Linear(10, 1)
+        self.linear = torch.nn.Linear(10, 1)
 
     def forward(self, x):
+        # This print statement helps visualize where the model is running
+        print(f"Executing forward pass on device: {x.device}")
         return self.linear(x)
 
 def main():
-    # 2. Prepare dummy data and model file
-    # Use a temporary directory to avoid clutter
-    temp_dir = "temp_model_assets"
-    os.makedirs(temp_dir, exist_ok=True)
-    model_path = os.path.join(temp_dir, "dummy_model.pth")
+    """
+    A simple example demonstrating how to use Sire to manage a PyTorch model.
+    """
+    model = MyModel()
+    print(f"Model initial device: {next(model.parameters()).device}")
 
-    model = SimpleModel()
-    torch.save(model.state_dict(), model_path)
-    dummy_data = torch.randn(1, 10)
+    # 3. Wrap the model to make it Sire-aware
+    # This returns an AutoManageWrapper that knows how to manage the model's memory.
+    managed_model = sire.manage(model)
+    print("Model has been wrapped by Sire.")
 
-    # 3. Instantiate ModelManager
-    print("Initializing ModelManager...")
-    manager = ModelManager()
-    print(f"Detected devices: {manager._device_manager.devices}")
+    # Check if a CUDA device is available to demonstrate GPU offloading
+    if not torch.cuda.is_available():
+        print("\nNo CUDA device found. The model will remain on the CPU.")
+        # Even without a GPU, auto_manage ensures the model is "locked" during use
+        # and ready for the correct device.
+    else:
+        print("\nCUDA device found. Demonstrating GPU offloading.")
 
-    # 4. Register the model
-    print(f"Registering model from {model_path}...")
-    manager.register_model(
-        name="simple_model",
-        model_path=model_path,
-        runtime="pytorch",
-        model_class=SimpleModel,
-    )
-    print("Model 'simple_model' registered.")
+    # 4. Use the auto_manage context manager for inference
+    print("Entering auto_manage context...")
+    with sire.auto_manage(managed_model) as am_wrapper:
+        # Inside this block, Sire moves the model to the designated runtime device (GPU if available).
+        execution_device = am_wrapper.get_execution_device()
+        print(f"Inside context, model is on device: {next(model.parameters()).device}")
+        assert next(model.parameters()).device.type == execution_device.type
 
-    # 5. Load the model
-    print("Loading model 'simple_model'...")
-    manager.load_model("simple_model")
-    stats = manager.get_model_stats("simple_model")
-    print(f"Model loaded on device: {stats['device']}")
+        # The input tensor must be on the same device as the model for the operation to succeed.
+        print(f"Moving input tensor to {execution_device}...")
+        dummy_input = torch.randn(1, 10).to(execution_device)
 
-    # 6. Run prediction
-    print(f"Running inference with data of shape: {dummy_data.shape}...")
-    start_time = time.time()
-    result = manager.predict("simple_model", dummy_data)
-    end_time = time.time()
-    print(f"Inference result: {result.item()}")
-    print(f"Inference took: {end_time - start_time:.4f} seconds")
+        # Run inference
+        output = model(dummy_input)
+        print(f"Inference output: {output.cpu().item():.4f}")
 
+    print("\nExited auto_manage context.")
+    # After the 'with' block, Sire automatically offloads the model back to the CPU.
+    print(f"Model is now back on device: {next(model.parameters()).device}")
+    assert next(model.parameters()).device.type == "cpu"
 
-    # 7. Unload the model
-    print("Unloading model 'simple_model'...")
-    manager.unload_model("simple_model")
-    stats = manager.get_model_stats("simple_model")
-    print(f"Model loaded: {stats['loaded']}")
-
-    # 8. Clean up
-    os.remove(model_path)
-    os.rmdir(temp_dir)
-    print("Cleaned up dummy model file and directory.")
 
 if __name__ == "__main__":
     main()

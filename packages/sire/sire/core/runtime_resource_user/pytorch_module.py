@@ -1,21 +1,67 @@
 from __future__ import annotations
 
+from typing import Callable, Union
+
 import accelerate
 import accelerate.hooks
 import torch
 
 from ...utils import human_readable_filesize
+from ..context import get_sire_inference_context
+from ..optimizer.plan import OptimizationPlan
+from ..profile_tool import Profiler
 from . import WeakRefResourcePoolUser
 
 
 class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
-    def __init__(self, torch_model: torch.nn.Module) -> None:
+    def __init__(
+        self,
+        torch_model: torch.nn.Module,
+        *,
+        inference_memory_estimator: Union[int, Callable, Profiler, OptimizationPlan, None] = None,
+    ) -> None:
         super().__init__(torch_model)
-        # TODO:measures and cache inference memory size
-        self.inference_memory_size = 1024 * 1024 * 1024 * 2
+        self.inference_memory_estimator = inference_memory_estimator
         self.use_accelerate = False
         self.accelerate_state_dict = None
         self.accelerate_state_dict_pin_memory = False
+
+    def _estimate_inference_memory(self) -> int:
+        estimator = self.inference_memory_estimator
+        if isinstance(estimator, int):
+            return estimator
+
+        # For estimators that depend on runtime context, get it from the context var.
+        context = get_sire_inference_context()
+        args = context.get("args", []) if context else []
+        kwargs = context.get("kwargs", {}) if context else {}
+
+        if callable(estimator):
+            # The new signature for a callable estimator is (model, *args, **kwargs) -> int
+            return estimator(self.manage_object, *args, **kwargs)
+
+        if isinstance(estimator, Profiler):
+            profiling_data = estimator.run(*args, **kwargs)
+            avg_stats = profiling_data.get_avg_stats()
+            # Sum of max VRAM delta over all modules
+            total_vram_delta = sum(s.max_peak_vram_delta for s in avg_stats.avg_module_stats.values())
+            return total_vram_delta
+        if isinstance(estimator, OptimizationPlan):
+            # An optimization plan should know its memory requirements.
+            # This part needs to be implemented in OptimizationPlan.
+            # For now, let's assume a method exists.
+            return estimator.get_total_runtime_vram()
+
+        # Fallback to old logic if no estimator is provided
+        # TODO: Remove this hardcoded logic eventually
+        inference_memory_size = 1024 * 1024 * 1024 * 2  # Default 2GB
+        module_cls_name = self.manage_object.__class__.__name__
+        if "AutoencoderKL" in module_cls_name and args:
+            x_input_shape = args[0].shape
+            area = x_input_shape[0] * x_input_shape[2] * x_input_shape[3]
+            inference_memory_size = int(2178 * area * 64) * 2
+        # ... other hardcoded cases ...
+        return inference_memory_size
 
     def on_setup(self, manager):
         self.offload_resource_pool = manager.get_resource_pool(torch.device("cpu"))
@@ -36,104 +82,42 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         return pools
 
-    def on_load(self, user_context=None):
-        user_context_changed = False
-        if self.loaded and not user_context_changed:
+    def on_load(self):
+        if self.loaded:
             return
 
         torch_model = self.manage_object
         runtime_device = self.get_runtime_device()
 
-        module_cls_name = torch_model.__class__.__name__
-        if isinstance(user_context, dict):
-            if "AutoencoderKL" in module_cls_name:
-                if args := user_context.get("args", None):
-                    x_input_shape = args[0].shape
-                    area = x_input_shape[0] * x_input_shape[2] * x_input_shape[3]
-                    self.inference_memory_size = int(2178 * area * 64) * 2
-            elif "UNet2DConditionModel" in module_cls_name:
-                if args := user_context.get("args", None):
-                    x_input_shape = args[0].shape
-                    area = x_input_shape[0] * x_input_shape[2] * x_input_shape[3]
-                    self.inference_memory_size = int((area * torch_model.dtype.itemsize / 50) * (1024 * 1024))
-            elif "SanaTransformer2DModel" in module_cls_name:
-                self.inference_memory_size = 1024 * 1024 * 1024 * 5
-            elif "AutoencoderDC" in module_cls_name:
-                self.inference_memory_size = 1024 * 1024 * 1024 * 7
-                torch_model.enable_tiling()
-            elif "FluxTransformer2DModel" in module_cls_name:
-                self.inference_memory_size = 1024 * 1024 * 768
+        # Step 1: Estimate the required memory for this inference operation.
+        inference_memory_size = self._estimate_inference_memory()
 
-        is_vae = "Autoencoder" in module_cls_name
-        if is_vae:
-            torch_model.enable_slicing()
-
+        # Step 2: Calculate the memory needed for the model's weights.
+        # This only includes weights currently offloaded that need to be moved.
         module_memory_size = get_module_size(torch_model) - self.get_used_resource_size(runtime_device)
-        self.runtime_resource_pool.request_resource(module_memory_size + self.inference_memory_size)
-        free_size = self.runtime_resource_pool.get_pool_free_size()
+
+        # Step 3: Request the total required memory from the pool.
+        total_request_size = module_memory_size + inference_memory_size
+        self.runtime_resource_pool.request_resource(total_request_size)
         self.logger.info(
-            f"request_size = {human_readable_filesize(module_memory_size + self.inference_memory_size)} free_size = {human_readable_filesize(free_size)}"
+            f"Requesting {human_readable_filesize(total_request_size)} "
+            f"(weights: {human_readable_filesize(module_memory_size)}, "
+            f"inference: {human_readable_filesize(inference_memory_size)}). "
+            f"Pool free: {human_readable_filesize(self.runtime_resource_pool.get_pool_free_size())}"
         )
-        if is_vae or free_size > module_memory_size + self.inference_memory_size:
-            torch_model.to(device=self.get_runtime_device())
-        else:
-            accelerate_free_size = free_size - self.inference_memory_size
-            accelerate_minimum_requirement = 0
-            if accelerate_free_size < accelerate_minimum_requirement:
-                accelerate_free_size = min(1024 * 1024 * 1024, int(free_size / 2))
-            no_split_module_classes = ["NunchakuJointTransformerBlock", "NunchakuFluxSingleTransformerBlock"]
-            # device_map = accelerate.infer_auto_device_map(
-            #     torch_model,
-            #     max_memory={0: accelerate_free_size, "cpu": "26GiB"},
-            #     no_split_module_classes=no_split_module_classes,
-            # )
-            # self.logger.warning(f"accelerate.infer_auto_device_map {device_map}")
 
-            # if False and not self.accelerate_state_dict_pin_memory:
-            #     state_dict = torch_model.state_dict()
+        # Step 4: Move the model to the runtime device.
+        # If the model has hooks (e.g., InferenceOptimizerHook), it will not be
+        # moved monolithically. The hooks themselves will manage moving sub-parts
+        # of the model during the actual forward pass. Calling `.to()` here ensures
+        # that at least the top-level module object is on the right device and
+        # that non-parameter/buffer tensors are moved. For models with advanced
+        # hooks, this might be a no-op for the parameters themselves.
+        torch_model.to(device=self.get_runtime_device())
 
-            #     # while len(state_dict) > 0:
-            #     #     k, v = state_dict.popitem()
-            #     #     torch_model.load_state_dict({k: v.pin_memory()}, strict=False, assign=True)
-
-            #     for k in state_dict:
-            #         state_dict[k] = state_dict[k].pin_memory()
-            #     torch_model.load_state_dict(state_dict, strict=False, assign=True)
-
-            #     self.accelerate_state_dict_pin_memory = True
-
-            # self.accelerate_state_dict: dict[str, torch.Tensor] = torch_model.state_dict()
-
-            # old_hook = None
-            # if getattr(torch_model, "_hf_hook", None) is not None:
-            #     old_hook = torch_model._hf_hook
-            # accelerate.dispatch_model(
-            #     torch_model,
-            #     device_map=device_map,
-            #     main_device=runtime_device,
-            #     preload_module_classes=no_split_module_classes,
-            #     state_dict=self.accelerate_state_dict,
-            # )
-            # if old_hook is not None:
-            #     accelerate.hooks.add_hook_to_module(torch_model, old_hook, append=True)
-            old_hook = None
-            if getattr(torch_model, "_hf_hook", None) is not None:
-                old_hook = torch_model._hf_hook
-            from ..accelerate.hook import InferenceOptimizerHook
-
-            self.optimizer_hook = InferenceOptimizerHook(
-                cache_dir="example_optim_cache_sdxl",
-                max_memory_gb={0: 4, "cpu": 16}
-                if torch.cuda.is_available() and torch.cuda.device_count() > 0
-                else {"cpu": 16},
-            )
-            accelerate.hooks.add_hook_to_module(torch_model, self.optimizer_hook, append=False)
-            self.optimizer_hook.pre_forward(torch_model, *user_context.get("args"), **user_context.get("kwargs"))
-            if old_hook is not None:
-                accelerate.hooks.add_hook_to_module(torch_model, old_hook, append=False)
-            accelerate.hooks.add_hook_to_module(torch_model, self.optimizer_hook, append=True)
-
-            self.use_accelerate = True
+        # The wrapper is no longer responsible for dispatching or optimization.
+        # If the user wants optimization, they must apply the hook before wrapping.
+        self.use_accelerate = hasattr(torch_model, "_hf_hook")
 
         super().on_load()
 
@@ -141,24 +125,22 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         if self.manage_object is None:
             return
 
-        self.logger.info(f"on_resource_request {device} {human_readable_filesize(int(size))}")
+        self.logger.info(
+            f"Offloading model in response to resource request on {device} for {human_readable_filesize(int(size))}"
+        )
         pre_free_size = self.runtime_resource_pool.get_pool_free_size()
 
-        if self.use_accelerate:
-            accelerate.hooks.remove_hook_from_module(self.manage_object, recurse=True)
-            if self.optimizer_hook.cpu_state_dict:
-                self.manage_object.load_state_dict(self.optimizer_hook.cpu_state_dict, assign=True)
-            self.accelerate_state_dict = None
-            self.optimizer_hook = None
-            self.use_accelerate = False
-        else:
-            self.manage_object.to(device=self.offload_resource_pool.get_pool_device())
+        # The wrapper's only job is to move the object to the offload device.
+        # Any hooks on the object (from accelerate or InferenceOptimizerHook) are
+        # responsible for managing their own state during this move.
+        self.manage_object.to(device=self.offload_resource_pool.get_pool_device())
 
         accelerate.utils.memory.clear_device_cache(garbage_collection=True)
 
         post_free_size = self.runtime_resource_pool.get_pool_free_size()
         self.logger.info(
-            f"on_resource_request free {human_readable_filesize(post_free_size - pre_free_size)} free_size_now = {human_readable_filesize(post_free_size)}"
+            f"Freed {human_readable_filesize(post_free_size - pre_free_size)}. "
+            f"Pool free size now: {human_readable_filesize(post_free_size)}"
         )
         super().on_resource_request(device, size)
 
