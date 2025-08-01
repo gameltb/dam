@@ -3,7 +3,6 @@ from __future__ import annotations
 import diffusers
 import torch
 
-from ..commit_object import CommitObjectProxy
 from ..runtime_resource_management import AutoManageHook
 from . import WeakRefResourcePoolUser
 from .pytorch_module import get_module_size
@@ -19,18 +18,11 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
 
         self.all_module_hooks_map = {}
 
-        all_model_components = {k: v for k, v in pipeline.components.items()}
+        all_model_components = {k: v for k, v in pipeline.components.items() if isinstance(v, torch.nn.Module)}
 
         for name, model in all_model_components.items():
             if name in self.all_module_hooks_map:
                 continue
-
-            # If a component is managed by a CommitObjectProxy, skip it.
-            # The user is responsible for managing its state.
-            if isinstance(model, CommitObjectProxy):
-                self.logger.info(f"Skipping AutoManageHook for '{name}' as it is managed by a CommitObjectProxy.")
-                continue
-
             if not isinstance(model, torch.nn.Module):
                 continue
 
@@ -51,12 +43,6 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
     def get_runtime_device(self):
         for hook in self.all_module_hooks_map.values():
             return hook.am.get_execution_device()
-
-    # def get_used_resource_devices(self):
-    #     return super().get_used_resource_devices()
-
-    # def get_used_resource_size(self, device):
-    #     return 0
 
     def unlock(self):
         super().unlock()

@@ -5,6 +5,10 @@ import torch
 from torch import device as torch_device
 
 from .core.commit_object import CallableCommit, CommitABC, CommitObjectProxy
+from .core.commit_object_auto_device_manage import (
+    AutoManageCommitObjectProxy,
+    CommitWithAutoManage,
+)
 from .core.optimizer import InferenceOptimizerCommit
 from .core.runtime_resource_management import (
     AutoManageHook,
@@ -63,7 +67,9 @@ __all__ = [
     "AutoManageHook",
     "manage",
     "CommitObjectProxy",
+    "AutoManageCommitObjectProxy",
     "CommitABC",
+    "CommitWithAutoManage",
     "CallableCommit",
     "get_resource_management",
     "InferenceOptimizerCommit",
