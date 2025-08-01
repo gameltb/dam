@@ -9,12 +9,7 @@ from sire_pipelines.pipelines.simple_pipeline import SimplePipeline
 def setup_sire_for_testing():
     """Sets up Sire with default pools and registers the torch wrapper."""
     sire.get_resource_management().__init__()
-    sire.setup_default_pools()
-    from sire.core.runtime_resource_management import AutoManageWrapper
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
-
-    if torch.nn.Module not in AutoManageWrapper.type_wrapper_map:
-        AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+    sire.initialize()
 
 
 def test_simple_pipeline_instantiation():

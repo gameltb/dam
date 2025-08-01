@@ -18,13 +18,7 @@ class SimpleModel(torch.nn.Module):
 def setup_sire():
     """Sets up Sire with default pools before each test."""
     sire.get_resource_management().__init__()  # Reset manager state for isolation
-    sire.setup_default_pools()
-    from sire.core.runtime_resource_management import AutoManageWrapper
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
-
-    # Register the wrapper for torch.nn.Module if not already registered
-    if torch.nn.Module not in AutoManageWrapper.type_wrapper_map:
-        AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+    sire.initialize()
 
 
 def test_setup_default_pools():
