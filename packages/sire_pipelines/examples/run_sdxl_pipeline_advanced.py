@@ -23,8 +23,11 @@ class LoraCommit(CommitABC[UNet2DConditionModel]):
         self._load_lora = load_lora_weights
         self._unload_lora = unload_lora_weights
 
-    def apply(self, base_object: UNet2DConditionModel, **kwargs):
-        example_logger.info(f"Applying LoRA from: {self.lora_path}")
+    def apply(self, base_object: UNet2DConditionModel, auto_manager=None, **kwargs):
+        device_info = "no manager context"
+        if auto_manager:
+            device_info = f"manager with device {auto_manager.get_execution_device()}"
+        example_logger.info(f"Applying LoRA from: {self.lora_path} (context: {device_info})")
         self._load_lora(self.lora_path, **self.lora_kwargs)
 
     def revert(self, base_object: UNet2DConditionModel):
@@ -72,12 +75,18 @@ def main():
         example_logger.error(f"Failed to load pipeline: {e}", exc_info=True)
         sys.exit(1)
 
-    # 1. Manage the entire pipeline with a single call.
-    #    Sire will use the registered DiffusersPipelineWrapper automatically.
-    managed_pipe = sire.manage(pipe)
-
-    # 2. Create a CommitObjectProxy for the UNet to manage its state (optimizations, LoRAs, etc.)
+    # 1. Create a CommitObjectProxy for the UNet to manage its state (optimizations, LoRAs, etc.)
     unet_proxy = CommitObjectProxy(pipe.unet)
+
+    # 2. IMPORTANT: Replace the original UNet in the pipeline with our proxy object.
+    #    This allows us to control the UNet's state independently.
+    pipe.unet = unet_proxy
+
+    # 3. Manage the entire pipeline with a single call.
+    #    Sire will use the registered DiffusersPipelineWrapper.
+    #    When it encounters pipe.unet, it will see it's a CommitObjectProxy and skip it,
+    #    respecting our manual control.
+    managed_pipe = sire.manage(pipe)
 
     # 3. Define optimization and LoRA commits
     optimizer_commit = InferenceOptimizerCommit(

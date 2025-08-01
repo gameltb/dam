@@ -275,6 +275,7 @@ class CommitObjectProxy(Generic[T]):
     def __init__(self, base_object: Union[T, BaseCommitObjectRef[T]]):
         self.manager_uuid = uuid.uuid4()
         self.commit_stack: list[CommitABC[T]] = []
+        self.am_ref: weakref.ref | None = None
 
         self.base_object_ref: BaseCommitObjectRef[T] = None
         if isinstance(base_object, BaseCommitObjectRef):
@@ -285,6 +286,7 @@ class CommitObjectProxy(Generic[T]):
     def clone(self):
         new_manager = CommitObjectProxy[T](self.base_object_ref)
         new_manager.commit_stack = [*self.commit_stack]
+        new_manager.am_ref = self.am_ref
         return new_manager
 
     def add_commit(self, commit: CommitABC[T]):
@@ -302,7 +304,30 @@ class CommitObjectProxy(Generic[T]):
         if self.base_object_ref.state_uuid is UNKNOWN_STATE_UUID:
             self.base_object_ref.reset()
 
-        return self.base_object_ref.rebase(self.commit_stack)
+        kwargs = {}
+        if self.am_ref and (am := self.am_ref()):
+            kwargs["auto_manager"] = am
+
+        # A bit of a hack, we need to pass the kwargs to the apply method inside rebase.
+        # We can't change the rebase signature without a lot of refactoring.
+        # So we patch the commit.apply methods before calling rebase.
+        original_applies = []
+        for commit in self.commit_stack:
+            original_apply = commit.apply
+            original_applies.append((commit, original_apply))
+
+            def new_apply(base_object, _original_apply=original_apply, **kw):
+                return _original_apply(base_object, **kwargs)
+
+            commit.apply = new_apply
+
+        try:
+            result = self.base_object_ref.rebase(self.commit_stack)
+        finally:
+            # Restore original apply methods
+            for commit, original_apply in original_applies:
+                commit.apply = original_apply
+        return result
 
     def get_current_object(self):
         self.apply_commit_stack()

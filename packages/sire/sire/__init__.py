@@ -13,6 +13,7 @@ from .core.runtime_resource_management import (
 )
 from .core.runtime_resource_management import get_management as get_resource_management
 from .core.runtime_resource_pool import ResourcePoolCPU, ResourcePoolCUDA
+from .core.runtime_resource_user.commit_object import CommitObjectProxyWrapper
 from .core.runtime_resource_user.diffusers_pipeline import DiffusersPipelineWrapper
 from .core.runtime_resource_user.pytorch_module import TorchModuleWrapper
 
@@ -42,6 +43,7 @@ def initialize():
     # Register default type wrappers
     AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
     AutoManageWrapper.registe_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)
+    AutoManageWrapper.registe_type_wrapper(CommitObjectProxy, CommitObjectProxyWrapper)
     _initialized = True
 
 
@@ -67,4 +69,5 @@ __all__ = [
     "InferenceOptimizerCommit",
     "TorchModuleWrapper",
     "DiffusersPipelineWrapper",
+    "CommitObjectProxyWrapper",
 ]

@@ -60,6 +60,48 @@ def test_manage_and_auto_manage_simple():
     assert next(model.parameters()).device.type == "cpu"
 
 
+class ContextAwareCommit(sire.CommitABC):
+    def __init__(self, expected_device):
+        super().__init__()
+        self.apply_called = False
+        self.expected_device = expected_device
+
+    def apply(self, base_object, auto_manager=None, **kwargs):
+        assert auto_manager is not None
+        assert auto_manager.get_execution_device().type == self.expected_device
+        self.apply_called = True
+
+    def revert(self, base_object):
+        pass
+
+
+def test_commit_with_context():
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available, skipping GPU part of the test")
+
+    model = SimpleModel()
+    proxy = sire.CommitObjectProxy(model)
+
+    # The AutoManageWrapper for the proxy will be created here
+    managed_proxy = sire.manage(proxy)
+
+    # Force the underlying model's manager to use the GPU
+    managed_proxy.user.base_object_am.user.runtime_resource_pool = sire.get_resource_management().get_resource_pool(
+        torch.device("cuda", 0)
+    )
+
+    commit = ContextAwareCommit(expected_device="cuda")
+    proxy.add_commit(commit)
+
+    with sire.auto_manage(managed_proxy):
+        # This will trigger the on_load of the CommitObjectProxyWrapper,
+        # which in turn loads the base model to the correct device.
+        # We also need to apply the commit stack to trigger the apply method.
+        proxy.apply_commit_stack()
+
+    assert commit.apply_called
+
+
 def test_automanage_hook():
     if not torch.cuda.is_available():
         pytest.skip("CUDA not available, skipping GPU part of the test")
