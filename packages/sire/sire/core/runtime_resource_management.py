@@ -104,6 +104,11 @@ class AutoManageHook(ModelHook):
 
     @classmethod
     def manage_module(cls, module):
+        # If a user for this module already exists in the central map, do nothing.
+        if module in AutoManageWrapper.wrapper_obj_map:
+            # Return the existing hook if possible, or None
+            return cls.cache_hook_map.get(module, None)
+
         hook = cls.cache_hook_map.get(module, None)
         if hook is None or getattr(module, "_hf_hook", None) is None:
             hook = cls(AutoManageWrapper(module))

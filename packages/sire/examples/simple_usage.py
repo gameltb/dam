@@ -1,9 +1,9 @@
 import torch
 import sire
 
-# 1. Initialize Sire's resource pools
-# This scans for available devices (CPU and CUDA) and creates a resource pool for each.
-sire.setup_default_pools()
+# 1. Initialize Sire's environment
+# This scans for available devices, sets up resource pools, and registers default wrappers.
+sire.initialize()
 
 # 2. Create your PyTorch model
 class MyModel(torch.nn.Module):

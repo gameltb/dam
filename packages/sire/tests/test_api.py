@@ -18,51 +18,80 @@ class SimpleModel(torch.nn.Module):
 def setup_sire():
     """Sets up Sire with default pools before each test."""
     sire.get_resource_management().__init__()  # Reset manager state for isolation
-    sire.setup_default_pools()
-    from sire.core.runtime_resource_management import AutoManageWrapper
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
-
-    # Register the wrapper for torch.nn.Module if not already registered
-    if torch.nn.Module not in AutoManageWrapper.type_wrapper_map:
-        AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+    sire.initialize()
 
 
-def test_setup_default_pools():
+def test_initialize_idempotent():
+    """Tests that initialize can be called multiple times safely."""
+    sire.initialize()
+    sire.initialize()
     management = sire.get_resource_management()
     assert management.get_resource_pool(torch.device("cpu")) is not None
-    if torch.cuda.is_available():
-        assert management.get_resource_pool(torch.device("cuda", 0)) is not None
 
 
 def test_manage_and_auto_manage_simple():
     model = SimpleModel()
     managed_model_wrapper = sire.manage(model)
-
-    # Check that the model is initially on the CPU
     assert next(model.parameters()).device.type == "cpu"
 
     if not torch.cuda.is_available():
         pytest.skip("CUDA not available, skipping GPU part of the test")
 
-    # Force runtime device to be CUDA for the managed object
     managed_model_wrapper.user.runtime_resource_pool = sire.get_resource_management().get_resource_pool(
         torch.device("cuda", 0)
     )
-
-    # Before entering the context, the model should be on CPU
     assert next(model.parameters()).device.type == "cpu"
 
     with sire.auto_manage(managed_model_wrapper) as am:
-        # Inside the context, the model should be on the execution device (GPU)
         execution_device = am.get_execution_device()
         assert execution_device.type == "cuda"
         assert next(model.parameters()).device.type == "cuda"
-
-        # You could even run a dummy forward pass
         dummy_input = torch.randn(1, 10).to(execution_device)
         model(dummy_input)
 
-    # After exiting the context, the model should be offloaded back to CPU
+    assert next(model.parameters()).device.type == "cpu"
+
+
+class ManagedCommit(sire.CommitWithAutoManage):
+    def __init__(self):
+        super().__init__()
+        self.apply_called = False
+        self.revert_called = False
+        self.execution_device_at_apply = None
+
+    def apply(self, base_object, **kwargs):
+        self.apply_called = True
+        assert self.am is not None
+        self.execution_device_at_apply = self.am.get_execution_device()
+
+    def revert(self, base_object):
+        self.revert_called = True
+
+    def get_runtime_device(self):
+        return self.am.get_execution_device() if self.am else torch.device("cpu")
+
+
+def test_commit_with_auto_manage():
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available, skipping GPU part of the test")
+
+    model = SimpleModel()
+    proxy = sire.AutoManageCommitObjectProxy(model)
+
+    proxy.base_object_ref.am.user.runtime_resource_pool = sire.get_resource_management().get_resource_pool(
+        torch.device("cuda", 0)
+    )
+
+    commit = ManagedCommit()
+    proxy_with_commit = proxy.clone_and_add_commit(commit)
+    proxy_with_commit.apply_commit_stack()
+
+    assert commit.apply_called
+    assert commit.execution_device_at_apply.type == "cuda"
+    assert next(model.parameters()).device.type == "cuda"
+
+    proxy.apply_commit_stack()
+    assert commit.revert_called
     assert next(model.parameters()).device.type == "cpu"
 
 
@@ -71,18 +100,11 @@ def test_automanage_hook():
         pytest.skip("CUDA not available, skipping GPU part of the test")
 
     model = SimpleModel()
-
     from sire.core.runtime_resource_management import AutoManageHook
 
     hook = AutoManageHook.manage_module(model)
-
-    # Force the hook to use the GPU
     hook.am.user.runtime_resource_pool = sire.get_resource_management().get_resource_pool(torch.device("cuda", 0))
 
     assert next(model.parameters()).device.type == "cpu"
-
-    dummy_input = torch.randn(1, 10)
-    model(dummy_input)  # This should trigger the pre-forward and post-forward hooks
-
-    # After the forward pass, the model should be back on the CPU
+    model(torch.randn(1, 10))
     assert next(model.parameters()).device.type == "cpu"

@@ -1,9 +1,15 @@
 __version__ = "0.2.0"
 
+import diffusers
 import torch
 from torch import device as torch_device
 
 from .core.commit_object import CallableCommit, CommitABC, CommitObjectProxy
+from .core.commit_object_auto_device_manage import (
+    AutoManageCommitObjectProxy,
+    CommitWithAutoManage,
+)
+from .core.optimizer import InferenceOptimizerCommit
 from .core.runtime_resource_management import (
     AutoManageHook,
     AutoManageWrapper,
@@ -11,19 +17,38 @@ from .core.runtime_resource_management import (
 )
 from .core.runtime_resource_management import get_management as get_resource_management
 from .core.runtime_resource_pool import ResourcePoolCPU, ResourcePoolCUDA
+from .core.runtime_resource_user.commit_object import CommitObjectProxyWrapper
+from .core.runtime_resource_user.diffusers_pipeline import DiffusersPipelineWrapper
 from .core.runtime_resource_user.pytorch_module import TorchModuleWrapper
 
+_initialized = False
 
-def setup_default_pools():
+
+def initialize():
     """
-    Sets up default CPU and CUDA resource pools.
+    Initializes Sire's environment. Sets up default CPU and CUDA resource pools
+    and registers the default type wrappers for common libraries like PyTorch
+    and Diffusers. This function is idempotent.
     """
+    global _initialized
+    if _initialized:
+        return
+
+    # Set up CPU and CUDA resource pools
     management = get_resource_management()
     if torch.cuda.is_available():
         for i in range(torch.cuda.device_count()):
             device = torch_device("cuda", i)
-            management.set_resource_pool(device, ResourcePoolCUDA(device))
-    management.set_resource_pool(torch_device("cpu"), ResourcePoolCPU(torch_device("cpu")))
+            if management.get_resource_pool(device) is None:
+                management.set_resource_pool(device, ResourcePoolCUDA(device))
+    if management.get_resource_pool(torch.device("cpu")) is None:
+        management.set_resource_pool(torch_device("cpu"), ResourcePoolCPU(torch_device("cpu")))
+
+    # Register default type wrappers
+    AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+    AutoManageWrapper.registe_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)
+    AutoManageWrapper.registe_type_wrapper(CommitObjectProxy, CommitObjectProxyWrapper)
+    _initialized = True
 
 
 def manage(model_object):
@@ -34,20 +59,21 @@ def manage(model_object):
     return AutoManageWrapper(model_object)
 
 
-# Register the default wrapper for torch.nn.Module
-AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
-
-
 # Expose the core components for advanced users
 __all__ = [
     "__version__",
+    "initialize",
     "auto_manage",
     "AutoManageHook",
     "manage",
     "CommitObjectProxy",
+    "AutoManageCommitObjectProxy",
     "CommitABC",
+    "CommitWithAutoManage",
     "CallableCommit",
     "get_resource_management",
-    "setup_default_pools",
+    "InferenceOptimizerCommit",
     "TorchModuleWrapper",
+    "DiffusersPipelineWrapper",
+    "CommitObjectProxyWrapper",
 ]

@@ -44,12 +44,6 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
         for hook in self.all_module_hooks_map.values():
             return hook.am.get_execution_device()
 
-    # def get_used_resource_devices(self):
-    #     return super().get_used_resource_devices()
-
-    # def get_used_resource_size(self, device):
-    #     return 0
-
     def unlock(self):
         super().unlock()
         for name, hook in self.all_module_hooks_map.items():
