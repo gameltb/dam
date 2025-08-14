@@ -1,5 +1,9 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "ecs_dam_system"
+name = "dam"
 version = "0.1.0"
 description = "A Digital Asset Management system using an Entity-Component-System (ECS) architecture in Python."
 readme = "README.md"
@@ -17,7 +21,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Filesystems",
-    "Topic :: Multimedia :: Graphics :: Media Management",
 ]
 
 dependencies = [
@@ -76,10 +79,6 @@ Repository = "https://example.com/ecs_dam_system.git" # Placeholder
 
 [project.scripts]
 dam-cli = "dam.cli:app"
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]

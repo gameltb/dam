@@ -26,6 +26,15 @@ from .signature import ConfigSignatureGenerator, SignatureType
 
 logger = logging.getLogger(__name__)
 
+import accelerate.hooks
+import accelerate.utils.modeling
+import functools
+
+# hack
+accelerate.hooks.set_module_tensor_to_device = functools.partial(
+    accelerate.utils.modeling.set_module_tensor_to_device, non_blocking=True, clear_cache=False
+)
+
 
 class PrefetchContext:
     def __init__(self, plan: OptimizationPlan, model: nn.Module, num_streams: int, offload_policy: str):
@@ -206,7 +215,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     elif val.device != pf_dev:
                         logger.debug(f"Prefetching existing tensor {name} from {val.device} to {pf_dev}")
                         val.data = val.data.to(pf_dev, non_blocking=True)
-                logger.info(f"Prefetch task for {pf_name} to {pf_dev} submitted on stream {pf_stream.stream_id}.")
+                logger.debug(f"Prefetch task for {pf_name} to {pf_dev} submitted on stream {pf_stream.stream_id}.")
             self.ctx.set_module_prefetch_stream(pf_name, pf_stream)
         except Exception as e_pf:
             logger.error(f"Error in do_prefetch for {pf_name}: {e_pf}", exc_info=True)
@@ -342,6 +351,7 @@ class InferenceOptimizerHook(ModelHook):
 
     @torch.compiler.disable()
     def pre_forward(self, module: nn.Module, *args, **kwargs):
+        nvtx.range_push("IOHook.full_forward")
         nvtx.range_push("IOHook.pre_forward")
         self.hooked_module_instance = module
 
@@ -514,4 +524,5 @@ class InferenceOptimizerHook(ModelHook):
         return args, kwargs
 
     def post_forward(self, module: nn.Module, output: Any):
+        nvtx.range_pop()
         return output
