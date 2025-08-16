@@ -64,13 +64,13 @@ dev = [
 ]
 
 all = [
-    "ecs_dam_system[image]",
-    "ecs_dam_system[video]",
-    "ecs_dam_system[audio]",
-    "ecs_dam_system[metadata]",
-    "ecs_dam_system[semantic]",
-    "ecs_dam_system[dev]",
-    "ecs_dam_system[all-transcode]",
+    "dam[image]",
+    "dam[video]",
+    "dam[audio]",
+    "dam[metadata]",
+    "dam[semantic]",
+    "dam[dev]",
+    "dam[all-transcode]",
 ]
 
 [project.urls]
