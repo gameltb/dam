@@ -113,7 +113,8 @@ asyncio_mode = "auto"
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
+test = "pytest -n auto"
+test-cov = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
 mypy.default_item_type = "cmd"
 mypy.sequence = [
     "mypy --config-file ../../pyproject.toml dam tests",

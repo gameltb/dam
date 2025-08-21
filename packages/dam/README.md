@@ -175,9 +175,10 @@ The system provides several ways to search for assets:
 
 ## Development
 
-*   **Tests:** `uv run pytest`
-*   **Lint/Format:** `uv run ruff format .`, `uv run ruff check . --fix`
-*   **Type Check:** `uv run mypy .`
+*   **Tests:** `poe test`
+*   **Tests with coverage:** `poe test-cov`
+*   **Lint/Format:** `poe format`, `poe lint`
+*   **Type Check:** `poe mypy`
 
 ### Database Migrations (Alembic - Currently Paused)
 Use `dam-cli setup-db`.

@@ -110,4 +110,6 @@ fix = "python run_task_in_pkgs_if_exist.py fix"
 pyright = "python run_task_in_pkgs_if_exist.py pyright"
 mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
-check = ["fmt", "lint", "test"]
+test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
+check = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test \"$@\"' --"
+check-ci = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test-cov \"$@\"' --"
