@@ -359,6 +359,44 @@ async def cli_add_asset(  # Made async
         raise typer.Exit(code=1)
 
 
+@app.command(name="ingest-psp-isos")
+async def cli_ingest_psp_isos(
+    ctx: typer.Context,
+    directory: Annotated[str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)],
+    passwords: Annotated[Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")] = None,
+):
+    """
+    Scans a directory for PSP ISOs and archives, and ingests them into the DAM.
+    """
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    from dam.systems import psp_iso_ingestion_system
+
+    typer.echo(f"Starting PSP ISO ingestion for world '{target_world.name}' from directory: {directory}")
+
+    async with target_world.db_session_maker() as session:
+        try:
+            await psp_iso_ingestion_system.ingest_psp_isos_from_directory(
+                session=session,
+                directory=directory,
+                passwords=passwords,
+            )
+            await session.commit()
+            typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
+        except Exception as e:
+            await session.rollback()
+            typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
 @app.command(name="setup-db")
 async def setup_db(ctx: typer.Context):  # Added context, made async
     """
