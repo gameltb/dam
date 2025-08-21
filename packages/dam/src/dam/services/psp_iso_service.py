@@ -38,6 +38,7 @@ class SFO:
         ]
 
         self.data: Dict[str, Any] = {}
+        self.raw_data: Dict[str, Any] = {}
         for i in range(len(self.idx_table)):
             self._read_entry(raw_sfo, i)
 
@@ -54,10 +55,13 @@ class SFO:
         d_start = self.data_table_start + entry.data_offset
         d_end = d_start + entry.data_len
 
+        raw_data_bytes = raw_sfo[d_start:d_end]
         if entry.data_fmt == SFODataFormat.INT32:
-            data = int.from_bytes(raw_sfo[d_start:d_end], "little")
+            data = int.from_bytes(raw_data_bytes, "little")
+            self.raw_data[key] = int.from_bytes(raw_data_bytes, "little")
         else:
-            data = raw_sfo[d_start:d_end].decode('utf-8', errors='ignore').rstrip("\x00")
+            data = raw_data_bytes.decode('utf-8', errors='ignore').rstrip("\x00")
+            self.raw_data[key] = raw_data_bytes.rstrip(b'\x00').decode('utf-8', errors='ignore')
 
         self.data[key] = data
 
@@ -106,17 +110,19 @@ def process_iso_stream(stream: BinaryIO) -> Dict[str, Any]:
         raise IOError("Failed to open stream as ISO file") from e
 
     sfo_data = None
+    sfo_raw_data = None
     try:
         for dirname, _, filelist in iso.walk(iso_path='/'):
             for file in filelist:
-                if file.upper().endswith('PARAM.SFO'):
-                    sfo_path = f"{dirname}/{file}".lstrip('/')
+                if file.upper().startswith('PARAM.SFO'):
+                    sfo_path = f"/{dirname}/{file}".replace('//', '/')
                     extracted_sfo = BytesIO()
                     iso.get_file_from_iso_fp(extracted_sfo, iso_path=sfo_path)
                     raw_sfo = extracted_sfo.getvalue()
                     try:
                         sfo = SFO(raw_sfo)
                         sfo_data = sfo.data
+                        sfo_raw_data = sfo.raw_data
                     except Exception:
                         # Ignore SFO parsing errors
                         pass
@@ -129,4 +135,5 @@ def process_iso_stream(stream: BinaryIO) -> Dict[str, Any]:
     return {
         "hashes": hashes,
         "sfo_metadata": sfo_data,
+        "sfo_raw_metadata": sfo_raw_data,
     }

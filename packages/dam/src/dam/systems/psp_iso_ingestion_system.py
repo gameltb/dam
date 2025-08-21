@@ -15,7 +15,7 @@ from dam.models.hashes import (
     ContentHashSHA256Component,
     ContentHashCRC32Component,
 )
-from dam.models.metadata import PSPSFOMetadataComponent
+from dam.models.metadata import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 from dam.models.core import Entity
 
 
@@ -61,6 +61,14 @@ async def _process_iso_file(
             title=sfo_metadata.get("TITLE"),
         )
         await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
+
+    # Add raw SFO metadata component
+    sfo_raw_metadata = iso_data.get("sfo_raw_metadata")
+    if sfo_raw_metadata:
+        sfo_raw_component = PspSfoRawMetadataComponent(
+            metadata_json=sfo_raw_metadata
+        )
+        await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
 
 
 async def ingest_psp_isos_from_directory(
