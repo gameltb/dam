@@ -813,17 +813,12 @@ version = "0.1.0"
 source = { editable = "packages/dam" }
 dependencies = [
     { name = "alembic" },
-    { name = "patool" },
     { name = "psutil" },
-    { name = "py7zr" },
-    { name = "pycdlib" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
-    { name = "rarfile" },
     { name = "sqlalchemy" },
     { name = "typer" },
-    { name = "zstandard" },
 ]
 
 [package.optional-dependencies]
@@ -832,12 +827,17 @@ all = [
     { name = "hachoir" },
     { name = "imagehash" },
     { name = "numpy" },
+    { name = "patool" },
     { name = "pillow" },
+    { name = "py7zr" },
+    { name = "pycdlib" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "rarfile" },
     { name = "sentence-transformers" },
+    { name = "zstandard" },
 ]
 dev = [
     { name = "aiosqlite" },
@@ -853,6 +853,13 @@ image = [
 metadata = [
     { name = "hachoir" },
 ]
+psp = [
+    { name = "patool" },
+    { name = "py7zr" },
+    { name = "pycdlib" },
+    { name = "rarfile" },
+    { name = "zstandard" },
+]
 semantic = [
     { name = "numpy" },
     { name = "sentence-transformers" },
@@ -867,16 +874,17 @@ requires-dist = [
     { name = "dam", extras = ["dev"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["image"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["metadata"], marker = "extra == 'all'", editable = "packages/dam" },
+    { name = "dam", extras = ["psp"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["semantic"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["video"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "hachoir", marker = "extra == 'metadata'" },
     { name = "imagehash", marker = "extra == 'image'" },
     { name = "numpy", marker = "extra == 'semantic'" },
-    { name = "patool" },
+    { name = "patool", marker = "extra == 'psp'" },
     { name = "pillow", marker = "extra == 'image'" },
     { name = "psutil" },
-    { name = "py7zr" },
-    { name = "pycdlib" },
+    { name = "py7zr", marker = "extra == 'psp'" },
+    { name = "pycdlib", marker = "extra == 'psp'" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'dev'" },
@@ -884,13 +892,13 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
-    { name = "rarfile" },
+    { name = "rarfile", marker = "extra == 'psp'" },
     { name = "sentence-transformers", marker = "extra == 'semantic'" },
     { name = "sqlalchemy" },
     { name = "typer" },
-    { name = "zstandard" },
+    { name = "zstandard", marker = "extra == 'psp'" },
 ]
-provides-extras = ["image", "video", "audio", "metadata", "semantic", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]
+provides-extras = ["image", "video", "audio", "metadata", "psp", "semantic", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]
 
 [[package]]
 name = "dataclasses-json"

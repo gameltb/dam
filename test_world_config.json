@@ -1,6 +1,0 @@
-{
-    "test_world": {
-        "DATABASE_URL": "sqlite+aiosqlite:///./test_world.db",
-        "ASSET_STORAGE_PATH": "/tmp/dam_test_storage"
-    }
-}

@@ -6,30 +6,37 @@ from io import BytesIO
 
 from dam.services import psp_iso_service
 
-# A minimal valid PARAM.SFO file content for testing
-# This is a simplified structure. A real SFO is more complex.
-DUMMY_SFO_CONTENT = (
-    b'\x00PSF' + b'\x01\x01\x00\x00' +
-    b'\x3C\x00\x00\x00' + # key_table_start
-    b'\x88\x00\x00\x00' + # data_table_start
-    b'\x02\x00\x00\x00' + # table_entries
-    # Index Table Entry 1 (TITLE)
-    b'\x00\x00' + # key_offset
-    b'\x04\x02' + # data_fmt (UTF8)
-    b'\x08\x00\x00\x00' + # data_len
-    b'\x80\x00\x00\x00' + # data_max_len
-    b'\x00\x00\x00\x00' + # data_offset
-    # Index Table Entry 2 (DISC_ID)
-    b'\x06\x00' + # key_offset
-    b'\x04\x02' + # data_fmt (UTF8)
-    b'\x0A\x00\x00\x00' + # data_len
-    b'\x80\x00\x00\x00' + # data_max_len
-    b'\x08\x00\x00\x00' + # data_offset
+# A more realistic, valid PARAM.SFO file content for testing
+DUMMY_SFO_CONTENT = b''.join([
+    b'\x00PSF',              # Magic
+    b'\x01\x01\x00\x00',      # Version 1.1
+    b'\x34\x00\x00\x00',      # key_table_start (52)
+    b'\x4C\x00\x00\x00',      # data_table_start (76)
+    b'\x02\x00\x00\x00',      # table_entries (2)
+    # Index Table (2 entries * 16 bytes = 32 bytes)
+    # Entry 1: TITLE
+    b'\x00\x00',              # key_offset
+    b'\x04\x02',              # data_fmt (UTF8)
+    b'\x0A\x00\x00\x00',      # data_len (10)
+    b'\x0A\x00\x00\x00',      # data_max_len (10)
+    b'\x00\x00\x00\x00',      # data_offset
+    # Entry 2: DISC_ID
+    b'\x06\x00',              # key_offset
+    b'\x04\x02',              # data_fmt (UTF8)
+    b'\x0B\x00\x00\x00',      # data_len (11)
+    b'\x0B\x00\x00\x00',      # data_max_len (11)
+    b'\x0A\x00\x00\x00',      # data_offset
+    # Padding to key_table_start (52)
+    b'\x00' * (52 - (20 + 32)),
     # Key Table
-    b'TITLE\x00' + b'DISC_ID\x00' + b'\x00'*47 +
+    b'TITLE\x00',
+    b'DISC_ID\x00',
+    # Padding to data_table_start (76)
+    b'\x00' * (76 - (52 + 6 + 8)),
     # Data Table
-    b'Test Game\x00' + b'ULUS-12345\x00' + b'\x00'*230
-)
+    b'Test Game\x00',
+    b'ULUS-12345\x00',
+])
 
 def create_dummy_iso_with_sfo() -> BytesIO:
     """Creates a dummy ISO 9660 image with a PARAM.SFO file in memory."""
