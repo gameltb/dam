@@ -36,10 +36,11 @@ async def aexec_doc(
 
     doc_to_exec = doc
     project_path = pathlib.Path(settings.project_path)
+    timestamp_format = "%Y%m%d_%H%M%S"
     # Check if the file is under the project path
     if project_path in doc.parents and sessions_dir not in doc.parents:
         # Create a temporary file in the sessions folder
-        now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        now = datetime.now().strftime(timestamp_format)
         temp_filename = f"{now}_{doc.stem}.md"
         doc_to_exec = sessions_dir / temp_filename
 
@@ -47,9 +48,32 @@ async def aexec_doc(
             f.write(expanded_content)
     else:
         if not overwrite:
-            now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            new_filename = f"{doc.stem}_{now}.md"
-            doc_to_exec = doc.with_name(new_filename)
+            import re
+
+            # Check for timestamp with optional letters at the end of the stem
+            match = re.search(r"(_\d{8}_\d{6})([A-Z]*)$", doc.stem)
+
+            if match:
+                # Timestamp found.
+                # Try to create a new filename with 'A' appended.
+                new_stem_with_A = f"{doc.stem}A"
+                path_with_A = doc.with_name(f"{new_stem_with_A}.md")
+
+                if path_with_A.exists():
+                    # File with 'A' exists, so we create a new timestamped file.
+                    # We need to find the base name by stripping the found suffix.
+                    base_name = doc.stem[: match.start()]
+                    now = datetime.now().strftime(timestamp_format)
+                    new_filename = f"{base_name}_{now}.md"
+                    doc_to_exec = doc.with_name(new_filename)
+                else:
+                    # File with 'A' does not exist, so we use it.
+                    doc_to_exec = path_with_A
+            else:
+                # No timestamp found, add one.
+                now = datetime.now().strftime(timestamp_format)
+                new_filename = f"{doc.stem}_{now}.md"
+                doc_to_exec = doc.with_name(new_filename)
 
         with open(doc_to_exec, "w") as f:
             f.write(expanded_content)
