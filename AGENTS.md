@@ -57,12 +57,18 @@ To create a pull request (PR), ensure the following checks are met. You can run 
 
 - Format: `poe format`
 - Lint: `poe lint`
-- Test: `poe test`
+- Test: `poe test` (does not collect coverage)
+- Test with coverage: `poe test-cov`
 - Mypy: `poe mypy`
 - Pyright: `poe pyright`
 - Check samples in `python/samples`: `poe samples-code-check`
-  Alternatively, you can run all the checks with:
+
+Alternatively, you can run all the checks with:
 - `poe check`
+
+To run checks on a specific package, use the `--package` flag:
+- `poe check --package sire`
+- `poe test --package sire`
 
 > [!NOTE]
 > These need to be run in the virtual environment.

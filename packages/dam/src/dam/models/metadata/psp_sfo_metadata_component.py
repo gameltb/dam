@@ -1,0 +1,30 @@
+from typing import Optional
+
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from ..core.base_component import BaseComponent
+
+
+class PSPSFOMetadataComponent(BaseComponent):
+    """
+    Stores metadata from a PSP ISO's PARAM.SFO file.
+    """
+
+    __tablename__ = "component_psp_sfo_metadata"
+
+    # Common SFO fields
+    app_ver: Mapped[Optional[str]] = mapped_column(String(255))
+    bootable: Mapped[Optional[int]] = mapped_column(Integer)
+    category: Mapped[Optional[str]] = mapped_column(String(255))
+    disc_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    disc_version: Mapped[Optional[str]] = mapped_column(String(255))
+    parental_level: Mapped[Optional[int]] = mapped_column(Integer)
+    psp_system_ver: Mapped[Optional[str]] = mapped_column(String(255))
+    title: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+
+    def __repr__(self):
+        return (
+            f"PSPSFOMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"title='{self.title}', disc_id='{self.disc_id}')"
+        )

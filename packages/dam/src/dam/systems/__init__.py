@@ -17,6 +17,7 @@ _system_module_names = [
     ".semantic_systems",  # Added semantic_systems
     ".auto_tagging_system",  # Added new auto-tagging system
     ".audio_systems",  # Added audio_systems
+    ".psp_iso_ingestion_system",
 ]
 
 # Explicitly import and re-export specific items like markers if needed for direct import elsewhere
