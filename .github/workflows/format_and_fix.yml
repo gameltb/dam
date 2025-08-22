@@ -1,0 +1,34 @@
+name: Format and Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  format-and-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --all-extras
+
+      - name: Run formatter and fixer
+        run: |
+          source .venv/bin/activate
+          poe format
+          poe fix
+          poe format
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: Apply automatic formatting and fixes"
+          branch: ${{ github.head_ref }}
