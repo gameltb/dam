@@ -67,33 +67,16 @@ class SFO:
 
 
 def _calculate_hashes(stream: BinaryIO) -> Dict[str, bytes]:
-    """Calculates MD5, SHA1, SHA256, and CRC32 hashes for a stream."""
-    # This function now delegates to the hashing_service.
-    # The hashing_service works with file paths, so we need to write the stream to a temporary file.
-    import tempfile
-    import os
+    """Calculates MD5, SHA1, SHA256, and CRC32 hashes for a stream using a single pass."""
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        stream.seek(0)
-        tmp.write(stream.read())
-        tmp_path_str = tmp.name
-
-    stream.seek(0)
-    tmp_path = Path(tmp_path_str)
-
-    try:
-        md5_hex = hashing_service.calculate_md5(tmp_path)
-        sha1_hex = hashing_service.calculate_sha1(tmp_path)
-        sha256_hex = hashing_service.calculate_sha256(tmp_path)
-        crc32_int = hashing_service.calculate_crc32(tmp_path)
-    finally:
-        os.unlink(tmp_path_str)
+    algorithms = ['md5', 'sha1', 'sha256', 'crc32']
+    hashes = hashing_service.calculate_hashes_from_stream(stream, algorithms)
 
     return {
-        "md5": bytes.fromhex(md5_hex),
-        "sha1": bytes.fromhex(sha1_hex),
-        "sha256": bytes.fromhex(sha256_hex),
-        "crc32": crc32_int.to_bytes(4, 'big'),
+        "md5": bytes.fromhex(hashes['md5']),
+        "sha1": bytes.fromhex(hashes['sha1']),
+        "sha256": bytes.fromhex(hashes['sha256']),
+        "crc32": hashes['crc32'].to_bytes(4, 'big'),
     }
 
 

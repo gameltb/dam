@@ -47,8 +47,13 @@ async def import_local_file(
         if original_filename is None or size_bytes is None:
             original_filename, size_bytes = file_operations.get_file_properties(filepath)
 
-        sha256_hash = await hashing_service.calculate_sha256_async(filepath)
+        with open(filepath, "rb") as f:
+            hashes = await hashing_service.calculate_hashes_from_stream_async(f, ['md5', 'sha256'])
+
+        sha256_hash = hashes['sha256']
+        md5_hash = hashes['md5']
         sha256_bytes = bytes.fromhex(sha256_hash)
+
     except (IOError, FileNotFoundError) as e:
         raise ImportServiceError(f"Could not read or hash file at {filepath}: {e}") from e
 
@@ -69,7 +74,6 @@ async def import_local_file(
             chc_sha256 = ContentHashSHA256Component(hash_value=sha256_bytes)
             await ecs_service.add_component_to_entity(session, entity.id, chc_sha256)
 
-            md5_hash = await hashing_service.calculate_md5_async(filepath)
             chc_md5 = ContentHashMD5Component(hash_value=bytes.fromhex(md5_hash))
             await ecs_service.add_component_to_entity(session, entity.id, chc_md5)
 

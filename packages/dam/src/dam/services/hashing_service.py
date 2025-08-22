@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import logging
 from pathlib import Path
+from typing import Any, BinaryIO, Dict, List
 
 # Conditional imports for optional image hashing feature
 _imagehash_available = False
@@ -184,7 +185,42 @@ def calculate_crc32(filepath: Path) -> int:
         raise IOError(f"Error reading file {filepath}: {e}") from e
 
 
+def calculate_hashes_from_stream(stream: BinaryIO, algorithms: List[str]) -> Dict[str, Any]:
+    """
+    Calculates multiple hashes from a stream in a single pass.
+
+    Args:
+        stream: A binary file-like object.
+        algorithms: A list of hash algorithm names (e.g., ['md5', 'sha256', 'crc32']).
+
+    Returns:
+        A dictionary mapping algorithm names to their hash result (hex digest for most, int for crc32).
+    """
+    import zlib
+    hashers = {alg: hashlib.new(alg) for alg in algorithms if alg != 'crc32'}
+    crc32_hash = 0 if 'crc32' in algorithms else None
+
+    stream.seek(0)
+    while chunk := stream.read(4096):
+        for hasher in hashers.values():
+            hasher.update(chunk)
+        if crc32_hash is not None:
+            crc32_hash = zlib.crc32(chunk, crc32_hash)
+    stream.seek(0)
+
+    results = {name: hasher.hexdigest() for name, hasher in hashers.items()}
+    if crc32_hash is not None:
+        results['crc32'] = crc32_hash
+
+    return results
+
+
 # --- Async Wrappers ---
+
+async def calculate_hashes_from_stream_async(stream: BinaryIO, algorithms: List[str]) -> Dict[str, str]:
+    """Asynchronously calculates multiple hashes from a stream."""
+    return await asyncio.to_thread(calculate_hashes_from_stream, stream, algorithms)
+
 
 async def calculate_sha256_async(filepath: Path) -> str:
     """Asynchronously calculates the SHA256 hash of a file."""
