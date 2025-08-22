@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import typer  # Ensure typer is imported for annotations like typer.Context
-from rich import print_json
 from typing_extensions import Annotated
 
 from dam.core import config as app_config
@@ -355,8 +354,12 @@ async def cli_add_asset(  # Made async
 @app.command(name="ingest-psp-isos")
 async def cli_ingest_psp_isos(
     ctx: typer.Context,
-    directory: Annotated[str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)],
-    passwords: Annotated[Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")] = None,
+    directory: Annotated[
+        str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)
+    ],
+    passwords: Annotated[
+        Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
+    ] = None,
 ):
     """
     Scans a directory for PSP ISOs and archives, and ingests them into the DAM.

@@ -1,6 +1,7 @@
 """
 This module provides utility functions for parsing and resolving DAM URLs.
 """
+
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -15,7 +16,7 @@ def parse_dam_url(url: str) -> dict:
     """
     parsed = urlparse(url)
     storage_type = parsed.hostname
-    path = parsed.path.lstrip('/')
+    path = parsed.path.lstrip("/")
     fragment = parsed.fragment
     query = parse_qs(parsed.query)
     return {
@@ -41,7 +42,7 @@ def get_local_path_for_url(url: str, config: WorldConfig) -> Path:
         storage_type = parsed.hostname
         # The path in a dam URL is the content identifier (e.g., hash)
         # or the full path for a reference.
-        path_part = parsed.path.lstrip('/')
+        path_part = parsed.path.lstrip("/")
 
         if storage_type == "local_cas":
             content_hash = path_part

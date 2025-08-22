@@ -12,8 +12,7 @@ from dam.models.core.entity import Entity
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.tags import EntityTagLinkComponent  # Updated import
 from dam.services import ecs_service as dam_ecs_service
-from dam.services import tag_service
-from dam.services import transcode_service
+from dam.services import tag_service, transcode_service
 from dam.systems import evaluation_systems
 
 from .test_cli import (

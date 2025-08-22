@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13' and python_full_version < '4' and sys_platform != 'darwin'",
@@ -812,6 +812,7 @@ name = "dam"
 version = "0.1.0"
 source = { editable = "packages/dam" }
 dependencies = [
+    { name = "aiosqlite" },
     { name = "alembic" },
     { name = "psutil" },
     { name = "pydantic" },
@@ -823,7 +824,6 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "aiosqlite" },
     { name = "hachoir" },
     { name = "imagehash" },
     { name = "numpy" },
@@ -840,7 +840,6 @@ all = [
     { name = "zstandard" },
 ]
 dev = [
-    { name = "aiosqlite" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -867,7 +866,7 @@ semantic = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", marker = "extra == 'dev'" },
+    { name = "aiosqlite" },
     { name = "alembic" },
     { name = "dam", extras = ["all-transcode"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["audio"], marker = "extra == 'all'", editable = "packages/dam" },

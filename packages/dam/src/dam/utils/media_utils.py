@@ -278,7 +278,6 @@ async def get_file_path_for_entity(
         logger.error(f"Unsupported storage type: {parsed_url['storage_type']}")
         return None
 
-
     # It's good practice to check if the file actually exists
     if not os.path.exists(full_path):
         logger.warning(

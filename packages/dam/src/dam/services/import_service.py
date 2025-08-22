@@ -3,6 +3,7 @@ This service provides a high-level API for importing assets into the DAM.
 It encapsulates the logic for checking for duplicates based on content hashes
 and handling different import methods (e.g., copying vs. referencing).
 """
+
 import logging
 from pathlib import Path
 from typing import Optional
@@ -19,15 +20,14 @@ from dam.models.hashes.image_perceptual_hash_phash_component import ImagePercept
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import ecs_service
-from dam.services import file_operations
-from dam.services import hashing_service
+from dam.services import ecs_service, file_operations, hashing_service
 
 logger = logging.getLogger(__name__)
 
 
 class ImportServiceError(Exception):
     """Custom exception for ImportService errors."""
+
     pass
 
 
@@ -49,10 +49,10 @@ async def import_local_file(
             original_filename, size_bytes = file_operations.get_file_properties(filepath)
 
         with open(filepath, "rb") as f:
-            hashes = await hashing_service.calculate_hashes_from_stream_async(f, ['md5', 'sha256'])
+            hashes = await hashing_service.calculate_hashes_from_stream_async(f, ["md5", "sha256"])
 
-        sha256_hash = hashes['sha256']
-        md5_hash = hashes['md5']
+        sha256_hash = hashes["sha256"]
+        md5_hash = hashes["md5"]
         sha256_bytes = bytes.fromhex(sha256_hash)
 
     except (IOError, FileNotFoundError) as e:
@@ -87,6 +87,7 @@ async def import_local_file(
         # Handle File Location and Original Source
         if copy_to_storage:
             from dam.resources.file_storage_resource import FileStorageResource
+
             file_storage = world.get_resource(FileStorageResource)
             try:
                 file_content = await file_operations.read_file_async(filepath)
@@ -97,7 +98,7 @@ async def import_local_file(
 
             url = f"dam://local_cas/{sha256_hash}#{original_filename}"
             source_type = source_types.SOURCE_TYPE_LOCAL_FILE
-        else: # By reference
+        else:  # By reference
             resolved_path = str(filepath.resolve())
             url = f"dam://local_reference/{resolved_path}#{original_filename}"
             source_type = source_types.SOURCE_TYPE_REFERENCED_FILE
@@ -109,7 +110,9 @@ async def import_local_file(
             await ecs_service.add_component_to_entity(session, entity.id, flc)
 
         # Add OriginalSourceInfoComponent, checking for duplicates
-        existing_osis = await ecs_service.get_components_by_value(session, entity.id, OriginalSourceInfoComponent, {"source_type": source_type})
+        existing_osis = await ecs_service.get_components_by_value(
+            session, entity.id, OriginalSourceInfoComponent, {"source_type": source_type}
+        )
         if not existing_osis:
             osi = OriginalSourceInfoComponent(source_type=source_type)
             await ecs_service.add_component_to_entity(session, entity.id, osi)

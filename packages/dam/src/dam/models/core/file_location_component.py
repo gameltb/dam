@@ -25,7 +25,6 @@ class FileLocationComponent(BaseComponent):
     # Credentials for accessing the file, if any.
     credentials: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-
     __table_args__ = (
         UniqueConstraint("entity_id", "url", name="uq_url_entity"),
         # An entity should not have the exact same physical file location/reference registered twice.

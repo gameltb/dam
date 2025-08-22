@@ -13,7 +13,7 @@ class SFODataFormat:
 
 class SFOIndexTableEntry:
     def __init__(self, raw, offset):
-        fields = struct.unpack('<HHIII', raw[offset: offset + 0x10])
+        fields = struct.unpack("<HHIII", raw[offset : offset + 0x10])
         self.key_offset = fields[0]
         self.data_fmt = fields[1]
         self.data_len = fields[2]
@@ -28,12 +28,9 @@ class SFO:
 
         version_minor = struct.unpack("<I", raw_sfo[0x5:0x8] + b"\x00")[0]
         self.version = f"{raw_sfo[0x04]}.{version_minor}"
-        self.key_table_start, self.data_table_start, self.table_entries = struct.unpack('<III', raw_sfo[0x08:0x14])
+        self.key_table_start, self.data_table_start, self.table_entries = struct.unpack("<III", raw_sfo[0x08:0x14])
 
-        self.idx_table = [
-            SFOIndexTableEntry(raw_sfo, 0x14 + idx * 0x10)
-            for idx in range(self.table_entries)
-        ]
+        self.idx_table = [SFOIndexTableEntry(raw_sfo, 0x14 + idx * 0x10) for idx in range(self.table_entries)]
 
         self.data: Dict[str, Any] = {}
         for i in range(len(self.idx_table)):
@@ -47,7 +44,7 @@ class SFO:
             k_end = self.data_table_start
         else:
             k_end = self.key_table_start + self.idx_table[idx + 1].key_offset
-        key = raw_sfo[k_start:k_end].decode('utf-8', errors='ignore').rstrip("\x00")
+        key = raw_sfo[k_start:k_end].decode("utf-8", errors="ignore").rstrip("\x00")
 
         d_start = self.data_table_start + entry.data_offset
         d_end = d_start + entry.data_len
@@ -56,7 +53,7 @@ class SFO:
         if entry.data_fmt == SFODataFormat.INT32:
             data = int.from_bytes(raw_data_bytes, "little")
         else:
-            data = raw_data_bytes.decode('utf-8', errors='ignore').rstrip("\x00")
+            data = raw_data_bytes.decode("utf-8", errors="ignore").rstrip("\x00")
 
         self.data[key] = data
 
@@ -78,10 +75,10 @@ def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
         raise IOError("Failed to open stream as ISO file") from e
 
     try:
-        for dirname, _, filelist in iso.walk(iso_path='/'):
+        for dirname, _, filelist in iso.walk(iso_path="/"):
             for file in filelist:
-                if file.upper().startswith('PARAM.SFO'):
-                    sfo_path = f"/{dirname}/{file}".replace('//', '/')
+                if file.upper().startswith("PARAM.SFO"):
+                    sfo_path = f"/{dirname}/{file}".replace("//", "/")
                     extracted_sfo = BytesIO()
                     iso.get_file_from_iso_fp(extracted_sfo, iso_path=sfo_path)
                     raw_sfo = extracted_sfo.getvalue()

@@ -11,9 +11,7 @@ from dam.models.conceptual.evaluation_run_component import EvaluationRunComponen
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
 from dam.models.properties.file_properties_component import FilePropertiesComponent
-from dam.services import ecs_service
-from dam.services import tag_service
-from dam.services import transcode_service
+from dam.services import ecs_service, tag_service, transcode_service
 
 
 class EvaluationError(Exception):

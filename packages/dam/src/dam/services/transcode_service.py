@@ -251,9 +251,7 @@ async def apply_transcode_profile(
         # This uses the existing asset ingestion event flow.
         # The ingestion system will calculate hashes, extract metadata, and create FileLocationComponent.
         try:
-            _ret_original_filename, ret_size_bytes = file_operations.get_file_properties(
-                transcoded_filepath
-            )
+            _ret_original_filename, ret_size_bytes = file_operations.get_file_properties(transcoded_filepath)
         except Exception as e:
             if transcoded_filepath.exists():  # Check if it exists before unlinking
                 transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file

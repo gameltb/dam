@@ -74,9 +74,7 @@ def get_mime_type(filepath: Path) -> str:
             logger.debug(f"MIME type from mimetypes for {filepath.name}: {mime_type}")
         else:
             mime_type = "application/octet-stream"
-            logger.warning(
-                f"mimetypes could not guess MIME type for {filepath.name}. Defaulting to {mime_type}."
-            )
+            logger.warning(f"mimetypes could not guess MIME type for {filepath.name}. Defaulting to {mime_type}.")
     return mime_type
 
 
@@ -97,5 +95,3 @@ async def get_file_properties_async(filepath: Path) -> Tuple[str, int]:
 async def get_mime_type_async(filepath: Path) -> str:
     """Asynchronously detects the MIME type of a file."""
     return await asyncio.to_thread(get_mime_type, filepath)
-
-

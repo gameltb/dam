@@ -16,24 +16,20 @@ from dam.models.hashes import (
     ContentHashSHA256Component,
 )
 from dam.models.metadata import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
-from dam.services import ecs_service
-from dam.services import hashing_service
-from dam.services import psp_iso_service
+from dam.services import ecs_service, hashing_service, psp_iso_service
 
 
-async def _process_iso_file(
-    session: AsyncSession, file_path: Path, file_stream: BytesIO
-) -> None:
+async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream: BytesIO) -> None:
     """Helper function to process a single ISO stream."""
 
     # Calculate hashes
     file_stream.seek(0)
-    hash_algorithms = ['md5', 'sha1', 'sha256', 'crc32']
+    hash_algorithms = ["md5", "sha1", "sha256", "crc32"]
     hashes = hashing_service.calculate_hashes_from_stream(file_stream, hash_algorithms)
     if not hashes:
         return
 
-    md5_hash = bytes.fromhex(hashes['md5'])
+    md5_hash = bytes.fromhex(hashes["md5"])
 
     # Check for duplicates
     stmt = select(Entity.id).join(ContentHashMD5Component).where(ContentHashMD5Component.hash_value == md5_hash)
@@ -46,9 +42,15 @@ async def _process_iso_file(
 
     # Add hash components
     await ecs_service.add_component_to_entity(session, entity.id, ContentHashMD5Component(hash_value=md5_hash))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes['sha1'])))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes['sha256'])))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashCRC32Component(hash_value=hashes['crc32'].to_bytes(4, 'big')))
+    await ecs_service.add_component_to_entity(
+        session, entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes["sha1"]))
+    )
+    await ecs_service.add_component_to_entity(
+        session, entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes["sha256"]))
+    )
+    await ecs_service.add_component_to_entity(
+        session, entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"].to_bytes(4, "big"))
+    )
 
     # Process SFO metadata
     file_stream.seek(0)
@@ -73,9 +75,7 @@ async def _process_iso_file(
             )
             await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
 
-            sfo_raw_component = PspSfoRawMetadataComponent(
-                metadata_json=sfo_metadata
-            )
+            sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
             await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
 
 
@@ -90,7 +90,7 @@ async def ingest_psp_isos_from_directory(
     if passwords is None:
         passwords = [None]  # Try with no password first
     else:
-        passwords.insert(0, None) # Also try with no password first
+        passwords.insert(0, None)  # Also try with no password first
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -117,7 +117,7 @@ async def ingest_psp_isos_from_directory(
                                         )
                         break  # Correct password found
                     except (RuntimeError, zipfile.BadZipFile):
-                        continue # Wrong password, try next
+                        continue  # Wrong password, try next
 
             elif ext == ".7z":
                 for password in passwords:
@@ -125,9 +125,7 @@ async def ingest_psp_isos_from_directory(
                         with py7zr.SevenZipFile(file_path, mode="r", password=password) as szf:
                             for member_name, bio in szf.read().items():
                                 if member_name.lower().endswith(".iso"):
-                                    await _process_iso_file(
-                                        session, file_path / member_name, bio
-                                    )
+                                    await _process_iso_file(session, file_path / member_name, bio)
                         break  # Correct password found
                     except py7zr.exceptions.PasswordRequired:
                         continue

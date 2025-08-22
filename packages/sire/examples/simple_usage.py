@@ -6,6 +6,7 @@ import sire
 # This scans for available devices, sets up resource pools, and registers default wrappers.
 sire.initialize()
 
+
 # 2. Create your PyTorch model
 class MyModel(torch.nn.Module):
     def __init__(self):
@@ -16,6 +17,7 @@ class MyModel(torch.nn.Module):
         # This print statement helps visualize where the model is running
         print(f"Executing forward pass on device: {x.device}")
         return self.linear(x)
+
 
 def main():
     """

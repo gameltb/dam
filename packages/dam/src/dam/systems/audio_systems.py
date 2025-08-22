@@ -15,9 +15,7 @@ from dam.models.core.base_component import BaseComponent
 from dam.models.semantic.audio_embedding_component import (
     get_audio_embedding_component_class,
 )
-from dam.services import audio_service
-from dam.services import ecs_service
-from dam.services import file_operations
+from dam.services import audio_service, ecs_service, file_operations
 
 # Assuming this utility will be created or already exists and can provide a file path
 from dam.utils.media_utils import get_file_path_for_entity

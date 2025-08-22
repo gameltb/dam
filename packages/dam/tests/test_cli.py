@@ -30,8 +30,7 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import file_operations
-from dam.services import hashing_service
+from dam.services import file_operations, hashing_service
 from dam.services.file_storage import get_file_path
 from dam.utils import url_utils
 
@@ -569,10 +568,7 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             # Check FileLocationComponent
             # We might have multiple FLCs if the same content was added via different original paths/names before,
             # but for this test, each file is unique content.
-            stmt_loc = (
-                select(FileLocationComponent)
-                .where(FileLocationComponent.entity_id == entity_id)
-            )
+            stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
             result_loc = await session.execute(stmt_loc)  # Await
             location_component = result_loc.scalar_one_or_none()
             assert location_component is not None, f"FileLocationComponent for {f_path.name} not found"
@@ -775,10 +771,7 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         # multiple FLCs for the same path for the same entity, this test would need adjustment.
         # The `handle_asset_file_ingestion_request` *does* check if FLC exists for the same entity
         # and physical_storage_path_suffix. So it should be 1.
-        stmt_locs = (
-            select(FileLocationComponent)
-            .where(FileLocationComponent.entity_id == entity_id)
-        )
+        stmt_locs = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         result_locs = await session.execute(stmt_locs)  # Await
         location_components = result_locs.scalars().all()
         assert len(location_components) == 1, (

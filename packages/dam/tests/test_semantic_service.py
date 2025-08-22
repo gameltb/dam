@@ -13,8 +13,7 @@ from dam.models.semantic import (
     ModelHyperparameters,
     get_embedding_component_class,
 )
-from dam.services import ecs_service
-from dam.services import semantic_service
+from dam.services import ecs_service, semantic_service
 from dam.services.semantic_service import BatchTextItem  # Keep this for type hints
 
 from .conftest import MockSentenceTransformer  # Import the mock from conftest

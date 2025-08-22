@@ -114,7 +114,9 @@ async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -
     return all_components
 
 
-async def get_all_components_for_entity_as_dict(session: AsyncSession, entity_id: int) -> Dict[str, List[Dict[str, Any]]]:
+async def get_all_components_for_entity_as_dict(
+    session: AsyncSession, entity_id: int
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Retrieves all components for a given entity and returns them as a dictionary.
     """
@@ -130,7 +132,7 @@ async def get_all_components_for_entity_as_dict(session: AsyncSession, entity_id
             value = getattr(component, c.key)
             if isinstance(value, bytes):
                 value = value.hex()
-            elif hasattr(value, 'isoformat'): # Handle datetime objects
+            elif hasattr(value, "isoformat"):  # Handle datetime objects
                 value = value.isoformat()
             component_data[c.key] = value
 

@@ -3,6 +3,7 @@ This service provides centralized functions for calculating various types of has
 for files, including content hashes (e.g., MD5, SHA256) and perceptual hashes
 for images (e.g., aHash, pHash, dHash).
 """
+
 import asyncio
 import hashlib
 import logging
@@ -14,8 +15,10 @@ _imagehash_available = False
 _PIL_available = False
 try:
     import imagehash
+
     _imagehash_available = True
     from PIL import Image
+
     _PIL_available = True
 except ImportError:
     # This warning can be made more prominent or logged if necessary
@@ -175,6 +178,7 @@ def calculate_crc32(filepath: Path) -> int:
         raise FileNotFoundError(f"File not found: {filepath}")
 
     import zlib
+
     crc32_hash = 0
     try:
         with open(filepath, "rb") as f:
@@ -197,8 +201,9 @@ def calculate_hashes_from_stream(stream: BinaryIO, algorithms: List[str]) -> Dic
         A dictionary mapping algorithm names to their hash result (hex digest for most, int for crc32).
     """
     import zlib
-    hashers = {alg: hashlib.new(alg) for alg in algorithms if alg != 'crc32'}
-    crc32_hash = 0 if 'crc32' in algorithms else None
+
+    hashers = {alg: hashlib.new(alg) for alg in algorithms if alg != "crc32"}
+    crc32_hash = 0 if "crc32" in algorithms else None
 
     stream.seek(0)
     while chunk := stream.read(4096):
@@ -210,12 +215,13 @@ def calculate_hashes_from_stream(stream: BinaryIO, algorithms: List[str]) -> Dic
 
     results = {name: hasher.hexdigest() for name, hasher in hashers.items()}
     if crc32_hash is not None:
-        results['crc32'] = crc32_hash
+        results["crc32"] = crc32_hash
 
     return results
 
 
 # --- Async Wrappers ---
+
 
 async def calculate_hashes_from_stream_async(stream: BinaryIO, algorithms: List[str]) -> Dict[str, str]:
     """Asynchronously calculates multiple hashes from a stream."""

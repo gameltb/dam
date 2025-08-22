@@ -1,10 +1,8 @@
-import json
 from typing import Optional
 
 import pytest
 from typer.testing import CliRunner
 
-from dam.cli import app
 from dam.core.world import World
 from dam.models.properties import FilePropertiesComponent
 from dam.services import ecs_service
@@ -28,17 +26,16 @@ async def test_cli_inspect_entity(current_test_world_for_inspect_cli: World, cli
         await ecs_service.add_component_to_entity(
             session,
             entity.id,
-            FilePropertiesComponent(
-                original_filename="inspect_test.txt", file_size_bytes=123
-            ),
+            FilePropertiesComponent(original_filename="inspect_test.txt", file_size_bytes=123),
         )
         await session.commit()
         entity_id = entity.id
 
     assert entity_id is not None
 
-    from dam.cli import cli_inspect_entity, global_state
     from unittest.mock import patch
+
+    from dam.cli import cli_inspect_entity, global_state
 
     global_state.world_name = world_name
 
@@ -46,7 +43,7 @@ async def test_cli_inspect_entity(current_test_world_for_inspect_cli: World, cli
         await cli_inspect_entity(ctx=None, entity_id=entity_id)
 
         mock_print_json.assert_called_once()
-        output_data = mock_print_json.call_args[1]['data']
+        output_data = mock_print_json.call_args[1]["data"]
 
         assert "FilePropertiesComponent" in output_data
         assert len(output_data["FilePropertiesComponent"]) == 1

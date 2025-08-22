@@ -107,24 +107,31 @@ def register_core_systems(world_instance: "World") -> None:
     # Metadata Systems
     try:
         from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
+
         world_instance.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
         logger.debug("Registered system: extract_metadata_on_asset_ingested for stage METADATA_EXTRACTION")
     except ImportError as e:
-        logger.warning(f"Could not import or register extract_metadata_on_asset_ingested, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register extract_metadata_on_asset_ingested, likely due to missing optional dependencies: {e}"
+        )
 
     # Asset Lifecycle Systems (Event-based)
     try:
         from dam.systems.asset_lifecycle_systems import handle_asset_file_ingestion_request
+
         world_instance.register_system(
             handle_asset_file_ingestion_request,
             event_type=AssetFileIngestionRequested,
         )
         logger.debug("Registered system: handle_asset_file_ingestion_request for event AssetFileIngestionRequested")
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_asset_file_ingestion_request, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_asset_file_ingestion_request, likely due to missing optional dependencies: {e}"
+        )
 
     try:
         from dam.systems.asset_lifecycle_systems import handle_asset_reference_ingestion_request
+
         world_instance.register_system(
             handle_asset_reference_ingestion_request,
             event_type=AssetReferenceIngestionRequested,
@@ -133,45 +140,62 @@ def register_core_systems(world_instance: "World") -> None:
             "Registered system: handle_asset_reference_ingestion_request for event AssetReferenceIngestionRequested"
         )
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_asset_reference_ingestion_request, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_asset_reference_ingestion_request, likely due to missing optional dependencies: {e}"
+        )
 
     try:
         from dam.systems.asset_lifecycle_systems import handle_find_entity_by_hash_query
+
         world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
         logger.debug("Registered system: handle_find_entity_by_hash_query for event FindEntityByHashQuery")
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_find_entity_by_hash_query, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_find_entity_by_hash_query, likely due to missing optional dependencies: {e}"
+        )
 
     try:
         from dam.systems.asset_lifecycle_systems import handle_find_similar_images_query
+
         world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
         logger.debug("Registered system: handle_find_similar_images_query for event FindSimilarImagesQuery")
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_find_similar_images_query, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_find_similar_images_query, likely due to missing optional dependencies: {e}"
+        )
 
     # Semantic Systems (Text)
     try:
         from dam.systems.semantic_systems import handle_semantic_search_query
+
         world_instance.register_system(handle_semantic_search_query, event_type=SemanticSearchQuery)
         logger.debug("Registered system: handle_semantic_search_query for event SemanticSearchQuery")
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_semantic_search_query, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_semantic_search_query, likely due to missing optional dependencies: {e}"
+        )
 
     # Audio Processing and Search Systems
     # Note: NeedsAudioProcessingMarker is implicitly handled by the MarkedEntityList in audio_embedding_generation_system
     try:
         from dam.systems.audio_systems import audio_embedding_generation_system
+
         world_instance.register_system(audio_embedding_generation_system, stage=SystemStage.CONTENT_ANALYSIS)
         logger.debug("Registered system: audio_embedding_generation_system for stage CONTENT_ANALYSIS")
     except ImportError as e:
-        logger.warning(f"Could not import or register audio_embedding_generation_system, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register audio_embedding_generation_system, likely due to missing optional dependencies: {e}"
+        )
 
     try:
         from dam.systems.semantic_systems import handle_audio_search_query
+
         world_instance.register_system(handle_audio_search_query, event_type=AudioSearchQuery)
         logger.debug("Registered system: handle_audio_search_query for event AudioSearchQuery")
     except ImportError as e:
-        logger.warning(f"Could not import or register handle_audio_search_query, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register handle_audio_search_query, likely due to missing optional dependencies: {e}"
+        )
 
     # Auto-Tagging System
     try:
@@ -180,6 +204,8 @@ def register_core_systems(world_instance: "World") -> None:
         world_instance.register_system(auto_tag_entities_system, stage=SystemStage.CONTENT_ANALYSIS)
         logger.debug("Registered system: auto_tag_entities_system for stage CONTENT_ANALYSIS")
     except ImportError as e:
-        logger.warning(f"Could not import or register auto_tag_entities_system, likely due to missing optional dependencies: {e}")
+        logger.warning(
+            f"Could not import or register auto_tag_entities_system, likely due to missing optional dependencies: {e}"
+        )
 
     logger.info(f"Core system registration complete for world: {world_instance.name}")

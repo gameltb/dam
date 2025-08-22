@@ -27,9 +27,7 @@ from dam.models.source_info import source_types  # Import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.models.source_info.web_source_component import WebSourceComponent
 from dam.models.source_info.website_profile_component import WebsiteProfileComponent
-from dam.services import ecs_service
-from dam.services import hashing_service
-from dam.services import import_service
+from dam.services import ecs_service, hashing_service, import_service
 
 # For find_similar_images
 try:
@@ -90,7 +88,9 @@ async def handle_asset_reference_ingestion_request(event: AssetReferenceIngestio
         )
         logger.info(f"Successfully processed AssetReferenceIngestionRequested for {event.original_filename}")
     except import_service.ImportServiceError as e:
-        logger.error(f"Failed to process AssetReferenceIngestionRequested for {event.original_filename}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to process AssetReferenceIngestionRequested for {event.original_filename}: {e}", exc_info=True
+        )
 
 
 # --- Query Systems (Event Handlers for Queries) ---

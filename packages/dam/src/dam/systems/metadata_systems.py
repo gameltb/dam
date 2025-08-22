@@ -28,8 +28,7 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 from dam.models.properties.audio_properties_component import AudioPropertiesComponent
 from dam.models.properties.frame_properties_component import FramePropertiesComponent
 from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
-from dam.services import ecs_service
-from dam.services import file_operations
+from dam.services import ecs_service, file_operations
 from dam.utils.url_utils import get_local_path_for_url
 
 try:
