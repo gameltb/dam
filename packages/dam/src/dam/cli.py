@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 
 import typer  # Ensure typer is imported for annotations like typer.Context
+from rich import print_json
 from typing_extensions import Annotated
 
 from dam.core import config as app_config
@@ -617,6 +618,32 @@ async def cli_find_similar_images(  # Made async
         typer.secho(f"Error during similarity query dispatch to world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+@app.command(name="inspect-entity")
+async def cli_inspect_entity(
+    ctx: typer.Context,
+    entity_id: Annotated[int, typer.Argument(help="The ID of the entity to inspect.")],
+):
+    """Displays all component information for a given entity."""
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    from rich import print_json
+
+    async with target_world.db_session_maker() as session:
+        components = await dam_ecs_service.get_all_components_for_entity_as_dict(session, entity_id)
+        if not components:
+            typer.secho(f"No components found for entity with ID {entity_id}.", fg=typer.colors.YELLOW)
+            return
+
+        print_json(data=components)
 
 
 @app.command(name="export-world")
