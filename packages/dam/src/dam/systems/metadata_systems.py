@@ -26,7 +26,6 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 
 # Corrected direct imports for models
 from dam.models.properties.audio_properties_component import AudioPropertiesComponent
-from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.properties.frame_properties_component import FramePropertiesComponent
 from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
 from dam.services import ecs_service, file_operations

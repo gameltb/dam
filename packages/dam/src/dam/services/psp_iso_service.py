@@ -1,9 +1,8 @@
-from io import BytesIO
-import pycdlib
 import struct
-from enum import IntEnum
-from typing import Dict, Any, BinaryIO, Optional
-from pathlib import Path
+from io import BytesIO
+from typing import Any, BinaryIO, Dict, Optional
+
+import pycdlib
 
 
 class SFODataFormat:

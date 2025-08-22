@@ -26,9 +26,10 @@ from .signature import ConfigSignatureGenerator, SignatureType
 
 logger = logging.getLogger(__name__)
 
+import functools
+
 import accelerate.hooks
 import accelerate.utils.modeling
-import functools
 
 # hack
 accelerate.hooks.set_module_tensor_to_device = functools.partial(

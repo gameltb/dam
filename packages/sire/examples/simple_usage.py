@@ -1,4 +1,5 @@
 import torch
+
 import sire
 
 # 1. Initialize Sire's environment

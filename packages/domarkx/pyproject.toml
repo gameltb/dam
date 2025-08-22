@@ -44,17 +44,13 @@ docker-jupyter-executor = [
 [project.scripts]
 domarkx = "domarkx.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["."]
-
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
-include = ["domarkx/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
-include = ["domarkx", "tests"]
+include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
 

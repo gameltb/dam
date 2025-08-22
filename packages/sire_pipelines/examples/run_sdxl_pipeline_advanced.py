@@ -6,7 +6,6 @@ from typing import Callable
 import sire
 import torch
 from diffusers import DiffusionPipeline, UNet2DConditionModel
-
 from sire import AutoManageCommitObjectProxy, CommitWithAutoManage, InferenceOptimizerCommit
 
 # Global logger for the example

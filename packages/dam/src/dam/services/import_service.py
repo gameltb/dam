@@ -3,7 +3,6 @@ This service provides a high-level API for importing assets into the DAM.
 It encapsulates the logic for checking for duplicates based on content hashes
 and handling different import methods (e.g., copying vs. referencing).
 """
-import binascii
 import logging
 from pathlib import Path
 from typing import Optional

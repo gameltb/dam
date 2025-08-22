@@ -2,7 +2,6 @@ import binascii  # For hex string to bytes conversion
 import logging
 from typing import Optional
 
-from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig  # Import WorldConfig directly
 from dam.core.events import (
     AssetFileIngestionRequested,
@@ -13,6 +12,7 @@ from dam.core.events import (
 )
 from dam.core.system_params import WorldSession  # CurrentWorldConfig removed
 from dam.core.systems import listens_for
+from dam.core.world import get_world
 from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
 
@@ -27,9 +27,7 @@ from dam.models.source_info import source_types  # Import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.models.source_info.web_source_component import WebSourceComponent
 from dam.models.source_info.website_profile_component import WebsiteProfileComponent
-from dam.resources.file_storage_resource import FileStorageResource  # Resource
-from dam.services import ecs_service, file_operations, hashing_service, import_service
-from dam.core.world import get_world
+from dam.services import ecs_service, hashing_service, import_service
 
 # For find_similar_images
 try:

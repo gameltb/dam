@@ -1,5 +1,4 @@
 import hashlib
-import zlib
 from io import BytesIO
 
 import pycdlib

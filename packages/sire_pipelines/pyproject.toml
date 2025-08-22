@@ -50,11 +50,10 @@ exclude = ["tests*"]
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
-include = ["sire_pipelines/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
-include = ["sire_pipelines", "tests"]
+include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
 

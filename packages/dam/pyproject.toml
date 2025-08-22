@@ -88,19 +88,13 @@ Repository = "https://example.com/ecs_dam_system.git" # Placeholder
 [project.scripts]
 dam-cli = "dam.cli:app"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["dam*"]
-exclude = ["tests*"]
-
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
-include = ["dam/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
-include = ["dam", "tests"]
+include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
 

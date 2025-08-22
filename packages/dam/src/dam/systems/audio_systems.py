@@ -12,7 +12,6 @@ from dam.core.systems import system
 # This can be added during ingestion or by other systems.
 from dam.models.core import Entity
 from dam.models.core.base_component import BaseComponent
-from dam.models.properties import FilePropertiesComponent
 from dam.models.semantic.audio_embedding_component import (
     get_audio_embedding_component_class,
 )
