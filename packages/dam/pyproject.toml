@@ -25,6 +25,7 @@ classifiers = [
 
 dependencies = [
     "sqlalchemy",
+    "aiosqlite",
     "alembic",
     "typer",
     "python-dotenv",
@@ -66,7 +67,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
-    "aiosqlite",
     "pytest-mock",
 ]
 
