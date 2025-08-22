@@ -71,11 +71,8 @@ async def _process_iso_file(
             )
             await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
 
-        # Add raw SFO metadata component
-        sfo_raw_metadata = sfo.raw_data
-        if sfo_raw_metadata:
             sfo_raw_component = PspSfoRawMetadataComponent(
-                metadata_json=sfo_raw_metadata
+                metadata_json=sfo_metadata
             )
             await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
 

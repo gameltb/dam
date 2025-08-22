@@ -76,19 +76,6 @@ def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream):
     assert sfo_metadata.get("DISC_ID") == "ULUS-12345"
 
 
-def test_process_iso_stream_extracts_raw_sfo_metadata(dummy_iso_stream):
-    """
-    Tests that process_iso_stream correctly extracts raw metadata from a dummy ISO.
-    """
-    sfo = psp_iso_service.process_iso_stream(dummy_iso_stream)
-
-    assert sfo is not None
-    sfo_raw_metadata = sfo.raw_data
-    assert sfo_raw_metadata is not None
-    assert sfo_raw_metadata.get("TITLE") == "Test Game"
-    assert sfo_raw_metadata.get("DISC_ID") == "ULUS-12345"
-
-
 def test_process_iso_stream_handles_non_iso_file():
     """
     Tests that process_iso_stream raises an IOError for non-ISO files.
@@ -128,7 +115,6 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
 
     mock_sfo = MagicMock()
     mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
-    mock_sfo.raw_data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
     mock_process_iso_stream = mocker.patch(
         "dam.services.psp_iso_service.process_iso_stream",
         return_value=mock_sfo,

@@ -37,7 +37,6 @@ class SFO:
         ]
 
         self.data: Dict[str, Any] = {}
-        self.raw_data: Dict[str, Any] = {}
         for i in range(len(self.idx_table)):
             self._read_entry(raw_sfo, i)
 
@@ -57,10 +56,8 @@ class SFO:
         raw_data_bytes = raw_sfo[d_start:d_end]
         if entry.data_fmt == SFODataFormat.INT32:
             data = int.from_bytes(raw_data_bytes, "little")
-            self.raw_data[key] = int.from_bytes(raw_data_bytes, "little")
         else:
             data = raw_data_bytes.decode('utf-8', errors='ignore').rstrip("\x00")
-            self.raw_data[key] = raw_data_bytes.rstrip(b'\x00').decode('utf-8', errors='ignore')
 
         self.data[key] = data
 
