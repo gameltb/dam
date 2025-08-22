@@ -2,9 +2,8 @@ from io import BytesIO
 import pycdlib
 import struct
 from enum import IntEnum
-from typing import Dict, Any, BinaryIO
+from typing import Dict, Any, BinaryIO, Optional
 from pathlib import Path
-from dam.services import hashing_service
 
 
 class SFODataFormat:
@@ -66,41 +65,22 @@ class SFO:
         self.data[key] = data
 
 
-def _calculate_hashes(stream: BinaryIO) -> Dict[str, bytes]:
-    """Calculates MD5, SHA1, SHA256, and CRC32 hashes for a stream using a single pass."""
-
-    algorithms = ['md5', 'sha1', 'sha256', 'crc32']
-    hashes = hashing_service.calculate_hashes_from_stream(stream, algorithms)
-
-    return {
-        "md5": bytes.fromhex(hashes['md5']),
-        "sha1": bytes.fromhex(hashes['sha1']),
-        "sha256": bytes.fromhex(hashes['sha256']),
-        "crc32": hashes['crc32'].to_bytes(4, 'big'),
-    }
-
-
-def process_iso_stream(stream: BinaryIO) -> Dict[str, Any]:
+def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
     """
-    Processes a PSP ISO stream to extract SFO metadata and calculate hashes.
+    Processes a PSP ISO stream to extract SFO metadata.
 
     Args:
         stream: A binary stream of the ISO file.
 
     Returns:
-        A dictionary containing the hashes and SFO metadata.
+        An SFO object if found, otherwise None.
     """
-    hashes = _calculate_hashes(stream)
-
     iso = pycdlib.PyCdlib()
     try:
         iso.open_fp(stream)
     except Exception as e:
-        # Could be a pycdlib error, e.g., not an ISO file
         raise IOError("Failed to open stream as ISO file") from e
 
-    sfo_data = None
-    sfo_raw_data = None
     try:
         for dirname, _, filelist in iso.walk(iso_path='/'):
             for file in filelist:
@@ -110,20 +90,11 @@ def process_iso_stream(stream: BinaryIO) -> Dict[str, Any]:
                     iso.get_file_from_iso_fp(extracted_sfo, iso_path=sfo_path)
                     raw_sfo = extracted_sfo.getvalue()
                     try:
-                        sfo = SFO(raw_sfo)
-                        sfo_data = sfo.data
-                        sfo_raw_data = sfo.raw_data
-                    except Exception:
-                        # Ignore SFO parsing errors
-                        pass
-                    break
-            if sfo_data:
-                break
+                        return SFO(raw_sfo)
+                    except ValueError:
+                        # Not a valid SFO file, so we didn't find it.
+                        return None
     finally:
         iso.close()
 
-    return {
-        "hashes": hashes,
-        "sfo_metadata": sfo_data,
-        "sfo_raw_metadata": sfo_raw_data,
-    }
+    return None

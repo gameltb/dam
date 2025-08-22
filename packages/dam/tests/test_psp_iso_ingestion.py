@@ -67,10 +67,10 @@ def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream):
     """
     Tests that process_iso_stream correctly extracts metadata from a dummy ISO.
     """
-    result = psp_iso_service.process_iso_stream(dummy_iso_stream)
+    sfo = psp_iso_service.process_iso_stream(dummy_iso_stream)
 
-    assert result is not None
-    sfo_metadata = result.get("sfo_metadata")
+    assert sfo is not None
+    sfo_metadata = sfo.data
     assert sfo_metadata is not None
     assert sfo_metadata.get("TITLE") == "Test Game"
     assert sfo_metadata.get("DISC_ID") == "ULUS-12345"
@@ -80,38 +80,13 @@ def test_process_iso_stream_extracts_raw_sfo_metadata(dummy_iso_stream):
     """
     Tests that process_iso_stream correctly extracts raw metadata from a dummy ISO.
     """
-    result = psp_iso_service.process_iso_stream(dummy_iso_stream)
+    sfo = psp_iso_service.process_iso_stream(dummy_iso_stream)
 
-    assert result is not None
-    sfo_raw_metadata = result.get("sfo_raw_metadata")
+    assert sfo is not None
+    sfo_raw_metadata = sfo.raw_data
     assert sfo_raw_metadata is not None
     assert sfo_raw_metadata.get("TITLE") == "Test Game"
     assert sfo_raw_metadata.get("DISC_ID") == "ULUS-12345"
-
-
-def test_process_iso_stream_calculates_hashes(dummy_iso_stream):
-    """
-    Tests that process_iso_stream correctly calculates all required hashes.
-    """
-    iso_content = dummy_iso_stream.read()
-    dummy_iso_stream.seek(0)  # Reset for the function to read
-
-    result = psp_iso_service.process_iso_stream(dummy_iso_stream)
-
-    assert result is not None
-    hashes = result.get("hashes")
-    assert hashes is not None
-
-    # Pre-calculate expected hashes
-    expected_md5 = hashlib.md5(iso_content).digest()
-    expected_sha1 = hashlib.sha1(iso_content).digest()
-    expected_sha256 = hashlib.sha256(iso_content).digest()
-    expected_crc32 = zlib.crc32(iso_content).to_bytes(4, "big")
-
-    assert hashes.get("md5") == expected_md5
-    assert hashes.get("sha1") == expected_sha1
-    assert hashes.get("sha256") == expected_sha256
-    assert hashes.get("crc32") == expected_crc32
 
 
 def test_process_iso_stream_handles_non_iso_file():
@@ -141,13 +116,22 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     # Mock the service and database interactions
+    mocker.patch(
+        "dam.services.hashing_service.calculate_hashes_from_stream",
+        return_value={
+            "md5": hashlib.md5(b"md5_hash").hexdigest(),
+            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
+            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
+            "crc32": 12345,
+        },
+    )
+
+    mock_sfo = MagicMock()
+    mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
+    mock_sfo.raw_data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
     mock_process_iso_stream = mocker.patch(
         "dam.services.psp_iso_service.process_iso_stream",
-        return_value={
-            "hashes": {"md5": b"md5_hash", "sha1": b"sha1_hash", "sha256": b"sha256_hash", "crc32": b"crc32_hash"},
-            "sfo_metadata": {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"},
-            "sfo_raw_metadata": {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"},
-        },
+        return_value=mock_sfo,
     )
 
     mock_session = AsyncMock()
@@ -172,9 +156,6 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     # Check that all components were added
     assert mock_add_component.await_count == 6  # 4 hashes + 1 SFO + 1 raw SFO
 
-    # More detailed check of component data could be done here if needed
-    # e.g. by inspecting the `call_args_list` of `mock_add_component`
-
 
 @pytest.mark.asyncio
 async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
@@ -187,11 +168,8 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     mocker.patch(
-        "dam.services.psp_iso_service.process_iso_stream",
-        return_value={
-            "hashes": {"md5": b"duplicate_md5_hash"},
-            "sfo_metadata": {"TITLE": "Duplicate Game"},
-        },
+        "dam.services.hashing_service.calculate_hashes_from_stream",
+        return_value={"md5": hashlib.md5(b"duplicate_md5_hash").hexdigest()},
     )
 
     mock_session = AsyncMock()
@@ -225,12 +203,18 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr("test.iso", dummy_iso_content)
 
+    mocker.patch(
+        "dam.services.hashing_service.calculate_hashes_from_stream",
+        return_value={
+            "md5": hashlib.md5(b"some_hash").hexdigest(),
+            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
+            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
+            "crc32": 12345,
+        },
+    )
     mock_process_iso_stream = mocker.patch(
         "dam.services.psp_iso_service.process_iso_stream",
-        return_value={
-            "hashes": {"md5": b"some_hash", "sha1": b"sha1_hash", "sha256": b"sha256_hash", "crc32": b"crc32_hash"},
-            "sfo_metadata": {},
-        },
+        return_value=None,  # For simplicity, we don't care about SFO data here
     )
     mock_session = AsyncMock()
     mock_result = MagicMock()
