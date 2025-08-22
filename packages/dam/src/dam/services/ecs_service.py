@@ -114,6 +114,31 @@ async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -
     return all_components
 
 
+async def get_all_components_for_entity_as_dict(session: AsyncSession, entity_id: int) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Retrieves all components for a given entity and returns them as a dictionary.
+    """
+    components = await get_all_components_for_entity(session, entity_id)
+    component_dict: Dict[str, List[Dict[str, Any]]] = {}
+    for component in components:
+        component_name = component.__class__.__name__
+        if component_name not in component_dict:
+            component_dict[component_name] = []
+
+        component_data = {}
+        for c in component.__mapper__.column_attrs:
+            value = getattr(component, c.key)
+            if isinstance(value, bytes):
+                value = value.hex()
+            elif hasattr(value, 'isoformat'): # Handle datetime objects
+                value = value.isoformat()
+            component_data[c.key] = value
+
+        component_dict[component_name].append(component_data)
+
+    return component_dict
+
+
 async def remove_component(session: AsyncSession, component: BaseComponent, flush: bool = False) -> None:  # Made async
     """
     Deletes a specific component instance from the database via the given session.
