@@ -35,6 +35,7 @@ from dam.models.properties import FilePropertiesComponent  # For displaying asse
 from dam.services import (
     character_service,  # Added character_service
     file_operations,
+    hashing_service,
     transcode_service,
     world_service,
 )
@@ -288,7 +289,7 @@ async def cli_add_asset(  # Made async
             f"\nProcessing file {processed_count}/{total_files}: {filepath.name} (world: '{global_state.world_name}')"
         )
         try:
-            original_filename, size_bytes, mime_type = file_operations.get_file_properties(filepath)
+            original_filename, size_bytes = file_operations.get_file_properties(filepath)
         except Exception as e:  # pragma: no cover
             typer.secho(f"  Error getting properties for {filepath}: {e}", fg=typer.colors.RED)
             error_count += 1
@@ -299,7 +300,6 @@ async def cli_add_asset(  # Made async
             event_to_dispatch = AssetReferenceIngestionRequested(
                 filepath_on_disk=filepath,
                 original_filename=original_filename,
-                mime_type=mime_type,
                 size_bytes=size_bytes,
                 world_name=target_world.name,
             )
@@ -307,7 +307,6 @@ async def cli_add_asset(  # Made async
             event_to_dispatch = AssetFileIngestionRequested(
                 filepath_on_disk=filepath,
                 original_filename=original_filename,
-                mime_type=mime_type,
                 size_bytes=size_bytes,
                 world_name=target_world.name,
             )
@@ -458,9 +457,9 @@ async def cli_find_file_by_hash(  # Made async
         )
         try:
             if actual_hash_type == "sha256":
-                actual_hash_value = file_operations.calculate_sha256(target_filepath)
+                actual_hash_value = hashing_service.calculate_sha256(target_filepath)
             elif actual_hash_type == "md5":
-                actual_hash_value = file_operations.calculate_md5(target_filepath)
+                actual_hash_value = hashing_service.calculate_md5(target_filepath)
             else:
                 typer.secho(f"Unsupported hash type for calculation: {actual_hash_type}", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
@@ -498,7 +497,6 @@ async def cli_find_file_by_hash(  # Made async
                     fpc = details["components"]["FilePropertiesComponent"]
                     typer.echo(f"  Original Filename: {fpc.get('original_filename')}")
                     typer.echo(f"  Size: {fpc.get('file_size_bytes')} bytes")
-                    typer.echo(f"  MIME Type: {fpc.get('mime_type')}")
 
                 if "ContentHashSHA256Component" in details.get("components", {}):
                     sha256c = details["components"]["ContentHashSHA256Component"]

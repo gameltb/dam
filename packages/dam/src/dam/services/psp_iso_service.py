@@ -1,10 +1,10 @@
-import hashlib
-import zlib
 from io import BytesIO
 import pycdlib
 import struct
 from enum import IntEnum
 from typing import Dict, Any, BinaryIO
+from pathlib import Path
+from dam.services import hashing_service
 
 
 class SFODataFormat:
@@ -68,25 +68,32 @@ class SFO:
 
 def _calculate_hashes(stream: BinaryIO) -> Dict[str, bytes]:
     """Calculates MD5, SHA1, SHA256, and CRC32 hashes for a stream."""
-    stream.seek(0)
-    md5 = hashlib.md5()
-    sha1 = hashlib.sha1()
-    sha256 = hashlib.sha256()
-    crc32 = 0
+    # This function now delegates to the hashing_service.
+    # The hashing_service works with file paths, so we need to write the stream to a temporary file.
+    import tempfile
+    import os
 
-    while chunk := stream.read(8192):
-        md5.update(chunk)
-        sha1.update(chunk)
-        sha256.update(chunk)
-        crc32 = zlib.crc32(chunk, crc32)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        stream.seek(0)
+        tmp.write(stream.read())
+        tmp_path_str = tmp.name
 
     stream.seek(0)
+    tmp_path = Path(tmp_path_str)
+
+    try:
+        md5_hex = hashing_service.calculate_md5(tmp_path)
+        sha1_hex = hashing_service.calculate_sha1(tmp_path)
+        sha256_hex = hashing_service.calculate_sha256(tmp_path)
+        crc32_int = hashing_service.calculate_crc32(tmp_path)
+    finally:
+        os.unlink(tmp_path_str)
 
     return {
-        "md5": md5.digest(),
-        "sha1": sha1.digest(),
-        "sha256": sha256.digest(),
-        "crc32": crc32.to_bytes(4, 'big'),
+        "md5": bytes.fromhex(md5_hex),
+        "sha1": bytes.fromhex(sha1_hex),
+        "sha256": bytes.fromhex(sha256_hex),
+        "crc32": crc32_int.to_bytes(4, 'big'),
     }
 
 

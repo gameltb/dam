@@ -20,8 +20,10 @@ from dam.models.properties.file_properties_component import FilePropertiesCompon
 from dam.services import (
     ecs_service,
     file_operations,
+    hashing_service,
     tag_service,
 )
+from dam.utils import url_utils
 
 # Removed world_service as it's not directly used here.
 from dam.utils.media_utils import TranscodeError, transcode_media
@@ -142,44 +144,29 @@ async def get_transcode_profile_by_name_or_id(
 
 
 async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: Session) -> Path:
-    """Helper to get a readable filepath for a source asset."""
-    # Try to get FileLocationComponent for physical path
+    """Helper to get a readable filepath for a source asset using its URL."""
     flc = await ecs_service.get_component(
         session,
         entity_id=asset_entity_id,
-        component_type=FileLocationComponent,  # type: ignore
+        component_type=FileLocationComponent,
     )
-    if not flc or not flc.physical_path_or_key:
-        raise TranscodeServiceError(f"Asset entity {asset_entity_id} has no readable FileLocationComponent.")
+    if not flc or not flc.url:
+        raise TranscodeServiceError(f"Asset entity {asset_entity_id} has no URL in its FileLocationComponent.")
 
-    source_path = Path(flc.physical_path_or_key)
-    if not source_path.is_file() or not source_path.exists():
-        # Check if it's a relative path to storage base
-        from dam.resources.file_storage_resource import FileStorageResource  # Import the type
+    try:
+        # Use the url_utils to resolve the URL to a local, absolute path
+        # This requires the world's config to resolve 'local_cas' URLs
+        source_path = url_utils.get_local_path_for_url(flc.url, world.config)
+    except ValueError as e:
+        # Raised by url_utils if URL scheme is not supported for local access
+        raise TranscodeServiceError(
+            f"Could not resolve a local path for asset {asset_entity_id} with URL '{flc.url}': {e}"
+        ) from e
 
-        storage_resource = world.get_resource(FileStorageResource)
-        if storage_resource:
-            # This assumes FileStorageResource has a base_path attribute (corrected: use world.config.ASSET_STORAGE_PATH)
-            # And the physical_path_or_key might be relative to it
-            # This logic might need to be more robust depending on how FileStorageResource works
-            potential_path = Path(world.config.ASSET_STORAGE_PATH) / flc.contextual_filename  # type: ignore
-            if potential_path.exists() and potential_path.is_file():
-                source_path = potential_path
-            else:  # Check content_identifier based path
-                # Use get_file_path which takes the content_identifier (hash)
-                content_id_path = storage_resource.get_file_path(flc.content_identifier)  # type: ignore
-                if (
-                    content_id_path and content_id_path.exists() and content_id_path.is_file()
-                ):  # get_file_path can return None
-                    source_path = content_id_path
-                else:
-                    raise TranscodeServiceError(
-                        f"Source file for asset {asset_entity_id} at {flc.physical_path_or_key} or {potential_path} or {content_id_path} not found or not a file."
-                    )
-        else:  # This case means storage_resource itself was None, though get_resource should raise if not found.
-            raise TranscodeServiceError(
-                f"Source file for asset {asset_entity_id} at {flc.physical_path_or_key} not found and FileStorageResource could not be obtained to resolve further."
-            )
+    if not source_path or not source_path.exists() or not source_path.is_file():
+        raise TranscodeServiceError(
+            f"Resolved path for asset {asset_entity_id} ('{source_path}') does not exist or is not a file."
+        )
 
     return source_path
 
@@ -264,7 +251,7 @@ async def apply_transcode_profile(
         # This uses the existing asset ingestion event flow.
         # The ingestion system will calculate hashes, extract metadata, and create FileLocationComponent.
         try:
-            _ret_original_filename, ret_size_bytes, ret_mime_type = file_operations.get_file_properties(
+            _ret_original_filename, ret_size_bytes = file_operations.get_file_properties(
                 transcoded_filepath
             )
         except Exception as e:
@@ -275,7 +262,6 @@ async def apply_transcode_profile(
         ingestion_event = AssetFileIngestionRequested(
             filepath_on_disk=transcoded_filepath,
             original_filename=new_asset_original_filename,  # Use the derived meaningful name
-            mime_type=ret_mime_type,
             size_bytes=ret_size_bytes,
             world_name=world.name,
             # We could add custom metadata here if the event supports it, e.g., source_asset_id
@@ -298,7 +284,7 @@ async def apply_transcode_profile(
         # Find the newly ingested asset by its hash.
         # The ingestion system should have added ContentHashSHA256Component.
         transcoded_file_sha256_bytes = bytes.fromhex(
-            file_operations.calculate_sha256(transcoded_filepath)
+            hashing_service.calculate_sha256(transcoded_filepath)
         )  # Ensure bytes
 
         # Query for the entity with this SHA256 hash

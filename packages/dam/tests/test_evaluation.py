@@ -157,7 +157,6 @@ async def test_system_execute_evaluation_run(test_environment, monkeypatch):
     mock_fpc_transcoded.entity_id = mock_transcoded_entity.id
     mock_fpc_transcoded.original_filename = "transcoded_eval_asset.mock"
     mock_fpc_transcoded.file_size_bytes = 12345
-    mock_fpc_transcoded.mime_type = "application/octet-stream"
     # Ensure it has an 'id' attribute if any code tries to access component.id (usually PK of component table)
     # For a secondary component, this might be different from entity_id.
     # Let's assume it might need an id, perhaps same as entity_id for simplicity in mock.
@@ -262,7 +261,6 @@ async def test_cli_eval_run_execute(test_environment, monkeypatch):  # Removed c
     mock_fpc_transcoded_cli.entity_id = mock_transcoded_entity_cli.id
     mock_fpc_transcoded_cli.original_filename = "transcoded_cli_asset.mock"
     mock_fpc_transcoded_cli.file_size_bytes = 56789
-    mock_fpc_transcoded_cli.mime_type = "application/octet-stream"
     mock_fpc_transcoded_cli.id = mock_transcoded_entity_cli.id  # Mock component's own PK
 
     mock_apply_transcode_profile_cli = AsyncMock(return_value=MagicMock(id=mock_transcoded_entity_cli.id))
@@ -350,7 +348,7 @@ async def test_cli_eval_report(test_environment, monkeypatch):  # Removed click_
         # Create and add a FilePropertiesComponent for this mock transcoded entity
         # This FPC will be fetched by execute_evaluation_run
         mock_fpc_transcoded_report = FilePropertiesComponent(
-            original_filename="transcoded_report_asset.mock", file_size_bytes=9999, mime_type="application/octet-stream"
+            original_filename="transcoded_report_asset.mock", file_size_bytes=9999
         )
         await dam_ecs_service.add_component_to_entity(
             session, real_mock_transcoded_entity.id, mock_fpc_transcoded_report

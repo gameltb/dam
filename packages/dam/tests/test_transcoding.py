@@ -18,7 +18,7 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.tags import EntityTagLinkComponent  # Updated imports
 from dam.services import ecs_service as dam_ecs_service
-from dam.services import file_operations, tag_service, transcode_service
+from dam.services import file_operations, hashing_service, tag_service, transcode_service
 
 # Assuming test_environment fixture can be imported or replicated if needed.
 # For now, let's use the one from test_cli by importing it.
@@ -38,12 +38,11 @@ async def _add_dummy_asset(
     """Helper to add a dummy asset and return its entity."""
     dummy_file = _create_dummy_file(tmp_path / filename, content)
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_file)
 
     ingestion_event = AssetFileIngestionRequested(
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=world.name,
     )
@@ -53,7 +52,7 @@ async def _add_dummy_asset(
 
     # Find the entity by hash
     async with world.db_session_maker() as session:
-        content_hash_val = file_operations.calculate_sha256(dummy_file)
+        content_hash_val = hashing_service.calculate_sha256(dummy_file)
         # content_hash_bytes = bytes.fromhex(content_hash_val) # SHA256 in DB is string
         content_hash_bytes = bytes.fromhex(content_hash_val)
 
@@ -288,7 +287,7 @@ async def test_service_apply_transcode_profile(test_environment, monkeypatch):
 
         flc = await dam_ecs_service.get_component(session, transcoded_entity.id, FileLocationComponent)
         assert flc is not None
-        assert flc.storage_type == "local_cas"  # Assuming default ingestion puts it in CAS
+        assert "dam://local_cas/" in flc.url
 
         # Check that the mock was called
         mock_transcode_media_async.assert_called_once()
@@ -406,7 +405,7 @@ async def test_cli_transcode_apply(test_environment, monkeypatch):  # Removed cl
 
         flc = await dam_ecs_service.get_component(session, transcoded_entity_id_from_cli, FileLocationComponent)
         assert flc is not None
-        assert flc.storage_type == "local_cas"
+        assert "dam://local_cas/" in flc.url
 
     mock_transcode_media_cli_async.assert_called_once()
 

@@ -16,7 +16,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 -   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data. Examples include:
     -   **Core File/Asset Descriptors**:
         -   `OriginalSourceInfoComponent`: Classifies the origin of the asset's content.
-        -   `FilePropertiesComponent`: Stores original filename, file size, and MIME type.
+        - `FilePropertiesComponent`: Stores original filename and file size.
         -   `FileLocationComponent`: Stores the physical location of an entity's content.
         -   `ContentHashSHA256Component`, `ContentHashMD5Component`: Store content hashes.
     -   **Media-Specific Properties**:
@@ -120,14 +120,14 @@ The `dam.services.ecs_service` module provides several helper functions to facil
         jpeg_entities = await ecs_service.find_entities_by_component_attribute_value( # Note: await
             session,
             FilePropertiesComponent,
-            "mime_type",
-            "image/jpeg"
+            "original_filename",
+            "%.jpeg"
         )
         for entity in jpeg_entities:
-            # This entity has a FilePropertiesComponent with mime_type 'image/jpeg'
+            # This entity has a FilePropertiesComponent with original_filename ending in .jpeg
             pass
         ```
-    *   **Performance Note**: For optimal performance with `find_entities_by_component_attribute_value`, ensure that attributes frequently used for querying (like `mime_type` in the example above) are indexed in their respective component model definitions (e.g., `mime_type: Mapped[Optional[str]] = mapped_column(String(128), index=True)`). An index has been added to `FilePropertiesComponent.mime_type` as part of recent optimizations.
+    *   **Performance Note**: For optimal performance with `find_entities_by_component_attribute_value`, ensure that attributes frequently used for querying are indexed in their respective component model definitions.
 
 ### 2.9. Asset Versioning, Structure, and Tagging (New Section)
 
@@ -258,7 +258,7 @@ When systems are executed via `World.execute_stage(...)` or event handlers via `
 Internal optimizations have been implemented to enhance the performance of common ECS operations. Notably:
 -   Fetching entities based on `MarkedEntityList` dependencies in systems is now more efficient, using optimized database queries.
 -   The automatic removal of marker components by the `WorldScheduler` after system processing has been streamlined to reduce database overhead.
--   Indexing has been added to certain component attributes (e.g., `FilePropertiesComponent.mime_type`) to speed up queries. Developers should continue to consider indexing for attributes frequently used in query conditions.
+-   Indexing has been added to certain component attributes to speed up queries. Developers should continue to consider indexing for attributes frequently used in query conditions.
 
 ## 3. Project Structure
 
@@ -321,7 +321,7 @@ The DAM employs a content-addressable storage strategy for asset files, managed 
     -   `contextual_filename`: Can store an optional filename relevant to this specific location (e.g., if `physical_path_or_key` is a hash). The primary original filename for the asset is stored in `FilePropertiesComponent.original_filename`.
 -   **Relationship with `OriginalSourceInfoComponent` and `FilePropertiesComponent`**:
     -   `OriginalSourceInfoComponent` classifies the source (e.g., local, web, reference) via `source_type`.
-    -   `FilePropertiesComponent` stores the `original_filename`, size, and MIME type.
+    -   `FilePropertiesComponent` stores the `original_filename` and size.
     -   `FileLocationComponent` stores the path, which could be a DAM-internal path or an external reference path.
 -   **Benefits**:
     -   **Deduplication**: Files with identical content are stored only once in DAM-managed CAS, saving storage space.

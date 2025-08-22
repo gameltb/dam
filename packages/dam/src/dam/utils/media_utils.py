@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
 from dam.services import ecs_service
+from dam.utils.url_utils import parse_dam_url
 
 logger = logging.getLogger(__name__)
 
@@ -267,20 +268,21 @@ async def get_file_path_for_entity(
         logger.warning(f"No suitable FileLocationComponent found for entity {entity_id} and variant '{variant_name}'.")
         return None
 
-    relative_path = getattr(target_file_loc, "stored_path_relative", None)
+    parsed_url = parse_dam_url(target_file_loc.url)
 
-    if not relative_path:
-        logger.error(
-            f"FileLocationComponent for entity {entity_id} (variant {variant_name}, component_id {target_file_loc.id}) does not have a 'stored_path_relative' attribute or it's empty."
-        )
+    if parsed_url["storage_type"] == "local_cas":
+        full_path = os.path.join(base_asset_storage_path, parsed_url["path"])
+    elif parsed_url["storage_type"] == "local_reference":
+        full_path = parsed_url["path"]
+    else:
+        logger.error(f"Unsupported storage type: {parsed_url['storage_type']}")
         return None
 
-    full_path = os.path.join(base_asset_storage_path, relative_path)
 
     # It's good practice to check if the file actually exists
     if not os.path.exists(full_path):
         logger.warning(
-            f"File path constructed for entity {entity_id} (variant {variant_name}) does not exist: {full_path} (from relative: {relative_path})"
+            f"File path constructed for entity {entity_id} (variant {variant_name}) does not exist: {full_path}"
         )
         # Return None if physical file doesn't exist, as the path is invalid for processing
         return None

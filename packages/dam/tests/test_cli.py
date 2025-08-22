@@ -30,8 +30,9 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import file_operations
+from dam.services import file_operations, hashing_service
 from dam.services.file_storage import get_file_path
+from dam.utils import url_utils
 
 TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"
@@ -356,11 +357,10 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
     target_world = get_world(default_world_name)
     assert target_world is not None, f"World '{default_world_name}' not found for test."
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_file)
     event_to_dispatch = AssetFileIngestionRequested(
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=target_world.name,
     )
@@ -391,7 +391,7 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
     # Use the config from the target_world instance for consistency
     world_config_for_assertion = target_world.config
 
-    content_hash = file_operations.calculate_sha256(dummy_file)
+    content_hash = hashing_service.calculate_sha256(dummy_file)
     # Use public get_file_path to verify CAS storage
     cas_file_path = get_file_path(content_hash, world_config_for_assertion)  # Use correct variable
     assert cas_file_path is not None, f"Asset file with hash {content_hash} not found in CAS via get_file_path"
@@ -435,15 +435,14 @@ async def test_cli_add_asset_single_file(test_environment, caplog, click_runner)
         assert fpc_comp is not None, "FilePropertiesComponent not found"
         assert fpc_comp.original_filename == expected_props[0]  # expected_props[0] is original_filename
         assert fpc_comp.file_size_bytes == expected_props[1]  # expected_props[1] is size_bytes
-        assert fpc_comp.mime_type == expected_props[2]  # expected_props[2] is mime_type
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         result_loc = await session.execute(stmt_loc)  # Await
         location_component = result_loc.scalar_one_or_none()
         assert location_component is not None, "FileLocationComponent not found"
-        assert location_component.contextual_filename == dummy_file.name
-        assert location_component.storage_type == "local_cas"
+        assert f"#{dummy_file.name}" in location_component.url
+        assert "dam://local_cas/" in location_component.url
         assert location_component.content_identifier == content_hash
 
 
@@ -479,11 +478,10 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
     files_to_process_in_test = [file1, file2]  # Simplified from CLI's rglob
 
     for dummy_file_path in files_to_process_in_test:
-        original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file_path)
+        original_filename, size_bytes = file_operations.get_file_properties(dummy_file_path)
         event_to_dispatch = AssetFileIngestionRequested(
             filepath_on_disk=dummy_file_path,
             original_filename=original_filename,
-            mime_type=mime_type,
             size_bytes=size_bytes,
             world_name=target_world.name,
         )
@@ -521,7 +519,7 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
         for file_info in files_to_check:
             f_path = file_info["path"]
             f_content = file_info["content"]
-            content_hash = file_operations.calculate_sha256(f_path)
+            content_hash = hashing_service.calculate_sha256(f_path)
             content_hash_bytes = bytes.fromhex(content_hash)
             expected_props = file_operations.get_file_properties(f_path)
 
@@ -566,7 +564,6 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             assert fpc_comp is not None, f"FilePropertiesComponent for {f_path.name} not found"
             assert fpc_comp.original_filename == expected_props[0]
             assert fpc_comp.file_size_bytes == expected_props[1]
-            assert fpc_comp.mime_type == expected_props[2]
 
             # Check FileLocationComponent
             # We might have multiple FLCs if the same content was added via different original paths/names before,
@@ -574,12 +571,12 @@ async def test_cli_add_asset_directory_recursive(test_environment, caplog, click
             stmt_loc = (
                 select(FileLocationComponent)
                 .where(FileLocationComponent.entity_id == entity_id)
-                .where(FileLocationComponent.contextual_filename == f_path.name)
             )
             result_loc = await session.execute(stmt_loc)  # Await
             location_component = result_loc.scalar_one_or_none()
             assert location_component is not None, f"FileLocationComponent for {f_path.name} not found"
-            assert location_component.storage_type == "local_cas"
+            assert "dam://local_cas/" in location_component.url
+            assert f"#{f_path.name}" in location_component.url
             assert location_component.content_identifier == content_hash
 
 
@@ -603,11 +600,10 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):  #
     target_world = get_world(default_world_name)
     assert target_world is not None, f"World '{default_world_name}' not found for test."
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_file)
     event_to_dispatch = AssetReferenceIngestionRequested(  # Use correct event
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=target_world.name,
     )
@@ -630,7 +626,7 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):  #
     # Use the config from the target_world instance for consistency
     world_config_for_assertion = target_world.config
     db_manager = test_environment["db_managers"][default_world_name]  # db_manager for session is fine
-    content_hash = file_operations.calculate_sha256(dummy_file)
+    content_hash = hashing_service.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
     expected_props = file_operations.get_file_properties(dummy_file)
 
@@ -668,16 +664,15 @@ async def test_cli_add_asset_no_copy(test_environment, caplog, click_runner):  #
         assert fpc_comp is not None, "FilePropertiesComponent not found for no-copy asset"
         assert fpc_comp.original_filename == expected_props[0]
         assert fpc_comp.file_size_bytes == expected_props[1]
-        assert fpc_comp.mime_type == expected_props[2]
 
         # Check FileLocationComponent
         stmt_loc = select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
         result_loc = await session.execute(stmt_loc)  # Await
         location_component = result_loc.scalar_one_or_none()
         assert location_component is not None, "FileLocationComponent not found for no-copy asset"
-        assert location_component.contextual_filename == dummy_file.name
-        assert location_component.storage_type == "local_reference"
-        assert location_component.physical_path_or_key == str(dummy_file.resolve())
+        assert f"#{dummy_file.name}" in location_component.url
+        assert "dam://local_reference/" in location_component.url
+        assert str(dummy_file.resolve()) in location_component.url
         assert location_component.content_identifier == content_hash
 
 
@@ -701,11 +696,10 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
     target_world = get_world(default_world_name)
     assert target_world is not None, f"World '{default_world_name}' not found for test."
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_file)
     event_to_dispatch = AssetFileIngestionRequested(
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=target_world.name,
     )
@@ -734,7 +728,7 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
     # Use the config from the target_world instance for consistency for get_file_path later
     world_config_for_assertion = target_world.config
     db_manager = test_environment["db_managers"][default_world_name]  # db_manager for session is fine
-    content_hash = file_operations.calculate_sha256(dummy_file)
+    content_hash = hashing_service.calculate_sha256(dummy_file)
     content_hash_bytes = bytes.fromhex(content_hash)
 
     async with db_manager.session_local() as session:  # Use async session
@@ -773,7 +767,6 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         assert fpc_comp is not None, "FilePropertiesComponent not found for duplicate asset"
         assert fpc_comp.original_filename == expected_props[0]
         assert fpc_comp.file_size_bytes == expected_props[1]
-        assert fpc_comp.mime_type == expected_props[2]
 
         # Check FileLocationComponent - current system behavior is to add a new FLC if path is identical.
         # The test originally asserted len == 1, implying de-duplication of FLC by path.
@@ -784,14 +777,13 @@ async def test_cli_add_asset_duplicate(test_environment, caplog, click_runner): 
         stmt_locs = (
             select(FileLocationComponent)
             .where(FileLocationComponent.entity_id == entity_id)
-            .where(FileLocationComponent.contextual_filename == dummy_file.name)
         )
         result_locs = await session.execute(stmt_locs)  # Await
         location_components = result_locs.scalars().all()
         assert len(location_components) == 1, (
             f"Expected 1 FileLocationComponent for the same file path, found {len(location_components)}"
         )
-        assert location_components[0].storage_type == "local_cas"
+        assert "dam://local_cas/" in location_components[0].url
 
         # Verify that the CAS file still exists and content is correct
         # world_config_for_assertion was defined earlier using target_world.config
@@ -824,11 +816,10 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
     target_world = get_world(default_world_name)
     assert target_world is not None
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_file)
     add_event = AssetFileIngestionRequested(
         filepath_on_disk=dummy_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=target_world.name,
     )
@@ -837,10 +828,10 @@ async def test_cli_find_file_by_hash(test_environment, caplog):  # Made async, r
     # --- End Asset Add ---
 
     from dam.core.events import FindEntityByHashQuery  # Import the event
-    from dam.services.file_operations import calculate_md5, calculate_sha256
+    from dam.services import hashing_service
 
-    sha256_hash = calculate_sha256(dummy_file)
-    md5_hash = calculate_md5(dummy_file)
+    sha256_hash = hashing_service.calculate_sha256(dummy_file)
+    md5_hash = hashing_service.calculate_md5(dummy_file)
 
     # Test find by SHA256
     request_id_sha256 = str(uuid.uuid4())
@@ -922,11 +913,10 @@ async def test_cli_find_similar_images(test_environment, caplog):  # Made async,
     assert target_world is not None
 
     for img_path_to_add in [img1_path, img2_path, img3_path]:
-        original_filename, size_bytes, mime_type = file_operations.get_file_properties(img_path_to_add)
+        original_filename, size_bytes = file_operations.get_file_properties(img_path_to_add)
         add_event = AssetFileIngestionRequested(
             filepath_on_disk=img_path_to_add,
             original_filename=original_filename,
-            mime_type=mime_type,
             size_bytes=size_bytes,
             world_name=target_world.name,
         )
@@ -1022,12 +1012,11 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
     target_world = get_world(default_world_name)
     assert target_world is not None
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(dummy_image_file)
+    original_filename, size_bytes = file_operations.get_file_properties(dummy_image_file)
 
     ingestion_event = AssetFileIngestionRequested(
         filepath_on_disk=dummy_image_file,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=target_world.name,
     )
@@ -1037,7 +1026,7 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
 
     # 5. Query for ExiftoolMetadataComponent and assert
     db_manager = test_environment["db_managers"][default_world_name]
-    content_hash = file_operations.calculate_sha256(dummy_image_file)  # To find the entity
+    content_hash = hashing_service.calculate_sha256(dummy_image_file)  # To find the entity
     content_hash_bytes = bytes.fromhex(content_hash)
 
     entity_id = None
@@ -1083,26 +1072,13 @@ async def test_exiftool_metadata_extraction(test_environment, caplog, monkeypatc
         flc_result = await session.execute(flc_stmt)
         flc = flc_result.scalar_one()  # Assuming one FLC for this test asset
 
+        # The metadata_systems now uses url_utils to resolve the path.
+        # We do the same here to find the expected path.
         world_config = target_world.config
-        if flc.storage_type == "local_cas":
-            base_storage_path = Path(world_config.ASSET_STORAGE_PATH)
-            # physical_path_or_key for CAS is usually content_identifier/original_filename
-            # or just content_identifier. Let's assume it's the path that get_file_path would give.
-            # However, metadata_systems constructs it as base_storage_path / flc.physical_path_or_key
-            # If flc.physical_path_or_key is relative, this is correct.
-            # For a CAS asset, physical_path_or_key might be like "ab/cd/abcdef..."
-            # The original code in metadata_systems.py:
-            # filepath_on_disk = base_storage_path / cas_loc.physical_path_or_key
-            # So, let's reconstruct that.
-            if flc.physical_path_or_key:  # Should exist for CAS
-                filepath_used_by_system = Path(world_config.ASSET_STORAGE_PATH) / flc.physical_path_or_key
-            else:  # Should not happen for CAS
-                filepath_used_by_system = Path("error_path_not_found_in_flc")
-
-        elif flc.storage_type == "local_reference":
-            filepath_used_by_system = Path(flc.physical_path_or_key)
-        else:  # Should not happen for this test
-            filepath_used_by_system = Path("unknown_storage_type_path")
+        try:
+            filepath_used_by_system = url_utils.get_local_path_for_url(flc.url, world_config)
+        except ValueError as e:
+            pytest.fail(f"Could not resolve URL '{flc.url}' to a local path in test: {e}")
 
     assert call_args[0] == filepath_used_by_system, (
         f"Mock called with wrong filepath. Actual: {call_args[0]}, Expected: {filepath_used_by_system}"
