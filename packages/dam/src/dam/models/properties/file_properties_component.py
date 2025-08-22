@@ -31,9 +31,8 @@ class FilePropertiesComponent(BaseComponent):
 
     original_filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
-    mime_type: Mapped[Optional[str]] = mapped_column(
-        String(128), nullable=True, index=True, default=None
-    )  # Task 4.2: Added index
+    # mime_type is removed as per user request.
+    # It will be determined at runtime when needed.
     # Could add other fields like 'last_modified_on_disk' etc. if needed.
 
     __table_args__ = (
@@ -47,5 +46,5 @@ class FilePropertiesComponent(BaseComponent):
     def __repr__(self):
         return (
             f"FilePropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"filename='{self.original_filename}', size={self.file_size_bytes}, mime='{self.mime_type}')"
+            f"filename='{self.original_filename}', size={self.file_size_bytes})"
         )

@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from dam.services import psp_iso_service, ecs_service
+from dam.services import psp_iso_service, ecs_service, hashing_service
 from dam.models.hashes import (
     ContentHashMD5Component,
     ContentHashSHA1Component,
@@ -23,17 +23,18 @@ async def _process_iso_file(
     session: AsyncSession, file_path: Path, file_stream: BytesIO
 ) -> None:
     """Helper function to process a single ISO stream."""
-    try:
-        iso_data = psp_iso_service.process_iso_stream(file_stream)
-    except Exception:
-        return
 
-    hashes = iso_data.get("hashes")
+    # Calculate hashes
+    file_stream.seek(0)
+    hash_algorithms = ['md5', 'sha1', 'sha256', 'crc32']
+    hashes = hashing_service.calculate_hashes_from_stream(file_stream, hash_algorithms)
     if not hashes:
         return
 
+    md5_hash = bytes.fromhex(hashes['md5'])
+
     # Check for duplicates
-    stmt = select(Entity.id).join(ContentHashMD5Component).where(ContentHashMD5Component.hash_value == hashes["md5"])
+    stmt = select(Entity.id).join(ContentHashMD5Component).where(ContentHashMD5Component.hash_value == md5_hash)
     result = await session.execute(stmt)
     if result.scalars().first() is not None:
         return
@@ -42,33 +43,38 @@ async def _process_iso_file(
     entity = await ecs_service.create_entity(session)
 
     # Add hash components
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashMD5Component(hash_value=hashes["md5"]))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA1Component(hash_value=hashes["sha1"]))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA256Component(hash_value=hashes["sha256"]))
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"]))
+    await ecs_service.add_component_to_entity(session, entity.id, ContentHashMD5Component(hash_value=md5_hash))
+    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes['sha1'])))
+    await ecs_service.add_component_to_entity(session, entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes['sha256'])))
+    await ecs_service.add_component_to_entity(session, entity.id, ContentHashCRC32Component(hash_value=hashes['crc32'].to_bytes(4, 'big')))
 
-    # Add SFO metadata component
-    sfo_metadata = iso_data.get("sfo_metadata")
-    if sfo_metadata:
-        sfo_component = PSPSFOMetadataComponent(
-            app_ver=sfo_metadata.get("APP_VER"),
-            bootable=sfo_metadata.get("BOOTABLE"),
-            category=sfo_metadata.get("CATEGORY"),
-            disc_id=sfo_metadata.get("DISC_ID"),
-            disc_version=sfo_metadata.get("DISC_VERSION"),
-            parental_level=sfo_metadata.get("PARENTAL_LEVEL"),
-            psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
-            title=sfo_metadata.get("TITLE"),
-        )
-        await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
+    # Process SFO metadata
+    file_stream.seek(0)
+    try:
+        sfo = psp_iso_service.process_iso_stream(file_stream)
+    except Exception:
+        sfo = None
 
-    # Add raw SFO metadata component
-    sfo_raw_metadata = iso_data.get("sfo_raw_metadata")
-    if sfo_raw_metadata:
-        sfo_raw_component = PspSfoRawMetadataComponent(
-            metadata_json=sfo_raw_metadata
-        )
-        await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
+    if sfo:
+        # Add SFO metadata component
+        sfo_metadata = sfo.data
+        if sfo_metadata:
+            sfo_component = PSPSFOMetadataComponent(
+                app_ver=sfo_metadata.get("APP_VER"),
+                bootable=sfo_metadata.get("BOOTABLE"),
+                category=sfo_metadata.get("CATEGORY"),
+                disc_id=sfo_metadata.get("DISC_ID"),
+                disc_version=sfo_metadata.get("DISC_VERSION"),
+                parental_level=sfo_metadata.get("PARENTAL_LEVEL"),
+                psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
+                title=sfo_metadata.get("TITLE"),
+            )
+            await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
+
+            sfo_raw_component = PspSfoRawMetadataComponent(
+                metadata_json=sfo_metadata
+            )
+            await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
 
 
 async def ingest_psp_isos_from_directory(

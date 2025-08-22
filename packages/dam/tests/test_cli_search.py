@@ -57,7 +57,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
                 session,
                 entity1.id,
                 FilePropertiesComponent(
-                    original_filename="apple_pie_doc.txt", file_size_bytes=100, mime_type="text/plain"
+                    original_filename="apple_pie_doc.txt", file_size_bytes=100
                 ),
             )
             # Pass world_name here
@@ -75,7 +75,7 @@ async def test_cli_search_semantic_with_results(current_test_world_for_search_cl
                 session,
                 entity2.id,
                 FilePropertiesComponent(
-                    original_filename="banana_bread_recipe.md", file_size_bytes=100, mime_type="text/markdown"
+                    original_filename="banana_bread_recipe.md", file_size_bytes=100
                 ),
             )
             # world_name is already correctly passed here in the provided snippet

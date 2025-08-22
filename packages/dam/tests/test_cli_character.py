@@ -190,11 +190,10 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     from dam.core.stages import SystemStage
     from dam.services import file_operations
 
-    original_filename, size_bytes, mime_type = file_operations.get_file_properties(sample_image_a)
+    original_filename, size_bytes = file_operations.get_file_properties(sample_image_a)
     add_event = AssetFileIngestionRequested(
         filepath_on_disk=sample_image_a,
         original_filename=original_filename,
-        mime_type=mime_type,
         size_bytes=size_bytes,
         world_name=current_test_world.name,  # Use current_test_world directly
     )

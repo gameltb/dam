@@ -17,7 +17,6 @@ class BaseEvent:
 class AssetFileIngestionRequested(BaseEvent):
     filepath_on_disk: Path
     original_filename: str
-    mime_type: str
     size_bytes: int
     world_name: str
 
@@ -26,7 +25,6 @@ class AssetFileIngestionRequested(BaseEvent):
 class AssetReferenceIngestionRequested(BaseEvent):
     filepath_on_disk: Path
     original_filename: str
-    mime_type: str
     size_bytes: int
     world_name: str
 

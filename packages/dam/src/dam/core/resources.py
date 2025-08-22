@@ -113,12 +113,37 @@ class FileOperationsResource:
 
         # Make functions available as methods of this resource instance
         self.get_file_properties = ops.get_file_properties
-        self.calculate_md5 = ops.calculate_md5
-        self.calculate_sha256 = ops.calculate_sha256
-        self.generate_perceptual_hashes = ops.generate_perceptual_hashes
+        self.get_mime_type = ops.get_mime_type
+        self.read_file_async = ops.read_file_async
+        self.get_file_properties_async = ops.get_file_properties_async
+        self.get_mime_type_async = ops.get_mime_type_async
         # Add other relevant functions from file_operations as needed by systems.
 
     # Note: If dam.services.file_operations was a class, this resource could simply
     # be an instance of that class, or this class could inherit from it.
     # Since it's a module of functions, this wrapper approach is used to make
     # them available as an injectable resource object.
+
+
+class HashingServiceResource:
+    """
+    A resource that provides access to hashing functions.
+    """
+
+    def __init__(self):
+        """
+        Initializes the HashingServiceResource by binding methods to the
+        functions from the `dam.services.hashing_service` module.
+        """
+        from dam.services import hashing_service as hs
+
+        self.calculate_md5 = hs.calculate_md5
+        self.calculate_sha1 = hs.calculate_sha1
+        self.calculate_sha256 = hs.calculate_sha256
+        self.calculate_crc32 = hs.calculate_crc32
+        self.generate_perceptual_hashes = hs.generate_perceptual_hashes
+        self.calculate_md5_async = hs.calculate_md5_async
+        self.calculate_sha1_async = hs.calculate_sha1_async
+        self.calculate_sha256_async = hs.calculate_sha256_async
+        self.calculate_crc32_async = hs.calculate_crc32_async
+        self.generate_perceptual_hashes_async = hs.generate_perceptual_hashes_async

@@ -112,7 +112,7 @@ async def ingest_gallery_dl_asset_async(
 
     # 1. Get file properties from the downloaded file
     try:
-        actual_filename, size_bytes, mime_type = file_operations.get_file_properties(downloaded_filepath)
+        actual_filename, size_bytes = file_operations.get_file_properties(downloaded_filepath)
         file_content = await file_operations.read_file_async(downloaded_filepath)
     except Exception as e:
         logger.error(f"Error reading file properties or content for {downloaded_filepath}: {e}")
@@ -167,7 +167,6 @@ async def ingest_gallery_dl_asset_async(
                 entity=entity,
                 original_filename=actual_filename,  # Name of the downloaded file
                 file_size_bytes=size_bytes,
-                mime_type=mime_type,
             )
             ecs_service.add_component_to_entity(session, entity.id, fpc)
 

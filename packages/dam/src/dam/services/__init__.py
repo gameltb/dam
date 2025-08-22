@@ -6,6 +6,8 @@ from . import (
     character_service,
     ecs_service,
     file_operations,
+    hashing_service,
+    import_service,
     semantic_service,  # Added semantic_service
     tag_service,  # noqa: F401
     tagging_service,
@@ -94,6 +96,7 @@ from .transcode_service import (
 
 __all__ = [
     "file_operations",
+    "hashing_service",
     "ecs_service",  # Module itself
     "world_service",  # Module itself
     # Functions from ecs_service
@@ -164,6 +167,9 @@ __all__ = [
     "generate_tags_from_image",
     "get_tagging_model",
     "TAGGING_MODEL_CONCEPTUAL_PARAMS",  # Changed from TAGGING_MODEL_REGISTRY
+    # Import service and functions
+    "import_service",
+    "import_local_file",
     # Audio service and functions
     "audio_service",  # Module itself
     "generate_audio_embedding_for_entity",
@@ -178,3 +184,4 @@ from .audio_service import (
     generate_audio_embedding_for_entity,
     get_audio_embeddings_for_entity,
 )
+from .import_service import import_local_file

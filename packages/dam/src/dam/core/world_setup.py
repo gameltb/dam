@@ -17,7 +17,7 @@ from dam.core.events import (
     SemanticSearchQuery,
 )
 from dam.core.model_manager import ModelExecutionManager  # Added ModelExecutionManager
-from dam.core.resources import FileOperationsResource
+from dam.core.resources import FileOperationsResource, HashingServiceResource
 from dam.core.stages import SystemStage
 from dam.core.world import World
 from dam.resources.file_storage_resource import FileStorageResource
@@ -86,7 +86,11 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(FileOperationsResource())
     world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
-    # 5. ModelExecutionManager
+    # 5. HashingServiceResource
+    resource_manager.add_resource(HashingServiceResource())
+    world.logger.debug(f"Added HashingServiceResource for World '{world_name}'.")
+
+    # 6. ModelExecutionManager
     # Use the global singleton instance.
     # The ResourceManager's add_resource will handle if this type is already registered,
     # potentially replacing it or warning. For a global singleton, we want all worlds

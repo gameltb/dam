@@ -16,7 +16,7 @@ from dam.models.properties import FilePropertiesComponent
 from dam.models.semantic.audio_embedding_component import (
     get_audio_embedding_component_class,
 )
-from dam.services import audio_service, ecs_service
+from dam.services import audio_service, ecs_service, file_operations
 
 # Assuming this utility will be created or already exists and can provide a file path
 from dam.utils.media_utils import get_file_path_for_entity
@@ -57,19 +57,8 @@ async def audio_embedding_generation_system(
     for entity in entities_to_process:
         logger.debug(f"Processing entity {entity.id} for audio embedding.")
 
-        # 1. Verify it's an audio file (optional, marker might be enough)
-        file_props = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-        if not file_props or not file_props.mime_type or not file_props.mime_type.startswith("audio/"):
-            logger.warning(
-                f"Entity {entity.id} marked for audio processing, but not found or not an audio MIME type ({file_props.mime_type if file_props else 'N/A'}). Skipping."
-            )
-            continue
-
-        # 2. Get the audio file path
+        # 1. Get the audio file path and verify it's an audio file
         try:
-            # This utility needs to be robust.
-            # It might need access to FileStorageResource or similar from world_context's resource_manager
-            # For now, it's a direct import.
             audio_path = await get_file_path_for_entity(
                 session, entity.id, world_context.world_config.ASSET_STORAGE_PATH
             )
@@ -77,8 +66,15 @@ async def audio_embedding_generation_system(
                 logger.error(f"Could not retrieve audio file path for entity {entity.id}. Skipping.")
                 failed_count += 1
                 continue
+
+            mime_type = await file_operations.get_mime_type_async(audio_path)
+            if not mime_type.startswith("audio/"):
+                logger.warning(
+                    f"Entity {entity.id} marked for audio processing, but is not an audio MIME type ({mime_type}). Skipping."
+                )
+                continue
         except Exception as e:
-            logger.error(f"Error getting audio file path for entity {entity.id}: {e}", exc_info=True)
+            logger.error(f"Error getting audio file path or MIME type for entity {entity.id}: {e}", exc_info=True)
             failed_count += 1
             continue
 

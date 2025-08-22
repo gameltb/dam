@@ -29,7 +29,8 @@ from dam.models.properties.audio_properties_component import AudioPropertiesComp
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.properties.frame_properties_component import FramePropertiesComponent
 from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
-from dam.services import ecs_service
+from dam.services import ecs_service, file_operations
+from dam.utils.url_utils import get_local_path_for_url
 
 try:
     from hachoir.core import config as HachoirConfig
@@ -201,40 +202,37 @@ async def extract_metadata_on_asset_ingested(
         # The marker component itself doesn't hold data needed for extraction,
         # its presence on the entity is what matters for it to be in `entities_to_process`.
 
-        file_props = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
-        if not file_props:
-            logger.warning(f"No FilePropertiesComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            # Still try to remove markers
-            for m_to_del in current_markers:  # Iterate over the fetched list
-                await ecs_service.remove_component(session, m_to_del, flush=False)
-            continue
-
-        mime_type = file_props.mime_type if file_props else "application/octet-stream"
         all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)
         if not all_locations:
             logger.warning(f"No FileLocationComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            for m_to_del in current_markers:  # Iterate over the fetched list
+            for m_to_del in current_markers:
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
 
         filepath_on_disk: Path | None = None
-        cas_loc = next((loc for loc in all_locations if loc.storage_type == "local_cas"), None)
-        ref_loc = next((loc for loc in all_locations if loc.storage_type == "local_reference"), None)
+        # Iterate through all locations and try to find a file that exists.
+        for loc in all_locations:
+            try:
+                # Use the centralized URL resolver
+                potential_path = get_local_path_for_url(loc.url, world_config)
+                # Check if the resolved path actually exists and is a file
+                if potential_path and await asyncio.to_thread(potential_path.is_file):
+                    filepath_on_disk = potential_path
+                    break  # Found a valid, existing file, so we can stop looking.
+            except (ValueError, FileNotFoundError) as e:
+                # These errors are expected if a URL is unresolvable or points to a non-existent file.
+                logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity.id}: {e}")
+                continue  # Try the next location
 
-        if cas_loc:
-            base_storage_path = Path(world_config.ASSET_STORAGE_PATH)
-            filepath_on_disk = base_storage_path / cas_loc.physical_path_or_key
-        elif ref_loc:
-            filepath_on_disk = Path(ref_loc.physical_path_or_key)
-
-        if not filepath_on_disk or not await asyncio.to_thread(filepath_on_disk.exists):
+        if not filepath_on_disk:
             logger.error(
                 f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
             )
-            for m_to_del in current_markers:  # Iterate over the fetched list
+            for m_to_del in current_markers:
                 await ecs_service.remove_component(session, m_to_del, flush=False)
             continue
 
+        mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
         logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity.id} (MIME: {mime_type})")
         hachoir_metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
 
