@@ -84,7 +84,15 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     *   The `WorldScheduler.execute_stage(stage, world_context)` method executes all systems registered for that particular stage.
     *   This provides a way to order operations and manage dependencies between different processing steps.
 
-### 2.8. Querying Entities with `ecs_service`
+### 2.8. Services and Systems Imports
+
+To support modularity and optional dependencies, the `dam.services` and `dam.systems` packages have a specific import design.
+
+-   **Services**: Service modules (e.g., `dam.services.tag_service`) are self-contained and should be imported directly via their full path (e.g., `from dam.services import tag_service`). The `dam.services` package does not expose all services through its `__init__.py`. For services with heavy optional dependencies (like `semantic_service`), it is recommended to use local, on-demand imports within the functions that need them.
+
+-   **Systems**: The `dam.systems` package automatically discovers and imports all modules within its directory at runtime. This means you can add a new system file to the `dam/systems/` directory and it will be automatically loaded without needing to edit any `__init__.py` file. The `dam.core.world_setup.py` file, which registers core systems, also uses try-except blocks to handle `ImportError`. This makes the system registration robust against missing optional dependencies.
+
+### 2.9. Querying Entities with `ecs_service`
 
 The `dam.services.ecs_service` module provides several helper functions to facilitate common queries for entities based on their components, reducing boilerplate and promoting optimized query patterns. These functions should be preferred for common query needs within systems or other services.
 
@@ -484,7 +492,7 @@ async def process_tagged_entities_system(
             ecs_service.remove_component(session, marker)
     # Session commit/flush is handled by the WorldScheduler per stage
 ```
-Remember to import `tag_processing_system` in `dam/cli.py` or `dam/systems/__init__.py` to register it.
+The `dam.systems` package is configured to automatically discover and import all modules within its directory. Therefore, simply creating the new system file (e.g., `dam/systems/my_new_system.py`) is sufficient for it to be loaded at runtime. You do not need to manually add it to `dam/systems/__init__.py`.
 
 ### Step 5: Integrate with CLI or Application Logic
 
