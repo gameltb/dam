@@ -134,9 +134,9 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_process_iso_stream.assert_called_once()
 
     # Check that a new entity was created
-    from dam.services.ecs_service import create_entity
+    from dam.services import ecs_service
 
-    create_entity.assert_awaited_once_with(mock_session)
+    ecs_service.create_entity.assert_awaited_once_with(mock_session)
 
     # Check that all components were added
     assert mock_add_component.await_count == 6  # 4 hashes + 1 SFO + 1 raw SFO
@@ -213,7 +213,7 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
 
     # 3. Assert
     mock_process_iso_stream.assert_called_once()
-    from dam.services.ecs_service import create_entity
+    from dam.services import ecs_service
 
-    create_entity.assert_awaited_once()
+    ecs_service.create_entity.assert_awaited_once()
     assert mock_add_component.await_count > 0

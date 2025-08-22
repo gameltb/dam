@@ -30,18 +30,9 @@ from dam.core.world import (  # Added
     get_all_registered_worlds,
     get_world,
 )
-from dam.models.conceptual import CharacterConceptComponent  # For displaying character info
-from dam.models.properties import FilePropertiesComponent  # For displaying asset info
-from dam.services import (
-    character_service,  # Added character_service
-    file_operations,
-    hashing_service,
-    transcode_service,
-    world_service,
-)
-from dam.services import (
-    ecs_service as dam_ecs_service,  # Alias to avoid conflict with local ecs_service module
-)
+from dam.models.conceptual import CharacterConceptComponent
+from dam.models.properties import FilePropertiesComponent
+from dam.services import ecs_service as dam_ecs_service
 from dam.systems import evaluation_systems
 from dam.utils.async_typer import AsyncTyper
 from dam.utils.media_utils import TranscodeError
@@ -283,6 +274,8 @@ async def cli_add_asset(  # Made async
 
     # FileStorageService is no longer directly obtained here, as systems will get it via DI.
 
+    from dam.services import file_operations
+
     for filepath in files_to_process:
         processed_count += 1
         typer.echo(
@@ -450,6 +443,8 @@ async def cli_find_file_by_hash(  # Made async
 
     actual_hash_value = hash_value_arg
     actual_hash_type = hash_type.lower()
+
+    from dam.services import hashing_service
 
     if target_filepath:
         typer.echo(
@@ -650,6 +645,8 @@ def cli_export_world(
         raise typer.Exit(code=1)
 
     typer.echo(f"Exporting ECS world '{target_world.name}' to: {export_path}")
+    from dam.services import world_service
+
     try:
         # Service function now takes World object and handles its own session
         world_service.export_ecs_world_to_json(target_world, export_path)
@@ -684,6 +681,8 @@ def cli_import_world(
     typer.echo(f"Importing ECS world from: {import_path} into world '{target_world.name}'")
     if merge:
         typer.echo("Merge mode enabled.")
+
+    from dam.services import world_service
 
     try:
         # Service function now takes World object and handles its own session
@@ -724,6 +723,8 @@ def cli_merge_worlds_db(
     if source_world_instance.name == target_world_instance.name:  # Compare by actual name from instance
         typer.secho("Error: Source and target worlds cannot be the same for merge operation.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+    from dam.services import world_service
 
     try:
         # Service function now takes World objects and handles its own sessions
@@ -820,6 +821,8 @@ def cli_split_world_db(
         )
         raise typer.Exit(code=1)
 
+    from dam.services import world_service
+
     try:
         # Service function now takes World objects and handles its own sessions
         count_selected, count_remaining = world_service.split_ecs_world(
@@ -887,6 +890,8 @@ async def cli_transcode_profile_create(  # Made async
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    from dam.services import transcode_service
+
     async def _create():
         typer.echo("DEBUG: Entering _create for profile-create")  # Debug print
         try:
@@ -951,6 +956,8 @@ async def cli_transcode_apply(  # Made async
         # For now, let's remove this check and let the service layer handle path logic.
         # raise typer.Exit(code=1)
         pass
+
+    from dam.services import transcode_service
 
     async def _apply():
         from dam.services import ecs_service  # Placed here to avoid circular import issues at top level with models
@@ -1306,6 +1313,8 @@ async def cli_character_create(
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    from dam.services import character_service
+
     async with target_world.db_session_maker() as session:
         try:
             char_entity = await character_service.create_character_concept(
@@ -1363,6 +1372,8 @@ async def cli_character_apply(
     if not target_world:
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+    from dam.services import character_service
 
     async with target_world.db_session_maker() as session:
         try:
@@ -1449,6 +1460,8 @@ async def cli_character_list_for_asset(
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    from dam.services import character_service
+
     async with target_world.db_session_maker() as session:
         try:
             asset_entity_id: Optional[int] = None
@@ -1522,6 +1535,8 @@ async def cli_character_find_assets(
     elif role_filter == "__ANY__":
         actual_role_filter = None
         filter_by_role_presence = True
+
+    from dam.services import character_service
 
     async with target_world.db_session_maker() as session:
         try:

@@ -11,7 +11,6 @@ from dam.core.systems import SystemStage, system
 from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
 from dam.models.core.entity import Entity  # Corrected Entity import
 from dam.services import ecs_service
-from dam.services import tagging_service as tagging_service_module  # Renamed import
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +51,8 @@ async def auto_tag_entities_system(
     if not marked_entities:
         logger.debug("No entities marked for auto-tagging in this cycle.")
         return
+
+    from dam.services import tagging_service as tagging_service_module
 
     logger.info(f"Found {len(marked_entities)} entities marked for auto-tagging with model '{default_tagging_model}'.")
 
