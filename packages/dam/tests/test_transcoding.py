@@ -18,7 +18,10 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.tags import EntityTagLinkComponent  # Updated imports
 from dam.services import ecs_service as dam_ecs_service
-from dam.services import file_operations, hashing_service, tag_service, transcode_service
+from dam.services import file_operations
+from dam.services import hashing_service
+from dam.services import tag_service
+from dam.services import transcode_service
 
 # Assuming test_environment fixture can be imported or replicated if needed.
 # For now, let's use the one from test_cli by importing it.

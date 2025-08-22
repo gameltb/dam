@@ -9,7 +9,8 @@ from dam.cli import app
 from dam.core.model_manager import ModelExecutionManager
 from dam.core.world import World
 from dam.models.properties import FilePropertiesComponent
-from dam.services import ecs_service, semantic_service
+from dam.services import ecs_service
+from dam.services import semantic_service
 
 runner = CliRunner()
 

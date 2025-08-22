@@ -27,7 +27,9 @@ from dam.models.source_info import source_types  # Import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam.models.source_info.web_source_component import WebSourceComponent
 from dam.models.source_info.website_profile_component import WebsiteProfileComponent
-from dam.services import ecs_service, hashing_service, import_service
+from dam.services import ecs_service
+from dam.services import hashing_service
+from dam.services import import_service
 
 # For find_similar_images
 try:

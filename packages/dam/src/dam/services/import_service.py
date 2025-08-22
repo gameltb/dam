@@ -19,7 +19,9 @@ from dam.models.hashes.image_perceptual_hash_phash_component import ImagePercept
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import ecs_service, file_operations, hashing_service
+from dam.services import ecs_service
+from dam.services import file_operations
+from dam.services import hashing_service
 
 logger = logging.getLogger(__name__)
 

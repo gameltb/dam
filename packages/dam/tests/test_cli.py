@@ -30,7 +30,8 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import file_operations, hashing_service
+from dam.services import file_operations
+from dam.services import hashing_service
 from dam.services.file_storage import get_file_path
 from dam.utils import url_utils
 

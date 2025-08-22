@@ -12,6 +12,7 @@ This project implements a Digital Asset Management system using an Entity-Compon
     *   **Dependency Injection**: For systems.
     *   **Resources**: Shared utilities.
 *   **Modularity**: Components in `dam/models/`, services in `dam/services/`, systems in `dam/systems/`.
+*   **Services**: Service modules (e.g., `dam.services.tag_service`) are self-contained and should be imported directly via their full path (e.g., `from dam.services import tag_service`). The `dam.services` package does not expose all services through its `__init__.py` to support optional dependencies. For services with heavy optional dependencies (like `semantic_service`), it is recommended to use local, on-demand imports within the functions that need them.
 *   **Content-Addressable Storage (CAS)**: Files stored by hash.
 *   **Metadata Extraction**: For various file types.
 *   **Asset Versioning & Structure**: Flexible model for grouping versions of a conceptual work and defining ordered content (e.g., comic pages). Uses:
@@ -50,7 +51,6 @@ ecs_dam_system/
 │   │   │   └── entity_tag_link_component.py
 │   │   └── ...
 │   ├── services/
-│   │   ├── __init__.py
 │   │   ├── comic_book_service.py
 │   │   ├── tag_service.py      # Service for managing tags
 │   │   └── ...

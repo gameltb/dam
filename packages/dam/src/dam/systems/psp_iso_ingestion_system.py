@@ -16,7 +16,9 @@ from dam.models.hashes import (
     ContentHashSHA256Component,
 )
 from dam.models.metadata import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
-from dam.services import ecs_service, hashing_service, psp_iso_service
+from dam.services import ecs_service
+from dam.services import hashing_service
+from dam.services import psp_iso_service
 
 
 async def _process_iso_file(

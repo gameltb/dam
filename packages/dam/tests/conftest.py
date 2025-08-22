@@ -129,7 +129,7 @@ def global_model_execution_manager(
     on this instance for the duration of the test.
     """
     from dam.core.global_resources import model_execution_manager as global_mem_instance
-    from dam.services import semantic_service  # To access SENTENCE_TRANSFORMER_IDENTIFIER and loader
+    from dam.services import semantic_service
     # from dam.services import audio_service # Future: For MOCK_AUDIO_MODEL_IDENTIFIER
     # from dam.services import tagging_service # Future: For TAGGING_MODEL_IDENTIFIER
 
