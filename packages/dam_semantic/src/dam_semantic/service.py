@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam.core.model_manager import ModelExecutionManager
 from dam.models.core.entity import Entity
-from dam.models.semantic import (
-    EMBEDDING_MODEL_REGISTRY,  # For default params
+from .models import (
+    EMBEDDING_MODEL_REGISTRY,
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
     get_embedding_component_class,

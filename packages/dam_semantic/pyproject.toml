@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dam"
+name = "dam_semantic"
 version = "0.1.0"
-description = "A Digital Asset Management system using an Entity-Component-System (ECS) architecture in Python."
+description = "A plugin for the DAM system to handle semantic search."
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -19,66 +19,27 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Filesystems",
 ]
 
 dependencies = [
-    "sqlalchemy",
-    "aiosqlite",
-    "alembic",
-    "typer",
-    "python-dotenv",
-    "pydantic",
-    "pydantic-settings", # For settings management
-    "psutil", # Added for system resource detection
-]
-
-[project.optional-dependencies]
-image = [
-    "ImageHash",
-    "Pillow"
-]
-video = [
-]
-audio = [
-]
-metadata = [
-    "hachoir"
-]
-transcode-ffmpeg = []
-transcode-cjxl = []
-transcode-avifenc = []
-
-all-transcode = []
-
-dev = [
-    "pytest",
-    "pytest-cov",
-    "pytest-asyncio",
-    "pytest-mock",
-]
-
-all = [
-    "dam[image]",
-    "dam[video]",
-    "dam[audio]",
-    "dam[metadata]",
-    "dam[dev]",
-    "dam[all-transcode]",
+    "dam",
+    "sentence-transformers",
+    "numpy",
 ]
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder
 Repository = "https://example.com/ecs_dam_system.git" # Placeholder
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/dam_semantic"]
 
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
 
 [tool.pyright]
-extends = "../../pyproject.toml"
+extends = "../../pyright.json"
 include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
@@ -93,8 +54,8 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
+test-cov = "pytest -n auto --cov=dam_semantic --cov-report=term-missing --cov-report=xml"
 mypy.default_item_type = "cmd"
 mypy.sequence = [
-    "mypy --config-file ../../pyproject.toml dam tests",
+    "mypy --config-file ../../pyproject.toml dam_semantic tests",
 ]

@@ -15,6 +15,7 @@ members = [
     "dam",
     "dam-app",
     "dam-psp",
+    "dam-semantic",
     "domarkx",
     "sire",
     "sire-pipelines",
@@ -828,13 +829,11 @@ dependencies = [
 all = [
     { name = "hachoir" },
     { name = "imagehash" },
-    { name = "numpy" },
     { name = "pillow" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
-    { name = "sentence-transformers" },
 ]
 dev = [
     { name = "pytest" },
@@ -849,10 +848,6 @@ image = [
 metadata = [
     { name = "hachoir" },
 ]
-semantic = [
-    { name = "numpy" },
-    { name = "sentence-transformers" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -863,11 +858,9 @@ requires-dist = [
     { name = "dam", extras = ["dev"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["image"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["metadata"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["semantic"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["video"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "hachoir", marker = "extra == 'metadata'" },
     { name = "imagehash", marker = "extra == 'image'" },
-    { name = "numpy", marker = "extra == 'semantic'" },
     { name = "pillow", marker = "extra == 'image'" },
     { name = "psutil" },
     { name = "pydantic" },
@@ -877,11 +870,10 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
-    { name = "sentence-transformers", marker = "extra == 'semantic'" },
     { name = "sqlalchemy" },
     { name = "typer" },
 ]
-provides-extras = ["image", "video", "audio", "metadata", "semantic", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]
+provides-extras = ["image", "video", "audio", "metadata", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]
 
 [[package]]
 name = "dam-app"
@@ -894,18 +886,24 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "dam-psp" },
+    { name = "dam-semantic" },
 ]
 psp = [
     { name = "dam-psp" },
+]
+semantic = [
+    { name = "dam-semantic" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
     { name = "dam-app", extras = ["psp"], marker = "extra == 'all'", editable = "packages/dam_app" },
+    { name = "dam-app", extras = ["semantic"], marker = "extra == 'all'", editable = "packages/dam_app" },
     { name = "dam-psp", marker = "extra == 'psp'", editable = "packages/dam_psp" },
+    { name = "dam-semantic", marker = "extra == 'semantic'", editable = "packages/dam_semantic" },
 ]
-provides-extras = ["psp", "all"]
+provides-extras = ["psp", "semantic", "all"]
 
 [[package]]
 name = "dam-psp"
@@ -928,6 +926,23 @@ requires-dist = [
     { name = "pycdlib" },
     { name = "rarfile" },
     { name = "zstandard" },
+]
+
+[[package]]
+name = "dam-semantic"
+version = "0.1.0"
+source = { editable = "packages/dam_semantic" }
+dependencies = [
+    { name = "dam" },
+    { name = "numpy" },
+    { name = "sentence-transformers" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "numpy" },
+    { name = "sentence-transformers" },
 ]
 
 [[package]]

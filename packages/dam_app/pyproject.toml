@@ -27,7 +27,8 @@ dependencies = [
 
 [project.optional-dependencies]
 psp = ["dam_psp"]
-all = ["dam_app[psp]"]
+semantic = ["dam_semantic"]
+all = ["dam_app[psp]", "dam_app[semantic]"]
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder

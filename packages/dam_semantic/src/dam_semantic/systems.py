@@ -6,7 +6,8 @@ from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.stages import SystemStage  # For scheduling embedding generation
 from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
 from dam.core.systems import listens_for, system
-from dam.services import audio_service, semantic_service
+from dam.services import audio_service
+from . import service as semantic_service
 
 # Placeholder for components that might trigger embedding generation
 

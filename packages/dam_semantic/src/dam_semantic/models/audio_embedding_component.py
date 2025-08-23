@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Type
 from sqlalchemy import LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core import BaseComponent
+from dam.models.core import BaseComponent
 
 
 class BaseSpecificAudioEmbeddingComponent(BaseComponent):
