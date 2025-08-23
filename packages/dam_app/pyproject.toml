@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dam"
+name = "dam_app"
 version = "0.1.0"
-description = "A Digital Asset Management system using an Entity-Component-System (ECS) architecture in Python."
+description = "A CLI application for the DAM system."
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -19,71 +19,29 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Filesystems",
 ]
 
 dependencies = [
-    "sqlalchemy",
-    "aiosqlite",
-    "alembic",
-    "typer",
-    "python-dotenv",
-    "pydantic",
-    "pydantic-settings", # For settings management
-    "psutil", # Added for system resource detection
+    "dam",
 ]
 
 [project.optional-dependencies]
-image = [
-    "ImageHash",
-    "Pillow"
-]
-video = [
-]
-audio = [
-]
-metadata = [
-    "hachoir"
-]
-semantic = [
-    "sentence-transformers",
-    "numpy"
-]
-transcode-ffmpeg = []
-transcode-cjxl = []
-transcode-avifenc = []
-
-all-transcode = []
-
-dev = [
-    "pytest",
-    "pytest-cov",
-    "pytest-asyncio",
-    "pytest-mock",
-]
-
-all = [
-    "dam[image]",
-    "dam[video]",
-    "dam[audio]",
-    "dam[metadata]",
-    "dam[semantic]",
-    "dam[dev]",
-    "dam[all-transcode]",
-]
+psp = ["dam_psp"]
+all = ["dam_app[psp]"]
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder
 Repository = "https://example.com/ecs_dam_system.git" # Placeholder
 
+[project.scripts]
+dam-cli = "dam_app.cli:app"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
 
 [tool.pyright]
-extends = "../../pyproject.toml"
+extends = "../../pyright.json"
 include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
@@ -98,8 +56,11 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
+test-cov = "pytest -n auto --cov=dam_app --cov-report=term-missing --cov-report=xml"
 mypy.default_item_type = "cmd"
 mypy.sequence = [
-    "mypy --config-file ../../pyproject.toml dam tests",
+    "mypy --config-file ../../pyproject.toml dam_app tests",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dam_app"]

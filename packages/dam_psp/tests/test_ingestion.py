@@ -4,7 +4,7 @@ from io import BytesIO
 import pycdlib
 import pytest
 
-from dam.services import psp_iso_service
+from dam_psp import service as psp_iso_service
 
 # A more realistic, valid PARAM.SFO file content for testing
 DUMMY_SFO_CONTENT = b"".join(
@@ -87,7 +87,7 @@ def test_process_iso_stream_handles_non_iso_file():
 # Tests for the ingestion system
 from unittest.mock import AsyncMock, MagicMock
 
-from dam.systems import psp_iso_ingestion_system
+from dam_psp import systems as psp_iso_ingestion_system
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
 
     # Mock the service and database interactions
     mocker.patch(
-        "dam.services.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
         return_value={
             "md5": hashlib.md5(b"md5_hash").hexdigest(),
             "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
@@ -115,7 +115,7 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_sfo = MagicMock()
     mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
     mock_process_iso_stream = mocker.patch(
-        "dam.services.psp_iso_service.process_iso_stream",
+        "dam_psp.systems.psp_iso_service.process_iso_stream",
         return_value=mock_sfo,
     )
 
@@ -124,8 +124,8 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_result.scalars.return_value.first.return_value = None
     mock_session.execute = AsyncMock(return_value=mock_result)
 
-    mocker.patch("dam.services.ecs_service.create_entity", new_callable=AsyncMock, return_value=MagicMock(id=1))
-    mock_add_component = mocker.patch("dam.services.ecs_service.add_component_to_entity", new_callable=AsyncMock)
+    mocker.patch("dam_psp.systems.ecs_service.create_entity", new_callable=AsyncMock, return_value=MagicMock(id=1))
+    mock_add_component = mocker.patch("dam_psp.systems.ecs_service.add_component_to_entity", new_callable=AsyncMock)
 
     # 2. Execute
     await psp_iso_ingestion_system.ingest_psp_isos_from_directory(session=mock_session, directory=str(tmp_path))
@@ -153,7 +153,7 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     mocker.patch(
-        "dam.services.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
         return_value={"md5": hashlib.md5(b"duplicate_md5_hash").hexdigest()},
     )
 
@@ -162,8 +162,8 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     mock_result.scalars.return_value.first.return_value = 1  # Return a dummy entity ID
     mock_session.execute = AsyncMock(return_value=mock_result)
 
-    mock_create_entity = mocker.patch("dam.services.ecs_service.create_entity", new_callable=AsyncMock)
-    mock_add_component = mocker.patch("dam.services.ecs_service.add_component_to_entity", new_callable=AsyncMock)
+    mock_create_entity = mocker.patch("dam_psp.systems.ecs_service.create_entity", new_callable=AsyncMock)
+    mock_add_component = mocker.patch("dam_psp.systems.ecs_service.add_component_to_entity", new_callable=AsyncMock)
 
     # 2. Execute
     await psp_iso_ingestion_system.ingest_psp_isos_from_directory(session=mock_session, directory=str(tmp_path))
@@ -189,7 +189,7 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         zf.writestr("test.iso", dummy_iso_content)
 
     mocker.patch(
-        "dam.services.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
         return_value={
             "md5": hashlib.md5(b"some_hash").hexdigest(),
             "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
@@ -198,15 +198,15 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         },
     )
     mock_process_iso_stream = mocker.patch(
-        "dam.services.psp_iso_service.process_iso_stream",
+        "dam_psp.systems.psp_iso_service.process_iso_stream",
         return_value=None,  # For simplicity, we don't care about SFO data here
     )
     mock_session = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalars.return_value.first.return_value = None
     mock_session.execute = AsyncMock(return_value=mock_result)
-    mocker.patch("dam.services.ecs_service.create_entity", new_callable=AsyncMock)
-    mock_add_component = mocker.patch("dam.services.ecs_service.add_component_to_entity", new_callable=AsyncMock)
+    mocker.patch("dam_psp.systems.ecs_service.create_entity", new_callable=AsyncMock)
+    mock_add_component = mocker.patch("dam_psp.systems.ecs_service.add_component_to_entity", new_callable=AsyncMock)
 
     # 2. Execute
     await psp_iso_ingestion_system.ingest_psp_isos_from_directory(session=mock_session, directory=str(tmp_path))

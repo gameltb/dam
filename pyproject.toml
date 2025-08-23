@@ -10,6 +10,8 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 dam = { workspace = true }
+dam_app = { workspace = true }
+dam_psp = { workspace = true }
 domarkx = { workspace = true }
 sire = { workspace = true }
 sire_pipelines = { workspace = true }
