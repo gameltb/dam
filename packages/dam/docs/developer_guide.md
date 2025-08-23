@@ -340,11 +340,21 @@ This approach ensures that the actual asset files are managed robustly and effic
 
 ---
 
-## 4. Guide: Adding a New Component
+## 4. Guide: Adding a New Component or System
+
+This section walks through the process of adding new functionality to the DAM system.
+
+### 4.1. Guideline for New Systems
+
+When adding a new system, first consider if it can be added to an existing plugin package (e.g., `dam_psp`, `dam_semantic`). If the new system provides functionality that is closely related to an existing plugin, it should be added to that plugin.
+
+If the new system is not a good fit for an existing plugin, create a new plugin package for it. This keeps the codebase modular and allows for optional loading of functionality.
+
+### 4.2. Adding a New Component
 
 This section walks through the process of adding a new component to the DAM system. We'll use a hypothetical `TagComponent` as an example, which could be used to associate simple string tags with an asset entity.
 
-### Step 1: Define the Component Dataclass Model
+#### Step 1: Define the Component Dataclass Model
 
 First, create a new Python file for your component in the `dam/models/` directory. For our example, this would be `dam/models/tag_component.py`.
 
@@ -390,7 +400,7 @@ class TagComponent(BaseComponent):
 - **Custom Fields**: `tag_name: Mapped[str] = mapped_column(...)` defines the actual data this component holds. We've added `index=True` as tags are likely to be queried.
 - **Constraints**: `__table_args__` can define `UniqueConstraint`, `Index`, etc. Here, we prevent duplicate tags per entity.
 
-### Step 2: Ensure Component Model Registration with SQLAlchemy Metadata
+#### Step 2: Ensure Component Model Registration with SQLAlchemy Metadata
 
 For SQLAlchemy to recognize the new component model, for Alembic to generate migrations for it, and for `Base.metadata.create_all()` to create its table, the Python module defining the component class must be imported before these operations occur. This ensures the model class is evaluated and registers itself with `Base.metadata`.
 
@@ -413,7 +423,7 @@ For SQLAlchemy to recognize the new component model, for Alembic to generate mig
 
 This explicit import step is vital for SQLAlchemy's declarative system to discover all models associated with `Base.metadata`.
 
-### Step 3: Create Database Migration (Alembic)
+#### Step 3: Create Database Migration (Alembic)
 
 Whenever you add or modify a model (which translates to a database table), you need to create a database migration using Alembic.
 
@@ -450,7 +460,7 @@ Whenever you add or modify a model (which translates to a database table), you n
     ```
     This applies all pending migrations.
 
-### Step 4: Implement System Logic (Recommended)
+#### Step 4: Implement System Logic (Recommended)
 
 While not strictly required for the component to exist, you'll typically want a System to manage or react to instances of your new component.
 
@@ -494,7 +504,7 @@ async def process_tagged_entities_system(
 ```
 The `dam.systems` package is configured to automatically discover and import all modules within its directory. Therefore, simply creating the new system file (e.g., `dam/systems/my_new_system.py`) is sufficient for it to be loaded at runtime. You do not need to manually add it to `dam/systems/__init__.py`.
 
-### Step 5: Integrate with CLI or Application Logic
+#### Step 5: Integrate with CLI or Application Logic
 
 How you integrate depends on the system's purpose:
 -   **If adding components via CLI**: The CLI command might directly use `ecs_service.add_component_to_entity` or a helper service function. If complex logic or further processing is needed after adding the component, the CLI might add a *marker component* to the entity, and a dedicated system (like the example above) would pick it up in a later stage scheduled by the `WorldScheduler`.
@@ -542,7 +552,7 @@ def cli_add_asset(
 ```
 If adding a tag should trigger further complex processing, the CLI would instead add a `NeedsTaggingProcessingComponent(tag_to_add="...")` and a system would handle the actual `TagComponent` creation and other logic.
 
-### Step 6: Write Tests
+#### Step 6: Write Tests
 
 Finally, and crucially, write tests for your new component and any associated logic:
 -   **Model Tests** (e.g., in `tests/models/test_tag_component.py`):
@@ -574,10 +584,10 @@ This comprehensive approach ensures your new component is well-defined, integrat
 
 ### 5.2. Running Tests
 
-The project uses `pytest` for testing, preferably run via `uv`.
+The project uses `pytest` for testing, preferably run via `uv` and `poe`.
 -   **Run all tests**:
     ```bash
-    uv run pytest
+    uv run poe test
     ```
 -   **Run specific test files or tests**:
     ```bash
@@ -586,18 +596,17 @@ The project uses `pytest` for testing, preferably run via `uv`.
     ```
 -   **Test Coverage**: Use `pytest-cov` (included in `[dev]` dependencies).
     ```bash
-    uv run pytest --cov=dam --cov-report=term-missing
+    uv run poe test-cov
     ```
 -   **Fixtures**: Database session fixtures (`db_session`, `test_db_manager`), application settings overrides (`settings_override`), and test data fixtures are defined in `tests/conftest.py` and individual test files.
 
 ### 5.3. Code Style and Conventions
 
--   **Formatting & Linting**: The project uses Ruff (see `pyproject.toml` under `[tool.ruff]`).
-    -   Format code: `uv run ruff format .`
-    -   Lint and apply auto-fixes: `uv run ruff check . --fix`
-    -   Check for lint errors (without fixing): `uv run ruff check .`
+-   **Formatting & Linting**: The project uses Ruff (see `pyproject.toml` under `[tool.ruff]`). All tasks are run via `poe`.
+    -   Format code: `uv run poe format`
+    -   Lint and check for errors: `uv run poe lint`
 -   **Type Checking**: MyPy is configured (see `pyproject.toml` under `[tool.mypy]`).
-    -   Run type checker: `uv run mypy .`
+    -   Run type checker: `uv run poe mypy`
 -   **System Registration & Execution**:
     System functions are defined with decorators (`@system` or `@listens_for`) which collect their metadata (parameters, target stage/event) globally when modules are imported. However, for a system to be active within a specific `World`, it must be explicitly registered to that `World`'s scheduler via `world.register_system(...)`.
     The application's core systems are registered through the `dam.core.world_setup.register_core_systems(world_instance)` helper function (this function was moved from `world_registrar` to `world_setup`). This function is called when `World` instances are initialized, for example, by the CLI or in test setups. If you are developing a new system intended to be part of the standard set for all worlds, you should add its registration call to `register_core_systems`.

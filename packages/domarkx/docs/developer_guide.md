@@ -8,10 +8,10 @@ Please refer to the setup instructions in the root `AGENTS.md` file of this repo
 
 ## Running Tests
 
-To run the test suite, use the following command:
+To run the test suite for this package, use the following command:
 
 ```bash
-uv run pytest
+uv run poe test --package domarkx
 ```
 
 ### Temporary Files
@@ -20,16 +20,16 @@ When writing tests that create files, it is recommended to use the `runner.isola
 
 ## Coding Conventions
 
-Please follow PEP 8 for Python code. It is recommended to use `poe` to run all checks, as it is configured for the entire monorepo.
+Please follow PEP 8 for Python code. It is recommended to use `uv run poe` to run all checks, as it is configured for the entire monorepo.
 
 ```bash
 # Run all checks (format, lint, test, etc.)
-poe check
+uv run poe check
 
-# Or run individual checks
-poe format
-poe lint
-poe test
+# Or run individual checks for this package
+uv run poe format --package domarkx
+uv run poe lint --package domarkx
+uv run poe test --package domarkx
 ```
 
 This ensures consistency across the entire project.

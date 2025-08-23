@@ -21,13 +21,16 @@ The `dam` package is organized as follows:
     3.  Define the component as a dataclass, inheriting from `BaseComponent` or another appropriate base class.
     4.  Ensure the component is a `MappedAsDataclass`.
 *   **Adding a new System:**
-    1.  Create a new Python file in `src/dam/systems/`.
-    2.  The system will be automatically discovered and registered by the framework.
-*   **Testing:**
-    *   Unit tests for the `dam` package are located in `packages/dam/tests/`.
-    *   All new features must be accompanied by unit tests.
-    *   To run the tests for this package, use the command: `pytest packages/dam/tests/`
-    *   To run tests with coverage: `pytest --cov=dam packages/dam/tests/`
+    1.  When adding a new system, first consider if it can be added to an existing plugin package (e.g., `dam_psp`, `dam_semantic`).
+    2.  If the new system is not a good fit for an existing plugin, create a new plugin package for it.
+    3.  Create a new Python file for the system in the appropriate package's `systems/` directory. The system will be automatically discovered and registered by the framework.
+
+### Testing
+
+*   Unit tests for the `dam` package are located in `packages/dam/tests/`.
+*   All new features must be accompanied by unit tests.
+*   To run the tests for this package, use the command: `uv run poe test --package dam`
+*   To run tests with coverage: `uv run poe test-cov --package dam`
 
 ### Assertion Guideline
 

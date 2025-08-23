@@ -103,10 +103,12 @@ The system allows defining character concepts and linking them to assets.
 
 ## Development
 
-*   **Tests:** `poe test`
-*   **Tests with coverage:** `poe test-cov`
-*   **Lint/Format:** `poe format`, `poe lint`
-*   **Type Check:** `poe mypy`
+All development tasks should be run from the root of the repository using `uv run poe ...`.
+
+*   **Tests:** `uv run poe test --package dam`
+*   **Tests with coverage:** `uv run poe test-cov --package dam`
+*   **Lint/Format:** `uv run poe format --package dam` and `uv run poe lint --package dam`
+*   **Type Check:** `uv run poe mypy --package dam`
 
 ### Database Migrations (Alembic - Currently Paused)
 
