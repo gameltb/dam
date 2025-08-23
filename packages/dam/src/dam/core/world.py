@@ -8,11 +8,11 @@ from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
 from dam.core.events import BaseEvent
+from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
 from dam.core.systems import WorldScheduler
-from dam.core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 

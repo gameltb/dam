@@ -1,9 +1,8 @@
 from typing import Optional
 
-from sqlalchemy import Integer, String, JSON
-from sqlalchemy.orm import Mapped, mapped_column
-
 from dam.models.core.base_component import BaseComponent
+from sqlalchemy import JSON, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class PSPSFOMetadataComponent(BaseComponent):

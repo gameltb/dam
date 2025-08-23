@@ -1,7 +1,13 @@
 # This file makes the 'models' directory a Python package.
 
 # Ensure all model modules are imported so they register with Base.metadata
-from ..core.components_markers import NeedsAudioProcessingMarker, NeedsMetadataExtractionComponent, MetadataExtractedComponent, NeedsAutoTaggingMarker, AutoTaggingCompleteMarker
+from ..core.components_markers import (
+    AutoTaggingCompleteMarker,
+    MetadataExtractedComponent,
+    NeedsAudioProcessingMarker,
+    NeedsAutoTaggingMarker,
+    NeedsMetadataExtractionComponent,
+)
 
 # Conceptual components
 # Import the concrete components that are intended for direct use/instantiation
@@ -34,7 +40,6 @@ from .properties.frame_properties_component import FramePropertiesComponent
 from .properties.image_dimensions_component import ImageDimensionsComponent
 
 # Semantic components
-
 # Source info components
 from .source_info.original_source_info_component import OriginalSourceInfoComponent
 from .source_info.web_source_component import WebSourceComponent
@@ -81,5 +86,10 @@ __all__ = [
     "TagConceptComponent",
     "EntityTagLinkComponent",
     "ModelGeneratedTagLinkComponent",
-    # Marker components are usually imported via dam.core.components_markers where needed
+    # Marker components
+    "NeedsAudioProcessingMarker",
+    "NeedsMetadataExtractionComponent",
+    "MetadataExtractedComponent",
+    "NeedsAutoTaggingMarker",
+    "AutoTaggingCompleteMarker",
 ]

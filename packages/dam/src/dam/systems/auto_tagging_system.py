@@ -8,14 +8,13 @@ from dam.core.system_params import (
 
 # For getting session, world name, config (WorldContext is in system_params)
 from dam.core.systems import SystemStage, system
-from dam.models.core.base_component import BaseComponent  # Import BaseComponent directly
 from dam.models.core.entity import Entity  # Corrected Entity import
 from dam.services import ecs_service
 
 logger = logging.getLogger(__name__)
 
 
-from dam.core.components_markers import NeedsAutoTaggingMarker, AutoTaggingCompleteMarker
+from dam.core.components_markers import NeedsAutoTaggingMarker
 
 
 @system(stage=SystemStage.CONTENT_ANALYSIS)  # Removed depends_on_resources

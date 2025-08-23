@@ -2,23 +2,23 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
+from dam.core.model_manager import ModelExecutionManager
+from dam.models.core.entity import Entity
+
+# Import necessary tag components and service to fetch tags
+from dam.models.tags import ModelGeneratedTagLinkComponent, TagConceptComponent
+from dam.services import ecs_service
+from dam.services.tag_service import get_tags_for_entity  # For manual tags
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core.model_manager import ModelExecutionManager
-from dam.models.core.entity import Entity
 from .models import (
     EMBEDDING_MODEL_REGISTRY,
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
     get_embedding_component_class,
 )
-
-# Import necessary tag components and service to fetch tags
-from dam.models.tags import ModelGeneratedTagLinkComponent, TagConceptComponent
-from dam.services import ecs_service
-from dam.services.tag_service import get_tags_for_entity  # For manual tags
 
 # For model-generated tags, we might need a function in tagging_service or query directly for now
 # from dam.services.tagging_service import get_model_generated_tags_for_entity # Assuming this will exist
@@ -445,6 +445,7 @@ async def find_similar_entities_by_text_embedding(
 # The old TextEmbeddingComponent is no longer referenced directly in this service.
 # It might still be in dam.models.semantic.__init__ as OldTextEmbeddingComponent for now.
 
+
 class SemanticService:
     def __init__(self):
         self.DEFAULT_MODEL_NAME = DEFAULT_MODEL_NAME
@@ -458,5 +459,6 @@ class SemanticService:
         self.update_text_embeddings_for_entity = update_text_embeddings_for_entity
         self.get_text_embeddings_for_entity = get_text_embeddings_for_entity
         self.find_similar_entities_by_text_embedding = find_similar_entities_by_text_embedding
+
 
 semantic_service = SemanticService()

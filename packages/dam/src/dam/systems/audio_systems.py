@@ -1,8 +1,7 @@
 import logging
 from typing import Annotated, List
 
-from sqlalchemy.orm import Mapped, mapped_column
-
+from dam.core.components_markers import NeedsAudioProcessingMarker
 from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext, WorldSession
@@ -11,7 +10,6 @@ from dam.core.systems import system
 # Marker component to indicate an entity needs audio processing.
 # This can be added during ingestion or by other systems.
 from dam.models.core import Entity
-from dam.models.core.base_component import BaseComponent
 from dam.models.semantic.audio_embedding_component import (
     get_audio_embedding_component_class,
 )
@@ -19,10 +17,6 @@ from dam.services import audio_service, ecs_service, file_operations
 
 # Assuming this utility will be created or already exists and can provide a file path
 from dam.utils.media_utils import get_file_path_for_entity
-
-
-from dam.core.components_markers import NeedsAudioProcessingMarker
-
 
 logger = logging.getLogger(__name__)
 

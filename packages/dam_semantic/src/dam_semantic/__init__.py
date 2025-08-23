@@ -18,6 +18,7 @@ class SemanticPlugin(Plugin):
         Builds the semantic plugin.
         """
         from . import systems
+
         world.register_system(systems.handle_semantic_search_query)
         world.register_system(systems.handle_audio_search_query)
         world.register_system(systems.generate_embeddings_system)

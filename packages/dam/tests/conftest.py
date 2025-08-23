@@ -19,7 +19,6 @@ import dam.models  # This line can sometimes be problematic if dam.models itself
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
 

@@ -1,32 +1,34 @@
-## Agent Instructions
+## Agent Instructions for the `dam` Package
 
-This file provides instructions for AI agents working with this codebase.
+This document provides specific instructions for working on the `dam` package, which is the core of the Digital Asset Management system.
 
-### General Guidelines
+### Package Structure
 
-*   **Coding Conventions:** Please follow PEP 8 for Python code.
+The `dam` package is organized as follows:
+
+*   `src/dam/`: The main source code directory.
+    *   `core/`: Contains the fundamental ECS framework, including the `World`, `Plugin`, and `System` concepts.
+    *   `models/`: Defines the data components. These are organized by their functional area (e.g., `conceptual`, `hashes`, `metadata`).
+    *   `services/`: Contains the business logic for interacting with the ECS world and its components.
+    *   `systems/`: Contains the ECS systems that operate on entities.
+    *   `resources/`: Defines shared resources that can be accessed by systems.
+
+### Development Guidelines
+
+*   **Adding a new Component:**
+    1.  Decide on the appropriate subdirectory in `src/dam/models/`.
+    2.  Create a new Python file for the component.
+    3.  Define the component as a dataclass, inheriting from `BaseComponent` or another appropriate base class.
+    4.  Ensure the component is a `MappedAsDataclass`.
+*   **Adding a new System:**
+    1.  Create a new Python file in `src/dam/systems/`.
+    2.  The system will be automatically discovered and registered by the framework.
 *   **Testing:**
+    *   Unit tests for the `dam` package are located in `packages/dam/tests/`.
     *   All new features must be accompanied by unit tests.
-    *   Ensure all tests pass before submitting changes.
-    *   The general command to run tests is `uv run pytest -x`.
-    *   **UI Tests:** UI testing for Gradio applications can be complex and may require tools like Selenium or Playwright. Currently, specific end-to-end UI tests for the Gradio interface are not implemented. Focus on robust testing of the underlying service functions that the UI calls.
-    *   To run tests with coverage: `uv run pytest --cov=dam --cov-report=term-missing`.
-    *   **Environment Setup:** It is recommended to use `uv` for managing virtual environments and dependencies.
-        *   Install dependencies (including `pytest`, `pytest-cov`, `pytest-mock`): `uv run pip install -e .[all]` (as specified in `pyproject.toml`, includes all optional groups).
-        *   **PyTorch Installation Note (for limited disk space environments):** Due to limited disk space in some sandbox environments, PyTorch (a dependency of `sentence-transformers`) should be installed as CPU-only first, before other packages that might pull in a larger GPU-enabled version. Use the following command if encountering space issues:
-            ```bash
-            uv run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-            ```
-            Then proceed with installing other dependencies like `uv run pip install -e .[all]` or `uv run pip install sentence-transformers`. Note that PyTorch will be CPU-only in such environments.
-    *   **Assertion Guideline:** Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.
-*   **Commit Messages:** Follow conventional commit message formats.
-*   **CI/CD:** The continuous integration pipeline is managed by GitHub Actions, configured in `.github/workflows/ci.yml`.
-    *   It uses Python 3.12.
-    *   It installs dependencies (including test dependencies) using `uv run pip install -e .[all]`.
-    *   It runs tests using `uv run pytest -x --cov=dam --cov-report=term-missing`.
-    *   Any changes to the build or test process should be reflected there and in this document.
+    *   To run the tests for this package, use the command: `pytest packages/dam/tests/`
+    *   To run tests with coverage: `pytest --cov=dam packages/dam/tests/`
 
-### Specific Instructions
+### Assertion Guideline
 
-*   **Design Specification**: For guidance on models (Components) and Systems architecture (excluding testing guidelines which are now in this document), please consult the [Design Specification](docs/design_specification.md) document.
-*   There are no other specific instructions at this time.
+Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions.

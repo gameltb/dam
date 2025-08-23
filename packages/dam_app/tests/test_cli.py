@@ -1,68 +1,32 @@
 import asyncio
 import json
-import os
-import uuid
+from functools import partial
 from pathlib import Path
 from typing import (
+    Any,
     AsyncGenerator,
+    Dict,
     Generator,
     Iterator,
     Optional,
-    Any,
-    List,
-    Dict,
 )
-from unittest.mock import patch, MagicMock, AsyncMock
-from functools import partial
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from typer.testing import CliRunner, Result
-
-from dam_app.cli import app
-from dam.core.config import Settings, WorldConfig
+from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.events import (
-    AssetFileIngestionRequested,
-    AssetReferenceIngestionRequested,
-    FindEntityByHashQuery,
-    FindSimilarImagesQuery,
-)
 from dam.core.model_manager import ModelExecutionManager
-from dam.core.stages import SystemStage
 from dam.core.world import (
     World,
     clear_world_registry,
     create_and_register_world,
-    get_all_registered_worlds,
-    get_world,
-    create_and_register_all_worlds_from_settings,
 )
-from dam.models import Base as AppBase
-from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
-from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
-from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
-from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
-from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.properties import FilePropertiesComponent
-from dam.models.source_info import source_types
-from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.models.tags import EntityTagLinkComponent
-from dam.services import (
-    ecs_service,
-    file_operations,
-    hashing_service,
-    tag_service,
-    transcode_service,
-)
-from dam.services.file_storage import get_file_path
-from dam.systems import evaluation_systems
-from dam.utils import url_utils
+from dam.models.core.base_class import Base
+from sqlalchemy.ext.asyncio import AsyncSession
+from typer.testing import CliRunner, Result
+
+from dam_app.cli import app
 
 TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
 TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"

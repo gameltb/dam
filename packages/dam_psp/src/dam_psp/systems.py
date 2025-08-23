@@ -5,9 +5,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import py7zr
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from dam.models.core import Entity
 from dam.models.hashes import (
     ContentHashCRC32Component,
@@ -15,9 +12,12 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
-from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 from dam.services import ecs_service, hashing_service
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from . import service as psp_iso_service
+from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
 
 async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream: BytesIO) -> None:

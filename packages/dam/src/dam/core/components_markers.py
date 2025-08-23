@@ -16,6 +16,7 @@ the state of entities as indicated by these markers.
 """
 
 from sqlalchemy.orm import Mapped, mapped_column
+
 from dam.models.core.base_component import BaseComponent
 
 # No specific fields needed for marker components, they exist by their type.
@@ -55,13 +56,16 @@ class MetadataExtractedComponent(BaseComponent):
 # class NeedsTranscodingComponent(BaseComponent): pass
 # class NeedsAIDescriptionComponent(BaseComponent): pass
 
+
 class NeedsAudioProcessingMarker(BaseComponent):
     __tablename__ = "component_marker_needs_audio_processing"
     marker_set: Mapped[bool] = mapped_column(default=True)
 
+
 class NeedsAutoTaggingMarker(BaseComponent):
     __tablename__ = "component_marker_needs_auto_tagging"
     pass
+
 
 class AutoTaggingCompleteMarker(BaseComponent):
     __tablename__ = "component_marker_auto_tagging_complete"

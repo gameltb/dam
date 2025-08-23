@@ -1,21 +1,17 @@
-from typing import Any, List, Dict, Optional
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # ModelExecutionManager fixture from conftest.py
 from dam.core.model_manager import ModelExecutionManager
+
+from dam_semantic import service as semantic_service
 
 # Models to be tested (actual specific component classes)
 from dam_semantic.models import (
     ModelHyperparameters,
     get_embedding_component_class,
 )
-from dam_semantic import service as semantic_service
-from dam.services import ecs_service
-from dam_semantic.service import BatchTextItem  # Keep this for type hints
+
 
 class MockSentenceTransformer:
     def __init__(self, model_name_or_path=None, **kwargs):
@@ -58,6 +54,7 @@ class MockSentenceTransformer:
         else:
             return np.array(embeddings) if convert_to_numpy else embeddings
 
+
 # Define model names and params to be used in tests, corresponding to registered models
 TEST_MODEL_MINILM = "all-MiniLM-L6-v2"
 TEST_PARAMS_MINILM: ModelHyperparameters = {"dimensions": 384}  # Must match registry
@@ -72,6 +69,7 @@ ClipEmbeddingComponent = get_embedding_component_class(TEST_MODEL_CLIP, TEST_PAR
 # Ensure the test models are actually registered and component classes are found
 assert MiniLMEmbeddingComponent is not None, "Test MiniLM model not registered or class not found"
 assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or class not found"
+
 
 @pytest.mark.asyncio
 async def test_generate_embedding_and_conversion(

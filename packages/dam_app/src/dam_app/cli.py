@@ -1,21 +1,17 @@
 # --- Framework Imports for Systems ---
 import asyncio
-import json  # Added import for json.dumps
+import logging
 import traceback  # Import traceback for detailed error logging
 import uuid  # For generating request_ids
 from pathlib import Path
-from typing import Any, List, Optional, Union
-import logging
+from typing import Any, List, Optional
 
 import typer  # Ensure typer is imported for annotations like typer.Context
-from typing_extensions import Annotated
-
+from dam import DamPlugin
 from dam.core import config as app_config
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
-    FindEntityByHashQuery,
-    FindSimilarImagesQuery,
     SemanticSearchQuery,  # For semantic search CLI
 )
 from dam.core.logging_config import setup_logging
@@ -27,13 +23,10 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
-from dam.models.conceptual import CharacterConceptComponent
 from dam.models.properties import FilePropertiesComponent
 from dam.services import ecs_service as dam_ecs_service
-from dam.systems import evaluation_systems
 from dam.utils.async_typer import AsyncTyper
-from dam.utils.media_utils import TranscodeError
-from dam import DamPlugin
+from typing_extensions import Annotated
 
 app = AsyncTyper(
     name="dam-cli",
@@ -42,10 +35,13 @@ app = AsyncTyper(
     rich_markup_mode="raw",
 )
 
+
 class GlobalState:
     world_name: Optional[str] = None
 
+
 global_state = GlobalState()
+
 
 @app.command(name="list-worlds")
 def cli_list_worlds():
@@ -54,7 +50,9 @@ def cli_list_worlds():
         registered_worlds = get_all_registered_worlds()
         if not registered_worlds:
             typer.secho("No ECS worlds are currently registered or configured correctly.", fg=typer.colors.YELLOW)
-            typer.echo("Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors.")
+            typer.echo(
+                "Check your DAM_WORLDS_CONFIG environment variable (JSON string or file path) and application logs for errors."
+            )
             return
 
         typer.echo("Available ECS worlds:")
@@ -177,6 +175,7 @@ async def cli_add_asset(
             )
 
         try:
+
             async def dispatch_and_run_stages():
                 if event_to_dispatch:
                     await target_world.dispatch_event(event_to_dispatch)
@@ -228,6 +227,7 @@ async def setup_db(ctx: typer.Context):
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -264,7 +264,10 @@ def main_callback(
         async def cli_ingest_psp_isos(
             ctx: typer.Context,
             directory: Annotated[
-                str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)
+                str,
+                typer.Argument(
+                    ..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True
+                ),
             ],
             passwords: Annotated[
                 Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
@@ -301,7 +304,6 @@ def main_callback(
 
     try:
         from dam_semantic import SemanticPlugin
-        from dam_semantic.systems import handle_semantic_search_query
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(SemanticPlugin())
@@ -315,7 +317,8 @@ def main_callback(
             query: Annotated[str, typer.Option("--query", "-q", help="Text query for semantic search.")],
             top_n: Annotated[int, typer.Option("--top-n", "-n", help="Number of top results to return.")] = 10,
             model_name: Annotated[
-                Optional[str], typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional).")
+                Optional[str],
+                typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional)."),
             ] = None,
         ):
             """Performs semantic search based on text query."""
@@ -413,9 +416,11 @@ def main_callback(
         if not get_all_registered_worlds() and not app_config.settings.worlds:
             typer.secho("No DAM worlds seem to be configured. Please set DAM_WORLDS_CONFIG.", fg=typer.colors.YELLOW)
 
+
 def run_cli_directly():
     clear_world_registry()
     app()
+
 
 if __name__ == "__main__":
     run_cli_directly()

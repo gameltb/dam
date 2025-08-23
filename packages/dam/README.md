@@ -2,180 +2,104 @@
 
 This project implements a Digital Asset Management system using an Entity-Component-System (ECS) architecture in Python. The core idea is to represent assets (images, videos, audio, documents, etc.) as Entities (simple IDs), which are then described by attaching various Components (data-only dataclasses). Systems (typically service functions or dedicated modules) operate on entities based on the components they possess.
 
-## Key Technologies & Concepts
+## Key Features
 
-*   **SQLAlchemy ORM**: Used for database interaction, with `MappedAsDataclass` to define components as Python dataclasses that are also database models.
-*   **Alembic**: Manages database schema migrations (currently paused during active schema refactoring).
-*   **ECS Core Framework**:
-    *   **Entities, Components, Systems**: Standard ECS pattern.
-    *   **Plugin System**: A modular, Bevy-like plugin system for extending functionality.
-    *   **WorldScheduler**: Manages system execution.
-    *   **Dependency Injection**: For systems.
-    *   **Resources**: Shared utilities.
-*   **Modularity**: The project is divided into several packages:
-    *   `dam`: The core framework, providing the ECS building blocks and a `DamPlugin`.
-    *   `dam_app`: The main CLI application, which loads plugins.
-    *   `dam_psp`: An optional plugin for PSP ISO ingestion.
-*   **Services and Systems**: Service and system modules are self-contained and should be imported directly via their full path. The `dam.services` and `dam.systems` packages do not expose all modules through their `__init__.py` files to support optional dependencies and allow for modular configurations.
-    *   For services with heavy optional dependencies (like `semantic_service`), it is recommended to use local, on-demand imports within the functions that need them.
-    *   The `dam.systems` package dynamically discovers and imports all system modules at runtime. This means you can add a new system file to the `dam/systems/` directory and it will be automatically loaded without needing to edit any `__init__.py` file.
-*   **Content-Addressable Storage (CAS)**: Files stored by hash.
-*   **Metadata Extraction**: For various file types.
-*   **Asset Versioning & Structure**: Flexible model for grouping versions of a conceptual work and defining ordered content (e.g., comic pages). Uses:
-    *   Abstract bases: `BaseConceptualInfoComponent`, `BaseVariantInfoComponent`.
-    *   Concrete components: e.g., `ComicBookConceptComponent`, `ComicBookVariantComponent`.
-    *   Association objects: e.g., `PageLink` for ordered pages.
-*   **Tagging System**: Tags are defined as conceptual assets (`TagConceptComponent`) and applied to entities via a link component (`EntityTagLinkComponent`), supporting scopes and optional values.
-*   **Transcoding Framework**:
-    *   Define reusable transcoding profiles (`TranscodeProfileComponent`) as conceptual assets, specifying tool (e.g., `ffmpeg`, `cjxl`), parameters, and output format.
-    *   Transcoded files are ingested as new assets, linked to the original via `TranscodedVariantComponent`.
-    *   CLI for managing profiles and applying them to assets.
-*   **Evaluation Framework**:
-    *   Define evaluation runs (`EvaluationRunComponent`) to test multiple profiles on multiple assets.
-    *   Results, including file size and placeholder quality metrics, are stored in `EvaluationResultComponent`.
-    *   CLI for creating runs, executing them, and reporting results.
-*   **CLI**: Typer-based interface.
-*   **Database Transactions**: Managed by `WorldScheduler`.
-# Removed Gradio UI from Key Technologies
+*   **Modular ECS Core:** Built on a Bevy-like plugin system, allowing for extensible functionality.
+*   **Content-Addressable Storage (CAS):** Files are stored by their content hash, ensuring data integrity and deduplication.
+*   **Rich Metadata and Properties:** Extracts and stores a wide range of metadata (e.g., EXIF) and file properties (e.g., image dimensions, audio duration).
+*   **Flexible Tagging System:** A powerful tagging system with support for scopes and values.
+*   **Asset Versioning and Structuring:** Manages different versions of a conceptual work and ordered content (e.g., comic book pages).
+*   **Transcoding and Evaluation Framework:** Define transcoding profiles and evaluate their results to find the optimal settings.
+*   **Character Management:** Define characters and link them to assets.
+*   **Multi-faceted Search:**
+    *   Exact file search by content hash.
+    *   Image similarity search using perceptual hashes.
+    *   Semantic search using text embeddings (via the `dam_semantic` plugin).
+*   **Plugin-Based Architecture:** The system can be extended with optional plugins, suchas `dam_psp` for PSP ISO ingestion.
+*   **Command-Line Interface:** A comprehensive CLI (`dam-cli`) for interacting with the system.
+
 ## Project Structure
+
+The project is a monorepo divided into several packages:
+
+*   `dam`: The core framework, providing the ECS building blocks, services, and core plugins.
+*   `dam_app`: The main CLI application, which loads and configures plugins.
+*   `dam_psp`: An optional plugin for PSP ISO ingestion.
+*   `dam_semantic`: An optional plugin for semantic search.
 
 ```
 ecs_dam_system/
 ├── packages/
 │   ├── dam/
 │   │   ├── src/dam/
-│   │   │   ├── __init__.py  # Provides DamPlugin
+│   │   │   ├── __init__.py
 │   │   │   ├── core/
 │   │   │   ├── models/
 │   │   │   └── systems/
 │   │   └── ...
 │   ├── dam_app/
 │   │   ├── src/dam_app/
-│   │   │   ├── __init__.py
 │   │   │   └── cli.py       # Main CLI application
 │   │   └── ...
 │   └── dam_psp/
 │       ├── src/dam_psp/
-│       │   ├── __init__.py  # Provides PspPlugin
-│       │   ├── models.py
-│       │   ├── service.py
-│       │   └── systems.py
+│       │   └── __init__.py  # Provides PspPlugin
 │       └── ...
 └── ... (other project files)
 ```
 
-## Setup Instructions
+## Core Concepts
 
-1.  **Clone, create venv, activate.**
-2.  **Install dependencies:** `uv pip install -e ."[dev,image]"`
-    * To include the PSP plugin, install with `uv pip install -e '.[dev,image,psp]'`
-3.  **Set up `.env`** from `.env.example`.
-4.  **Initialize database:** `dam-cli setup-db` (Alembic paused).
+### Entity-Component-System (ECS)
 
-## Usage
+The architecture is based on the ECS pattern, which promotes a data-oriented approach to programming.
 
-The main command-line interface is provided by the `dam_app` package.
+*   **Entities:** Simple identifiers for assets.
+*   **Components:** Data-only dataclasses that describe the properties of an entity. They are also SQLAlchemy models for database persistence.
+*   **Systems:** Logic that operates on entities based on the components they possess.
 
-**General help:** `dam-cli --help`
+### Services and Systems
 
-### Asset Versioning, Structure, and Grouping (Example: Comic Books)
+Service and system modules are self-contained and designed to be modular.
+
+*   The `dam.services` and `dam.systems` packages do not expose all modules through their `__init__.py` files to support optional dependencies.
+*   The `dam.systems` package dynamically discovers and imports all system modules at runtime.
+
+### Detailed Feature Explanations
+
+#### Asset Versioning, Structure, and Grouping (Example: Comic Books)
 
 Manages different versions of a conceptual work and ordered content like pages.
 
 *   **Abstract Bases:** `BaseConceptualInfoComponent`, `BaseVariantInfoComponent`.
 *   **Comic Book Specifics:**
-    *   `ComicBookConceptComponent`: Defines a comic concept (title, series, issue, year). Attached to a concept entity.
-    *   `ComicBookVariantComponent`: Defines a version of a comic concept (language, format). Attached to a file entity, links to the concept.
-    *   `PageLink`: Association table linking a comic variant entity to page image entities with ordering.
-*   **Services (`dam.services.comic_book_service`):**
-    *   Functions for managing concepts, variants, and their pages (create, link, get, set primary, unlink, assign/remove/order pages).
+    *   `ComicBookConceptComponent`: Defines a comic concept (title, series, issue, year).
+    *   `ComicBookVariantComponent`: Defines a version of a comic concept (language, format).
+    *   `PageLink`: Association table for ordered pages.
+*   **Services (`dam.services.comic_book_service`):** Functions for managing concepts, variants, and pages.
 
-### Tagging System
+#### Tagging System
 
 Tags are defined as conceptual assets themselves and can be applied to any entity.
 
-*   **`TagConceptComponent`**: Defines a tag (name, scope, description, if it allows values). Inherits from `BaseConceptualInfoComponent` and is attached to a dedicated "tag concept entity."
-    *   **Scopes:**
-        *   `GLOBAL`: Usable on any entity.
-        *   `COMPONENT_CLASS_REQUIRED`: Usable only if the target entity has a specific component (e.g., tag "CoverArt" requires `ImagePropertiesComponent`). `tag_scope_detail` stores the required component class name.
-        *   `CONCEPTUAL_ASSET_LOCAL`: Usable only on a specific conceptual asset entity (defined in `tag_scope_detail` by its Entity ID) or its variants.
-*   **`EntityTagLinkComponent`**: Applies a tag to an entity. Attached to the entity being tagged.
-    *   Links to the `TagConceptComponent`'s entity.
-    *   Can store an optional `tag_value` if the tag concept allows it (e.g., Tag: "Rating", Value: "5 Stars").
-*   **Services (`dam.services.tag_service`):**
-    *   `create_tag_concept()`: Defines a new tag.
-    *   `apply_tag_to_entity()`: Applies a tag to an entity, validating scope.
-    *   `get_tags_for_entity()`: Lists tags on an entity.
-    *   `get_entities_for_tag()`: Finds entities with a specific tag.
-    *   And other functions for managing tag definitions and applications.
+*   **`TagConceptComponent`**: Defines a tag with a name, scope, and description.
+*   **`EntityTagLinkComponent`**: Applies a tag to an entity, with an optional value.
+*   **Services (`dam.services.tag_service`):** Functions for creating, applying, and querying tags.
 
-### Transcoding and Evaluation
+#### Transcoding and Evaluation
 
 The system supports defining transcoding profiles and evaluating their results.
 
-*   **Transcoding Profiles (`TranscodeProfileComponent`)**:
-    *   Define a named profile specifying the command-line `tool` (e.g., `ffmpeg`, `cjxl`, `avifenc`), the `parameters` for the tool (using `{input}` and `{output}` placeholders), and the target `output_format` (e.g., `avif`, `jxl`, `mp4`).
-    *   These profiles are conceptual assets themselves.
-    *   Created via: `dam-cli transcode profile-create --name <profile_name> --tool <tool> --params "<parameters>" --format <format> [--desc <description>]`
-*   **Applying Transcodes (`TranscodedVariantComponent`)**:
-    *   When a profile is applied to an asset, the specified tool is executed.
-    *   The output is ingested as a new asset.
-    *   A `TranscodedVariantComponent` is attached to this new asset, linking it to the original asset and the `TranscodeProfileComponent` used. It also stores the transcoded file size.
-    *   Applied via: `dam-cli transcode apply --asset <asset_id_or_hash> --profile <profile_id_or_name>`
-*   **Evaluation Runs (`EvaluationRunComponent`)**:
-    *   Define a named evaluation run to systematically transcode multiple source assets with multiple transcoding profiles.
-    *   Created via: `dam-cli evaluate run-create --name <run_name> [--desc <description>]`
-*   **Evaluation Results (`EvaluationResultComponent`)**:
-    *   For each transcoding operation performed during an evaluation run, an `EvaluationResultComponent` is created and attached to the transcoded asset.
-    *   It stores links to the evaluation run, original asset, profile used, file size, and placeholders for quality metrics (e.g., VMAF, SSIM, PSNR - actual calculation is currently a placeholder).
-    *   Evaluation executed via: `dam-cli evaluate run-execute --run <run_id_or_name> --assets <asset_ids_or_hashes_comma_sep> --profiles <profile_ids_or_names_comma_sep>`
-*   **Reporting**:
-    *   View results of an evaluation run: `dam-cli evaluate report --run <run_id_or_name>`
+*   **`TranscodeProfileComponent`**: Defines a transcoding profile with a tool, parameters, and output format.
+*   **`TranscodedVariantComponent`**: Links a transcoded asset to its original and the profile used.
+*   **`EvaluationRunComponent` and `EvaluationResultComponent`**: For systematic evaluation of transcoding profiles.
 
-### Character Management
+#### Character Management
 
-The system allows defining character concepts and linking them to assets. This is useful for tracking characters appearing in images, stories, etc.
+The system allows defining character concepts and linking them to assets.
 
-*   **`CharacterConceptComponent`**: Defines a character (name, description). Attached to a dedicated "character concept entity."
-*   **`EntityCharacterLinkComponent`**: Links an asset entity to a character concept entity. Can store an optional `role_in_asset` string (e.g., "protagonist", "mentioned").
-*   **Services (`dam.services.character_service`):**
-    *   Functions for creating character concepts, applying them to entities, and querying links.
-*   **CLI Commands (`dam-cli character ...`):**
-    *   `dam-cli character create --name <name> [--desc <description>]`: Defines a new character.
-    *   `dam-cli character apply --asset <asset_id_or_hash> --character <char_name_or_id> [--role <role>]`: Links a character to an asset.
-    *   `dam-cli character list-for-asset --asset <asset_id_or_hash>`: Lists characters linked to a specific asset.
-    *   `dam-cli character find-assets --character <char_name_or_id> [--role <role_filter>]`: Finds assets linked to a character.
-
-### Search Capabilities
-
-The system provides several ways to search for assets:
-
-*   **Exact File Search by Content Hash:**
-    *   `dam-cli find-file-by-hash <hash_value_or_path> [--hash-type <type>]`: Finds an asset by its MD5 or SHA256 content hash.
-*   **Image Similarity Search (Perceptual Hashes):**
-    *   `dam-cli find-similar-images <image_filepath>`: Finds images similar to a given image using pHash, aHash, and dHash. Thresholds can be configured.
-*   **Semantic Search (Text Embeddings):**
-    *   Requires `sentence-transformers` and `numpy` (install via `pip install ecs-dam-system[semantic]`).
-    *   Embeddings are generated for configured text fields of assets (e.g., filenames, tag names, character names/descriptions).
-    *   `dam-cli search semantic --query "<text_query>" [--top-n <N>]`: Searches for assets based on semantic similarity of their text content to the query.
-*   **Item Search (Keyword, Tag, Character - WIP):**
-    *   `dam-cli search items --text "<keyword>" [--tag <tag_name>] [--character <char_name>] ...`: A work-in-progress command to combine various filters.
-
-### General CLI Commands
-
-*   **`dam-cli --help`**: Shows all available commands and subcommands.
-*   **`dam-cli --world <world_name> <command>`**: Specifies the ECS world to operate on. Can also be set via `DAM_CURRENT_WORLD` env var or a default in settings.
-*   **`dam-cli list-worlds`**: Lists configured ECS worlds.
-*   **`dam-cli setup-db`**: Initializes/Resets database schema for the selected world.
-*   **`dam-cli add-asset <filepath_or_dir>`**: Adds new asset file(s).
-    *   Options: `--no-copy` (add by reference), `-r, --recursive` (process directory recursively).
-*   **`dam-cli character ...`**: Subcommands for managing characters (see "Character Management" section).
-*   **`dam-cli search ...`**: Subcommands for searching assets (see "Search Capabilities" section).
-*   **`dam-cli export-world <filepath.json>`**: Exports world data to JSON.
-*   **`dam-cli import-world <filepath.json>`**: Imports world data from JSON.
-    *   Option: `--merge` (merge with existing data).
-
-(Details of asset ingestion, versioning, and tagging remain as described previously.)
+*   **`CharacterConceptComponent`**: Defines a character.
+*   **`EntityCharacterLinkComponent`**: Links an asset to a character.
 
 ## Development
 
@@ -185,6 +109,7 @@ The system provides several ways to search for assets:
 *   **Type Check:** `poe mypy`
 
 ### Database Migrations (Alembic - Currently Paused)
-Use `dam-cli setup-db`.
+
+Database migrations are managed by Alembic but are currently paused. Use `dam-cli setup-db` to initialize the database schema.
 
 This README will be updated as the project evolves.
