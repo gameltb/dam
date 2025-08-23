@@ -35,7 +35,7 @@ async def test_cli_inspect_entity(current_test_world_for_inspect_cli: World, cli
 
     from unittest.mock import patch
 
-    from dam.cli import cli_inspect_entity, global_state
+    from dam_app.cli import cli_inspect_entity, global_state
 
     global_state.world_name = world_name
 

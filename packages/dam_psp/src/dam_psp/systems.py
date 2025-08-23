@@ -15,7 +15,7 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
-from dam.models.metadata import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
+from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 from dam.services import ecs_service, hashing_service
 from . import service as psp_iso_service
 

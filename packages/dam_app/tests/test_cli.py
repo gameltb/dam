@@ -13,7 +13,7 @@ from sqlalchemy import select  # Ensure select is imported for tests
 
 # Import the app after patches, if any, are applied.
 # For now, direct import is fine as we're starting simple.
-from dam.cli import app
+from dam_app.cli import app
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings  # Added WorldConfig
 

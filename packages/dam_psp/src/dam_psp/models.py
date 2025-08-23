@@ -1,9 +1,9 @@
 from typing import Optional
 
-from sqlalchemy import Integer, String
+from sqlalchemy import Integer, String, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent
+from dam.models.core.base_component import BaseComponent
 
 
 class PSPSFOMetadataComponent(BaseComponent):
@@ -27,4 +27,20 @@ class PSPSFOMetadataComponent(BaseComponent):
         return (
             f"PSPSFOMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
             f"title='{self.title}', disc_id='{self.disc_id}')"
+        )
+
+
+class PspSfoRawMetadataComponent(BaseComponent):
+    """
+    Stores raw metadata from a PSP ISO's PARAM.SFO file as a JSON object.
+    """
+
+    __tablename__ = "component_psp_sfo_raw_metadata"
+
+    metadata_json: Mapped[dict] = mapped_column(JSON)
+
+    def __repr__(self):
+        return (
+            f"PspSfoRawMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"metadata_json_keys='{list(self.metadata_json.keys())}')"
         )

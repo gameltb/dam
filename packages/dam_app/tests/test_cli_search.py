@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from dam.cli import app
+from dam_app.cli import app
 from dam.core.model_manager import ModelExecutionManager
 from dam.core.world import World
 from dam.models.properties import FilePropertiesComponent

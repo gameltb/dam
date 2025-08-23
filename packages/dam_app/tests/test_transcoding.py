@@ -5,7 +5,7 @@ import pytest
 import typer  # Added import
 from sqlalchemy.future import select
 
-from dam import cli as dam_cli  # Import cli with an alias
+from dam_app import cli as dam_cli  # Import cli with an alias
 from dam.core.config import Settings as AppSettings
 from dam.core.events import AssetFileIngestionRequested
 from dam.core.stages import SystemStage

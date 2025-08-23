@@ -21,10 +21,7 @@ from dam.services import audio_service, ecs_service, file_operations
 from dam.utils.media_utils import get_file_path_for_entity
 
 
-# Example Marker Component (Create this in a relevant models file if it doesn't exist)
-class NeedsAudioProcessingMarker(BaseComponent):
-    __tablename__ = "component_marker_needs_audio_processing"
-    marker_set: Mapped[bool] = mapped_column(default=True)
+from dam.core.components_markers import NeedsAudioProcessingMarker
 
 
 logger = logging.getLogger(__name__)
