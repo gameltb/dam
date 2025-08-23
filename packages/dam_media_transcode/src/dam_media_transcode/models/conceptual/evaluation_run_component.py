@@ -31,10 +31,6 @@ class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseCompon
     # concept_name: Mapped[str] (will be run_name)
     # concept_description: Mapped[str | None] (can be used for general description)
 
-    __mapper_args__ = {
-        "polymorphic_identity": "evaluation_run",
-        # For joined table, inherit_condition is often not needed if PK/FK is clear.
-    }
 
     def __repr__(self) -> str:
         return f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, run_name='{self.run_name}')>"

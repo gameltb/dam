@@ -14,9 +14,6 @@ from dam.models.core.entity import Entity
 from dam.models.core.file_location_component import FileLocationComponent
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
-from dam.models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
-from dam.models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 from dam.models.properties.file_properties_component import FilePropertiesComponent
 from dam.models.source_info import source_types
 from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
@@ -116,20 +113,6 @@ async def import_local_file(
         if not existing_osis:
             osi = OriginalSourceInfoComponent(source_type=source_type)
             await ecs_service.add_component_to_entity(session, entity.id, osi)
-
-        # Add perceptual hashes for images
-        mime_type = await file_operations.get_mime_type_async(filepath)
-        if mime_type.startswith("image/"):
-            hashes = await hashing_service.generate_perceptual_hashes_async(filepath)
-            if hashes.get("phash"):
-                comp = ImagePerceptualPHashComponent(hash_value=bytes.fromhex(hashes["phash"]))
-                await ecs_service.add_component_to_entity(session, entity.id, comp)
-            if hashes.get("ahash"):
-                comp = ImagePerceptualAHashComponent(hash_value=bytes.fromhex(hashes["ahash"]))
-                await ecs_service.add_component_to_entity(session, entity.id, comp)
-            if hashes.get("dhash"):
-                comp = ImagePerceptualDHashComponent(hash_value=bytes.fromhex(hashes["dhash"]))
-                await ecs_service.add_component_to_entity(session, entity.id, comp)
 
         # Mark for metadata extraction
         if not await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent):

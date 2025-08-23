@@ -26,9 +26,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+image = ["dam_media_image"]
+audio = ["dam_media_audio"]
+transcode = ["dam_media_transcode"]
 psp = ["dam_psp"]
 semantic = ["dam_semantic"]
-all = ["dam_app[psp]", "dam_app[semantic]"]
+all = [
+    "dam_app[image]",
+    "dam_app[audio]",
+    "dam_app[transcode]",
+    "dam_app[psp]",
+    "dam_app[semantic]",
+]
 
 [project.urls]
 Homepage = "https://example.com/ecs_dam_system" # Placeholder

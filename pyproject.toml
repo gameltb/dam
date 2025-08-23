@@ -11,6 +11,9 @@ members = ["packages/*"]
 [tool.uv.sources]
 dam = { workspace = true }
 dam_app = { workspace = true }
+dam_media_image = { workspace = true }
+dam_media_audio = { workspace = true }
+dam_media_transcode = { workspace = true }
 dam_psp = { workspace = true }
 dam_semantic = { workspace = true }
 domarkx = { workspace = true }

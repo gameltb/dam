@@ -2,7 +2,13 @@
 
 This repository is a monorepo containing the following packages:
 
--   `packages/dam`: The ECS Digital Asset Management (DAM) System. See its [README.md](packages/dam/README.md) for more details.
+-   `packages/dam`: The core ECS Digital Asset Management (DAM) framework.
+-   `packages/dam_app`: The CLI application for the DAM system.
+-   `packages/dam_media_image`: A plugin for image-related functionality.
+-   `packages/dam_media_audio`: A plugin for audio-related functionality.
+-   `packages/dam_media_transcode`: A plugin for transcode-related functionality.
+-   `packages/dam_psp`: An optional plugin for PSP ISO ingestion.
+-   `packages/dam_semantic`: An optional plugin for semantic search.
 -   `packages/domarkx`: A tool for making documentation executable. See its [README.md](packages/domarkx/README.md) for more details.
 
 Please refer to the `AGENTS.md` file for instructions on how to work with this codebase.

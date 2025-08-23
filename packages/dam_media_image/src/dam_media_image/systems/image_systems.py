@@ -1,0 +1,195 @@
+import asyncio
+import binascii
+import logging
+from typing import Annotated, List
+
+from dam.core.components_markers import NeedsMetadataExtractionComponent
+from dam.core.config import WorldConfig
+from dam.core.events import FindSimilarImagesQuery
+from dam.core.stages import SystemStage
+from dam.core.system_params import WorldSession
+from dam.core.systems import listens_for, system
+from dam.models.core.entity import Entity
+from dam.models.core.file_location_component import FileLocationComponent
+from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam.services import ecs_service, file_operations, hashing_service
+from dam.utils.url_utils import get_local_path_for_url
+
+from dam_media_image.models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
+from dam_media_image.models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
+from dam_media_image.models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
+from dam_media_image.models.properties.frame_properties_component import FramePropertiesComponent
+from dam_media_image.models.properties.image_dimensions_component import ImageDimensionsComponent
+from dam_media_image.services import image_hashing_service
+
+try:
+    import imagehash
+except ImportError:
+    imagehash = None
+
+logger = logging.getLogger(__name__)
+
+
+@system(stage=SystemStage.METADATA_EXTRACTION)
+async def add_image_components_system(
+    session: WorldSession,
+    world_config: WorldConfig,
+    entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
+):
+    pass
+
+@listens_for(FindSimilarImagesQuery)
+async def handle_find_similar_images_query(
+    event: FindSimilarImagesQuery,
+    session: WorldSession,
+):
+    logger.info(
+        f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})"
+    )
+    if not event.result_future:
+        logger.error(
+            f"Result future not set on FindSimilarImagesQuery event (Req ID: {event.request_id}). Cannot proceed."
+        )
+        return
+
+    try:
+        if not imagehash:
+            msg = "ImageHash library not available. Cannot perform similarity search."
+            logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
+            if not event.result_future.done():
+                event.result_future.set_result([{"error": msg}])
+            return
+
+        input_hashes = await image_hashing_service.generate_perceptual_hashes_async(event.image_path)
+        if not input_hashes:
+            msg = f"Could not generate perceptual hashes for {event.image_path.name}."
+            logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
+            if not event.result_future.done():
+                event.result_future.set_result([{"error": msg}])
+            return
+
+        input_phash_obj = imagehash.hex_to_hash(input_hashes["phash"]) if "phash" in input_hashes else None
+        input_ahash_obj = imagehash.hex_to_hash(input_hashes["ahash"]) if "ahash" in input_hashes else None
+        input_dhash_obj = imagehash.hex_to_hash(input_hashes["dhash"]) if "dhash" in input_hashes else None
+
+        source_entity_id = None
+        try:
+            source_content_hash_hex = await hashing_service.calculate_sha256_async(event.image_path)
+            source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
+            source_entity = await ecs_service.find_entity_by_content_hash(
+                session, source_content_hash_bytes, "sha256"
+            )
+            if source_entity:
+                source_entity_id = source_entity.id
+        except Exception as e_src:
+            logger.warning(
+                f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}"
+            )
+
+        potential_matches = []
+        from sqlalchemy import select as sql_select
+
+        if input_phash_obj:
+            all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
+            result_phashes = await session.execute(all_phashes_stmt)
+            db_phashes_components = result_phashes.scalars().all()
+            for p_comp in db_phashes_components:
+                if source_entity_id and p_comp.entity_id == source_entity_id:
+                    continue
+                try:
+                    db_phash_hex = p_comp.hash_value.hex()
+                    db_phash_obj = imagehash.hex_to_hash(db_phash_hex)
+                    distance = input_phash_obj - db_phash_obj
+                    if distance <= event.phash_threshold:
+                        entity = await session.get(Entity, p_comp.entity_id)
+                        if entity:
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "phash_match",
+                                    "distance": distance,
+                                    "hash_type": "phash",
+                                }
+                            )
+                except Exception as e_cmp:
+                    logger.warning(f"Error comparing pHash for entity {p_comp.entity_id}: {e_cmp}")
+
+        if input_ahash_obj:
+            all_ahashes_stmt = sql_select(ImagePerceptualAHashComponent)
+            result_ahashes = await session.execute(all_ahashes_stmt)
+            db_ahashes_components = result_ahashes.scalars().all()
+            for a_comp in db_ahashes_components:
+                if source_entity_id and a_comp.entity_id == source_entity_id:
+                    continue
+                try:
+                    db_ahash_hex = a_comp.hash_value.hex()
+                    db_ahash_obj = imagehash.hex_to_hash(db_ahash_hex)
+                    distance = input_ahash_obj - db_ahash_obj
+                    if distance <= event.ahash_threshold:
+                        entity = await session.get(Entity, a_comp.entity_id)
+                        if entity:
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "ahash_match",
+                                    "distance": distance,
+                                    "hash_type": "ahash",
+                                }
+                            )
+                except Exception as e_cmp:
+                    logger.warning(f"Error comparing aHash for entity {a_comp.entity_id}: {e_cmp}")
+
+        if input_dhash_obj:
+            all_dhashes_stmt = sql_select(ImagePerceptualDHashComponent)
+            result_dhashes = await session.execute(all_dhashes_stmt)
+            db_dhashes_components = result_dhashes.scalars().all()
+            for d_comp in db_dhashes_components:
+                if source_entity_id and d_comp.entity_id == source_entity_id:
+                    continue
+                try:
+                    db_dhash_hex = d_comp.hash_value.hex()
+                    db_dhash_obj = imagehash.hex_to_hash(db_dhash_hex)
+                    distance = input_dhash_obj - db_dhash_obj
+                    if distance <= event.dhash_threshold:
+                        entity = await session.get(Entity, d_comp.entity_id)
+                        if entity:
+                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            potential_matches.append(
+                                {
+                                    "entity_id": entity.id,
+                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "match_type": "dhash_match",
+                                    "distance": distance,
+                                    "hash_type": "dhash",
+                                }
+                            )
+                except Exception as e_cmp:
+                    logger.warning(f"Error comparing dHash for entity {d_comp.entity_id}: {e_cmp}")
+
+        final_matches_map = {}
+        for match in potential_matches:
+            entity_id = match["entity_id"]
+            if entity_id not in final_matches_map or match["distance"] < final_matches_map[entity_id]["distance"]:
+                final_matches_map[entity_id] = match
+
+        similar_entities_info = list(final_matches_map.values())
+        similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
+
+        logger.info(f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images.")
+        if not event.result_future.done():
+            event.result_future.set_result(similar_entities_info)
+
+    except ValueError as ve:
+        logger.warning(f"[QueryResult RequestID: {event.request_id}] Error processing image for similarity: {ve}")
+        if not event.result_future.done():
+            event.result_future.set_result([{"error": str(ve)}])
+    except Exception as e:
+        logger.error(
+            f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
+        )
+        if not event.result_future.done():
+            event.result_future.set_exception(e)

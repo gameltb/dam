@@ -26,18 +26,12 @@ from .core.file_location_component import FileLocationComponent
 # Hash components
 from .hashes.content_hash_md5_component import ContentHashMD5Component
 from .hashes.content_hash_sha256_component import ContentHashSHA256Component
-from .hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
-from .hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
-from .hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
 
 # Metadata components
 from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Property components
-from .properties.audio_properties_component import AudioPropertiesComponent
 from .properties.file_properties_component import FilePropertiesComponent
-from .properties.frame_properties_component import FramePropertiesComponent
-from .properties.image_dimensions_component import ImageDimensionsComponent
 
 # Semantic components
 # Source info components
@@ -63,14 +57,8 @@ __all__ = [
     # Hashes
     "ContentHashMD5Component",
     "ContentHashSHA256Component",
-    "ImagePerceptualAHashComponent",
-    "ImagePerceptualDHashComponent",
-    "ImagePerceptualPHashComponent",
     # Properties
-    "AudioPropertiesComponent",
     "FilePropertiesComponent",
-    "FramePropertiesComponent",
-    "ImageDimensionsComponent",
     # Metadata
     "ExiftoolMetadataComponent",
     # Source Info

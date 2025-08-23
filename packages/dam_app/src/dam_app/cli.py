@@ -254,6 +254,30 @@ def main_callback(
         world_instance.add_plugin(DamPlugin())
 
     try:
+        from dam_media_image import ImagePlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(ImagePlugin())
+    except ImportError:
+        logging.info("dam_media_image plugin not installed. Skipping image functionality.")
+
+    try:
+        from dam_media_audio import AudioPlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(AudioPlugin())
+    except ImportError:
+        logging.info("dam_media_audio plugin not installed. Skipping audio functionality.")
+
+    try:
+        from dam_media_transcode import TranscodePlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(TranscodePlugin())
+    except ImportError:
+        logging.info("dam_media_transcode plugin not installed. Skipping transcode functionality.")
+
+    try:
         from dam_psp import PspPlugin
         from dam_psp.systems import ingest_psp_isos_from_directory
 

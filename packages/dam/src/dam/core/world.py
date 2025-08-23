@@ -41,6 +41,7 @@ class World:
 
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(resource_manager=self.resource_manager)
+        self._registered_plugin_types: set[Type[Plugin]] = set()
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
 
     @property
@@ -72,7 +73,13 @@ class World:
         return self.resource_manager.has_resource(resource_type)
 
     def add_plugin(self, plugin: Plugin) -> "World":
-        plugin.build(self)
+        plugin_type = type(plugin)
+        if plugin_type not in self._registered_plugin_types:
+            self.logger.info(f"Adding plugin {plugin_type.__name__} to world '{self.name}'.")
+            plugin.build(self)
+            self._registered_plugin_types.add(plugin_type)
+        else:
+            self.logger.debug(f"Plugin {plugin_type.__name__} is already registered in world '{self.name}'. Skipping.")
         return self
 
     def register_system(

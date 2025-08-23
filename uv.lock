@@ -14,6 +14,9 @@ resolution-markers = [
 members = [
     "dam",
     "dam-app",
+    "dam-media-audio",
+    "dam-media-image",
+    "dam-media-transcode",
     "dam-psp",
     "dam-semantic",
     "domarkx",
@@ -885,8 +888,17 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "dam-media-audio" },
+    { name = "dam-media-image" },
+    { name = "dam-media-transcode" },
     { name = "dam-psp" },
     { name = "dam-semantic" },
+]
+audio = [
+    { name = "dam-media-audio" },
+]
+image = [
+    { name = "dam-media-image" },
 ]
 psp = [
     { name = "dam-psp" },
@@ -894,16 +906,95 @@ psp = [
 semantic = [
     { name = "dam-semantic" },
 ]
+transcode = [
+    { name = "dam-media-transcode" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-app", extras = ["audio"], marker = "extra == 'all'", editable = "packages/dam_app" },
+    { name = "dam-app", extras = ["image"], marker = "extra == 'all'", editable = "packages/dam_app" },
     { name = "dam-app", extras = ["psp"], marker = "extra == 'all'", editable = "packages/dam_app" },
     { name = "dam-app", extras = ["semantic"], marker = "extra == 'all'", editable = "packages/dam_app" },
+    { name = "dam-app", extras = ["transcode"], marker = "extra == 'all'", editable = "packages/dam_app" },
+    { name = "dam-media-audio", marker = "extra == 'audio'", editable = "packages/dam_media_audio" },
+    { name = "dam-media-image", marker = "extra == 'image'", editable = "packages/dam_media_image" },
+    { name = "dam-media-transcode", marker = "extra == 'transcode'", editable = "packages/dam_media_transcode" },
     { name = "dam-psp", marker = "extra == 'psp'", editable = "packages/dam_psp" },
     { name = "dam-semantic", marker = "extra == 'semantic'", editable = "packages/dam_semantic" },
 ]
-provides-extras = ["psp", "semantic", "all"]
+provides-extras = ["image", "audio", "transcode", "psp", "semantic", "all"]
+
+[[package]]
+name = "dam-media-audio"
+version = "0.1.0"
+source = { editable = "packages/dam_media_audio" }
+dependencies = [
+    { name = "dam" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "dam-media-image"
+version = "0.1.0"
+source = { editable = "packages/dam_media_image" }
+dependencies = [
+    { name = "dam" },
+    { name = "imagehash" },
+    { name = "pillow" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "imagehash" },
+    { name = "pillow" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "dam-media-transcode"
+version = "0.1.0"
+source = { editable = "packages/dam_media_transcode" }
+dependencies = [
+    { name = "dam" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dam-psp"
@@ -934,6 +1025,7 @@ version = "0.1.0"
 source = { editable = "packages/dam_semantic" }
 dependencies = [
     { name = "dam" },
+    { name = "dam-media-image" },
     { name = "numpy" },
     { name = "sentence-transformers" },
 ]
@@ -941,6 +1033,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-media-image", editable = "packages/dam_media_image" },
     { name = "numpy" },
     { name = "sentence-transformers" },
 ]

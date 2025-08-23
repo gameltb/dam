@@ -11,9 +11,7 @@ from dam.core.database import DatabaseManager
 from dam.core.events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
-    AudioSearchQuery,  # Added AudioSearchQuery
     FindEntityByHashQuery,
-    FindSimilarImagesQuery,
     SemanticSearchQuery,
 )
 from dam.core.model_manager import ModelExecutionManager  # Added ModelExecutionManager
@@ -154,16 +152,6 @@ def register_core_systems(world_instance: "World") -> None:
             f"Could not import or register handle_find_entity_by_hash_query, likely due to missing optional dependencies: {e}"
         )
 
-    try:
-        from dam.systems.asset_lifecycle_systems import handle_find_similar_images_query
-
-        world_instance.register_system(handle_find_similar_images_query, event_type=FindSimilarImagesQuery)
-        logger.debug("Registered system: handle_find_similar_images_query for event FindSimilarImagesQuery")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_find_similar_images_query, likely due to missing optional dependencies: {e}"
-        )
-
     # Semantic Systems (Text)
     try:
         from dam.systems.semantic_systems import handle_semantic_search_query
@@ -173,28 +161,6 @@ def register_core_systems(world_instance: "World") -> None:
     except ImportError as e:
         logger.warning(
             f"Could not import or register handle_semantic_search_query, likely due to missing optional dependencies: {e}"
-        )
-
-    # Audio Processing and Search Systems
-    # Note: NeedsAudioProcessingMarker is implicitly handled by the MarkedEntityList in audio_embedding_generation_system
-    try:
-        from dam.systems.audio_systems import audio_embedding_generation_system
-
-        world_instance.register_system(audio_embedding_generation_system, stage=SystemStage.CONTENT_ANALYSIS)
-        logger.debug("Registered system: audio_embedding_generation_system for stage CONTENT_ANALYSIS")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register audio_embedding_generation_system, likely due to missing optional dependencies: {e}"
-        )
-
-    try:
-        from dam.systems.semantic_systems import handle_audio_search_query
-
-        world_instance.register_system(handle_audio_search_query, event_type=AudioSearchQuery)
-        logger.debug("Registered system: handle_audio_search_query for event AudioSearchQuery")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_audio_search_query, likely due to missing optional dependencies: {e}"
         )
 
     # Auto-Tagging System

@@ -25,9 +25,6 @@ from dam.models.core.file_location_component import FileLocationComponent
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Corrected direct imports for models
-from dam.models.properties.audio_properties_component import AudioPropertiesComponent
-from dam.models.properties.frame_properties_component import FramePropertiesComponent
-from dam.models.properties.image_dimensions_component import ImageDimensionsComponent
 from dam.services import ecs_service, file_operations
 from dam.utils.url_utils import get_local_path_for_url
 
@@ -248,18 +245,6 @@ async def extract_metadata_on_asset_ingested(
                 f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
             )
 
-            if mime_type.startswith("image/") or mime_type.startswith("video/"):
-                if not await ecs_service.get_components(session, entity.id, ImageDimensionsComponent):
-                    width = _get_hachoir_metadata(hachoir_metadata, "width")
-                    height = _get_hachoir_metadata(hachoir_metadata, "height")
-                    if width is not None and height is not None:
-                        dim_comp = ImageDimensionsComponent(width_pixels=width, height_pixels=height)
-                        await ecs_service.add_component_to_entity(session, entity.id, dim_comp, flush=False)
-                        logger.info(f"Added ImageDimensionsComponent ({width}x{height}) for Entity ID {entity.id}")
-                    else:
-                        logger.warning(
-                            f"Could not extract width/height for visual media Entity ID {entity.id} (MIME: {mime_type})"
-                        )
             # (The rest of the Hachoir metadata processing logic from the original file would go here)
             # This includes is_video_heuristic, is_audio_file_heuristic, and adding relevant components.
             # For brevity in this diff, it's omitted but assumed to be the same as the original.
@@ -292,75 +277,8 @@ async def extract_metadata_on_asset_ingested(
             ):
                 is_audio_file_heuristic = True
 
-            if is_audio_file_heuristic:
-                if not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
-                    audio_comp = AudioPropertiesComponent()
-                    duration = _get_hachoir_metadata(hachoir_metadata, "duration")
-                    if duration:
-                        audio_comp.duration_seconds = duration.total_seconds()
-                    audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
-                    if not audio_codec_val and _has_hachoir_metadata(hachoir_metadata, "compression"):
-                        audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "compression")
-                    audio_comp.codec_name = audio_codec_val
-                    audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
-                    audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-                    bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
-                    if bit_rate_bps:
-                        audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-                    await ecs_service.add_component_to_entity(session, entity.id, audio_comp, flush=False)
-                    logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
-
             if is_video_heuristic:
-                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):
-                    video_frame_comp = FramePropertiesComponent()
-                    nb_frames = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
-                        hachoir_metadata, "frame_count"
-                    )
-                    video_frame_comp.frame_count = nb_frames
-                    video_frame_comp.nominal_frame_rate = _get_hachoir_metadata(hachoir_metadata, "frame_rate")
-                    video_duration = _get_hachoir_metadata(hachoir_metadata, "duration")
-                    if video_duration:
-                        video_frame_comp.animation_duration_seconds = video_duration.total_seconds()
-                    if (
-                        not video_frame_comp.frame_count
-                        and video_frame_comp.nominal_frame_rate
-                        and video_frame_comp.animation_duration_seconds
-                        and video_frame_comp.animation_duration_seconds > 0
-                    ):
-                        video_frame_comp.frame_count = int(
-                            video_frame_comp.nominal_frame_rate * video_frame_comp.animation_duration_seconds
-                        )
-                    await ecs_service.add_component_to_entity(session, entity.id, video_frame_comp, flush=False)
-                    logger.info(f"Added FramePropertiesComponent for video/animated Entity ID {entity.id}")
-
-                if has_audio_codec and not await ecs_service.get_components(
-                    session, entity.id, AudioPropertiesComponent
-                ):
-                    video_audio_comp = AudioPropertiesComponent()
-                    video_duration_audio = _get_hachoir_metadata(hachoir_metadata, "duration")
-                    if video_duration_audio:
-                        video_audio_comp.duration_seconds = video_duration_audio.total_seconds()
-                    video_audio_comp.codec_name = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
-                    video_audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
-                    video_audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-                    await ecs_service.add_component_to_entity(session, entity.id, video_audio_comp, flush=False)
-                    logger.info(f"Added AudioPropertiesComponent for video's audio stream, Entity ID {entity.id}")
-
-            if mime_type == "image/gif":
-                if not await ecs_service.get_components(session, entity.id, FramePropertiesComponent):
-                    frame_comp = FramePropertiesComponent()
-                    nb_frames_gif = _get_hachoir_metadata(hachoir_metadata, "nb_frames") or _get_hachoir_metadata(
-                        hachoir_metadata, "frame_count"
-                    )
-                    frame_comp.frame_count = nb_frames_gif
-                    duration_gif_obj = _get_hachoir_metadata(hachoir_metadata, "duration")
-                    if duration_gif_obj:
-                        duration_sec = duration_gif_obj.total_seconds()
-                        frame_comp.animation_duration_seconds = duration_sec
-                        if nb_frames_gif and nb_frames_gif > 1 and duration_sec > 0:
-                            frame_comp.nominal_frame_rate = nb_frames_gif / duration_sec
-                    await ecs_service.add_component_to_entity(session, entity.id, frame_comp, flush=False)
-                    logger.info(f"Added FramePropertiesComponent for animated GIF Entity ID {entity.id}")
+                pass
 
         # Exiftool metadata extraction
         logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity.id})")

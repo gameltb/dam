@@ -8,6 +8,9 @@ if TYPE_CHECKING:
     from dam.core.world import World
 
 
+from dam_media_image.plugin import ImagePlugin
+
+
 class SemanticPlugin(Plugin):
     """
     A plugin for handling semantic search.
@@ -17,6 +20,9 @@ class SemanticPlugin(Plugin):
         """
         Builds the semantic plugin.
         """
+        # Add dependent plugins
+        world.add_plugin(ImagePlugin())
+
         from . import systems
 
         world.register_system(systems.handle_semantic_search_query)

@@ -141,9 +141,7 @@ class HashingServiceResource:
         self.calculate_sha1 = hs.calculate_sha1
         self.calculate_sha256 = hs.calculate_sha256
         self.calculate_crc32 = hs.calculate_crc32
-        self.generate_perceptual_hashes = hs.generate_perceptual_hashes
         self.calculate_md5_async = hs.calculate_md5_async
         self.calculate_sha1_async = hs.calculate_sha1_async
         self.calculate_sha256_async = hs.calculate_sha256_async
         self.calculate_crc32_async = hs.calculate_crc32_async
-        self.generate_perceptual_hashes_async = hs.generate_perceptual_hashes_async

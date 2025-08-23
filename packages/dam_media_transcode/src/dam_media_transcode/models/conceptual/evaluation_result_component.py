@@ -56,10 +56,6 @@ class EvaluationResultComponent(BaseComponent):
     # Notes or comments specific to this evaluation result
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    __mapper_args__ = {
-        "polymorphic_identity": "evaluation_result",
-        "inherit_condition": id == BaseComponent.id,  # type: ignore
-    }
 
     def __repr__(self) -> str:
         return (
