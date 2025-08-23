@@ -30,7 +30,6 @@ from dam.core.events import (
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,
     FindSimilarImagesQuery,
-    SemanticSearchQuery,
 )
 from dam.core.model_manager import ModelExecutionManager
 from dam.core.stages import SystemStage
@@ -58,7 +57,6 @@ from dam.services import (
     ecs_service,
     file_operations,
     hashing_service,
-    semantic_service,
     tag_service,
     transcode_service,
 )
@@ -169,7 +167,7 @@ def global_model_execution_manager(
     global_mock_sentence_transformer_loader,
 ) -> ModelExecutionManager:
     from dam.core.global_resources import model_execution_manager as global_mem_instance
-    from dam.services import semantic_service
+    from dam_semantic.service import semantic_service
 
     if semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER not in global_mem_instance._model_loaders:
         global_mem_instance.register_model_loader(
@@ -243,7 +241,7 @@ def click_runner() -> Iterator[CliRunner]:
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam.services import semantic_service
+    from dam_semantic.service import semantic_service
 
     def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
         return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))

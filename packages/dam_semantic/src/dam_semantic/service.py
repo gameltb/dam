@@ -444,3 +444,19 @@ async def find_similar_entities_by_text_embedding(
 # The ecs_service calls now use the specific EmbeddingComponentClass.
 # The old TextEmbeddingComponent is no longer referenced directly in this service.
 # It might still be in dam.models.semantic.__init__ as OldTextEmbeddingComponent for now.
+
+class SemanticService:
+    def __init__(self):
+        self.DEFAULT_MODEL_NAME = DEFAULT_MODEL_NAME
+        self.DEFAULT_MODEL_PARAMS = DEFAULT_MODEL_PARAMS
+        self.SENTENCE_TRANSFORMER_IDENTIFIER = SENTENCE_TRANSFORMER_IDENTIFIER
+        self._load_sentence_transformer_model_sync = _load_sentence_transformer_model_sync
+        self.get_sentence_transformer_model = get_sentence_transformer_model
+        self.generate_embedding = generate_embedding
+        self.convert_embedding_to_bytes = convert_embedding_to_bytes
+        self.convert_bytes_to_embedding = convert_bytes_to_embedding
+        self.update_text_embeddings_for_entity = update_text_embeddings_for_entity
+        self.get_text_embeddings_for_entity = get_text_embeddings_for_entity
+        self.find_similar_entities_by_text_embedding = find_similar_entities_by_text_embedding
+
+semantic_service = SemanticService()
