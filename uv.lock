@@ -20,6 +20,7 @@ members = [
     "dam-media-transcode",
     "dam-psp",
     "dam-semantic",
+    "dam-sire",
     "dam-source",
     "domarkx",
     "sire",
@@ -1049,6 +1050,7 @@ version = "0.1.0"
 source = { editable = "packages/dam_semantic" }
 dependencies = [
     { name = "dam" },
+    { name = "dam-media-audio" },
     { name = "dam-media-image" },
     { name = "numpy" },
     { name = "sentence-transformers" },
@@ -1057,10 +1059,35 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-media-audio", editable = "packages/dam_media_audio" },
     { name = "dam-media-image", editable = "packages/dam_media_image" },
     { name = "numpy" },
     { name = "sentence-transformers" },
 ]
+
+[[package]]
+name = "dam-sire"
+version = "0.1.0"
+source = { editable = "packages/dam_sire" }
+dependencies = [
+    { name = "dam" },
+    { name = "sire" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "sire", editable = "packages/sire" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dam-source"

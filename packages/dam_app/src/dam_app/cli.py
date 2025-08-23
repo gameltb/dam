@@ -274,6 +274,14 @@ def main_callback(
         logging.info("dam_source plugin not installed. Skipping source functionality.")
 
     try:
+        from dam_sire import SirePlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(SirePlugin())
+    except ImportError:
+        logging.info("dam_sire plugin not installed. Skipping sire functionality.")
+
+    try:
         from dam_media_image import ImagePlugin
 
         for world_instance in initialized_worlds:

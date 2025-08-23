@@ -70,3 +70,49 @@ assert MiniLMEmbeddingComponent is not None, "Test MiniLM model not registered o
 assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or class not found"
 
 
+@pytest.mark.asyncio
+async def test_generate_embedding_and_conversion(sire_resource):
+    text = "Hello world"
+    # Test with MiniLM
+    embedding_minilm_np = await semantic_service.generate_embedding(
+        sire_resource,
+        text,
+        model_name=TEST_MODEL_MINILM,
+        params=TEST_PARAMS_MINILM,
+    )
+    assert embedding_minilm_np is not None
+    assert isinstance(embedding_minilm_np, np.ndarray)
+    assert embedding_minilm_np.shape[0] == 384
+
+    # Test with CLIP
+    embedding_clip_np = await semantic_service.generate_embedding(
+        sire_resource,
+        text,
+        model_name=TEST_MODEL_CLIP,
+        params=TEST_PARAMS_CLIP,
+    )
+    assert embedding_clip_np is not None
+    assert isinstance(embedding_clip_np, np.ndarray)
+    assert embedding_clip_np.shape[0] == 512
+
+    assert not np.array_equal(embedding_minilm_np, embedding_clip_np)
+
+    assert (
+        await semantic_service.generate_embedding(
+            sire_resource, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
+        )
+        is None
+    )
+    assert (
+        await semantic_service.generate_embedding(
+            sire_resource, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
+        )
+        is None
+    )
+
+    embedding_bytes = semantic_service.convert_embedding_to_bytes(embedding_minilm_np)
+    assert isinstance(embedding_bytes, bytes)
+    assert len(embedding_bytes) == 384 * 4
+
+    embedding_np_restored = semantic_service.convert_bytes_to_embedding(embedding_bytes)
+    assert np.array_equal(embedding_minilm_np, embedding_np_restored)

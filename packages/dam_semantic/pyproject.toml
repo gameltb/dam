@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
     "dam",
     "dam_media_image",
+    "dam_media_audio",
     "sentence-transformers",
     "numpy",
 ]

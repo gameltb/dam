@@ -196,6 +196,11 @@ def click_runner() -> Iterator[CliRunner]:
     yield AsyncAwareCliRunner()
 
 
+@pytest.fixture
+def sire_resource():
+    from dam_sire.resource import SireResource
+    return SireResource()
+
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
     from dam_semantic import service as semantic_service

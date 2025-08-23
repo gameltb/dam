@@ -31,6 +31,16 @@ The system is built upon the Entity-Component-System (ECS) pattern. This pattern
 
 For a comprehensive understanding of the ECS implementation, refer to the [Developer Guide](developer_guide.md).
 
+### 1.1. Dependency Rule
+
+A critical design principle is that the core `dam` package **must not** depend on any of its plugin packages (e.g., `dam_media_image`, `dam_sire`). This ensures the core remains lean and decoupled.
+
+-   **Core `dam` Package**: Contains the fundamental ECS framework, base components, and core services that have no knowledge of specific media types or external model frameworks.
+-   **Plugin Packages**: Extend the core functionality. They can depend on `dam`, but `dam` cannot depend on them.
+-   **Application Package (`dam_app`)**: The main application that brings everything together. It depends on `dam` and all the necessary plugins.
+
+If a system or service within the `dam` package needs functionality from a plugin, it must be moved to the appropriate plugin package or to the `dam_app` package if it's application-specific logic.
+
 ## 2. Models (Components)
 
 ### 2.1. Definition and Purpose
@@ -127,7 +137,7 @@ Similar to text embeddings, the system supports storing and searching audio embe
     }
     ```
 -   **Service Layer (`AudioService`)**:
-    *   Located in `dam.services.audio_service.py`.
+    *   Located in `dam_media_audio.services.audio_service.py`.
     *   Responsible for generating, storing, and searching audio embeddings.
     *   Uses `get_audio_embedding_component_class` (which consults the `AUDIO_EMBEDDING_MODEL_REGISTRY`) to determine the correct component class for database operations.
     *   Relies on the `ModelExecutionManager` (see Section 4) for loading audio models (currently mocked).
@@ -169,10 +179,10 @@ The system includes functionality for both manual and AI-driven (model-generated
     *   Stores `source_model_name` (e.g., "wd-v1-4-moat-tagger-v2") and `confidence` for the tag.
     *   Model parameters used for generation are defined in a code registry (`TAGGING_MODEL_REGISTRY`) and not stored per link to save space.
     *   Table: `component_model_generated_tag_link`.
--   **`TaggingService`** (`dam.services.tagging_service.py`):
+-   **`TaggingService`** (`dam_app.services.tagging_service.py`):
     *   Manages AI-driven tagging.
     *   Relies on `ModelExecutionManager` (see Section 4) for loading tagging models (currently mocked using `MockWd14Tagger`).
-    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam.services.tagging_service.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
+    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam_app.services.tagging_service.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
     *   `update_entity_model_tags()`: Generates tags for an entity's image using a specified model and stores them as `ModelGeneratedTagLinkComponent` instances. It typically replaces previous tags from the same model for that entity.
     *   Uses `tag_service.get_or_create_tag_concept()` to interact with `TagConceptComponent`.
 -   **`tag_service.py`**:
@@ -185,11 +195,11 @@ The system includes functionality for both manual and AI-driven (model-generated
 #### Adding a New Auto-Tagging Model
 
 1.  **Define Conceptual Parameters**:
-    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam.services.tagging_service.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
+    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam_app.services.tagging_service.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
 2.  **Implement Loader Function**:
     *   Create a synchronous function that takes `model_name_or_path` (which will be your new model's name/identifier) and an optional `params` dictionary, and returns the loaded model instance.
 3.  **Register Loader in `TaggingService`**:
-    *   In `dam.services.tagging_service.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
+    *   In `dam_app.services.tagging_service.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
     *   Example: `model_manager.register_model_loader(TAGGING_MODEL_IDENTIFIER, _my_new_tagger_loader_sync)`
 4.  **Update Systems (Optional)**:
     *   If the new model should be triggered by specific conditions or markers, update or create relevant systems. The `AutoTaggingSystem` can be configured to use different model names.
