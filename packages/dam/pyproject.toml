@@ -26,7 +26,6 @@ classifiers = [
 dependencies = [
     "sqlalchemy",
     "aiosqlite",
-    "alembic",
     "typer",
     "python-dotenv",
     "pydantic",
@@ -46,17 +45,6 @@ audio = [
 metadata = [
     "hachoir"
 ]
-psp = [
-    "pycdlib",
-    "py7zr",
-    "patool",
-    "zstandard",
-    "rarfile",
-]
-semantic = [
-    "sentence-transformers",
-    "numpy"
-]
 transcode-ffmpeg = []
 transcode-cjxl = []
 transcode-avifenc = []
@@ -75,8 +63,6 @@ all = [
     "dam[video]",
     "dam[audio]",
     "dam[metadata]",
-    "dam[psp]",
-    "dam[semantic]",
     "dam[dev]",
     "dam[all-transcode]",
 ]
@@ -85,8 +71,6 @@ all = [
 Homepage = "https://example.com/ecs_dam_system" # Placeholder
 Repository = "https://example.com/ecs_dam_system.git" # Placeholder
 
-[project.scripts]
-dam-cli = "dam.cli:app"
 
 [tool.ruff]
 extend = "../../pyproject.toml"

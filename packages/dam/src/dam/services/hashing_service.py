@@ -10,23 +10,6 @@ import logging
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List
 
-# Conditional imports for optional image hashing feature
-_imagehash_available = False
-_PIL_available = False
-try:
-    import imagehash
-
-    _imagehash_available = True
-    from PIL import Image
-
-    _PIL_available = True
-except ImportError:
-    # This warning can be made more prominent or logged if necessary
-    logging.getLogger(__name__).warning(
-        "Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled."
-    )
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -83,54 +66,6 @@ def calculate_md5(filepath: Path) -> str:
         return md5_hash.hexdigest()
     except IOError as e:
         raise IOError(f"Error reading file {filepath}: {e}") from e
-
-
-def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
-    """
-    Generates various perceptual hashes for an image file if ImageHash and Pillow are installed.
-
-    Args:
-        image_filepath: Path to the image file.
-
-    Returns:
-        A dictionary with hash_type as key and hex hash string as value.
-        Example: {"phash": "...", "ahash": "...", "dhash": "..."}
-        Returns empty dict if dependencies are missing, or image cannot be processed.
-    """
-    hashes = {}
-    if not _imagehash_available or not _PIL_available:
-        # Dependencies were not available at import time of this module
-        return hashes
-
-    try:
-        img = Image.open(image_filepath)
-
-        # pHash (Perceptual Hash)
-        try:
-            hashes["phash"] = str(imagehash.phash(img))
-        except Exception as e_phash:  # More specific exceptions could be caught
-            logger.warning(f"Could not generate pHash for {image_filepath.name}: {e_phash}", exc_info=True)
-
-        # aHash (Average Hash)
-        try:
-            hashes["ahash"] = str(imagehash.average_hash(img))
-        except Exception as e_ahash:
-            logger.warning(f"Could not generate aHash for {image_filepath.name}: {e_ahash}", exc_info=True)
-
-        # dHash (Difference Hash)
-        try:
-            hashes["dhash"] = str(imagehash.dhash(img))
-        except Exception as e_dhash:
-            logger.warning(f"Could not generate dHash for {image_filepath.name}: {e_dhash}", exc_info=True)
-
-    except FileNotFoundError:
-        logger.warning(f"Image file not found at {image_filepath} for perceptual hashing.")
-    except Exception as e_open:  # Catches PIL.UnidentifiedImageError etc.
-        logger.warning(
-            f"Could not open or process image {image_filepath.name} for perceptual hashing: {e_open}", exc_info=True
-        )
-
-    return hashes
 
 
 def calculate_sha1(filepath: Path) -> str:
@@ -246,8 +181,3 @@ async def calculate_sha1_async(filepath: Path) -> str:
 async def calculate_crc32_async(filepath: Path) -> int:
     """Asynchronously calculates the CRC32 hash of a file."""
     return await asyncio.to_thread(calculate_crc32, filepath)
-
-
-async def generate_perceptual_hashes_async(image_filepath: Path) -> dict[str, str]:
-    """Asynchronously generates various perceptual hashes for an image file."""
-    return await asyncio.to_thread(generate_perceptual_hashes, image_filepath)

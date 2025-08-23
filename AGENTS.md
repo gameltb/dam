@@ -9,9 +9,7 @@ This is a monorepo containing multiple Python packages under the `packages/` dir
 **TL;DR**, run all checks with:
 
 ```sh
-uv sync --all-extras
-source .venv/bin/activate
-poe check
+uv run poe check
 ```
 
 ### Setup
@@ -28,17 +26,13 @@ uv self update
 
 ### Virtual Environment
 
-During development, you may need to test changes made to any of the packages.\
-To do so, create a virtual environment where the packages are installed based on the current state of the directory.\
-Run the following commands at the root level of the repository:
+`uv` automatically manages the virtual environment. To install all dependencies, run:
 
 ```sh
 uv sync --all-extras
-source .venv/bin/activate
 ```
 
-- `uv sync --all-extras` will create a `.venv` directory at the current level and install packages from the current directory along with any other dependencies. The `all-extras` flag adds optional dependencies.
-- `source .venv/bin/activate` activates the virtual environment.
+This will create a `.venv` directory and install all necessary packages.
 
 #### Managing Environment-Specific Dependencies (e.g., CPU-only PyTorch)
 
@@ -53,36 +47,32 @@ This will automatically detect the appropriate backend (CUDA, CPU, etc.) and ins
 
 ### Common Tasks
 
+All tasks should be run via `uv run poe ...`. This ensures that the command is executed within the correct virtual environment with all the necessary dependencies.
+
 To create a pull request (PR), ensure the following checks are met. You can run each check individually:
 
-- Format: `poe format`
-- Lint: `poe lint`
-- Test: `poe test` (does not collect coverage)
-- Test with coverage: `poe test-cov`
-- Mypy: `poe mypy`
-- Pyright: `poe pyright`
-- Check samples in `python/samples`: `poe samples-code-check`
+- Format: `uv run poe format`
+- Lint: `uv run poe lint`
+- Test: `uv run poe test` (does not collect coverage)
+- Test with coverage: `uv run poe test-cov`
+- Mypy: `uv run poe mypy`
+- Pyright: `uv run poe pyright`
+- Check samples in `python/samples`: `uv run poe samples-code-check`
 
 Alternatively, you can run all the checks with:
-- `poe check`
+- `uv run poe check`
 
 To run checks on a specific package, use the `--package` flag:
-- `poe check --package sire`
-- `poe test --package sire`
-
-> [!NOTE]
-> These need to be run in the virtual environment.
+- `uv run poe check --package sire`
+- `uv run poe test --package sire`
 
 ### Syncing Dependencies
 
-When you pull new changes, you may need to update the dependencies.
-To do so, first make sure you are in the virtual environment, and then run:
+When you pull new changes, you may need to update the dependencies. To do so, run:
 
 ```sh
 uv sync --all-extras
 ```
-
-This will update the dependencies in the virtual environment.
 
 ### Assertion Guideline
 

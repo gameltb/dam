@@ -19,7 +19,6 @@ import dam.models  # This line can sometimes be problematic if dam.models itself
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.model_manager import ModelExecutionManager  # Added
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
 
@@ -118,91 +117,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world)
 
 
-@pytest.fixture(scope="function")
-def global_model_execution_manager(
-    global_mock_sentence_transformer_loader,  # Ensures mock loader is patched
-    # Add other global mock loaders here if needed for audio, tagging in the future
-) -> ModelExecutionManager:  # Imported ModelExecutionManager
-    """
-    Provides the global ModelExecutionManager instance.
-    Ensures that mock model loaders (e.g., for sentence transformers) are active
-    on this instance for the duration of the test.
-    """
-    from dam.core.global_resources import model_execution_manager as global_mem_instance
-    from dam.services import semantic_service
-    # from dam.services import audio_service # Future: For MOCK_AUDIO_MODEL_IDENTIFIER
-    # from dam.services import tagging_service # Future: For TAGGING_MODEL_IDENTIFIER
-
-    # Ensure the mock loader for sentence transformers is registered if not already
-    # The global_mock_sentence_transformer_loader fixture already patches the loader function itself.
-    # We just need to ensure it's registered with the global MEM instance.
-    # This registration should ideally happen once when MEM is initialized or when a service first needs it.
-    # For tests, explicitly registering here ensures it's set up.
-    if semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER not in global_mem_instance._model_loaders:
-        global_mem_instance.register_model_loader(
-            semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER,
-            semantic_service._load_sentence_transformer_model_sync,  # This is the already patched one
-        )
-
-    # TODO: Register mock loaders for audio and tagging models here as well
-    # e.g., from dam.services.audio_service import MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync
-    # if MOCK_AUDIO_MODEL_IDENTIFIER not in global_mem_instance._model_loaders:
-    #     global_mem_instance.register_model_loader(MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync)
-
-    # from dam.services.tagging_service import TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync
-    # if TAGGING_MODEL_IDENTIFIER not in global_mem_instance._model_loaders:
-    #     global_mem_instance.register_model_loader(TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync)
-
-    return global_mem_instance
-
-
-from typing import Any, Dict, Optional
-
-import numpy as np
-
-
-class MockSentenceTransformer:
-    def __init__(self, model_name_or_path=None, **kwargs):
-        self.model_name = model_name_or_path
-        if model_name_or_path and "clip" in model_name_or_path.lower():
-            self.dim = 512
-        elif model_name_or_path and "MiniLM-L6-v2" in model_name_or_path:
-            self.dim = 384
-        else:
-            self.dim = 384
-
-    def encode(self, sentences, convert_to_numpy=True, **kwargs):
-        original_sentences_type = type(sentences)
-        if isinstance(sentences, str):
-            sentences = [sentences]
-        embeddings = []
-        for s in sentences:
-            if not s or not s.strip():
-                embeddings.append(np.zeros(self.dim, dtype=np.float32))
-                continue
-            sum_ords = sum(ord(c) for c in s)
-            model_ord_sum = sum(ord(c) for c in (self.model_name or "default"))
-            vec_elements = [sum_ords % 100, len(s) % 100, model_ord_sum % 100]
-            if self.dim >= 3:
-                vec = np.array(vec_elements[: self.dim] + [0.0] * (self.dim - min(3, self.dim)), dtype=np.float32)
-            elif self.dim > 0:
-                vec = np.array(vec_elements[: self.dim], dtype=np.float32)
-            else:
-                vec = np.array([], dtype=np.float32)
-            if vec.shape[0] != self.dim and self.dim > 0:
-                padding = np.zeros(self.dim - vec.shape[0], dtype=np.float32)
-                vec = np.concatenate((vec, padding))
-            elif vec.shape[0] != self.dim and self.dim == 0:
-                vec = np.array([], dtype=np.float32)
-            embeddings.append(vec)
-        if not convert_to_numpy:
-            embeddings = [e.tolist() for e in embeddings]
-        if original_sentences_type is str:
-            return embeddings[0] if embeddings else np.array([])
-        else:
-            return np.array(embeddings) if convert_to_numpy else embeddings
-
-
 @pytest.fixture
 def click_runner() -> Iterator[CliRunner]:
     class AsyncAwareCliRunner(CliRunner):
@@ -222,26 +136,6 @@ def click_runner() -> Iterator[CliRunner]:
                 return super().invoke(*args, **kwargs)
 
     yield AsyncAwareCliRunner()
-
-
-@pytest.fixture(autouse=True, scope="function")
-def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam.services import semantic_service
-    # ModelExecutionManager might not be needed here if we patch the service's loader directly
-
-    # Ensure mock_load_sync matches the signature of the actual loader
-    def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
-        return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
-
-    # Target the new loader function name within semantic_service.py
-    monkeypatch.setattr(semantic_service, "_load_sentence_transformer_model_sync", mock_load_sync)
-    # semantic_service._model_cache.clear() # _model_cache no longer exists in semantic_service
-    # TODO: If tests require it, mock ModelExecutionManager.get_model for SENTENCE_TRANSFORMER_IDENTIFIER
-    # or clear its cache entry for relevant models if a world/manager instance is available here.
-    # For now, relying on the loader mock being correctly patched onto the ModelExecutionManager's registered loader.
-    # A more robust approach might involve getting the ModelExecutionManager instance from a test world
-    # and directly patching its _model_loaders entry for SENTENCE_TRANSFORMER_IDENTIFIER,
-    # or mocking the get_model method itself if called with that identifier.
 
 
 @pytest.fixture(scope="session", autouse=True)

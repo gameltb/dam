@@ -18,14 +18,8 @@ This document outlines the design principles and guidelines for developing model
   - [3.1. Definition and Purpose](#31-definition-and-purpose)
   - [3.2. Decorators and Stages](#32-decorators-and-stages)
   - [3.3. Dependency Injection](#33-dependency-injection)
-- [4. Resource Management (ModelExecutionManager)](#4-resource-management-modelexecutionmanager)
-  - [4.1. Overview](#41-overview)
-  - [4.2. Key Features](#42-key-features)
-  - [4.3. Usage by Services](#43-usage-by-services)
-  - [4.4. Batch Size Determination](#44-batch-size-determination)
-  - [4.5. OOM Retry Utility](#45-oom-retry-utility)
-- [5. Testing Guidelines](#5-testing-guidelines)
-- [6. Further Information](#6-further-information)
+- [4. Testing Guidelines](#4-testing-guidelines)
+- [5. Further Information](#5-further-information)
 
 ## 1. Core Architecture
 
@@ -33,8 +27,19 @@ The system is built upon the Entity-Component-System (ECS) pattern. This pattern
 - **Entities**: Unique identifiers for assets or concepts.
 - **Components**: Data-only classes describing aspects of entities.
 - **Systems**: Logic operating on entities based on their components.
+- **Plugins**: A modular, Bevy-like plugin system for extending functionality. Plugins are responsible for registering systems and resources with a `World`.
 
 For a comprehensive understanding of the ECS implementation, refer to the [Developer Guide](developer_guide.md).
+
+### 1.1. Dependency Rule
+
+A critical design principle is that the core `dam` package **must not** depend on any of its plugin packages (e.g., `dam_media_image`, `dam_sire`). This ensures the core remains lean and decoupled.
+
+-   **Core `dam` Package**: Contains the fundamental ECS framework, base components, and core services that have no knowledge of specific media types or external model frameworks.
+-   **Plugin Packages**: Extend the core functionality. They can depend on `dam`, but `dam` cannot depend on them.
+-   **Application Package (`dam_app`)**: The main application that brings everything together. It depends on `dam` and all the necessary plugins.
+
+If a system or service within the `dam` package needs functionality from a plugin, it must be moved to the appropriate plugin package or to the `dam_app` package if it's application-specific logic.
 
 ## 2. Models (Components)
 
@@ -132,7 +137,7 @@ Similar to text embeddings, the system supports storing and searching audio embe
     }
     ```
 -   **Service Layer (`AudioService`)**:
-    *   Located in `dam.services.audio_service.py`.
+    *   Located in `dam_media_audio.services.audio_service.py`.
     *   Responsible for generating, storing, and searching audio embeddings.
     *   Uses `get_audio_embedding_component_class` (which consults the `AUDIO_EMBEDDING_MODEL_REGISTRY`) to determine the correct component class for database operations.
     *   Relies on the `ModelExecutionManager` (see Section 4) for loading audio models (currently mocked).
@@ -145,8 +150,8 @@ Similar to text embeddings, the system supports storing and searching audio embe
     *   Uses `AudioService` to generate embeddings.
     *   Relies on `dam.utils.media_utils.get_file_path_for_entity` to locate the audio file for an entity.
 -   **Events**:
-    *   `AudioSearchQuery` (in `dam.core.events.py`): Used to request an audio similarity search.
-    *   Handled by `handle_audio_search_query` in `dam.systems.semantic_systems.py`, which calls the `AudioService`.
+    *   `AudioSearchQuery` (in `dam_media_audio.events`): Used to request an audio similarity search.
+    *   Handled by `handle_audio_search_query` in `dam_semantic.systems`, which calls the `AudioService`.
 
 #### Adding a New Audio Embedding Model
 
@@ -174,27 +179,27 @@ The system includes functionality for both manual and AI-driven (model-generated
     *   Stores `source_model_name` (e.g., "wd-v1-4-moat-tagger-v2") and `confidence` for the tag.
     *   Model parameters used for generation are defined in a code registry (`TAGGING_MODEL_REGISTRY`) and not stored per link to save space.
     *   Table: `component_model_generated_tag_link`.
--   **`TaggingService`** (`dam.services.tagging_service.py`):
+-   **`TaggingService`** (`dam_app.services.tagging_service.py`):
     *   Manages AI-driven tagging.
     *   Relies on `ModelExecutionManager` (see Section 4) for loading tagging models (currently mocked using `MockWd14Tagger`).
-    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam.services.tagging_service.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
+    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam_app.services.tagging_service.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
     *   `update_entity_model_tags()`: Generates tags for an entity's image using a specified model and stores them as `ModelGeneratedTagLinkComponent` instances. It typically replaces previous tags from the same model for that entity.
     *   Uses `tag_service.get_or_create_tag_concept()` to interact with `TagConceptComponent`.
 -   **`tag_service.py`**:
     *   Manages `TagConceptComponent` (creation, retrieval) and manual `EntityTagLinkComponent`.
     *   Includes `get_or_create_tag_concept()` for use by other services.
--   **`AutoTaggingSystem`** (`dam/systems/auto_tagging_system.py`):
+-   **`AutoTaggingSystem`** (`dam_app/systems/auto_tagging_system.py`):
     *   An example system that processes entities marked with `NeedsAutoTaggingMarker`.
     *   Uses `TaggingService` to apply tags from a configured model.
 
 #### Adding a New Auto-Tagging Model
 
 1.  **Define Conceptual Parameters**:
-    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam.services.tagging_service.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
+    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam_app.services.tagging_service.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
 2.  **Implement Loader Function**:
     *   Create a synchronous function that takes `model_name_or_path` (which will be your new model's name/identifier) and an optional `params` dictionary, and returns the loaded model instance.
 3.  **Register Loader in `TaggingService`**:
-    *   In `dam.services.tagging_service.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
+    *   In `dam_app.services.tagging_service.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
     *   Example: `model_manager.register_model_loader(TAGGING_MODEL_IDENTIFIER, _my_new_tagger_loader_sync)`
 4.  **Update Systems (Optional)**:
     *   If the new model should be triggered by specific conditions or markers, update or create relevant systems. The `AutoTaggingSystem` can be configured to use different model names.
@@ -243,6 +248,7 @@ This section outlines the roles and interactions of Services, Systems, and Resou
         *   `WorldContext`: Provides access to `WorldSession`, world name, and `WorldConfig`.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance, or specific model clients vended by it) and passing them as arguments to the service functions they call.
 -   **Execution**: Managed by the `WorldScheduler` based on stages or events. The `WorldScheduler` also handles session commits/rollbacks per stage or event cycle.
+-   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems.
 -   **Characteristics**:
     *   Should be stateless. All necessary data comes from injected dependencies or queried entities.
     *   Focus on orchestration and flow control.
@@ -259,104 +265,7 @@ This section outlines the roles and interactions of Services, Systems, and Resou
     *   World-specific resources are typically instantiated once per `World` and added to that world's `ResourceManager`.
 -   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to service functions if needed.
 
-## 4. Model Management with ModelExecutionManager
-
-### 4.1. Overview
-The `dam.core.model_manager.ModelExecutionManager` class is a **global singleton resource** responsible for managing the lifecycle and resource-aware execution of machine learning models for all worlds running on the host. It is initialized once when the application starts.
-
-It handles:
--   Global system resource detection (GPU, RAM) for the host machine.
--   Registration of model loader functions.
--   Caching of loaded model instances (globally, if models and configurations are shared).
--   Device preference for model execution.
--   Batch size determination.
-
-Model configurations (names, paths, default conceptual parameters like embedding dimensions or tagging thresholds) are defined globally in the Python codebase (e.g., in registries like `EMBEDDING_MODEL_REGISTRY`, `AUDIO_EMBEDDING_MODEL_REGISTRY`, `TAGGING_MODEL_CONCEPTUAL_PARAMS`).
-
-### 4.2. Key Features
--   **Global Resource Detection**: Automatically detects basic system information for the host:
-    *   GPU availability (PyTorch CUDA and Apple MPS).
-    *   Number of GPU devices and their properties (name, total memory).
-    *   Total system RAM.
-    *   OS information.
--   **Model Loading & Caching**:
-    *   Provides a generic mechanism to `register_model_loader` functions. Each loader is associated with a `model_identifier` (a string like "sentence_transformer" or "mock_audio_model").
-    *   The `get_model(model_identifier, model_name_or_path, params, force_reload)` method retrieves models. It uses the registered loader for the given `model_identifier` and caches the loaded model instance based on the identifier, specific name/path, and parameters. The cache is global.
-    *   Synchronous loader functions are run in a default asyncio executor.
--   **Model Unloading**:
-    *   `unload_model(model_identifier, model_name_or_path, params)` removes a model from the global cache. It also attempts to clear PyTorch's CUDA cache if applicable.
--   **Device Preference**:
-    *   `get_model_device_preference()` suggests a device ('cuda', 'mps', 'cpu') for the host based on availability. This can be passed as a parameter to model loaders.
-
-### 4.3. Interaction Flow for Models
-1.  **Systems**: A System that needs to perform an operation involving an ML model (e.g., generating embeddings, auto-tagging) will:
-    *   Obtain the global `ModelExecutionManager` instance (e.g., via dependency injection if it's registered in each world's `ResourceManager` pointing to the global instance, or by importing a global accessor).
-    *   Optionally, use `ModelExecutionManager` to get a specific pre-loaded model client/instance.
-2.  **Services**: The System will then call a relevant **stateless service function**, passing the `ModelExecutionManager` instance (or the specific model client/instance) along with other necessary data (like `AsyncSession`, entity IDs, text content).
-    *   Example: `embedding_vector = await semantic_service.generate_embedding(model_execution_manager, text_to_embed, model_name, model_params)`
-    *   Or: `model_client = await model_execution_manager.get_model(...)` (done in System)
-              `embedding_vector = await semantic_service.generate_embedding_with_client(model_client, text_to_embed)`
-3.  **Service Logic**: The service function uses the provided `ModelExecutionManager` (or model client) to perform the ML operation (e.g., calling `model_execution_manager.get_model()` then `model.encode()`, or directly `model_client.encode()`).
-    *   Service functions **do not** resolve `ModelExecutionManager` via `get_default_world()` or other global lookups.
-
-This ensures services remain stateless and their dependencies are explicit.
-
-### 4.4. Batch Size Determination
--   The global `ModelExecutionManager` provides `get_optimal_batch_size(model_identifier, model_name_or_path, item_size_estimate_mb, fallback_batch_size)`.
--   **Model-Specific Sizers**: It supports registration of custom batch sizing functions per `model_identifier` via `register_batch_sizer()`. If a specific sizer is registered, it will be used.
--   **Default Heuristic**: If no specific sizer is found, it falls back to a VRAM-based heuristic:
-    *   Queries free VRAM (for CUDA) or estimates available memory (for MPS based on system RAM, or a fraction of total VRAM for other GPUs).
-    *   Reserves a portion of this VRAM for model weights and overhead.
-    *   Calculates batch size based on the `item_size_estimate_mb` (estimated memory for a single processed item's tensor).
-    *   Applies a cap to the calculated batch size.
--   This default heuristic is basic and may require tuning or replacement with model-specific sizers for better accuracy.
-
-### 4.5. OOM Retry Utility
--   A utility decorator `oom_retry_batch_adjustment` is available in `dam.utils.model_utils`.
--   This decorator can be applied to `async` service methods that perform batched model inference.
--   **Functionality**:
-    *   It expects the decorated function to accept a `batch_size` keyword argument.
-    *   It catches `torch.cuda.OutOfMemoryError`.
-    *   Upon an OOM error, it reduces the `batch_size` (by a configurable factor, defaulting to 0.5) and retries the decorated function, up to a configurable `max_retries`.
-    *   The batch size will not be reduced below `min_batch_size` (default 1).
--   **Usage**: Services should apply this decorator to methods that iterate through data in batches and call a model. The method itself is responsible for using the `batch_size` kwarg to form its batches.
-    ```python
-    from dam.utils import oom_retry_batch_adjustment
-
-    class MyService:
-        @oom_retry_batch_adjustment(max_retries=2)
-        async def process_heavy_task(self, items: List[Any], model: Any, batch_size: int):
-            # ... logic to process items in batches of batch_size ...
-            # ... call model.predict(batch) ...
-            pass
-    ```
-
-### 4.6. Future: Remote API Integration for Models
-
-To support using external APIs for tasks like embeddings, transcription, or other AI functionalities, the following approach is envisioned:
-
--   **Dedicated Manager (Optional but Recommended):** A new global resource, potentially named `RemoteModelProviderManager` or similar, could be introduced. This manager would be responsible for:
-    *   Handling configurations for various remote APIs (endpoints, API keys, rate limits, retry strategies).
-    *   Providing initialized and authenticated client instances for these APIs.
--   **Common Interfaces:** Define common Python interfaces for specific model capabilities (e.g., `EmbeddingGenerator`, `TranscriptionProvider`).
-    ```python
-    class EmbeddingGenerator(Protocol):
-        async def embed(self, text: str) -> List[float]: ...
-
-    class TranscriptionProvider(Protocol):
-        async def transcribe(self, audio_path: Path) -> str: ...
-    ```
--   **Client Implementations:**
-    *   Local model wrappers (as currently handled by `ModelExecutionManager`) would implement these interfaces.
-    *   New classes would be created to implement these interfaces by calling remote APIs (e.g., `OpenAIEmbeddingClient(EmbeddingGenerator)`). These clients would be vended by the `RemoteModelProviderManager` or directly by `ModelExecutionManager` if its scope is expanded.
--   **System and Service Interaction:**
-    1.  **Systems** would request a provider that implements the required interface (e.g., an `EmbeddingGenerator`) from the `ModelExecutionManager` or the `RemoteModelProviderManager`. The system might specify preferences (e.g., "local", "openai", "fastest", "cheapest") which the manager resolves based on configuration.
-    2.  The **System** then passes the obtained client instance (which adheres to the common interface) to the **stateless Service function**.
-    3.  The **Service function** uses the client via the common interface, unaware of whether it's a local model or a remote API.
-
-This approach ensures that services remain stateless and decoupled from the specifics of how a model capability is provided, allowing for flexibility in choosing local vs. remote implementations or switching providers.
-
-## 5. Testing Guidelines
+## 4. Testing Guidelines
 
 Effective testing is crucial for maintaining code quality and reliability. Specific testing guidelines, including rules about assertions, are outlined in the `AGENTS.md` file at the root of the repository.
 

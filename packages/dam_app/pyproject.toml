@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dam_app"
+version = "0.1.0"
+description = "A CLI application for the DAM system."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "AI Agent", email = "ai.agent@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "dam",
+    "alembic",
+    "python-magic",
+]
+
+[project.optional-dependencies]
+image = ["dam_media_image"]
+audio = ["dam_media_audio"]
+transcode = ["dam_media_transcode"]
+psp = ["dam_psp"]
+semantic = ["dam_semantic"]
+all = [
+    "dam_app[image]",
+    "dam_app[audio]",
+    "dam_app[transcode]",
+    "dam_app[psp]",
+    "dam_app[semantic]",
+]
+
+[project.urls]
+Homepage = "https://example.com/ecs_dam_system" # Placeholder
+Repository = "https://example.com/ecs_dam_system.git" # Placeholder
+
+[project.scripts]
+dam-cli = "dam_app.cli:app"
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+
+[tool.pyright]
+extends = "../../pyright.json"
+include = ["src", "tests"]
+exclude = []
+reportDeprecated = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+test = "pytest -n auto"
+test-cov = "pytest -n auto --cov=dam_app --cov-report=term-missing --cov-report=xml"
+mypy.default_item_type = "cmd"
+mypy.sequence = [
+    "mypy --config-file ../../pyproject.toml dam_app tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dam_app"]

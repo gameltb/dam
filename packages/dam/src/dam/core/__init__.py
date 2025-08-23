@@ -4,7 +4,6 @@ from .config import Settings, WorldConfig, settings
 from .database import Base, DatabaseManager  # Removed get_async_engine, etc.
 from .events import BaseEvent  # Add specific events if they are broadly used, or import from events module directly
 from .exceptions import EventHandlingError, StageExecutionError  # ResourceNotFoundError comes from .resources
-from .model_manager import ModelExecutionManager
 from .resources import ResourceManager, ResourceNotFoundError  # Import ResourceNotFoundError from here
 from .stages import SystemStage
 from .system_params import WorldContext, WorldSession  # WorldSession is an Alias for AsyncSession
@@ -63,6 +62,4 @@ __all__ = [
     # World Setup
     "initialize_world_resources",
     "register_core_systems",
-    # Model Manager
-    "ModelExecutionManager",
 ]
