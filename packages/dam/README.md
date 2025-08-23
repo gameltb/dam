@@ -8,10 +8,14 @@ This project implements a Digital Asset Management system using an Entity-Compon
 *   **Alembic**: Manages database schema migrations (currently paused during active schema refactoring).
 *   **ECS Core Framework**:
     *   **Entities, Components, Systems**: Standard ECS pattern.
+    *   **Plugin System**: A modular, Bevy-like plugin system for extending functionality.
     *   **WorldScheduler**: Manages system execution.
     *   **Dependency Injection**: For systems.
     *   **Resources**: Shared utilities.
-*   **Modularity**: Components in `dam/models/`, services in `dam/services/`, systems in `dam/systems/`.
+*   **Modularity**: The project is divided into several packages:
+    *   `dam`: The core framework, providing the ECS building blocks and a `DamPlugin`.
+    *   `dam_app`: The main CLI application, which loads plugins.
+    *   `dam_psp`: An optional plugin for PSP ISO ingestion.
 *   **Services and Systems**: Service and system modules are self-contained and should be imported directly via their full path. The `dam.services` and `dam.systems` packages do not expose all modules through their `__init__.py` files to support optional dependencies and allow for modular configurations.
     *   For services with heavy optional dependencies (like `semantic_service`), it is recommended to use local, on-demand imports within the functions that need them.
     *   The `dam.systems` package dynamically discovers and imports all system modules at runtime. This means you can add a new system file to the `dam/systems/` directory and it will be automatically loaded without needing to edit any `__init__.py` file.
@@ -37,42 +41,40 @@ This project implements a Digital Asset Management system using an Entity-Compon
 
 ```
 ecs_dam_system/
-├── dam/
-│   ├── __init__.py
-│   ├── cli.py
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── core/
-│   │   ├── conceptual/     # Conceptual assets, variants, pages, tags
-│   │   │   ├── base_conceptual_info_component.py
-│   │   │   ├── comic_book_concept_component.py
-│   │   │   ├── base_variant_info_component.py
-│   │   │   ├── comic_book_variant_component.py
-│   │   │   ├── page_link.py
-│   │   │   ├── tag_concept_component.py
-│   │   │   └── entity_tag_link_component.py
+├── packages/
+│   ├── dam/
+│   │   ├── src/dam/
+│   │   │   ├── __init__.py  # Provides DamPlugin
+│   │   │   ├── core/
+│   │   │   ├── models/
+│   │   │   └── systems/
 │   │   └── ...
-│   ├── services/
-│   │   ├── comic_book_service.py
-│   │   ├── tag_service.py      # Service for managing tags
+│   ├── dam_app/
+│   │   ├── src/dam_app/
+│   │   │   ├── __init__.py
+│   │   │   └── cli.py       # Main CLI application
 │   │   └── ...
-│   └── ...
-├── tests/
-│   ├── __init__.py
-│   ├── test_comic_book_service.py
-│   ├── test_tag_service.py # Tests for tagging
-│   └── ...
+│   └── dam_psp/
+│       ├── src/dam_psp/
+│       │   ├── __init__.py  # Provides PspPlugin
+│       │   ├── models.py
+│       │   ├── service.py
+│       │   └── systems.py
+│       └── ...
 └── ... (other project files)
 ```
 
 ## Setup Instructions
 
 1.  **Clone, create venv, activate.**
-2.  **Install dependencies:** `pip install -e ."[dev,image]"` (or `uv pip install ...`)
+2.  **Install dependencies:** `uv pip install -e ."[dev,image]"`
+    * To include the PSP plugin, install with `uv pip install -e '.[dev,image,psp]'`
 3.  **Set up `.env`** from `.env.example`.
 4.  **Initialize database:** `dam-cli setup-db` (Alembic paused).
 
 ## Usage
+
+The main command-line interface is provided by the `dam_app` package.
 
 **General help:** `dam-cli --help`
 

@@ -47,123 +47,6 @@ class GlobalState:
 
 global_state = GlobalState()
 
-@app.callback(invoke_without_command=True)
-def main_callback(
-    ctx: typer.Context,
-    world: Annotated[
-        Optional[str],
-        typer.Option(
-            "--world",
-            "-w",
-            help="Name of the ECS world to operate on. Uses default world if not specified.",
-            envvar="DAM_CURRENT_WORLD",
-        ),
-    ] = None,
-):
-    setup_logging()
-    initialized_worlds: List[World] = []
-    try:
-        initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
-    except Exception as e:
-        typer.secho(f"Critical error: Could not initialize worlds from settings: {e}", fg=typer.colors.RED)
-        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-    for world_instance in initialized_worlds:
-        world_instance.add_plugin(DamPlugin())
-
-    try:
-        from dam_psp import PspPlugin
-        from dam_psp.systems import ingest_psp_isos_from_directory
-
-        for world_instance in initialized_worlds:
-            world_instance.add_plugin(PspPlugin())
-
-        @app.command(name="ingest-psp-isos")
-        async def cli_ingest_psp_isos(
-            ctx: typer.Context,
-            directory: Annotated[
-                str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)
-            ],
-            passwords: Annotated[
-                Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
-            ] = None,
-        ):
-            if not global_state.world_name:
-                typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
-            target_world = get_world(global_state.world_name)
-            if not target_world:
-                typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
-            typer.echo(f"Starting PSP ISO ingestion for world '{target_world.name}' from directory: {directory}")
-
-            async with target_world.db_session_maker() as session:
-                try:
-                    await ingest_psp_isos_from_directory(
-                        session=session,
-                        directory=directory,
-                        passwords=passwords,
-                    )
-                    await session.commit()
-                    typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
-                except Exception as e:
-                    await session.rollback()
-                    typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
-                    typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
-
-    except ImportError:
-        logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
-
-    target_world_name_candidate: Optional[str] = None
-    if world:
-        target_world_name_candidate = world
-    elif app_config.settings.DEFAULT_WORLD_NAME:
-        target_world_name_candidate = app_config.settings.DEFAULT_WORLD_NAME
-
-    global_state.world_name = target_world_name_candidate
-
-    if global_state.world_name:
-        selected_world_instance = get_world(global_state.world_name)
-        if selected_world_instance:
-            if ctx.invoked_subcommand:
-                typer.echo(f"Operating on world: '{global_state.world_name}'")
-        else:
-            if ctx.invoked_subcommand not in ["list-worlds"]:
-                typer.secho(
-                    f"Error: World '{global_state.world_name}' is specified or default, but it's not correctly configured or registered.",
-                    fg=typer.colors.RED,
-                )
-                registered_worlds_list = get_all_registered_worlds()
-                if registered_worlds_list:
-                    typer.echo("Available correctly configured worlds:")
-                    for w_instance in registered_worlds_list:
-                        typer.echo(f"  - {w_instance.name}")
-                else:
-                    typer.echo("No worlds appear to be correctly configured.")
-                raise typer.Exit(code=1)
-    elif ctx.invoked_subcommand not in ["list-worlds"]:
-        typer.secho(
-            "Error: No ECS world specified and no default world could be determined. "
-            "Use --world <world_name>, set DAM_DEFAULT_WORLD_NAME, or configure a 'default' world in DAM_WORLDS_CONFIG.",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(code=1)
-
-    if ctx.invoked_subcommand is None:
-        current_selection_info = (
-            f"Current default/selected world: '{global_state.world_name}' (Use --world to change)"
-            if global_state.world_name
-            else "No default world selected. Use --world <world_name> or see 'list-worlds'."
-        )
-        typer.echo(current_selection_info)
-        if not get_all_registered_worlds() and not app_config.settings.worlds:
-            typer.secho("No DAM worlds seem to be configured. Please set DAM_WORLDS_CONFIG.", fg=typer.colors.YELLOW)
-
-
 @app.command(name="list-worlds")
 def cli_list_worlds():
     """Lists all configured and registered ECS worlds."""
@@ -344,6 +227,122 @@ async def setup_db(ctx: typer.Context):
         typer.secho(f"Error during database setup for world '{target_world.name}': {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    world: Annotated[
+        Optional[str],
+        typer.Option(
+            "--world",
+            "-w",
+            help="Name of the ECS world to operate on. Uses default world if not specified.",
+            envvar="DAM_CURRENT_WORLD",
+        ),
+    ] = None,
+):
+    setup_logging()
+    initialized_worlds: List[World] = []
+    try:
+        initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
+    except Exception as e:
+        typer.secho(f"Critical error: Could not initialize worlds from settings: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    for world_instance in initialized_worlds:
+        world_instance.add_plugin(DamPlugin())
+
+    try:
+        from dam_psp import PspPlugin
+        from dam_psp.systems import ingest_psp_isos_from_directory
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(PspPlugin())
+
+        @app.command(name="ingest-psp-isos")
+        async def cli_ingest_psp_isos(
+            ctx: typer.Context,
+            directory: Annotated[
+                str, typer.Argument(..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True)
+            ],
+            passwords: Annotated[
+                Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
+            ] = None,
+        ):
+            if not global_state.world_name:
+                typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            target_world = get_world(global_state.world_name)
+            if not target_world:
+                typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            typer.echo(f"Starting PSP ISO ingestion for world '{target_world.name}' from directory: {directory}")
+
+            async with target_world.db_session_maker() as session:
+                try:
+                    await ingest_psp_isos_from_directory(
+                        session=session,
+                        directory=directory,
+                        passwords=passwords,
+                    )
+                    await session.commit()
+                    typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
+                except Exception as e:
+                    await session.rollback()
+                    typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
+                    typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+
+    except ImportError:
+        logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
+
+    target_world_name_candidate: Optional[str] = None
+    if world:
+        target_world_name_candidate = world
+    elif app_config.settings.DEFAULT_WORLD_NAME:
+        target_world_name_candidate = app_config.settings.DEFAULT_WORLD_NAME
+
+    global_state.world_name = target_world_name_candidate
+
+    if global_state.world_name:
+        selected_world_instance = get_world(global_state.world_name)
+        if selected_world_instance:
+            if ctx.invoked_subcommand:
+                typer.echo(f"Operating on world: '{global_state.world_name}'")
+        else:
+            if ctx.invoked_subcommand not in ["list-worlds"]:
+                typer.secho(
+                    f"Error: World '{global_state.world_name}' is specified or default, but it's not correctly configured or registered.",
+                    fg=typer.colors.RED,
+                )
+                registered_worlds_list = get_all_registered_worlds()
+                if registered_worlds_list:
+                    typer.echo("Available correctly configured worlds:")
+                    for w_instance in registered_worlds_list:
+                        typer.echo(f"  - {w_instance.name}")
+                else:
+                    typer.echo("No worlds appear to be correctly configured.")
+                raise typer.Exit(code=1)
+    elif ctx.invoked_subcommand not in ["list-worlds"]:
+        typer.secho(
+            "Error: No ECS world specified and no default world could be determined. "
+            "Use --world <world_name>, set DAM_DEFAULT_WORLD_NAME, or configure a 'default' world in DAM_WORLDS_CONFIG.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    if ctx.invoked_subcommand is None:
+        current_selection_info = (
+            f"Current default/selected world: '{global_state.world_name}' (Use --world to change)"
+            if global_state.world_name
+            else "No default world selected. Use --world <world_name> or see 'list-worlds'."
+        )
+        typer.echo(current_selection_info)
+        if not get_all_registered_worlds() and not app_config.settings.worlds:
+            typer.secho("No DAM worlds seem to be configured. Please set DAM_WORLDS_CONFIG.", fg=typer.colors.YELLOW)
 
 def run_cli_directly():
     clear_world_registry()

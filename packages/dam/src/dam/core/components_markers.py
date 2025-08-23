@@ -58,3 +58,11 @@ class MetadataExtractedComponent(BaseComponent):
 class NeedsAudioProcessingMarker(BaseComponent):
     __tablename__ = "component_marker_needs_audio_processing"
     marker_set: Mapped[bool] = mapped_column(default=True)
+
+class NeedsAutoTaggingMarker(BaseComponent):
+    __tablename__ = "component_marker_needs_auto_tagging"
+    pass
+
+class AutoTaggingCompleteMarker(BaseComponent):
+    __tablename__ = "component_marker_auto_tagging_complete"
+    pass

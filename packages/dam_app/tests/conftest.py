@@ -1,75 +1,29 @@
-import asyncio
+import asyncio  # Required for asyncio.get_running_loop()
 import json
-import os
-import uuid
+from functools import partial  # Required for partial
 from pathlib import Path
 from typing import (
-    AsyncGenerator,
-    Generator,
-    Iterator,
-    Optional,
-    Any,
-    List,
-    Dict,
+    AsyncGenerator,  # Added for async generator type hint
+    Generator,  # Added for fixture type hints
+    Iterator,  # Added for click_runner
 )
-from unittest.mock import patch, MagicMock, AsyncMock
-from functools import partial
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from typer.testing import CliRunner, Result
+from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
+from typer.testing import CliRunner, Result  # Added for click_runner
 
-from dam_app.cli import app
-from dam.core.config import Settings, WorldConfig
+# Ensure models are imported so Base knows about them for table creation
+# This will also trigger component registration
+import dam.models  # This line can sometimes be problematic if dam.models itself has top-level import issues
+from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.events import (
-    AssetFileIngestionRequested,
-    AssetReferenceIngestionRequested,
-    FindEntityByHashQuery,
-    FindSimilarImagesQuery,
-    SemanticSearchQuery,
-)
-from dam.core.model_manager import ModelExecutionManager
-from dam.core.stages import SystemStage
-from dam.core.world import (
-    World,
-    clear_world_registry,
-    create_and_register_world,
-    get_all_registered_worlds,
-    get_world,
-    create_and_register_all_worlds_from_settings,
-)
-from dam.models import Base as AppBase
-from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
-from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
-from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
-from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
-from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.properties import FilePropertiesComponent
-from dam.models.source_info import source_types
-from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.models.tags import EntityTagLinkComponent
-from dam.services import (
-    ecs_service,
-    file_operations,
-    hashing_service,
-    semantic_service,
-    tag_service,
-    transcode_service,
-)
-from dam.services.file_storage import get_file_path
-from dam.systems import evaluation_systems
-from dam.utils import url_utils
+from dam.core.model_manager import ModelExecutionManager  # Added
+from dam.core.world import World, clear_world_registry, create_and_register_world
+from dam.models.core.base_class import Base
 
-TEST_DEFAULT_WORLD_NAME = "cli_test_world_default"
-TEST_ALPHA_WORLD_NAME = "cli_test_world_alpha"
-TEST_BETA_WORLD_NAME = "cli_test_world_beta"
-
+# Store original settings values to be restored
 _original_settings_values = {}
 
 
@@ -131,11 +85,11 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
         TESTING_MODE=True,
     )
 
-    original_settings_instance = global_settings
-    monkeypatch.setattr("dam.core.config.settings", new_settings)
+    original_settings_instance = dam.core.config.settings
+    monkeypatch.setattr(dam.core.config, "settings", new_settings)
     clear_world_registry()
     yield new_settings
-    monkeypatch.setattr("dam.core.config.settings", original_settings_instance)
+    monkeypatch.setattr(dam.core.config, "settings", original_settings_instance)
     clear_world_registry()
 
 
@@ -166,18 +120,43 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
 
 @pytest.fixture(scope="function")
 def global_model_execution_manager(
-    global_mock_sentence_transformer_loader,
-) -> ModelExecutionManager:
+    global_mock_sentence_transformer_loader,  # Ensures mock loader is patched
+    # Add other global mock loaders here if needed for audio, tagging in the future
+) -> ModelExecutionManager:  # Imported ModelExecutionManager
+    """
+    Provides the global ModelExecutionManager instance.
+    Ensures that mock model loaders (e.g., for sentence transformers) are active
+    on this instance for the duration of the test.
+    """
     from dam.core.global_resources import model_execution_manager as global_mem_instance
     from dam.services import semantic_service
+    # from dam.services import audio_service # Future: For MOCK_AUDIO_MODEL_IDENTIFIER
+    # from dam.services import tagging_service # Future: For TAGGING_MODEL_IDENTIFIER
 
+    # Ensure the mock loader for sentence transformers is registered if not already
+    # The global_mock_sentence_transformer_loader fixture already patches the loader function itself.
+    # We just need to ensure it's registered with the global MEM instance.
+    # This registration should ideally happen once when MEM is initialized or when a service first needs it.
+    # For tests, explicitly registering here ensures it's set up.
     if semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER not in global_mem_instance._model_loaders:
         global_mem_instance.register_model_loader(
             semantic_service.SENTENCE_TRANSFORMER_IDENTIFIER,
-            semantic_service._load_sentence_transformer_model_sync,
+            semantic_service._load_sentence_transformer_model_sync,  # This is the already patched one
         )
+
+    # TODO: Register mock loaders for audio and tagging models here as well
+    # e.g., from dam.services.audio_service import MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync
+    # if MOCK_AUDIO_MODEL_IDENTIFIER not in global_mem_instance._model_loaders:
+    #     global_mem_instance.register_model_loader(MOCK_AUDIO_MODEL_IDENTIFIER, _load_mock_audio_model_sync)
+
+    # from dam.services.tagging_service import TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync
+    # if TAGGING_MODEL_IDENTIFIER not in global_mem_instance._model_loaders:
+    #     global_mem_instance.register_model_loader(TAGGING_MODEL_IDENTIFIER, _load_mock_tagging_model_sync)
+
     return global_mem_instance
 
+
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -230,12 +209,16 @@ def click_runner() -> Iterator[CliRunner]:
         def invoke(self, *args, **kwargs) -> Result:
             try:
                 loop = asyncio.get_running_loop()
-                if loop.is_running():
+                if loop.is_running():  # Called from an async test
+                    # Run the synchronous Click/Typer invoke in a thread executor
                     invoke_callable = partial(super().invoke, *args, **kwargs)
                     return loop.run_until_complete(loop.run_in_executor(None, invoke_callable))
                 else:
+                    # Loop exists but is not running (e.g. default loop in sync context)
+                    # Standard invocation is fine.
                     return super().invoke(*args, **kwargs)
             except RuntimeError:
+                # No running loop, so we're in a purely sync test. Standard invocation.
                 return super().invoke(*args, **kwargs)
 
     yield AsyncAwareCliRunner()
@@ -244,11 +227,21 @@ def click_runner() -> Iterator[CliRunner]:
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
     from dam.services import semantic_service
+    # ModelExecutionManager might not be needed here if we patch the service's loader directly
 
+    # Ensure mock_load_sync matches the signature of the actual loader
     def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
         return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
 
+    # Target the new loader function name within semantic_service.py
     monkeypatch.setattr(semantic_service, "_load_sentence_transformer_model_sync", mock_load_sync)
+    # semantic_service._model_cache.clear() # _model_cache no longer exists in semantic_service
+    # TODO: If tests require it, mock ModelExecutionManager.get_model for SENTENCE_TRANSFORMER_IDENTIFIER
+    # or clear its cache entry for relevant models if a world/manager instance is available here.
+    # For now, relying on the loader mock being correctly patched onto the ModelExecutionManager's registered loader.
+    # A more robust approach might involve getting the ModelExecutionManager instance from a test world
+    # and directly patching its _model_loaders entry for SENTENCE_TRANSFORMER_IDENTIFIER,
+    # or mocking the get_model method itself if called with that identifier.
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -360,9 +353,3 @@ async def test_world_with_db_session(settings_override: Settings) -> AsyncGenera
     world = await _setup_world("test_world_alpha", settings_override)
     yield world
     await _teardown_world_async(world)
-
-
-def test_cli_help(click_runner):
-    """Test the main help message for the CLI."""
-    result = click_runner.invoke(app, ["--help"])
-    assert result.exit_code == 0

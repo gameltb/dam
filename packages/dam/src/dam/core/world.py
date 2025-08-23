@@ -12,6 +12,7 @@ from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
 from dam.core.systems import WorldScheduler
+from dam.core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,10 @@ class World:
 
     def has_resource(self, resource_type: Type) -> bool:
         return self.resource_manager.has_resource(resource_type)
+
+    def add_plugin(self, plugin: Plugin) -> "World":
+        plugin.build(self)
+        return self
 
     def register_system(
         self,

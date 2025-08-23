@@ -33,6 +33,7 @@ The system is built upon the Entity-Component-System (ECS) pattern. This pattern
 - **Entities**: Unique identifiers for assets or concepts.
 - **Components**: Data-only classes describing aspects of entities.
 - **Systems**: Logic operating on entities based on their components.
+- **Plugins**: A modular, Bevy-like plugin system for extending functionality. Plugins are responsible for registering systems and resources with a `World`.
 
 For a comprehensive understanding of the ECS implementation, refer to the [Developer Guide](developer_guide.md).
 
@@ -243,6 +244,7 @@ This section outlines the roles and interactions of Services, Systems, and Resou
         *   `WorldContext`: Provides access to `WorldSession`, world name, and `WorldConfig`.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance, or specific model clients vended by it) and passing them as arguments to the service functions they call.
 -   **Execution**: Managed by the `WorldScheduler` based on stages or events. The `WorldScheduler` also handles session commits/rollbacks per stage or event cycle.
+-   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems.
 -   **Characteristics**:
     *   Should be stateless. All necessary data comes from injected dependencies or queried entities.
     *   Focus on orchestration and flow control.

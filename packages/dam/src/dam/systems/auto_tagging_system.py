@@ -15,20 +15,7 @@ from dam.services import ecs_service
 logger = logging.getLogger(__name__)
 
 
-# Define a specific marker for auto-tagging
-class NeedsAutoTaggingMarker(BaseComponent):  # Inherit from BaseComponent
-    __tablename__ = "component_marker_needs_auto_tagging"  # Needs a tablename
-    # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
-    # Add any specific fields if needed for this marker, e.g., model_to_use
-    # model_name_to_apply: str = "wd-v1-4-moat-tagger-v2" # Could be a field in the marker
-    pass  # No extra fields needed for now
-
-
-class AutoTaggingCompleteMarker(BaseComponent):  # Inherit from BaseComponent
-    __tablename__ = "component_marker_auto_tagging_complete"  # Needs a tablename
-    # processing_scope: ProcessingScope = ProcessingScope.SINGLE_ENTITY # ProcessingScope removed
-    # model_name_applied: str # Store which model was applied
-    pass  # No extra fields needed for now
+from dam.core.components_markers import NeedsAutoTaggingMarker, AutoTaggingCompleteMarker
 
 
 @system(stage=SystemStage.CONTENT_ANALYSIS)  # Removed depends_on_resources

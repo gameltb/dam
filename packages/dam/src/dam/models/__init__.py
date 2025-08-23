@@ -1,7 +1,7 @@
 # This file makes the 'models' directory a Python package.
 
 # Ensure all model modules are imported so they register with Base.metadata
-from ..core.components_markers import NeedsAudioProcessingMarker, NeedsMetadataExtractionComponent, MetadataExtractedComponent
+from ..core.components_markers import NeedsAudioProcessingMarker, NeedsMetadataExtractionComponent, MetadataExtractedComponent, NeedsAutoTaggingMarker, AutoTaggingCompleteMarker
 
 # Conceptual components
 # Import the concrete components that are intended for direct use/instantiation
