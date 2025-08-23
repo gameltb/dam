@@ -1,6 +1,6 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
-from dam.core.events import WebAssetIngestionRequested
+from .events import WebAssetIngestionRequested
 
 from .systems.web_asset_systems import handle_web_asset_ingestion_request
 

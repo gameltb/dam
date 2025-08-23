@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from dam.core.plugin import Plugin
 
+from .events import SemanticSearchQuery
+
 if TYPE_CHECKING:
     from dam.core.world import World
 
@@ -30,4 +32,4 @@ class SemanticPlugin(Plugin):
         world.register_system(systems.generate_embeddings_system)
 
 
-__all__ = ["SemanticPlugin"]
+__all__ = ["SemanticPlugin", "SemanticSearchQuery"]

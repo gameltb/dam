@@ -1,16 +1,13 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from dam.models.tags import (
     ModelGeneratedTagLinkComponent,
 )
-from dam.services import tag_service as existing_tag_service
 from dam_sire.resource import SireResource
 from sire.core.runtime_resource_management import AutoManageWrapper
 from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

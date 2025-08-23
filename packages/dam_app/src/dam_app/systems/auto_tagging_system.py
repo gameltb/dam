@@ -14,9 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 from dam.core.components_markers import NeedsAutoTaggingMarker
-
-
 from dam_sire.resource import SireResource
+
 
 @system(stage=SystemStage.CONTENT_ANALYSIS)
 async def auto_tag_entities_system(
@@ -33,8 +32,9 @@ async def auto_tag_entities_system(
         logger.debug("No entities marked for auto-tagging in this cycle.")
         return
 
-    from dam_app.services import tagging_service as tagging_service_module
     from dam.utils.media_utils import get_file_path_for_entity
+
+    from dam_app.services import tagging_service as tagging_service_module
 
     for entity in marked_entities:
         marker = await ecs_service.get_component(session, entity.id, NeedsAutoTaggingMarker)

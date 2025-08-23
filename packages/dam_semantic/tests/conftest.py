@@ -116,8 +116,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world)
 
 
-
-
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -189,7 +187,9 @@ def click_runner() -> Iterator[CliRunner]:
 @pytest.fixture
 def sire_resource():
     from dam_sire.resource import SireResource
+
     return SireResource()
+
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):

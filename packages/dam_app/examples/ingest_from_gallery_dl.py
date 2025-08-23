@@ -32,8 +32,6 @@ import logging
 from pathlib import Path
 
 import typer
-from typing_extensions import Annotated
-
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
@@ -49,9 +47,10 @@ from dam.models import (
     WebsiteProfileComponent,  # Needed if creating website entities
     WebSourceComponent,
 )
-from dam_source.models.source_info import source_types
-from dam_fs.resources.file_storage_resource import FileStorageResource
 from dam.services import ecs_service, file_operations
+from dam_fs.resources.file_storage_resource import FileStorageResource
+from dam_source.models.source_info import source_types
+from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
 cli_app = typer.Typer()

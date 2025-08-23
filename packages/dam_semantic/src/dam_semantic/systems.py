@@ -1,13 +1,14 @@
 import logging
 from typing import Annotated, Dict, List  # Added Annotated
 
-from dam.core.events import AudioSearchQuery, SemanticSearchQuery  # Added AudioSearchQuery
 from dam.core.stages import SystemStage  # For scheduling embedding generation
 from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
 from dam.core.systems import listens_for, system
+from dam_media_audio.events import AudioSearchQuery
 from dam_media_audio.services import audio_service
 
 from . import service as semantic_service
+from .events import SemanticSearchQuery
 
 # Placeholder for components that might trigger embedding generation
 
@@ -28,6 +29,7 @@ TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
 
 
 from dam_sire.resource import SireResource
+
 
 @system(stage=SystemStage.POST_PROCESSING)
 async def generate_embeddings_system(

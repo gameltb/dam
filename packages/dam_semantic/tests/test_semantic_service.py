@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 # ModelExecutionManager fixture from conftest.py
-
 from dam_semantic import service as semantic_service
 
 # Models to be tested (actual specific component classes)

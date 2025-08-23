@@ -125,8 +125,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world)
 
 
-
-
 import numpy as np
 
 

@@ -5,19 +5,13 @@ import numpy as np
 from dam.models.core.entity import Entity
 
 # Import necessary tag components and service to fetch tags
-from dam.models.tags import ModelGeneratedTagLinkComponent, TagConceptComponent
-from dam.services import ecs_service
-from dam.services.tag_service import get_tags_for_entity  # For manual tags
+from dam_sire.resource import SireResource
 from sentence_transformers import SentenceTransformer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam_sire.resource import SireResource
 from .models import (
-    EMBEDDING_MODEL_REGISTRY,
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
-    get_embedding_component_class,
 )
 
 logger = logging.getLogger(__name__)

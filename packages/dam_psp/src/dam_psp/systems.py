@@ -1,3 +1,4 @@
+import logging
 import os
 import zipfile
 from io import BytesIO
@@ -5,6 +6,9 @@ from pathlib import Path
 from typing import List, Optional
 
 import py7zr
+from dam.core.config import WorldConfig
+from dam.core.system_params import WorldSession
+from dam.core.systems import listens_for
 from dam.models.core import Entity
 from dam.models.hashes import (
     ContentHashCRC32Component,
@@ -13,11 +17,74 @@ from dam.models.hashes import (
     ContentHashSHA256Component,
 )
 from dam.services import ecs_service, hashing_service
+from dam_fs.services import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import service as psp_iso_service
+from .events import PspIsoAssetDetected
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
+
+logger = logging.getLogger(__name__)
+
+
+@listens_for(PspIsoAssetDetected)
+async def process_psp_iso_system(
+    event: PspIsoAssetDetected,
+    session: WorldSession,
+    world_config: WorldConfig,
+):
+    """
+    Listens for a PSP ISO asset being detected and extracts its SFO metadata.
+    """
+    logger.info(f"Processing PSP ISO metadata for entity {event.entity.id}")
+
+    try:
+        # Skip Logic
+        existing_component = await ecs_service.get_component(session, event.entity.id, PSPSFOMetadataComponent)
+        if existing_component:
+            logger.info(f"Entity {event.entity.id} already has PSPSFOMetadataComponent. Skipping.")
+            return
+
+        # Get file path from file_id
+        file_path = await file_operations.get_file_path_by_id(session, event.file_id, world_config.ASSET_STORAGE_PATH)
+        if not file_path:
+            logger.warning(
+                f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process ISO."
+            )
+            return
+
+        # Extract metadata
+        with open(file_path, "rb") as f:
+            sfo = psp_iso_service.process_iso_stream(f)
+
+        if sfo and sfo.data:
+            sfo_metadata = sfo.data
+            sfo_component = PSPSFOMetadataComponent(
+                app_ver=sfo_metadata.get("APP_VER"),
+                bootable=sfo_metadata.get("BOOTABLE"),
+                category=sfo_metadata.get("CATEGORY"),
+                disc_id=sfo_metadata.get("DISC_ID"),
+                disc_version=sfo_metadata.get("DISC_VERSION"),
+                parental_level=sfo_metadata.get("PARENTAL_LEVEL"),
+                psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
+                title=sfo_metadata.get("TITLE"),
+            )
+            await ecs_service.add_component_to_entity(session, event.entity.id, sfo_component)
+
+            sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
+            await ecs_service.add_component_to_entity(session, event.entity.id, sfo_raw_component)
+
+            logger.info(f"Successfully added PSPSFOMetadataComponent to entity {event.entity.id}.")
+        else:
+            logger.warning(f"Could not extract SFO metadata from ISO for entity {event.entity.id}.")
+
+    except Exception as e:
+        logger.error(
+            f"Failed during PSP ISO metadata processing for entity {event.entity.id}: {e}",
+            exc_info=True,
+        )
+        raise
 
 
 async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream: BytesIO) -> None:

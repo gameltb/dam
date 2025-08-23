@@ -3,21 +3,15 @@ import logging
 # --- Core System Registration (merged from world_registrar.py) ---
 from typing import TYPE_CHECKING
 
+from dam_fs.resources.file_storage_resource import FileStorageResource
+
 from dam.core.config import settings as global_app_settings  # WorldConfig no longer needed here directly
 from dam.core.database import DatabaseManager
 
 # Moved these imports to the top of the file, outside of the TYPE_CHECKING block
 # to resolve E402 errors, as they are needed at runtime for registration.
-from dam.core.events import (
-    AssetFileIngestionRequested,
-    AssetReferenceIngestionRequested,
-    FindEntityByHashQuery,
-    SemanticSearchQuery,
-)
 from dam.core.resources import FileOperationsResource, HashingServiceResource
-from dam.core.stages import SystemStage
 from dam.core.world import World
-from dam_fs.resources.file_storage_resource import FileStorageResource
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -69,7 +63,6 @@ def initialize_world_resources(world: World) -> None:
     # 5. HashingServiceResource
     resource_manager.add_resource(HashingServiceResource())
     world.logger.debug(f"Added HashingServiceResource for World '{world_name}'.")
-
 
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"

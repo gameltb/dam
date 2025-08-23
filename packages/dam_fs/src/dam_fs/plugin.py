@@ -1,6 +1,6 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
-from dam.core.events import (
+from .events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,

@@ -150,8 +150,8 @@ Similar to text embeddings, the system supports storing and searching audio embe
     *   Uses `AudioService` to generate embeddings.
     *   Relies on `dam.utils.media_utils.get_file_path_for_entity` to locate the audio file for an entity.
 -   **Events**:
-    *   `AudioSearchQuery` (in `dam.core.events.py`): Used to request an audio similarity search.
-    *   Handled by `handle_audio_search_query` in `dam.systems.semantic_systems.py`, which calls the `AudioService`.
+    *   `AudioSearchQuery` (in `dam_media_audio.events`): Used to request an audio similarity search.
+    *   Handled by `handle_audio_search_query` in `dam_semantic.systems`, which calls the `AudioService`.
 
 #### Adding a New Audio Embedding Model
 

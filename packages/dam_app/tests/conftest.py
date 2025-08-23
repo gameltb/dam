@@ -99,12 +99,15 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     register_core_systems(world)
 
     from dam_app.plugin import AppPlugin
+
     world.add_plugin(AppPlugin())
 
     from dam_fs import FsPlugin
+
     world.add_plugin(FsPlugin())
 
     from dam_source import SourcePlugin
+
     world.add_plugin(SourcePlugin())
 
     return world
@@ -124,8 +127,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     world = await _setup_world("test_world_alpha", settings_override)
     yield world
     await _teardown_world_async(world)
-
-
 
 
 from typing import Any, Dict, Optional
@@ -199,7 +200,9 @@ def click_runner() -> Iterator[CliRunner]:
 @pytest.fixture
 def sire_resource():
     from dam_sire.resource import SireResource
+
     return SireResource()
+
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):

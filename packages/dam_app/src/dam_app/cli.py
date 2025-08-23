@@ -1,21 +1,16 @@
 # --- Framework Imports for Systems ---
 import asyncio
+import io
 import logging
 import traceback  # Import traceback for detailed error logging
 import uuid  # For generating request_ids
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import typer  # Ensure typer is imported for annotations like typer.Context
 from dam import DamPlugin
 from dam.core import config as app_config
-from dam.core.events import (
-    AssetFileIngestionRequested,
-    AssetReferenceIngestionRequested,
-    SemanticSearchQuery,  # For semantic search CLI
-)
 from dam.core.logging_config import setup_logging
-from dam.core.stages import SystemStage
 from dam.core.world import (
     World,
     clear_world_registry,
@@ -23,10 +18,13 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
-from dam_fs.models import FilePropertiesComponent
 from dam.services import ecs_service as dam_ecs_service
 from dam.utils.async_typer import AsyncTyper
+from dam_fs.models import FilePropertiesComponent
+from dam_semantic.events import SemanticSearchQuery  # For semantic search CLI
 from typing_extensions import Annotated
+
+from .events import AssetStreamIngestionRequested
 
 app = AsyncTyper(
     name="dam-cli",
@@ -93,18 +91,14 @@ async def cli_add_asset(
             resolve_path=True,
         ),
     ],
-    no_copy: Annotated[
-        bool,
-        typer.Option(
-            "--no-copy",
-            help="Add asset(s) by reference, without copying to DAM storage.",
-        ),
-    ] = False,
     recursive: Annotated[
         bool,
         typer.Option("-r", "--recursive", help="Process directory recursively."),
     ] = False,
 ):
+    """
+    Adds one or more assets to the DAM, initiating the new event-driven ingestion pipeline.
+    """
     if not global_state.world_name:
         typer.secho("Error: No world selected for add-asset. Use --world <world_name>.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -122,16 +116,9 @@ async def cli_add_asset(
     if input_path.is_file():
         files_to_process.append(input_path)
     elif input_path.is_dir():
-        typer.echo(f"Processing directory: {input_path} for world '{global_state.world_name}'")
-        pattern = "*"
-        if recursive:
-            for item in input_path.rglob(pattern):
-                if item.is_file():
-                    files_to_process.append(item)
-        else:
-            for item in input_path.glob(pattern):
-                if item.is_file():
-                    files_to_process.append(item)
+        typer.echo(f"Scanning directory: {input_path} for world '{global_state.world_name}'")
+        pattern = "**/*" if recursive else "*"
+        files_to_process.extend(p for p in input_path.glob(pattern) if p.is_file())
         if not files_to_process:
             typer.secho(f"No files found in {input_path}", fg=typer.colors.YELLOW)
             raise typer.Exit()
@@ -144,61 +131,44 @@ async def cli_add_asset(
 
     processed_count = 0
     error_count = 0
-    from dam_fs.services import file_operations
 
-    for filepath in files_to_process:
-        processed_count += 1
-        typer.echo(
-            f"\nProcessing file {processed_count}/{total_files}: {filepath.name} (world: '{global_state.world_name}')"
-        )
-        try:
-            original_filename, size_bytes = file_operations.get_file_properties(filepath)
-        except Exception as e:
-            typer.secho(f"  Error getting properties for {filepath}: {e}", fg=typer.colors.RED)
-            error_count += 1
-            continue
+    async with target_world.db_session_maker() as session:
+        for filepath in files_to_process:
+            processed_count += 1
+            typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name}")
+            try:
+                # Create a new entity for this asset first
+                entity = await dam_ecs_service.create_entity(session)
+                await session.flush()  # Ensure entity gets an ID
 
-        event_to_dispatch: Optional[Any] = None
-        if no_copy:
-            event_to_dispatch = AssetReferenceIngestionRequested(
-                filepath_on_disk=filepath,
-                original_filename=original_filename,
-                size_bytes=size_bytes,
-                world_name=target_world.name,
-            )
-        else:
-            event_to_dispatch = AssetFileIngestionRequested(
-                filepath_on_disk=filepath,
-                original_filename=original_filename,
-                size_bytes=size_bytes,
-                world_name=target_world.name,
-            )
+                # Read file content into an in-memory stream
+                with open(filepath, "rb") as f:
+                    file_content_stream = io.BytesIO(f.read())
 
-        try:
+                # Create and dispatch the initial event
+                event = AssetStreamIngestionRequested(
+                    entity=entity,
+                    file_content=file_content_stream,
+                    original_filename=filepath.name,
+                    world_name=target_world.name,
+                )
 
-            async def dispatch_and_run_stages():
-                if event_to_dispatch:
-                    await target_world.dispatch_event(event_to_dispatch)
-                    typer.secho(
-                        f"  Dispatched {type(event_to_dispatch).__name__} for {original_filename}.",
-                        fg=typer.colors.BLUE,
-                    )
-                    typer.echo(
-                        f"  Running post-ingestion systems (e.g., metadata extraction) in world '{target_world.name}'..."
-                    )
-                    await target_world.execute_stage(SystemStage.METADATA_EXTRACTION)
-                    typer.secho(f"  Post-ingestion systems completed for {original_filename}.", fg=typer.colors.GREEN)
+                await target_world.send_event(event)
 
-            await dispatch_and_run_stages()
+                # The event pipeline now handles everything. We just need to commit the session.
+                await session.commit()
+                typer.secho(f"  Successfully dispatched ingestion event for '{filepath.name}'.", fg=typer.colors.GREEN)
 
-        except Exception as e:
-            typer.secho(f"  Error processing file {filepath.name} via event system: {e}", fg=typer.colors.RED)
-            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-            error_count += 1
+            except Exception as e:
+                await session.rollback()
+                typer.secho(f"  Error processing file {filepath.name}: {e}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                error_count += 1
+                # Continue to next file
 
     typer.echo("\n--- Summary ---")
     typer.echo(f"World: '{target_world.name}'")
-    typer.echo(f"Total files processed: {processed_count}")
+    typer.echo(f"Total files attempted: {processed_count}")
     typer.echo(f"Errors encountered: {error_count}")
     if error_count > 0:
         typer.secho("Some files could not be processed. Check errors above.", fg=typer.colors.RED)
@@ -254,6 +224,7 @@ def main_callback(
         world_instance.add_plugin(DamPlugin())
 
     from dam_app.plugin import AppPlugin
+
     for world_instance in initialized_worlds:
         world_instance.add_plugin(AppPlugin())
 

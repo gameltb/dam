@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from dam.core.events import WebAssetIngestionRequested
+from ..events import WebAssetIngestionRequested
 from dam.core.system_params import WorldSession
 from dam.core.systems import listens_for
 from dam.models.core.entity import Entity

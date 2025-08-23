@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from dam.core.config import WorldConfig
-from dam.core.events import (
+from ..events import (
     AssetFileIngestionRequested,
     AssetReferenceIngestionRequested,
     FindEntityByHashQuery,

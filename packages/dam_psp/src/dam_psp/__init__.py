@@ -4,8 +4,13 @@ from typing import TYPE_CHECKING
 
 from dam.core.plugin import Plugin
 
+from .events import PspIsoAssetDetected
+
 if TYPE_CHECKING:
     from dam.core.world import World
+
+
+from .systems import process_psp_iso_system
 
 
 class PspPlugin(Plugin):
@@ -17,9 +22,7 @@ class PspPlugin(Plugin):
         """
         Builds the PSP plugin.
         """
-        # For now, this plugin doesn't register any systems.
-        # The ingestion logic is called directly from the CLI.
-        pass
+        world.register_system(process_psp_iso_system, event_type=PspIsoAssetDetected)
 
 
-__all__ = ["PspPlugin"]
+__all__ = ["PspPlugin", "PspIsoAssetDetected"]

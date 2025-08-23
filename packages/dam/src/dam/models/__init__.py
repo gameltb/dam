@@ -21,6 +21,7 @@ from .conceptual.page_link import PageLink
 from .core.base_class import Base
 from .core.base_component import BaseComponent
 from .core.entity import Entity
+
 # Hash components
 from .hashes.content_hash_md5_component import ContentHashMD5Component
 from .hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -29,7 +30,6 @@ from .hashes.content_hash_sha256_component import ContentHashSHA256Component
 from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Property components
-
 # Semantic components
 # Source info components
 from .tags.entity_tag_link_component import EntityTagLinkComponent

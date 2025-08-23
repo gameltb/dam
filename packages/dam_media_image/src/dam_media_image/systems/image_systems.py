@@ -5,16 +5,17 @@ from typing import Annotated, List
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
-from dam.core.events import FindSimilarImagesQuery
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldSession
 from dam.core.systems import listens_for, system
 from dam.models.core.entity import Entity
 from dam_fs.models.file_location_component import FileLocationComponent
+from ..events import FindSimilarImagesQuery
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service, hashing_service
 from dam_fs.services import file_operations
 from dam.utils.url_utils import get_local_path_for_url
+from dam_media_image.events import ImageAssetDetected
 
 from dam_media_image.models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
 from dam_media_image.models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
@@ -194,3 +195,48 @@ async def handle_find_similar_images_query(
         )
         if not event.result_future.done():
             event.result_future.set_exception(e)
+
+
+@listens_for(ImageAssetDetected)
+async def process_image_metadata_system(
+    event: ImageAssetDetected,
+    session: WorldSession,
+    world_config: WorldConfig,
+):
+    """
+    Listens for an image asset being detected and extracts its metadata.
+    """
+    from PIL import Image
+
+    logger.info(f"Processing image metadata for entity {event.entity.id}")
+
+    try:
+        # Skip Logic
+        existing_component = await ecs_service.get_component(session, event.entity.id, ImageDimensionsComponent)
+        if existing_component:
+            logger.info(f"Entity {event.entity.id} already has ImageDimensionsComponent. Skipping.")
+            return
+
+        # Get file path from file_id
+        file_path = await file_operations.get_file_path_by_id(session, event.file_id, world_config.ASSET_STORAGE_PATH)
+        if not file_path:
+            logger.warning(f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process image metadata.")
+            return
+
+        # Extract metadata
+        with Image.open(file_path) as img:
+            width, height = img.size
+            mode = img.mode
+
+        # Add component
+        dimensions_component = ImageDimensionsComponent(width=width, height=height, mode=mode)
+        await ecs_service.add_component_to_entity(session, event.entity.id, dimensions_component)
+
+        logger.info(f"Successfully added ImageDimensionsComponent to entity {event.entity.id}.")
+
+    except Exception as e:
+        logger.error(
+            f"Failed during image metadata processing for entity {event.entity.id}: {e}",
+            exc_info=True,
+        )
+        raise
