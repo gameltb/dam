@@ -96,7 +96,7 @@ class FileOperationsResource:
     A resource that provides access to file system operations.
 
     This class acts as a wrapper around the functions defined in the
-    `dam.services.file_operations` module. It makes these operations
+    `dam_fs.services.file_operations` module. It makes these operations
     available for dependency injection into systems via the `ResourceManager`.
 
     Systems can request this resource by type-hinting a parameter:
@@ -106,10 +106,10 @@ class FileOperationsResource:
     def __init__(self):
         """
         Initializes the FileOperationsResource by binding methods to the
-        functions from the `dam.services.file_operations` module.
+        functions from the `dam_fs.services.file_operations` module.
         """
         # Import functions from the file_operations service
-        from dam.services import file_operations as ops
+        from dam_fs.services import file_operations as ops
 
         # Make functions available as methods of this resource instance
         self.get_file_properties = ops.get_file_properties
@@ -119,7 +119,7 @@ class FileOperationsResource:
         self.get_mime_type_async = ops.get_mime_type_async
         # Add other relevant functions from file_operations as needed by systems.
 
-    # Note: If dam.services.file_operations was a class, this resource could simply
+    # Note: If dam_fs.services.file_operations was a class, this resource could simply
     # be an instance of that class, or this class could inherit from it.
     # Since it's a module of functions, this wrapper approach is used to make
     # them available as an injectable resource object.

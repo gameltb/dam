@@ -1,7 +1,7 @@
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent  # Corrected import
+from dam.models.core import BaseComponent
 from . import source_types
 
 
@@ -32,7 +32,7 @@ class OriginalSourceInfoComponent(BaseComponent):
         nullable=False,
         index=True,
         comment=(
-            "Type classifying the source. See dam.models.source_info.source_types for defined constants "
+            "Type classifying the source. See dam_source.models.source_info.source_types for defined constants "
             f"(e.g., '{source_types.SOURCE_TYPE_LOCAL_FILE}', '{source_types.SOURCE_TYPE_REFERENCED_FILE}', "
             f"'{source_types.SOURCE_TYPE_WEB_SOURCE}', '{source_types.SOURCE_TYPE_PRIMARY_FILE}')."
         ),

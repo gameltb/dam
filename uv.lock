@@ -14,11 +14,13 @@ resolution-markers = [
 members = [
     "dam",
     "dam-app",
+    "dam-fs",
     "dam-media-audio",
     "dam-media-image",
     "dam-media-transcode",
     "dam-psp",
     "dam-semantic",
+    "dam-source",
     "domarkx",
     "sire",
     "sire-pipelines",
@@ -819,7 +821,6 @@ version = "0.1.0"
 source = { editable = "packages/dam" }
 dependencies = [
     { name = "aiosqlite" },
-    { name = "alembic" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -855,7 +856,6 @@ metadata = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite" },
-    { name = "alembic" },
     { name = "dam", extras = ["all-transcode"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["audio"], marker = "extra == 'all'", editable = "packages/dam" },
     { name = "dam", extras = ["dev"], marker = "extra == 'all'", editable = "packages/dam" },
@@ -883,6 +883,7 @@ name = "dam-app"
 version = "0.1.0"
 source = { editable = "packages/dam_app" }
 dependencies = [
+    { name = "alembic" },
     { name = "dam" },
 ]
 
@@ -912,6 +913,7 @@ transcode = [
 
 [package.metadata]
 requires-dist = [
+    { name = "alembic" },
     { name = "dam", editable = "packages/dam" },
     { name = "dam-app", extras = ["audio"], marker = "extra == 'all'", editable = "packages/dam_app" },
     { name = "dam-app", extras = ["image"], marker = "extra == 'all'", editable = "packages/dam_app" },
@@ -925,6 +927,28 @@ requires-dist = [
     { name = "dam-semantic", marker = "extra == 'semantic'", editable = "packages/dam_semantic" },
 ]
 provides-extras = ["image", "audio", "transcode", "psp", "semantic", "all"]
+
+[[package]]
+name = "dam-fs"
+version = "0.1.0"
+source = { editable = "packages/dam_fs" }
+dependencies = [
+    { name = "dam" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dam-media-audio"
@@ -1037,6 +1061,28 @@ requires-dist = [
     { name = "numpy" },
     { name = "sentence-transformers" },
 ]
+
+[[package]]
+name = "dam-source"
+version = "0.1.0"
+source = { editable = "packages/dam_source" }
+dependencies = [
+    { name = "dam" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dataclasses-json"

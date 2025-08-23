@@ -11,13 +11,14 @@ from typing import Optional
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.world import World
 from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
+from dam_fs.models.file_location_component import FileLocationComponent
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.models.properties.file_properties_component import FilePropertiesComponent
-from dam.models.source_info import source_types
-from dam.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import ecs_service, file_operations, hashing_service
+from dam_fs.models.file_properties_component import FilePropertiesComponent
+from dam_source.models.source_info import source_types
+from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+from dam.services import ecs_service, hashing_service
+from dam_fs.services import file_operations
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ async def import_local_file(
 
         # Handle File Location and Original Source
         if copy_to_storage:
-            from dam.resources.file_storage_resource import FileStorageResource
+            from dam_fs.resources.file_storage_resource import FileStorageResource
 
             file_storage = world.get_resource(FileStorageResource)
             try:

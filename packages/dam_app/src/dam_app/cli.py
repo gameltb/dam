@@ -23,7 +23,7 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
-from dam.models.properties import FilePropertiesComponent
+from dam_fs.models import FilePropertiesComponent
 from dam.services import ecs_service as dam_ecs_service
 from dam.utils.async_typer import AsyncTyper
 from typing_extensions import Annotated
@@ -144,7 +144,7 @@ async def cli_add_asset(
 
     processed_count = 0
     error_count = 0
-    from dam.services import file_operations
+    from dam_fs.services import file_operations
 
     for filepath in files_to_process:
         processed_count += 1
@@ -252,6 +252,26 @@ def main_callback(
 
     for world_instance in initialized_worlds:
         world_instance.add_plugin(DamPlugin())
+
+    from dam_app.plugin import AppPlugin
+    for world_instance in initialized_worlds:
+        world_instance.add_plugin(AppPlugin())
+
+    try:
+        from dam_fs import FsPlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(FsPlugin())
+    except ImportError:
+        logging.info("dam_fs plugin not installed. Skipping fs functionality.")
+
+    try:
+        from dam_source import SourcePlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(SourcePlugin())
+    except ImportError:
+        logging.info("dam_source plugin not installed. Skipping source functionality.")
 
     try:
         from dam_media_image import ImagePlugin

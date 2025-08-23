@@ -15,8 +15,8 @@ from dam.core.world import World
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
-from dam.models.properties.file_properties_component import FilePropertiesComponent  # Added import
+from dam_fs.models.file_location_component import FileLocationComponent
+from dam_fs.models.file_properties_component import FilePropertiesComponent  # Added import
 from dam.services import (
     ecs_service,
     file_operations,

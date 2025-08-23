@@ -8,7 +8,7 @@ from dam.core.stages import SystemStage
 from dam.core.system_params import WorldSession
 from dam.core.systems import system
 from dam.models.core.entity import Entity
-from dam.models.core.file_location_component import FileLocationComponent
+from dam_fs.models.file_location_component import FileLocationComponent
 from dam.services import ecs_service, file_operations
 from dam.utils.url_utils import get_local_path_for_url
 

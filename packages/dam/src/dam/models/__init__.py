@@ -21,8 +21,6 @@ from .conceptual.page_link import PageLink
 from .core.base_class import Base
 from .core.base_component import BaseComponent
 from .core.entity import Entity
-from .core.file_location_component import FileLocationComponent
-
 # Hash components
 from .hashes.content_hash_md5_component import ContentHashMD5Component
 from .hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -31,13 +29,9 @@ from .hashes.content_hash_sha256_component import ContentHashSHA256Component
 from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Property components
-from .properties.file_properties_component import FilePropertiesComponent
 
 # Semantic components
 # Source info components
-from .source_info.original_source_info_component import OriginalSourceInfoComponent
-from .source_info.web_source_component import WebSourceComponent
-from .source_info.website_profile_component import WebsiteProfileComponent
 from .tags.entity_tag_link_component import EntityTagLinkComponent
 from .tags.model_generated_tag_link_component import ModelGeneratedTagLinkComponent
 
@@ -53,18 +47,13 @@ __all__ = [
     "Base",
     "Entity",
     "BaseComponent",
-    "FileLocationComponent",
     # Hashes
     "ContentHashMD5Component",
     "ContentHashSHA256Component",
     # Properties
-    "FilePropertiesComponent",
     # Metadata
     "ExiftoolMetadataComponent",
     # Source Info
-    "OriginalSourceInfoComponent",
-    "WebSourceComponent",
-    "WebsiteProfileComponent",
     # Conceptual (Concrete Components and Association Objects)
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",

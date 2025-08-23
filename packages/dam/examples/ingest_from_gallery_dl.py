@@ -49,8 +49,8 @@ from dam.models import (
     WebsiteProfileComponent,  # Needed if creating website entities
     WebSourceComponent,
 )
-from dam.models.source_info import source_types
-from dam.resources.file_storage_resource import FileStorageResource
+from dam_source.models.source_info import source_types
+from dam_fs.resources.file_storage_resource import FileStorageResource
 from dam.services import ecs_service, file_operations
 
 logger = logging.getLogger(__name__)
@@ -360,6 +360,6 @@ if __name__ == "__main__":
 # The `register_core_systems` call in `main` should handle this if FileStorageResource
 # is part of the core resources.
 
-# Also, ensure `dam.models.source_info.source_types` is accessible.
-# Add `from dam.models.source_info import source_types` to where it's used.
+# Also, ensure `dam_source.models.source_info.source_types` is accessible.
+# Add `from dam_source.models.source_info import source_types` to where it's used.
 # This was done in the script.

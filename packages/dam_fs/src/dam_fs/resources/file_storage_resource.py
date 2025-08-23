@@ -2,13 +2,13 @@ from pathlib import Path
 from typing import Optional
 
 from dam.core.config import WorldConfig
-from dam.services import file_storage  # Import the module with functions
+from dam_fs.services import file_storage  # Import the module with functions
 
 
 class FileStorageResource:
     """
     A resource class that provides file storage operations, configured per world.
-    It wraps the functional implementation in `dam.services.file_storage`.
+    It wraps the functional implementation in `dam_fs.services.file_storage`.
     """
 
     def __init__(self, world_config: WorldConfig):

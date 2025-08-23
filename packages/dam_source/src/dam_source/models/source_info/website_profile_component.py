@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from sqlalchemy import JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent  # Corrected import
+from dam.models.core import BaseComponent
 
 
 class WebsiteProfileComponent(BaseComponent):

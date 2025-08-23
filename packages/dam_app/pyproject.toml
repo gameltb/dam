@@ -23,6 +23,7 @@ classifiers = [
 
 dependencies = [
     "dam",
+    "alembic",
 ]
 
 [project.optional-dependencies]

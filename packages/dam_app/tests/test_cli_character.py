@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from dam.core.world import World
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
-from dam.models.properties import FilePropertiesComponent  # For creating dummy assets
+from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
 from dam.services import character_service, ecs_service
 
 
@@ -188,7 +188,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     # 1. Add an asset via service calls to ensure it's properly ingested with hashes
     from dam.core.events import AssetFileIngestionRequested
     from dam.core.stages import SystemStage
-    from dam.services import file_operations
+    from dam_fs.services import file_operations
 
     original_filename, size_bytes = file_operations.get_file_properties(sample_image_a)
     add_event = AssetFileIngestionRequested(

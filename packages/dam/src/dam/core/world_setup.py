@@ -14,11 +14,10 @@ from dam.core.events import (
     FindEntityByHashQuery,
     SemanticSearchQuery,
 )
-from dam.core.model_manager import ModelExecutionManager  # Added ModelExecutionManager
 from dam.core.resources import FileOperationsResource, HashingServiceResource
 from dam.core.stages import SystemStage
 from dam.core.world import World
-from dam.resources.file_storage_resource import FileStorageResource
+from dam_fs.resources.file_storage_resource import FileStorageResource
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -71,20 +70,6 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(HashingServiceResource())
     world.logger.debug(f"Added HashingServiceResource for World '{world_name}'.")
 
-    # 6. ModelExecutionManager
-    # Use the global singleton instance.
-    # The ResourceManager's add_resource will handle if this type is already registered,
-    # potentially replacing it or warning. For a global singleton, we want all worlds
-    # to use the same instance.
-    from dam.core.global_resources import get_global_model_execution_manager
-
-    global_model_manager = get_global_model_execution_manager()
-    resource_manager.add_resource(global_model_manager, ModelExecutionManager)
-    world.logger.debug(f"Added global ModelExecutionManager instance as a resource for World '{world_name}'.")
-
-    # TaggingService is no longer a resource class.
-    # Systems needing tagging functions will import them from the tagging_service module
-    # and use the injected ModelExecutionManager.
 
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
@@ -100,78 +85,4 @@ def register_core_systems(world_instance: "World") -> None:
     Registers all standard, core systems for a given world instance.
     This ensures consistency in system registration across different application entry points.
     """
-    logger.info(f"Registering core systems for world: {world_instance.name}")
-
-    # Metadata Systems
-    try:
-        from dam.systems.metadata_systems import extract_metadata_on_asset_ingested
-
-        world_instance.register_system(extract_metadata_on_asset_ingested, stage=SystemStage.METADATA_EXTRACTION)
-        logger.debug("Registered system: extract_metadata_on_asset_ingested for stage METADATA_EXTRACTION")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register extract_metadata_on_asset_ingested, likely due to missing optional dependencies: {e}"
-        )
-
-    # Asset Lifecycle Systems (Event-based)
-    try:
-        from dam.systems.asset_lifecycle_systems import handle_asset_file_ingestion_request
-
-        world_instance.register_system(
-            handle_asset_file_ingestion_request,
-            event_type=AssetFileIngestionRequested,
-        )
-        logger.debug("Registered system: handle_asset_file_ingestion_request for event AssetFileIngestionRequested")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_asset_file_ingestion_request, likely due to missing optional dependencies: {e}"
-        )
-
-    try:
-        from dam.systems.asset_lifecycle_systems import handle_asset_reference_ingestion_request
-
-        world_instance.register_system(
-            handle_asset_reference_ingestion_request,
-            event_type=AssetReferenceIngestionRequested,
-        )
-        logger.debug(
-            "Registered system: handle_asset_reference_ingestion_request for event AssetReferenceIngestionRequested"
-        )
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_asset_reference_ingestion_request, likely due to missing optional dependencies: {e}"
-        )
-
-    try:
-        from dam.systems.asset_lifecycle_systems import handle_find_entity_by_hash_query
-
-        world_instance.register_system(handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery)
-        logger.debug("Registered system: handle_find_entity_by_hash_query for event FindEntityByHashQuery")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_find_entity_by_hash_query, likely due to missing optional dependencies: {e}"
-        )
-
-    # Semantic Systems (Text)
-    try:
-        from dam.systems.semantic_systems import handle_semantic_search_query
-
-        world_instance.register_system(handle_semantic_search_query, event_type=SemanticSearchQuery)
-        logger.debug("Registered system: handle_semantic_search_query for event SemanticSearchQuery")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register handle_semantic_search_query, likely due to missing optional dependencies: {e}"
-        )
-
-    # Auto-Tagging System
-    try:
-        from dam.systems.auto_tagging_system import auto_tag_entities_system
-
-        world_instance.register_system(auto_tag_entities_system, stage=SystemStage.CONTENT_ANALYSIS)
-        logger.debug("Registered system: auto_tag_entities_system for stage CONTENT_ANALYSIS")
-    except ImportError as e:
-        logger.warning(
-            f"Could not import or register auto_tag_entities_system, likely due to missing optional dependencies: {e}"
-        )
-
     logger.info(f"Core system registration complete for world: {world_instance.name}")

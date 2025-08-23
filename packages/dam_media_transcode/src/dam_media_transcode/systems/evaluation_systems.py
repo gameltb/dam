@@ -10,7 +10,7 @@ from dam.models.conceptual.evaluation_result_component import EvaluationResultCo
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
-from dam.models.properties.file_properties_component import FilePropertiesComponent
+from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service, tag_service, transcode_service
 
 

@@ -26,7 +26,6 @@ classifiers = [
 dependencies = [
     "sqlalchemy",
     "aiosqlite",
-    "alembic",
     "typer",
     "python-dotenv",
     "pydantic",

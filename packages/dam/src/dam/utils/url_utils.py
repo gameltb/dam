@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from dam.core.config import WorldConfig
-from dam.services.file_storage import get_file_path as get_cas_path
+from dam_fs.services.file_storage import get_file_path as get_cas_path
 
 
 def parse_dam_url(url: str) -> dict:
