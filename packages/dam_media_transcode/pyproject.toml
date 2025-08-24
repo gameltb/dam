@@ -17,3 +17,7 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dam_media_transcode"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
