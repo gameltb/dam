@@ -7,22 +7,19 @@ from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldSession
-from dam.core.systems import listens_for, system
+from dam.core.systems import handles_command, system, listens_for
 from dam.models.core.entity import Entity
-from dam_fs.models.file_location_component import FileLocationComponent
-from ..events import FindSimilarImagesQuery
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service, hashing_service
 from dam_fs.services import file_operations
-from dam.utils.url_utils import get_local_path_for_url
-from dam_media_image.events import ImageAssetDetected
 
-from dam_media_image.models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
-from dam_media_image.models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
-from dam_media_image.models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
-from dam_media_image.models.properties.frame_properties_component import FramePropertiesComponent
-from dam_media_image.models.properties.image_dimensions_component import ImageDimensionsComponent
-from dam_media_image.services import image_hashing_service
+from ..commands import FindSimilarImagesCommand
+from ..events import ImageAssetDetected
+from ..models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
+from ..models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
+from ..models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
+from ..models.properties.image_dimensions_component import ImageDimensionsComponent
+from ..services import image_hashing_service
 
 try:
     import imagehash
@@ -40,34 +37,35 @@ async def add_image_components_system(
 ):
     pass
 
-@listens_for(FindSimilarImagesQuery)
-async def handle_find_similar_images_query(
-    event: FindSimilarImagesQuery,
+
+@handles_command(FindSimilarImagesCommand)
+async def handle_find_similar_images_command(
+    cmd: FindSimilarImagesCommand,
     session: WorldSession,
 ):
     logger.info(
-        f"System handling FindSimilarImagesQuery for image: {event.image_path} in world {event.world_name} (Req ID: {event.request_id})"
+        f"System handling FindSimilarImagesCommand for image: {cmd.image_path} in world {cmd.world_name} (Req ID: {cmd.request_id})"
     )
-    if not event.result_future:
+    if not cmd.result_future:
         logger.error(
-            f"Result future not set on FindSimilarImagesQuery event (Req ID: {event.request_id}). Cannot proceed."
+            f"Result future not set on FindSimilarImagesCommand (Req ID: {cmd.request_id}). Cannot proceed."
         )
         return
 
     try:
         if not imagehash:
             msg = "ImageHash library not available. Cannot perform similarity search."
-            logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
-            if not event.result_future.done():
-                event.result_future.set_result([{"error": msg}])
+            logger.warning(f"[QueryResult RequestID: {cmd.request_id}] {msg}")
+            if not cmd.result_future.done():
+                cmd.result_future.set_result([{"error": msg}])
             return
 
-        input_hashes = await image_hashing_service.generate_perceptual_hashes_async(event.image_path)
+        input_hashes = await image_hashing_service.generate_perceptual_hashes_async(cmd.image_path)
         if not input_hashes:
-            msg = f"Could not generate perceptual hashes for {event.image_path.name}."
-            logger.warning(f"[QueryResult RequestID: {event.request_id}] {msg}")
-            if not event.result_future.done():
-                event.result_future.set_result([{"error": msg}])
+            msg = f"Could not generate perceptual hashes for {cmd.image_path.name}."
+            logger.warning(f"[QueryResult RequestID: {cmd.request_id}] {msg}")
+            if not cmd.result_future.done():
+                cmd.result_future.set_result([{"error": msg}])
             return
 
         input_phash_obj = imagehash.hex_to_hash(input_hashes["phash"]) if "phash" in input_hashes else None
@@ -76,7 +74,7 @@ async def handle_find_similar_images_query(
 
         source_entity_id = None
         try:
-            source_content_hash_hex = await hashing_service.calculate_sha256_async(event.image_path)
+            source_content_hash_hex = await hashing_service.calculate_sha256_async(cmd.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
             source_entity = await ecs_service.find_entity_by_content_hash(
                 session, source_content_hash_bytes, "sha256"
@@ -85,7 +83,7 @@ async def handle_find_similar_images_query(
                 source_entity_id = source_entity.id
         except Exception as e_src:
             logger.warning(
-                f"Could not determine source entity for {event.image_path.name} to exclude from results: {e_src}"
+                f"Could not determine source entity for {cmd.image_path.name} to exclude from results: {e_src}"
             )
 
         potential_matches = []
@@ -102,7 +100,7 @@ async def handle_find_similar_images_query(
                     db_phash_hex = p_comp.hash_value.hex()
                     db_phash_obj = imagehash.hex_to_hash(db_phash_hex)
                     distance = input_phash_obj - db_phash_obj
-                    if distance <= event.phash_threshold:
+                    if distance <= cmd.phash_threshold:
                         entity = await session.get(Entity, p_comp.entity_id)
                         if entity:
                             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
@@ -129,7 +127,7 @@ async def handle_find_similar_images_query(
                     db_ahash_hex = a_comp.hash_value.hex()
                     db_ahash_obj = imagehash.hex_to_hash(db_ahash_hex)
                     distance = input_ahash_obj - db_ahash_obj
-                    if distance <= event.ahash_threshold:
+                    if distance <= cmd.ahash_threshold:
                         entity = await session.get(Entity, a_comp.entity_id)
                         if entity:
                             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
@@ -156,7 +154,7 @@ async def handle_find_similar_images_query(
                     db_dhash_hex = d_comp.hash_value.hex()
                     db_dhash_obj = imagehash.hex_to_hash(db_dhash_hex)
                     distance = input_dhash_obj - db_dhash_obj
-                    if distance <= event.dhash_threshold:
+                    if distance <= cmd.dhash_threshold:
                         entity = await session.get(Entity, d_comp.entity_id)
                         if entity:
                             fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
@@ -181,20 +179,20 @@ async def handle_find_similar_images_query(
         similar_entities_info = list(final_matches_map.values())
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
 
-        logger.info(f"[QueryResult RequestID: {event.request_id}] Found {len(similar_entities_info)} similar images.")
-        if not event.result_future.done():
-            event.result_future.set_result(similar_entities_info)
+        logger.info(f"[QueryResult RequestID: {cmd.request_id}] Found {len(similar_entities_info)} similar images.")
+        if not cmd.result_future.done():
+            cmd.result_future.set_result(similar_entities_info)
 
     except ValueError as ve:
-        logger.warning(f"[QueryResult RequestID: {event.request_id}] Error processing image for similarity: {ve}")
-        if not event.result_future.done():
-            event.result_future.set_result([{"error": str(ve)}])
+        logger.warning(f"[QueryResult RequestID: {cmd.request_id}] Error processing image for similarity: {ve}")
+        if not cmd.result_future.done():
+            cmd.result_future.set_result([{"error": str(ve)}])
     except Exception as e:
         logger.error(
-            f"[QueryResult RequestID: {event.request_id}] Unexpected error in similarity search: {e}", exc_info=True
+            f"[QueryResult RequestID: {cmd.request_id}] Unexpected error in similarity search: {e}", exc_info=True
         )
-        if not event.result_future.done():
-            event.result_future.set_exception(e)
+        if not cmd.result_future.done():
+            cmd.result_future.set_exception(e)
 
 
 @listens_for(ImageAssetDetected)

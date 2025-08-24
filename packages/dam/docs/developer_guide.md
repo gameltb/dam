@@ -23,9 +23,12 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 -   Provides common fields: `id`, `entity_id` (FK to `entities.id`), and an `entity` relationship.
 
 ### 2.4. Systems
--   **Definition**: Systems encapsulate the logic that operates on entities possessing specific combinations of components.
+-   **Definition**: Systems encapsulate the logic that operates on entities. They can be triggered in several ways:
+    - By the scheduler to run at a specific `SystemStage`.
+    - By listening for a broadcast `Event`.
+    - By handling a dispatched `Command`.
 -   **Implementation**:
-    *   Systems are Python functions decorated with `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)`.
+    *   Systems are Python functions decorated with `@system`, `@listens_for`, or `@handles_command`.
     *   They are organized into modules within the `systems/` directory of each package.
 
 ### 2.5. Plugins
@@ -66,6 +69,81 @@ The process for adding a new component is as follows:
 2.  **Register the Component:** Ensure the component is imported in the `__init__.py` of its package so that SQLAlchemy is aware of it.
 3.  **Create a System:** Create a system to operate on the new component.
 4.  **Register the System:** Register the system in the plugin's `build` method.
+
+### 4.3. Adding a New Command and Handler
+
+The Command pattern is used for imperative actions where the caller requests a specific operation to be performed.
+
+1.  **Define the Command:**
+    - In the appropriate package, create a `commands.py` file if it doesn't exist.
+    - Define a new dataclass that inherits from `dam.core.commands.BaseCommand`.
+    - Add fields to the dataclass to carry the necessary data for the operation.
+
+    *Example (`packages/my_plugin/commands.py`):*
+    ```python
+    from dataclasses import dataclass
+    from dam.core.commands import BaseCommand
+
+    @dataclass
+    class RenameAssetCommand(BaseCommand):
+        entity_id: int
+        new_name: str
+    ```
+
+2.  **Create the Command Handler System:**
+    - In the package's `systems/` module, create a new function to handle the command.
+    - Decorate the function with `@handles_command(YourCommandClass)`.
+    - The function must be `async` and its first argument should be the command object.
+    - Use services to perform the business logic.
+
+    *Example (`packages/my_plugin/systems/asset_systems.py`):*
+    ```python
+    from typing import Annotated
+    from dam.core.systems import handles_command
+    from dam.core.system_params import WorldSession
+    from my_plugin.commands import RenameAssetCommand
+    from my_plugin.services import asset_service
+
+    @handles_command(RenameAssetCommand)
+    async def handle_rename_asset_command(
+        cmd: RenameAssetCommand,
+        session: WorldSession,
+    ):
+        print(f"Handling command to rename entity {cmd.entity_id} to '{cmd.new_name}'")
+        await asset_service.rename_asset(
+            session=session,
+            entity_id=cmd.entity_id,
+            new_name=cmd.new_name
+        )
+    ```
+
+3.  **Register the Handler:**
+    - In your plugin's `build` method, register the system and associate it with the command.
+
+    *Example (`packages/my_plugin/plugin.py`):*
+    ```python
+    from .commands import RenameAssetCommand
+    from .systems.asset_systems import handle_rename_asset_command
+
+    class MyPlugin(Plugin):
+        def build(self, world: "World") -> None:
+            world.register_system(
+                handle_rename_asset_command,
+                command_type=RenameAssetCommand,
+            )
+    ```
+
+4.  **Dispatch the Command:**
+    - From anywhere in the application that has access to a `World` object, you can dispatch the command.
+
+    *Example:*
+    ```python
+    from my_plugin.commands import RenameAssetCommand
+
+    # ... get world object ...
+    command = RenameAssetCommand(entity_id=123, new_name="My Cool Asset")
+    await world.dispatch_command(command)
+    ```
 
 ---
 

@@ -14,7 +14,7 @@ from PIL import Image
 from sqlalchemy import select
 
 from dam_app import AppPlugin
-from dam_app.events import AssetStreamIngestionRequested
+from dam_app.commands import IngestAssetStreamCommand
 
 
 async def main():
@@ -62,18 +62,18 @@ async def main():
         await session.flush()
         logger.info(f"Created new entity with ID: {new_entity.id}")
 
-        # Create the initial event
-        ingestion_event = AssetStreamIngestionRequested(
+        # Create the initial command
+        ingestion_command = IngestAssetStreamCommand(
             entity=new_entity,
             file_content=in_memory_stream,
             original_filename="dummy_image.png",
             world_name=world.name,
         )
 
-        # Send the event to the world's event loop
-        # The scheduler will pick it up and trigger the chain of systems
-        await world.send_event(ingestion_event)
-        logger.info("Dispatched AssetStreamIngestionRequested event.")
+        # Dispatch the command to the world
+        # The scheduler will pick it up and trigger the command handler
+        await world.dispatch_command(ingestion_command)
+        logger.info("Dispatched IngestAssetStreamCommand.")
 
         # In a real long-running app, you wouldn't commit here.
         # But for this script, we commit to save the results of the event processing.

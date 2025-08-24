@@ -2,25 +2,25 @@ import logging
 from typing import Annotated
 
 from dam.core.system_params import WorldSession
-from dam.core.systems import listens_for
+from dam.core.systems import handles_command, listens_for
 from dam.core.world import World
 from dam_fs.events import FileStored
 from dam_fs.resources import FileStorageResource
 
-from ..events import AssetStreamIngestionRequested
+from ..commands import IngestAssetStreamCommand
 
 logger = logging.getLogger(__name__)
 
 
-@listens_for(AssetStreamIngestionRequested)
-async def ingestion_request_system(
-    event: AssetStreamIngestionRequested,
+@handles_command(IngestAssetStreamCommand)
+async def ingest_asset_stream_command_handler(
+    cmd: IngestAssetStreamCommand,
     world: Annotated[World, "Resource"],
     session: WorldSession,
     fs_resource: Annotated[FileStorageResource, "Resource"],
 ):
     """
-    Handles the initial ingestion request for an in-memory asset stream.
+    Handles the command to ingest an in-memory asset stream.
     This system is responsible for:
     1. Calculating content hashes.
     2. Storing the file to the Content-Addressable Storage (CAS).
@@ -29,28 +29,28 @@ async def ingestion_request_system(
     """
     from dam.services import ecs_service, hashing_service
 
-    logger.info(f"Received asset ingestion request for '{event.original_filename}' in world '{event.world_name}'.")
+    logger.info(f"Received asset ingestion request for '{cmd.original_filename}' in world '{cmd.world_name}'.")
 
     try:
         # 1. Calculate hashes from the in-memory stream
-        event.file_content.seek(0)
-        hashes = hashing_service.calculate_hashes_from_stream(event.file_content, ["sha256", "md5", "crc32", "sha1"])
+        cmd.file_content.seek(0)
+        hashes = hashing_service.calculate_hashes_from_stream(cmd.file_content, ["sha256", "md5", "crc32", "sha1"])
         sha256_hash = hashes["sha256"]
         logger.debug(f"Calculated sha256 hash: {sha256_hash}")
 
         # 2. Store the file in the CAS
-        event.file_content.seek(0)
-        file_bytes = event.file_content.read()
+        cmd.file_content.seek(0)
+        file_bytes = cmd.file_content.read()
         file_path = await fs_resource.store_file(sha256_hash, file_bytes)
-        logger.info(f"Stored file '{event.original_filename}' to CAS at '{file_path}'.")
+        logger.info(f"Stored file '{cmd.original_filename}' to CAS at '{file_path}'.")
 
         # 3. Create and add the File component
         file_component = await ecs_service.add_file_component(
             session=session,
-            entity_id=event.entity.id,
+            entity_id=cmd.entity.id,
             file_path=str(file_path.relative_to(fs_resource.storage_path)),
             size_bytes=len(file_bytes),
-            original_filename=event.original_filename,
+            original_filename=cmd.original_filename,
             sha256=sha256_hash,
             md5=hashes.get("md5"),
             crc32=hashes.get("crc32"),
@@ -60,16 +60,16 @@ async def ingestion_request_system(
 
         # 4. Fire the FileStored event to continue the pipeline
         file_stored_event = FileStored(
-            entity=event.entity,
+            entity=cmd.entity,
             file_id=file_component.id,
             file_path=file_path,
         )
         await world.send_event(file_stored_event)
-        logger.info(f"Fired FileStored event for entity {event.entity.id}.")
+        logger.info(f"Fired FileStored event for entity {cmd.entity.id}.")
 
     except Exception as e:
         logger.error(
-            f"Failed during ingestion request for entity {event.entity.id} ('{event.original_filename}'): {e}",
+            f"Failed during ingestion request for entity {cmd.entity.id} ('{cmd.original_filename}'): {e}",
             exc_info=True,
         )
         # The scheduler will handle rollback on exception.

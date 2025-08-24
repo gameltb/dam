@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from dam.core.plugin import Plugin
 
-from .events import SemanticSearchQuery
+from .commands import SemanticSearchCommand
 
 if TYPE_CHECKING:
     from dam.core.world import World
@@ -27,8 +27,15 @@ class SemanticPlugin(Plugin):
 
         from . import systems
 
-        world.register_system(systems.handle_semantic_search_query)
-        world.register_system(systems.handle_audio_search_query)
+        from dam_media_audio.commands import AudioSearchCommand
+
+        world.register_system(
+            systems.handle_semantic_search_command,
+            command_type=SemanticSearchCommand,
+        )
+        world.register_system(
+            systems.handle_audio_search_command, command_type=AudioSearchCommand
+        )
         world.register_system(systems.generate_embeddings_system)
 
         # Register the SentenceTransformer model type with the SireResource
@@ -45,4 +52,4 @@ class SemanticPlugin(Plugin):
             pass
 
 
-__all__ = ["SemanticPlugin", "SemanticSearchQuery"]
+__all__ = ["SemanticPlugin"]

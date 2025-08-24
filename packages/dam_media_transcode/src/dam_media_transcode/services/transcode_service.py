@@ -8,13 +8,11 @@ from sqlalchemy.orm import Session, joinedload
 from dam.core.config import settings  # Import the global settings instance
 
 # Updated event imports: BaseEvent is needed, others are now defined in core.events
-from dam.core.events import (
-    AssetFileIngestionRequested,
-)
 from dam.core.world import World
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
+from dam_fs.commands import IngestFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent  # Added import
 from dam.services import (
@@ -257,23 +255,15 @@ async def apply_transcode_profile(
                 transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
             raise TranscodeServiceError(f"Could not get properties of transcoded file {transcoded_filepath}: {e}")
 
-        ingestion_event = AssetFileIngestionRequested(
+        ingestion_command = IngestFileCommand(
             filepath_on_disk=transcoded_filepath,
             original_filename=new_asset_original_filename,  # Use the derived meaningful name
             size_bytes=ret_size_bytes,
             world_name=world.name,
-            # We could add custom metadata here if the event supports it, e.g., source_asset_id
-            # custom_metadata={"source_for_transcode_of_entity_id": source_asset_entity_id}
         )
 
-        # Dispatch event and wait for ingestion to complete (or at least for entity creation)
-        # This requires the event handler for AssetFileIngestionRequested to be robust
-        # and ideally to provide the new entity ID back, or we query for it by hash.
-
-        # For now, let's assume the event handler will create the entity and its core components.
-        # We'll then find the entity by its hash to link it.
-
-        await world.dispatch_event(ingestion_event)
+        # Dispatch command. The handler will ingest the file.
+        await world.dispatch_command(ingestion_command)
 
         # To ensure the file is processed by ingestion systems (metadata, etc.)
         # This would typically run after the event that adds NeedsMetadataExtractionComponent

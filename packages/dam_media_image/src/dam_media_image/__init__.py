@@ -1,4 +1,4 @@
-from .events import ImageAssetDetected, FindSimilarImagesQuery
+from .events import ImageAssetDetected
 from .plugin import ImagePlugin
 
-__all__ = ["ImagePlugin", "ImageAssetDetected", "FindSimilarImagesQuery"]
+__all__ = ["ImagePlugin", "ImageAssetDetected"]
