@@ -18,8 +18,8 @@ from typing import Annotated, Any, Dict, List
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.system_params import WorldSession
 from dam.core.systems import system
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
@@ -153,7 +153,7 @@ async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | N
 
 @system(stage=SystemStage.METADATA_EXTRACTION)
 async def extract_metadata_on_asset_ingested(
-    session: WorldSession,
+    transaction: EcsTransaction,
     world_config: WorldConfig,
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
@@ -161,11 +161,11 @@ async def extract_metadata_on_asset_ingested(
         logger.warning("Hachoir library not installed. Skipping metadata extraction system.")
         for entity in entities_to_process:
             # Attempt to remove marker even if Hachoir is not there
-            markers = await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent)
+            markers = await transaction.get_components(entity.id, NeedsMetadataExtractionComponent)
             for marker_to_remove in markers:
-                await ecs_service.remove_component(session, marker_to_remove, flush=False)
+                await transaction.remove_component(marker_to_remove)
         if entities_to_process:
-            await session.flush()
+            await transaction.flush()
         return
 
     if not entities_to_process:
@@ -182,7 +182,7 @@ async def extract_metadata_on_asset_ingested(
 
         # Workaround for potential duplicate markers:
         # Fetch all markers, process based on the entity, and ensure all markers for this entity are cleared.
-        current_markers = await ecs_service.get_components(session, entity.id, NeedsMetadataExtractionComponent)
+        current_markers = await transaction.get_components(entity.id, NeedsMetadataExtractionComponent)
         if not current_markers:
             logger.info(
                 f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed."
@@ -199,11 +199,11 @@ async def extract_metadata_on_asset_ingested(
         # The marker component itself doesn't hold data needed for extraction,
         # its presence on the entity is what matters for it to be in `entities_to_process`.
 
-        all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)
+        all_locations = await transaction.get_components(entity.id, FileLocationComponent)
         if not all_locations:
             logger.warning(f"No FileLocationComponent found for Entity ID {entity.id}. Cannot extract metadata.")
             for m_to_del in current_markers:
-                await ecs_service.remove_component(session, m_to_del, flush=False)
+                await transaction.remove_component(m_to_del)
             continue
 
         filepath_on_disk: Path | None = None
@@ -226,7 +226,7 @@ async def extract_metadata_on_asset_ingested(
                 f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
             )
             for m_to_del in current_markers:
-                await ecs_service.remove_component(session, m_to_del, flush=False)
+                await transaction.remove_component(m_to_del)
             continue
 
         mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
@@ -286,9 +286,9 @@ async def extract_metadata_on_asset_ingested(
         exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)
 
         if exiftool_data:
-            if not await ecs_service.get_component(session, entity.id, ExiftoolMetadataComponent):
+            if not await transaction.get_component(entity.id, ExiftoolMetadataComponent):
                 exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
-                await ecs_service.add_component_to_entity(session, entity.id, exif_comp, flush=False)
+                await transaction.add_component_to_entity(entity.id, exif_comp)
                 logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity.id}")
             else:
                 logger.info(
@@ -316,7 +316,7 @@ async def extract_metadata_on_asset_ingested(
 
             # Let's rely on remove_component to handle the instance correctly.
             # The logger inside remove_component can tell us if it did something.
-            await ecs_service.remove_component(session, marker_to_remove_loop_var, flush=False)
+            await transaction.remove_component(marker_to_remove_loop_var)
             logger.debug(
                 f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}"
             )

@@ -1,10 +1,10 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
-from sqlalchemy.orm import sessionmaker  # Added sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import sessionmaker
 
-from dam.core.commands import BaseCommand, CommandResult
+from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
@@ -14,6 +14,7 @@ from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
 from dam.core.systems import WorldScheduler
+from dam.core.transaction import EcsTransaction, active_transaction
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class World:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand]] = None,
+        command_type: Optional[Type[BaseCommand[Any]]] = None,
         **kwargs,
     ) -> None:
         num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
@@ -110,72 +111,112 @@ class World:
                 f"System {system_func.__name__} registered for command {command_type.__name__} in world '{self.name}'."
             )
 
-    def _get_world_context(self, session: AsyncSession) -> WorldContext:  # Use AsyncSession
+    def _get_world_context(self, transaction: EcsTransaction) -> WorldContext:
         world_cfg = self.get_resource(WorldConfig)
         return WorldContext(
-            session=session,
+            transaction=transaction,
             world_name=self.name,
             world_config=world_cfg,
         )
 
-    async def execute_stage(
-        self, stage: SystemStage, session: Optional[AsyncSession] = None
-    ) -> None:  # Use AsyncSession
+    async def execute_stage(self, stage: SystemStage) -> None:
         self.logger.info(f"Executing stage '{stage.name}' for World '{self.name}'.")
-        if session:
-            world_context = self._get_world_context(session)
+
+        transaction = active_transaction.get()
+        if transaction:
+            self.logger.debug(f"Joining existing transaction for stage '{stage.name}'.")
+            world_context = self._get_world_context(transaction)
             await self.scheduler.execute_stage(stage, world_context)
         else:
-            db_session = self.get_db_session()  # Returns AsyncSession
+            self.logger.debug(f"Creating new transaction for top-level stage '{stage.name}'.")
+            db_session = self.get_db_session()
+            new_transaction = EcsTransaction(db_session)
+            token = active_transaction.set(new_transaction)
             try:
-                world_context = self._get_world_context(db_session)
+                world_context = self._get_world_context(new_transaction)
                 await self.scheduler.execute_stage(stage, world_context)
-            finally:
-                await db_session.close()  # Await close for AsyncSession
-                self.logger.debug(f"Session closed after executing stage '{stage.name}' in World '{self.name}'.")
+                await db_session.commit()
+            except Exception as e:
+                self.logger.exception(f"Exception in top-level stage '{stage.name}', rolling back.")
+                await db_session.rollback()
+                from dam.core.exceptions import StageExecutionError
 
-    async def dispatch_event(
-        self, event: BaseEvent, session: Optional[AsyncSession] = None
-    ) -> None:  # Use AsyncSession
+                raise StageExecutionError(
+                    message=f"Top-level stage '{stage.name}' failed.",
+                    stage_name=stage.name,
+                    original_exception=e,
+                ) from e
+            finally:
+                await db_session.close()
+                active_transaction.reset(token)
+                self.logger.debug(f"Transaction closed for stage '{stage.name}'.")
+
+    async def dispatch_event(self, event: BaseEvent) -> None:
         self.logger.info(f"Dispatching event '{type(event).__name__}' for World '{self.name}'.")
-        if session:
-            world_context = self._get_world_context(session)
+
+        transaction = active_transaction.get()
+        if transaction:
+            self.logger.debug(f"Joining existing transaction for event '{type(event).__name__}'.")
+            world_context = self._get_world_context(transaction)
             await self.scheduler.dispatch_event(event, world_context)
         else:
-            db_session = self.get_db_session()  # Returns AsyncSession
+            self.logger.debug(f"Creating new transaction for top-level event '{type(event).__name__}'.")
+            db_session = self.get_db_session()
+            new_transaction = EcsTransaction(db_session)
+            token = active_transaction.set(new_transaction)
             try:
-                world_context = self._get_world_context(db_session)
+                world_context = self._get_world_context(new_transaction)
                 await self.scheduler.dispatch_event(event, world_context)
-            finally:
-                await db_session.close()  # Await close for AsyncSession
-                self.logger.debug(
-                    f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
-                )
+                await db_session.commit()
+            except Exception as e:
+                self.logger.exception(f"Exception in top-level event '{type(event).__name__}', rolling back.")
+                await db_session.rollback()
+                from dam.core.exceptions import EventHandlingError
 
-    async def dispatch_command(
-        self, command: BaseCommand, session: Optional[AsyncSession] = None
-    ) -> CommandResult:  # Use AsyncSession
+                raise EventHandlingError(
+                    message=f"Top-level event '{type(event).__name__}' failed.",
+                    event_type=type(event).__name__,
+                    original_exception=e,
+                ) from e
+            finally:
+                await db_session.close()
+                active_transaction.reset(token)
+                self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
+
+    async def dispatch_command(self, command: BaseCommand[ResultType]) -> CommandResult[ResultType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
-        if session:
-            world_context = self._get_world_context(session)
+
+        transaction = active_transaction.get()
+        if transaction:
+            self.logger.debug(f"Joining existing transaction for command '{type(command).__name__}'.")
+            world_context = self._get_world_context(transaction)
             return await self.scheduler.dispatch_command(command, world_context)
         else:
-            db_session = self.get_db_session()  # Returns AsyncSession
+            self.logger.debug(f"Creating new transaction for top-level command '{type(command).__name__}'.")
+            db_session = self.get_db_session()
+            new_transaction = EcsTransaction(db_session)
+            token = active_transaction.set(new_transaction)
             try:
-                world_context = self._get_world_context(db_session)
-                return await self.scheduler.dispatch_command(command, world_context)
-            finally:
-                await db_session.close()  # Await close for AsyncSession
-                self.logger.debug(
-                    f"Session closed after dispatching command '{type(command).__name__}' in World '{self.name}'."
-                )
+                world_context = self._get_world_context(new_transaction)
+                result = await self.scheduler.dispatch_command(command, world_context)
+                await db_session.commit()
+                return result
+            except Exception as e:
+                self.logger.exception(f"Exception in top-level command '{type(command).__name__}', rolling back.")
+                await db_session.rollback()
+                from dam.core.exceptions import CommandHandlingError
 
-    async def execute_one_time_system(
-        self,
-        system_func: Callable[..., Any],
-        session: Optional[AsyncSession] = None,
-        **kwargs: Any,  # Use AsyncSession
-    ) -> Any:
+                raise CommandHandlingError(
+                    message=f"Top-level command '{type(command).__name__}' failed.",
+                    command_type=type(command).__name__,
+                    original_exception=e,
+                ) from e
+            finally:
+                await db_session.close()
+                active_transaction.reset(token)
+                self.logger.debug(f"Transaction closed for command '{type(command).__name__}'.")
+
+    async def execute_one_time_system(self, system_func: Callable[..., Any], **kwargs: Any) -> Any:
         """
         Executes a single, dynamically provided system function immediately.
         Manages session creation and closure if an external session is not provided.
@@ -184,19 +225,30 @@ class World:
         self.logger.info(
             f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
         )
-        if session:
-            world_context = self._get_world_context(session)
+
+        transaction = active_transaction.get()
+        if transaction:
+            self.logger.debug(f"Joining existing transaction for one-time system '{system_func.__name__}'.")
+            world_context = self._get_world_context(transaction)
             return await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
         else:
+            self.logger.debug(f"Creating new transaction for top-level one-time system '{system_func.__name__}'.")
             db_session = self.get_db_session()
+            new_transaction = EcsTransaction(db_session)
+            token = active_transaction.set(new_transaction)
             try:
-                world_context = self._get_world_context(db_session)
-                return await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+                world_context = self._get_world_context(new_transaction)
+                result = await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+                await db_session.commit()
+                return result
+            except Exception:
+                self.logger.exception(f"Exception in top-level one-time system '{system_func.__name__}', rolling back.")
+                await db_session.rollback()
+                raise
             finally:
                 await db_session.close()
-                self.logger.debug(
-                    f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'."
-                )
+                active_transaction.reset(token)
+                self.logger.debug(f"Transaction closed for one-time system '{system_func.__name__}'.")
 
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"

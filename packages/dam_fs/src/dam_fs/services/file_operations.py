@@ -1,9 +1,15 @@
-import asyncio  # E402: Moved to top
-import logging  # Import logging module
+import asyncio
+import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
-logger = logging.getLogger(__name__)  # Initialize logger at module level
+from dam.core.config import WorldConfig
+from dam.core.transaction import EcsTransaction
+from dam.utils.url_utils import get_local_path_for_url
+from ..models.file_location_component import FileLocationComponent
+from ..models.file_properties_component import FilePropertiesComponent
+
+logger = logging.getLogger(__name__)
 
 
 def get_file_properties(filepath: Path) -> Tuple[str, int]:
@@ -95,3 +101,30 @@ async def get_file_properties_async(filepath: Path) -> Tuple[str, int]:
 async def get_mime_type_async(filepath: Path) -> str:
     """Asynchronously detects the MIME type of a file."""
     return await asyncio.to_thread(get_mime_type, filepath)
+
+
+async def get_file_path_by_id(transaction: EcsTransaction, file_id: int, world_config: WorldConfig) -> Optional[Path]:
+    """
+    Resolves a file_id (which is the ID of a FilePropertiesComponent) to a local, accessible file path.
+    """
+    fpc = await transaction.get_component(file_id, FilePropertiesComponent)
+    if not fpc:
+        logger.warning(f"Could not find FilePropertiesComponent with ID {file_id}.")
+        return None
+
+    entity_id = fpc.entity_id
+    all_locations = await transaction.get_components(entity_id, FileLocationComponent)
+    if not all_locations:
+        logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}.")
+        return None
+
+    for loc in all_locations:
+        try:
+            potential_path = get_local_path_for_url(loc.url, world_config)
+            if potential_path and await asyncio.to_thread(potential_path.is_file):
+                return potential_path
+        except (ValueError, FileNotFoundError) as e:
+            logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
+            continue
+
+    return None

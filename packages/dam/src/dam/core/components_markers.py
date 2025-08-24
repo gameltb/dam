@@ -15,7 +15,6 @@ This approach allows for decoupled workflows where different systems can react t
 the state of entities as indicated by these markers.
 """
 
-from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent
 

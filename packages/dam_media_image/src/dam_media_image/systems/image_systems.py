@@ -6,8 +6,8 @@ from typing import Annotated, List
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.system_params import WorldSession
 from dam.core.systems import handles_command, system, listens_for
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam.services import ecs_service, hashing_service
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @system(stage=SystemStage.METADATA_EXTRACTION)
 async def add_image_components_system(
-    session: WorldSession,
+    transaction: EcsTransaction,
     world_config: WorldConfig,
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
@@ -41,7 +41,7 @@ async def add_image_components_system(
 @handles_command(FindSimilarImagesCommand)
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
-    session: WorldSession,
+    transaction: EcsTransaction,
 ):
     logger.info(
         f"System handling FindSimilarImagesCommand for image: {cmd.image_path} in world {cmd.world_name} (Req ID: {cmd.request_id})"
@@ -76,8 +76,8 @@ async def handle_find_similar_images_command(
         try:
             source_content_hash_hex = await hashing_service.calculate_sha256_async(cmd.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
-            source_entity = await ecs_service.find_entity_by_content_hash(
-                session, source_content_hash_bytes, "sha256"
+            source_entity = await transaction.find_entity_by_content_hash(
+                source_content_hash_bytes, "sha256"
             )
             if source_entity:
                 source_entity_id = source_entity.id
@@ -91,7 +91,7 @@ async def handle_find_similar_images_command(
 
         if input_phash_obj:
             all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
-            result_phashes = await session.execute(all_phashes_stmt)
+            result_phashes = await transaction.session.execute(all_phashes_stmt)
             db_phashes_components = result_phashes.scalars().all()
             for p_comp in db_phashes_components:
                 if source_entity_id and p_comp.entity_id == source_entity_id:
@@ -101,9 +101,9 @@ async def handle_find_similar_images_command(
                     db_phash_obj = imagehash.hex_to_hash(db_phash_hex)
                     distance = input_phash_obj - db_phash_obj
                     if distance <= cmd.phash_threshold:
-                        entity = await session.get(Entity, p_comp.entity_id)
+                        entity = await transaction.get_entity(p_comp.entity_id)
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -118,7 +118,7 @@ async def handle_find_similar_images_command(
 
         if input_ahash_obj:
             all_ahashes_stmt = sql_select(ImagePerceptualAHashComponent)
-            result_ahashes = await session.execute(all_ahashes_stmt)
+            result_ahashes = await transaction.session.execute(all_ahashes_stmt)
             db_ahashes_components = result_ahashes.scalars().all()
             for a_comp in db_ahashes_components:
                 if source_entity_id and a_comp.entity_id == source_entity_id:
@@ -128,9 +128,9 @@ async def handle_find_similar_images_command(
                     db_ahash_obj = imagehash.hex_to_hash(db_ahash_hex)
                     distance = input_ahash_obj - db_ahash_obj
                     if distance <= cmd.ahash_threshold:
-                        entity = await session.get(Entity, a_comp.entity_id)
+                        entity = await transaction.get_entity(a_comp.entity_id)
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -145,7 +145,7 @@ async def handle_find_similar_images_command(
 
         if input_dhash_obj:
             all_dhashes_stmt = sql_select(ImagePerceptualDHashComponent)
-            result_dhashes = await session.execute(all_dhashes_stmt)
+            result_dhashes = await transaction.session.execute(all_dhashes_stmt)
             db_dhashes_components = result_dhashes.scalars().all()
             for d_comp in db_dhashes_components:
                 if source_entity_id and d_comp.entity_id == source_entity_id:
@@ -155,9 +155,9 @@ async def handle_find_similar_images_command(
                     db_dhash_obj = imagehash.hex_to_hash(db_dhash_hex)
                     distance = input_dhash_obj - db_dhash_obj
                     if distance <= cmd.dhash_threshold:
-                        entity = await session.get(Entity, d_comp.entity_id)
+                        entity = await transaction.get_entity(d_comp.entity_id)
                         if entity:
-                            fpc = await ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
@@ -198,7 +198,7 @@ async def handle_find_similar_images_command(
 @listens_for(ImageAssetDetected)
 async def process_image_metadata_system(
     event: ImageAssetDetected,
-    session: WorldSession,
+    transaction: EcsTransaction,
     world_config: WorldConfig,
 ):
     """
@@ -210,13 +210,13 @@ async def process_image_metadata_system(
 
     try:
         # Skip Logic
-        existing_component = await ecs_service.get_component(session, event.entity.id, ImageDimensionsComponent)
+        existing_component = await transaction.get_component(event.entity.id, ImageDimensionsComponent)
         if existing_component:
             logger.info(f"Entity {event.entity.id} already has ImageDimensionsComponent. Skipping.")
             return
 
         # Get file path from file_id
-        file_path = await file_operations.get_file_path_by_id(session, event.file_id, world_config.ASSET_STORAGE_PATH)
+        file_path = await file_operations.get_file_path_by_id(transaction, event.file_id, world_config)
         if not file_path:
             logger.warning(f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process image metadata.")
             return
@@ -228,7 +228,7 @@ async def process_image_metadata_system(
 
         # Add component
         dimensions_component = ImageDimensionsComponent(width=width, height=height, mode=mode)
-        await ecs_service.add_component_to_entity(session, event.entity.id, dimensions_component)
+        await transaction.add_component_to_entity(event.entity.id, dimensions_component)
 
         logger.info(f"Successfully added ImageDimensionsComponent to entity {event.entity.id}.")
 

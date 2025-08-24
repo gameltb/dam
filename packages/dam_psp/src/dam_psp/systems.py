@@ -7,8 +7,8 @@ from typing import List, Optional
 
 import py7zr
 from dam.core.config import WorldConfig
-from dam.core.system_params import WorldSession
 from dam.core.systems import listens_for
+from dam.core.transaction import EcsTransaction
 from dam.models.core import Entity
 from dam.models.hashes import (
     ContentHashCRC32Component,
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 @listens_for(PspIsoAssetDetected)
 async def process_psp_iso_system(
     event: PspIsoAssetDetected,
-    session: WorldSession,
+    transaction: EcsTransaction,
     world_config: WorldConfig,
 ):
     """
@@ -41,13 +41,13 @@ async def process_psp_iso_system(
 
     try:
         # Skip Logic
-        existing_component = await ecs_service.get_component(session, event.entity.id, PSPSFOMetadataComponent)
+        existing_component = await transaction.get_component(event.entity.id, PSPSFOMetadataComponent)
         if existing_component:
             logger.info(f"Entity {event.entity.id} already has PSPSFOMetadataComponent. Skipping.")
             return
 
         # Get file path from file_id
-        file_path = await file_operations.get_file_path_by_id(session, event.file_id, world_config.ASSET_STORAGE_PATH)
+        file_path = await file_operations.get_file_path_by_id(transaction, event.file_id, world_config)
         if not file_path:
             logger.warning(
                 f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process ISO."
@@ -70,10 +70,10 @@ async def process_psp_iso_system(
                 psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
                 title=sfo_metadata.get("TITLE"),
             )
-            await ecs_service.add_component_to_entity(session, event.entity.id, sfo_component)
+            await transaction.add_component_to_entity(event.entity.id, sfo_component)
 
             sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
-            await ecs_service.add_component_to_entity(session, event.entity.id, sfo_raw_component)
+            await transaction.add_component_to_entity(event.entity.id, sfo_raw_component)
 
             logger.info(f"Successfully added PSPSFOMetadataComponent to entity {event.entity.id}.")
         else:
@@ -87,7 +87,7 @@ async def process_psp_iso_system(
         raise
 
 
-async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream: BytesIO) -> None:
+async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_stream: BytesIO) -> None:
     """Helper function to process a single ISO stream."""
 
     # Calculate hashes
@@ -100,24 +100,25 @@ async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream:
     md5_hash = bytes.fromhex(hashes["md5"])
 
     # Check for duplicates
+    # This is a read operation, so it's fine to use the session directly.
     stmt = select(Entity.id).join(ContentHashMD5Component).where(ContentHashMD5Component.hash_value == md5_hash)
-    result = await session.execute(stmt)
+    result = await transaction.session.execute(stmt)
     if result.scalars().first() is not None:
         return
 
     # Create entity and components
-    entity = await ecs_service.create_entity(session)
+    entity = await transaction.create_entity()
 
     # Add hash components
-    await ecs_service.add_component_to_entity(session, entity.id, ContentHashMD5Component(hash_value=md5_hash))
-    await ecs_service.add_component_to_entity(
-        session, entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes["sha1"]))
+    await transaction.add_component_to_entity(entity.id, ContentHashMD5Component(hash_value=md5_hash))
+    await transaction.add_component_to_entity(
+        entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes["sha1"]))
     )
-    await ecs_service.add_component_to_entity(
-        session, entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes["sha256"]))
+    await transaction.add_component_to_entity(
+        entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes["sha256"]))
     )
-    await ecs_service.add_component_to_entity(
-        session, entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"].to_bytes(4, "big"))
+    await transaction.add_component_to_entity(
+        entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"].to_bytes(4, "big"))
     )
 
     # Process SFO metadata
@@ -141,10 +142,10 @@ async def _process_iso_file(session: AsyncSession, file_path: Path, file_stream:
                 psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
                 title=sfo_metadata.get("TITLE"),
             )
-            await ecs_service.add_component_to_entity(session, entity.id, sfo_component)
+            await transaction.add_component_to_entity(entity.id, sfo_component)
 
             sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
-            await ecs_service.add_component_to_entity(session, entity.id, sfo_raw_component)
+            await transaction.add_component_to_entity(entity.id, sfo_raw_component)
 
 
 async def ingest_psp_isos_from_directory(
@@ -152,6 +153,9 @@ async def ingest_psp_isos_from_directory(
     directory: str,
     passwords: Optional[List[str]] = None,
 ):
+    # TODO: This function creates its own session and is not part of the
+    # main transactional event/command bus. It should be refactored to
+    # be a command handler that uses the EcsTransaction object.
     """
     Scans a directory for PSP ISOs and archives, processes them, and stores them in the database.
     """

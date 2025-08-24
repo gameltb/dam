@@ -4,12 +4,12 @@ import logging
 from collections import defaultdict
 from typing import Annotated, Any, Callable, Dict, List, Optional, Type, TypeVar, get_args, get_origin
 
-from dam.core.commands import BaseCommand, CommandResult
+from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.events import BaseEvent
-from dam.core.exceptions import CommandHandlingError, EventHandlingError, StageExecutionError
 from dam.core.resources import ResourceManager, ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
+from dam.core.transaction import EcsTransaction
 
 # Corrected imports for BaseComponent and Entity
 from dam.models.core.base_component import BaseComponent
@@ -30,7 +30,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
         event_specific_type: Optional[Type[BaseEvent]] = None
-        command_specific_type: Optional[Type[BaseCommand]] = None
+        command_specific_type: Optional[Type[BaseCommand[Any]]] = None
 
         if get_origin(original_param_type) is Annotated:
             annotated_args = get_args(original_param_type)
@@ -127,7 +127,7 @@ def system(stage: SystemStage, **kwargs):
     return decorator
 
 
-def handles_command(command_type: Type[BaseCommand], **kwargs):
+def handles_command(command_type: Type[BaseCommand[Any]], **kwargs):
     if not (inspect.isclass(command_type) and issubclass(command_type, BaseCommand)):
         raise TypeError(f"Invalid command_type '{command_type}'. Must be a class that inherits from BaseCommand.")
 
@@ -188,7 +188,7 @@ class WorldScheduler:
         self.resource_manager = resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
-        self.command_handler_registry: Dict[Type[BaseCommand], List[Callable[..., Any]]] = defaultdict(list)
+        self.command_handler_registry: Dict[Type[BaseCommand[Any]], List[Callable[..., Any]]] = defaultdict(list)
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
@@ -197,7 +197,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand]] = None,
+        command_type: Optional[Type[BaseCommand[Any]]] = None,
         **kwargs,
     ):
         if system_func not in self.system_metadata:
@@ -244,38 +244,8 @@ class WorldScheduler:
             self.logger.info(f"No systems registered for stage {stage.name} in world {world_context.world_name}")
             return
 
-        active_system_func_name = "None"
-        try:
-            for system_func in systems_to_run:
-                active_system_func_name = system_func.__name__
-                # Call _execute_system_func directly
-                await self._execute_system_func(system_func, world_context, event_object=None, command_object=None)
-            try:
-                await world_context.session.commit()  # Await
-                self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
-            except Exception as commit_exc:
-                self.logger.error(
-                    f"Error committing session for stage {stage.name} in world {world_context.world_name}: {commit_exc}. Rolling back.",
-                    exc_info=True,
-                )
-                await world_context.session.rollback()  # Await
-                raise StageExecutionError(
-                    message=f"Failed to commit stage {stage.name} in world {world_context.world_name}.",
-                    stage_name=stage.name,
-                    original_exception=commit_exc,
-                ) from commit_exc
-        except Exception as system_exc:
-            self.logger.error(
-                f"System '{active_system_func_name}' failed in stage '{stage.name}' for world '{world_context.world_name}'. Rolling back. Error: {system_exc}",
-                exc_info=True,
-            )
-            await world_context.session.rollback()  # Await
-            raise StageExecutionError(
-                message=f"System '{active_system_func_name}' failed during stage '{stage.name}' execution in world '{world_context.world_name}'.",
-                stage_name=stage.name,
-                system_name=active_system_func_name,
-                original_exception=system_exc,
-            ) from system_exc
+        for system_func in systems_to_run:
+            await self._execute_system_func(system_func, world_context, event_object=None, command_object=None)
 
     async def dispatch_event(self, event: BaseEvent, world_context: WorldContext):
         event_type = type(event)
@@ -287,42 +257,12 @@ class WorldScheduler:
             )
             return
 
-        active_handler_func_name = "None"
-        try:
-            for handler_func in handlers_to_run:
-                active_handler_func_name = handler_func.__name__
-                # Call _execute_system_func directly
-                await self._execute_system_func(handler_func, world_context, event_object=event, command_object=None)
-            try:
-                await world_context.session.commit()  # Await
-                self.logger.info(
-                    f"Committed session after handling event {event_type.__name__} in world {world_context.world_name}"
-                )
-            except Exception as commit_exc:
-                self.logger.error(
-                    f"Error committing session after event {event_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
-                    exc_info=True,
-                )
-                await world_context.session.rollback()  # Await
-                raise EventHandlingError(
-                    message=f"Failed to commit after handling event {event_type.__name__} in world {world_context.world_name}.",
-                    event_type=event_type.__name__,
-                    original_exception=commit_exc,
-                ) from commit_exc
-        except Exception as handler_exc:
-            self.logger.error(
-                f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'. Rolling back. Error: {handler_exc}",
-                exc_info=True,
-            )
-            await world_context.session.rollback()  # Await
-            raise EventHandlingError(
-                message=f"Handler '{active_handler_func_name}' failed for event '{event_type.__name__}' in world '{world_context.world_name}'.",
-                event_type=event_type.__name__,
-                handler_name=active_handler_func_name,
-                original_exception=handler_exc,
-            ) from handler_exc
+        for handler_func in handlers_to_run:
+            await self._execute_system_func(handler_func, world_context, event_object=event, command_object=None)
 
-    async def dispatch_command(self, command: BaseCommand, world_context: WorldContext) -> CommandResult:
+    async def dispatch_command(
+        self, command: BaseCommand[ResultType], world_context: WorldContext
+    ) -> CommandResult[ResultType]:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {world_context.world_name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
@@ -332,44 +272,14 @@ class WorldScheduler:
             )
             return CommandResult(results=[])
 
-        active_handler_func_name = "None"
-        command_result = CommandResult()
-        try:
-            for handler_func in handlers_to_run:
-                active_handler_func_name = handler_func.__name__
-                result = await self._execute_system_func(
-                    handler_func, world_context, event_object=None, command_object=command
-                )
-                if result is not None:
-                    command_result.results.append(result)
-            try:
-                await world_context.session.commit()  # Await
-                self.logger.info(
-                    f"Committed session after handling command {command_type.__name__} in world {world_context.world_name}"
-                )
-            except Exception as commit_exc:
-                self.logger.error(
-                    f"Error committing session after command {command_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
-                    exc_info=True,
-                )
-                await world_context.session.rollback()  # Await
-                raise CommandHandlingError(
-                    message=f"Failed to commit after handling command {command_type.__name__} in world {world_context.world_name}.",
-                    command_type=command_type.__name__,
-                    original_exception=commit_exc,
-                ) from commit_exc
-        except Exception as handler_exc:
-            self.logger.error(
-                f"Handler '{active_handler_func_name}' failed for command '{command_type.__name__}' in world '{world_context.world_name}'. Rolling back. Error: {handler_exc}",
-                exc_info=True,
+        command_result: CommandResult[ResultType] = CommandResult()
+        for handler_func in handlers_to_run:
+            result = await self._execute_system_func(
+                handler_func, world_context, event_object=None, command_object=command
             )
-            await world_context.session.rollback()  # Await
-            raise CommandHandlingError(
-                message=f"Handler '{active_handler_func_name}' failed for command '{command_type.__name__}' in world '{world_context.world_name}'.",
-                command_type=command_type.__name__,
-                handler_name=active_handler_func_name,
-                original_exception=handler_exc,
-            ) from handler_exc
+            if result is not None:
+                command_result.results.append(result)
+
         return command_result
 
     async def run_all_stages(self, initial_world_context: WorldContext):
@@ -387,7 +297,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand] = None,
+        command_object: Optional[BaseCommand[Any]] = None,
         **additional_kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -429,8 +339,14 @@ class WorldScheduler:
             identity = param_meta["identity"]
             param_type_hint = param_meta["type_hint"]
 
-            if identity == "WorldSession":  # WorldSession is special, directly from WorldContext
-                kwargs_to_inject[param_name] = world_context.session
+            if param_type_hint is EcsTransaction:
+                kwargs_to_inject[param_name] = world_context.transaction
+            elif identity == "WorldSession":  # WorldSession is special, directly from WorldContext
+                self.logger.warning(
+                    f"System '{system_func.__name__}' is injecting WorldSession directly. "
+                    "This is deprecated. Please inject EcsTransaction instead."
+                )
+                kwargs_to_inject[param_name] = world_context.transaction.session
             # WorldName and CurrentWorldConfig identities are removed.
             # WorldConfig is injected as a resource by type.
             # Systems needing world_name should inject WorldConfig and use world_config.name.
@@ -451,7 +367,7 @@ class WorldScheduler:
                 from sqlalchemy import select as sql_select
 
                 stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
-                result = await world_context.session.execute(stmt)  # Await here
+                result = await world_context.transaction.session.execute(stmt)
                 entities_to_process = result.scalars().all()
                 kwargs_to_inject[param_name] = entities_to_process
             elif identity == "Event":
@@ -503,7 +419,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand] = None,
+        command_object: Optional[BaseCommand[Any]] = None,
         **additional_kwargs: Any,
     ) -> Any:
         """
@@ -560,11 +476,11 @@ class WorldScheduler:
                             stmt = sql_delete(marker_type_to_remove).where(
                                 marker_type_to_remove.entity_id.in_(entity_ids_processed)
                             )
-                            await world_context.session.execute(stmt)  # Await
+                            await world_context.transaction.session.execute(stmt)
                             # Flush is important here if subsequent systems in the same stage need to see this change.
                             # For one-time systems, commit/flush is handled by the caller.
                             if metadata.get("system_type") == "stage_system":
-                                await world_context.session.flush()  # Await
+                                await world_context.transaction.session.flush()
         return result
 
     async def execute_one_time_system(
