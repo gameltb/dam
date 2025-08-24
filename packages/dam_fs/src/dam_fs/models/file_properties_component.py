@@ -27,7 +27,7 @@ class FilePropertiesComponent(BaseComponent):
 
     __tablename__ = "component_file_properties"
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     original_filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)

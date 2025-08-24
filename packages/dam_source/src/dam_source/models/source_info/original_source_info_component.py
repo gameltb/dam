@@ -19,7 +19,7 @@ class OriginalSourceInfoComponent(BaseComponent):
 
     __tablename__ = "component_original_source_info"
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     # Fields like original_filename and original_path have been removed.
     # This information is now expected to be found in:

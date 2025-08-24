@@ -15,7 +15,7 @@ class ExiftoolMetadataComponent(BaseComponent):
 
     __tablename__ = "component_exiftool_metadata"  # Renamed
 
-    # Inherits id, entity_id, created_at, updated_at from BaseComponent
+    # Inherits id, entity_id from BaseComponent
 
     # entity_id: Mapped[PkId] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False, init=False)
     # The entity_id is already defined in BaseComponent and will be inherited.

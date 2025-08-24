@@ -22,7 +22,7 @@ class BaseVariantInfoComponent(BaseComponent):
 
     __abstract__ = True
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent.
+    # id, entity_id are inherited from BaseComponent.
     # entity_id here refers to the Entity that *is* this variant (the File Entity).
 
     conceptual_entity_id: Mapped[int] = mapped_column(

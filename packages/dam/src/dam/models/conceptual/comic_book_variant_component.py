@@ -13,7 +13,7 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
 
     __tablename__ = "component_comic_book_variant"
 
-    # id, entity_id, conceptual_entity_id, created_at, updated_at are inherited.
+    # id, entity_id, conceptual_entity_id are inherited.
 
     language: Mapped[str | None] = mapped_column(
         String(50), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."

@@ -20,7 +20,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     - Components are located in the various `dam_media_*` packages.
 
 ### 2.3. BaseComponent
--   Provides common fields: `id`, `entity_id` (FK to `entities.id`), `created_at`, `updated_at`, and an `entity` relationship.
+-   Provides common fields: `id`, `entity_id` (FK to `entities.id`), and an `entity` relationship.
 
 ### 2.4. Systems
 -   **Definition**: Systems encapsulate the logic that operates on entities possessing specific combinations of components.
