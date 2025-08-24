@@ -14,10 +14,12 @@ This document outlines the design principles and guidelines for developing model
   - [2.6. Audio Embedding Components](#26-audio-embedding-components)
   - [2.7. Tagging Components and Services](#27-tagging-components-and-services)
   - [2.8. Constructor Expectations](#28-constructor-expectations)
-- [3. Systems](#3-systems)
-  - [3.1. Definition and Purpose](#31-definition-and-purpose)
-  - [3.2. Decorators and Stages](#32-decorators-and-stages)
-  - [3.3. Dependency Injection](#33-dependency-injection)
+- [3. Services, Systems, Commands, and Resources](#3-services-systems-commands-and-resources)
+  - [3.1. Services](#31-services)
+  - [3.2. Systems](#32-systems)
+  - [3.3. Commands](#33-commands)
+  - [3.4. Events vs. Commands](#34-events-vs-commands)
+  - [3.5. Resources](#35-resources)
 - [4. Testing Guidelines](#4-testing-guidelines)
 - [5. Further Information](#5-further-information)
 
@@ -145,13 +147,12 @@ Similar to text embeddings, the system supports storing and searching audio embe
         *   `generate_audio_embedding_for_entity`: Creates/updates an audio embedding for an entity.
         *   `find_similar_entities_by_audio_embedding`: Searches for entities with similar audio.
 -   **System (`AudioProcessingSystem`)**:
-    *   `audio_embedding_generation_system` in `dam.systems.audio_systems.py`.
-    *   Processes entities marked with `NeedsAudioProcessingMarker`.
+    *   A system can be designed to react to `AudioComponent` being added to an entity, or it can be triggered by a command.
     *   Uses `AudioService` to generate embeddings.
     *   Relies on `dam.utils.media_utils.get_file_path_for_entity` to locate the audio file for an entity.
--   **Events**:
-    *   `AudioSearchQuery` (in `dam_media_audio.events`): Used to request an audio similarity search.
-    *   Handled by `handle_audio_search_query` in `dam_semantic.systems`, which calls the `AudioService`.
+-   **Commands**:
+    *   `AudioSearchCommand` (in `dam_media_audio.commands`): Used to request an audio similarity search.
+    *   Handled by `handle_audio_search_command` in `dam_semantic.systems`, which calls the `AudioService`.
 
 #### Adding a New Audio Embedding Model
 
@@ -189,7 +190,7 @@ The system includes functionality for both manual and AI-driven (model-generated
     *   Manages `TagConceptComponent` (creation, retrieval) and manual `EntityTagLinkComponent`.
     *   Includes `get_or_create_tag_concept()` for use by other services.
 -   **`AutoTaggingSystem`** (`dam_app/systems/auto_tagging_system.py`):
-    *   An example system that processes entities marked with `NeedsAutoTaggingMarker`.
+    *   An example system that can be triggered by a command (`AutoTagEntityCommand`).
     *   Uses `TaggingService` to apply tags from a configured model.
 
 #### Adding a New Auto-Tagging Model
@@ -221,9 +222,9 @@ The system includes functionality for both manual and AI-driven (model-generated
   # ecs_service.add_component_to_entity(session, actual_entity_id, my_component)
   ```
 
-## 3. Services, Systems, and Resources
+## 3. Services, Systems, Commands, and Resources
 
-This section outlines the roles and interactions of Services, Systems, and Resources.
+This section outlines the roles and interactions of Services, Systems, Commands, and Resources.
 
 ### 3.1. Services
 
@@ -233,27 +234,46 @@ This section outlines the roles and interactions of Services, Systems, and Resou
     *   Services operate on Entities and Components, typically by using the `AsyncSession` passed to them or by calling other fine-grained services (like `ecs_service` for direct component manipulation).
     *   If a Service function needs to interact with a stateful resource (e.g., `ModelExecutionManager` for ML models, `FileStorageResource` for world-specific storage, or future remote API clients), that resource instance **must be passed as an argument** to the service function.
     *   Service functions should **not** use global accessors like `get_default_world()` or similar service locators to find their dependencies.
-    *   They are called by Systems.
+    *   They are called by Systems (which act as command or event handlers).
 
 ### 3.2. Systems
 
--   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess or react to specific Events occurring within the application. They decide *what* to do and *when*, but delegate the *how* to Services.
--   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)` for stage-based execution or `@dam.core.systems.listens_for(EventType)` for event-driven execution.
+-   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to Services.
+-   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with:
+    *   `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)` for stage-based execution.
+    *   `@dam.core.systems.listens_for(EventType)` for event-driven execution.
+    *   `@dam.core.systems.handles_command(CommandType)` for command-driven execution.
 -   **Dependency Injection**:
     *   Systems declare their dependencies using `typing.Annotated` type hints in their parameters. The `WorldScheduler` injects these dependencies.
     *   Common injectable types for Systems include:
+        *   The `Event` or `Command` object that triggered the system.
         *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - The active SQLAlchemy session for the current world.
-        *   `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources. This includes world-specific resources (like `FileStorageResource`) and global resources (like the `ModelExecutionManager`, see Section 4).
-        *   `MarkedEntityList[MarkerComponentType]`: `Annotated[List[Entity], "MarkedEntityList", MyMarkerComponent]` - A list of entities from the current world that have the specified marker component.
+        *   `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources.
         *   `WorldContext`: Provides access to `WorldSession`, world name, and `WorldConfig`.
-    *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance, or specific model clients vended by it) and passing them as arguments to the service functions they call.
--   **Execution**: Managed by the `WorldScheduler` based on stages or events. The `WorldScheduler` also handles session commits/rollbacks per stage or event cycle.
--   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems.
+    *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the service functions they call.
+-   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `WorldScheduler` also handles session commits/rollbacks per cycle.
+-   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems and specifying how they are triggered (stage, event, or command).
 -   **Characteristics**:
     *   Should be stateless. All necessary data comes from injected dependencies or queried entities.
     *   Focus on orchestration and flow control.
 
-### 3.3. Resources
+### 3.3. Commands
+
+-   **Definition and Purpose**: Commands are requests for the system to perform a specific action. They represent an imperative instruction, such as "ingest this file" or "find similar images". A command is dispatched with the expectation that it will be handled by one or more systems.
+-   **Structure**: Commands are simple data-only classes that inherit from `dam.core.commands.BaseCommand`. They carry the data necessary to execute the action.
+-   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers.
+-   **Handling**: Systems that handle commands are decorated with `@handles_command(MyCommand)`. The system function receives the command object as its first argument.
+
+### 3.4. Events vs. Commands
+
+It is important to distinguish between Events and Commands to maintain a clean architecture.
+
+-   **Command**: An instruction to do something. It is sent to a specific destination (the `World`'s command dispatcher) with a clear intent. Usually, only one part of the system dispatches a specific command. A command is often (but not always) handled by a single system. Use a command when you want to explicitly trigger a specific piece of business logic.
+    -   *Example*: `IngestFileCommand` is dispatched to tell the system to begin the ingestion process for a specific file.
+-   **Event**: A notification that something has happened. It is broadcast to the entire system without knowledge of who, if anyone, is listening. Multiple, unrelated systems can listen for the same event to perform their own independent tasks. Use an event when you want to decouple the producer of the notification from its consumers.
+    -   *Example*: `FileStored` is fired after the ingestion command handler has saved a file to storage. A metadata extraction system and an image processing system might both listen for this event to start their respective tasks, without knowing about each other.
+
+### 3.5. Resources
 
 -   **Definition and Purpose**: Resources are shared objects that provide access to external utilities, manage global or world-specific state, or encapsulate connections to infrastructure.
 -   **Types**:

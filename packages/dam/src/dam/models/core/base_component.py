@@ -1,26 +1,14 @@
-import logging  # Added import
-from datetime import datetime  # Added import
+import logging
+from typing import TYPE_CHECKING, List, Type
 
-# PkId is still used by @declared_attr id, Timestamp types are not used here anymore
-# Import Entity for ForeignKey relationship typing, will resolve with
-# __future__.annotations if needed or by making it a string literal if type
-# checking issues arise before full model setup.
-from typing import TYPE_CHECKING
-
-from sqlalchemy import (
-    DateTime,  # text removed, func added
-    ForeignKey,
-)
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
-from sqlalchemy.sql import func  # Added for func.now()
 
-from .base_class import Base  # Updated import for Base
+from .base_class import Base
 
 if TYPE_CHECKING:
     from .entity import Entity
 
-
-from typing import List, Type  # For List and Type hints
 
 # List to hold all registered component types that inherit from BaseComponent.
 # This list will be populated automatically by BaseComponent.__init_subclass__
@@ -30,41 +18,19 @@ REGISTERED_COMPONENT_TYPES: List[Type["BaseComponent"]] = []
 logger = logging.getLogger(__name__)
 
 
-# No need for @Base.mapped_as_dataclass here
-# kw_only=True and @dataclass behavior are inherited from Base
-class BaseComponent(Base):  # Inherit from the new Base
+class BaseComponent(Base):
     """
     Abstract base class for all components.
-    Provides common fields like id, entity_id (linking to an Entity),
-    and timestamps.
+    Provides common fields like id, entity_id (linking to an Entity).
     """
 
-    __abstract__ = True  # This class will not be mapped to its own table
+    __abstract__ = True
 
-    # Using declared_attr for fields that might need table-specific context,
-    # though for simple fields like id, created_at, updated_at, direct Mapped
-    # annotation is fine. For entity_id, declared_attr ensures it's correctly
-    # set up for each subclass's table.
-
-    # Attributes that are __init__ parameters should come first.
+    # Using declared_attr for fields that might need table-specific context.
+    # For entity_id, declared_attr ensures it's correctly set up for each subclass's table.
     entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False, init=False)
 
-    # Attributes that are NOT __init__ parameters.
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),  # Changed to func.now()
-        nullable=False,
-        init=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),  # Changed to func.now()
-        onupdate=func.now(),  # Changed to func.now()
-        nullable=False,
-        init=False,
-    )
 
     # To guide dataclass for __init__ (init=False) and repr (repr=False)
     # The `entity` relationship is defined below using @declared_attr to correctly link via entity_id

@@ -20,7 +20,7 @@ class TagConceptComponent(BaseConceptualInfoComponent):
 
     __tablename__ = "component_tag_concept"
 
-    # id, entity_id, created_at, updated_at are inherited via BaseConceptualInfoComponent
+    # id, entity_id are inherited via BaseConceptualInfoComponent
 
     tag_name: Mapped[str] = mapped_column(
         String(255),

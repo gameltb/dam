@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent
@@ -27,10 +28,11 @@ class FilePropertiesComponent(BaseComponent):
 
     __tablename__ = "component_file_properties"
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     original_filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
+    file_modified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
     # mime_type is removed as per user request.
     # It will be determined at runtime when needed.
     # Could add other fields like 'last_modified_on_disk' etc. if needed.
@@ -46,5 +48,6 @@ class FilePropertiesComponent(BaseComponent):
     def __repr__(self):
         return (
             f"FilePropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"filename='{self.original_filename}', size={self.file_size_bytes})"
+            f"filename='{self.original_filename}', size={self.file_size_bytes}, "
+            f"modified_at='{self.file_modified_at}')"
         )

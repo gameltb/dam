@@ -19,7 +19,7 @@ class EntityTagLinkComponent(BaseComponent):
     __tablename__ = "component_entity_tag_link"
 
     # entity_id is inherited from BaseComponent - this is the ID of the entity being tagged.
-    # id, created_at, updated_at are also inherited.
+    # id is also inherited.
 
     tag_concept_entity_id: Mapped[int] = mapped_column(
         ForeignKey("entities.id", ondelete="CASCADE"),

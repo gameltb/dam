@@ -379,7 +379,7 @@ def merge_ecs_worlds_db_to_db(
                     comp_data = {
                         attr.key: getattr(src_comp_instance, attr.key)
                         for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                        if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
+                        if attr.key not in ["id", "entity_id"]
                     }
 
                     # Add entity_id and entity for the new target entity
@@ -541,7 +541,7 @@ def split_ecs_world(
                     comp_data = {
                         attr.key: getattr(src_comp_instance, attr.key)
                         for attr in sqlalchemy_inspect(src_comp_instance).mapper.column_attrs
-                        if attr.key not in ["id", "entity_id", "created_at", "updated_at"]
+                        if attr.key not in ["id", "entity_id"]
                     }
                     comp_data_for_new = {**comp_data, "entity_id": tgt_entity.id, "entity": tgt_entity}
                     try:

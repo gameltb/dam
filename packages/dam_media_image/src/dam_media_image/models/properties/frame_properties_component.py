@@ -17,7 +17,7 @@ class FramePropertiesComponent(BaseComponent):
     # __mapper_args__ = {"polymorphic_identity": "frame_properties"}
     # Not needed if not using Single Table Inheritance with BaseComponent as parent table
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     frame_count: Mapped[Optional[int]] = mapped_column(nullable=True, default=None)
     # Frame rate might be tricky as it can vary per frame in formats like GIF.

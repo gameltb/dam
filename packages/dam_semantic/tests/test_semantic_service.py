@@ -11,46 +11,6 @@ from dam_semantic.models import (
 )
 
 
-class MockSentenceTransformer:
-    def __init__(self, model_name_or_path=None, **kwargs):
-        self.model_name = model_name_or_path
-        if model_name_or_path and "clip" in model_name_or_path.lower():
-            self.dim = 512
-        elif model_name_or_path and "MiniLM-L6-v2" in model_name_or_path:
-            self.dim = 384
-        else:
-            self.dim = 384
-
-    def encode(self, sentences, convert_to_numpy=True, **kwargs):
-        original_sentences_type = type(sentences)
-        if isinstance(sentences, str):
-            sentences = [sentences]
-        embeddings = []
-        for s in sentences:
-            if not s or not s.strip():
-                embeddings.append(np.zeros(self.dim, dtype=np.float32))
-                continue
-            sum_ords = sum(ord(c) for c in s)
-            model_ord_sum = sum(ord(c) for c in (self.model_name or "default"))
-            vec_elements = [sum_ords % 100, len(s) % 100, model_ord_sum % 100]
-            if self.dim >= 3:
-                vec = np.array(vec_elements[: self.dim] + [0.0] * (self.dim - min(3, self.dim)), dtype=np.float32)
-            elif self.dim > 0:
-                vec = np.array(vec_elements[: self.dim], dtype=np.float32)
-            else:
-                vec = np.array([], dtype=np.float32)
-            if vec.shape[0] != self.dim and self.dim > 0:
-                padding = np.zeros(self.dim - vec.shape[0], dtype=np.float32)
-                vec = np.concatenate((vec, padding))
-            elif vec.shape[0] != self.dim and self.dim == 0:
-                vec = np.array([], dtype=np.float32)
-            embeddings.append(vec)
-        if not convert_to_numpy:
-            embeddings = [e.tolist() for e in embeddings]
-        if original_sentences_type is str:
-            return embeddings[0] if embeddings else np.array([])
-        else:
-            return np.array(embeddings) if convert_to_numpy else embeddings
 
 
 # Define model names and params to be used in tests, corresponding to registered models

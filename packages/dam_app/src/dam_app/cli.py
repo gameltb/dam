@@ -21,10 +21,10 @@ from dam.core.world import (
 from dam.services import ecs_service as dam_ecs_service
 from dam.utils.async_typer import AsyncTyper
 from dam_fs.models import FilePropertiesComponent
-from dam_semantic.events import SemanticSearchQuery  # For semantic search CLI
+from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
 from typing_extensions import Annotated
 
-from .events import AssetStreamIngestionRequested
+from .commands import IngestAssetStreamCommand
 
 app = AsyncTyper(
     name="dam-cli",
@@ -145,19 +145,19 @@ async def cli_add_asset(
                 with open(filepath, "rb") as f:
                     file_content_stream = io.BytesIO(f.read())
 
-                # Create and dispatch the initial event
-                event = AssetStreamIngestionRequested(
+                # Create and dispatch the initial command
+                command = IngestAssetStreamCommand(
                     entity=entity,
                     file_content=file_content_stream,
                     original_filename=filepath.name,
                     world_name=target_world.name,
                 )
 
-                await target_world.send_event(event)
+                await target_world.dispatch_command(command)
 
-                # The event pipeline now handles everything. We just need to commit the session.
+                # The command handler now handles everything. We just need to commit the session.
                 await session.commit()
-                typer.secho(f"  Successfully dispatched ingestion event for '{filepath.name}'.", fg=typer.colors.GREEN)
+                typer.secho(f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN)
 
             except Exception as e:
                 await session.rollback()
@@ -354,7 +354,7 @@ def main_callback(
                 raise typer.Exit(code=1)
 
             request_id = str(uuid.uuid4())
-            query_event = SemanticSearchQuery(
+            query_command = SemanticSearchCommand(
                 query_text=query,
                 world_name=target_world.name,
                 request_id=request_id,
@@ -363,12 +363,12 @@ def main_callback(
             )
 
             typer.echo(
-                f"Dispatching SemanticSearchQuery (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
+                f"Dispatching SemanticSearchCommand (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
             )
 
-            query_event.result_future = asyncio.get_running_loop().create_future()
-            await target_world.dispatch_event(query_event)
-            results = await query_event.result_future
+            query_command.result_future = asyncio.get_running_loop().create_future()
+            await target_world.dispatch_command(query_command)
+            results = await query_command.result_future
 
             if not results:
                 typer.secho(

@@ -13,7 +13,7 @@ class ComicBookConceptComponent(BaseConceptualInfoComponent):
 
     __tablename__ = "component_comic_book_concept"
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
     # via BaseConceptualInfoComponent.
 
     comic_title: Mapped[str] = mapped_column(

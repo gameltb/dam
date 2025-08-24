@@ -12,7 +12,7 @@ class FileLocationComponent(BaseComponent):
 
     __tablename__ = "component_file_location"
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     # Content identifier, typically the SHA256 hash of the file's content.
     # This links this location entry to the intrinsic content of the asset.

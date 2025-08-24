@@ -14,7 +14,7 @@ class AudioPropertiesComponent(BaseComponent):
     __tablename__ = "component_audio_properties"  # Adjusted table name
     # __mapper_args__ = {"polymorphic_identity": "audio_properties"} # Not needed
 
-    # id, entity_id, created_at, updated_at are inherited from BaseComponent
+    # id, entity_id are inherited from BaseComponent
 
     duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True, default=None)
     codec_name: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)

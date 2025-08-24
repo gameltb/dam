@@ -4,8 +4,6 @@
 from ..core.components_markers import (
     AutoTaggingCompleteMarker,
     MetadataExtractedComponent,
-    NeedsAudioProcessingMarker,
-    NeedsAutoTaggingMarker,
     NeedsMetadataExtractionComponent,
 )
 
@@ -64,9 +62,7 @@ __all__ = [
     "EntityTagLinkComponent",
     "ModelGeneratedTagLinkComponent",
     # Marker components
-    "NeedsAudioProcessingMarker",
     "NeedsMetadataExtractionComponent",
     "MetadataExtractedComponent",
-    "NeedsAutoTaggingMarker",
     "AutoTaggingCompleteMarker",
 ]

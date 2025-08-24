@@ -1,9 +1,9 @@
 import logging
 from typing import Optional
 
-from ..events import WebAssetIngestionRequested
+from ..commands import IngestWebAssetCommand
 from dam.core.system_params import WorldSession
-from dam.core.systems import listens_for
+from dam.core.systems import handles_command
 from dam.models.core.entity import Entity
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
@@ -14,47 +14,47 @@ from dam.services import ecs_service
 logger = logging.getLogger(__name__)
 
 
-@listens_for(WebAssetIngestionRequested)
-async def handle_web_asset_ingestion_request(
-    event: WebAssetIngestionRequested,
+@handles_command(IngestWebAssetCommand)
+async def handle_ingest_web_asset_command(
+    cmd: IngestWebAssetCommand,
     session: WorldSession,
 ):
     """
-    Handles the ingestion of an asset from a web source.
+    Handles the command to ingest an asset from a web source.
     Primarily stores metadata and URLs. File download/processing is deferred.
     """
     logger.info(
-        f"System handling WebAssetIngestionRequested for URL: {event.source_url} from website: {event.website_identifier_url} in world {event.world_name}"
+        f"System handling IngestWebAssetCommand for URL: {cmd.source_url} from website: {cmd.website_identifier_url} in world {cmd.world_name}"
     )
 
     # 1. Find or Create Website Entity
     website_entity: Optional[Entity] = None
     # Query for existing WebsiteProfileComponent by main_url
     existing_website_profiles = await ecs_service.find_entities_by_component_attribute_value(
-        session, WebsiteProfileComponent, "main_url", event.website_identifier_url
+        session, WebsiteProfileComponent, "main_url", cmd.website_identifier_url
     )
     if existing_website_profiles:
         website_entity = existing_website_profiles[0]
-        logger.info(f"Found existing Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
+        logger.info(f"Found existing Website Entity ID {website_entity.id} for URL {cmd.website_identifier_url}")
     else:
         website_entity = await ecs_service.create_entity(session)
         if website_entity.id is None:
             await session.flush()
-        logger.info(f"Creating new Website Entity ID {website_entity.id} for URL {event.website_identifier_url}")
+        logger.info(f"Creating new Website Entity ID {website_entity.id} for URL {cmd.website_identifier_url}")
 
-        website_name = event.metadata_payload.get("website_name") if event.metadata_payload else None
+        website_name = cmd.metadata_payload.get("website_name") if cmd.metadata_payload else None
         if not website_name:
             try:
                 from urllib.parse import urlparse
-                parsed_url = urlparse(event.website_identifier_url)
+                parsed_url = urlparse(cmd.website_identifier_url)
                 website_name = parsed_url.netloc.replace("www.", "")
             except Exception:
                 website_name = "Unknown Website"
 
         profile_comp = WebsiteProfileComponent(
             name=website_name,
-            main_url=event.website_identifier_url,
-            description=event.metadata_payload.get("website_description") if event.metadata_payload else None,
+            main_url=cmd.website_identifier_url,
+            description=cmd.metadata_payload.get("website_description") if cmd.metadata_payload else None,
         )
         await ecs_service.add_component_to_entity(session, website_entity.id, profile_comp)
 
@@ -62,13 +62,13 @@ async def handle_web_asset_ingestion_request(
     asset_entity = await ecs_service.create_entity(session)
     if asset_entity.id is None:
         await session.flush()
-    logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {event.source_url}")
+    logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {cmd.source_url}")
 
     # 3. Create OriginalSourceInfoComponent for the Asset Entity
-    original_filename = event.metadata_payload.get("asset_title") if event.metadata_payload else None
+    original_filename = cmd.metadata_payload.get("asset_title") if cmd.metadata_payload else None
     if not original_filename:
         try:
-            original_filename = event.source_url.split("/")[-1] or f"web_asset_{asset_entity.id}"
+            original_filename = cmd.source_url.split("/")[-1] or f"web_asset_{asset_entity.id}"
         except Exception:
             original_filename = f"web_asset_{asset_entity.id}"
 
@@ -80,32 +80,32 @@ async def handle_web_asset_ingestion_request(
     # 4. Create WebSourceComponent for the Asset Entity
     web_source_data = {
         "website_entity_id": website_entity.id,
-        "source_url": event.source_url,
-        "original_file_url": event.original_file_url,
+        "source_url": cmd.source_url,
+        "original_file_url": cmd.original_file_url,
     }
-    if event.metadata_payload:
-        web_source_data["gallery_id"] = event.metadata_payload.get("gallery_id")
-        web_source_data["uploader_name"] = event.metadata_payload.get("uploader_name")
-        web_source_data["uploader_url"] = event.metadata_payload.get("uploader_url")
-        web_source_data["asset_title"] = event.metadata_payload.get("asset_title", original_filename)
-        web_source_data["asset_description"] = event.metadata_payload.get("asset_description")
+    if cmd.metadata_payload:
+        web_source_data["gallery_id"] = cmd.metadata_payload.get("gallery_id")
+        web_source_data["uploader_name"] = cmd.metadata_payload.get("uploader_name")
+        web_source_data["uploader_url"] = cmd.metadata_payload.get("uploader_url")
+        web_source_data["asset_title"] = cmd.metadata_payload.get("asset_title", original_filename)
+        web_source_data["asset_description"] = cmd.metadata_payload.get("asset_description")
 
-        upload_date_str = event.metadata_payload.get("upload_date")
+        upload_date_str = cmd.metadata_payload.get("upload_date")
         if upload_date_str:
             try:
                 from datetime import datetime
                 web_source_data["upload_date"] = datetime.fromisoformat(upload_date_str.replace("Z", "+00:00"))
             except ValueError:
-                logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {event.source_url}")
+                logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {cmd.source_url}")
                 web_source_data["upload_date"] = None
         else:
             web_source_data["upload_date"] = None
 
-        web_source_data["raw_metadata_dump"] = event.metadata_payload
+        web_source_data["raw_metadata_dump"] = cmd.metadata_payload
 
-    if event.tags:
+    if cmd.tags:
         import json
-        web_source_data["tags_json"] = json.dumps(event.tags)
+        web_source_data["tags_json"] = json.dumps(cmd.tags)
 
     valid_web_source_fields = {
         "website_entity_id",
@@ -128,7 +128,8 @@ async def handle_web_asset_ingestion_request(
     await ecs_service.add_component_to_entity(session, asset_entity.id, web_comp)
 
     logger.info(
-        f"Finished WebAssetIngestionRequested for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {event.source_url}"
+        f"Finished IngestWebAssetCommand for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {cmd.source_url}"
     )
 
-__all__ = ["handle_web_asset_ingestion_request"]
+
+__all__ = ["handle_ingest_web_asset_command"]

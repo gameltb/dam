@@ -1,28 +1,28 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
-from .events import (
-    AssetFileIngestionRequested,
-    AssetReferenceIngestionRequested,
-    FindEntityByHashQuery,
-)
 
+from .commands import (
+    FindEntityByHashCommand,
+    IngestFileCommand,
+    IngestReferenceCommand,
+)
 from .systems.asset_lifecycle_systems import (
-    handle_asset_file_ingestion_request,
-    handle_asset_reference_ingestion_request,
-    handle_find_entity_by_hash_query,
+    handle_find_entity_by_hash_command,
+    handle_ingest_file_command,
+    handle_ingest_reference_command,
 )
 
 
 class FsPlugin(Plugin):
     def build(self, world: "World") -> None:
         world.register_system(
-            handle_asset_file_ingestion_request,
-            event_type=AssetFileIngestionRequested,
+            handle_ingest_file_command,
+            command_type=IngestFileCommand,
         )
         world.register_system(
-            handle_asset_reference_ingestion_request,
-            event_type=AssetReferenceIngestionRequested,
+            handle_ingest_reference_command,
+            command_type=IngestReferenceCommand,
         )
         world.register_system(
-            handle_find_entity_by_hash_query, event_type=FindEntityByHashQuery
+            handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand
         )
