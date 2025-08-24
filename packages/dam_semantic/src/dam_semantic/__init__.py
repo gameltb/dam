@@ -31,5 +31,18 @@ class SemanticPlugin(Plugin):
         world.register_system(systems.handle_audio_search_query)
         world.register_system(systems.generate_embeddings_system)
 
+        # Register the SentenceTransformer model type with the SireResource
+        try:
+            from dam_sire.resource import SireResource
+            from sentence_transformers import SentenceTransformer
+            from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
+
+            sire_resource = world.resources.get(SireResource)
+            if sire_resource:
+                sire_resource.register_model_type(SentenceTransformer, TorchModuleWrapper)
+        except ImportError:
+            # dam_sire or sentence_transformers is not installed
+            pass
+
 
 __all__ = ["SemanticPlugin", "SemanticSearchQuery"]

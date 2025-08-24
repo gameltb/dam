@@ -6,7 +6,11 @@ from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
     Iterator,  # Added for click_runner
+    Any,
+    Dict,
+    Optional
 )
+import numpy as np
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -116,11 +120,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world)
 
 
-from typing import Any, Dict, Optional
-
-import numpy as np
-
-
 class MockSentenceTransformer:
     def __init__(self, model_name_or_path=None, **kwargs):
         self.model_name = model_name_or_path
@@ -187,16 +186,17 @@ def click_runner() -> Iterator[CliRunner]:
 @pytest.fixture
 def sire_resource():
     from dam_sire.resource import SireResource
+    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
 
-    return SireResource()
+    resource = SireResource()
+    resource.register_model_type(MockSentenceTransformer, TorchModuleWrapper)
+    return resource
 
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
-        return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
-
-    monkeypatch.setattr("dam_semantic.service._load_sentence_transformer_model_sync", mock_load_sync)
+    from dam_semantic import service as semantic_service
+    monkeypatch.setattr(semantic_service, "SentenceTransformer", MockSentenceTransformer)
 
 
 @pytest.fixture(scope="session", autouse=True)
