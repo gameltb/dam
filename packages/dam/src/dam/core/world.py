@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 from sqlalchemy.orm import sessionmaker  # Added sessionmaker
 
+from dam.core.commands import BaseCommand, CommandResult
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
@@ -87,16 +88,26 @@ class World:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
+        command_type: Optional[Type[BaseCommand]] = None,
         **kwargs,
     ) -> None:
-        if stage and event_type:
-            raise ValueError("A system cannot be registered for both a stage and an event type simultaneously.")
-        self.scheduler.register_system_for_world(system_func, stage=stage, event_type=event_type, **kwargs)
+        num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
+        if num_triggers > 1:
+            raise ValueError("A system can only be registered for one trigger type (stage, event, or command).")
+
+        self.scheduler.register_system_for_world(
+            system_func, stage=stage, event_type=event_type, command_type=command_type, **kwargs
+        )
+
         if stage:
             self.logger.info(f"System {system_func.__name__} registered for stage {stage.name} in world '{self.name}'.")
         elif event_type:
             self.logger.info(
                 f"System {system_func.__name__} registered for event {event_type.__name__} in world '{self.name}'."
+            )
+        elif command_type:
+            self.logger.info(
+                f"System {system_func.__name__} registered for command {command_type.__name__} in world '{self.name}'."
             )
 
     def _get_world_context(self, session: AsyncSession) -> WorldContext:  # Use AsyncSession
@@ -141,29 +152,48 @@ class World:
                     f"Session closed after dispatching event '{type(event).__name__}' in World '{self.name}'."
                 )
 
+    async def dispatch_command(
+        self, command: BaseCommand, session: Optional[AsyncSession] = None
+    ) -> CommandResult:  # Use AsyncSession
+        self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
+        if session:
+            world_context = self._get_world_context(session)
+            return await self.scheduler.dispatch_command(command, world_context)
+        else:
+            db_session = self.get_db_session()  # Returns AsyncSession
+            try:
+                world_context = self._get_world_context(db_session)
+                return await self.scheduler.dispatch_command(command, world_context)
+            finally:
+                await db_session.close()  # Await close for AsyncSession
+                self.logger.debug(
+                    f"Session closed after dispatching command '{type(command).__name__}' in World '{self.name}'."
+                )
+
     async def execute_one_time_system(
         self,
         system_func: Callable[..., Any],
         session: Optional[AsyncSession] = None,
         **kwargs: Any,  # Use AsyncSession
-    ) -> None:
+    ) -> Any:
         """
         Executes a single, dynamically provided system function immediately.
         Manages session creation and closure if an external session is not provided.
+        Returns the result of the system function.
         """
         self.logger.info(
             f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
         )
         if session:
             world_context = self._get_world_context(session)
-            await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+            return await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
         else:
             db_session = self.get_db_session()
             try:
                 world_context = self._get_world_context(db_session)
-                await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
+                return await self.scheduler.execute_one_time_system(system_func, world_context, **kwargs)
             finally:
-                db_session.close()
+                await db_session.close()
                 self.logger.debug(
                     f"Session closed after executing one-time system '{system_func.__name__}' in World '{self.name}'."
                 )

@@ -2,10 +2,11 @@ import asyncio
 import inspect
 import logging
 from collections import defaultdict
-from typing import Annotated, Any, Callable, Dict, List, Optional, Type, get_args, get_origin
+from typing import Annotated, Any, Callable, Dict, List, Optional, Type, TypeVar, get_args, get_origin
 
+from dam.core.commands import BaseCommand, CommandResult
 from dam.core.events import BaseEvent
-from dam.core.exceptions import EventHandlingError, StageExecutionError
+from dam.core.exceptions import CommandHandlingError, EventHandlingError, StageExecutionError
 from dam.core.resources import ResourceManager, ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
@@ -17,6 +18,8 @@ from dam.models.core.entity import Entity
 SYSTEM_METADATA: Dict[Callable[..., Any], Dict[str, Any]] = {}
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
 
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
     sig = inspect.signature(func)
@@ -27,6 +30,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
         event_specific_type: Optional[Type[BaseEvent]] = None
+        command_specific_type: Optional[Type[BaseCommand]] = None
 
         if get_origin(original_param_type) is Annotated:
             annotated_args = get_args(original_param_type)
@@ -57,6 +61,13 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                     logger.warning(
                         f"Parameter '{name}' in system '{func.__name__}' is 'Event' but its type '{actual_type}' is not a BaseEvent subclass."
                     )
+            elif identity == "Command":
+                if inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand):
+                    command_specific_type = actual_type
+                else:
+                    logger.warning(
+                        f"Parameter '{name}' in system '{func.__name__}' is 'Command' but its type '{actual_type}' is not a BaseCommand subclass."
+                    )
 
         if not identity:  # Only set identity if not already set by Annotated string
             # Specific framework types that are not standard resources
@@ -69,6 +80,9 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
             elif inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):  # Events are special
                 identity = "Event"
                 event_specific_type = actual_type
+            elif inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand):
+                identity = "Command"
+                command_specific_type = actual_type
 
         if identity == "Event" and not event_specific_type:
             if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
@@ -77,6 +91,13 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
                 logger.warning(
                     f"Parameter '{name}' in system '{func.__name__}' resolved to 'Event' identity, but its type '{actual_type}' is not a BaseEvent subclass."
                 )
+        if identity == "Command" and not command_specific_type:
+            if inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand):
+                command_specific_type = actual_type
+            else:
+                logger.warning(
+                    f"Parameter '{name}' in system '{func.__name__}' resolved to 'Command' identity, but its type '{actual_type}' is not a BaseCommand subclass."
+                )
 
         param_info[name] = {
             "name": name,
@@ -84,6 +105,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
             "identity": identity,
             "marker_component_type": marker_component_type,
             "event_type_hint": event_specific_type,
+            "command_type_hint": command_specific_type,
             "is_annotated": get_origin(original_param_type) is Annotated,
             "original_annotation": original_param_type,
         }
@@ -100,6 +122,34 @@ def system(stage: SystemStage, **kwargs):
             "stage": stage,
             **kwargs,
         }
+        return func
+
+    return decorator
+
+
+def handles_command(command_type: Type[BaseCommand], **kwargs):
+    if not (inspect.isclass(command_type) and issubclass(command_type, BaseCommand)):
+        raise TypeError(f"Invalid command_type '{command_type}'. Must be a class that inherits from BaseCommand.")
+
+    def decorator(func: Callable[..., Any]):
+        param_info = _parse_system_params(func)
+        SYSTEM_METADATA[func] = {
+            "params": param_info,
+            "is_async": inspect.iscoroutinefunction(func),
+            "system_type": "command_handler",
+            "handles_command_type": command_type,
+            **kwargs,
+        }
+        has_command_param = any(p_info.get("command_type_hint") == command_type for p_info in param_info.values())
+        if not has_command_param:
+            found_by_direct_type = any(
+                p_info.get("type_hint") == command_type and p_info.get("identity") == "Command"
+                for p_info in param_info.values()
+            )
+            if not found_by_direct_type:
+                logger.warning(
+                    f"System {func.__name__} registered for command {command_type.__name__} but does not seem to have a parameter matching this command type."
+                )
         return func
 
     return decorator
@@ -138,6 +188,7 @@ class WorldScheduler:
         self.resource_manager = resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
+        self.command_handler_registry: Dict[Type[BaseCommand], List[Callable[..., Any]]] = defaultdict(list)
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
@@ -146,6 +197,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
+        command_type: Optional[Type[BaseCommand]] = None,
         **kwargs,
     ):
         if system_func not in self.system_metadata:
@@ -166,8 +218,15 @@ class WorldScheduler:
             self.logger.info(
                 f"System {system_func.__name__} registered for event {event_type.__name__} in this scheduler."
             )
+        elif command_type:
+            self.command_handler_registry[command_type].append(system_func)
+            self.logger.info(
+                f"System {system_func.__name__} registered for command {command_type.__name__} in this scheduler."
+            )
         else:
-            self.logger.error(f"System {system_func.__name__} must be registered with either a stage or an event_type.")
+            self.logger.error(
+                f"System {system_func.__name__} must be registered with either a stage, an event_type, or a command_type."
+            )
 
     # This method is now effectively replaced by _execute_system_func and can be removed.
     # async def _resolve_and_execute_system(
@@ -190,7 +249,7 @@ class WorldScheduler:
             for system_func in systems_to_run:
                 active_system_func_name = system_func.__name__
                 # Call _execute_system_func directly
-                await self._execute_system_func(system_func, world_context, event_object=None)
+                await self._execute_system_func(system_func, world_context, event_object=None, command_object=None)
             try:
                 await world_context.session.commit()  # Await
                 self.logger.info(f"Committed session for stage {stage.name} in world {world_context.world_name}")
@@ -233,7 +292,7 @@ class WorldScheduler:
             for handler_func in handlers_to_run:
                 active_handler_func_name = handler_func.__name__
                 # Call _execute_system_func directly
-                await self._execute_system_func(handler_func, world_context, event_object=event)
+                await self._execute_system_func(handler_func, world_context, event_object=event, command_object=None)
             try:
                 await world_context.session.commit()  # Await
                 self.logger.info(
@@ -263,6 +322,56 @@ class WorldScheduler:
                 original_exception=handler_exc,
             ) from handler_exc
 
+    async def dispatch_command(self, command: BaseCommand, world_context: WorldContext) -> CommandResult:
+        command_type = type(command)
+        self.logger.info(f"Dispatching command: {command_type.__name__} for world: {world_context.world_name}")
+        handlers_to_run = self.command_handler_registry.get(command_type, [])
+        if not handlers_to_run:
+            self.logger.info(
+                f"No command handlers registered for command type {command_type.__name__} in world {world_context.world_name}"
+            )
+            return CommandResult(results=[])
+
+        active_handler_func_name = "None"
+        command_result = CommandResult()
+        try:
+            for handler_func in handlers_to_run:
+                active_handler_func_name = handler_func.__name__
+                result = await self._execute_system_func(
+                    handler_func, world_context, event_object=None, command_object=command
+                )
+                if result is not None:
+                    command_result.results.append(result)
+            try:
+                await world_context.session.commit()  # Await
+                self.logger.info(
+                    f"Committed session after handling command {command_type.__name__} in world {world_context.world_name}"
+                )
+            except Exception as commit_exc:
+                self.logger.error(
+                    f"Error committing session after command {command_type.__name__} in world {world_context.world_name}: {commit_exc}. Rolling back.",
+                    exc_info=True,
+                )
+                await world_context.session.rollback()  # Await
+                raise CommandHandlingError(
+                    message=f"Failed to commit after handling command {command_type.__name__} in world {world_context.world_name}.",
+                    command_type=command_type.__name__,
+                    original_exception=commit_exc,
+                ) from commit_exc
+        except Exception as handler_exc:
+            self.logger.error(
+                f"Handler '{active_handler_func_name}' failed for command '{command_type.__name__}' in world '{world_context.world_name}'. Rolling back. Error: {handler_exc}",
+                exc_info=True,
+            )
+            await world_context.session.rollback()  # Await
+            raise CommandHandlingError(
+                message=f"Handler '{active_handler_func_name}' failed for command '{command_type.__name__}' in world '{world_context.world_name}'.",
+                command_type=command_type.__name__,
+                handler_name=active_handler_func_name,
+                original_exception=handler_exc,
+            ) from handler_exc
+        return command_result
+
     async def run_all_stages(self, initial_world_context: WorldContext):
         self.logger.info(f"Attempting to run all stages for world: {initial_world_context.world_name}")
         ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
@@ -278,6 +387,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
+        command_object: Optional[BaseCommand] = None,
         **additional_kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -355,6 +465,18 @@ class WorldScheduler:
                     )
                     self.logger.error(msg)
                     raise ValueError(msg)
+            elif identity == "Command":
+                expected_command_type = param_meta["command_type_hint"]
+                if command_object and isinstance(command_object, expected_command_type):
+                    kwargs_to_inject[param_name] = command_object
+                elif expected_command_type is not None and not command_object:  # Command expected but none given
+                    msg = (
+                        f"System {system_func.__name__} parameter '{param_name}' in world '{world_context.world_name}' "
+                        f"expects a command of type {expected_command_type.__name__} but none was provided for injection."
+                    )
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+
             else:  # No specific identity, try direct resource injection if not a basic type
                 if not (
                     param_type_hint is str
@@ -381,11 +503,13 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
+        command_object: Optional[BaseCommand] = None,
         **additional_kwargs: Any,
-    ):
+    ) -> Any:
         """
         Internal helper to execute a system function after resolving its dependencies.
         Incorporates additional_kwargs for flexible execution (e.g., for one-time systems).
+        Returns the result of the system function.
         """
         metadata = self.system_metadata.get(system_func)
         # If metadata is not found, _resolve_dependencies will attempt dynamic parsing.
@@ -396,7 +520,7 @@ class WorldScheduler:
 
         try:
             kwargs_to_inject = await self._resolve_dependencies(
-                system_func, world_context, event_object, **additional_kwargs
+                system_func, world_context, event_object, command_object, **additional_kwargs
             )
         except Exception as e:
             self.logger.error(
@@ -409,11 +533,12 @@ class WorldScheduler:
             f"Executing system: {system_func.__name__} in world '{world_context.world_name}' with args: {list(kwargs_to_inject.keys())}"
         )
 
+        result: Any = None
         if is_async_func:
-            await system_func(**kwargs_to_inject)
+            result = await system_func(**kwargs_to_inject)
         else:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+            result = await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
 
         # Auto-removal of marker components is specific to registered stage systems with metadata.
         # One-time systems or event handlers might not use this pattern or expect this behavior by default.
@@ -440,25 +565,29 @@ class WorldScheduler:
                             # For one-time systems, commit/flush is handled by the caller.
                             if metadata.get("system_type") == "stage_system":
                                 await world_context.session.flush()  # Await
-        return True  # Indicates successful execution of the function itself
+        return result
 
     async def execute_one_time_system(
         self, system_func: Callable[..., Any], world_context: WorldContext, **kwargs: Any
-    ):
+    ) -> Any:
         """
         Executes a single, dynamically provided system function immediately.
         Dependencies are resolved, and the system is run.
         The caller (World.execute_one_time_system) is responsible for session management (commit/rollback).
+        Returns the result of the system function.
         """
         self.logger.info(
             f"Executing one-time system: {system_func.__name__} in world '{world_context.world_name}' with provided kwargs: {kwargs}"
         )
         try:
-            await self._execute_system_func(system_func, world_context, event_object=None, **kwargs)
+            result = await self._execute_system_func(
+                system_func, world_context, event_object=None, command_object=None, **kwargs
+            )
             # For one-time systems, commit is typically handled by the calling context (e.g., World method)
             # If immediate commit is desired here, it would be:
             # world_context.session.commit()
             # self.logger.info(f"Committed session after one-time system {system_func.__name__}")
+            return result
         except Exception as e:
             self.logger.error(
                 f"Error during execution of one-time system {system_func.__name__} in world '{world_context.world_name}': {e}. "
