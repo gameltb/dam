@@ -157,7 +157,9 @@ async def cli_add_asset(
 
                 # The command handler now handles everything. We just need to commit the session.
                 await session.commit()
-                typer.secho(f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN)
+                typer.secho(
+                    f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN
+                )
 
             except Exception as e:
                 await session.rollback()

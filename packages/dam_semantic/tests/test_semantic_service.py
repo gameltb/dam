@@ -10,9 +10,6 @@ from dam_semantic.models import (
     get_embedding_component_class,
 )
 
-
-
-
 # Define model names and params to be used in tests, corresponding to registered models
 TEST_MODEL_MINILM = "all-MiniLM-L6-v2"
 TEST_PARAMS_MINILM: ModelHyperparameters = {"dimensions": 384}  # Must match registry

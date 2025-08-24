@@ -16,7 +16,7 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
-from dam.services import ecs_service, hashing_service
+from dam.services import hashing_service
 from dam_fs.services import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

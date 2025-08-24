@@ -6,15 +6,12 @@ from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
     Iterator,  # Added for click_runner
-    Any,
-    Dict,
-    Optional
 )
-import numpy as np
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
 import dam.models  # This line can sometimes be problematic if dam.models itself has top-level import issues
+import numpy as np
 import pytest
 import pytest_asyncio
 from dam.core.config import Settings
@@ -196,6 +193,7 @@ def sire_resource():
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
     from dam_semantic import service as semantic_service
+
     monkeypatch.setattr(semantic_service, "SentenceTransformer", MockSentenceTransformer)
 
 

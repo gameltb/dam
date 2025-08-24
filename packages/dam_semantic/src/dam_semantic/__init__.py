@@ -25,17 +25,15 @@ class SemanticPlugin(Plugin):
         # Add dependent plugins
         world.add_plugin(ImagePlugin())
 
-        from . import systems
-
         from dam_media_audio.commands import AudioSearchCommand
+
+        from . import systems
 
         world.register_system(
             systems.handle_semantic_search_command,
             command_type=SemanticSearchCommand,
         )
-        world.register_system(
-            systems.handle_audio_search_command, command_type=AudioSearchCommand
-        )
+        world.register_system(systems.handle_audio_search_command, command_type=AudioSearchCommand)
         world.register_system(systems.generate_embeddings_system)
 
         # Register the SentenceTransformer model type with the SireResource

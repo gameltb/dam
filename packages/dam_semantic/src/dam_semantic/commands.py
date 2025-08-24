@@ -14,6 +14,4 @@ class SemanticSearchCommand(BaseCommand):
     request_id: str
     top_n: int = 10
     model_name: Optional[str] = None  # Uses service default if None
-    result_future: Optional[asyncio.Future[List[Tuple[Any, float, Any]]]] = field(
-        default=None, init=False, repr=False
-    )
+    result_future: Optional[asyncio.Future[List[Tuple[Any, float, Any]]]] = field(default=None, init=False, repr=False)

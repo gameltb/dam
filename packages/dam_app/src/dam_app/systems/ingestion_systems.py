@@ -41,7 +41,9 @@ async def ingest_asset_stream_command_handler(
         # TODO: The FileStored event needs a file_id, which is not directly available
         # from the import_stream service. This needs to be resolved.
         # For now, we will not fire the event.
-        logger.info(f"Successfully processed IngestAssetStreamCommand for {cmd.original_filename}, created Entity {entity.id}")
+        logger.info(
+            f"Successfully processed IngestAssetStreamCommand for {cmd.original_filename}, created Entity {entity.id}"
+        )
 
     except Exception as e:
         logger.error(

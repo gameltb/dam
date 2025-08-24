@@ -15,12 +15,8 @@ from .systems.metadata_systems import extract_metadata_on_asset_ingested
 class AppPlugin(Plugin):
     def build(self, world: "World") -> None:
         # Register Command Handlers
-        world.register_system(
-            ingest_asset_stream_command_handler, command_type=IngestAssetStreamCommand
-        )
-        world.register_system(
-            auto_tag_entity_command_handler, command_type=AutoTagEntityCommand
-        )
+        world.register_system(ingest_asset_stream_command_handler, command_type=IngestAssetStreamCommand)
+        world.register_system(auto_tag_entity_command_handler, command_type=AutoTagEntityCommand)
 
         # Register Event Listeners
         world.register_system(asset_dispatcher_system, event_type=FileStored)

@@ -2,14 +2,13 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 
 # Import necessary tag components and service to fetch tags
 from dam_sire.resource import SireResource
 from sentence_transformers import SentenceTransformer
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.core.transaction import EcsTransaction
 from .models import (
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,

@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, List
+from typing import Annotated
 
 from dam.core.system_params import (
     WorldContext,
@@ -7,8 +7,6 @@ from dam.core.system_params import (
 
 # For getting session, world name, config (WorldContext is in system_params)
 from dam.core.systems import handles_command
-from dam.models.core.entity import Entity  # Corrected Entity import
-from dam.services import ecs_service
 
 from ..commands import AutoTagEntityCommand
 
