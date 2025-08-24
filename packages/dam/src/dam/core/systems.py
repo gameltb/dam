@@ -4,9 +4,8 @@ import logging
 from collections import defaultdict
 from typing import Annotated, Any, Callable, Dict, List, Optional, Type, TypeVar, get_args, get_origin
 
-from dam.core.commands import BaseCommand, CommandResult
+from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.events import BaseEvent
-from dam.core.exceptions import CommandHandlingError, EventHandlingError, StageExecutionError
 from dam.core.resources import ResourceManager, ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_params import WorldContext
@@ -31,7 +30,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
         event_specific_type: Optional[Type[BaseEvent]] = None
-        command_specific_type: Optional[Type[BaseCommand]] = None
+        command_specific_type: Optional[Type[BaseCommand[Any]]] = None
 
         if get_origin(original_param_type) is Annotated:
             annotated_args = get_args(original_param_type)
@@ -128,7 +127,7 @@ def system(stage: SystemStage, **kwargs):
     return decorator
 
 
-def handles_command(command_type: Type[BaseCommand], **kwargs):
+def handles_command(command_type: Type[BaseCommand[Any]], **kwargs):
     if not (inspect.isclass(command_type) and issubclass(command_type, BaseCommand)):
         raise TypeError(f"Invalid command_type '{command_type}'. Must be a class that inherits from BaseCommand.")
 
@@ -189,7 +188,7 @@ class WorldScheduler:
         self.resource_manager = resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
-        self.command_handler_registry: Dict[Type[BaseCommand], List[Callable[..., Any]]] = defaultdict(list)
+        self.command_handler_registry: Dict[Type[BaseCommand[Any]], List[Callable[..., Any]]] = defaultdict(list)
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
@@ -198,7 +197,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand]] = None,
+        command_type: Optional[Type[BaseCommand[Any]]] = None,
         **kwargs,
     ):
         if system_func not in self.system_metadata:
@@ -261,7 +260,9 @@ class WorldScheduler:
         for handler_func in handlers_to_run:
             await self._execute_system_func(handler_func, world_context, event_object=event, command_object=None)
 
-    async def dispatch_command(self, command: BaseCommand, world_context: WorldContext) -> CommandResult:
+    async def dispatch_command(
+        self, command: BaseCommand[ResultType], world_context: WorldContext
+    ) -> CommandResult[ResultType]:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {world_context.world_name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
@@ -271,7 +272,7 @@ class WorldScheduler:
             )
             return CommandResult(results=[])
 
-        command_result = CommandResult()
+        command_result: CommandResult[ResultType] = CommandResult()
         for handler_func in handlers_to_run:
             result = await self._execute_system_func(
                 handler_func, world_context, event_object=None, command_object=command
@@ -296,7 +297,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand] = None,
+        command_object: Optional[BaseCommand[Any]] = None,
         **additional_kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -418,7 +419,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         world_context: WorldContext,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand] = None,
+        command_object: Optional[BaseCommand[Any]] = None,
         **additional_kwargs: Any,
     ) -> Any:
         """

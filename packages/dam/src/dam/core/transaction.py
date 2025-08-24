@@ -55,11 +55,17 @@ class EcsTransaction:
     async def find_entity_by_content_hash(self, hash_value: bytes, hash_type: str = "sha256") -> Optional[Entity]:
         return await ecs_service.find_entity_by_content_hash(self.session, hash_value, hash_type)
 
-    async def get_components_by_value(self, entity_id: int, component_type: Type[T], attributes_values: Dict[str, Any]) -> List[T]:
+    async def get_components_by_value(
+        self, entity_id: int, component_type: Type[T], attributes_values: Dict[str, Any]
+    ) -> List[T]:
         return await ecs_service.get_components_by_value(self.session, entity_id, component_type, attributes_values)
 
-    async def find_entities_by_component_attribute_value(self, component_type: Type[T], attribute_name: str, value: Any) -> List[Entity]:
-        return await ecs_service.find_entities_by_component_attribute_value(self.session, component_type, attribute_name, value)
+    async def find_entities_by_component_attribute_value(
+        self, component_type: Type[T], attribute_name: str, value: Any
+    ) -> List[Entity]:
+        return await ecs_service.find_entities_by_component_attribute_value(
+            self.session, component_type, attribute_name, value
+        )
 
 
 # Context variable to hold the current EcsTransaction instance for a given async context.

@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from dam.core.commands import BaseCommand, CommandResult
+from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
@@ -89,7 +89,7 @@ class World:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand]] = None,
+        command_type: Optional[Type[BaseCommand[Any]]] = None,
         **kwargs,
     ) -> None:
         num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
@@ -140,6 +140,7 @@ class World:
                 self.logger.exception(f"Exception in top-level stage '{stage.name}', rolling back.")
                 await db_session.rollback()
                 from dam.core.exceptions import StageExecutionError
+
                 raise StageExecutionError(
                     message=f"Top-level stage '{stage.name}' failed.",
                     stage_name=stage.name,
@@ -171,6 +172,7 @@ class World:
                 self.logger.exception(f"Exception in top-level event '{type(event).__name__}', rolling back.")
                 await db_session.rollback()
                 from dam.core.exceptions import EventHandlingError
+
                 raise EventHandlingError(
                     message=f"Top-level event '{type(event).__name__}' failed.",
                     event_type=type(event).__name__,
@@ -181,7 +183,7 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
 
-    async def dispatch_command(self, command: BaseCommand) -> CommandResult:
+    async def dispatch_command(self, command: BaseCommand[ResultType]) -> CommandResult[ResultType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
 
         transaction = active_transaction.get()
@@ -203,6 +205,7 @@ class World:
                 self.logger.exception(f"Exception in top-level command '{type(command).__name__}', rolling back.")
                 await db_session.rollback()
                 from dam.core.exceptions import CommandHandlingError
+
                 raise CommandHandlingError(
                     message=f"Top-level command '{type(command).__name__}' failed.",
                     command_type=type(command).__name__,
@@ -239,9 +242,7 @@ class World:
                 await db_session.commit()
                 return result
             except Exception:
-                self.logger.exception(
-                    f"Exception in top-level one-time system '{system_func.__name__}', rolling back."
-                )
+                self.logger.exception(f"Exception in top-level one-time system '{system_func.__name__}', rolling back.")
                 await db_session.rollback()
                 raise
             finally:

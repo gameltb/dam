@@ -93,7 +93,4 @@ include = "../../shared_tasks.toml"
 [tool.poe.tasks]
 test = "pytest -n auto"
 test-cov = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
-mypy.default_item_type = "cmd"
-mypy.sequence = [
-    "mypy --config-file ../../pyproject.toml dam tests",
-]
+mypy = "mypy --config-file ../../pyproject.toml src/dam tests"

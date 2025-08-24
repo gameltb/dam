@@ -1,18 +1,18 @@
 from dataclasses import dataclass, field
-from typing import Any, Generic, List, TypeVar
+from typing import Generic, List, TypeVar
 
-T = TypeVar("T")
+ResultType = TypeVar("ResultType")
 
 
 @dataclass
-class CommandResult(Generic[T]):
+class CommandResult(Generic[ResultType]):
     """A container for the results of a command, collecting results from all handlers."""
 
-    results: List[T] = field(default_factory=list)
+    results: List[ResultType] = field(default_factory=list)
 
 
 @dataclass
-class BaseCommand:
+class BaseCommand(Generic[ResultType]):
     """Base class for all commands, which are requests that expect a response."""
 
     pass

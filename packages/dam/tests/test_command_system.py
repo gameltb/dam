@@ -1,41 +1,49 @@
-import pytest
 from dataclasses import dataclass
-from typing import List
+
+import pytest
 
 from dam.core.commands import BaseCommand
+from dam.core.exceptions import CommandHandlingError
 from dam.core.systems import handles_command
 from dam.core.world import World
-from dam.core.exceptions import CommandHandlingError
+
 
 # Define some test commands
 @dataclass
-class SimpleCommand(BaseCommand):
+class SimpleCommand(BaseCommand[str]):
     data: str
 
-@dataclass
-class AnotherCommand(BaseCommand):
-    value: int
 
 @dataclass
-class FailingCommand(BaseCommand):
+class AnotherCommand(BaseCommand[int]):
+    value: int
+
+
+@dataclass
+class FailingCommand(BaseCommand[None]):
     pass
+
 
 # Define some test systems (command handlers)
 @handles_command(SimpleCommand)
 def simple_handler_one(cmd: SimpleCommand) -> str:
     return f"Handled one: {cmd.data}"
 
+
 @handles_command(SimpleCommand)
 async def simple_handler_two(cmd: SimpleCommand) -> str:
     return f"Handled two: {cmd.data}"
+
 
 @handles_command(AnotherCommand)
 def another_handler(cmd: AnotherCommand) -> int:
     return cmd.value * 2
 
+
 @handles_command(FailingCommand)
 def failing_handler(cmd: FailingCommand):
     raise ValueError("This handler is designed to fail.")
+
 
 # Tests
 @pytest.mark.asyncio
@@ -53,6 +61,7 @@ async def test_register_and_dispatch_single_handler(test_world_alpha: World):
     assert result is not None
     assert len(result.results) == 1
     assert result.results[0] == 20
+
 
 @pytest.mark.asyncio
 async def test_dispatch_multiple_handlers(test_world_alpha: World):
@@ -72,6 +81,7 @@ async def test_dispatch_multiple_handlers(test_world_alpha: World):
     assert "Handled one: test" in result.results
     assert "Handled two: test" in result.results
 
+
 @pytest.mark.asyncio
 async def test_dispatch_command_with_no_handlers(test_world_alpha: World):
     """
@@ -86,6 +96,7 @@ async def test_dispatch_command_with_no_handlers(test_world_alpha: World):
 
     assert result is not None
     assert len(result.results) == 0
+
 
 @pytest.mark.asyncio
 async def test_command_handler_failure(test_world_alpha: World):
@@ -105,6 +116,7 @@ async def test_command_handler_failure(test_world_alpha: World):
     # The new design does not propagate the handler name to the top-level exception
     # assert exc_info.value.handler_name == "failing_handler"
     assert isinstance(exc_info.value.original_exception, ValueError)
+
 
 @pytest.mark.asyncio
 async def test_dispatch_different_commands(test_world_alpha: World):
