@@ -98,23 +98,32 @@ The Command pattern is used for imperative actions where the caller requests a s
 
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python
-    from typing import Annotated
     from dam.core.systems import handles_command
-    from dam.core.system_params import WorldSession
+    from dam.core.transaction import EcsTransaction
     from my_plugin.commands import RenameAssetCommand
-    from my_plugin.services import asset_service
+    from my_plugin.models import NameComponent # Assuming a component that stores the name
 
     @handles_command(RenameAssetCommand)
     async def handle_rename_asset_command(
         cmd: RenameAssetCommand,
-        session: WorldSession,
+        transaction: EcsTransaction,
     ):
         print(f"Handling command to rename entity {cmd.entity_id} to '{cmd.new_name}'")
-        await asset_service.rename_asset(
-            session=session,
-            entity_id=cmd.entity_id,
-            new_name=cmd.new_name
-        )
+
+        # Use the transaction object to interact with the database
+        name_component = await transaction.get_component(cmd.entity_id, NameComponent)
+
+        if name_component:
+            name_component.name = cmd.new_name
+            # The transaction object automatically handles registering the change
+            # because the component is still managed by the underlying session.
+            print(f"Name for entity {cmd.entity_id} changed in transaction.")
+        else:
+            # Or create a new component
+            new_name_component = NameComponent(name=cmd.new_name)
+            await transaction.add_component_to_entity(cmd.entity_id, new_name_component)
+            print(f"New name for entity {cmd.entity_id} added in transaction.")
+
     ```
 
 3.  **Register the Handler:**

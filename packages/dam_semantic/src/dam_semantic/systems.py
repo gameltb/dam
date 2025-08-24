@@ -1,9 +1,9 @@
 import logging
 from typing import Annotated, Dict, List  # Added Annotated
 
-from dam.core.stages import SystemStage  # For scheduling embedding generation
-from dam.core.system_params import WorldSession  # Assuming WorldConfig might be needed for model config
+from dam.core.stages import SystemStage
 from dam.core.systems import handles_command, system
+from dam.core.transaction import EcsTransaction
 from dam_media_audio.commands import AudioSearchCommand
 from dam_media_audio.services import audio_service
 
@@ -33,7 +33,7 @@ from dam_sire.resource import SireResource
 
 @system(stage=SystemStage.POST_PROCESSING)
 async def generate_embeddings_system(
-    session: WorldSession,
+    transaction: EcsTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ):
     """
@@ -47,7 +47,7 @@ async def generate_embeddings_system(
 @handles_command(SemanticSearchCommand)
 async def handle_semantic_search_command(
     cmd: SemanticSearchCommand,
-    session: WorldSession,
+    transaction: EcsTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ):
     """
@@ -62,7 +62,7 @@ async def handle_semantic_search_command(
 
     try:
         similar_entities_data = await semantic_service.find_similar_entities_by_text_embedding(
-            session=session,
+            transaction=transaction,
             sire_resource=sire_resource,
             query_text=cmd.query_text,
             top_n=cmd.top_n,
@@ -88,7 +88,7 @@ __all__ = [
 @handles_command(AudioSearchCommand)
 async def handle_audio_search_command(
     cmd: AudioSearchCommand,
-    session: WorldSession,
+    transaction: EcsTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ):
     """
@@ -103,7 +103,7 @@ async def handle_audio_search_command(
 
     try:
         similar_entities_data = await audio_service.find_similar_entities_by_audio_embedding(
-            session=session,
+            transaction=transaction,
             sire_resource=sire_resource,
             query_audio_path=str(cmd.query_audio_path),
             top_n=cmd.top_n,

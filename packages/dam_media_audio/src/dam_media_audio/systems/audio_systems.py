@@ -5,8 +5,8 @@ from typing import Annotated, List
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.system_params import WorldSession
 from dam.core.systems import system
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam.services import ecs_service, file_operations
@@ -46,7 +46,7 @@ def _get_hachoir_metadata(md, key: str, default=None) -> any:
 
 @system(stage=SystemStage.METADATA_EXTRACTION)
 async def add_audio_components_system(
-    session: WorldSession,
+    transaction: EcsTransaction,
     world_config: WorldConfig,
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
@@ -58,7 +58,7 @@ async def add_audio_components_system(
         return
 
     for entity in entities_to_process:
-        all_locations = await ecs_service.get_components(session, entity.id, FileLocationComponent)
+        all_locations = await transaction.get_components(entity.id, FileLocationComponent)
         if not all_locations:
             continue
 
@@ -92,7 +92,7 @@ async def add_audio_components_system(
         if not hachoir_metadata:
             continue
 
-        if not await ecs_service.get_components(session, entity.id, AudioPropertiesComponent):
+        if not await transaction.get_components(entity.id, AudioPropertiesComponent):
             audio_comp = AudioPropertiesComponent()
             duration = _get_hachoir_metadata(hachoir_metadata, "duration")
             if duration:
@@ -106,7 +106,7 @@ async def add_audio_components_system(
             bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
             if bit_rate_bps:
                 audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-            await ecs_service.add_component_to_entity(session, entity.id, audio_comp, flush=False)
+            await transaction.add_component_to_entity(entity.id, audio_comp)
             logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 
-    await session.flush()
+    await transaction.flush()

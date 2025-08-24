@@ -2,8 +2,8 @@ import logging
 from typing import Optional
 
 from ..commands import IngestWebAssetCommand
-from dam.core.system_params import WorldSession
 from dam.core.systems import handles_command
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 @handles_command(IngestWebAssetCommand)
 async def handle_ingest_web_asset_command(
     cmd: IngestWebAssetCommand,
-    session: WorldSession,
+    transaction: EcsTransaction,
 ):
     """
     Handles the command to ingest an asset from a web source.
@@ -29,17 +29,15 @@ async def handle_ingest_web_asset_command(
 
     # 1. Find or Create Website Entity
     website_entity: Optional[Entity] = None
-    # Query for existing WebsiteProfileComponent by main_url
-    existing_website_profiles = await ecs_service.find_entities_by_component_attribute_value(
-        session, WebsiteProfileComponent, "main_url", cmd.website_identifier_url
+    existing_website_profiles = await transaction.find_entities_by_component_attribute_value(
+        WebsiteProfileComponent, "main_url", cmd.website_identifier_url
     )
     if existing_website_profiles:
         website_entity = existing_website_profiles[0]
         logger.info(f"Found existing Website Entity ID {website_entity.id} for URL {cmd.website_identifier_url}")
     else:
-        website_entity = await ecs_service.create_entity(session)
-        if website_entity.id is None:
-            await session.flush()
+        website_entity = await transaction.create_entity()
+        await transaction.flush()
         logger.info(f"Creating new Website Entity ID {website_entity.id} for URL {cmd.website_identifier_url}")
 
         website_name = cmd.metadata_payload.get("website_name") if cmd.metadata_payload else None
@@ -56,12 +54,11 @@ async def handle_ingest_web_asset_command(
             main_url=cmd.website_identifier_url,
             description=cmd.metadata_payload.get("website_description") if cmd.metadata_payload else None,
         )
-        await ecs_service.add_component_to_entity(session, website_entity.id, profile_comp)
+        await transaction.add_component_to_entity(website_entity.id, profile_comp)
 
     # 2. Create Asset Entity
-    asset_entity = await ecs_service.create_entity(session)
-    if asset_entity.id is None:
-        await session.flush()
+    asset_entity = await transaction.create_entity()
+    await transaction.flush()
     logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {cmd.source_url}")
 
     # 3. Create OriginalSourceInfoComponent for the Asset Entity
@@ -75,7 +72,7 @@ async def handle_ingest_web_asset_command(
     osi_comp = OriginalSourceInfoComponent(
         source_type=source_types.SOURCE_TYPE_WEB_SOURCE,
     )
-    await ecs_service.add_component_to_entity(session, asset_entity.id, osi_comp)
+    await transaction.add_component_to_entity(asset_entity.id, osi_comp)
 
     # 4. Create WebSourceComponent for the Asset Entity
     web_source_data = {
@@ -125,7 +122,7 @@ async def handle_ingest_web_asset_command(
     }
 
     web_comp = WebSourceComponent(**cleaned_web_source_data)
-    await ecs_service.add_component_to_entity(session, asset_entity.id, web_comp)
+    await transaction.add_component_to_entity(asset_entity.id, web_comp)
 
     logger.info(
         f"Finished IngestWebAssetCommand for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {cmd.source_url}"

@@ -9,6 +9,7 @@ from dam_sire.resource import SireResource
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.core.transaction import EcsTransaction
 from .models import (
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
@@ -70,7 +71,7 @@ class BatchTextItem(TypedDict):
 
 
 async def update_text_embeddings_for_entity(
-    session: AsyncSession,
+    transaction: EcsTransaction,
     entity_id: int,
     text_fields_map: Dict[str, Any],
     sire_resource: "SireResource",
@@ -86,7 +87,7 @@ async def update_text_embeddings_for_entity(
 
 
 async def find_similar_entities_by_text_embedding(
-    session: AsyncSession,
+    transaction: EcsTransaction,
     query_text: str,
     sire_resource: "SireResource",
     model_name: str,

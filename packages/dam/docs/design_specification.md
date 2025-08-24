@@ -238,30 +238,31 @@ This section outlines the roles and interactions of Services, Systems, Commands,
 
 ### 3.2. Systems
 
--   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to Services.
+-   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to Services or the `EcsTransaction` object.
 -   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with:
     *   `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)` for stage-based execution.
     *   `@dam.core.systems.listens_for(EventType)` for event-driven execution.
     *   `@dam.core.systems.handles_command(CommandType)` for command-driven execution.
 -   **Dependency Injection**:
-    *   Systems declare their dependencies using `typing.Annotated` type hints in their parameters. The `WorldScheduler` injects these dependencies.
+    *   Systems declare their dependencies using type hints in their parameters. The `WorldScheduler` injects these dependencies.
     *   Common injectable types for Systems include:
         *   The `Event` or `Command` object that triggered the system.
-        *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - The active SQLAlchemy session for the current world.
+        *   `EcsTransaction`: The primary mechanism for database interaction. Systems should inject this to perform ECS operations like adding/getting components.
         *   `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources.
-        *   `WorldContext`: Provides access to `WorldSession`, world name, and `WorldConfig`.
+        *   `WorldContext`: Provides access to the `EcsTransaction`, world name, and `WorldConfig`.
+        *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - **[DEPRECATED]** Direct access to the session is discouraged. Use `EcsTransaction` instead. This is maintained for backward compatibility during the transition.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the service functions they call.
--   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `WorldScheduler` also handles session commits/rollbacks per cycle.
+-   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `World` object manages the transaction boundary (see Section 3.6).
 -   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems and specifying how they are triggered (stage, event, or command).
 -   **Characteristics**:
     *   Should be stateless. All necessary data comes from injected dependencies or queried entities.
-    *   Focus on orchestration and flow control.
+    *   Focus on orchestration and flow control, not direct database writes.
 
 ### 3.3. Commands
 
 -   **Definition and Purpose**: Commands are requests for the system to perform a specific action. They represent an imperative instruction, such as "ingest this file" or "find similar images". A command is dispatched with the expectation that it will be handled by one or more systems.
 -   **Structure**: Commands are simple data-only classes that inherit from `dam.core.commands.BaseCommand`. They carry the data necessary to execute the action.
--   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers.
+-   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
 -   **Handling**: Systems that handle commands are decorated with `@handles_command(MyCommand)`. The system function receives the command object as its first argument.
 
 ### 3.4. Events vs. Commands
@@ -270,8 +271,8 @@ It is important to distinguish between Events and Commands to maintain a clean a
 
 -   **Command**: An instruction to do something. It is sent to a specific destination (the `World`'s command dispatcher) with a clear intent. Usually, only one part of the system dispatches a specific command. A command is often (but not always) handled by a single system. Use a command when you want to explicitly trigger a specific piece of business logic.
     -   *Example*: `IngestFileCommand` is dispatched to tell the system to begin the ingestion process for a specific file.
--   **Event**: A notification that something has happened. It is broadcast to the entire system without knowledge of who, if anyone, is listening. Multiple, unrelated systems can listen for the same event to perform their own independent tasks. Use an event when you want to decouple the producer of the notification from its consumers.
-    -   *Example*: `FileStored` is fired after the ingestion command handler has saved a file to storage. A metadata extraction system and an image processing system might both listen for this event to start their respective tasks, without knowing about each other.
+-   **Event**: A notification that something has happened. It is broadcast to the entire system without knowledge of who, if anyone, is listening. Multiple, unrelated systems can listen for the same event to perform their own independent tasks. Use an event when you want to decouple the producer of the notification from its consumers. If an event is dispatched from within an existing transaction, its handlers will participate in that same transaction.
+    -   *Example*: `FileStored` is fired after the ingestion command handler has saved a file to storage. A metadata extraction system and an image processing system might both listen for this event to start their respective tasks, without knowing about each other, but within the same atomic transaction.
 
 ### 3.5. Resources
 
@@ -284,6 +285,23 @@ It is important to distinguish between Events and Commands to maintain a clean a
     *   Global resources are typically instantiated once when the application starts.
     *   World-specific resources are typically instantiated once per `World` and added to that world's `ResourceManager`.
 -   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to service functions if needed.
+
+### 3.6. Transaction Management and the `EcsTransaction` Object
+
+A core principle of the framework is to ensure data consistency through atomic transactions, especially when a single action (like a command) triggers a chain of subsequent events and commands.
+
+-   **Transaction Boundary**: The transaction is managed by the `World` object. A database transaction begins when a "top-level" command or event is dispatched via `world.dispatch_command()` or `world.dispatch_event()`. The transaction is committed only after the initial operation and *all* subsequent operations it triggers have completed successfully. If any handler in the chain fails, the entire transaction is rolled back.
+
+-   **The `EcsTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
+    -   **Purpose**: The `dam.core.transaction.EcsTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
+    -   **Lifecycle**: An `EcsTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and services that are part of that transaction chain.
+    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `EcsTransaction` object and use its methods:
+        -   `await transaction.add_component_to_entity(...)`
+        -   `await transaction.create_entity()`
+        -   If an ID is needed immediately for a subsequent operation within the same transaction, `await transaction.flush()` can be called.
+    -   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` method is called automatically by the `World` object at the end of the transaction. Systems and services should **never** call commit or rollback themselves.
+
+This approach ensures that system logic remains focused on orchestration, while the framework guarantees atomicity and provides a safe, domain-specific API for database interactions.
 
 ## 4. Testing Guidelines
 

@@ -64,23 +64,25 @@ The third argument in `Annotated` (M) specifies the marker component class.
 # --- World Context Object (used by WorldScheduler) ---
 
 
+from dam.core.transaction import EcsTransaction
+
+
 class WorldContext:
     """
     A data class that bundles together world-specific contextual information
     required by the `WorldScheduler` to execute a stage or process events.
 
-    This object is typically constructed by the application logic (e.g., a CLI command handler)
-    that initiates a scheduler operation for a specific world. It is then passed to
-    methods like `WorldScheduler.execute_stage()`.
+    This object is typically constructed by the application logic that initiates
+    a scheduler operation for a specific world.
 
     Attributes:
-        session: The active SQLAlchemy `Session` for the world.
+        transaction: The active EcsTransaction for the current operation.
         world_name: The string name of the world being processed.
         world_config: The `WorldConfig` object containing settings for this world.
     """
 
-    def __init__(self, session: AsyncSession, world_name: str, world_config: WorldConfig):  # Use AsyncSession
-        self.session = session
+    def __init__(self, transaction: EcsTransaction, world_name: str, world_config: WorldConfig):
+        self.transaction = transaction
         self.world_name = world_name
         self.world_config = world_config
 

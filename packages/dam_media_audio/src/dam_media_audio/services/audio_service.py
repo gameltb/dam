@@ -6,6 +6,7 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam.models.semantic.audio_embedding_component import (
     AUDIO_EMBEDDING_MODEL_REGISTRY,
@@ -68,7 +69,7 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.n
 
 
 async def generate_audio_embedding_for_entity(
-    session: AsyncSession,
+    transaction: EcsTransaction,
     sire_resource: "SireResource",
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
@@ -80,7 +81,7 @@ async def generate_audio_embedding_for_entity(
 
 
 async def find_similar_entities_by_audio_embedding(
-    session: AsyncSession,
+    transaction: EcsTransaction,
     sire_resource: "SireResource",
     query_audio_path: str,
     model_name: str,
