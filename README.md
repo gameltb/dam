@@ -33,6 +33,20 @@ To upgrade `uv` to the latest version, run:
 uv self update
 ```
 
+### Database Setup
+
+The DAM system uses a PostgreSQL database to store asset metadata. For local development, the easiest way to get a database running is by using Docker.
+
+Run the following command to start a PostgreSQL container with the `pgvector` extension pre-installed:
+
+```sh
+docker run --name dam-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=dam -p 5432:5432 -d pgvector/pgvector:pg15
+```
+
+This will start a PostgreSQL 15 server with vector support in the background. The application is configured by default to connect to this database at `postgresql+psycopg://postgres:postgres@localhost:5432/dam`.
+
+To stop the container, run `docker stop dam-postgres`. To start it again, use `docker start dam-postgres`.
+
 ## Virtual Environment
 
 `uv` automatically manages the virtual environment. To install all dependencies, run:

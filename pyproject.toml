@@ -29,6 +29,7 @@ dev = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-xdist",
+    "pytest-postgresql",
     "typer",
     "rich",
     "polars",

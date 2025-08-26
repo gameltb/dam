@@ -51,4 +51,6 @@ All development tasks should be run from the root of the repository using `uv ru
 
 ### Database Migrations (Alembic - Currently Paused)
 
-Database migrations are managed by Alembic but are currently paused. Use `dam-cli setup-db` to initialize the database schema.
+The DAM system now uses PostgreSQL as the default database for storing asset metadata. For instructions on setting up a local PostgreSQL instance for development, please refer to the main `README.md` at the root of the repository.
+
+Database migrations are managed by Alembic but are currently paused. Use `dam-cli setup-db` to initialize the database schema in your configured database.

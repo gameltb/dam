@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, text
 from sqlalchemy.orm import mapped_column
 

@@ -25,12 +25,13 @@ classifiers = [
 
 dependencies = [
     "sqlalchemy",
-    "aiosqlite",
     "typer",
     "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
     "psutil", # Added for system resource detection
+    "psycopg[binary]", # For PostgreSQL connection using Psycopg 3
+    "pgvector", # For vector support in SQLAlchemy
 ]
 
 [project.optional-dependencies]
@@ -86,6 +87,10 @@ reportDeprecated = true
 minversion = "6.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+postgresql_host = "localhost"
+postgresql_port = 5432
+postgresql_user = "postgres"
+postgresql_password = "postgres"
 
 [tool.poe]
 include = "../../shared_tasks.toml"

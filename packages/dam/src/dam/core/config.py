@@ -13,12 +13,15 @@ class WorldConfig(BaseSettings):
     """Configuration for a single ECS world."""
 
     name: str  # Name of the world, will be set from the key in the parent Settings.worlds dict
-    DATABASE_URL: str = Field("sqlite:///./default_dam.db")
+    DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/default_dam")
     ASSET_STORAGE_PATH: str = Field("./default_dam_storage")
     # Add other world-specific configurations here as needed
     # e.g., specific API keys, service endpoints for this world
 
     model_config = SettingsConfigDict(extra="ignore")
+
+
+_DEFAULT_WORLD_CONFIG_JSON = '{"default": {"DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/dam", "ASSET_STORAGE_PATH": "./dam_storage"}}'
 
 
 class Settings(BaseSettings):
@@ -28,9 +31,8 @@ class Settings(BaseSettings):
     Manages configurations for multiple ECS worlds.
     """
 
-    DAM_WORLDS_CONFIG: str = Field(  # Renamed from DAM_WORLDS_CONFIG_SOURCE
-        default='{"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}',
-        # validation_alias="DAM_WORLDS_CONFIG", # Alias removed
+    DAM_WORLDS_CONFIG: str = Field(
+        default=_DEFAULT_WORLD_CONFIG_JSON,
         description="Path to a JSON file or a JSON string defining world configurations.",
     )
 
@@ -63,11 +65,11 @@ class Settings(BaseSettings):
         Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
         This source can be a file path to a JSON file or a direct JSON string.
         """
-        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))  # Changed here
+        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))
 
         if not config_source:
-            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.")  # Changed here
-            config_source = '{"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}'
+            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.")
+            config_source = _DEFAULT_WORLD_CONFIG_JSON
             # Ensure DEFAULT_WORLD_NAME reflects this if it wasn't explicitly set
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
@@ -90,9 +92,7 @@ class Settings(BaseSettings):
                 logger.warning(
                     f"DAM_WORLDS_CONFIG_SOURCE '{config_source}' is not a valid file path or JSON string. Attempting default. Error: {e}"
                 )
-                raw_world_configs = {
-                    "default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}
-                }
+                raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
                 if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                     values["DEFAULT_WORLD_NAME"] = "default"
 
@@ -101,9 +101,7 @@ class Settings(BaseSettings):
 
         if not raw_world_configs:  # Ensure there's at least one world
             logger.warning("No worlds found in configuration source. Adding a default world.")
-            raw_world_configs = {
-                "default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}
-            }
+            raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
