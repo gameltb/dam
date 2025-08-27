@@ -40,10 +40,10 @@ The DAM system uses a PostgreSQL database to store asset metadata. For local dev
 Run the following command to start a PostgreSQL container with the `pgvector` extension pre-installed:
 
 ```sh
-docker run --name dam-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=dam -p 5432:5432 -d pgvector/pgvector:pg15
+docker run --name dam-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=dam -p 5432:5432 -d pgvector/pgvector:pg17
 ```
 
-This will start a PostgreSQL 15 server with vector support in the background. The application is configured by default to connect to this database at `postgresql+psycopg://postgres:postgres@localhost:5432/dam`.
+This will start a PostgreSQL 17 server with vector support in the background. The application is configured by default to connect to this database at `postgresql+psycopg://postgres:postgres@localhost:5432/dam`.
 
 To stop the container, run `docker stop dam-postgres`. To start it again, use `docker start dam-postgres`.
 
