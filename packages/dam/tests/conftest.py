@@ -35,52 +35,37 @@ def backup_original_settings():
     yield
 
 
-@pytest.fixture(scope="session")
-def test_worlds_config_data_factory(tmp_path_factory):
-    def _factory():
-        return {
-            "test_world_alpha": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"
-            },
-            "test_world_beta": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"
-            },
-            "test_world_gamma": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"
-            },
-            "test_world_alpha_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
-            },
-            "test_world_beta_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
-            },
-            "test_world_gamma_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
-            },
-        }
 
-    return _factory
+
+from pytest_postgresql import factories
+
+db_factory = factories.postgresql_noproc()
+transacted_postgresql_db = factories.postgresql("db_factory")
 
 
 @pytest.fixture(scope="function")
-def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) -> Generator[Settings, None, None]:
-    temp_storage_dirs = {}
-    raw_world_configs = test_worlds_config_data_factory()
-    updated_test_worlds_config = {}
+def settings_override(transacted_postgresql_db, monkeypatch, tmp_path) -> Generator[Settings, None, None]:
+    info = transacted_postgresql_db.info
+    db_url = f"postgresql+psycopg://{info.user}:{info.password}@{info.host}:{info.port}/{info.dbname}"
 
-    for world_name, config_template in raw_world_configs.items():
-        asset_temp_dir = tmp_path / f"assets_{world_name}"
-        asset_temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_storage_dirs[world_name] = asset_temp_dir
-        updated_test_worlds_config[world_name] = {
-            **config_template,
-            "ASSET_STORAGE_PATH": str(asset_temp_dir),
-        }
+    world_configs = {
+        "test_world_alpha": {
+            "DATABASE_URL": db_url,
+            "ASSET_STORAGE_PATH": str(tmp_path / "assets_alpha"),
+        },
+        "test_world_beta": {
+            "DATABASE_URL": db_url,
+            "ASSET_STORAGE_PATH": str(tmp_path / "assets_beta"),
+        },
+    }
 
-    default_test_world_name = "test_world_alpha"
+    # Ensure asset storage paths exist
+    (tmp_path / "assets_alpha").mkdir()
+    (tmp_path / "assets_beta").mkdir()
+
     new_settings = Settings(
-        DAM_WORLDS_CONFIG=json.dumps(updated_test_worlds_config),
-        DAM_DEFAULT_WORLD_NAME=default_test_world_name,
+        DAM_WORLDS_CONFIG=json.dumps(world_configs),
+        DAM_DEFAULT_WORLD_NAME="test_world_alpha",
         TESTING_MODE=True,
     )
 

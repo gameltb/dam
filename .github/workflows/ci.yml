@@ -8,6 +8,23 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.12"]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tests
+        ports:
+          - 5432:5432
+        # Add a health check to wait for the database to be ready
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DISPLAY: ':99.0'
       UV_TORCH_BACKEND: 'auto'

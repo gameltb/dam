@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: dam-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dam
+    ports:
+      - "5432:5432"
+    volumes:
+      - ${POSTGRES_DATA_PATH:-./pg_data}:/var/lib/postgresql/data
+    restart: unless-stopped
