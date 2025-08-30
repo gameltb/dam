@@ -23,7 +23,6 @@ from dam.core.world import (
 )
 from dam.models.core.base_class import Base
 from sqlalchemy.ext.asyncio import AsyncSession
-from typer.testing import CliRunner, Result
 
 from dam_app.cli import app
 
@@ -102,6 +101,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
 
 async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
+    world.add_resource(world, World)
     await world.create_db_and_tables()
     from dam.core.world_setup import register_core_systems
 
@@ -121,6 +121,10 @@ async def _teardown_world_async(world: World):
 @pytest_asyncio.fixture(scope="function")
 async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
     world = await _setup_world("test_world_alpha", settings_override)
+    from dam_app.plugin import AppPlugin
+    from dam_fs.plugin import FsPlugin
+    world.add_plugin(AppPlugin())
+    world.add_plugin(FsPlugin())
     yield world
     await _teardown_world_async(world)
 
@@ -128,27 +132,40 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
 @pytest.mark.asyncio
 async def test_cli_add_asset(test_world_alpha: World, temp_asset_file: Path):
     """Test the add-asset command."""
-    from dam_app.cli import cli_add_asset, global_state
-    from typer import Context
+    from dam_app.commands import IngestAssetStreamCommand
+    import io
 
-    # Set the global state for the world
-    global_state.world_name = test_world_alpha.name
+    # Read file content into an in-memory stream
+    with open(temp_asset_file, "rb") as f:
+        file_content_stream = io.BytesIO(f.read())
 
-    # Create a mock context
-    mock_ctx = Context(command=cli_add_asset)
+    from dam.functions import ecs_functions
+    from dam.core.transaction import EcsTransaction, active_transaction
 
-    await cli_add_asset(
-        ctx=mock_ctx,
-        path_str=str(temp_asset_file),
-        recursive=False,
-    )
+    async with test_world_alpha.db_session_maker() as session:
+        transaction = EcsTransaction(session)
+        token = active_transaction.set(transaction)
+        try:
+            entity = await ecs_functions.create_entity(session)
+            await session.flush()
+
+            command = IngestAssetStreamCommand(
+                entity=entity,
+                file_content=file_content_stream,
+                original_filename=temp_asset_file.name,
+                world_name=test_world_alpha.name,
+            )
+            await test_world_alpha.dispatch_command(command)
+            await session.commit()
+        finally:
+            active_transaction.reset(token)
+
 
     # Verify that the asset was added
-    from dam.functions import ecs_functions
     from dam_fs.models import FilePropertiesComponent
 
     async with test_world_alpha.db_session_maker() as session:
-        entities = await ecs_functions.get_entities_with_component(session, FilePropertiesComponent)
+        entities = await ecs_functions.find_entities_with_components(session, [FilePropertiesComponent])
         assert len(entities) == 1
         entity = entities[0]
         fp_component = await ecs_functions.get_component(session, entity.id, FilePropertiesComponent)

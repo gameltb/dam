@@ -178,3 +178,46 @@ The project uses `pytest` for testing, preferably run via `uv` and `poe`.
 
 -   **Formatting & Linting**: `uv run poe format` and `uv run poe lint`.
 -   **Type Checking**: `uv run poe mypy`.
+
+### 5.4. Testing CLI Commands
+
+When writing tests for `click` or `typer` commands, **do not use `click.testing.CliRunner` or `typer.testing.CliRunner`**. Instead, directly test the functions that the commands call. This ensures that the business logic is tested independently of the command-line interface.
+
+**Incorrect:**
+
+```python
+from click.testing import CliRunner
+from dam.cli import hello
+
+def test_hello():
+    runner = CliRunner()
+    result = runner.invoke(hello, ["Jules"])
+    assert result.exit_code == 0
+    assert "Hello, Jules!" in result.output
+```
+
+**Correct:**
+
+Refactor the code to separate the business logic:
+
+```python
+# In your application code
+def get_greeting(name):
+    return f"Hello, {name}!"
+
+@click.command()
+@click.argument("name")
+def hello(name):
+    """Says hello to a user."""
+    print(get_greeting(name))
+```
+
+And then test the business logic directly:
+
+```python
+# In your test code
+from dam.core import get_greeting
+
+def test_get_greeting():
+    assert get_greeting("Jules") == "Hello, Jules!"
+```

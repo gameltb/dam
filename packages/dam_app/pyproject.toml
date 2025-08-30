@@ -25,6 +25,7 @@ dependencies = [
     "dam",
     "alembic",
     "python-magic",
+    "aiosqlite",
 ]
 
 [project.optional-dependencies]
