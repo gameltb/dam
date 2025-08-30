@@ -14,9 +14,9 @@ from dam.models.tags import (
     EntityTagLinkComponent,
     TagConceptComponent,
 )
-from dam.services import comic_book_service as cbs
-from dam.services import ecs_service
-from dam.services import tag_service as ts
+from dam.functions import comic_book_functions as cbs
+from dam.functions import ecs_functions as ecs_service
+from dam.functions import tag_functions as ts
 
 
 @pytest_asyncio.fixture  # Mark as async fixture

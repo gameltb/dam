@@ -1,4 +1,4 @@
-from .tagging_service import (
+from .tagging_functions import (
     TAGGING_MODEL_CONCEPTUAL_PARAMS,
     generate_tags_from_image,
     get_tagging_model,

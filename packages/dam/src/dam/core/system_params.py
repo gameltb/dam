@@ -22,7 +22,7 @@ WorldSession = Annotated[AsyncSession, "WorldSession"]  # Changed to AsyncSessio
 
 # Generic type for resources managed by the ResourceManager.
 # Systems can request a resource by its type.
-# Usage: my_service: Resource[MyServiceClass]
+# Usage: my_resource: Resource[MyResourceClass]
 R = TypeVar("R")
 Resource = Annotated[R, "Resource"]
 
@@ -51,7 +51,7 @@ The third argument in `Annotated` (M) specifies the marker component class.
 
 # Placeholder for a more advanced component query system (Bevy-like Query).
 # This would involve a custom Query type and more complex parsing by the scheduler.
-# For now, systems can fetch components manually using ecs_service or MarkedEntityList.
+# For now, systems can fetch components manually using ecs_functions or MarkedEntityList.
 # Q_Components = TypeVar('Q_Components', bound=Tuple[Type[BaseComponent], ...])
 # ComponentQuery = Annotated[List[Tuple[Entity, ...]], "ComponentQuery", Q_Components]
 

@@ -14,7 +14,7 @@ class SystemStage(Enum):
     # Example Stages - these can be refined based on application needs
 
     PRE_PROCESSING = auto()  # Systems that run before main logic (e.g., input validation, setup)
-    ASSET_INGESTION = auto()  # Stage where asset_service primarily operates ( synchronous part)
+    ASSET_INGESTION = auto()  # Stage where asset ingestion functions primarily operate (synchronous part)
     # (e.g. creating entity, core components, adding marker components)
 
     METADATA_EXTRACTION = auto()  # Systems for extracting metadata (e.g., Hachoir, EXIF)

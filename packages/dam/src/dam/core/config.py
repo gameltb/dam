@@ -16,7 +16,7 @@ class WorldConfig(BaseSettings):
     DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/default_dam")
     ASSET_STORAGE_PATH: str = Field("./default_dam_storage")
     # Add other world-specific configurations here as needed
-    # e.g., specific API keys, service endpoints for this world
+    # e.g., specific API keys, function endpoints for this world
 
     model_config = SettingsConfigDict(extra="ignore")
 

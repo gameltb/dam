@@ -4,7 +4,8 @@ from typing import Optional  # For asset_sha256 type hint
 import pytest
 from dam.core.world import World
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
-from dam.services import character_service, ecs_service
+from dam.functions import character_functions as character_service
+from dam.functions import ecs_functions as ecs_service
 from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
 from typer.testing import CliRunner
 
@@ -187,7 +188,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     # 1. Add an asset via service calls to ensure it's properly ingested with hashes
     from dam.core.stages import SystemStage
     from dam_fs.commands import IngestFileCommand
-    from dam_fs.services import file_operations
+    from dam_fs.functions import file_operations
 
     original_filename, size_bytes = file_operations.get_file_properties(sample_image_a)
     add_command = IngestFileCommand(

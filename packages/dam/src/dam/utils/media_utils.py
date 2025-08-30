@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
-from dam.services import ecs_service
+from dam.functions import ecs_functions
 from dam.utils.url_utils import parse_dam_url
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def transcode_media(
     return output_path
 
 
-# Example usage (for testing this module directly, not part of the service yet)
+# Example usage (for testing this module directly, not part of the main application yet)
 if __name__ == "__main__":
     # Create dummy files for testing
     # Ensure you have ffmpeg installed for this example to run
@@ -239,7 +239,7 @@ async def get_file_path_for_entity(
     """
     logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
 
-    file_location_comps = await ecs_service.get_components(session, entity_id, FileLocationComponent)
+    file_location_comps = await ecs_functions.get_components(session, entity_id, FileLocationComponent)
 
     if not file_location_comps:
         logger.warning(f"No FileLocationComponent found for entity {entity_id}.")

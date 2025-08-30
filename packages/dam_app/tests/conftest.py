@@ -191,7 +191,7 @@ def sire_resource():
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam_semantic import service as semantic_service
+    from dam_semantic import semantic_functions as semantic_service
     # ModelExecutionManager might not be needed here if we patch the service's loader directly
 
     # Ensure mock_load_sync matches the signature of the actual loader

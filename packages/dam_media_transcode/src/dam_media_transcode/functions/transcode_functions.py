@@ -15,19 +15,19 @@ from dam.models.core.entity import Entity
 from dam_fs.commands import IngestFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent  # Added import
-from dam.services import (
-    ecs_service,
+from dam.functions import (
+    ecs_functions,
     file_operations,
-    hashing_service,
-    tag_service,
+    hashing_functions,
+    tag_functions,
 )
 from dam.utils import url_utils
 
-# Removed world_service as it's not directly used here.
+# Removed world_functions as it's not directly used here.
 from dam.utils.media_utils import TranscodeError, transcode_media
 
 
-class TranscodeServiceError(Exception):
+class TranscodeFunctionsError(Exception):
     """Custom exception for TranscodeService errors."""
 
     pass
@@ -49,7 +49,7 @@ async def create_transcode_profile(
         stmt_existing = select(TranscodeProfileComponent).where(TranscodeProfileComponent.profile_name == profile_name)
         existing_profile = (await session.execute(stmt_existing)).scalars().first()
         if existing_profile:
-            raise TranscodeServiceError(f"Transcode profile '{profile_name}' already exists.")
+            raise TranscodeFunctionsError(f"Transcode profile '{profile_name}' already exists.")
 
         # Create a new entity for this conceptual asset
         profile_entity = Entity()
@@ -71,24 +71,24 @@ async def create_transcode_profile(
             concept_name=concept_name,
             concept_description=concept_description,
         )
-        await ecs_service.add_component_to_entity(session, profile_entity.id, profile_component)
+        await ecs_functions.add_component_to_entity(session, profile_entity.id, profile_component)
 
         # Add a tag to mark this entity as a "Transcode Profile"
-        # This uses the existing tag_service
+        # This uses the existing tag_functions
         try:
             tag_concept_name = "System:TranscodeProfile"
             # Ensure the tag concept exists
             try:
-                tag_concept_entity = await tag_service.get_tag_concept_by_name(session, tag_concept_name)
-            except tag_service.TagConceptNotFoundError:
-                tag_concept_entity = await tag_service.create_tag_concept(
+                tag_concept_entity = await tag_functions.get_tag_concept_by_name(session, tag_concept_name)
+            except tag_functions.TagConceptNotFoundError:
+                tag_concept_entity = await tag_functions.create_tag_concept(
                     session,
                     tag_name=tag_concept_name,
                     description="Marks an entity as a transcoding profile.",
                     scope_type="GLOBAL",  # Or a more specific scope if desired
                 )
 
-            await tag_service.apply_tag_to_entity(
+            await tag_functions.apply_tag_to_entity(
                 session,  # Pass session directly
                 entity_id_to_tag=profile_entity.id,
                 tag_concept_entity_id=tag_concept_entity.id,  # Corrected parameter name
@@ -131,7 +131,7 @@ async def get_transcode_profile_by_name_or_id(
 
         result = (await db_session.execute(stmt)).first()
         if not result:
-            raise TranscodeServiceError(f"Transcode profile '{profile_identifier}' not found.")
+            raise TranscodeFunctionsError(f"Transcode profile '{profile_identifier}' not found.")
         return result[0], result[1]  # Entity, TranscodeProfileComponent
 
     if session:
@@ -143,13 +143,13 @@ async def get_transcode_profile_by_name_or_id(
 
 async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: Session) -> Path:
     """Helper to get a readable filepath for a source asset using its URL."""
-    flc = await ecs_service.get_component(
+    flc = await ecs_functions.get_component(
         session,
         entity_id=asset_entity_id,
         component_type=FileLocationComponent,
     )
     if not flc or not flc.url:
-        raise TranscodeServiceError(f"Asset entity {asset_entity_id} has no URL in its FileLocationComponent.")
+        raise TranscodeFunctionsError(f"Asset entity {asset_entity_id} has no URL in its FileLocationComponent.")
 
     try:
         # Use the url_utils to resolve the URL to a local, absolute path
@@ -157,12 +157,12 @@ async def _get_source_asset_filepath(world: World, asset_entity_id: int, session
         source_path = url_utils.get_local_path_for_url(flc.url, world.config)
     except ValueError as e:
         # Raised by url_utils if URL scheme is not supported for local access
-        raise TranscodeServiceError(
+        raise TranscodeFunctionsError(
             f"Could not resolve a local path for asset {asset_entity_id} with URL '{flc.url}': {e}"
         ) from e
 
     if not source_path or not source_path.exists() or not source_path.is_file():
-        raise TranscodeServiceError(
+        raise TranscodeFunctionsError(
             f"Resolved path for asset {asset_entity_id} ('{source_path}') does not exist or is not a file."
         )
 
@@ -186,14 +186,14 @@ async def apply_transcode_profile(
         )
 
         # 2. Get Source Asset's File Path
-        source_entity = await ecs_service.get_entity(session, source_asset_entity_id)
+        source_entity = await ecs_functions.get_entity(session, source_asset_entity_id)
         if not source_entity:
-            raise TranscodeServiceError(f"Source asset entity ID {source_asset_entity_id} not found.")
+            raise TranscodeFunctionsError(f"Source asset entity ID {source_asset_entity_id} not found.")
 
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
         # Determine original filename for the new asset based on source, if possible
-        source_fpc = await ecs_service.get_component(session, source_asset_entity_id, FilePropertiesComponent)  # type: ignore
+        source_fpc = await ecs_functions.get_component(session, source_asset_entity_id, FilePropertiesComponent)  # type: ignore
         original_filename_base = "transcoded_file"
         if source_fpc and source_fpc.original_filename:  # type: ignore
             original_filename_base = Path(source_fpc.original_filename).stem  # type: ignore
@@ -235,15 +235,15 @@ async def apply_transcode_profile(
                 tool_params=profile_component.parameters,
             )
         except TranscodeError as e:
-            raise TranscodeServiceError(f"Transcoding failed: {e}") from e
+            raise TranscodeFunctionsError(f"Transcoding failed: {e}") from e
         except FileNotFoundError as e:  # e.g. input file gone missing
-            raise TranscodeServiceError(f"Transcoding input file error: {e}") from e
+            raise TranscodeFunctionsError(f"Transcoding input file error: {e}") from e
 
         if not transcoded_filepath.exists() or transcoded_filepath.stat().st_size == 0:
             # Should be caught by transcode_media, but as a safeguard:
             if transcoded_filepath.exists():
                 transcoded_filepath.unlink(missing_ok=True)
-            raise TranscodeServiceError(f"Transcoding produced no output or an empty file at {transcoded_filepath}.")
+            raise TranscodeFunctionsError(f"Transcoding produced no output or an empty file at {transcoded_filepath}.")
 
         # 5. Ingest the Transcoded File as a New Asset
         # This uses the existing asset ingestion event flow.
@@ -253,7 +253,7 @@ async def apply_transcode_profile(
         except Exception as e:
             if transcoded_filepath.exists():  # Check if it exists before unlinking
                 transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
-            raise TranscodeServiceError(f"Could not get properties of transcoded file {transcoded_filepath}: {e}")
+            raise TranscodeFunctionsError(f"Could not get properties of transcoded file {transcoded_filepath}: {e}")
 
         ingestion_command = IngestFileCommand(
             filepath_on_disk=transcoded_filepath,
@@ -272,19 +272,19 @@ async def apply_transcode_profile(
         # Find the newly ingested asset by its hash.
         # The ingestion system should have added ContentHashSHA256Component.
         transcoded_file_sha256_bytes = bytes.fromhex(
-            hashing_service.calculate_sha256(transcoded_filepath)
+            hashing_functions.calculate_sha256(transcoded_filepath)
         )  # Ensure bytes
 
         # Query for the entity with this SHA256 hash
-        # Use ecs_service.find_entity_by_content_hash
-        newly_ingested_entity_result = await ecs_service.find_entity_by_content_hash(
+        # Use ecs_functions.find_entity_by_content_hash
+        newly_ingested_entity_result = await ecs_functions.find_entity_by_content_hash(
             session, transcoded_file_sha256_bytes, "sha256"
         )
 
         if not newly_ingested_entity_result:
             transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
             # This could happen if ingestion failed silently or hash mismatch.
-            raise TranscodeServiceError(
+            raise TranscodeFunctionsError(
                 f"Failed to find newly ingested transcoded asset with SHA256 {transcoded_file_sha256_bytes.hex()}. "
                 "Ingestion might have failed or hash calculation mismatch."
             )
@@ -301,7 +301,7 @@ async def apply_transcode_profile(
             quality_metric_ssim=None,
             custom_metrics_json=None,  # Added field
         )
-        await ecs_service.add_component_to_entity(session, transcoded_asset_entity.id, transcoded_variant_comp)
+        await ecs_functions.add_component_to_entity(session, transcoded_asset_entity.id, transcoded_variant_comp)
 
         # 7. Commit changes (TranscodedVariantComponent)
         # The ingestion event would have handled its own commit for the new asset.

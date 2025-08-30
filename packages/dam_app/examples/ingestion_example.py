@@ -6,7 +6,7 @@ from pathlib import Path
 from dam.core.config import AppSettings, WorldConfig
 from dam.core.logging_config import setup_logging
 from dam.core.world import World, clear_world_registry
-from dam.services import ecs_service
+from dam.functions import ecs_functions as ecs_service
 from dam_fs import FsPlugin
 from dam_media_image import ImagePlugin
 from dam_media_image.models.properties.image_dimensions_component import ImageDimensionsComponent

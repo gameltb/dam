@@ -33,11 +33,11 @@ The architecture is based on the ECS pattern, which promotes a data-oriented app
 *   **Components:** Data-only dataclasses that describe the properties of an entity. They are also SQLAlchemy models for database persistence.
 *   **Systems:** Logic that operates on entities based on the components they possess.
 
-### Services and Systems
+### Functions and Systems
 
-Service and system modules are self-contained and designed to be modular.
+Function and system modules are self-contained and designed to be modular.
 
-*   The `dam.services` and `dam.systems` packages do not expose all modules through their `__init__.py` files to support optional dependencies.
+*   The `dam.functions` and `dam.systems` packages do not expose all modules through their `__init__.py` files to support optional dependencies.
 *   The `dam.systems` package dynamically discovers and imports all system modules at runtime.
 
 ## Development

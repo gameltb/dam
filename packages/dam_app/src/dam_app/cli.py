@@ -18,7 +18,7 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
-from dam.services import ecs_service as dam_ecs_service
+from dam.functions import ecs_functions as dam_ecs_functions
 from dam.utils.async_typer import AsyncTyper
 from dam_fs.models import FilePropertiesComponent
 from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
@@ -138,7 +138,7 @@ async def cli_add_asset(
             typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name}")
             try:
                 # Create a new entity for this asset first
-                entity = await dam_ecs_service.create_entity(session)
+                entity = await dam_ecs_functions.create_entity(session)
                 await session.flush()  # Ensure entity gets an ID
 
                 # Read file content into an in-memory stream
@@ -383,7 +383,7 @@ def main_callback(
             typer.echo(f"Found {len(results)} results for query '{query[:100]}...':")
             async with target_world.db_session_maker() as session:
                 for entity, score, emb_comp in results:
-                    fpc = await dam_ecs_service.get_component(session, entity.id, FilePropertiesComponent)
+                    fpc = await dam_ecs_functions.get_component(session, entity.id, FilePropertiesComponent)
                     filename = fpc.original_filename if fpc else "N/A"
                     source_info = (
                         f"{emb_comp.source_component_name}.{emb_comp.source_field_name}" if emb_comp else "N/A"

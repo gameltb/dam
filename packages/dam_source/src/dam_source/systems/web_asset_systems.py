@@ -9,7 +9,6 @@ from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam_source.models.source_info.web_source_component import WebSourceComponent
 from dam_source.models.source_info.website_profile_component import WebsiteProfileComponent
-from dam.services import ecs_service
 
 logger = logging.getLogger(__name__)
 

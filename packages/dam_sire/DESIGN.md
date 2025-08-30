@@ -28,7 +28,7 @@ A new plugin class, `SirePlugin`, will be responsible for setting up the `sire` 
 The `dam_sire` package will be integrated into the `dam` application as follows:
 
 1.  **Plugin Registration:** The `dam_app` will be responsible for loading the `SirePlugin`. This will be done in `packages/dam_app/src/dam_app/cli.py`, similar to how other plugins are loaded.
-2.  **Service Usage:** The services that require model execution (e.g., `audio_service`, `tagging_service`) will be updated to use the `SireResource`. They will get the resource from the world via dependency injection in the systems that call them.
+2.  **Function Module Usage:** The function modules that require model execution (e.g., `audio_functions`, `tagging_functions`) will be updated to use the `SireResource`. They will get the resource from the world via dependency injection in the systems that call them.
 
 ## 4. Example Usage
 
@@ -41,13 +41,13 @@ from dam_sire.resource import SireResource
 async def my_system(sire_resource: Annotated[SireResource, "Resource"]):
     # The system gets the SireResource via dependency injection
 
-    # The system then calls a service, passing the resource
-    await my_service.do_something_with_a_model(sire_resource, ...)
+    # The system then calls a function module, passing the resource
+    await my_functions.do_something_with_a_model(sire_resource, ...)
 
-# In a service in dam_semantic
+# In a function module in dam_semantic
 
 async def do_something_with_a_model(sire_resource: SireResource, ...):
-    # The service uses the SireResource to get a model and run it
+    # The function module uses the SireResource to get a model and run it
     model = await sire_resource.get_model(...)
     result = await model.predict(...)
 ```

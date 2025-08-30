@@ -1,5 +1,5 @@
 """
-This service provides a high-level API for importing assets into the DAM.
+This module provides a high-level API for importing assets into the DAM.
 It encapsulates the logic for checking for duplicates based on content hashes
 and handling different import methods (e.g., copying vs. referencing).
 """
@@ -19,14 +19,14 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.services import ecs_service, hashing_service
-from dam_fs.services import file_operations
+from dam.functions import hashing_functions
+from dam_fs.functions import file_operations
 
 logger = logging.getLogger(__name__)
 
 
-class ImportServiceError(Exception):
-    """Custom exception for ImportService errors."""
+class ImportFunctionsError(Exception):
+    """Custom exception for import function errors."""
 
     pass
 
@@ -45,12 +45,12 @@ async def import_stream(
 
     try:
         file_content.seek(0)
-        hashes = await hashing_service.calculate_hashes_from_stream_async(file_content, ["md5", "sha256"])
+        hashes = await hashing_functions.calculate_hashes_from_stream_async(file_content, ["md5", "sha256"])
         sha256_hash = hashes["sha256"]
         md5_hash = hashes["md5"]
         sha256_bytes = bytes.fromhex(sha256_hash)
     except (IOError, FileNotFoundError) as e:
-        raise ImportServiceError(f"Could not read or hash stream for {original_filename}: {e}") from e
+        raise ImportFunctionsError(f"Could not read or hash stream for {original_filename}: {e}") from e
 
     existing_entity = await transaction.find_entity_by_content_hash(sha256_bytes, "sha256")
     entity: Optional[Entity] = None
@@ -72,7 +72,7 @@ async def import_stream(
         await transaction.add_component_to_entity(entity.id, fpc)
 
     if not entity:
-        raise ImportServiceError("Failed to create or find entity for the asset.")
+        raise ImportFunctionsError("Failed to create or find entity for the asset.")
 
     from dam_fs.resources.file_storage_resource import FileStorageResource
     file_storage = world.get_resource(FileStorageResource)
@@ -137,4 +137,4 @@ async def import_local_file(
         )
 
     except (IOError, FileNotFoundError) as e:
-        raise ImportServiceError(f"Could not read or hash file at {filepath}: {e}") from e
+        raise ImportFunctionsError(f"Could not read or hash file at {filepath}: {e}") from e

@@ -31,7 +31,7 @@ async def auto_tag_entity_command_handler(
 
     from dam.utils.media_utils import get_file_path_for_entity
 
-    from dam_app.services import tagging_service as tagging_service_module
+    from dam_app.functions import tagging_functions as tagging_functions_module
 
     image_path = await get_file_path_for_entity(session, entity.id, world_context.world_config.ASSET_STORAGE_PATH)
     if not image_path:
@@ -39,7 +39,7 @@ async def auto_tag_entity_command_handler(
         return
 
     try:
-        await tagging_service_module.update_entity_model_tags(
+        await tagging_functions_module.update_entity_model_tags(
             session,
             sire_resource,
             entity.id,
@@ -57,7 +57,7 @@ async def auto_tag_entity_command_handler(
 # To make this system runnable, it needs to be registered with the WorldScheduler,
 # typically in world_setup.py or a similar central setup location.
 # Also, NeedsAutoTaggingMarker and AutoTaggingCompleteMarker need to be registered
-# component types if they are to be used by ecs_service.add_component etc.
+# component types if they are to be used by ecs_functions.add_component etc.
 # (This is often done by importing them in dam.core.components_markers or a similar file
 # that's imported early, or by explicit registration calls).
 # For now, assume they are standard components.

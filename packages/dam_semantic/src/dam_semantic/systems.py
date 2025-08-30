@@ -5,9 +5,9 @@ from dam.core.stages import SystemStage
 from dam.core.systems import handles_command, system
 from dam.core.transaction import EcsTransaction
 from dam_media_audio.commands import AudioSearchCommand
-from dam_media_audio.services import audio_service
+from dam_media_audio.functions import audio_functions
 
-from . import service as semantic_service
+from . import semantic_functions
 from .commands import SemanticSearchCommand
 
 # Placeholder for components that might trigger embedding generation
@@ -58,10 +58,10 @@ async def handle_semantic_search_command(
         logger.error(f"Result future not set on SemanticSearchCommand (Req ID: {cmd.request_id}).")
         return
 
-    model_to_use = cmd.model_name if cmd.model_name else semantic_service.DEFAULT_MODEL_NAME
+    model_to_use = cmd.model_name if cmd.model_name else semantic_functions.DEFAULT_MODEL_NAME
 
     try:
-        similar_entities_data = await semantic_service.find_similar_entities_by_text_embedding(
+        similar_entities_data = await semantic_functions.find_similar_entities_by_text_embedding(
             transaction=transaction,
             sire_resource=sire_resource,
             query_text=cmd.query_text,
@@ -92,17 +92,17 @@ async def handle_audio_search_command(
     sire_resource: Annotated[SireResource, "Resource"],
 ):
     """
-    Handles an AudioSearchCommand, performs the search using AudioService and the provided SireResource,
+    Handles an AudioSearchCommand, performs the search using AudioFunctions and the provided SireResource,
     and sets the result on the command's future.
     """
     if not cmd.result_future:
         logger.error(f"Result future not set on AudioSearchCommand (Req ID: {cmd.request_id}).")
         return
 
-    model_to_use = cmd.model_name if cmd.model_name else audio_service.DEFAULT_AUDIO_MODEL_NAME
+    model_to_use = cmd.model_name if cmd.model_name else audio_functions.DEFAULT_AUDIO_MODEL_NAME
 
     try:
-        similar_entities_data = await audio_service.find_similar_entities_by_audio_embedding(
+        similar_entities_data = await audio_functions.find_similar_entities_by_audio_embedding(
             transaction=transaction,
             sire_resource=sire_resource,
             query_audio_path=str(cmd.query_audio_path),

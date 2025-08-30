@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-This document provides guidance for developers working on the ECS Digital Asset Management (DAM) system. This project implements a DAM using an Entity-Component-System (ECS) architecture in Python. The core idea is to represent assets (images, videos, audio, documents, etc.) as Entities (simple IDs), which are then described by attaching various Components (data-only dataclasses). Systems (typically service functions or dedicated modules) operate on entities based on the components they possess.
+This document provides guidance for developers working on the ECS Digital Asset Management (DAM) system. This project implements a DAM using an Entity-Component-System (ECS) architecture in Python. The core idea is to represent assets (images, videos, audio, documents, etc.) as Entities (simple IDs), which are then described by attaching various Components (data-only dataclasses). Systems (typically functions or dedicated modules) operate on entities based on the components they possess.
 
 ## 2. Core Architectural Concepts
 
@@ -94,7 +94,7 @@ The Command pattern is used for imperative actions where the caller requests a s
     - In the package's `systems/` module, create a new function to handle the command.
     - Decorate the function with `@handles_command(YourCommandClass)`.
     - The function must be `async` and its first argument should be the command object.
-    - Use services to perform the business logic.
+    - Use functions to perform the business logic.
 
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python

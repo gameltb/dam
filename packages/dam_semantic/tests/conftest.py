@@ -192,9 +192,9 @@ def sire_resource():
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam_semantic import service as semantic_service
+    from dam_semantic import semantic_functions
 
-    monkeypatch.setattr(semantic_service, "SentenceTransformer", MockSentenceTransformer)
+    monkeypatch.setattr(semantic_functions, "SentenceTransformer", MockSentenceTransformer)
 
 
 @pytest.fixture(scope="session", autouse=True)

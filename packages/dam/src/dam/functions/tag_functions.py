@@ -19,7 +19,7 @@ from dam.models.tags import (
     EntityTagLinkComponent,
     TagConceptComponent,
 )
-from dam.services import ecs_service
+from dam.functions import ecs_functions
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ async def create_tag_concept(  # Made async
         # Tag does not exist, proceed to create it.
         pass
 
-    tag_concept_entity = await ecs_service.create_entity(session)  # Await
+    tag_concept_entity = await ecs_functions.create_entity(session)  # Await
     if tag_concept_entity.id is None:
         await session.flush()  # Ensure ID
 
@@ -69,7 +69,7 @@ async def create_tag_concept(  # Made async
         concept_description=description,  # Use description for the general concept_description
     )
     try:
-        await ecs_service.add_component_to_entity(session, tag_concept_entity.id, tag_concept_comp)
+        await ecs_functions.add_component_to_entity(session, tag_concept_entity.id, tag_concept_comp)
         logger.info(f"Created TagConcept Entity ID {tag_concept_entity.id} with name '{tag_name}'.")
         return tag_concept_entity
     except IntegrityError:
@@ -94,8 +94,8 @@ async def get_tag_concept_by_name(session: AsyncSession, name: str) -> Entity:  
 
 
 async def get_tag_concept_by_id(session: AsyncSession, tag_concept_entity_id: int) -> Optional[Entity]:  # Made async
-    tag_concept_entity = await ecs_service.get_entity(session, tag_concept_entity_id)  # Await
-    if tag_concept_entity and await ecs_service.get_component(
+    tag_concept_entity = await ecs_functions.get_entity(session, tag_concept_entity_id)  # Await
+    if tag_concept_entity and await ecs_functions.get_component(
         session, tag_concept_entity_id, TagConceptComponent
     ):  # Await
         return tag_concept_entity
@@ -125,7 +125,7 @@ async def update_tag_concept(  # Made async
     description: Optional[str] = None,
     allow_values: Optional[bool] = None,
 ) -> Optional[TagConceptComponent]:
-    tag_concept_comp = await ecs_service.get_component(session, tag_concept_entity_id, TagConceptComponent)  # Await
+    tag_concept_comp = await ecs_functions.get_component(session, tag_concept_entity_id, TagConceptComponent)  # Await
     if not tag_concept_comp:
         logger.warning(f"TagConceptComponent not found for Entity ID {tag_concept_entity_id}.")
         return None
@@ -191,7 +191,7 @@ async def delete_tag_concept(session: AsyncSession, tag_concept_entity_id: int) 
     stmt = delete(EntityTagLinkComponent).where(EntityTagLinkComponent.tag_concept_entity_id == tag_concept_entity_id)
     await session.execute(stmt)  # Await
 
-    return await ecs_service.delete_entity(session, tag_concept_entity_id)  # Await
+    return await ecs_functions.delete_entity(session, tag_concept_entity_id)  # Await
 
 
 # --- Tag Application Functions ---
@@ -228,7 +228,7 @@ async def _is_scope_valid(
             )
             return False
 
-        if not await ecs_service.get_component(session, entity_id_to_tag, required_class):  # Await
+        if not await ecs_functions.get_component(session, entity_id_to_tag, required_class):  # Await
             logger.warning(
                 f"Scope validation failed: Entity {entity_id_to_tag} does not have required component '{scope_detail}' for tag '{tag_concept_comp.tag_name}'."
             )
@@ -250,7 +250,7 @@ async def _is_scope_valid(
             return False
 
         scope_owner_is_conceptual_asset = False
-        if await ecs_service.get_component(
+        if await ecs_functions.get_component(
             session, conceptual_asset_entity_id_for_scope, ComicBookConceptComponent
         ):  # Await
             scope_owner_is_conceptual_asset = True
@@ -261,7 +261,7 @@ async def _is_scope_valid(
                     and issubclass(comp_type_check, BaseConceptualInfoComponent)
                     and not comp_type_check.__dict__.get("__abstract__", False)
                 ):  # Use __dict__.get for direct check
-                    if await ecs_service.get_component(
+                    if await ecs_functions.get_component(
                         session, conceptual_asset_entity_id_for_scope, comp_type_check
                     ):  # Await
                         scope_owner_is_conceptual_asset = True
@@ -284,7 +284,7 @@ async def _is_scope_valid(
                 is_actually_concrete = not comp_type_check.__dict__.get("__abstract__", False) if is_class else False
 
                 if is_class and is_variant_subclass and is_actually_concrete:
-                    variant_comp = await ecs_service.get_component(session, entity_id_to_tag, comp_type_check)  # Await
+                    variant_comp = await ecs_functions.get_component(session, entity_id_to_tag, comp_type_check)  # Await
                     if variant_comp:
                         if hasattr(variant_comp, "conceptual_entity_id"):
                             actual_conceptual_id = variant_comp.conceptual_entity_id
@@ -309,7 +309,7 @@ async def _is_scope_valid(
 async def apply_tag_to_entity(  # Made async
     session: AsyncSession, entity_id_to_tag: int, tag_concept_entity_id: int, value: Optional[str] = None
 ) -> Optional[EntityTagLinkComponent]:
-    target_entity = await ecs_service.get_entity(session, entity_id_to_tag)  # Await
+    target_entity = await ecs_functions.get_entity(session, entity_id_to_tag)  # Await
     if not target_entity:
         logger.error(f"Entity to tag (ID: {entity_id_to_tag}) not found.")
         return None
@@ -319,7 +319,7 @@ async def apply_tag_to_entity(  # Made async
         logger.error(f"TagConcept Entity (ID: {tag_concept_entity_id}) not found.")
         return None
 
-    tag_concept_comp = await ecs_service.get_component(session, tag_concept_entity_id, TagConceptComponent)  # Await
+    tag_concept_comp = await ecs_functions.get_component(session, tag_concept_entity_id, TagConceptComponent)  # Await
     if not tag_concept_comp:
         logger.error(f"TagConceptComponent missing on Entity ID {tag_concept_entity_id}.")
         return None
@@ -352,8 +352,8 @@ async def apply_tag_to_entity(  # Made async
     link_comp = EntityTagLinkComponent(tag_concept=tag_concept_entity, tag_value=value)
 
     try:
-        # Use ecs_service to add the component and handle associations for BaseComponent fields
-        await ecs_service.add_component_to_entity(session, target_entity.id, link_comp)
+        # Use ecs_functions to add the component and handle associations for BaseComponent fields
+        await ecs_functions.add_component_to_entity(session, target_entity.id, link_comp)
         logger.info(
             f"Applied tag '{tag_concept_comp.tag_name}' (Concept ID: {tag_concept_entity_id}) to Entity ID {entity_id_to_tag} with value '{value}'."
         )
@@ -454,7 +454,7 @@ async def get_or_create_tag_concept(
         tag_entity = await get_tag_concept_by_name(session, clean_tag_name)
         if tag_entity:
             # Fetch the component from the entity
-            tag_concept_comp = await ecs_service.get_component(session, tag_entity.id, TagConceptComponent)
+            tag_concept_comp = await ecs_functions.get_component(session, tag_entity.id, TagConceptComponent)
             if tag_concept_comp:
                 return tag_concept_comp
             else:
@@ -486,7 +486,7 @@ async def get_or_create_tag_concept(
 
     if new_tag_entity:
         # Fetch the component from the newly created entity
-        new_tag_concept_comp = await ecs_service.get_component(session, new_tag_entity.id, TagConceptComponent)
+        new_tag_concept_comp = await ecs_functions.get_component(session, new_tag_entity.id, TagConceptComponent)
         if new_tag_concept_comp:
             return new_tag_concept_comp
         else:
@@ -500,7 +500,7 @@ async def get_or_create_tag_concept(
         try:
             tag_entity_after_failed_create = await get_tag_concept_by_name(session, clean_tag_name)
             if tag_entity_after_failed_create:
-                return await ecs_service.get_component(session, tag_entity_after_failed_create.id, TagConceptComponent)
+                return await ecs_functions.get_component(session, tag_entity_after_failed_create.id, TagConceptComponent)
         except TagConceptNotFoundError:
             logger.error(f"Failed to create and subsequently retrieve TagConcept '{clean_tag_name}'.")
             return None

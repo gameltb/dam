@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.core.entity import Entity
-from dam.services import ecs_service
+from dam.functions import ecs_functions
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ async def create_character_concept(
         # Character does not exist, proceed to create it.
         pass
 
-    character_entity = await ecs_service.create_entity(session)
+    character_entity = await ecs_functions.create_entity(session)
     if character_entity.id is None:  # Should be populated after create_entity if it flushes
         await session.flush()
 
@@ -63,7 +63,7 @@ async def create_character_concept(
         # entity_id will be set by add_component_to_entity
     )
     try:
-        await ecs_service.add_component_to_entity(session, character_entity.id, character_concept_comp)
+        await ecs_functions.add_component_to_entity(session, character_entity.id, character_concept_comp)
         logger.info(f"Created CharacterConcept Entity ID {character_entity.id} with name '{name}'.")
         return character_entity
     except IntegrityError:  # Catch potential unique constraint violations if name is made unique in DB
@@ -98,8 +98,8 @@ async def get_character_concept_by_name(session: AsyncSession, name: str) -> Ent
 
 async def get_character_concept_by_id(session: AsyncSession, character_concept_entity_id: int) -> Optional[Entity]:
     """Retrieves a character concept entity by its ID."""
-    character_concept_entity = await ecs_service.get_entity(session, character_concept_entity_id)
-    if character_concept_entity and await ecs_service.get_component(
+    character_concept_entity = await ecs_functions.get_entity(session, character_concept_entity_id)
+    if character_concept_entity and await ecs_functions.get_component(
         session, character_concept_entity_id, CharacterConceptComponent
     ):
         return character_concept_entity
@@ -124,7 +124,7 @@ async def update_character_concept(
     # Add other fields as needed
 ) -> Optional[CharacterConceptComponent]:
     """Updates an existing character concept."""
-    char_concept_comp = await ecs_service.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+    char_concept_comp = await ecs_functions.get_component(session, character_concept_entity_id, CharacterConceptComponent)
     if not char_concept_comp:
         logger.warning(f"CharacterConceptComponent not found for Entity ID {character_concept_entity_id}.")
         return None
@@ -178,7 +178,7 @@ async def delete_character_concept(session: AsyncSession, character_concept_enti
     await session.execute(stmt_delete_links)
 
     # Delete the character concept entity itself (which also deletes its CharacterConceptComponent)
-    return await ecs_service.delete_entity(session, character_concept_entity_id)
+    return await ecs_functions.delete_entity(session, character_concept_entity_id)
 
 
 # --- Character Application (Linking) Functions ---
@@ -191,7 +191,7 @@ async def apply_character_to_entity(
     role: Optional[str] = None,
 ) -> Optional[EntityCharacterLinkComponent]:
     """Applies (links) a character to an entity (e.g., an asset)."""
-    target_entity = await ecs_service.get_entity(session, entity_id_to_link)
+    target_entity = await ecs_functions.get_entity(session, entity_id_to_link)
     if not target_entity:
         logger.error(f"Entity to link character to (ID: {entity_id_to_link}) not found.")
         return None
@@ -211,7 +211,7 @@ async def apply_character_to_entity(
     existing_link = result_existing_link.scalar_one_or_none()
 
     if existing_link:
-        char_concept_comp = await ecs_service.get_component(
+        char_concept_comp = await ecs_functions.get_component(
             session, character_concept_entity_id, CharacterConceptComponent
         )
         char_name = char_concept_comp.concept_name if char_concept_comp else "Unknown Character"
@@ -228,9 +228,9 @@ async def apply_character_to_entity(
     )
 
     try:
-        await ecs_service.add_component_to_entity(session, target_entity.id, link_comp)
-        # Fetch the component using ecs_service to get its name for logging
-        char_concept_comp_for_log = await ecs_service.get_component(
+        await ecs_functions.add_component_to_entity(session, target_entity.id, link_comp)
+        # Fetch the component using ecs_functions to get its name for logging
+        char_concept_comp_for_log = await ecs_functions.get_component(
             session, character_concept_entity_id, CharacterConceptComponent
         )
         char_name = char_concept_comp_for_log.concept_name if char_concept_comp_for_log else "Unknown Character"
@@ -240,7 +240,7 @@ async def apply_character_to_entity(
         return link_comp
     except IntegrityError:  # Should be caught by pre-check
         await session.rollback()
-        char_name_fetch = await ecs_service.get_component(
+        char_name_fetch = await ecs_functions.get_component(
             session, character_concept_entity_id, CharacterConceptComponent
         )
         char_name = char_name_fetch.concept_name if char_name_fetch else "Unknown Character"
@@ -271,9 +271,9 @@ async def remove_character_from_entity(
     link_comp_to_delete = result.scalar_one_or_none()
 
     if link_comp_to_delete:
-        # ecs_service.remove_component expects the component instance
-        await ecs_service.remove_component(session, link_comp_to_delete)  # This will delete the row
-        char_name_fetch = await ecs_service.get_component(
+        # ecs_functions.remove_component expects the component instance
+        await ecs_functions.remove_component(session, link_comp_to_delete)  # This will delete the row
+        char_name_fetch = await ecs_functions.get_component(
             session, character_concept_entity_id, CharacterConceptComponent
         )
         char_name = char_name_fetch.concept_name if char_name_fetch else "Unknown Character"

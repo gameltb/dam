@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from dam.core.world import World
 
 
+from . import psp_iso_functions
 from .systems import process_psp_iso_system
 
 
@@ -25,4 +26,4 @@ class PspPlugin(Plugin):
         world.register_system(process_psp_iso_system, event_type=PspIsoAssetDetected)
 
 
-__all__ = ["PspPlugin", "PspIsoAssetDetected"]
+__all__ = ["PspPlugin", "PspIsoAssetDetected", "psp_iso_functions"]

@@ -12,10 +12,10 @@ This document outlines the design principles and guidelines for developing model
   - [2.4. Field Definitions](#24-field-definitions)
   - [2.5. Semantic Embedding Components (Text)](#25-semantic-embedding-components-text)
   - [2.6. Audio Embedding Components](#26-audio-embedding-components)
-  - [2.7. Tagging Components and Services](#27-tagging-components-and-services)
+  - [2.7. Tagging Components and Functions](#27-tagging-components-and-functions)
   - [2.8. Constructor Expectations](#28-constructor-expectations)
-- [3. Services, Systems, Commands, and Resources](#3-services-systems-commands-and-resources)
-  - [3.1. Services](#31-services)
+- [3. Functions, Systems, Commands, and Resources](#3-functions-systems-commands-and-resources)
+  - [3.1. Functions](#31-functions)
   - [3.2. Systems](#32-systems)
   - [3.3. Commands](#33-commands)
   - [3.4. Events vs. Commands](#34-events-vs-commands)
@@ -37,11 +37,11 @@ For a comprehensive understanding of the ECS implementation, refer to the [Devel
 
 A critical design principle is that the core `dam` package **must not** depend on any of its plugin packages (e.g., `dam_media_image`, `dam_sire`). This ensures the core remains lean and decoupled.
 
--   **Core `dam` Package**: Contains the fundamental ECS framework, base components, and core services that have no knowledge of specific media types or external model frameworks.
+-   **Core `dam` Package**: Contains the fundamental ECS framework, base components, and core functions that have no knowledge of specific media types or external model frameworks.
 -   **Plugin Packages**: Extend the core functionality. They can depend on `dam`, but `dam` cannot depend on them.
 -   **Application Package (`dam_app`)**: The main application that brings everything together. It depends on `dam` and all the necessary plugins.
 
-If a system or service within the `dam` package needs functionality from a plugin, it must be moved to the appropriate plugin package or to the `dam_app` package if it's application-specific logic.
+If a system or function module within the `dam` package needs functionality from a plugin, it must be moved to the appropriate plugin package or to the `dam_app` package if it's application-specific logic.
 
 ## 2. Models (Components)
 
@@ -82,8 +82,8 @@ The system uses a structured approach for managing text embeddings from differen
         # ... other models
     }
     ```
--   **Service Layer**: The `semantic_service.py` uses this registry (`get_embedding_component_class` function) to determine the correct component class (and thus, table) for operations like creating, retrieving, or searching embeddings based on the provided `model_name` and `model_params`.
-    The service also supports augmenting input text with tags (manual or model-generated) before generating embeddings. This is controlled by parameters like `include_manual_tags` and `include_model_tags_config` in `update_text_embeddings_for_entity`. The `source_field_name` in the stored embedding component will be suffixed (e.g., `_with_tags`) to indicate this augmentation.
+-   **Functions Layer**: The `semantic_functions.py` uses this registry (`get_embedding_component_class` function) to determine the correct component class (and thus, table) for operations like creating, retrieving, or searching embeddings based on the provided `model_name` and `model_params`.
+    The functions also support augmenting input text with tags (manual or model-generated) before generating embeddings. This is controlled by parameters like `include_manual_tags` and `include_model_tags_config` in `update_text_embeddings_for_entity`. The `source_field_name` in the stored embedding component will be suffixed (e.g., `_with_tags`) to indicate this augmentation.
 
 #### Adding a New Embedding Type/Model
 
@@ -118,7 +118,7 @@ To support a new embedding model or a new configuration of an existing model tha
     *   Ensure `op.drop_table()` is present in the `downgrade()` function.
     *   *(Note: Alembic step was deferred in the current task, but is standard procedure).*
 5.  **Update Tests**:
-    *   Add tests in `tests/test_semantic_service.py` to verify that the new embedding type works correctly for creation, retrieval, and similarity search. This includes mocking the new model if necessary and ensuring data goes into the new table.
+    *   Add tests in `tests/test_semantic_functions.py` to verify that the new embedding type works correctly for creation, retrieval, and similarity search. This includes mocking the new model if necessary and ensuring data goes into the new table.
 
 ### 2.6. Audio Embedding Components
 
@@ -138,8 +138,8 @@ Similar to text embeddings, the system supports storing and searching audio embe
         # ... other audio models
     }
     ```
--   **Service Layer (`AudioService`)**:
-    *   Located in `dam_media_audio.services.audio_service.py`.
+-   **Functions Layer (`audio_functions`)**:
+    *   Located in `dam_media_audio.functions.audio_functions.py`.
     *   Responsible for generating, storing, and searching audio embeddings.
     *   Uses `get_audio_embedding_component_class` (which consults the `AUDIO_EMBEDDING_MODEL_REGISTRY`) to determine the correct component class for database operations.
     *   Relies on the `ModelExecutionManager` (see Section 4) for loading audio models (currently mocked).
@@ -148,11 +148,11 @@ Similar to text embeddings, the system supports storing and searching audio embe
         *   `find_similar_entities_by_audio_embedding`: Searches for entities with similar audio.
 -   **System (`AudioProcessingSystem`)**:
     *   A system can be designed to react to `AudioComponent` being added to an entity, or it can be triggered by a command.
-    *   Uses `AudioService` to generate embeddings.
+    *   Uses `audio_functions` to generate embeddings.
     *   Relies on `dam.utils.media_utils.get_file_path_for_entity` to locate the audio file for an entity.
 -   **Commands**:
     *   `AudioSearchCommand` (in `dam_media_audio.commands`): Used to request an audio similarity search.
-    *   Handled by `handle_audio_search_command` in `dam_semantic.systems`, which calls the `AudioService`.
+    *   Handled by `handle_audio_search_command` in `dam_semantic.systems`, which calls the `audio_functions`.
 
 #### Adding a New Audio Embedding Model
 
@@ -161,11 +161,11 @@ Similar to text embeddings, the system supports storing and searching audio embe
 3.  **Update `dam/models/semantic/__init__.py`**: Export the new component.
 4.  **Implement Model Loading**:
     *   Provide a loader function for the actual audio model.
-    *   Register this loader with the `ModelExecutionManager` in `AudioService` (similar to how `MockAudioModel` is handled, but with a real model). The identifier used with `ModelExecutionManager` should be distinct (e.g., `MOCK_AUDIO_MODEL_IDENTIFIER` or a new one like `VGGISH_AUDIO_MODEL_IDENTIFIER`).
+    *   Register this loader with the `ModelExecutionManager` in `audio_functions` (similar to how `MockAudioModel` is handled, but with a real model). The identifier used with `ModelExecutionManager` should be distinct (e.g., `MOCK_AUDIO_MODEL_IDENTIFIER` or a new one like `VGGISH_AUDIO_MODEL_IDENTIFIER`).
 5.  **Database Migration (Alembic)**: Create a migration for the new table if specific tables per model are used, or ensure the generic table approach is configured. (Current `BaseSpecificAudioEmbeddingComponent` design with `model_name` column supports a more generic table if desired, but specific tables are also an option per model type).
-6.  **Update Tests**: Add tests for `AudioService` and `AudioProcessingSystem` for the new model.
+6.  **Update Tests**: Add tests for `audio_functions` and `AudioProcessingSystem` for the new model.
 
-### 2.7. Tagging Components and Services
+### 2.7. Tagging Components and Functions
 
 The system includes functionality for both manual and AI-driven (model-generated) tagging of entities.
 
@@ -180,65 +180,65 @@ The system includes functionality for both manual and AI-driven (model-generated
     *   Stores `source_model_name` (e.g., "wd-v1-4-moat-tagger-v2") and `confidence` for the tag.
     *   Model parameters used for generation are defined in a code registry (`TAGGING_MODEL_REGISTRY`) and not stored per link to save space.
     *   Table: `component_model_generated_tag_link`.
--   **`TaggingService`** (`dam_app.services.tagging_service.py`):
+-   **`tagging_functions.py`** (`dam_app.functions.tagging_functions.py`):
     *   Manages AI-driven tagging.
     *   Relies on `ModelExecutionManager` (see Section 4) for loading tagging models (currently mocked using `MockWd14Tagger`).
-    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam_app.services.tagging_service.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
+    *   Uses `TAGGING_MODEL_CONCEPTUAL_PARAMS` (in `dam_app.functions.tagging_functions.py`) to store behavioral parameters for specific models (e.g., "wd-v1-4-moat-tagger-v2").
     *   `update_entity_model_tags()`: Generates tags for an entity's image using a specified model and stores them as `ModelGeneratedTagLinkComponent` instances. It typically replaces previous tags from the same model for that entity.
-    *   Uses `tag_service.get_or_create_tag_concept()` to interact with `TagConceptComponent`.
--   **`tag_service.py`**:
+    *   Uses `tag_functions.get_or_create_tag_concept()` to interact with `TagConceptComponent`.
+-   **`tag_functions.py`**:
     *   Manages `TagConceptComponent` (creation, retrieval) and manual `EntityTagLinkComponent`.
-    *   Includes `get_or_create_tag_concept()` for use by other services.
+    *   Includes `get_or_create_tag_concept()` for use by other function modules.
 -   **`AutoTaggingSystem`** (`dam_app/systems/auto_tagging_system.py`):
     *   An example system that can be triggered by a command (`AutoTagEntityCommand`).
-    *   Uses `TaggingService` to apply tags from a configured model.
+    *   Uses `tagging_functions` to apply tags from a configured model.
 
 #### Adding a New Auto-Tagging Model
 
 1.  **Define Conceptual Parameters**:
-    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam_app.services.tagging_service.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
+    *   Add an entry to `TAGGING_MODEL_CONCEPTUAL_PARAMS` in `dam_app.functions.tagging_functions.py` for the new model name. Include `default_conceptual_params` (e.g., confidence thresholds, tag limits for prediction) and optionally `model_load_params` if the loader needs specific arguments.
 2.  **Implement Loader Function**:
     *   Create a synchronous function that takes `model_name_or_path` (which will be your new model's name/identifier) and an optional `params` dictionary, and returns the loaded model instance.
-3.  **Register Loader in `TaggingService`**:
-    *   In `dam_app.services.tagging_service.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
+3.  **Register Loader in `tagging_functions`**:
+    *   In `dam_app.functions.tagging_functions.py`, within `get_tagging_model()`, ensure the new loader function is registered with the `ModelExecutionManager` using a suitable `TAGGING_MODEL_IDENTIFIER` (can be generic like "image_tagger" or model-specific if behaviors differ greatly).
     *   Example: `model_manager.register_model_loader(TAGGING_MODEL_IDENTIFIER, _my_new_tagger_loader_sync)`
 4.  **Update Systems (Optional)**:
     *   If the new model should be triggered by specific conditions or markers, update or create relevant systems. The `AutoTaggingSystem` can be configured to use different model names.
 5.  **Update Tests**:
-    *   Add tests for the `TaggingService` using the new model (likely with mocked model output).
+    *   Add tests for the `tagging_functions` using the new model (likely with mocked model output).
     *   Test any new system logic.
 
 ### 2.8. Constructor Expectations
 - Components inherit `kw_only=True` constructor behavior from `dam.models.core.base_class.Base`.
 - In `BaseComponent`, both the `entity_id` field (linking to an `Entity`) and the `entity` relationship attribute itself are defined with `init=False`. This means they are not set via the component's constructor when you first create an instance of a component.
 - Instead, components are instantiated with their own specific data fields (those that are `init=True` by default or explicitly in the component's definition).
-- The association with an `Entity` (i.e., setting the `entity_id` and linking the `entity` relationship) is typically handled by the `dam.services.ecs_service.add_component_to_entity(session, entity_id, component_instance)` function. This function is called *after* the component instance has been created with its own data.
+- The association with an `Entity` (i.e., setting the `entity_id` and linking the `entity` relationship) is typically handled by the `dam.functions.ecs_functions.add_component_to_entity(session, entity_id, component_instance)` function. This function is called *after* the component instance has been created with its own data.
 - Example:
   ```python
   # Create the component with its specific data
   my_component = MyComponent(custom_field="value")
-  # Then, associate it with an entity using the service
+  # Then, associate it with an entity using the functions module
   # actual_entity_id = some_entity.id
-  # ecs_service.add_component_to_entity(session, actual_entity_id, my_component)
+  # ecs_functions.add_component_to_entity(session, actual_entity_id, my_component)
   ```
 
-## 3. Services, Systems, Commands, and Resources
+## 3. Functions, Systems, Commands, and Resources
 
-This section outlines the roles and interactions of Services, Systems, Commands, and Resources.
+This section outlines the roles and interactions of Functions, Systems, Commands, and Resources.
 
-### 3.1. Services
+### 3.1. Functions
 
--   **Definition and Purpose**: Services encapsulate the primary business logic and operations of the application. They act as an intermediary layer, providing the "how-to" for domain-specific tasks.
--   **Structure**: Services should be designed as **stateless modules of functions**. They should produce the same result for the same input parameters and not rely on internal instance state that persists across calls.
+-   **Definition and Purpose**: Function modules encapsulate the primary business logic and operations of the application. They act as an intermediary layer, providing the "how-to" for domain-specific tasks.
+-   **Structure**: Function modules should be designed as **stateless modules of functions**. They should produce the same result for the same input parameters and not rely on internal instance state that persists across calls.
 -   **Interaction**:
-    *   Services operate on Entities and Components, typically by using the `AsyncSession` passed to them or by calling other fine-grained services (like `ecs_service` for direct component manipulation).
-    *   If a Service function needs to interact with a stateful resource (e.g., `ModelExecutionManager` for ML models, `FileStorageResource` for world-specific storage, or future remote API clients), that resource instance **must be passed as an argument** to the service function.
-    *   Service functions should **not** use global accessors like `get_default_world()` or similar service locators to find their dependencies.
+    *   Functions operate on Entities and Components, typically by using the `AsyncSession` passed to them or by calling other fine-grained functions (like `ecs_functions` for direct component manipulation).
+    *   If a function needs to interact with a stateful resource (e.g., `ModelExecutionManager` for ML models, `FileStorageResource` for world-specific storage, or future remote API clients), that resource instance **must be passed as an argument** to the function.
+    *   Functions should **not** use global accessors like `get_default_world()` or similar service locators to find their dependencies.
     *   They are called by Systems (which act as command or event handlers).
 
 ### 3.2. Systems
 
--   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to Services or the `EcsTransaction` object.
+-   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to function modules or the `EcsTransaction` object.
 -   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with:
     *   `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)` for stage-based execution.
     *   `@dam.core.systems.listens_for(EventType)` for event-driven execution.
@@ -251,7 +251,7 @@ This section outlines the roles and interactions of Services, Systems, Commands,
         *   `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources.
         *   `WorldContext`: Provides access to the `EcsTransaction`, world name, and `WorldConfig`.
         *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - **[DEPRECATED]** Direct access to the session is discouraged. Use `EcsTransaction` instead. This is maintained for backward compatibility during the transition.
-    *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the service functions they call.
+    *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the functions they call.
 -   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `World` object manages the transaction boundary (see Section 3.6).
 -   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems and specifying how they are triggered (stage, event, or command).
 -   **Characteristics**:
@@ -284,7 +284,7 @@ It is important to distinguish between Events and Commands to maintain a clean a
     *   Managed by the `ResourceManager` (`dam.core.resources.ResourceManager`).
     *   Global resources are typically instantiated once when the application starts.
     *   World-specific resources are typically instantiated once per `World` and added to that world's `ResourceManager`.
--   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to service functions if needed.
+-   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to functions if needed.
 
 ### 3.6. Transaction Management and the `EcsTransaction` Object
 
@@ -294,12 +294,12 @@ A core principle of the framework is to ensure data consistency through atomic t
 
 -   **The `EcsTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
     -   **Purpose**: The `dam.core.transaction.EcsTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
-    -   **Lifecycle**: An `EcsTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and services that are part of that transaction chain.
+    -   **Lifecycle**: An `EcsTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and functions that are part of that transaction chain.
     -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `EcsTransaction` object and use its methods:
         -   `await transaction.add_component_to_entity(...)`
         -   `await transaction.create_entity()`
         -   If an ID is needed immediately for a subsequent operation within the same transaction, `await transaction.flush()` can be called.
-    -   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` method is called automatically by the `World` object at the end of the transaction. Systems and services should **never** call commit or rollback themselves.
+    -   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` method is called automatically by the `World` object at the end of the transaction. Systems and functions should **never** call commit or rollback themselves.
 
 This approach ensures that system logic remains focused on orchestration, while the framework guarantees atomicity and provides a safe, domain-specific API for database interactions.
 

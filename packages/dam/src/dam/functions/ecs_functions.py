@@ -14,8 +14,8 @@ from dam.models.core.entity import Entity
 T = TypeVar("T", bound=BaseComponent)
 
 
-# Note: All functions in this service require a `session: Session` argument.
-# The caller (e.g., a system, another service, or a CLI command handler)
+# Note: All functions in this module require a `session: Session` argument.
+# The caller (e.g., a system, another function module, or a CLI command handler)
 # is responsible for obtaining the correct session for the desired ECS World,
 # typically by calling `world.get_db_session()`.
 
@@ -181,7 +181,7 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
         return False
 
     # Delete all associated components
-    # REGISTERED_COMPONENT_TYPES should be populated correctly (e.g., in world_service or models.__init__)
+    # REGISTERED_COMPONENT_TYPES should be populated correctly (e.g., in world_functions or models.__init__)
     if not REGISTERED_COMPONENT_TYPES:
         # This might be a critical error or warning depending on application structure.
         # For now, we proceed, but ideally, this list is always populated.
