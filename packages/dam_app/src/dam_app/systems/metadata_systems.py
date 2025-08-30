@@ -25,8 +25,8 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 
 # Corrected direct imports for models
 from dam.utils.url_utils import get_local_path_for_url
-from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.functions import file_operations
+from dam_fs.models.file_location_component import FileLocationComponent
 
 try:
     from hachoir.core import config as HachoirConfig

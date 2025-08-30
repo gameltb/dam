@@ -312,3 +312,85 @@ def test_cli_help(click_runner):
     """Test the main help message for the CLI."""
     result = click_runner.invoke(app, ["--help"])
     assert result.exit_code == 0
+
+
+def test_cli_show_entity(click_runner, test_world_alpha):
+    """Test the show-entity command."""
+    from dam.functions import ecs_functions
+    from dam.models.hashes import ContentHashMD5Component
+
+    async def run_test():
+        async with test_world_alpha.db_session_maker() as session:
+            entity = await ecs_functions.create_entity(session)
+            await session.commit()
+            await session.refresh(entity)
+
+            md5_component = ContentHashMD5Component(hash_value=b'1234567890123456')
+            await ecs_functions.add_component_to_entity(session, entity.id, md5_component)
+            await session.commit()
+
+            return entity.id
+
+    entity_id = asyncio.run(run_test())
+
+    result = click_runner.invoke(app, ["--world", "test_world_alpha", "show-entity", str(entity_id)])
+    print(result.stdout)
+    if result.exception:
+        import traceback
+        traceback.print_exception(*result.exc_info)
+    assert result.exit_code == 0
+    assert "ContentHashMD5Component" in result.stdout
+    assert "1234567890123456" in result.stdout
+
+def test_cli_scan_psp_isos(click_runner, tmp_path):
+    """Test the scan-psp-isos command."""
+    iso_dir = tmp_path / "isos"
+    iso_dir.mkdir()
+    iso_file = iso_dir / "test.iso"
+    iso_file.write_text("dummy iso content")
+
+    result = click_runner.invoke(app, ["--world", "test_world_alpha", "scan-psp-isos", str(iso_dir)])
+    print(result.stdout)
+    if result.exception:
+        import traceback
+        traceback.print_exception(*result.exc_info)
+    assert result.exit_code == 0
+    assert "Found ISO" in result.stdout
+    assert "test.iso" in result.stdout
+
+
+def test_cli_show_entity(click_runner, test_world_alpha):
+    """Test the show-entity command."""
+    from dam.functions import ecs_functions
+    from dam.models.hashes import ContentHashMD5Component
+
+    async def run_test():
+        async with test_world_alpha.db_session_maker() as session:
+            entity = await ecs_functions.create_entity(session)
+            await session.commit()
+            await session.refresh(entity)
+
+            md5_component = ContentHashMD5Component(hash_value=b'1234567890123456')
+            await ecs_functions.add_component_to_entity(session, entity.id, md5_component)
+            await session.commit()
+
+            return entity.id
+
+    entity_id = asyncio.run(run_test())
+
+    result = click_runner.invoke(app, ["--world", "test_world_alpha", "show-entity", str(entity_id)])
+    assert result.exit_code == 0
+    assert "ContentHashMD5Component" in result.stdout
+    assert "1234567890123456" in result.stdout
+
+def test_cli_scan_psp_isos(click_runner, tmp_path):
+    """Test the scan-psp-isos command."""
+    iso_dir = tmp_path / "isos"
+    iso_dir.mkdir()
+    iso_file = iso_dir / "test.iso"
+    iso_file.write_text("dummy iso content")
+
+    result = click_runner.invoke(app, ["--world", "test_world_alpha", "scan-psp-isos", str(iso_dir)])
+    assert result.exit_code == 0
+    assert "Found ISO" in result.stdout
+    assert "test.iso" in result.stdout

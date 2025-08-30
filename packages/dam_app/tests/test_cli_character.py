@@ -3,9 +3,9 @@ from typing import Optional  # For asset_sha256 type hint
 
 import pytest
 from dam.core.world import World
-from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
+from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
 from typer.testing import CliRunner
 

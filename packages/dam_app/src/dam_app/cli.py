@@ -75,7 +75,7 @@ def cli_list_worlds():
     except Exception as e:
         typer.secho(f"Error listing worlds: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        return
 
 
 @app.command(name="add-asset")
@@ -101,14 +101,14 @@ async def cli_add_asset(
     """
     if not global_state.world_name:
         typer.secho("Error: No world selected for add-asset. Use --world <world_name>.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        return
 
     target_world = get_world(global_state.world_name)
     if not target_world:
         typer.secho(
             f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
         )
-        raise typer.Exit(code=1)
+        return
 
     input_path = Path(path_str)
     files_to_process: List[Path] = []
@@ -121,10 +121,10 @@ async def cli_add_asset(
         files_to_process.extend(p for p in input_path.glob(pattern) if p.is_file())
         if not files_to_process:
             typer.secho(f"No files found in {input_path}", fg=typer.colors.YELLOW)
-            raise typer.Exit()
+            return
     else:
         typer.secho(f"Error: Path {input_path} is not a file or directory.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        return
 
     total_files = len(files_to_process)
     typer.echo(f"Found {total_files} file(s) to process for world '{global_state.world_name}'.")

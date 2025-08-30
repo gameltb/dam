@@ -206,3 +206,52 @@ async def ingest_psp_isos_from_directory(
                         continue
                     except Exception:
                         continue
+
+
+async def scan_psp_isos_from_directory(
+    directory: str,
+    passwords: Optional[List[str]] = None,
+):
+    """
+    Scans a directory for PSP ISOs and archives, and prints the paths of the found ISO files.
+    """
+    if passwords is None:
+        passwords = [None]
+    else:
+        passwords.insert(0, None)
+
+    for root, _, files in os.walk(directory):
+        for filename in files:
+            file_path = Path(root) / filename
+            ext = file_path.suffix.lower()
+
+            if ext == ".iso":
+                print(f"Found ISO: {file_path}")
+
+            elif ext == ".zip":
+                for password in passwords:
+                    try:
+                        with zipfile.ZipFile(file_path, "r") as zf:
+                            if password:
+                                zf.setpassword(password.encode())
+                            for member_name in zf.namelist():
+                                if member_name.lower().endswith(".iso"):
+                                    print(f"Found ISO in zip: {file_path}/{member_name}")
+                        break
+                    except (RuntimeError, zipfile.BadZipFile):
+                        continue
+
+            elif ext == ".7z":
+                for password in passwords:
+                    try:
+                        with py7zr.SevenZipFile(file_path, mode="r", password=password) as szf:
+                            for member_name in szf.getnames():
+                                if member_name.lower().endswith(".iso"):
+                                    print(f"Found ISO in 7z: {file_path}/{member_name}")
+                        break
+                    except py7zr.exceptions.PasswordRequired:
+                        continue
+                    except py7zr.exceptions.Bad7zFile:
+                        continue
+                    except Exception:
+                        continue
