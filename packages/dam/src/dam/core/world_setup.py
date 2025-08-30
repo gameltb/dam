@@ -10,7 +10,7 @@ from dam.core.database import DatabaseManager
 
 # Moved these imports to the top of the file, outside of the TYPE_CHECKING block
 # to resolve E402 errors, as they are needed at runtime for registration.
-from dam.core.resources import FileOperationsResource, HashingServiceResource
+from dam.core.resources import FileOperationsResource, HashingFunctionsResource
 from dam.core.world import World
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ def initialize_world_resources(world: World) -> None:
     These include:
     - WorldConfig (the world's own configuration object)
     - DatabaseManager
-    - FileStorageService
+    - FileStorageResource
     - FileOperationsResource
     """
     if not world:
@@ -60,9 +60,9 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(FileOperationsResource())
     world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
-    # 5. HashingServiceResource
-    resource_manager.add_resource(HashingServiceResource())
-    world.logger.debug(f"Added HashingServiceResource for World '{world_name}'.")
+    # 5. HashingFunctionsResource
+    resource_manager.add_resource(HashingFunctionsResource())
+    world.logger.debug(f"Added HashingFunctionsResource for World '{world_name}'.")
 
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"

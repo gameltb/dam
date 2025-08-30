@@ -63,7 +63,7 @@ This handler is the entry point. It checks for existing imports by path and then
 from dam.core.systems import handles_command
 from dam.core.world import World
 from dam_app.commands import IngestFileCommand, ProcessFileByHashCommand
-from dam_app.services import file_service, hash_service
+from dam_app.functions import file_functions, hash_functions
 
 @handles_command(IngestFileCommand)
 async def handle_ingest_file(cmd: IngestFileCommand, world: World):
@@ -71,11 +71,11 @@ async def handle_ingest_file(cmd: IngestFileCommand, world: World):
     Handles the initial file ingestion request.
     """
     # 1. Check if this file path has been imported before
-    if await file_service.is_path_imported(world, cmd.file_path):
+    if await file_functions.is_path_imported(world, cmd.file_path):
         return {"status": "SKIPPED", "reason": "Path already imported"}
 
     # 2. Calculate the file hash
-    file_hash = await hash_service.calculate_hash(cmd.file_path)
+    file_hash = await hash_functions.calculate_hash(cmd.file_path)
 
     # 3. Dispatch a new command to process by hash
     process_cmd = ProcessFileByHashCommand(
@@ -98,11 +98,11 @@ async def handle_process_by_hash(cmd: ProcessFileByHashCommand, world: World):
     Handles processing a file based on its hash, checking for duplicates.
     """
     # 1. Check if this hash exists in the database
-    if await hash_service.does_hash_exist(world, cmd.file_hash):
+    if await hash_functions.does_hash_exist(world, cmd.file_hash):
         return {"status": "SKIPPED", "reason": "Duplicate hash"}
 
     # 2. Determine file type and dispatch to a specific processor
-    file_type = file_service.get_file_type(cmd.file_path)
+    file_type = file_functions.get_file_type(cmd.file_path)
 
     if file_type == "image":
         image_cmd = ProcessImageCommand(file_path=cmd.file_path, file_hash=cmd.file_hash)
@@ -122,14 +122,14 @@ This is where the actual work for a specific file type happens.
 # in packages/dam_media_image/src/dam_media_image/systems.py
 from dam.core.systems import handles_command
 from dam_app.commands import ProcessImageCommand # Assuming commands are accessible
-from .services import thumbnail_service
+from .functions import thumbnail_functions
 
 @handles_command(ProcessImageCommand)
 async def handle_process_image(cmd: ProcessImageCommand):
     """
     Performs image-specific processing, like generating thumbnails.
     """
-    thumbnail_path = await thumbnail_service.generate(cmd.file_path)
+    thumbnail_path = await thumbnail_functions.generate(cmd.file_path)
 
     # Here you would also create the asset, components, etc. in the database
 

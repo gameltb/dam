@@ -115,7 +115,7 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_sfo = MagicMock()
     mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
     mock_process_iso_stream = mocker.patch(
-        "dam_psp.systems.psp_iso_functions.process_iso_stream",
+        "dam_psp.systems.process_iso_stream",
         return_value=mock_sfo,
     )
 
@@ -211,7 +211,7 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         },
     )
     mock_process_iso_stream = mocker.patch(
-        "dam_psp.systems.psp_iso_functions.process_iso_stream",
+        "dam_psp.psp_iso_functions.process_iso_stream",
         return_value=None,  # For simplicity, we don't care about SFO data here
     )
     mock_session = AsyncMock()

@@ -8,7 +8,7 @@ from dam_fs.functions import file_storage  # Import the module with functions
 class FileStorageResource:
     """
     A resource class that provides file storage operations, configured per world.
-    It wraps the functional implementation in `dam_fs.services.file_storage`.
+    It wraps the functional implementation in `dam_fs.functions.file_storage`.
     """
 
     def __init__(self, world_config: WorldConfig):

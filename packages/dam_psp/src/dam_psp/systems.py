@@ -21,7 +21,8 @@ from dam_fs.functions import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import psp_iso_functions
+from dam_psp.psp_iso_functions import process_iso_stream
+
 from .events import PspIsoAssetDetected
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
@@ -56,7 +57,7 @@ async def process_psp_iso_system(
 
         # Extract metadata
         with open(file_path, "rb") as f:
-            sfo = psp_iso_functions.process_iso_stream(f)
+            sfo = process_iso_stream(f)
 
         if sfo and sfo.data:
             sfo_metadata = sfo.data
@@ -124,7 +125,7 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
     # Process SFO metadata
     file_stream.seek(0)
     try:
-        sfo = psp_iso_functions.process_iso_stream(file_stream)
+        sfo = process_iso_stream(file_stream)
     except Exception:
         sfo = None
 

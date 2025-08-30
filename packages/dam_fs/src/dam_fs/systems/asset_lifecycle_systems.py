@@ -9,8 +9,8 @@ from dam.core.world import get_world
 from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.functions import ecs_functions as ecs_service
-from dam_source.functions import import_functions as import_service
+from dam.functions import ecs_functions
+from dam_source.functions import import_functions
 
 from ..commands import (
     FindEntityByHashCommand,
@@ -30,12 +30,12 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
     """
     logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {cmd.world_name}")
     try:
-        # The service still needs the world for resources, which is a design smell to be fixed.
+        # The function still needs the world for resources, which is a design smell to be fixed.
         world = get_world(cmd.world_name)
         if not world:
-            raise import_service.ImportServiceError(f"World '{cmd.world_name}' not found.")
+            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
 
-        await import_service.import_local_file(
+        await import_functions.import_local_file(
             world=world,
             transaction=transaction,
             filepath=cmd.filepath_on_disk,
@@ -44,7 +44,7 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
             size_bytes=cmd.size_bytes,
         )
         logger.info(f"Successfully processed IngestFileCommand for {cmd.original_filename}")
-    except import_service.ImportServiceError as e:
+    except import_functions.ImportServiceError as e:
         logger.error(f"Failed to process IngestFileCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 
@@ -55,12 +55,12 @@ async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transacti
     """
     logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {cmd.world_name}")
     try:
-        # The service still needs the world for resources, which is a design smell to be fixed.
+        # The function still needs the world for resources, which is a design smell to be fixed.
         world = get_world(cmd.world_name)
         if not world:
-            raise import_service.ImportServiceError(f"World '{cmd.world_name}' not found.")
+            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
 
-        await import_service.import_local_file(
+        await import_functions.import_local_file(
             world=world,
             transaction=transaction,
             filepath=cmd.filepath_on_disk,
@@ -69,7 +69,7 @@ async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transacti
             size_bytes=cmd.size_bytes,
         )
         logger.info(f"Successfully processed IngestReferenceCommand for {cmd.original_filename}")
-    except import_service.ImportServiceError as e:
+    except import_functions.ImportServiceError as e:
         logger.error(f"Failed to process IngestReferenceCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 
@@ -99,7 +99,7 @@ async def handle_find_entity_by_hash_command(
             raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
 
         # I need to add find_entity_by_content_hash to the EcsTransaction wrapper
-        entity = await ecs_service.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
+        entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
         entity_details_dict = None
 
         if entity:
