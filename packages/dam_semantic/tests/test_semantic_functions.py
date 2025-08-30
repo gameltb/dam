@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 # ModelExecutionManager fixture from conftest.py
-from dam_semantic import service as semantic_service
+from dam_semantic import semantic_functions
 
 # Models to be tested (actual specific component classes)
 from dam_semantic.models import (
@@ -30,7 +30,7 @@ assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or cl
 async def test_generate_embedding_and_conversion(sire_resource):
     text = "Hello world"
     # Test with MiniLM
-    embedding_minilm_np = await semantic_service.generate_embedding(
+    embedding_minilm_np = await semantic_functions.generate_embedding(
         sire_resource,
         text,
         model_name=TEST_MODEL_MINILM,
@@ -41,7 +41,7 @@ async def test_generate_embedding_and_conversion(sire_resource):
     assert embedding_minilm_np.shape[0] == 384
 
     # Test with CLIP
-    embedding_clip_np = await semantic_service.generate_embedding(
+    embedding_clip_np = await semantic_functions.generate_embedding(
         sire_resource,
         text,
         model_name=TEST_MODEL_CLIP,
@@ -54,21 +54,21 @@ async def test_generate_embedding_and_conversion(sire_resource):
     assert not np.array_equal(embedding_minilm_np, embedding_clip_np)
 
     assert (
-        await semantic_service.generate_embedding(
+        await semantic_functions.generate_embedding(
             sire_resource, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
         )
         is None
     )
     assert (
-        await semantic_service.generate_embedding(
+        await semantic_functions.generate_embedding(
             sire_resource, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
         )
         is None
     )
 
-    embedding_bytes = semantic_service.convert_embedding_to_bytes(embedding_minilm_np)
+    embedding_bytes = semantic_functions.convert_embedding_to_bytes(embedding_minilm_np)
     assert isinstance(embedding_bytes, bytes)
     assert len(embedding_bytes) == 384 * 4
 
-    embedding_np_restored = semantic_service.convert_bytes_to_embedding(embedding_bytes)
+    embedding_np_restored = semantic_functions.convert_bytes_to_embedding(embedding_bytes)
     assert np.array_equal(embedding_minilm_np, embedding_np_restored)

@@ -4,7 +4,7 @@ from io import BytesIO
 import pycdlib
 import pytest
 
-from dam_psp import service as psp_iso_service
+from dam_psp import psp_iso_functions
 
 # A more realistic, valid PARAM.SFO file content for testing
 DUMMY_SFO_CONTENT = b"".join(
@@ -66,7 +66,7 @@ def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream):
     """
     Tests that process_iso_stream correctly extracts metadata from a dummy ISO.
     """
-    sfo = psp_iso_service.process_iso_stream(dummy_iso_stream)
+    sfo = psp_iso_functions.process_iso_stream(dummy_iso_stream)
 
     assert sfo is not None
     sfo_metadata = sfo.data
@@ -81,7 +81,7 @@ def test_process_iso_stream_handles_non_iso_file():
     """
     non_iso_stream = BytesIO(b"this is not an iso file")
     with pytest.raises(IOError):
-        psp_iso_service.process_iso_stream(non_iso_stream)
+        psp_iso_functions.process_iso_stream(non_iso_stream)
 
 
 # Tests for the ingestion system
@@ -101,9 +101,9 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     dummy_iso_content = create_dummy_iso_with_sfo().read()
     iso_path.write_bytes(dummy_iso_content)
 
-    # Mock the service and database interactions
+    # Mock the functions and database interactions
     mocker.patch(
-        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
         return_value={
             "md5": hashlib.md5(b"md5_hash").hexdigest(),
             "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
@@ -115,7 +115,7 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_sfo = MagicMock()
     mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
     mock_process_iso_stream = mocker.patch(
-        "dam_psp.systems.psp_iso_service.process_iso_stream",
+        "dam_psp.systems.psp_iso_functions.process_iso_stream",
         return_value=mock_sfo,
     )
 
@@ -159,7 +159,7 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
         return_value={"md5": hashlib.md5(b"duplicate_md5_hash").hexdigest()},
     )
 
@@ -202,7 +202,7 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         zf.writestr("test.iso", dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_service.calculate_hashes_from_stream",
+        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
         return_value={
             "md5": hashlib.md5(b"some_hash").hexdigest(),
             "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
@@ -211,7 +211,7 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         },
     )
     mock_process_iso_stream = mocker.patch(
-        "dam_psp.systems.psp_iso_service.process_iso_stream",
+        "dam_psp.systems.psp_iso_functions.process_iso_stream",
         return_value=None,  # For simplicity, we don't care about SFO data here
     )
     mock_session = AsyncMock()

@@ -16,12 +16,12 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
-from dam.services import hashing_service
-from dam_fs.services import file_operations
+from dam.functions import hashing_functions
+from dam_fs.functions import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import service as psp_iso_service
+from . import psp_iso_functions
 from .events import PspIsoAssetDetected
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
@@ -56,7 +56,7 @@ async def process_psp_iso_system(
 
         # Extract metadata
         with open(file_path, "rb") as f:
-            sfo = psp_iso_service.process_iso_stream(f)
+            sfo = psp_iso_functions.process_iso_stream(f)
 
         if sfo and sfo.data:
             sfo_metadata = sfo.data
@@ -93,7 +93,7 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
     # Calculate hashes
     file_stream.seek(0)
     hash_algorithms = ["md5", "sha1", "sha256", "crc32"]
-    hashes = hashing_service.calculate_hashes_from_stream(file_stream, hash_algorithms)
+    hashes = hashing_functions.calculate_hashes_from_stream(file_stream, hash_algorithms)
     if not hashes:
         return
 
@@ -124,7 +124,7 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
     # Process SFO metadata
     file_stream.seek(0)
     try:
-        sfo = psp_iso_service.process_iso_stream(file_stream)
+        sfo = psp_iso_functions.process_iso_stream(file_stream)
     except Exception:
         sfo = None
 
