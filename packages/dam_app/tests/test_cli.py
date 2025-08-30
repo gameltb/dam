@@ -189,7 +189,7 @@ def click_runner() -> Iterator[CliRunner]:
 
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam_semantic.service import semantic_service
+    from dam_semantic import semantic_functions as semantic_service
 
     def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
         return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))

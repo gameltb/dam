@@ -47,7 +47,8 @@ from dam.models import (
     WebsiteProfileComponent,  # Needed if creating website entities
     WebSourceComponent,
 )
-from dam.services import ecs_service, file_operations
+from dam.functions import ecs_functions as ecs_service
+from dam_fs.functions import file_operations
 from dam_fs.resources.file_storage_resource import FileStorageResource
 from dam_source.models.source_info import source_types
 from typing_extensions import Annotated

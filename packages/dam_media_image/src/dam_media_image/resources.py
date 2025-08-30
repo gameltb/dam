@@ -1,4 +1,5 @@
-from .services import image_hashing_service
+from .functions import image_hashing_functions as image_hashing_service
+
 
 class ImageHashingServiceResource:
     def __init__(self):

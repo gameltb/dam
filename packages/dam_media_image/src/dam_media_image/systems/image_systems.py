@@ -10,16 +10,23 @@ from dam.core.systems import handles_command, system, listens_for
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
-from dam.services import ecs_service, hashing_service
-from dam_fs.services import file_operations
+from dam.functions import ecs_functions as ecs_service
+from dam.functions import hashing_functions as hashing_service
+from dam_fs.functions import file_operations
 
 from ..commands import FindSimilarImagesCommand
 from ..events import ImageAssetDetected
-from ..models.hashes.image_perceptual_hash_ahash_component import ImagePerceptualAHashComponent
-from ..models.hashes.image_perceptual_hash_dhash_component import ImagePerceptualDHashComponent
-from ..models.hashes.image_perceptual_hash_phash_component import ImagePerceptualPHashComponent
+from ..functions import image_hashing_functions as image_hashing_service
+from ..models.hashes.image_perceptual_hash_ahash_component import (
+    ImagePerceptualAHashComponent,
+)
+from ..models.hashes.image_perceptual_hash_dhash_component import (
+    ImagePerceptualDHashComponent,
+)
+from ..models.hashes.image_perceptual_hash_phash_component import (
+    ImagePerceptualPHashComponent,
+)
 from ..models.properties.image_dimensions_component import ImageDimensionsComponent
-from ..services import image_hashing_service
 
 try:
     import imagehash

@@ -9,8 +9,8 @@ from dam.core.world import get_world
 from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.services import ecs_service
-from dam_source.services import import_service
+from dam.functions import ecs_functions as ecs_service
+from dam_source.functions import import_functions as import_service
 
 from ..commands import (
     FindEntityByHashCommand,
