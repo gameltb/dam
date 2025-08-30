@@ -25,7 +25,6 @@ dependencies = [
     "dam",
     "alembic",
     "python-magic",
-    "aiosqlite",
 ]
 
 [project.optional-dependencies]
@@ -67,12 +66,15 @@ postgresql_host = "localhost"
 postgresql_port = 5432
 postgresql_user = "postgres"
 postgresql_password = "postgres"
+markers = [
+    "serial: mark a test as serial",
+]
 
 [tool.poe]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
+test = "pytest"
 test-cov = "pytest -n auto --cov=dam_app --cov-report=term-missing --cov-report=xml"
 mypy.default_item_type = "cmd"
 mypy.sequence = [

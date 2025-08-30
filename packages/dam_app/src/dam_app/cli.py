@@ -78,6 +78,58 @@ def cli_list_worlds():
         return
 
 
+async def add_asset(world: World, files_to_process: List[Path]):
+    total_files = len(files_to_process)
+    typer.echo(f"Found {total_files} file(s) to process for world '{world.name}'.")
+
+    processed_count = 0
+    error_count = 0
+
+    async with world.db_session_maker() as session:
+        for filepath in files_to_process:
+            processed_count += 1
+            typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name}")
+            try:
+                # Create a new entity for this asset first
+                entity = await dam_ecs_functions.create_entity(session)
+                await session.flush()  # Ensure entity gets an ID
+
+                # Read file content into an in-memory stream
+                with open(filepath, "rb") as f:
+                    file_content_stream = io.BytesIO(f.read())
+
+                # Create and dispatch the initial command
+                command = IngestAssetStreamCommand(
+                    entity=entity,
+                    file_content=file_content_stream,
+                    original_filename=filepath.name,
+                    world_name=world.name,
+                )
+
+                await world.dispatch_command(command)
+
+                # The command handler now handles everything. We just need to commit the session.
+                await session.commit()
+                typer.secho(
+                    f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN
+                )
+
+            except Exception as e:
+                await session.rollback()
+                typer.secho(f"  Error processing file {filepath.name}: {e}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                error_count += 1
+                # Continue to next file
+
+    typer.echo("\n--- Summary ---")
+    typer.echo(f"World: '{world.name}'")
+    typer.echo(f"Total files attempted: {processed_count}")
+    typer.echo(f"Errors encountered: {error_count}")
+    if error_count > 0:
+        typer.secho("Some files could not be processed. Check errors above.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command(name="add-asset")
 async def cli_add_asset(
     ctx: typer.Context,
@@ -126,55 +178,7 @@ async def cli_add_asset(
         typer.secho(f"Error: Path {input_path} is not a file or directory.", fg=typer.colors.RED)
         return
 
-    total_files = len(files_to_process)
-    typer.echo(f"Found {total_files} file(s) to process for world '{global_state.world_name}'.")
-
-    processed_count = 0
-    error_count = 0
-
-    async with target_world.db_session_maker() as session:
-        for filepath in files_to_process:
-            processed_count += 1
-            typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name}")
-            try:
-                # Create a new entity for this asset first
-                entity = await dam_ecs_functions.create_entity(session)
-                await session.flush()  # Ensure entity gets an ID
-
-                # Read file content into an in-memory stream
-                with open(filepath, "rb") as f:
-                    file_content_stream = io.BytesIO(f.read())
-
-                # Create and dispatch the initial command
-                command = IngestAssetStreamCommand(
-                    entity=entity,
-                    file_content=file_content_stream,
-                    original_filename=filepath.name,
-                    world_name=target_world.name,
-                )
-
-                await target_world.dispatch_command(command)
-
-                # The command handler now handles everything. We just need to commit the session.
-                await session.commit()
-                typer.secho(
-                    f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN
-                )
-
-            except Exception as e:
-                await session.rollback()
-                typer.secho(f"  Error processing file {filepath.name}: {e}", fg=typer.colors.RED)
-                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                error_count += 1
-                # Continue to next file
-
-    typer.echo("\n--- Summary ---")
-    typer.echo(f"World: '{target_world.name}'")
-    typer.echo(f"Total files attempted: {processed_count}")
-    typer.echo(f"Errors encountered: {error_count}")
-    if error_count > 0:
-        typer.secho("Some files could not be processed. Check errors above.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+    await add_asset(target_world, files_to_process)
 
 
 @app.command(name="setup-db")

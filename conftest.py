@@ -1,26 +1,33 @@
-import asyncio  # Required for asyncio.get_running_loop()
+import asyncio
 import json
-from functools import partial  # Required for partial
+import os
+import uuid
+from functools import partial
 from pathlib import Path
 from typing import (
-    AsyncGenerator,  # Added for async generator type hint
-    Generator,  # Added for fixture type hints
+    Any,
+    AsyncGenerator,
+    Dict,
+    Generator,
+    Iterator,
+    Optional,
 )
 
-# Ensure models are imported so Base knows about them for table creation
-# This will also trigger component registration
-import dam.models  # This line can sometimes be problematic if dam.models itself has top-level import issues
-import numpy as np
 import pytest
 import pytest_asyncio
+import psycopg
+import numpy as np
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
-from dam.core.world import World, clear_world_registry, create_and_register_world
+from dam.core.world import (
+    World,
+    clear_world_registry,
+    create_and_register_world,
+)
 from dam.models.core.base_class import Base
-from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Store original settings values to be restored
 _original_settings_values = {}
 
 
@@ -32,29 +39,42 @@ def backup_original_settings():
     _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
     yield
 
+@pytest_asyncio.fixture(scope="function")
+async def test_db() -> AsyncGenerator[str, None]:
+    db_user = os.environ.get("POSTGRES_USER", "postgres")
+    db_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+    db_host = os.environ.get("POSTGRES_HOST", "localhost")
+    db_port = os.environ.get("POSTGRES_PORT", "5432")
+    db_name = f"test_db_{uuid.uuid4().hex}"
 
-@pytest.fixture(scope="session")
-def test_worlds_config_data_factory(tmp_path_factory):
+    conn = await psycopg.AsyncConnection.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    try:
+        await conn.execute(f"CREATE DATABASE {db_name}")
+    finally:
+        await conn.close()
+
+    db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    yield db_url
+
+    conn = await psycopg.AsyncConnection.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    try:
+        # Need to terminate all connections before dropping the database
+        await conn.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}'")
+        await conn.execute(f"DROP DATABASE {db_name}")
+    finally:
+        await conn.close()
+
+
+@pytest.fixture(scope="function")
+def test_worlds_config_data_factory(test_db: str):
     def _factory():
         return {
-            "test_world_alpha": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_db')}/test_alpha.db"
-            },
-            "test_world_beta": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_db')}/test_beta.db"
-            },
-            "test_world_gamma": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_db')}/test_gamma.db"
-            },
-            "test_world_alpha_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('alpha_del_split_db')}/test_alpha_del_split.db"
-            },
-            "test_world_beta_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('beta_del_split_db')}/test_beta_del_split.db"
-            },
-            "test_world_gamma_del_split": {
-                "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path_factory.mktemp('gamma_del_split_db')}/test_gamma_del_split.db"
-            },
+            "test_world_alpha": {"DATABASE_URL": test_db},
+            "test_world_beta": {"DATABASE_URL": test_db},
+            "test_world_gamma": {"DATABASE_URL": test_db},
+            "test_world_alpha_del_split": {"DATABASE_URL": test_db},
+            "test_world_beta_del_split": {"DATABASE_URL": test_db},
+            "test_world_gamma_del_split": {"DATABASE_URL": test_db},
         }
 
     return _factory
@@ -62,14 +82,12 @@ def test_worlds_config_data_factory(tmp_path_factory):
 
 @pytest.fixture(scope="function")
 def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) -> Generator[Settings, None, None]:
-    temp_storage_dirs = {}
     raw_world_configs = test_worlds_config_data_factory()
     updated_test_worlds_config = {}
 
     for world_name, config_template in raw_world_configs.items():
         asset_temp_dir = tmp_path / f"assets_{world_name}"
         asset_temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_storage_dirs[world_name] = asset_temp_dir
         updated_test_worlds_config[world_name] = {
             **config_template,
             "ASSET_STORAGE_PATH": str(asset_temp_dir),
@@ -82,20 +100,37 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
         TESTING_MODE=True,
     )
 
-    original_settings_instance = dam.core.config.settings
-    monkeypatch.setattr(dam.core.config, "settings", new_settings)
+    original_settings_instance = global_settings
+    monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", new_settings.DAM_WORLDS_CONFIG)
+    monkeypatch.setattr(global_settings, "worlds", new_settings.worlds)
+    monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", new_settings.DEFAULT_WORLD_NAME)
+    monkeypatch.setattr(global_settings, "TESTING_MODE", new_settings.TESTING_MODE)
+
     clear_world_registry()
     yield new_settings
-    monkeypatch.setattr(dam.core.config, "settings", original_settings_instance)
+    monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", _original_settings_values["DAM_WORLDS_CONFIG"])
+    monkeypatch.setattr(global_settings, "worlds", _original_settings_values["worlds"])
+    monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", _original_settings_values["DEFAULT_WORLD_NAME"])
+    monkeypatch.setattr(global_settings, "TESTING_MODE", _original_settings_values["TESTING_MODE"])
     clear_world_registry()
 
 
 async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
+    world.add_resource(world, World)
     await world.create_db_and_tables()
     from dam.core.world_setup import register_core_systems
+    from dam_app.plugin import AppPlugin
+    from dam_fs.plugin import FsPlugin
+    from dam_semantic.plugin import SemanticPlugin
 
     register_core_systems(world)
+    world.add_plugin(AppPlugin())
+    world.add_plugin(FsPlugin())
+    try:
+        world.add_plugin(SemanticPlugin())
+    except ImportError:
+        pass
     return world
 
 
@@ -114,6 +149,12 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     yield world
     await _teardown_world_async(world)
 
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, None]:
+    db_mngr = test_world_alpha.get_resource(DatabaseManager)
+    async with db_mngr.session_local() as session:
+        yield session
 
 class MockSentenceTransformer:
     def __init__(self, model_name_or_path=None, **kwargs):
@@ -157,22 +198,14 @@ class MockSentenceTransformer:
             return np.array(embeddings) if convert_to_numpy else embeddings
 
 
-@pytest.fixture
-def sire_resource():
-    from dam_sire.resource import SireResource
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
-
-    resource = SireResource()
-    resource.register_model_type(MockSentenceTransformer, TorchModuleWrapper)
-    return resource
-
-
 @pytest.fixture(autouse=True, scope="function")
 def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam_semantic import semantic_functions
+    from dam_semantic import semantic_functions as semantic_service
 
-    monkeypatch.setattr(semantic_functions, "SentenceTransformer", MockSentenceTransformer)
+    def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
+        return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
 
+    monkeypatch.setattr(semantic_service, "_load_sentence_transformer_model_sync", mock_load_sync)
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_session_logging():
@@ -206,21 +239,6 @@ async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World,
     world = await _setup_world("test_world_gamma", settings_override)
     yield world
     await _teardown_world_async(world)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, None]:
-    db_mngr = test_world_alpha.get_resource(DatabaseManager)
-    async with db_mngr.session_local() as session:
-        yield session
-
-
-@pytest_asyncio.fixture(scope="function")
-async def another_db_session(test_world_beta: World) -> AsyncGenerator[AsyncSession, None]:
-    db_mngr = test_world_beta.get_resource(DatabaseManager)
-    async with db_mngr.session_local() as session:
-        yield session
-
 
 @pytest.fixture
 def temp_asset_file(tmp_path):
@@ -276,10 +294,3 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     file_path = tmp_path / "sample_gif_placeholder.gif"
     file_path.write_bytes(gif_bytes)
     return file_path
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_world_with_db_session(settings_override: Settings) -> AsyncGenerator[World, None]:
-    world = await _setup_world("test_world_alpha", settings_override)
-    yield world
-    await _teardown_world_async(world)
