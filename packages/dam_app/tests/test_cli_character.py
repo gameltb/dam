@@ -7,7 +7,6 @@ from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
-from typer.testing import CliRunner
 
 
 # Fixture to ensure a clean world for each test function in this file
@@ -24,7 +23,7 @@ async def current_test_world(test_world_alpha: World):
 
 
 @pytest.mark.asyncio  # Added async marker
-async def test_cli_character_create(current_test_world: World, click_runner: CliRunner):  # Made async
+async def test_cli_character_create(current_test_world: World):
     world_name = current_test_world.name
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
@@ -76,7 +75,7 @@ async def test_cli_character_create(current_test_world: World, click_runner: Cli
 
 @pytest.mark.asyncio  # Added async marker
 async def test_cli_character_apply_list_find(  # Made async
-    current_test_world: World, sample_text_file: str, click_runner: CliRunner
+    current_test_world: World, sample_text_file: str
 ):
     world_name = current_test_world.name
 
@@ -160,7 +159,7 @@ async def test_cli_character_apply_list_find(  # Made async
 
 @pytest.mark.asyncio  # Added async marker
 async def test_cli_character_apply_with_identifiers(  # Made async
-    current_test_world: World, sample_image_a: Path, click_runner: CliRunner
+    current_test_world: World, sample_image_a: Path
 ):
     # This test uses asset SHA256 hash and character name for identification
     world_name = current_test_world.name

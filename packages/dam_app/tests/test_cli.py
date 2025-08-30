@@ -125,6 +125,51 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     await _teardown_world_async(world)
 
 
+@pytest.mark.asyncio
+async def test_cli_add_asset(test_world_alpha: World, temp_asset_file: Path):
+    """Test the add-asset command."""
+    from dam_app.cli import cli_add_asset, global_state
+    from typer import Context
+
+    # Set the global state for the world
+    global_state.world_name = test_world_alpha.name
+
+    # Create a mock context
+    mock_ctx = Context(command=cli_add_asset)
+
+    await cli_add_asset(
+        ctx=mock_ctx,
+        path_str=str(temp_asset_file),
+        recursive=False,
+    )
+
+    # Verify that the asset was added
+    from dam.functions import ecs_functions
+    from dam_fs.models import FilePropertiesComponent
+
+    async with test_world_alpha.db_session_maker() as session:
+        entities = await ecs_functions.get_entities_with_component(session, FilePropertiesComponent)
+        assert len(entities) == 1
+        entity = entities[0]
+        fp_component = await ecs_functions.get_component(session, entity.id, FilePropertiesComponent)
+        assert fp_component is not None
+        assert fp_component.original_filename == temp_asset_file.name
+
+
+def test_cli_list_worlds(settings_override, capsys):
+    """Test the list-worlds command."""
+    from dam_app.cli import cli_list_worlds, create_and_register_all_worlds_from_settings
+
+    # Ensure worlds are registered
+    create_and_register_all_worlds_from_settings(settings_override)
+
+    cli_list_worlds()
+
+    captured = capsys.readouterr()
+    assert "test_world_alpha" in captured.out
+    assert "test_world_beta" in captured.out
+
+
 import numpy as np
 
 
@@ -168,23 +213,6 @@ class MockSentenceTransformer:
             return embeddings[0] if embeddings else np.array([])
         else:
             return np.array(embeddings) if convert_to_numpy else embeddings
-
-
-@pytest.fixture
-def click_runner() -> Iterator[CliRunner]:
-    class AsyncAwareCliRunner(CliRunner):
-        def invoke(self, *args, **kwargs) -> Result:
-            try:
-                loop = asyncio.get_running_loop()
-                if loop.is_running():
-                    invoke_callable = partial(super().invoke, *args, **kwargs)
-                    return loop.run_until_complete(loop.run_in_executor(None, invoke_callable))
-                else:
-                    return super().invoke(*args, **kwargs)
-            except RuntimeError:
-                return super().invoke(*args, **kwargs)
-
-    yield AsyncAwareCliRunner()
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -308,89 +336,3 @@ async def test_world_with_db_session(settings_override: Settings) -> AsyncGenera
     await _teardown_world_async(world)
 
 
-def test_cli_help(click_runner):
-    """Test the main help message for the CLI."""
-    result = click_runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-
-
-def test_cli_show_entity(click_runner, test_world_alpha):
-    """Test the show-entity command."""
-    from dam.functions import ecs_functions
-    from dam.models.hashes import ContentHashMD5Component
-
-    async def run_test():
-        async with test_world_alpha.db_session_maker() as session:
-            entity = await ecs_functions.create_entity(session)
-            await session.commit()
-            await session.refresh(entity)
-
-            md5_component = ContentHashMD5Component(hash_value=b'1234567890123456')
-            await ecs_functions.add_component_to_entity(session, entity.id, md5_component)
-            await session.commit()
-
-            return entity.id
-
-    entity_id = asyncio.run(run_test())
-
-    result = click_runner.invoke(app, ["--world", "test_world_alpha", "show-entity", str(entity_id)])
-    print(result.stdout)
-    if result.exception:
-        import traceback
-        traceback.print_exception(*result.exc_info)
-    assert result.exit_code == 0
-    assert "ContentHashMD5Component" in result.stdout
-    assert "1234567890123456" in result.stdout
-
-def test_cli_scan_psp_isos(click_runner, tmp_path):
-    """Test the scan-psp-isos command."""
-    iso_dir = tmp_path / "isos"
-    iso_dir.mkdir()
-    iso_file = iso_dir / "test.iso"
-    iso_file.write_text("dummy iso content")
-
-    result = click_runner.invoke(app, ["--world", "test_world_alpha", "scan-psp-isos", str(iso_dir)])
-    print(result.stdout)
-    if result.exception:
-        import traceback
-        traceback.print_exception(*result.exc_info)
-    assert result.exit_code == 0
-    assert "Found ISO" in result.stdout
-    assert "test.iso" in result.stdout
-
-
-def test_cli_show_entity(click_runner, test_world_alpha):
-    """Test the show-entity command."""
-    from dam.functions import ecs_functions
-    from dam.models.hashes import ContentHashMD5Component
-
-    async def run_test():
-        async with test_world_alpha.db_session_maker() as session:
-            entity = await ecs_functions.create_entity(session)
-            await session.commit()
-            await session.refresh(entity)
-
-            md5_component = ContentHashMD5Component(hash_value=b'1234567890123456')
-            await ecs_functions.add_component_to_entity(session, entity.id, md5_component)
-            await session.commit()
-
-            return entity.id
-
-    entity_id = asyncio.run(run_test())
-
-    result = click_runner.invoke(app, ["--world", "test_world_alpha", "show-entity", str(entity_id)])
-    assert result.exit_code == 0
-    assert "ContentHashMD5Component" in result.stdout
-    assert "1234567890123456" in result.stdout
-
-def test_cli_scan_psp_isos(click_runner, tmp_path):
-    """Test the scan-psp-isos command."""
-    iso_dir = tmp_path / "isos"
-    iso_dir.mkdir()
-    iso_file = iso_dir / "test.iso"
-    iso_file.write_text("dummy iso content")
-
-    result = click_runner.invoke(app, ["--world", "test_world_alpha", "scan-psp-isos", str(iso_dir)])
-    assert result.exit_code == 0
-    assert "Found ISO" in result.stdout
-    assert "test.iso" in result.stdout

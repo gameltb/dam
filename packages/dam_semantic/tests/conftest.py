@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
-    Iterator,  # Added for click_runner
 )
 
 # Ensure models are imported so Base knows about them for table creation
@@ -20,7 +19,6 @@ from dam.core.database import DatabaseManager
 from dam.core.world import World, clear_world_registry, create_and_register_world
 from dam.models.core.base_class import Base
 from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
-from typer.testing import CliRunner, Result  # Added for click_runner
 
 # Store original settings values to be restored
 _original_settings_values = {}
@@ -157,27 +155,6 @@ class MockSentenceTransformer:
             return embeddings[0] if embeddings else np.array([])
         else:
             return np.array(embeddings) if convert_to_numpy else embeddings
-
-
-@pytest.fixture
-def click_runner() -> Iterator[CliRunner]:
-    class AsyncAwareCliRunner(CliRunner):
-        def invoke(self, *args, **kwargs) -> Result:
-            try:
-                loop = asyncio.get_running_loop()
-                if loop.is_running():  # Called from an async test
-                    # Run the synchronous Click/Typer invoke in a thread executor
-                    invoke_callable = partial(super().invoke, *args, **kwargs)
-                    return loop.run_until_complete(loop.run_in_executor(None, invoke_callable))
-                else:
-                    # Loop exists but is not running (e.g. default loop in sync context)
-                    # Standard invocation is fine.
-                    return super().invoke(*args, **kwargs)
-            except RuntimeError:
-                # No running loop, so we're in a purely sync test. Standard invocation.
-                return super().invoke(*args, **kwargs)
-
-    yield AsyncAwareCliRunner()
 
 
 @pytest.fixture

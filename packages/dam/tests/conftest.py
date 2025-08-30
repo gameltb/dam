@@ -5,13 +5,11 @@ from pathlib import Path
 from typing import (
     AsyncGenerator,  # Added for async generator type hint
     Generator,  # Added for fixture type hints
-    Iterator,  # Added for click_runner
 )
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession  # Added for AsyncSession type hint
-from typer.testing import CliRunner, Result  # Added for click_runner
 
 # Ensure models are imported so Base knows about them for table creation
 # This will also trigger component registration
@@ -100,27 +98,6 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
     world = await _setup_world("test_world_alpha", settings_override)
     yield world
     await _teardown_world_async(world)
-
-
-@pytest.fixture
-def click_runner() -> Iterator[CliRunner]:
-    class AsyncAwareCliRunner(CliRunner):
-        def invoke(self, *args, **kwargs) -> Result:
-            try:
-                loop = asyncio.get_running_loop()
-                if loop.is_running():  # Called from an async test
-                    # Run the synchronous Click/Typer invoke in a thread executor
-                    invoke_callable = partial(super().invoke, *args, **kwargs)
-                    return loop.run_until_complete(loop.run_in_executor(None, invoke_callable))
-                else:
-                    # Loop exists but is not running (e.g. default loop in sync context)
-                    # Standard invocation is fine.
-                    return super().invoke(*args, **kwargs)
-            except RuntimeError:
-                # No running loop, so we're in a purely sync test. Standard invocation.
-                return super().invoke(*args, **kwargs)
-
-    yield AsyncAwareCliRunner()
 
 
 @pytest.fixture(scope="session", autouse=True)
