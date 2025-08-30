@@ -12,7 +12,7 @@ from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseCompo
 
 # Corrected specific imports instead of from top-level dam.models
 from dam.models.core.entity import Entity
-from dam.services import ecs_service
+from dam.functions import ecs_functions
 
 # No longer need db_manager here if session is always passed in.
 # from dam.core.database import db_manager
@@ -159,7 +159,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
     # 2. Entity Creation and ID Mapping Pass:
     #    - Iterate through JSON entities again.
     #    - If `json_id` is to be a new entity:
-    #        - `new_db_entity = ecs_service.create_entity(session)`
+    #        - `new_db_entity = ecs_functions.create_entity(session)`
     #        - `id_map[json_id] = new_db_entity.id`
     #    - If `json_id` maps to an existing entity (and merging/updating):
     #        - Fetch the entity using `id_map[json_id]`.
@@ -215,7 +215,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
             # This line below is problematic with auto-incrementing PKs.
             # entity_to_update = Entity(id=entity_id)
             # A better way for auto-inc PKs is to create entity, then map old_id -> new_id
-            # For now, we will use ecs_service.create_entity() which does not take an ID.
+            # For now, we will use ecs_functions.create_entity() which does not take an ID.
             # This means imported entity IDs will not match original unless we handle ID mapping.
             # This is a significant simplification for now.
             # A proper solution would involve:
@@ -233,7 +233,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
             # Original IDs from JSON are not preserved directly with auto-incrementing keys.
             # A more complex system would map old IDs to new IDs.
             logger.info(f"Creating new entity for data originally ID'd as {entity_id} in JSON.")
-            entity_to_update = ecs_service.create_entity(session)  # Let DB assign ID
+            entity_to_update = ecs_functions.create_entity(session)  # Let DB assign ID
             # If an ID was provided in JSON, log that it's not being used directly to set the new ID.
             # The entity_id from JSON is still useful for deciding if it's a "new" vs "existing" entity for merge logic.
             if entity_id:
@@ -259,7 +259,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
                 # - add if not present
                 # - leave existing untouched
                 logger.debug(f"Merge: Deleting existing '{comp_type_name}' components for entity {entity_id}.")
-                existing_components = ecs_service.get_components(session, entity_to_update.id, ComponentClass)
+                existing_components = ecs_functions.get_components(session, entity_to_update.id, ComponentClass)
                 for comp_to_delete in existing_components:
                     session.delete(comp_to_delete)
                 session.flush()  # Apply deletions
@@ -303,7 +303,7 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
 
                     new_component = ComponentClass(**comp_data_cleaned)
                     # session.add(new_component) # add_component_to_entity handles this
-                    ecs_service.add_component_to_entity(session, entity_to_update.id, new_component, flush=False)
+                    ecs_functions.add_component_to_entity(session, entity_to_update.id, new_component, flush=False)
                     logger.debug(f"Added component {comp_type_name} to entity {entity_to_update.id}")
                 except Exception as e:
                     logger.error(
@@ -366,12 +366,12 @@ def merge_ecs_worlds_db_to_db(
             )
 
             # Strategy 'add_new': Create a new entity in the target world
-            tgt_entity = ecs_service.create_entity(target_session)  # Flushes session
+            tgt_entity = ecs_functions.create_entity(target_session)  # Flushes session
 
             # Copy components
             for ComponentClass in all_component_types:
                 # Get all components of this type for the source entity
-                src_components = ecs_service.get_components(source_session, src_entity.id, ComponentClass)
+                src_components = ecs_functions.get_components(source_session, src_entity.id, ComponentClass)
 
                 for src_comp_instance in src_components:
                     # Create a new component instance for the target entity
@@ -398,7 +398,7 @@ def merge_ecs_worlds_db_to_db(
                     try:
                         new_comp_instance = ComponentClass(**comp_data_for_new)
                         # Add component to the new target entity. Pass flush=False as we commit at the end.
-                        ecs_service.add_component_to_entity(
+                        ecs_functions.add_component_to_entity(
                             target_session, tgt_entity.id, new_comp_instance, flush=False
                         )
                         logger.debug(
@@ -493,7 +493,7 @@ def split_ecs_world(
         for src_entity in source_entities:
             matches_criteria = False
             if CriteriaComponentClass and criteria_component_attr and criteria_value is not None:
-                src_criteria_comp_instance = ecs_service.get_component(
+                src_criteria_comp_instance = ecs_functions.get_component(
                     source_session, src_entity.id, CriteriaComponentClass
                 )
                 if src_criteria_comp_instance:
@@ -533,10 +533,10 @@ def split_ecs_world(
             logger.debug(
                 f"Entity {src_entity.id} from world '{source_world.name}': Criteria match={matches_criteria}. Copying to '{target_world_log_name}'."
             )
-            tgt_entity = ecs_service.create_entity(target_session_for_copy_db)
+            tgt_entity = ecs_functions.create_entity(target_session_for_copy_db)
 
             for ComponentClassToCopy in all_component_types:
-                src_components_to_copy = ecs_service.get_components(source_session, src_entity.id, ComponentClassToCopy)
+                src_components_to_copy = ecs_functions.get_components(source_session, src_entity.id, ComponentClassToCopy)
                 for src_comp_instance in src_components_to_copy:
                     comp_data = {
                         attr.key: getattr(src_comp_instance, attr.key)
@@ -546,7 +546,7 @@ def split_ecs_world(
                     comp_data_for_new = {**comp_data, "entity_id": tgt_entity.id, "entity": tgt_entity}
                     try:
                         new_comp_instance = ComponentClassToCopy(**comp_data_for_new)
-                        ecs_service.add_component_to_entity(
+                        ecs_functions.add_component_to_entity(
                             target_session_for_copy_db, tgt_entity.id, new_comp_instance, flush=False
                         )
                     except Exception as e:
@@ -557,7 +557,7 @@ def split_ecs_world(
                         )
             if delete_from_source:
                 logger.debug(f"Deleting entity {src_entity.id} from source world '{source_world.name}'.")
-                ecs_service.delete_entity(source_session, src_entity.id, flush=False)
+                ecs_functions.delete_entity(source_session, src_entity.id, flush=False)
 
         # Commit target sessions first
         target_session_selected_db.commit()
@@ -601,6 +601,6 @@ def split_ecs_world(
 # world_name = ctx.obj.world_name # Get from CLI context
 # db_session = db_manager.get_db_session(world_name)
 # try:
-#     world_service.export_ecs_world_to_json(db_session, export_path, world_name_for_log=world_name)
+#     world_functions.export_ecs_world_to_json(db_session, export_path, world_name_for_log=world_name)
 # finally:
 #     db_session.close()

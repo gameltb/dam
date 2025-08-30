@@ -23,8 +23,9 @@ from dam.models.core.base_component import BaseComponent
 class NeedsMetadataExtractionComponent(BaseComponent):
     """
     A marker component indicating that an entity requires metadata extraction.
-    This component will be added by asset_service after initial ingestion
-    and removed by the MetadataExtractionSystem after processing.
+    This component is typically added by an ingestion system or import function
+    after an asset is first created, and is later removed by the
+    MetadataExtractionSystem after processing.
     """
 
     __tablename__ = "component_marker_needs_metadata_extraction"

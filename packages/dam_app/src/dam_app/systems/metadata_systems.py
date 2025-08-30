@@ -26,7 +26,7 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 # Corrected direct imports for models
 from dam.utils.url_utils import get_local_path_for_url
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam_fs.services import file_operations
+from dam_fs.functions import file_operations
 
 try:
     from hachoir.core import config as HachoirConfig
@@ -303,15 +303,15 @@ async def extract_metadata_on_asset_ingested(
             # This check might be redundant if remove_component is idempotent or handles missing gracefully.
             # To be safe, fetch by specific marker ID if possible, or re-fetch by entity_id + type if only one should exist.
             # Given the issue, it's safer to iterate what we fetched and try to remove each.
-            # The `remove_component` service should ideally take the component instance.
+            # The `remove_component` function should ideally take the component instance.
 
             # Check if the marker (by its specific ID) is still in the session or database before attempting removal
             # This check might be complex if marker_to_remove_loop_var is detached or stale.
             # A simpler approach is to just try removing it, assuming remove_component can handle if it's already gone.
-            # Let's assume ecs_service.remove_component can handle being passed a component instance that might be stale
+            # Let's assume ecs_functions.remove_component can handle being passed a component instance that might be stale
             # or already deleted from the session's perspective, or it re-fetches.
             # To be very safe, we could re-fetch the specific marker by its ID before removing,
-            # but that adds DB calls. The current ecs_service.remove_component takes the instance.
+            # but that adds DB calls. The current ecs_functions.remove_component takes the instance.
 
             # Let's rely on remove_component to handle the instance correctly.
             # The logger inside remove_component can tell us if it did something.

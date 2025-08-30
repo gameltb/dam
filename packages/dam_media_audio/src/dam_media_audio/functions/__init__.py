@@ -1,4 +1,4 @@
-from .audio_service import *
+from .audio_functions import *
 
 __all__ = [
     "convert_embedding_to_bytes",

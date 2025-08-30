@@ -6,7 +6,7 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam_fs.events import FileStored
 from dam_fs.resources import FileStorageResource
-from dam_source.services import import_service
+from dam_source.functions import import_functions
 
 from ..commands import IngestAssetStreamCommand
 
@@ -29,7 +29,7 @@ async def ingest_asset_stream_command_handler(
         cmd.file_content.seek(0)
         size_bytes = len(cmd.file_content.getvalue())
 
-        entity = await import_service.import_stream(
+        entity = await import_functions.import_stream(
             world=world,
             transaction=transaction,
             file_content=cmd.file_content,
@@ -39,7 +39,7 @@ async def ingest_asset_stream_command_handler(
         await transaction.flush()
 
         # TODO: The FileStored event needs a file_id, which is not directly available
-        # from the import_stream service. This needs to be resolved.
+        # from the import_stream function. This needs to be resolved.
         # For now, we will not fire the event.
         logger.info(
             f"Successfully processed IngestAssetStreamCommand for {cmd.original_filename}, created Entity {entity.id}"

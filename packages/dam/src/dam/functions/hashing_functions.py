@@ -1,5 +1,5 @@
 """
-This service provides centralized functions for calculating various types of hashes
+This module provides centralized functions for calculating various types of hashes
 for files, including content hashes (e.g., MD5, SHA256) and perceptual hashes
 for images (e.g., aHash, pHash, dHash).
 """

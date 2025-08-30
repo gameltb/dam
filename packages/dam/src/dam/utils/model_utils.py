@@ -109,8 +109,8 @@ def oom_retry_batch_adjustment(
     return decorator
 
 
-# Example of how a service function might use this:
-# class MyService:
+# Example of how a function might use this:
+# class MyModule:
 #     @oom_retry_batch_adjustment(max_retries=2, batch_size_reduction_factor=0.5)
 #     async def process_items_with_model(self, items: List[Any], model: Any, batch_size: int):
 #         results = []
@@ -125,13 +125,13 @@ def oom_retry_batch_adjustment(
 #         return results
 
 # async def main_example_oom():
-#     service = MyService()
+#     module = MyModule()
 #     my_items = list(range(50)) # 50 items
 #     mock_model = "my_model_instance"
 
 #     try:
 #         # Initial call with a potentially large batch size
-#         processed_results = await service.process_items_with_model(my_items, mock_model, batch_size=32)
+#         processed_results = await module.process_items_with_model(my_items, mock_model, batch_size=32)
 #         print(f"Successfully processed: {len(processed_results)} items.")
 #     except Exception as e:
 #         print(f"Failed after retries: {e}")

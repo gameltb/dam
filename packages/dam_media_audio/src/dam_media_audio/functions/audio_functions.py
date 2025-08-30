@@ -14,7 +14,7 @@ from dam.models.semantic.audio_embedding_component import (
     BaseSpecificAudioEmbeddingComponent,
     get_audio_embedding_component_class,
 )
-from dam.services import ecs_service
+from dam.functions import ecs_functions
 from dam_sire.resource import SireResource
 from sire.core.runtime_resource_management import AutoManageWrapper
 from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper

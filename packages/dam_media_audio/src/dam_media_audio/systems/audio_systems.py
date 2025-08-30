@@ -9,7 +9,7 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam.services import ecs_service, file_operations
+from dam.functions import ecs_functions, file_operations
 from dam.utils.url_utils import get_local_path_for_url
 
 from dam_media_audio.models.properties.audio_properties_component import AudioPropertiesComponent

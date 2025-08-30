@@ -11,7 +11,7 @@ from dam.models.conceptual.evaluation_run_component import EvaluationRunComponen
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
-from dam.services import ecs_service, tag_service, transcode_service
+from dam.functions import ecs_functions, tag_functions, transcode_functions
 
 
 class EvaluationError(Exception):
@@ -20,7 +20,7 @@ class EvaluationError(Exception):
     pass
 
 
-# --- Event Definitions (Optional - could directly call service methods too) ---
+# --- Event Definitions (Optional - could directly call function methods too) ---
 # class StartEvaluationRun(Event):
 #     evaluation_run_name: str
 #     source_asset_identifiers: List[str | int] # IDs or hashes
@@ -60,18 +60,18 @@ async def create_evaluation_run_concept(
             concept_name=run_name,  # Pass run_name for concept_name
             concept_description=description,  # Pass description for concept_description
         )
-        # Use ecs_service to add the component and handle associations for BaseComponent fields
-        await ecs_service.add_component_to_entity(db_session, run_entity.id, eval_run_comp)
+        # Use ecs_functions to add the component and handle associations for BaseComponent fields
+        await ecs_functions.add_component_to_entity(db_session, run_entity.id, eval_run_comp)
 
         # Tag it as an "Evaluation Run"
         try:
             tag_concept_name = "System:EvaluationRun"
             try:
                 # Pass db_session directly, world is not used by get_tag_concept_by_name
-                tag_concept = await tag_service.get_tag_concept_by_name(db_session, tag_concept_name)
-            except tag_service.TagConceptNotFoundError:
+                tag_concept = await tag_functions.get_tag_concept_by_name(db_session, tag_concept_name)
+            except tag_functions.TagConceptNotFoundError:
                 # create_tag_concept expects session as its first argument
-                tag_concept = await tag_service.create_tag_concept(
+                tag_concept = await tag_functions.create_tag_concept(
                     db_session,  # Pass db_session here
                     tag_name=tag_concept_name,  # Parameter name is tag_name
                     description="Marks an entity as an Evaluation Run.",
@@ -79,7 +79,7 @@ async def create_evaluation_run_concept(
                     # session=db_session # Removed redundant keyword argument
                 )
             # apply_tag_to_entity call confirmed to be correct
-            await tag_service.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
+            await tag_functions.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
         except Exception as e:
             world.logger.warning(f"Could not apply system tag to evaluation run '{run_name}': {e}")
 
@@ -144,7 +144,7 @@ async def execute_evaluation_run(
     Executes an evaluation run:
     1. Retrieves the EvaluationRunComponent.
     2. For each source asset and each transcode profile:
-        a. Calls transcode_service.apply_transcode_profile().
+        a. Calls transcode_functions.apply_transcode_profile().
         b. (Future) Calculates quality metrics using quality_calculation_fn.
         c. Creates an EvaluationResultComponent for the transcoded asset.
     Returns a list of created EvaluationResultComponent instances.
@@ -169,7 +169,7 @@ async def execute_evaluation_run(
                 source_asset_entity_ids.append(asset_id_or_hash)
             else:  # Assume SHA256 hash
                 try:
-                    entity_id = await ecs_service.find_entity_id_by_hash(session, asset_id_or_hash, "sha256")
+                    entity_id = await ecs_functions.find_entity_id_by_hash(session, asset_id_or_hash, "sha256")
                     if entity_id is None:
                         raise EntityNotFoundError(f"Asset with hash {asset_id_or_hash} not found.")
                     source_asset_entity_ids.append(entity_id)
@@ -184,11 +184,11 @@ async def execute_evaluation_run(
         profiles_to_run: List[Tuple[Entity, TranscodeProfileComponent]] = []
         for prof_id_or_name in profile_identifiers:
             try:
-                profile_entity, profile_comp = await transcode_service.get_transcode_profile_by_name_or_id(
+                profile_entity, profile_comp = await transcode_functions.get_transcode_profile_by_name_or_id(
                     world, prof_id_or_name, session=session
                 )
                 profiles_to_run.append((profile_entity, profile_comp))
-            except transcode_service.TranscodeServiceError as e:
+            except transcode_functions.TranscodeFunctionsError as e:
                 world.logger.warning(f"Skipping profile '{prof_id_or_name}': {e}")
                 continue
 
@@ -203,7 +203,7 @@ async def execute_evaluation_run(
         for original_asset_entity_id in source_asset_entity_ids:
             world.logger.info(f"Processing original asset ID: {original_asset_entity_id}")
             # Validate original asset exists
-            original_asset_entity = await ecs_service.get_entity(
+            original_asset_entity = await ecs_functions.get_entity(
                 session, original_asset_entity_id
             )  # Changed to get_entity
             if not original_asset_entity:
@@ -217,7 +217,7 @@ async def execute_evaluation_run(
                     # apply_transcode_profile manages its own session internally for the core transcoding and ingestion logic.
                     # This is important because it dispatches events that run in separate transaction contexts.
                     transcoded_asset_entity_id_from_service = (
-                        await transcode_service.apply_transcode_profile(
+                        await transcode_functions.apply_transcode_profile(
                             world=world,
                             source_asset_entity_id=original_asset_entity_id,
                             profile_entity_id=profile_entity.id,
@@ -226,7 +226,7 @@ async def execute_evaluation_run(
 
                     # After apply_transcode_profile completes and commits its transaction for the new asset,
                     # we fetch the new entity within *this* evaluation run's session to add the EvaluationResultComponent.
-                    transcoded_asset_entity = await ecs_service.get_entity(
+                    transcoded_asset_entity = await ecs_functions.get_entity(
                         session, transcoded_asset_entity_id_from_service
                     )  # Changed to get_entity
                     if not transcoded_asset_entity:
@@ -242,8 +242,8 @@ async def execute_evaluation_run(
                     # For real scenarios, if components_collection needs to be eagerly loaded or refreshed,
                     # this would be necessary. However, current code below only fetches FPC by ID.
 
-                    # Use ecs_service.get_component with entity_id
-                    fpc = await ecs_service.get_component(
+                    # Use ecs_functions.get_component with entity_id
+                    fpc = await ecs_functions.get_component(
                         session,
                         transcoded_asset_entity.id,
                         FilePropertiesComponent,  # type: ignore
@@ -275,7 +275,7 @@ async def execute_evaluation_run(
                         f"    EvaluationResultComponent created (ID: {eval_result_comp.id}) for asset {transcoded_asset_entity.id}"
                     )
 
-                except transcode_service.TranscodeServiceError as tse:
+                except transcode_functions.TranscodeServiceError as tse:
                     world.logger.error(
                         f"    Failed to transcode asset ID {original_asset_entity_id} with profile '{profile_comp.profile_name}': {tse}"
                     )
@@ -324,13 +324,13 @@ async def get_evaluation_results(
         formatted_results = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results:  # type: ignore
             # Fetch FilePropertiesComponent for the original asset
-            orig_fpc = await ecs_service.get_component(
+            orig_fpc = await ecs_functions.get_component(
                 db_session, res_comp.original_asset_entity_id, FilePropertiesComponent
             )  # type: ignore
             original_filename = orig_fpc.original_filename if orig_fpc else "N/A"  # type: ignore
 
             # Fetch FilePropertiesComponent for the transcoded asset
-            trans_fpc = await ecs_service.get_component(db_session, transcoded_entity_obj.id, FilePropertiesComponent)  # type: ignore
+            trans_fpc = await ecs_functions.get_component(db_session, transcoded_entity_obj.id, FilePropertiesComponent)  # type: ignore
             transcoded_filename = trans_fpc.original_filename if trans_fpc else "N/A"
 
             # TranscodedVariantComponent is not directly used in the loop for constructing formatted_results,
