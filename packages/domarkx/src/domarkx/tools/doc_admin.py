@@ -1,5 +1,6 @@
 import os
 import subprocess
+from typing import Any
 
 from domarkx.config import settings
 from domarkx.tools.session_management import create_session, send_message
@@ -7,7 +8,7 @@ from domarkx.tools.tool_factory import _tool_handler as tool_handler
 
 
 @tool_handler()
-def rename_session(old_name: str, new_name: str, project_path: str = None) -> str:
+def rename_session(old_name: str, new_name: str, project_path: str | None = None) -> str:
     """
     Rename a session file in the sessions directory and update git tracking.
 
@@ -44,13 +45,13 @@ def rename_session(old_name: str, new_name: str, project_path: str = None) -> st
 
 
 @tool_handler()
-def update_session_metadata(session_name: str, metadata: dict, project_path: str = None) -> str:
+def update_session_metadata(session_name: str, metadata: dict[str, Any], project_path: str | None = None) -> str:
     """
     Update the metadata block in a session file. Appends metadata as a comment for now.
 
     Args:
         session_name (str): The name of the session file (without .md extension).
-        metadata (dict): A dictionary of metadata to update.
+        metadata (dict[str, Any]): A dictionary of metadata to update.
         project_path (str, optional): The path to the project. Defaults to None.
 
     Returns:
@@ -85,7 +86,7 @@ def update_session_metadata(session_name: str, metadata: dict, project_path: str
 
 
 @tool_handler()
-def summarize_conversation(session_name: str, project_path: str = None) -> str:
+def summarize_conversation(session_name: str, project_path: str | None = None) -> str:
     """
     Summarize the conversation in a session by delegating to the ConversationSummarizer agent.
 
@@ -101,12 +102,10 @@ def summarize_conversation(session_name: str, project_path: str = None) -> str:
         "ConversationSummarizer",
         summarizer_session_name,
         {"session_to_summarize": session_name},
-        project_path=project_path,
     )
     send_message(
         summarizer_session_name,
         f"Please summarize the conversation in session '{session_name}'.",
-        project_path=project_path,
     )
     # In a real implementation, we would wait for the summarizer to finish
     # and get the result. For now, we'll just return a message.

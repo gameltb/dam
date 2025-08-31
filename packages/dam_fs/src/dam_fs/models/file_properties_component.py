@@ -1,10 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
+from dam.models.core.base_component import BaseComponent
 from sqlalchemy import DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core.base_component import BaseComponent
 
 # Base is inherited via BaseComponent
 

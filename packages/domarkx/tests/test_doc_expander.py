@@ -6,16 +6,16 @@ from domarkx.macro_expander import DocExpander
 
 
 @pytest.fixture
-def base_dir(tmp_path: pathlib.Path):
+def base_dir(tmp_path: pathlib.Path) -> pathlib.Path:
     return tmp_path
 
 
 @pytest.fixture
-def doc_expander(base_dir: pathlib.Path):
+def doc_expander(base_dir: pathlib.Path) -> DocExpander:
     return DocExpander(base_dir=str(base_dir))
 
 
-def test_expand_macros_in_messages(doc_expander: DocExpander, base_dir: pathlib.Path):
+def test_expand_macros_in_messages(doc_expander: DocExpander, base_dir: pathlib.Path) -> None:
     # Create a file to be included
     include_file = base_dir / "include.md"
     include_file.write_text("included content")

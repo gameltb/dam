@@ -6,6 +6,9 @@ import typer
 from domarkx.config import Settings
 
 
+from typing import Optional
+
+
 def init_project(
     project_path: str = typer.Option(
         ".",
@@ -13,13 +16,13 @@ def init_project(
         "-p",
         help="The path to initialize the project in.",
     ),
-    template_path: str = typer.Option(
+    template_path: Optional[str] = typer.Option(
         None,
         "--template",
         "-t",
         help="The path to a custom template to use for initialization.",
     ),
-):
+) -> None:
     """
     Initializes a new domarkx project.
     """
@@ -52,7 +55,7 @@ def init_project(
     print(f"Project initialized at: {project_path}")
 
 
-def register(app: typer.Typer, settings: Settings):
+def register(app: typer.Typer, settings: Settings) -> None:
     @app.command(name="init")
     def init_command(
         project_path: str = typer.Option(
@@ -61,11 +64,11 @@ def register(app: typer.Typer, settings: Settings):
             "-p",
             help="The path to initialize the project in.",
         ),
-        template_path: str = typer.Option(
+        template_path: Optional[str] = typer.Option(
             None,
             "--template",
             "-t",
             help="The path to a custom template to use for initialization.",
         ),
-    ):
+    ) -> None:
         init_project(project_path, template_path)

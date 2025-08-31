@@ -3,7 +3,7 @@ import pytest
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 
-def test_parse_message_blocks_and_code():
+def test_parse_message_blocks_and_code() -> None:
     md = """---\ntitle: "Test Session"\n---\n\n```json session-config\n{"type": "AssistantAgentState"}\n```
 ```python setup-script\nprint("setup")\n```
 ## User\n\n```json msg-metadata\n{"source": "user", "type": "UserMessage"}\n```
@@ -24,14 +24,16 @@ def test_parse_message_blocks_and_code():
     assert len(user_msg.code_blocks) == 2
     assert user_msg.code_blocks[0].language == "json"
     assert user_msg.code_blocks[1].language == "python"
+    assert user_msg.content
     assert user_msg.content.strip() == "User's message content.\nSecond line."
     assistant_msg = doc.conversation[1]
     assert assistant_msg.speaker == "Assistant"
     assert len(assistant_msg.code_blocks) == 1
+    assert assistant_msg.content
     assert assistant_msg.content.strip() == "Assistant's reply.\nMulti-line reply."
 
 
-def test_message_requires_code_or_content():
+def test_message_requires_code_or_content() -> None:
     md1 = """## User\n\n"""
     parser = MarkdownLLMParser()
     with pytest.raises(ValueError):
@@ -39,6 +41,7 @@ def test_message_requires_code_or_content():
     # Only content, no code block
     md2 = """## User\n\n> Only content\n"""
     doc = parser.parse(md2)
+    assert doc.conversation[0].content
     assert doc.conversation[0].content.strip() == "Only content"
     assert len(doc.conversation[0].code_blocks) == 0
     # Only code block, no content
@@ -48,14 +51,14 @@ def test_message_requires_code_or_content():
     assert len(doc.conversation[0].code_blocks) == 1
 
 
-def test_message_multiple_blockquotes():
+def test_message_multiple_blockquotes() -> None:
     md = """## User\n\n> First blockquote\n\n> Second blockquote\n"""
     parser = MarkdownLLMParser()
     with pytest.raises(ValueError):
         parser.parse(md)
 
 
-def test_to_markdown_serialization():
+def test_to_markdown_serialization() -> None:
     md = """---
 title: Test Session
 ---

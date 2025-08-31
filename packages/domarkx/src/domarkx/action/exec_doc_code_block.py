@@ -9,6 +9,9 @@ from rich.console import Console
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 
+from typing import Any
+
+
 def exec_doc_code_block(
     doc: Annotated[
         pathlib.Path,
@@ -16,7 +19,7 @@ def exec_doc_code_block(
     ],
     message_index: int,
     code_block_in_message_index: int,
-):
+) -> None:
     with doc.open() as f:
         md_content = f.read()
 
@@ -51,5 +54,5 @@ def exec_doc_code_block(
         exec(code_block.code)
 
 
-def register(main_app: typer.Typer, settings):
+def register(main_app: typer.Typer, settings: Any) -> None:
     main_app.command()(exec_doc_code_block)

@@ -1,7 +1,7 @@
 import os
 import pathlib
 import re
-from typing import Annotated
+from typing import Annotated, Any, Optional
 
 import rich
 import rich.markdown
@@ -27,7 +27,9 @@ FILENAME_PATTERNS = [
 ]
 
 
-def do_extract_code_to_file(output_base_dir: str, block_inner_content: str, filepath_extracted=None):
+def do_extract_code_to_file(
+    output_base_dir: str, block_inner_content: str, filepath_extracted: Optional[str] = None
+) -> None:
     block_lines = block_inner_content.strip().split("\n")
     if not block_lines:
         print("⚠️ Block  is empty, skipping.")
@@ -101,7 +103,7 @@ def extract_code_to_file(
     ],
     message_index: int,
     code_block_in_message_index: int,
-):
+) -> None:
     with doc.open() as f:
         md_content = f.read()
 
@@ -120,5 +122,5 @@ def extract_code_to_file(
     do_extract_code_to_file(".", code_block.code, filepath_extracted=code_block.attrs)
 
 
-def register(main_app: typer.Typer, settings):
+def register(main_app: typer.Typer, settings: Any) -> None:
     main_app.command()(extract_code_to_file)

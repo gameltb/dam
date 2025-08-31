@@ -3,8 +3,11 @@ import pytest
 from domarkx.autogen_session import AutoGenSession
 
 
+from typing import Any
+
+
 @pytest.fixture
-def setup_script():
+def setup_script() -> str:
     return """
 ```python setup-script
 from unittest.mock import MagicMock
@@ -16,7 +19,7 @@ tools = [my_tool]
 """
 
 
-def test_session_setup(tmp_path, setup_script):
+def test_session_setup(tmp_path: Any, setup_script: str) -> None:
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
@@ -26,7 +29,7 @@ def test_session_setup(tmp_path, setup_script):
 
 
 @pytest.mark.asyncio
-async def test_session_setup_async(tmp_path, setup_script):
+async def test_session_setup_async(tmp_path: Any, setup_script: str) -> None:
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
@@ -37,7 +40,7 @@ async def test_session_setup_async(tmp_path, setup_script):
     assert len(session.tool_executors) == 0
 
 
-def test_get_code_block(tmp_path):
+def test_get_code_block(tmp_path: Any) -> None:
     doc_content = """
 ```python foo
 print("foo")
@@ -58,7 +61,7 @@ print("bar")
 
 
 @pytest.mark.asyncio
-async def test_remote_tool_execution(tmp_path):
+async def test_remote_tool_execution(tmp_path: Any) -> None:
     doc_content = """
 ```python setup-script
 from unittest.mock import MagicMock

@@ -1,22 +1,20 @@
-import asyncio
 import json
 import os
 import uuid
-from functools import partial
 from pathlib import Path
 from typing import (
     Any,
     AsyncGenerator,
     Dict,
     Generator,
-    Iterator,
     Optional,
 )
 
+import numpy as np
+import psycopg
 import pytest
 import pytest_asyncio
-import psycopg
-import numpy as np
+import torch
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
@@ -27,7 +25,6 @@ from dam.core.world import (
 )
 from dam.models.core.base_class import Base
 from sqlalchemy.ext.asyncio import AsyncSession
-import torch
 
 _original_settings_values = {}
 
@@ -317,8 +314,8 @@ def sample_video_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
-    from scipy.io.wavfile import write as write_wav
     import numpy as np
+    from scipy.io.wavfile import write as write_wav
 
     file_path = tmp_path / "sample_audio_placeholder.wav"
     samplerate = 44100
@@ -343,8 +340,8 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
-    from scipy.io.wavfile import write as write_wav
     import numpy as np
+    from scipy.io.wavfile import write as write_wav
 
     file_path = tmp_path / "sample.wav"
     samplerate = 48000

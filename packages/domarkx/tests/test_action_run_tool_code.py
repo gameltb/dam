@@ -7,7 +7,7 @@ runner = CliRunner()
 cli_app = setup_test_app()
 
 
-def test_run_tool_code_action(tmp_path: pathlib.Path):
+def test_run_tool_code_action(tmp_path: pathlib.Path) -> None:
     md_content = """
 ## user
 

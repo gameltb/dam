@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 
 class ToolCallParsingError(Exception):
@@ -7,7 +8,7 @@ class ToolCallParsingError(Exception):
     pass
 
 
-def parse_tool_calls(message: str) -> list:
+def parse_tool_calls(message: str) -> list[dict[str, Any]]:
     """
     解析消息字符串中的工具调用，能够稳健处理残缺的块并尝试修复。
     如果块不可修复，则抛出 ToolCallParsingError 错误。

@@ -1,10 +1,9 @@
+from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 from sqlalchemy import (
     ForeignKey,  # Added for ForeignKey
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 
 
 class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseComponent

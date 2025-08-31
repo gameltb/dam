@@ -1,8 +1,8 @@
 from .events import (
-    TranscodeJobRequested,
+    StartEvaluationForTranscodedAsset,
     TranscodeJobCompleted,
     TranscodeJobFailed,
-    StartEvaluationForTranscodedAsset,
+    TranscodeJobRequested,
 )
 from .plugin import TranscodePlugin
 

@@ -4,7 +4,7 @@ import logging
 import re
 import textwrap
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import yaml
 
@@ -17,7 +17,9 @@ class Message:
     code_blocks: List[CodeBlock] = field(default_factory=list)
     content: Optional[str] = None
 
-    def get_code_blocks(self, language: str = None, attrs: str = None) -> List[CodeBlock]:
+    def get_code_blocks(
+        self, language: Optional[str] = None, attrs: Optional[str] = None
+    ) -> List[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks
@@ -25,7 +27,7 @@ class Message:
         ]
 
     @property
-    def metadata(self) -> Optional[dict]:
+    def metadata(self) -> Optional[dict[str, Any]]:
         blocks = self.get_code_blocks(attrs="msg-metadata")
         if not blocks:
             return None
@@ -34,7 +36,7 @@ class Message:
 
 @dataclass
 class ParsedDocument:
-    global_metadata: dict = field(default_factory=lambda: {})
+    global_metadata: dict[str, Any] = field(default_factory=lambda: {})
     code_blocks: List[CodeBlock] = field(default_factory=list)
     conversation: List[Message] = field(default_factory=list)
 
@@ -57,7 +59,9 @@ class ParsedDocument:
 
         return writer.getvalue()
 
-    def get_code_blocks(self, language: str = None, attrs: str = None) -> List[CodeBlock]:
+    def get_code_blocks(
+        self, language: Optional[str] = None, attrs: Optional[str] = None
+    ) -> List[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks
@@ -65,7 +69,7 @@ class ParsedDocument:
         ]
 
     @property
-    def session_config(self) -> Optional[dict]:
+    def session_config(self) -> Optional[dict[str, Any]]:
         blocks = self.get_code_blocks(attrs="session-config")
         if not blocks:
             return None
@@ -73,11 +77,13 @@ class ParsedDocument:
 
 
 class MarkdownLLMParser:
-    def __init__(self):
+    def __init__(self) -> None:
         self.document = ParsedDocument()
         self.logger = logging.getLogger(__name__)
 
-    def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str):
+    def _validate_message_content(
+        self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str
+    ) -> None:
         if not code_blocks and (content is None or not content.strip()):
             raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content.")
 
@@ -108,7 +114,9 @@ class MarkdownLLMParser:
 
         return self.document
 
-    def _parse_blocks(self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]):
+    def _parse_blocks(
+        self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]
+    ) -> int:
         i = start_index
         seen_code_blocks = set()
 
@@ -138,7 +146,7 @@ class MarkdownLLMParser:
 
         return i
 
-    def _parse_conversation(self, lines: List[str], start_index: int):
+    def _parse_conversation(self, lines: List[str], start_index: int) -> None:
         i = start_index
         while i < len(lines):
             if lines[i].startswith("## "):
@@ -173,7 +181,7 @@ class MarkdownLLMParser:
         return i, "".join(content_lines)
 
 
-def append_message(writer: io.StringIO, message: Message):
+def append_message(writer: io.StringIO, message: Message) -> None:
     writer.write(f"\n## {message.speaker}\n\n")
     for code_block in message.code_blocks:
         writer.write(

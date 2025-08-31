@@ -1,8 +1,15 @@
 import logging
 import os
 import re
+from typing import TypedDict
 
 from domarkx.tools.tool_factory import _tool_handler as tool_handler
+
+
+class Operation(TypedDict):
+    start_idx: int
+    search_len: int
+    replace_content: str
 
 
 @tool_handler()
@@ -42,7 +49,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
         raise IOError(f"Could not read file '{path}': {e}")
 
     current_lines = list(original_lines)  # Create a copy for modification
-    operations = []
+    operations: list[Operation] = []
     diff_lines = diff.splitlines(keepends=True)
     current_line_in_diff = 0
 

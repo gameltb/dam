@@ -1,17 +1,18 @@
 import pathlib
 from abc import ABC, abstractmethod
+from typing import Any, List, Optional
 
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 
 
 class Session(ABC):
-    def __init__(self, doc_path: pathlib.Path):
+    def __init__(self, doc_path: pathlib.Path) -> None:
         self.doc_path = doc_path
         self.doc = self._parse_document()
-        self.agent = None
-        self.tool_executors = []
+        self.agent: Any = None
+        self.tool_executors: List[Any] = []
 
-    def _parse_document(self):
+    def _parse_document(self) -> ParsedDocument:
         with self.doc_path.open() as f:
             md_content = f.read()
 
@@ -22,10 +23,10 @@ class Session(ABC):
             raise ValueError(f"Error parsing document at {self.doc_path.absolute()}: {e}") from e
 
     @abstractmethod
-    async def setup(self, **kwargs):
+    async def setup(self, **kwargs: Any) -> None:
         pass
 
-    def get_code_block(self, name: str):
+    def get_code_block(self, name: str) -> Optional[str]:
         for block in self.doc.code_blocks:
             # The name of the code block is in the `attrs` field.
             if block.attrs == name:

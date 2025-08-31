@@ -1,15 +1,13 @@
 import binascii  # For hex string to bytes conversion
 import logging
-from typing import Optional
 
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import get_world
-from dam.models.core.entity import Entity
+from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.functions import ecs_functions
 from dam_source.functions import import_functions
 
 from ..commands import (

@@ -8,7 +8,7 @@ from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 runner = CliRunner()
 
 
-def test_all_templates_md_conformance():
+def test_all_templates_md_conformance() -> None:
     """
     Initialize a project and check every .md file in the project for MarkdownLLMParser conformance.
     """

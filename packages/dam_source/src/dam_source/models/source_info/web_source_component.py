@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Dict, Optional
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
-
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
 from dam.models.core import BaseComponent, Entity
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
 
 
 class WebSourceComponent(BaseComponent):

@@ -4,9 +4,11 @@ import inspect
 import logging
 import os
 import textwrap
+from typing import Any
 
 import libcst as cst
 import libcst.matchers as m
+from libcst import FlattenSentinel
 from libcst.metadata import MetadataWrapper, PositionProvider
 
 # Import the decorator and custom exception from the new module
@@ -49,6 +51,7 @@ def _resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
             f"Could not resolve file path for symbol '{full_symbol}'. No Python module found or accessible."
         )
 
+    assert file_path is not None
     # Optional: Check if the resolved file is within the workspace
     workspace_root = "/workspace/domarkx"  # Adjust this if workspace root is dynamic
     if not os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) == os.path.abspath(
@@ -67,7 +70,7 @@ def _get_node_full_code(node: cst.CSTNode) -> str:
     Given a LibCST node, generates its full source code by wrapping it in a temporary module.
     This is the recommended way to get node source code in LibCST 1.0+ as node.code is removed.
     """
-    temp_module = cst.Module(body=[node])
+    temp_module = cst.Module(body=[node])  # type: ignore[list-item]
     return temp_module.code
 
 
@@ -88,7 +91,7 @@ class LibCstEditor:
         self.module = cst.parse_module(self.source_code)
         logging.info(f"Initialized LibCstEditor for {file_path}")
 
-    def save(self, output_path: str = None):
+    def save(self, output_path: str | None = None) -> str:
         """Saves the modified code. LibCST handles formatting automatically."""
         if output_path is None:
             output_path = self.file_path
@@ -187,7 +190,7 @@ class LibCstEditor:
 
         return current_matcher
 
-    def create_code(self, parent_internal_symbol_path: str, target_type: str, code_content: str):
+    def create_code(self, parent_internal_symbol_path: str, target_type: str, code_content: str) -> str:
         """
         Creates a new class, function, or assignment statement within the specified parent symbol (module or class).
         """
@@ -197,14 +200,14 @@ class LibCstEditor:
         )
 
         class CreatorTransformer(cst.CSTTransformer):
-            def __init__(self, target_type, code_content, parent_matcher):
+            def __init__(self, target_type: str, code_content: str, parent_matcher: m.BaseMatcherNode) -> None:
                 self.target_type = target_type
                 self.code_content = code_content
                 self.parent_matcher = parent_matcher
                 self.created = False
                 self.found_target = False
 
-            def _get_new_node(self):
+            def _get_new_node(self) -> cst.BaseStatement:
                 try:
                     # Parse as a statement, which can be a function, class, or assignment
                     new_node = cst.parse_statement(self.code_content)
@@ -215,7 +218,7 @@ class LibCstEditor:
                         original_exception=e,
                     )
 
-            def leave_Module(self, original_node, updated_node):
+            def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
                 if m.matches(original_node, self.parent_matcher):
                     self.found_target = True
                     if not self.created:
@@ -223,15 +226,16 @@ class LibCstEditor:
                             new_node = self._get_new_node()
                             new_body = list(updated_node.body)
                             # Ensure proper spacing for new code
-                            if new_body and not isinstance(new_body[-1], cst.Newline):
-                                new_body.append(cst.Newline())
-                            new_body.append(new_node)
-                            new_body.append(cst.Newline())  # Add newline after for separation
+                            if new_body and not isinstance(new_body[-1], cst.SimpleStatementLine):
+                                new_body.append(cst.SimpleStatementLine(body=[]))
+                            if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
+                                new_body.append(new_node)
+                            new_body.append(cst.SimpleStatementLine(body=[]))
                             self.created = True
-                            return updated_node.with_changes(body=tuple(new_body))
+                            return updated_node.with_changes(body=tuple(new_body))  # type: ignore[arg-type]
                 return updated_node
 
-            def leave_ClassDef(self, original_node, updated_node):
+            def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
                 if m.matches(original_node, self.parent_matcher):
                     self.found_target = True
                     if not self.created:
@@ -242,44 +246,50 @@ class LibCstEditor:
                                 raise ToolError("Code content for 'method' must be a function definition.")
 
                             existing_body = list(updated_node.body.body)
+                            new_body_elements: list[cst.BaseStatement | cst.SimpleStatementLine] = []
                             if not existing_body:
                                 # For empty class body, ensure proper indentation is handled by libcst
                                 new_body_elements = [
-                                    cst.Newline(),
+                                    cst.SimpleStatementLine(body=[]),
                                     new_node,
-                                    cst.Newline(),
+                                    cst.SimpleStatementLine(body=[]),
                                 ]
                             else:
                                 new_body_elements = list(existing_body)
-                                if not isinstance(new_body_elements[-1], cst.Newline):
-                                    new_body_elements.append(cst.Newline())
-                                new_body_elements.append(new_node)
-                                new_body_elements.append(cst.Newline())  # Add newline after for separation
+                                if not isinstance(new_body_elements[-1], cst.SimpleStatementLine):
+                                    new_body_elements.append(cst.SimpleStatementLine(body=[]))
+                                if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
+                                    new_body_elements.append(new_node)
+                                new_body_elements.append(cst.SimpleStatementLine(body=[]))
 
                             self.created = True
                             return updated_node.with_changes(
-                                body=updated_node.body.with_changes(body=new_body_elements)
+                                body=updated_node.body.with_changes(
+                                    body=tuple(new_body_elements)  # type: ignore[arg-type]
+                                )
                             )
                 return updated_node
 
         self._apply_transformer(CreatorTransformer(target_type, code_content, parent_matcher))
         return f"Attempted to create {target_type} under '{parent_internal_symbol_path}'. Operation status: {'Created' if getattr(self._apply_transformer, 'created', False) else 'Failed to create (check logs)'}"
 
-    def update_code(self, internal_symbol_path: str, target_type: str, new_code_content: str):
+    def update_code(self, internal_symbol_path: str, target_type: str, new_code_content: str) -> str:
         """
         Updates the code content of the specified symbol (class, function, method, assignment).
         """
         target_matcher = self._get_node_matcher(internal_symbol_path, target_type)
 
         class UpdaterTransformer(cst.CSTTransformer):
-            def __init__(self, target_matcher, new_code_content, target_type):
+            def __init__(self, target_matcher: m.BaseMatcherNode, new_code_content: str, target_type: str) -> None:
                 self.target_matcher = target_matcher
                 self.new_code_content = new_code_content
                 self.target_type = target_type
                 self.updated = False
                 self.found_target = False
 
-            def on_leave(self, original_node, updated_node):
+            def on_leave(
+                self, original_node: cst.CSTNode, updated_node: cst.CSTNode
+            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel[Any]:
                 if m.matches(original_node, self.target_matcher):
                     self.found_target = True
                     if not self.updated:
@@ -356,14 +366,14 @@ class LibCstEditor:
         self._apply_transformer(UpdaterTransformer(target_matcher, new_code_content, target_type))
         return f"Attempted to update {target_type} at '{internal_symbol_path}'. Operation status: {'Updated' if getattr(self._apply_transformer, 'updated', False) else 'Failed to update (check logs)'}"
 
-    def delete_code(self, internal_symbol_path: str, target_type: str):
+    def delete_code(self, internal_symbol_path: str, target_type: str) -> str:
         """
         Deletes the code of the specified symbol (class, function, method, assignment).
         """
         target_matcher = self._get_node_matcher(internal_symbol_path, target_type)
 
         class DeleterTransformer(cst.CSTTransformer):
-            def __init__(self, target_matcher, internal_symbol_path, target_type):
+            def __init__(self, target_matcher: m.BaseMatcherNode, internal_symbol_path: str, target_type: str) -> None:
                 self.target_matcher = target_matcher
                 self.internal_symbol_path_parts = internal_symbol_path.split(".")
                 self.target_type = target_type
@@ -373,7 +383,9 @@ class LibCstEditor:
                     self.internal_symbol_path_parts[-1] if self.internal_symbol_path_parts else None
                 )
 
-            def on_leave(self, original_node, updated_node):
+            def on_leave(
+                self, original_node: cst.CSTNode, updated_node: cst.CSTNode
+            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel[Any]:
                 if self.deleted:  # Once deleted, propagate the change up
                     return updated_node
 
@@ -385,16 +397,17 @@ class LibCstEditor:
                         logging.debug(f"Handling method deletion in class '{original_node.name.value}'")
                         new_body_elements = []
                         method_found_and_removed = False
-                        for element in updated_node.body.body:
-                            # Check if the element is a function definition and matches the method name
-                            if (
-                                isinstance(element, cst.FunctionDef)
-                                and element.name.value == self.innermost_target_name
-                            ):
-                                logging.info(f"Found and removing method '{self.innermost_target_name}'.")
-                                method_found_and_removed = True
-                                continue  # Skip adding this element to new_body_elements
-                            new_body_elements.append(element)
+                        if isinstance(updated_node.body, cst.IndentedBlock):
+                            for element in updated_node.body.body:
+                                # Check if the element is a function definition and matches the method name
+                                if (
+                                    isinstance(element, cst.FunctionDef)
+                                    and element.name.value == self.innermost_target_name
+                                ):
+                                    logging.info(f"Found and removing method '{self.innermost_target_name}'.")
+                                    method_found_and_removed = True
+                                    continue  # Skip adding this element to new_body_elements
+                                new_body_elements.append(element)
 
                         if method_found_and_removed:
                             self.deleted = True
@@ -415,7 +428,7 @@ class LibCstEditor:
         return f"Attempted to delete {target_type} at '{internal_symbol_path}'. Operation status: {'Deleted' if getattr(self._apply_transformer, 'deleted', False) else 'Failed to delete (check logs)'}"
 
 
-def _handle_list_mode_by_symbol(full_symbol: str, target_type: str, list_detail_level: str) -> str:
+def _handle_list_mode_by_symbol(full_symbol: str, target_type: str | None, list_detail_level: str) -> str:
     """
     Handles the logic for list mode when the target argument is an importable symbol (uses inspect).
     """
@@ -484,7 +497,7 @@ def _handle_list_mode_by_symbol(full_symbol: str, target_type: str, list_detail_
 def _handle_list_mode_by_path(
     file_path: str,
     internal_target_symbol_path: str,
-    target_type: str,
+    target_type: str | None,
     list_detail_level: str,
 ) -> str:
     """
@@ -523,13 +536,13 @@ def _handle_list_mode_by_path(
         class DefinitionCollector(cst.CSTVisitor):
             METADATA_DEPENDENCIES = (PositionProvider,)
 
-            def __init__(self, target_symbol_path, target_type_filter, detail_level):
-                self.definitions = []
+            def __init__(self, target_symbol_path: str, target_type_filter: str | None, detail_level: str) -> None:
+                self.definitions: list[str] = []
                 self.target_symbol_path_parts = target_symbol_path.split(".") if target_symbol_path else []
                 self.target_type_filter = target_type_filter
                 self.detail_level = detail_level
                 self.found_specific_target = False
-                self.node_stack = []  # To track current scope (e.g., inside a class)
+                self.node_stack: list[cst.CSTNode] = []  # To track current scope (e.g., inside a class)
 
             def on_visit(self, node: cst.CSTNode) -> bool:
                 super().on_visit(node)
@@ -579,8 +592,13 @@ def _handle_list_mode_by_path(
                         # Specific target_type filter is provided, check for a match
                         return self.target_type_filter == node_type
 
-            def _add_definition(self, node, type_name, name=None):
-                def_name = name if name else node.name.value
+            def _add_definition(self, node: cst.CSTNode, type_name: str, name: str | None = None) -> None:
+                def_name = name
+                if def_name is None:
+                    if isinstance(node, (cst.FunctionDef, cst.ClassDef)):
+                        def_name = node.name.value
+                    else:
+                        raise TypeError(f"Cannot get name from node of type {type(node).__name__}")
                 logging.debug(f"_add_definition: Adding definition: name={def_name}, type={type_name}")
 
                 if self.target_symbol_path_parts and self._get_current_symbol_path(def_name) == ".".join(
@@ -610,7 +628,7 @@ def _handle_list_mode_by_path(
 
                 self.definitions.append(f"  {type_name}: {def_name} (Line {start_line_num})\n{docstring}{full_code}")
 
-            def visit_FunctionDef(self, node: cst.FunctionDef):
+            def visit_FunctionDef(self, node: cst.FunctionDef) -> None:
                 is_method = False
                 if self.node_stack:  # Check if there's a parent node
                     # The parent of a FunctionDef that is a method would be an IndentedBlock,
@@ -625,15 +643,13 @@ def _handle_list_mode_by_path(
                 logging.debug(f"visit_FunctionDef: Found {node_type} {node.name.value}")
                 if self._is_target_match(node.name.value, node_type):
                     self._add_definition(node, node_type, name=node.name.value)
-                return True
 
-            def visit_ClassDef(self, node: cst.ClassDef):
+            def visit_ClassDef(self, node: cst.ClassDef) -> None:
                 logging.debug(f"visit_ClassDef: Found class {node.name.value}")
                 if self._is_target_match(node.name.value, "class"):
                     self._add_definition(node, "class")
-                return True
 
-            def visit_Assign(self, node: cst.Assign):
+            def visit_Assign(self, node: cst.Assign) -> None:
                 logging.debug(f"visit_Assign: Node: {node}")
                 logging.debug(f"visit_Assign: Targets: {[type(t.target).__name__ for t in node.targets]} ")
                 for target_node in node.targets:
@@ -650,7 +666,6 @@ def _handle_list_mode_by_path(
                             logging.debug(f"visit_Assign: No match for {var_name} (type: assignment).")
                     else:
                         logging.debug(f"visit_Assign: Skipping non-Name target: {type(target_node.target).__name__}")
-                return True
 
         collector = DefinitionCollector(internal_target_symbol_path, target_type, list_detail_level)
         wrapper = MetadataWrapper(parsed_cst)
@@ -672,10 +687,10 @@ def _handle_list_mode_by_path(
 def _handle_modify_mode(
     file_to_process: str,
     internal_target_symbol_path: str,
-    operation: str,
-    target_type: str,
-    code_content: str,
-    modification_script: str,
+    operation: str | None,
+    target_type: str | None,
+    code_content: str | None,
+    modification_script: str | None,
 ) -> str:
     """
     Handles the logic for modify mode.
@@ -815,14 +830,14 @@ def _handle_diff_method_mode(target: str) -> str:
 def python_code_handler(
     mode: str,
     target: str,  # This replaces both 'symbol' and 'target_symbol'
-    path: str = None,  # Becomes optional, provides file context for non-importable targets
+    path: str | None = None,  # Becomes optional, provides file context for non-importable targets
     # --- List Mode Specific Args ---
     list_detail_level: str = "names_only",
     # --- Modify Mode Specific Args ---
-    operation: str = None,
-    target_type: str = None,
-    code_content: str = None,
-    modification_script: str = None,
+    operation: str | None = None,
+    target_type: str | None = None,
+    code_content: str | None = None,
+    modification_script: str | None = None,
 ) -> str:
     """
     A comprehensive tool for handling Python code, supporting listing definitions,
@@ -1019,6 +1034,8 @@ def python_code_handler(
         # If path is provided, use libcst (static analysis).
         # If no path, use inspect (dynamic import).
         if path:
+            if file_to_process is None:
+                raise ValueError("The 'path' parameter is required for list mode with file-based targets.")
             return _handle_list_mode_by_path(
                 file_to_process,
                 internal_target_symbol_path,
@@ -1031,6 +1048,8 @@ def python_code_handler(
             )  # Use original 'target' for inspect
 
     elif mode == "modify":
+        if file_to_process is None:
+            raise ValueError("The 'path' parameter is required for modify mode.")
         # For modify, target is always the internal path relative to the file_to_process
         return _handle_modify_mode(
             file_to_process,

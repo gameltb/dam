@@ -1,6 +1,7 @@
 import os
 import subprocess
 from datetime import datetime
+from typing import Any
 
 from domarkx.config import settings
 from domarkx.macro_expander import MacroExpander
@@ -8,14 +9,14 @@ from domarkx.tools.tool_factory import _tool_handler as tool_handler
 
 
 @tool_handler()
-def create_session(template_name: str, session_name: str, parameters: dict):
+def create_session(template_name: str, session_name: str, parameters: dict[str, Any]) -> str:
     """
     Create a new session file from a template and parameters.
 
     Args:
         template_name (str): The name of the template (without .md extension).
         session_name (str): The name of the session to create (will be used as filename).
-        parameters (dict): Dictionary of parameters to expand in the template. Must include any macros used in the template.
+        parameters (dict[str, Any]): Dictionary of parameters to expand in the template. Must include any macros used in the template.
 
     Returns:
         str: Success message.
@@ -60,7 +61,7 @@ def create_session(template_name: str, session_name: str, parameters: dict):
 
 
 @tool_handler()
-def send_message(session_name: str, message: str):
+def send_message(session_name: str, message: str) -> str:
     """
     Append a message to a session file.
 
@@ -99,7 +100,7 @@ def send_message(session_name: str, message: str):
 
 
 @tool_handler()
-def get_messages(session_name: str):
+def get_messages(session_name: str) -> str:
     """
     Get all messages/content from a session file.
 
@@ -128,7 +129,7 @@ def get_messages(session_name: str):
 
 
 @tool_handler()
-def list_sessions():
+def list_sessions() -> str:
     """
     List all available session files in the sessions directory.
 
@@ -145,7 +146,7 @@ def list_sessions():
 
 
 @tool_handler()
-def archive_session(session_name: str, topic: str):
+def archive_session(session_name: str, topic: str) -> str:
     """
     Archive a session file based on its topic and creation date.
 

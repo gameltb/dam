@@ -1,7 +1,6 @@
+from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core.base_component import BaseComponent
 
 
 class TranscodedVariantComponent(BaseComponent):

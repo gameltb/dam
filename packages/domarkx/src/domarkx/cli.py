@@ -12,8 +12,11 @@ from domarkx.utils.no_border_rich_tracebacks import NoBorderRichHandler
 logger = logging.getLogger("domarkx")
 
 
+from typing import Any
+
+
 class StrMsgOnlyFilter(logging.Filter):
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         return isinstance(record.msg, (str, Exception))
 
 
@@ -38,7 +41,7 @@ logging.basicConfig(
 cli_app = typer.Typer()
 
 
-def load_actions(settings):
+def load_actions(settings: Any) -> None:
     actions_dir = os.path.join(os.path.dirname(__file__), "action")
     for filename in os.listdir(actions_dir):
         if filename.endswith(".py") and not filename.startswith("__"):
@@ -48,7 +51,7 @@ def load_actions(settings):
                 module.register(cli_app, settings)
 
 
-def main():
+def main() -> None:
     load_dotenv()
     load_actions(settings)
     try:

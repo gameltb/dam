@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from domarkx.config import settings
 from domarkx.tools.session_management import (
@@ -9,7 +10,7 @@ from domarkx.tools.session_management import (
 )
 
 
-def test_create_session(tmp_path):
+def test_create_session(tmp_path: Any) -> None:
     project_path = tmp_path / "test_project"
     os.makedirs(project_path / "sessions")
     os.makedirs(project_path / "templates")
@@ -27,7 +28,7 @@ def test_create_session(tmp_path):
         assert "Hello" in content
 
 
-def test_send_message(tmp_path):
+def test_send_message(tmp_path: Any) -> None:
     project_path = tmp_path / "test_project"
     settings.DOMARKX_PROJECT_PATH = str(project_path)
     # 保证 session 文件已存在
@@ -42,7 +43,7 @@ def test_send_message(tmp_path):
         assert "This is a test message." in content
 
 
-def test_get_messages(tmp_path):
+def test_get_messages(tmp_path: Any) -> None:
     project_path = tmp_path / "test_project"
     settings.DOMARKX_PROJECT_PATH = str(project_path)
     os.makedirs(project_path / "sessions", exist_ok=True)
@@ -55,7 +56,7 @@ def test_get_messages(tmp_path):
     assert "This is a test message." in content
 
 
-def test_list_sessions(tmp_path):
+def test_list_sessions(tmp_path: Any) -> None:
     project_path = tmp_path / "test_project"
     settings.DOMARKX_PROJECT_PATH = str(project_path)
     os.makedirs(project_path / "sessions", exist_ok=True)

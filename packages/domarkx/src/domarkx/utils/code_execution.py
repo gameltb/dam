@@ -1,8 +1,14 @@
 import linecache
 import traceback
+from typing import Any, Optional
 
 
-def execute_code_block(code: str, global_vars: dict = None, local_vars: dict = None, filename="<setup-script>"):
+def execute_code_block(
+    code: str,
+    global_vars: Optional[dict[str, Any]] = None,
+    local_vars: Optional[dict[str, Any]] = None,
+    filename: str = "<setup-script>",
+) -> None:
     """
     Executes a block of code and prints a traceback if an exception occurs.
 

@@ -1,7 +1,7 @@
+from dam.models.core import BaseComponent
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from dam.models.core import BaseComponent
 from . import source_types
 
 

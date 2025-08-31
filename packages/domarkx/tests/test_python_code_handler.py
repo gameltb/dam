@@ -40,7 +40,7 @@ ANOTHER_CONSTANT = "hello"
 
 
 # --- Test _resolve_symbol_path helper function ---
-def test_resolve_symbol_path_top_level_module(tmp_path):
+def test_resolve_symbol_path_top_level_module(tmp_path) -> None:
     # Create a temporary module for testing symbol resolution
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
@@ -55,7 +55,7 @@ def test_resolve_symbol_path_top_level_module(tmp_path):
         sys.path = old_sys_path
 
 
-def test_resolve_symbol_path_function_in_module(tmp_path):
+def test_resolve_symbol_path_function_in_module(tmp_path) -> None:
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -69,7 +69,7 @@ def test_resolve_symbol_path_function_in_module(tmp_path):
         sys.path = old_sys_path
 
 
-def test_resolve_symbol_path_method_in_class(tmp_path):
+def test_resolve_symbol_path_method_in_class(tmp_path) -> None:
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 

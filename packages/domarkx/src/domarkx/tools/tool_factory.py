@@ -15,21 +15,23 @@ from rich.traceback import Traceback
 class ToolError(Exception):
     """Custom exception for tool-related errors."""
 
-    def __init__(self, message, original_exception=None, captured_logs_str=""):
+    def __init__(
+        self, message: str, original_exception: Optional[Exception] = None, captured_logs_str: str = ""
+    ) -> None:
         super().__init__(message)
         self.original_exception = original_exception
         self.captured_logs = captured_logs_str
 
 
-def _tool_handler(log_level=logging.INFO, capture_logs=False):
+def _tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> Callable[..., Any]:
     """
     A decorator for tool functions to handle logging and exception wrapping.
     This is a private function used by the ToolFactory.
     """
 
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             captured_rich_logs_buffer = io.StringIO()
             console = Console(file=captured_rich_logs_buffer, stderr=True)
             runtime_log_level = kwargs.pop("log_level", log_level)
@@ -93,12 +95,12 @@ An error occurred in tool '{func.__name__}':
 
 
 class ToolFactory:
-    def __init__(self):
+    def __init__(self) -> None:
         self._tool_registry: Dict[str, Callable[..., Any]] = {}
         self._tool_registry_unwrapped: Dict[str, Callable[..., Any]] = {}
         self._discover_and_register_tools()
 
-    def _discover_and_register_tools(self):
+    def _discover_and_register_tools(self) -> None:
         """
         Dynamically discovers and registers tools from the 'portable_tools' directory.
         """
@@ -134,11 +136,11 @@ class ToolFactory:
         """
         return self._tool_registry_unwrapped[name]
 
-    def list_tools(self) -> List[Dict[str, str]]:
+    def list_tools(self) -> List[Dict[str, Optional[str]]]:
         """
         Lists all available tool functions registered in the tool registry.
         """
-        tool_infos = []
+        tool_infos: List[Dict[str, Optional[str]]] = []
         for name, func in self._tool_registry.items():
             tool_infos.append(
                 {
@@ -149,17 +151,18 @@ class ToolFactory:
             )
         return tool_infos
 
-    def wrap_function(self, func: Callable, executor: Optional[Any] = None) -> FunctionTool:
+    def wrap_function(self, func: Callable[..., Any], executor: Optional[Any] = None) -> FunctionTool:
         """
         Wraps a given function to be used as a tool, with an optional executor.
         """
         wrapped_func = _tool_handler()(func)
 
         class DynamicToolWrapper(FunctionTool):
-            def __init__(self, tool_func: Callable, tool_executor: Optional[Any], **kwargs):
+            def __init__(self, tool_func: Callable[..., Any], tool_executor: Optional[Any], **kwargs: Any) -> None:
                 description = inspect.getdoc(tool_func) or ""
                 super().__init__(tool_func, description=description, **kwargs)
                 self.executor = tool_executor
+                self.fn: Callable[..., Any] = tool_func
 
             def call(self, **kwargs: Any) -> Any:
                 if self.executor:
@@ -183,7 +186,7 @@ class ToolFactory:
         """
         from domarkx.utils.code_execution import execute_code_block
 
-        local_namespace = {}
+        local_namespace: dict[str, Any] = {}
         execute_code_block(code, global_vars=globals(), local_vars=local_namespace)
 
         func_name = [name for name, obj in local_namespace.items() if inspect.isfunction(obj)][0]
