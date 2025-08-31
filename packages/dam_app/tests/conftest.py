@@ -122,15 +122,17 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     from dam.core.world_setup import register_core_systems
     from dam_app.plugin import AppPlugin
     from dam_fs.plugin import FsPlugin
-    from dam_semantic.plugin import SemanticPlugin
 
     register_core_systems(world)
     world.add_plugin(AppPlugin())
     world.add_plugin(FsPlugin())
+
     try:
+        from dam_semantic.plugin import SemanticPlugin
         world.add_plugin(SemanticPlugin())
     except ImportError:
         pass
+
     return world
 
 
