@@ -45,71 +45,73 @@ def _get_hachoir_metadata(md, key: str, default=None) -> any:
         pass
     return default
 
-@system(stage=SystemStage.METADATA_EXTRACTION)
+from ..commands import ExtractAudioMetadataCommand
+from dam.core.systems import handles_command
+
+@handles_command(ExtractAudioMetadataCommand)
 async def add_audio_components_system(
+    cmd: ExtractAudioMetadataCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
-    entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
     logger.info("Running add_audio_components_system")
     if not _hachoir_available:
         logger.warning("Hachoir library not installed. Skipping audio metadata extraction system.")
         return
 
-    if not entities_to_process:
+    entity = cmd.entity
+    all_locations = await transaction.get_components(entity.id, FileLocationComponent)
+    if not all_locations:
         return
 
-    for entity in entities_to_process:
-        all_locations = await transaction.get_components(entity.id, FileLocationComponent)
-        if not all_locations:
+    filepath_on_disk = None
+    for loc in all_locations:
+        try:
+            potential_path = get_local_path_for_url(loc.url, world_config)
+            if potential_path and await asyncio.to_thread(potential_path.is_file):
+                filepath_on_disk = potential_path
+                break
+        except (ValueError, FileNotFoundError):
             continue
 
-        filepath_on_disk = None
-        for loc in all_locations:
-            try:
-                potential_path = get_local_path_for_url(loc.url, world_config)
-                if potential_path and await asyncio.to_thread(potential_path.is_file):
-                    filepath_on_disk = potential_path
-                    break
-            except (ValueError, FileNotFoundError):
-                continue
+    if not filepath_on_disk:
+        return
 
-        if not filepath_on_disk:
-            continue
+    mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
+    logger.info(f"MIME type for {filepath_on_disk}: {mime_type}")
+    if not mime_type.startswith("audio/"):
+        return
 
-        mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
-        logger.info(f"MIME type for {filepath_on_disk}: {mime_type}")
-        if not mime_type.startswith("audio/"):
-            continue
+    parser = createParser(str(filepath_on_disk))
+    if not parser:
+        return
 
-        parser = createParser(str(filepath_on_disk))
-        if not parser:
-            continue
+    with parser:
+        try:
+            hachoir_metadata = extractMetadata(parser)
+        except Exception:
+            hachoir_metadata = None
 
-        with parser:
-            try:
-                hachoir_metadata = extractMetadata(parser)
-            except Exception:
-                hachoir_metadata = None
+    if not hachoir_metadata:
+        return
 
-        if not hachoir_metadata:
-            continue
-
-        if not await transaction.get_components(entity.id, AudioPropertiesComponent):
-            audio_comp = AudioPropertiesComponent()
-            duration = _get_hachoir_metadata(hachoir_metadata, "duration")
-            if duration:
-                audio_comp.duration_seconds = duration.total_seconds()
-            audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
-            if not audio_codec_val and _has_hachoir_metadata(hachoir_metadata, "compression"):
-                audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "compression")
-            audio_comp.codec_name = audio_codec_val
-            audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
-            audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-            bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
-            if bit_rate_bps:
-                audio_comp.bit_rate_kbps = bit_rate_bps // 1000
-            await transaction.add_component_to_entity(entity.id, audio_comp)
-            logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
+    if not await transaction.get_components(entity.id, AudioPropertiesComponent):
+        audio_comp = AudioPropertiesComponent()
+        duration = _get_hachoir_metadata(hachoir_metadata, "duration")
+        if duration:
+            audio_comp.duration_seconds = duration.total_seconds()
+        audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
+        if not audio_codec_val and _has_hachoir_metadata(hachoir_metadata, "compression"):
+            audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "compression")
+        audio_comp.codec_name = audio_codec_val
+        audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
+        audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
+        bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
+        if bit_rate_bps:
+            audio_comp.bit_rate_kbps = bit_rate_bps // 1000
+        await transaction.add_component_to_entity(entity.id, audio_comp)
+        logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 
     await transaction.flush()
+    if not cmd.result_future.done():
+        cmd.result_future.set_result(True)

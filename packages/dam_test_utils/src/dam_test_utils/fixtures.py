@@ -119,6 +119,9 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
 
 
 async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
+    import logging
+    logger = logging.getLogger(__name__)
+
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
     await world.create_db_and_tables()
@@ -127,17 +130,21 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     from dam_fs.plugin import FsPlugin
 
     register_core_systems(world)
+    logger.info("Loading AppPlugin")
     world.add_plugin(AppPlugin())
+    logger.info("Loading FsPlugin")
     world.add_plugin(FsPlugin())
 
     try:
         from dam_semantic.plugin import SemanticPlugin
+        logger.info("Loading SemanticPlugin")
         world.add_plugin(SemanticPlugin())
     except ImportError:
         pass
 
     try:
         from dam_media_audio.plugin import AudioPlugin
+        logger.info("Loading AudioPlugin")
         world.add_plugin(AudioPlugin())
     except ImportError:
         pass
@@ -274,11 +281,10 @@ def temp_image_file(tmp_path):
 
 @pytest.fixture
 def sample_image_a(tmp_path: Path) -> Path:
-    img_a_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR42mNkgIL/DAwM/wUADgAB/vA/cQAAAABJRU5ErkJggg=="
+    from PIL import Image
     file_path = tmp_path / "sample_A.png"
-    import base64
-
-    file_path.write_bytes(base64.b64decode(img_a_b64))
+    img = Image.new("RGB", (2, 1), color = (128, 128, 128))
+    img.save(file_path)
     return file_path
 
 
@@ -292,27 +298,46 @@ def sample_text_file(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_video_file_placeholder(tmp_path: Path) -> Path:
     file_path = tmp_path / "sample_video_placeholder.mp4"
+    # A minimal mp4 file
     file_path.write_bytes(b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isomiso2avc1mp41")
     return file_path
 
 
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
-    file_path = tmp_path / "sample_audio_placeholder.mp3"
-    file_path.write_bytes(b"ID3\x03\x00\x00\x00\x00\x0f\x00")
+    from scipy.io.wavfile import write as write_wav
+    import numpy as np
+
+    file_path = tmp_path / "sample_audio_placeholder.wav"
+    samplerate = 44100
+    duration = 1
+    frequency = 440
+    t = np.linspace(0., duration, int(samplerate * duration))
+    amplitude = np.iinfo(np.int16).max * 0.5
+    data = amplitude * np.sin(2. * np.pi * frequency * t)
+    write_wav(file_path, samplerate, data.astype(np.int16))
     return file_path
 
 
 @pytest.fixture
 def sample_gif_file_placeholder(tmp_path: Path) -> Path:
-    gif_bytes = bytes.fromhex("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b")
+    from PIL import Image
     file_path = tmp_path / "sample_gif_placeholder.gif"
-    file_path.write_bytes(gif_bytes)
+    img = Image.new("RGB", (1, 1), color = (255, 255, 255))
+    img.save(file_path)
     return file_path
 
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
+    from scipy.io.wavfile import write as write_wav
+    import numpy as np
+
     file_path = tmp_path / "sample.wav"
-    # Create a 1-second mono WAV file with a sine wave at 440 Hz
-    os.system(f"sox -n {file_path} synth 1 sine 440")
+    samplerate = 48000
+    duration = 1
+    frequency = 440
+    t = np.linspace(0., duration, int(samplerate * duration))
+    amplitude = np.iinfo(np.int16).max * 0.5
+    data = amplitude * np.sin(2. * np.pi * frequency * t)
+    write_wav(file_path, samplerate, data.astype(np.int16))
     return file_path

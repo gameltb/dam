@@ -3,13 +3,8 @@ from dam.core.world import World
 
 from .systems.audio_systems import add_audio_components_system
 
-from dam.core.stages import SystemStage
-
-import logging
-
-logger = logging.getLogger(__name__)
+from .commands import ExtractAudioMetadataCommand
 
 class AudioPlugin(Plugin):
     def build(self, world: World) -> None:
-        logger.info("Building AudioPlugin")
-        world.register_system(add_audio_components_system, stage=SystemStage.METADATA_EXTRACTION)
+        world.register_system(add_audio_components_system, command_type=ExtractAudioMetadataCommand)

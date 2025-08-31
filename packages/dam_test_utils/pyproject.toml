@@ -26,9 +26,12 @@ dependencies = [
     "dam_fs",
     "dam_semantic",
     "dam_sire",
+    "dam_media_audio",
     "pytest",
     "pytest-asyncio",
     "psycopg[binary]",
+    "Pillow",
+    "scipy",
 ]
 
 [tool.hatch.build.targets.wheel]

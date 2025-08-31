@@ -29,8 +29,6 @@ async def test_add_audio_components_system(test_world_alpha: World, sample_wav_f
         finally:
             active_transaction.reset(token)
 
-    await test_world_alpha.execute_stage(SystemStage.METADATA_EXTRACTION)
-
     # Verify that the asset was added
     async with test_world_alpha.db_session_maker() as session:
         entities = await ecs_functions.find_entities_with_components(session, [AudioPropertiesComponent])

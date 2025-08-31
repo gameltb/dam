@@ -14,6 +14,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "dam_test_utils",
+    "dam_media_audio",
 ]
 
 [tool.hatch.build.targets.wheel]
