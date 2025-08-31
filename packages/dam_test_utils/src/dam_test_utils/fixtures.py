@@ -246,11 +246,11 @@ def configure_session_logging():
     original_levels = {}
     root_logger = logging.getLogger()
     original_levels["root"] = root_logger.level
-    root_logger.setLevel(logging.WARNING)
+    root_logger.setLevel(logging.INFO)
     for logger_name in list(logging.Logger.manager.loggerDict.keys()):
         logger = logging.getLogger(logger_name)
         original_levels[logger_name] = logger.level
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.INFO)
     yield
     root_logger.setLevel(original_levels.get("root", logging.INFO))
     for logger_name in list(logging.Logger.manager.loggerDict.keys()):

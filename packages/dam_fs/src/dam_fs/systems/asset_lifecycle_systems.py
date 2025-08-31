@@ -44,15 +44,6 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
             size_bytes=cmd.size_bytes,
         )
         logger.info(f"Successfully processed IngestFileCommand for {cmd.original_filename}")
-
-        from dam_media_audio.commands import ExtractAudioMetadataCommand
-
-        command = ExtractAudioMetadataCommand(entity=entity)
-        logger.info("Dispatching ExtractAudioMetadataCommand")
-        await world.dispatch_command(command)
-        logger.info("Waiting for ExtractAudioMetadataCommand future")
-        await command.result_future
-        logger.info("ExtractAudioMetadataCommand future finished")
     except import_functions.ImportServiceError as e:
         logger.error(f"Failed to process IngestFileCommand for {cmd.original_filename}: {e}", exc_info=True)
 

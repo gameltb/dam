@@ -63,7 +63,6 @@ Alternatively, you can run all the checks with:
 - `uv run poe check`
 
 To run checks on a specific package, use the `--package` flag:
-- `uv run poe check --package sire`
 - `uv run poe test --package sire`
 
 ### Syncing Dependencies

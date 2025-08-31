@@ -121,12 +121,11 @@ pyright = "python run_task_in_pkgs_if_exist.py pyright"
 mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
-check = ["fmt", "lint", "test"]
+check = ["fmt", "lint", "pyright", "mypy", "test"]
+#check = ["fmt", "lint", "test"]
 check-ci = ["fmt", "lint", "test-cov"]
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-testpaths = ["packages"]
 addopts = "-p no:serial"
 markers = [
     "serial: mark a test as serial",
