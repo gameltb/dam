@@ -73,6 +73,10 @@ When you pull new changes, you may need to update the dependencies. To do so, ru
 uv sync --all-extras
 ```
 
+### Code Quality
+
+-   **Type Checking**: All new or modified code must pass `mypy` and `pyright` checks without introducing new errors. When modifying existing code with type errors, you should aim to fix them as part of your changes. If a fix is not feasible, you may use `# type: ignore` with a clear explanation, but this should be a last resort.
+
 ### Assertion Guideline
 
 Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions. UI tests should verify widget states, properties, or mocked interactions.

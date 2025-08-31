@@ -9,28 +9,15 @@ from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLink
 from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
 
 
-# Fixture to ensure a clean world for each test function in this file
-@pytest.fixture(autouse=True)
-async def current_test_world(test_world_alpha: World):
-    # The test_world_alpha fixture already handles setup and teardown of the world and its DB.
-    # We just need to make it available or ensure it's the one used by CLI context.
-    # The CLI uses global_state.world_name, which is set based on --world or default.
-    # For these tests, we'll ensure the CLI commands run against 'test_world_alpha'.
-
-    # The settings_override fixture (used by test_world_alpha) sets 'test_world_alpha' as default.
-    # So, CLI commands without --world should use it.
-    yield test_world_alpha
-
-
 @pytest.mark.asyncio  # Added async marker
-async def test_cli_character_create(current_test_world: World):
-    world_name = current_test_world.name
+async def test_cli_character_create(test_world_alpha: World):
+    world_name = test_world_alpha.name
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
 
     # Bypassing CliRunner for this async command due to execution issues.
     # Directly test the service layer logic.
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         # Initial creation
         char_entity = await character_service.create_character_concept(
             session=session, name=char_name, description=char_desc
@@ -68,21 +55,21 @@ async def test_cli_character_create(current_test_world: World):
 
     # Test validation (e.g., empty name) by trying to call the service function
     with pytest.raises(ValueError, match="Character name cannot be empty."):
-        async with current_test_world.db_session_maker() as session:
+        async with test_world_alpha.db_session_maker() as session:
             await character_service.create_character_concept(session=session, name="", description="Test empty name")
             await session.commit()  # Should not be reached
 
 
 @pytest.mark.asyncio  # Added async marker
 async def test_cli_character_apply_list_find(  # Made async
-    current_test_world: World, sample_text_file: str
+    test_world_alpha: World, sample_text_file: str
 ):
-    world_name = current_test_world.name
+    world_name = test_world_alpha.name
 
     # 1. Create a character by directly calling the service
     char_name = "Linkable Service Char"
     char_id: Optional[int] = None
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         char_entity = await character_service.create_character_concept(session, name=char_name)
         await session.commit()
         assert char_entity is not None
@@ -92,7 +79,7 @@ async def test_cli_character_apply_list_find(  # Made async
     # 2. Add a dummy asset by directly calling the service
     asset_id: Optional[int] = None
     asset_filename = "asset_for_char_link_service.txt"
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         asset_entity = await ecs_service.create_entity(session)
         await ecs_service.add_component_to_entity(
             session, asset_entity.id, FilePropertiesComponent(original_filename=asset_filename)
@@ -103,7 +90,7 @@ async def test_cli_character_apply_list_find(  # Made async
 
     # 3. Apply character to asset (using service call)
     role = "Main Protagonist Service"
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         link_component = await character_service.apply_character_to_entity(
             session=session,
             entity_id_to_link=asset_id,
@@ -115,14 +102,14 @@ async def test_cli_character_apply_list_find(  # Made async
         assert link_component.role_in_asset == role
 
     # Verify link in DB (already part of the above apply logic implicitly, but can be explicit)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         links = await ecs_service.get_components(session, asset_id, EntityCharacterLinkComponent)
         assert len(links) == 1
         assert links[0].character_concept_entity_id == char_id
         assert links[0].role_in_asset == role
 
     # 4. List characters for the asset (using service call)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         characters_on_asset = await character_service.get_characters_for_entity(session, asset_id)
         assert len(characters_on_asset) == 1
         found_char_entity, found_role = characters_on_asset[0]
@@ -133,7 +120,7 @@ async def test_cli_character_apply_list_find(  # Made async
         assert char_comp.concept_name == char_name
 
     # 5. Find assets for the character (using service call)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         linked_assets = await character_service.get_entities_for_character(session, char_id)
         assert len(linked_assets) == 1
         assert linked_assets[0].id == asset_id
@@ -142,7 +129,7 @@ async def test_cli_character_apply_list_find(  # Made async
         assert fpc.original_filename == asset_filename
 
     # 6. Find assets for character with role filter (using service call)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         linked_assets_role_filter = await character_service.get_entities_for_character(
             session, char_id, role_filter=role
         )
@@ -150,7 +137,7 @@ async def test_cli_character_apply_list_find(  # Made async
         assert linked_assets_role_filter[0].id == asset_id
 
     # Test finding with non-existent role (using service call)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         linked_assets_wrong_role = await character_service.get_entities_for_character(
             session, char_id, role_filter="NonExistentRole"
         )
@@ -159,10 +146,10 @@ async def test_cli_character_apply_list_find(  # Made async
 
 @pytest.mark.asyncio  # Added async marker
 async def test_cli_character_apply_with_identifiers(  # Made async
-    current_test_world: World, sample_image_a: Path
+    test_world_alpha: World, sample_image_a: Path
 ):
     # This test uses asset SHA256 hash and character name for identification
-    world_name = current_test_world.name
+    world_name = test_world_alpha.name
 
     # 1. Add an asset to get its SHA256 hash
     # This test specifically tests CLI invocation with different identifier types (hash for asset).
@@ -194,16 +181,16 @@ async def test_cli_character_apply_with_identifiers(  # Made async
         filepath_on_disk=sample_image_a,
         original_filename=original_filename,
         size_bytes=size_bytes,
-        world_name=current_test_world.name,  # Use current_test_world directly
+        world_name=test_world_alpha.name,  # Use test_world_alpha directly
     )
-    await current_test_world.dispatch_command(add_command)
-    await current_test_world.execute_stage(SystemStage.METADATA_EXTRACTION)
+    await test_world_alpha.dispatch_command(add_command)
+    await test_world_alpha.execute_stage(SystemStage.METADATA_EXTRACTION)
     # No add_result or exit_code to check here, assume success if no exceptions
 
     asset_id_for_test: Optional[int] = None
     asset_sha256_from_db: Optional[str] = None
 
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         entities = await ecs_service.find_entities_by_component_attribute_value(
             session, FilePropertiesComponent, "original_filename", sample_image_a.name
         )
@@ -220,7 +207,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
 
     char_name_for_hash_test = "CharForHashAssetTestSvc"
     char_id_for_hash_test: Optional[int] = None
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         char_entity = await character_service.create_character_concept(session, name=char_name_for_hash_test)
         await session.commit()
         assert char_entity is not None
@@ -233,7 +220,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     assert asset_id_for_test is not None
     assert char_id_for_hash_test is not None
 
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         link_component = await character_service.apply_character_to_entity(
             session=session,
             entity_id_to_link=asset_id_for_test,
@@ -244,13 +231,13 @@ async def test_cli_character_apply_with_identifiers(  # Made async
         assert link_component is not None
 
     # Verify in DB
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         links = await ecs_service.get_components(session, asset_id_for_test, EntityCharacterLinkComponent)
         assert len(links) == 1
         assert links[0].character_concept_entity_id == char_id_for_hash_test
 
     # 4. List characters for asset using asset ID (service call)
-    async with current_test_world.db_session_maker() as session:
+    async with test_world_alpha.db_session_maker() as session:
         characters_on_asset = await character_service.get_characters_for_entity(session, asset_id_for_test)
         assert len(characters_on_asset) == 1
         found_char_entity, _ = characters_on_asset[0]
