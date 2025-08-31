@@ -4,7 +4,7 @@ import logging
 import re
 import textwrap
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, cast
 
 import yaml
 
@@ -31,7 +31,7 @@ class Message:
         blocks = self.get_code_blocks(attrs="msg-metadata")
         if not blocks:
             return None
-        return json.loads(blocks[0].code)
+        return cast(dict[str, Any], json.loads(blocks[0].code))
 
 
 @dataclass
@@ -73,7 +73,7 @@ class ParsedDocument:
         blocks = self.get_code_blocks(attrs="session-config")
         if not blocks:
             return None
-        return json.loads(blocks[0].code)
+        return cast(dict[str, Any], json.loads(blocks[0].code))
 
 
 class MarkdownLLMParser:

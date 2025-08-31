@@ -4,7 +4,7 @@ from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 from domarkx.utils.markdown_utils import Macro, find_first_macro
 
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 
 class MacroExpander:
@@ -42,13 +42,14 @@ class MacroExpander:
             if isinstance(macro_value, str):
                 macro_value = self.expand(macro_value, override_parameters)
 
+            macro_value_str = str(macro_value)
             expanded_content = (
                 expanded_content[: macro.start + expande_pos]
-                + str(macro_value)
+                + macro_value_str
                 + expanded_content[macro.end + expande_pos :]
             )
-            expande_pos = expande_pos + macro.start + len(str(macro_value))
-        return expanded_content
+            expande_pos = expande_pos + macro.start + len(macro_value_str)
+        return expanded_content  # type: ignore[no-any-return]
 
     def _include_macro(self, macro: Macro, content: str) -> str:
         """Handles the @include macro."""

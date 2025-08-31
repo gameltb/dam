@@ -42,15 +42,16 @@ def exec_doc_code_block(
     code_block = code_blocks[code_block_in_message_index]
 
     console = Console(markup=False)
-    md = rich.markdown.Markdown(message_obj.content)
-    console.rule("message")
-    console.print(md)
+    if message_obj.content:
+        md = rich.markdown.Markdown(message_obj.content)
+        console.rule("message")
+        console.print(md)
     console.rule("code")
     console.print(rich.markdown.Markdown(f"```{code_block.language}\n{code_block.code}\n```"))
     console.input("Press Enter to exec, Ctrl+C to cancel.")
     console.rule("exec")
 
-    if code_block.language.startswith("python"):
+    if code_block.language and code_block.language.startswith("python"):
         exec(code_block.code)
 
 

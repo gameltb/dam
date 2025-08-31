@@ -4,6 +4,7 @@ import pathlib
 import pytest
 from autogen_ext.code_executors.docker_jupyter import DockerJupyterCodeExecutor
 from autogen_ext.code_executors.jupyter import JupyterCodeExecutor
+from autogen_ext.tool_executors.code_executor import CodeExecutor
 
 from domarkx.tool_executors.jupyter import JupyterToolExecutor
 from domarkx.tools.tool_factory import default_tool_factory

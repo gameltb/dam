@@ -13,9 +13,12 @@ from domarkx.tools.doc_admin import (
 runner = CliRunner()
 
 
+from typing import Any
+
+
 class TestDocAdminTools(unittest.TestCase):
     @patch("subprocess.run")
-    def test_rename_session(self, mock_run):
+    def test_rename_session(self, mock_run: Any) -> None:
         with runner.isolated_filesystem() as fs:
             os.makedirs("sessions")
             with open("sessions/test_session.md", "w") as f:
@@ -26,7 +29,7 @@ class TestDocAdminTools(unittest.TestCase):
             self.assertTrue(os.path.exists("sessions/new_session_name.md"))
 
     @patch("subprocess.run")
-    def test_update_session_metadata(self, mock_run):
+    def test_update_session_metadata(self, mock_run: Any) -> None:
         with runner.isolated_filesystem() as fs:
             os.makedirs("sessions")
             with open("sessions/test_session.md", "w") as f:
@@ -40,7 +43,7 @@ class TestDocAdminTools(unittest.TestCase):
 
     @patch("domarkx.tools.doc_admin.create_session")
     @patch("domarkx.tools.doc_admin.send_message")
-    def test_summarize_conversation(self, mock_send_message, mock_create_session):
+    def test_summarize_conversation(self, mock_send_message: Any, mock_create_session: Any) -> None:
         with runner.isolated_filesystem() as fs:
             os.makedirs("sessions")
             with open("sessions/test_session.md", "w") as f:

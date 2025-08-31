@@ -108,9 +108,9 @@ def extract_code_to_file(
         md_content = f.read()
 
     parser = MarkdownLLMParser()
-    parser.parse(md_content, resolve_inclusions=False)
-
-    message_obj, code_block = parser.get_message_and_code_block(message_index, code_block_in_message_index)
+    doc = parser.parse(md_content)
+    message_obj = doc.conversation[message_index]
+    code_block = message_obj.code_blocks[code_block_in_message_index]
 
     console = Console(markup=False)
     md = rich.markdown.Markdown(message_obj.content)
