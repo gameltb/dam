@@ -136,6 +136,12 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     except ImportError:
         pass
 
+    try:
+        from dam_media_audio.plugin import AudioPlugin
+        world.add_plugin(AudioPlugin())
+    except ImportError:
+        pass
+
     return world
 
 
@@ -302,4 +308,11 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     gif_bytes = bytes.fromhex("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b")
     file_path = tmp_path / "sample_gif_placeholder.gif"
     file_path.write_bytes(gif_bytes)
+    return file_path
+
+@pytest.fixture
+def sample_wav_file(tmp_path: Path) -> Path:
+    file_path = tmp_path / "sample.wav"
+    # Create a 1-second mono WAV file with a sine wave at 440 Hz
+    os.system(f"sox -n {file_path} synth 1 sine 440")
     return file_path

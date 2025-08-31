@@ -9,7 +9,8 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam.functions import ecs_functions, file_operations
+from dam.functions import ecs_functions
+from dam_fs.functions import file_operations
 from dam.utils.url_utils import get_local_path_for_url
 
 from dam_media_audio.models.properties.audio_properties_component import AudioPropertiesComponent
@@ -50,6 +51,7 @@ async def add_audio_components_system(
     world_config: WorldConfig,
     entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
+    logger.info("Running add_audio_components_system")
     if not _hachoir_available:
         logger.warning("Hachoir library not installed. Skipping audio metadata extraction system.")
         return
@@ -76,6 +78,7 @@ async def add_audio_components_system(
             continue
 
         mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
+        logger.info(f"MIME type for {filepath_on_disk}: {mime_type}")
         if not mime_type.startswith("audio/"):
             continue
 

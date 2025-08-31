@@ -935,6 +935,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "dam-test-utils" },
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
@@ -942,6 +943,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
 ]
@@ -957,6 +959,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "dam-test-utils" },
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
@@ -964,6 +967,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
 ]

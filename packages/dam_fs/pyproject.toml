@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-cov",
+    "dam_test_utils",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -21,3 +22,6 @@ packages = ["src/dam_fs"]
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
+
+[tool.poe.tasks]
+test = "pytest"
