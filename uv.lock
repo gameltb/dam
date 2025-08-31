@@ -22,6 +22,7 @@ members = [
     "dam-semantic",
     "dam-sire",
     "dam-source",
+    "dam-test-utils",
     "domarkx",
     "sire",
     "sire-pipelines",
@@ -1105,6 +1106,33 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "dam-test-utils"
+version = "0.1.0"
+source = { editable = "packages/dam_test_utils" }
+dependencies = [
+    { name = "dam" },
+    { name = "dam-app" },
+    { name = "dam-fs" },
+    { name = "dam-semantic" },
+    { name = "dam-sire" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "dam-app", editable = "packages/dam_app" },
+    { name = "dam-fs", editable = "packages/dam_fs" },
+    { name = "dam-semantic", editable = "packages/dam_semantic" },
+    { name = "dam-sire", editable = "packages/dam_sire" },
+    { name = "psycopg", extras = ["binary"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
 
 [[package]]
 name = "dataclasses-json"
