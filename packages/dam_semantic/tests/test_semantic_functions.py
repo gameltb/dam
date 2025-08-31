@@ -26,11 +26,10 @@ assert MiniLMEmbeddingComponent is not None, "Test MiniLM model not registered o
 assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or class not found"
 
 
-import pytest
-
 import numpy as np
-
+import pytest
 import torch
+
 
 class MockSentenceTransformer(torch.nn.Module):
     def __init__(self, model_name_or_path=None, **kwargs):
@@ -89,9 +88,7 @@ async def test_generate_embedding_and_conversion(monkeypatch):
             return np.random.rand(512)
         return None
 
-    monkeypatch.setattr(
-        semantic_functions, "generate_embedding", mock_generate_embedding
-    )
+    monkeypatch.setattr(semantic_functions, "generate_embedding", mock_generate_embedding)
 
     text = "Hello world"
     # Test with MiniLM
@@ -119,9 +116,7 @@ async def test_generate_embedding_and_conversion(monkeypatch):
     assert not np.array_equal(embedding_minilm_np, embedding_clip_np)
 
     assert (
-        await semantic_functions.generate_embedding(
-            None, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
-        )
+        await semantic_functions.generate_embedding(None, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM)
         is None
     )
     assert (

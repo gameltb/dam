@@ -1,6 +1,4 @@
-import asyncio  # Required for asyncio.get_running_loop()
 import json
-from functools import partial  # Required for partial
 from pathlib import Path
 from typing import (
     AsyncGenerator,  # Added for async generator type hint
@@ -31,8 +29,6 @@ def backup_original_settings():
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
     _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
     yield
-
-
 
 
 from pytest_postgresql import factories

@@ -27,6 +27,7 @@ class AutoTagEntityCommand(BaseCommand):
 
     entity: Entity
 
+
 async def cli_show_entity(
     ctx: typer.Context,
     entity_id: Annotated[
@@ -60,7 +61,7 @@ async def cli_show_entity(
             for component in components:
                 typer.echo(f"  - {component.__class__.__name__}:")
                 for key, value in component.__dict__.items():
-                    if not key.startswith('_'):
+                    if not key.startswith("_"):
                         typer.echo(f"    - {key}: {value}")
 
         except Exception as e:

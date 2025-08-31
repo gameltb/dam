@@ -46,7 +46,8 @@ domarkx = "domarkx.cli:main"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
-exclude = ["build", "dist"]
+exclude = ["build", "dist", "*.md"]
+include = ["src/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
@@ -57,15 +58,11 @@ reportDeprecated = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-asyncio_mode = "auto"
 
 [tool.poe]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=domarkx --cov-report=term-missing --cov-report=xml"
-mypy.default_item_type = "cmd"
-mypy.sequence = [
-    "mypy --config-file ../../pyproject.toml domarkx tests",
-]
+test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
+mypy = "mypy --config-file ../../pyproject.toml src tests"

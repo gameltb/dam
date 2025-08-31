@@ -46,6 +46,7 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
         logger.info(f"Successfully processed IngestFileCommand for {cmd.original_filename}")
 
         from dam_media_audio.commands import ExtractAudioMetadataCommand
+
         command = ExtractAudioMetadataCommand(entity=entity)
         logger.info("Dispatching ExtractAudioMetadataCommand")
         await world.dispatch_command(command)
@@ -111,7 +112,9 @@ async def handle_find_entity_by_hash_command(
         entity_details_dict = None
 
         if entity:
-            logger.info(f"[QueryResult RequestID: {cmd.request_id}] Found Entity ID: {entity.id} for hash {cmd.hash_value}")
+            logger.info(
+                f"[QueryResult RequestID: {cmd.request_id}] Found Entity ID: {entity.id} for hash {cmd.hash_value}"
+            )
             entity_details_dict = {"entity_id": entity.id, "components": {}}
 
             fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
@@ -141,7 +144,9 @@ async def handle_find_entity_by_hash_command(
 
             md5_comp = await transaction.get_component(entity.id, ContentHashMD5Component)
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
+                entity_details_dict["components"]["ContentHashMD5Component"] = [
+                    {"hash_value": md5_comp.hash_value.hex()}
+                ]
         else:
             logger.info(f"[QueryResult RequestID: {cmd.request_id}] No entity found for hash {cmd.hash_value}")
 

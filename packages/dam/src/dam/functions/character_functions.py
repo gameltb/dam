@@ -5,9 +5,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.functions import ecs_functions
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.models.core.entity import Entity
-from dam.functions import ecs_functions
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,9 @@ async def update_character_concept(
     # Add other fields as needed
 ) -> Optional[CharacterConceptComponent]:
     """Updates an existing character concept."""
-    char_concept_comp = await ecs_functions.get_component(session, character_concept_entity_id, CharacterConceptComponent)
+    char_concept_comp = await ecs_functions.get_component(
+        session, character_concept_entity_id, CharacterConceptComponent
+    )
     if not char_concept_comp:
         logger.warning(f"CharacterConceptComponent not found for Entity ID {character_concept_entity_id}.")
         return None

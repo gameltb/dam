@@ -43,6 +43,7 @@ async def handle_ingest_web_asset_command(
         if not website_name:
             try:
                 from urllib.parse import urlparse
+
                 parsed_url = urlparse(cmd.website_identifier_url)
                 website_name = parsed_url.netloc.replace("www.", "")
             except Exception:
@@ -90,6 +91,7 @@ async def handle_ingest_web_asset_command(
         if upload_date_str:
             try:
                 from datetime import datetime
+
                 web_source_data["upload_date"] = datetime.fromisoformat(upload_date_str.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {cmd.source_url}")
@@ -101,6 +103,7 @@ async def handle_ingest_web_asset_command(
 
     if cmd.tags:
         import json
+
         web_source_data["tags_json"] = json.dumps(cmd.tags)
 
     valid_web_source_fields = {

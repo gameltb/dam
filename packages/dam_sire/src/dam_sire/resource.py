@@ -1,4 +1,5 @@
 import logging
+
 from sire.core.runtime_resource_management import AutoManageWrapper, get_management
 
 logger = logging.getLogger(__name__)
@@ -16,4 +17,5 @@ class SireResource:
     @property
     def auto_manage(self):
         from sire.core.runtime_resource_management import auto_manage
+
         return auto_manage

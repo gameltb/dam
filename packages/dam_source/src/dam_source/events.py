@@ -1,6 +1,7 @@
 """
 This file is reserved for event definitions for the dam_source package.
 """
+
 from dataclasses import dataclass
 
 from dam.core.events import BaseEvent

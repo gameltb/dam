@@ -40,6 +40,7 @@ def backup_original_settings():
     _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
     yield
 
+
 @pytest_asyncio.fixture(scope="function")
 async def test_db() -> AsyncGenerator[str, None]:
     db_user = os.environ.get("POSTGRES_USER", "postgres")
@@ -48,7 +49,9 @@ async def test_db() -> AsyncGenerator[str, None]:
     db_port = os.environ.get("POSTGRES_PORT", "5432")
     db_name = f"test_db_{uuid.uuid4().hex}"
 
-    conn = await psycopg.AsyncConnection.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    conn = await psycopg.AsyncConnection.connect(
+        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
+    )
     try:
         await conn.execute(f"CREATE DATABASE {db_name}")
     finally:
@@ -57,13 +60,15 @@ async def test_db() -> AsyncGenerator[str, None]:
     db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     yield db_url
 
-    conn = await psycopg.AsyncConnection.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    conn = await psycopg.AsyncConnection.connect(
+        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
+    )
     try:
         # Need to terminate all connections before dropping the database
         await conn.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}'")
         await conn.execute(f"DROP DATABASE {db_name}")
     except psycopg.errors.InvalidCatalogName:
-        pass # Database does not exist
+        pass  # Database does not exist
     finally:
         await conn.close()
 
@@ -120,6 +125,7 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
 
 async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
     import logging
+
     logger = logging.getLogger(__name__)
 
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
@@ -137,6 +143,7 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
 
     try:
         from dam_semantic.plugin import SemanticPlugin
+
         logger.info("Loading SemanticPlugin")
         world.add_plugin(SemanticPlugin())
     except ImportError:
@@ -144,6 +151,7 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
 
     try:
         from dam_media_audio.plugin import AudioPlugin
+
         logger.info("Loading AudioPlugin")
         world.add_plugin(AudioPlugin())
     except ImportError:
@@ -173,6 +181,7 @@ async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, No
     db_mngr = test_world_alpha.get_resource(DatabaseManager)
     async with db_mngr.session_local() as session:
         yield session
+
 
 class MockSentenceTransformer(torch.nn.Module):
     def __init__(self, model_name_or_path=None, **kwargs):
@@ -229,6 +238,7 @@ def global_mock_sentence_transformer_loader(monkeypatch):
 
     monkeypatch.setattr(semantic_service, "_load_sentence_transformer_model_sync", mock_load_sync)
 
+
 @pytest.fixture(scope="session", autouse=True)
 def configure_session_logging():
     import logging
@@ -262,6 +272,7 @@ async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World,
     yield world
     await _teardown_world_async(world)
 
+
 @pytest.fixture
 def temp_asset_file(tmp_path):
     file_path = tmp_path / "test_asset.txt"
@@ -282,8 +293,9 @@ def temp_image_file(tmp_path):
 @pytest.fixture
 def sample_image_a(tmp_path: Path) -> Path:
     from PIL import Image
+
     file_path = tmp_path / "sample_A.png"
-    img = Image.new("RGB", (2, 1), color = (128, 128, 128))
+    img = Image.new("RGB", (2, 1), color=(128, 128, 128))
     img.save(file_path)
     return file_path
 
@@ -312,9 +324,9 @@ def sample_audio_file_placeholder(tmp_path: Path) -> Path:
     samplerate = 44100
     duration = 1
     frequency = 440
-    t = np.linspace(0., duration, int(samplerate * duration))
+    t = np.linspace(0.0, duration, int(samplerate * duration))
     amplitude = np.iinfo(np.int16).max * 0.5
-    data = amplitude * np.sin(2. * np.pi * frequency * t)
+    data = amplitude * np.sin(2.0 * np.pi * frequency * t)
     write_wav(file_path, samplerate, data.astype(np.int16))
     return file_path
 
@@ -322,10 +334,12 @@ def sample_audio_file_placeholder(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_gif_file_placeholder(tmp_path: Path) -> Path:
     from PIL import Image
+
     file_path = tmp_path / "sample_gif_placeholder.gif"
-    img = Image.new("RGB", (1, 1), color = (255, 255, 255))
+    img = Image.new("RGB", (1, 1), color=(255, 255, 255))
     img.save(file_path)
     return file_path
+
 
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
@@ -336,8 +350,8 @@ def sample_wav_file(tmp_path: Path) -> Path:
     samplerate = 48000
     duration = 1
     frequency = 440
-    t = np.linspace(0., duration, int(samplerate * duration))
+    t = np.linspace(0.0, duration, int(samplerate * duration))
     amplitude = np.iinfo(np.int16).max * 0.5
-    data = amplitude * np.sin(2. * np.pi * frequency * t)
+    data = amplitude * np.sin(2.0 * np.pi * frequency * t)
     write_wav(file_path, samplerate, data.astype(np.int16))
     return file_path

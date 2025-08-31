@@ -75,6 +75,7 @@ async def import_stream(
         raise ImportFunctionsError("Failed to create or find entity for the asset.")
 
     from dam_fs.resources.file_storage_resource import FileStorageResource
+
     file_storage = world.get_resource(FileStorageResource)
     file_content.seek(0)
     _, physical_path = file_storage.store_file(file_content.read(), original_filename=original_filename)

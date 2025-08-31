@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.functions import ecs_functions
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
-from dam.functions import ecs_functions
 
 logger = logging.getLogger(__name__)
 

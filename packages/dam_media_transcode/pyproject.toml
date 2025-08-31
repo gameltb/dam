@@ -15,9 +15,25 @@ dev = [
     "pytest-cov",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/dam_media_transcode"]
-
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
+include = ["src/**", "tests/**"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["src", "tests"]
+exclude = []
+reportDeprecated = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+test = "pytest -n auto"
+test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
+mypy = "mypy --config-file ../../pyproject.toml src tests"

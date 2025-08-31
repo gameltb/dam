@@ -1,17 +1,11 @@
 import asyncio
 import logging
-from typing import Annotated, List
 
-from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
-from dam.core.stages import SystemStage
-from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
-from dam.models.core.entity import Entity
-from dam_fs.models.file_location_component import FileLocationComponent
-from dam.functions import ecs_functions
-from dam_fs.functions import file_operations
 from dam.utils.url_utils import get_local_path_for_url
+from dam_fs.functions import file_operations
+from dam_fs.models.file_location_component import FileLocationComponent
 
 from dam_media_audio.models.properties.audio_properties_component import AudioPropertiesComponent
 
@@ -27,6 +21,7 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
 
 def _has_hachoir_metadata(md, key: str) -> bool:
     """Safely checks if Hachoir metadata object has a given key."""
@@ -45,8 +40,11 @@ def _get_hachoir_metadata(md, key: str, default=None) -> any:
         pass
     return default
 
-from ..commands import ExtractAudioMetadataCommand
+
 from dam.core.systems import handles_command
+
+from ..commands import ExtractAudioMetadataCommand
+
 
 @handles_command(ExtractAudioMetadataCommand)
 async def add_audio_components_system(

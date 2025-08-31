@@ -1,7 +1,8 @@
-import pytest
 from pathlib import Path
 
+import pytest
 from dam.core.world import World
+
 
 @pytest.mark.serial
 @pytest.mark.asyncio
@@ -12,8 +13,8 @@ async def test_add_asset(test_world_alpha: World, temp_asset_file: Path):
     await add_asset(test_world_alpha, [temp_asset_file])
 
     # Verify that the asset was added
-    from dam_fs.models import FilePropertiesComponent
     from dam.functions import ecs_functions
+    from dam_fs.models import FilePropertiesComponent
 
     async with test_world_alpha.db_session_maker() as session:
         entities = await ecs_functions.find_entities_with_components(session, [FilePropertiesComponent])

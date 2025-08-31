@@ -34,6 +34,4 @@ class FindEntityByHashCommand(BaseCommand):
     world_name: str
     request_id: str
     hash_type: str = "sha256"
-    result_future: Optional[asyncio.Future[Optional[Dict[str, Any]]]] = field(
-        default=None, init=False, repr=False
-    )
+    result_future: Optional[asyncio.Future[Optional[Dict[str, Any]]]] = field(default=None, init=False, repr=False)

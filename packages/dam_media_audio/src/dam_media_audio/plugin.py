@@ -1,9 +1,9 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
+from .commands import ExtractAudioMetadataCommand
 from .systems.audio_systems import add_audio_components_system
 
-from .commands import ExtractAudioMetadataCommand
 
 class AudioPlugin(Plugin):
     def build(self, world: World) -> None:

@@ -34,7 +34,6 @@ dev = [
     { name = "chainlit" },
     { name = "cookiecutter" },
     { name = "diskcache" },
-    { name = "filelock" },
     { name = "grpcio-tools", specifier = "~=1.70.0" },
     { name = "mypy" },
     { name = "mypy-protobuf" },
@@ -43,7 +42,6 @@ dev = [
     { name = "packaging" },
     { name = "poethepoet" },
     { name = "polars" },
-    { name = "psycopg", extras = ["binary"] },
     { name = "pydata-sphinx-theme", specifier = "==0.16.0" },
     { name = "pygments" },
     { name = "pyright" },
@@ -824,41 +822,16 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-all = [
-    { name = "hachoir" },
-    { name = "imagehash" },
-    { name = "pillow" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
 ]
-image = [
-    { name = "imagehash" },
-    { name = "pillow" },
-]
-metadata = [
-    { name = "hachoir" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "dam", extras = ["all-transcode"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["audio"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["dev"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["image"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["metadata"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "dam", extras = ["video"], marker = "extra == 'all'", editable = "packages/dam" },
-    { name = "hachoir", marker = "extra == 'metadata'" },
-    { name = "imagehash", marker = "extra == 'image'" },
     { name = "pgvector" },
-    { name = "pillow", marker = "extra == 'image'" },
     { name = "psutil" },
     { name = "psycopg", extras = ["binary"] },
     { name = "pydantic" },
@@ -871,7 +844,7 @@ requires-dist = [
     { name = "sqlalchemy" },
     { name = "typer" },
 ]
-provides-extras = ["image", "video", "audio", "metadata", "transcode-ffmpeg", "transcode-cjxl", "transcode-avifenc", "all-transcode", "dev", "all"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dam-app"
@@ -1570,15 +1543,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
-]
-
-[[package]]
-name = "hachoir"
-version = "3.3.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/31/e5/3a7d611dc87aab2c088be040f5da2f6937e308044983848e648d97ef388b/hachoir-3.3.0.tar.gz", hash = "sha256:fd7679f649c17ee45ab2ba5eacddc702c667ea5200c0a1fd063d4615fa7270d2", size = 7111887, upload-time = "2023-12-12T10:59:30.986Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/96/9570e6604114e9b2b2e1d90a89d01d10646b9cb6f54bba78f6de5fbbceb1/hachoir-3.3.0-py3-none-any.whl", hash = "sha256:9f721af67867d933383398b9605bc388db25f55dde1034d2bfde91f05e5d9910", size = 650439, upload-time = "2023-12-12T10:59:28.091Z" },
 ]
 
 [[package]]

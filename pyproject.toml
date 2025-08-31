@@ -46,8 +46,6 @@ dev = [
     "tomli-w",
     "chainlit",
     "streamlit",
-    "psycopg[binary]",
-    "filelock",
 
     # Documentation
     "myst-nb==1.1.2",
@@ -123,17 +121,12 @@ pyright = "python run_task_in_pkgs_if_exist.py pyright"
 mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
-check = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test \"$@\"' --"
-check-ci = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test-cov \"$@\"' --"
+check = ["fmt", "lint", "test"]
+check-ci = ["fmt", "lint", "test-cov"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["packages"]
-asyncio_mode = "auto"
-postgresql_host = "localhost"
-postgresql_port = 5432
-postgresql_user = "postgres"
-postgresql_password = "postgres"
 addopts = "-p no:serial"
 markers = [
     "serial: mark a test as serial",

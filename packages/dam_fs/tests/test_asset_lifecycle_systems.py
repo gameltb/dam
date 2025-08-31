@@ -6,6 +6,7 @@ from dam_fs.commands import IngestFileCommand
 from dam_fs.models import FilePropertiesComponent
 from dam.functions import ecs_functions
 
+
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_handle_ingest_file_command(test_world_alpha: World, temp_asset_file: Path):

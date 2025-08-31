@@ -1,11 +1,12 @@
-import pytest
 from pathlib import Path
 
+import pytest
 from dam.core.world import World
-from dam_fs.commands import IngestFileCommand
-from dam_media_audio.models.properties import AudioPropertiesComponent
 from dam.functions import ecs_functions
-from dam.core.stages import SystemStage
+from dam_fs.commands import IngestFileCommand
+
+from dam_media_audio.models.properties import AudioPropertiesComponent
+
 
 @pytest.mark.serial
 @pytest.mark.asyncio

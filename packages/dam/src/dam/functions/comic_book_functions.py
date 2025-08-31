@@ -5,13 +5,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
+from dam.functions import ecs_functions
 from dam.models.conceptual import (
     ComicBookConceptComponent,
     ComicBookVariantComponent,
     PageLink,
 )
 from dam.models.core.entity import Entity
-from dam.functions import ecs_functions
 
 # from dam.models.properties import FilePropertiesComponent # If checking image type
 
@@ -71,7 +71,9 @@ async def link_comic_variant_to_concept(  # Made async
         raise ValueError(f"Entity ID {comic_concept_entity_id} is not a valid ComicBookConcept.")
     await session.refresh(comic_concept_comp)  # Refresh the component
 
-    existing_variant_comp = await ecs_functions.get_component(session, file_entity_id, ComicBookVariantComponent)  # Await
+    existing_variant_comp = await ecs_functions.get_component(
+        session, file_entity_id, ComicBookVariantComponent
+    )  # Await
     if existing_variant_comp:
         if existing_variant_comp.conceptual_entity_id == comic_concept_entity_id:
             raise ValueError(
@@ -178,7 +180,9 @@ async def find_comic_book_concepts(  # Made async
 async def set_primary_comic_variant(
     session: AsyncSession, file_entity_id: int, comic_concept_entity_id: int
 ) -> bool:  # Made async
-    concept_comp = await ecs_functions.get_component(session, comic_concept_entity_id, ComicBookConceptComponent)  # Await
+    concept_comp = await ecs_functions.get_component(
+        session, comic_concept_entity_id, ComicBookConceptComponent
+    )  # Await
     if not concept_comp:
         logger.error(f"Entity ID {comic_concept_entity_id} is not a ComicBookConcept.")
         return False
@@ -252,7 +256,9 @@ async def assign_page_to_comic_variant(  # Made async
     page_image_entity_id: int,
     page_number: int,  # Use AsyncSession
 ) -> Optional[PageLink]:
-    variant_comp = await ecs_functions.get_component(session, comic_variant_entity_id, ComicBookVariantComponent)  # Await
+    variant_comp = await ecs_functions.get_component(
+        session, comic_variant_entity_id, ComicBookVariantComponent
+    )  # Await
     if not variant_comp:
         logger.error(
             f"Entity ID {comic_variant_entity_id} does not have a ComicBookVariantComponent. Cannot assign pages."

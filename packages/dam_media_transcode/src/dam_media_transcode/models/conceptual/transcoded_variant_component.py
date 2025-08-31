@@ -31,7 +31,6 @@ class TranscodedVariantComponent(BaseComponent):
     # Add more metrics as needed, e.g., psnr, or a JSON field for arbitrary metrics
     custom_metrics_json: Mapped[str | None] = mapped_column(String, nullable=True)  # For other metrics as JSON
 
-
     def __repr__(self) -> str:
         return (
             f"<TranscodedVariantComponent(id={self.id}, entity_id={self.entity_id}, "

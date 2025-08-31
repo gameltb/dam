@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import select  # Added import for select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
+from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
 
 
 @pytest.mark.asyncio
