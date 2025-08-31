@@ -1,11 +1,9 @@
 import os
+from typing import List
 
 import pytest
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
-
-
-from typing import List
 
 
 def get_example_files() -> List[str]:

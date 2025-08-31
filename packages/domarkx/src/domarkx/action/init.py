@@ -1,12 +1,10 @@
 import os
 import subprocess
+from typing import Optional
 
 import typer
 
 from domarkx.config import Settings
-
-
-from typing import Optional
 
 
 def init_project(

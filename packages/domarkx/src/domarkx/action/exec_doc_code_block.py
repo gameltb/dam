@@ -1,5 +1,5 @@
 import pathlib
-from typing import Annotated
+from typing import Annotated, Any
 
 import rich
 import rich.markdown
@@ -7,9 +7,6 @@ import typer
 from rich.console import Console
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
-
-
-from typing import Any
 
 
 def exec_doc_code_block(

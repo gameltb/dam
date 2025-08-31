@@ -1,9 +1,8 @@
+from typing import Any
+
 import pytest
 
 from domarkx.autogen_session import AutoGenSession
-
-
-from typing import Any
 
 
 @pytest.fixture

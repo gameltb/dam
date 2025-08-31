@@ -3,13 +3,13 @@ import io
 import json
 import pathlib
 import textwrap
-from typing import Any, cast
+from typing import Any
 
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
-from domarkx.agents.resume_funcall_assistant_agent import ResumeFunctionCallAssistantAgent
+from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
-from domarkx.utils.chat_doc_parser import CodeBlock, MarkdownLLMParser, Message, append_message, get_last_expression
+from domarkx.utils.chat_doc_parser import CodeBlock, MarkdownLLMParser, Message
 from domarkx.utils.code_execution import execute_code_block
 
 
@@ -18,7 +18,7 @@ class AutoGenSession(Session):
         super().__init__(doc_path)
         self.messages: list[dict[str, Any]] = []
         self.system_message = ""
-        self.agent: ResumeFunctionCallAssistantAgent
+        self.agent: ResumeFunCallAssistantAgent
         self.llm_config: dict[str, Any] | bool = False
         self.parser = MarkdownLLMParser()
 
@@ -132,7 +132,7 @@ class AutoGenSession(Session):
             if hasattr(executor, "start"):
                 await executor.start()
 
-        self.agent = ResumeFunctionCallAssistantAgent(
+        self.agent = ResumeFunCallAssistantAgent(
             "assistant",
             model_client=client,
             system_message=self.system_message,

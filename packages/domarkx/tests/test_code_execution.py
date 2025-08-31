@@ -1,12 +1,10 @@
 import io
 from contextlib import redirect_stderr
+from typing import Any
 
 import pytest
 
 from domarkx.utils.code_execution import execute_code_block
-
-
-from typing import Any
 
 
 def test_execute_code_block_success() -> None:

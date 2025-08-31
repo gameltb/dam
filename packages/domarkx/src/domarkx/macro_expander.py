@@ -1,10 +1,8 @@
 import pathlib
+from typing import Any, Optional
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 from domarkx.utils.markdown_utils import Macro, find_first_macro
-
-
-from typing import Any, Optional, cast
 
 
 class MacroExpander:
