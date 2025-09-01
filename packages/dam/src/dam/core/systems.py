@@ -18,7 +18,7 @@ from typing import (
 
 from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.events import BaseEvent
-from dam.core.resources import ResourceManager, ResourceNotFoundError
+from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.transaction import EcsTransaction
 from dam.models.core.base_component import BaseComponent
@@ -243,7 +243,9 @@ class WorldScheduler:
         self.logger.info(f"Dispatching event: {event_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.event_handler_registry.get(event_type, [])
         if not handlers_to_run:
-            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {self.world.name}")
+            self.logger.info(
+                f"No event handlers registered for event type {event_type.__name__} in world {self.world.name}"
+            )
             return
 
         for handler_func in handlers_to_run:
@@ -256,7 +258,9 @@ class WorldScheduler:
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
         if not handlers_to_run:
-            self.logger.info(f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}")
+            self.logger.info(
+                f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}"
+            )
             return CommandResult(results=[])
 
         command_result: CommandResult[ResultType] = CommandResult()
@@ -327,7 +331,8 @@ class WorldScheduler:
                     msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{self.world.name}'."
                     self.logger.error(msg)
                     raise ValueError(msg)
-                from sqlalchemy import exists as sql_exists, select as sql_select
+                from sqlalchemy import exists as sql_exists
+                from sqlalchemy import select as sql_select
 
                 stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
                 result = await transaction.session.execute(stmt)

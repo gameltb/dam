@@ -19,12 +19,13 @@ from ..commands import (
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 
-
 logger = logging.getLogger(__name__)
 
 
 @handles_command(IngestFileCommand)
-async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]):
+async def handle_ingest_file_command(
+    cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
+):
     """
     Handles the command to ingest an asset file by copying it.
     """
@@ -44,7 +45,9 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
 
 
 @handles_command(IngestReferenceCommand)
-async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]):
+async def handle_ingest_reference_command(
+    cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
+):
     """
     Handles the command to ingest an asset by reference.
     """

@@ -1,14 +1,13 @@
-import binascii
 import logging
-from typing import Annotated, List, Dict, Any, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
 from dam.core.systems import handles_command, listens_for, system
 from dam.core.transaction import EcsTransaction
-from dam.functions import hashing_functions as hashing_service
 from dam.models.core.entity import Entity
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 
@@ -48,9 +47,7 @@ async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: EcsTransaction,
 ) -> Optional[List[Dict[str, Any]]]:
-    logger.info(
-        f"System handling FindSimilarImagesCommand for image: {cmd.image_path} (Req ID: {cmd.request_id})"
-    )
+    logger.info(f"System handling FindSimilarImagesCommand for image: {cmd.image_path} (Req ID: {cmd.request_id})")
 
     try:
         if not imagehash:
@@ -70,8 +67,9 @@ async def handle_find_similar_images_command(
 
         source_entity_id = None
         try:
-            source_content_hash_hex = await hashing_service.calculate_sha256_async(cmd.image_path)
-            source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
+            with open(cmd.image_path, "rb") as f:
+                hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
+            source_content_hash_bytes = hashes[HashAlgorithm.SHA256]
             source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")
             if source_entity:
                 source_entity_id = source_entity.id

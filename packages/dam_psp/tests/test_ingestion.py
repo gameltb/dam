@@ -87,6 +87,8 @@ def test_process_iso_stream_handles_non_iso_file():
 # Tests for the ingestion system
 from unittest.mock import AsyncMock, MagicMock
 
+from dam.utils.hash_utils import HashAlgorithm
+
 from dam_psp import systems as psp_iso_ingestion_system
 
 
@@ -103,12 +105,12 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
 
     # Mock the functions and database interactions
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
+        "dam_psp.systems.calculate_hashes_from_stream",
         return_value={
-            "md5": hashlib.md5(b"md5_hash").hexdigest(),
-            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
-            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
-            "crc32": 12345,
+            HashAlgorithm.MD5: hashlib.md5(b"md5_hash").digest(),
+            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
+            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
+            HashAlgorithm.CRC32: 12345,
         },
     )
 
@@ -159,8 +161,8 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
-        return_value={"md5": hashlib.md5(b"duplicate_md5_hash").hexdigest()},
+        "dam_psp.systems.calculate_hashes_from_stream",
+        return_value={HashAlgorithm.MD5: hashlib.md5(b"duplicate_md5_hash").digest()},
     )
 
     mock_session = AsyncMock()
@@ -202,12 +204,12 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         zf.writestr("test.iso", dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
+        "dam_psp.systems.calculate_hashes_from_stream",
         return_value={
-            "md5": hashlib.md5(b"some_hash").hexdigest(),
-            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
-            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
-            "crc32": 12345,
+            HashAlgorithm.MD5: hashlib.md5(b"some_hash").digest(),
+            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
+            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
+            HashAlgorithm.CRC32: 12345,
         },
     )
     mock_process_iso_stream = mocker.patch(

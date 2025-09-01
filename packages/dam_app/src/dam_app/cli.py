@@ -1,5 +1,4 @@
 # --- Framework Imports for Systems ---
-import asyncio
 import io
 import logging
 import traceback  # Import traceback for detailed error logging
@@ -373,7 +372,6 @@ def main_callback(
 
             command_result = await target_world.dispatch_command(query_command)
             results = command_result.results[0] if command_result.results else None
-
 
             if not results:
                 typer.secho(

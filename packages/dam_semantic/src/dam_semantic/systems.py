@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Dict, List, Optional, Tuple, Any
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 from dam.core.stages import SystemStage
 from dam.core.systems import handles_command, system

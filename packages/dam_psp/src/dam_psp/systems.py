@@ -9,7 +9,6 @@ import py7zr
 from dam.core.config import WorldConfig
 from dam.core.systems import listens_for
 from dam.core.transaction import EcsTransaction
-from dam.functions import hashing_functions
 from dam.models.core import Entity
 from dam.models.hashes import (
     ContentHashCRC32Component,
@@ -17,6 +16,7 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,12 +93,12 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
 
     # Calculate hashes
     file_stream.seek(0)
-    hash_algorithms = ["md5", "sha1", "sha256", "crc32"]
-    hashes = hashing_functions.calculate_hashes_from_stream(file_stream, hash_algorithms)
+    hash_algorithms = {HashAlgorithm.MD5, HashAlgorithm.SHA1, HashAlgorithm.SHA256, HashAlgorithm.CRC32}
+    hashes = calculate_hashes_from_stream(file_stream, hash_algorithms)
     if not hashes:
         return
 
-    md5_hash = bytes.fromhex(hashes["md5"])
+    md5_hash = hashes[HashAlgorithm.MD5]
 
     # Check for duplicates
     # This is a read operation, so it's fine to use the session directly.
@@ -113,13 +113,13 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
     # Add hash components
     await transaction.add_component_to_entity(entity.id, ContentHashMD5Component(hash_value=md5_hash))
     await transaction.add_component_to_entity(
-        entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes["sha1"]))
+        entity.id, ContentHashSHA1Component(hash_value=hashes[HashAlgorithm.SHA1])
     )
     await transaction.add_component_to_entity(
-        entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes["sha256"]))
+        entity.id, ContentHashSHA256Component(hash_value=hashes[HashAlgorithm.SHA256])
     )
     await transaction.add_component_to_entity(
-        entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"].to_bytes(4, "big"))
+        entity.id, ContentHashCRC32Component(hash_value=hashes[HashAlgorithm.CRC32].to_bytes(4, "big"))
     )
 
     # Process SFO metadata
