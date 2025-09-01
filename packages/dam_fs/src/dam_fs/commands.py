@@ -33,4 +33,3 @@ class FindEntityByHashCommand(BaseCommand[dict | None]):
     hash_value: str
     hash_type: str  # e.g., "sha256", "md5"
     request_id: str
-    result_future: Future[dict | None] = field(default_factory=Future)

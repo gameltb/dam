@@ -181,7 +181,6 @@ async def test_cli_character_apply_with_identifiers(  # Made async
         filepath_on_disk=sample_image_a,
         original_filename=original_filename,
         size_bytes=size_bytes,
-        world_name=test_world_alpha.name,  # Use test_world_alpha directly
     )
     await test_world_alpha.dispatch_command(add_command)
     await test_world_alpha.execute_stage(SystemStage.METADATA_EXTRACTION)

@@ -1,6 +1,6 @@
 import binascii
 import logging
-from typing import Annotated, List
+from typing import Annotated, List, Dict, Any, Optional
 
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
@@ -47,29 +47,22 @@ async def add_image_components_system(
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: EcsTransaction,
-):
+) -> Optional[List[Dict[str, Any]]]:
     logger.info(
-        f"System handling FindSimilarImagesCommand for image: {cmd.image_path} in world {cmd.world_name} (Req ID: {cmd.request_id})"
+        f"System handling FindSimilarImagesCommand for image: {cmd.image_path} (Req ID: {cmd.request_id})"
     )
-    if not cmd.result_future:
-        logger.error(f"Result future not set on FindSimilarImagesCommand (Req ID: {cmd.request_id}). Cannot proceed.")
-        return
 
     try:
         if not imagehash:
             msg = "ImageHash library not available. Cannot perform similarity search."
             logger.warning(f"[QueryResult RequestID: {cmd.request_id}] {msg}")
-            if not cmd.result_future.done():
-                cmd.result_future.set_result([{"error": msg}])
-            return
+            return [{"error": msg}]
 
         input_hashes = await image_hashing_service.generate_perceptual_hashes_async(cmd.image_path)
         if not input_hashes:
             msg = f"Could not generate perceptual hashes for {cmd.image_path.name}."
             logger.warning(f"[QueryResult RequestID: {cmd.request_id}] {msg}")
-            if not cmd.result_future.done():
-                cmd.result_future.set_result([{"error": msg}])
-            return
+            return [{"error": msg}]
 
         input_phash_obj = imagehash.hex_to_hash(input_hashes["phash"]) if "phash" in input_hashes else None
         input_ahash_obj = imagehash.hex_to_hash(input_hashes["ahash"]) if "ahash" in input_hashes else None
@@ -181,19 +174,16 @@ async def handle_find_similar_images_command(
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
 
         logger.info(f"[QueryResult RequestID: {cmd.request_id}] Found {len(similar_entities_info)} similar images.")
-        if not cmd.result_future.done():
-            cmd.result_future.set_result(similar_entities_info)
+        return similar_entities_info
 
     except ValueError as ve:
         logger.warning(f"[QueryResult RequestID: {cmd.request_id}] Error processing image for similarity: {ve}")
-        if not cmd.result_future.done():
-            cmd.result_future.set_result([{"error": str(ve)}])
+        return [{"error": str(ve)}]
     except Exception as e:
         logger.error(
             f"[QueryResult RequestID: {cmd.request_id}] Unexpected error in similarity search: {e}", exc_info=True
         )
-        if not cmd.result_future.done():
-            cmd.result_future.set_exception(e)
+        raise
 
 
 @listens_for(ImageAssetDetected)

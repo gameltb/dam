@@ -362,7 +362,6 @@ def main_callback(
             request_id = str(uuid.uuid4())
             query_command = SemanticSearchCommand(
                 query_text=query,
-                world_name=target_world.name,
                 request_id=request_id,
                 top_n=top_n,
                 model_name=model_name,
@@ -372,9 +371,9 @@ def main_callback(
                 f"Dispatching SemanticSearchCommand (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
             )
 
-            query_command.result_future = asyncio.get_running_loop().create_future()
-            await target_world.dispatch_command(query_command)
-            results = await query_command.result_future
+            command_result = await target_world.dispatch_command(query_command)
+            results = command_result.results[0] if command_result.results else None
+
 
             if not results:
                 typer.secho(

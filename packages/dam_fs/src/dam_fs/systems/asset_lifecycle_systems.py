@@ -30,7 +30,7 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
     """
     logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        entity = await import_functions.import_local_file(
+        await import_functions.import_local_file(
             world=world,
             transaction=transaction,
             filepath=cmd.filepath_on_disk,
@@ -68,16 +68,13 @@ async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
-):
+) -> dict | None:
     """
     Handles the command to find an entity by its content hash.
     """
     logger.info(
         f"System handling FindEntityByHashCommand for hash: {cmd.hash_value} (type: {cmd.hash_type}) in world '{world_config.name}' (Req ID: {cmd.request_id})"
     )
-    if not cmd.result_future:
-        logger.error(f"Result future not set on FindEntityByHashCommand (Req ID: {cmd.request_id}). Cannot proceed.")
-        return
 
     try:
         try:
@@ -88,7 +85,6 @@ async def handle_find_entity_by_hash_command(
             )
             raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
 
-        # I need to add find_entity_by_content_hash to the EcsTransaction wrapper
         entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
         entity_details_dict = None
 
@@ -131,13 +127,11 @@ async def handle_find_entity_by_hash_command(
         else:
             logger.info(f"[QueryResult RequestID: {cmd.request_id}] No entity found for hash {cmd.hash_value}")
 
-        if not cmd.result_future.done():
-            cmd.result_future.set_result(entity_details_dict)
+        return entity_details_dict
 
     except Exception as e:
         logger.error(f"Error in handle_find_entity_by_hash_command (Req ID: {cmd.request_id}): {e}", exc_info=True)
-        if not cmd.result_future.done():
-            cmd.result_future.set_exception(e)
+        raise
 
 
 __all__ = [
