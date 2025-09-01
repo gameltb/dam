@@ -190,8 +190,9 @@ def listens_for(event_type: Type[BaseEvent], **kwargs):
 
 
 class WorldScheduler:
-    def __init__(self, resource_manager: ResourceManager):
-        self.resource_manager = resource_manager
+    def __init__(self, world: "World"):
+        self.world = world
+        self.resource_manager = world.resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
         self.command_handler_registry: Dict[Type[BaseCommand[Any]], List[Callable[..., Any]]] = defaultdict(list)
@@ -227,61 +228,58 @@ class WorldScheduler:
                 f"System {system_func.__name__} must be registered with either a stage, an event_type, or a command_type."
             )
 
-    async def execute_stage(self, stage: SystemStage, world: "World", transaction: EcsTransaction):
-        self.logger.info(f"Executing stage: {stage.name} for world: {world.name}")
+    async def execute_stage(self, stage: SystemStage, transaction: EcsTransaction):
+        self.logger.info(f"Executing stage: {stage.name} for world: {self.world.name}")
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
-            self.logger.info(f"No systems registered for stage {stage.name} in world {world.name}")
+            self.logger.info(f"No systems registered for stage {stage.name} in world {self.world.name}")
             return
 
         for system_func in systems_to_run:
-            await self._execute_system_func(system_func, world, transaction, event_object=None, command_object=None)
+            await self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
 
-    async def dispatch_event(self, event: BaseEvent, world: "World", transaction: EcsTransaction):
+    async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction):
         event_type = type(event)
-        self.logger.info(f"Dispatching event: {event_type.__name__} for world: {world.name}")
+        self.logger.info(f"Dispatching event: {event_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.event_handler_registry.get(event_type, [])
         if not handlers_to_run:
-            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {world.name}")
+            self.logger.info(f"No event handlers registered for event type {event_type.__name__} in world {self.world.name}")
             return
 
         for handler_func in handlers_to_run:
-            await self._execute_system_func(handler_func, world, transaction, event_object=event, command_object=None)
+            await self._execute_system_func(handler_func, transaction, event_object=event, command_object=None)
 
     async def dispatch_command(
-        self, command: BaseCommand[ResultType], world: "World", transaction: EcsTransaction
+        self, command: BaseCommand[ResultType], transaction: EcsTransaction
     ) -> CommandResult[ResultType]:
         command_type = type(command)
-        self.logger.info(f"Dispatching command: {command_type.__name__} for world: {world.name}")
+        self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
         if not handlers_to_run:
-            self.logger.info(
-                f"No command handlers registered for command type {command_type.__name__} in world {world.name}"
-            )
+            self.logger.info(f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}")
             return CommandResult(results=[])
 
         command_result: CommandResult[ResultType] = CommandResult()
         for handler_func in handlers_to_run:
             result = await self._execute_system_func(
-                handler_func, world, transaction, event_object=None, command_object=command
+                handler_func, transaction, event_object=None, command_object=command
             )
             if result is not None:
                 command_result.results.append(result)
 
         return command_result
 
-    async def run_all_stages(self, world: "World", transaction: EcsTransaction):
-        self.logger.info(f"Attempting to run all stages for world: {world.name}")
+    async def run_all_stages(self, transaction: EcsTransaction):
+        self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
         ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
         for stage in ordered_stages:
-            self.logger.info(f"Running stage {stage.name} as part of run_all_stages for world {world.name}.")
-            await self.execute_stage(stage, world, transaction)
-        self.logger.info(f"Finished running all stages for world: {world.name}")
+            self.logger.info(f"Running stage {stage.name} as part of run_all_stages for world {self.world.name}.")
+            await self.execute_stage(stage, transaction)
+        self.logger.info(f"Finished running all stages for world: {self.world.name}")
 
     async def _resolve_dependencies(
         self,
         system_func: Callable[..., Any],
-        world: "World",
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
         command_object: Optional[BaseCommand[Any]] = None,
@@ -290,7 +288,7 @@ class WorldScheduler:
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             self.logger.warning(
-                f"No pre-registered metadata for system {system_func.__name__} in world '{world.name}'. Attempting dynamic parameter parsing."
+                f"No pre-registered metadata for system {system_func.__name__} in world '{self.world.name}'. Attempting dynamic parameter parsing."
             )
             params_info = _parse_system_params(system_func)
             metadata = {"params": params_info, "is_async": inspect.iscoroutinefunction(system_func)}
@@ -326,11 +324,10 @@ class WorldScheduler:
             elif identity == "MarkedEntityList":
                 marker_type = param_meta["marker_component_type"]
                 if not marker_type or not issubclass(marker_type, BaseComponent):
-                    msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{world.name}'."
+                    msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{self.world.name}'."
                     self.logger.error(msg)
                     raise ValueError(msg)
-                from sqlalchemy import exists as sql_exists
-                from sqlalchemy import select as sql_select
+                from sqlalchemy import exists as sql_exists, select as sql_select
 
                 stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
                 result = await transaction.session.execute(stmt)
@@ -341,7 +338,7 @@ class WorldScheduler:
                 if event_object and isinstance(event_object, expected_event_type):
                     kwargs_to_inject[param_name] = event_object
                 elif expected_event_type is not None and not event_object:
-                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{world.name}' expects an event of type {expected_event_type.__name__} but none was provided for injection."
+                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects an event of type {expected_event_type.__name__} but none was provided for injection."
                     self.logger.error(msg)
                     raise ValueError(msg)
             elif identity == "Command":
@@ -349,7 +346,7 @@ class WorldScheduler:
                 if command_object and isinstance(command_object, expected_command_type):
                     kwargs_to_inject[param_name] = command_object
                 elif expected_command_type is not None and not command_object:
-                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{world.name}' expects a command of type {expected_command_type.__name__} but none was provided for injection."
+                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects a command of type {expected_command_type.__name__} but none was provided for injection."
                     self.logger.error(msg)
                     raise ValueError(msg)
             else:
@@ -376,7 +373,6 @@ class WorldScheduler:
     async def _execute_system_func(
         self,
         system_func: Callable[..., Any],
-        world: "World",
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
         command_object: Optional[BaseCommand[Any]] = None,
@@ -389,17 +385,17 @@ class WorldScheduler:
 
         try:
             kwargs_to_inject = await self._resolve_dependencies(
-                system_func, world, transaction, event_object, command_object, **additional_kwargs
+                system_func, transaction, event_object, command_object, **additional_kwargs
             )
         except Exception as e:
             self.logger.error(
-                f"Error resolving dependencies for system {system_func.__name__} in world '{world.name}': {e}",
+                f"Error resolving dependencies for system {system_func.__name__} in world '{self.world.name}': {e}",
                 exc_info=True,
             )
             raise
 
         self.logger.debug(
-            f"Executing system: {system_func.__name__} in world '{world.name}' with args: {list(kwargs_to_inject.keys())}"
+            f"Executing system: {system_func.__name__} in world '{self.world.name}' with args: {list(kwargs_to_inject.keys())}"
         )
 
         result: Any = None
@@ -420,7 +416,7 @@ class WorldScheduler:
                             from sqlalchemy import delete as sql_delete
 
                             self.logger.debug(
-                                f"Scheduler for world '{world.name}': Bulk removing {marker_type_to_remove.__name__} from "
+                                f"Scheduler for world '{self.world.name}': Bulk removing {marker_type_to_remove.__name__} from "
                                 f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
                             )
                             stmt = sql_delete(marker_type_to_remove).where(
@@ -432,19 +428,19 @@ class WorldScheduler:
         return result
 
     async def execute_one_time_system(
-        self, system_func: Callable[..., Any], world: "World", transaction: EcsTransaction, **kwargs: Any
+        self, system_func: Callable[..., Any], transaction: EcsTransaction, **kwargs: Any
     ) -> Any:
         self.logger.info(
-            f"Executing one-time system: {system_func.__name__} in world '{world.name}' with provided kwargs: {kwargs}"
+            f"Executing one-time system: {system_func.__name__} in world '{self.world.name}' with provided kwargs: {kwargs}"
         )
         try:
             result = await self._execute_system_func(
-                system_func, world, transaction, event_object=None, command_object=None, **kwargs
+                system_func, transaction, event_object=None, command_object=None, **kwargs
             )
             return result
         except Exception as e:
             self.logger.error(
-                f"Error during execution of one-time system {system_func.__name__} in world '{world.name}': {e}. "
+                f"Error during execution of one-time system {system_func.__name__} in world '{self.world.name}': {e}. "
                 "Session rollback should be handled by the caller.",
                 exc_info=True,
             )

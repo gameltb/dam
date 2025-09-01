@@ -41,7 +41,7 @@ class World:
         self.logger.info(f"Creating minimal World instance: {self.name}")
 
         self.resource_manager: ResourceManager = ResourceManager()
-        self.scheduler: WorldScheduler = WorldScheduler(resource_manager=self.resource_manager)
+        self.scheduler: WorldScheduler = WorldScheduler(world=self)
         self._registered_plugin_types: set[Type[Plugin]] = set()
         self.add_resource(self)
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
@@ -117,14 +117,14 @@ class World:
         transaction = active_transaction.get()
         if transaction:
             self.logger.debug(f"Joining existing transaction for stage '{stage.name}'.")
-            await self.scheduler.execute_stage(stage, self, transaction)
+            await self.scheduler.execute_stage(stage, transaction)
         else:
             self.logger.debug(f"Creating new transaction for top-level stage '{stage.name}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)
             token = active_transaction.set(new_transaction)
             try:
-                await self.scheduler.execute_stage(stage, self, new_transaction)
+                await self.scheduler.execute_stage(stage, new_transaction)
                 await db_session.commit()
             except Exception as e:
                 self.logger.exception(f"Exception in top-level stage '{stage.name}', rolling back.")
@@ -147,14 +147,14 @@ class World:
         transaction = active_transaction.get()
         if transaction:
             self.logger.debug(f"Joining existing transaction for event '{type(event).__name__}'.")
-            await self.scheduler.dispatch_event(event, self, transaction)
+            await self.scheduler.dispatch_event(event, transaction)
         else:
             self.logger.debug(f"Creating new transaction for top-level event '{type(event).__name__}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)
             token = active_transaction.set(new_transaction)
             try:
-                await self.scheduler.dispatch_event(event, self, new_transaction)
+                await self.scheduler.dispatch_event(event, new_transaction)
                 await db_session.commit()
             except Exception as e:
                 self.logger.exception(f"Exception in top-level event '{type(event).__name__}', rolling back.")
@@ -177,14 +177,14 @@ class World:
         transaction = active_transaction.get()
         if transaction:
             self.logger.debug(f"Joining existing transaction for command '{type(command).__name__}'.")
-            return await self.scheduler.dispatch_command(command, self, transaction)
+            return await self.scheduler.dispatch_command(command, transaction)
         else:
             self.logger.debug(f"Creating new transaction for top-level command '{type(command).__name__}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)
             token = active_transaction.set(new_transaction)
             try:
-                result = await self.scheduler.dispatch_command(command, self, new_transaction)
+                result = await self.scheduler.dispatch_command(command, new_transaction)
                 await db_session.commit()
                 return result
             except Exception as e:
@@ -215,14 +215,14 @@ class World:
         transaction = active_transaction.get()
         if transaction:
             self.logger.debug(f"Joining existing transaction for one-time system '{system_func.__name__}'.")
-            return await self.scheduler.execute_one_time_system(system_func, self, transaction, **kwargs)
+            return await self.scheduler.execute_one_time_system(system_func, transaction, **kwargs)
         else:
             self.logger.debug(f"Creating new transaction for top-level one-time system '{system_func.__name__}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)
             token = active_transaction.set(new_transaction)
             try:
-                result = await self.scheduler.execute_one_time_system(system_func, self, new_transaction, **kwargs)
+                result = await self.scheduler.execute_one_time_system(system_func, new_transaction, **kwargs)
                 await db_session.commit()
                 return result
             except Exception:
