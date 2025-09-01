@@ -3,15 +3,20 @@ import zlib
 from enum import Enum
 from typing import IO, Dict, Set
 
+import blake3
+
 
 class HashAlgorithm(Enum):
     SHA256 = "sha256"
     MD5 = "md5"
     SHA1 = "sha1"
     CRC32 = "crc32"
+    BLAKE3 = "blake3"
 
 
-def calculate_hashes_from_stream(stream: IO[bytes], algorithms: Set[HashAlgorithm]) -> Dict[HashAlgorithm, bytes | int]:
+def calculate_hashes_from_stream(
+    stream: IO[bytes], algorithms: Set[HashAlgorithm]
+) -> Dict[HashAlgorithm, bytes | int]:
     """
     Calculates multiple hashes from a stream in a single pass.
 
@@ -23,7 +28,14 @@ def calculate_hashes_from_stream(stream: IO[bytes], algorithms: Set[HashAlgorith
         A dictionary mapping algorithm enums to their hash result
         (bytes for most, int for crc32).
     """
-    hashers = {alg: hashlib.new(alg.value) for alg in algorithms if alg != HashAlgorithm.CRC32}
+    hashers = {
+        alg: hashlib.new(alg.value)
+        for alg in algorithms
+        if alg not in [HashAlgorithm.CRC32, HashAlgorithm.BLAKE3]
+    }
+    if HashAlgorithm.BLAKE3 in algorithms:
+        hashers[HashAlgorithm.BLAKE3] = blake3.blake3()
+
     crc32_hash = 0 if HashAlgorithm.CRC32 in algorithms else None
 
     # Inspired by hashlib.file_digest

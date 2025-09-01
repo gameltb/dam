@@ -86,7 +86,6 @@ def test_process_iso_stream_handles_non_iso_file():
 
 # Tests for the ingestion system
 from unittest.mock import AsyncMock, MagicMock
-
 from dam.utils.hash_utils import HashAlgorithm
 
 from dam_psp import systems as psp_iso_ingestion_system
@@ -133,11 +132,14 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_transaction.create_entity = AsyncMock(return_value=MagicMock(id=1))
     mock_transaction.add_component_to_entity = AsyncMock()
 
+    mock_world = MagicMock()
+    mock_world.dispatch_command = AsyncMock()
+
     # 2. Execute
     # We now test _process_iso_file directly as ingest_psp_isos_from_directory is more of an orchestrator
     with open(iso_path, "rb") as f:
         await psp_iso_ingestion_system._process_iso_file(
-            transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
+            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
         )
 
     # 3. Assert
@@ -146,8 +148,8 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     # Check that a new entity was created
     mock_transaction.create_entity.assert_awaited_once()
 
-    # Check that all components were added
-    assert mock_transaction.add_component_to_entity.await_count == 6  # 4 hashes + 1 SFO + 1 raw SFO
+    # Check that the hash command was dispatched
+    mock_world.dispatch_command.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -177,10 +179,12 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     mock_transaction.create_entity = AsyncMock()
     mock_transaction.add_component_to_entity = AsyncMock()
 
+    mock_world = MagicMock()
+
     # 2. Execute
     with open(iso_path, "rb") as f:
         await psp_iso_ingestion_system._process_iso_file(
-            transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
+            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
         )
 
     # 3. Assert

@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Generic, List, TypeVar
+from typing import IO, Generic, List, Set, TypeVar
+
+from dam.utils.hash_utils import HashAlgorithm
 
 ResultType = TypeVar("ResultType")
 
@@ -18,4 +20,13 @@ class BaseCommand(Generic[ResultType]):
     pass
 
 
-__all__ = ["BaseCommand", "CommandResult"]
+@dataclass
+class AddHashesFromStreamCommand(BaseCommand[None]):
+    """Command to calculate and add multiple hash components to an entity from a stream."""
+
+    entity_id: int
+    stream: IO[bytes]
+    algorithms: Set[HashAlgorithm]
+
+
+__all__ = ["BaseCommand", "CommandResult", "AddHashesFromStreamCommand"]

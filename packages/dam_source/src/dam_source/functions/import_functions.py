@@ -9,12 +9,11 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
+from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.models.core.entity import Entity
-from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
-from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
@@ -46,9 +45,8 @@ async def import_stream(
 
     try:
         file_content.seek(0)
-        hashes = calculate_hashes_from_stream(file_content, {HashAlgorithm.MD5, HashAlgorithm.SHA256})
+        hashes = calculate_hashes_from_stream(file_content, {HashAlgorithm.SHA256})
         sha256_bytes = hashes[HashAlgorithm.SHA256]
-        md5_bytes = hashes[HashAlgorithm.MD5]
     except (IOError, FileNotFoundError) as e:
         raise ImportFunctionsError(f"Could not read or hash stream for {original_filename}: {e}") from e
 
@@ -62,17 +60,21 @@ async def import_stream(
         entity = await transaction.create_entity()
         logger.info(f"Creating new Entity ID {entity.id} for '{original_filename}'.")
 
-        chc_sha256 = ContentHashSHA256Component(hash_value=sha256_bytes)
-        await transaction.add_component_to_entity(entity.id, chc_sha256)
-
-        chc_md5 = ContentHashMD5Component(hash_value=md5_bytes)
-        await transaction.add_component_to_entity(entity.id, chc_md5)
-
         fpc = FilePropertiesComponent(original_filename=original_filename, file_size_bytes=size_bytes)
         await transaction.add_component_to_entity(entity.id, fpc)
 
     if not entity:
         raise ImportFunctionsError("Failed to create or find entity for the asset.")
+
+    # Dispatch command to add all hashes
+    file_content.seek(0)
+    add_hashes_command = AddHashesFromStreamCommand(
+        entity_id=entity.id,
+        stream=file_content,
+        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
+    )
+    await world.dispatch_command(add_hashes_command)
+
 
     from dam_fs.resources.file_storage_resource import FileStorageResource
 

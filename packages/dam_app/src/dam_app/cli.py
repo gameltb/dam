@@ -1,4 +1,5 @@
 # --- Framework Imports for Systems ---
+import asyncio
 import io
 import logging
 import traceback  # Import traceback for detailed error logging
@@ -282,7 +283,7 @@ def main_callback(
 
     try:
         from dam_psp import PspPlugin
-        from dam_psp.systems import ingest_psp_isos_from_directory
+        from dam_psp.commands import IngestPspIsosCommand
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(PspPlugin())
@@ -309,22 +310,17 @@ def main_callback(
                 typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
-            typer.echo(f"Starting PSP ISO ingestion for world '{target_world.name}' from directory: {directory}")
+            typer.echo(f"Dispatching IngestPspIsosCommand for world '{target_world.name}' from directory: {directory}")
 
-            async with target_world.db_session_maker() as session:
-                try:
-                    await ingest_psp_isos_from_directory(
-                        session=session,
-                        directory=directory,
-                        passwords=passwords,
-                    )
-                    await session.commit()
-                    typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
-                except Exception as e:
-                    await session.rollback()
-                    typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
-                    typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
+            command = IngestPspIsosCommand(directory=Path(directory), passwords=passwords)
+
+            try:
+                await target_world.dispatch_command(command)
+                typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
+            except Exception as e:
+                typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                raise typer.Exit(code=1)
 
     except ImportError:
         logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
