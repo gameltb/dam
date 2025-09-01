@@ -844,10 +844,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "dam-app" },
-    { name = "dam-fs" },
-    { name = "dam-media-audio" },
-    { name = "dam-semantic" },
     { name = "dam-test-utils" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -857,10 +853,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dam-app", marker = "extra == 'dev'", editable = "packages/dam_app" },
-    { name = "dam-fs", marker = "extra == 'dev'", editable = "packages/dam_fs" },
-    { name = "dam-media-audio", marker = "extra == 'dev'", editable = "packages/dam_media_audio" },
-    { name = "dam-semantic", marker = "extra == 'dev'", editable = "packages/dam_semantic" },
     { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
     { name = "pgvector" },
     { name = "psutil" },

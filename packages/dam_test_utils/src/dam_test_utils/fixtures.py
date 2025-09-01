@@ -3,11 +3,8 @@ import os
 import uuid
 from pathlib import Path
 from typing import (
-    Any,
     AsyncGenerator,
-    Dict,
     Generator,
-    Optional,
 )
 
 import numpy as np
@@ -211,26 +208,24 @@ class MockSentenceTransformer(torch.nn.Module):
             return np.array(embeddings) if convert_to_numpy else embeddings
 
 
+# @pytest.fixture(scope="session", autouse=True)
+# def configure_session_logging():
+#     import logging
 
-
-@pytest.fixture(scope="session", autouse=True)
-def configure_session_logging():
-    import logging
-
-    original_levels = {}
-    root_logger = logging.getLogger()
-    original_levels["root"] = root_logger.level
-    root_logger.setLevel(logging.DEBUG)
-    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
-        logger = logging.getLogger(logger_name)
-        original_levels[logger_name] = logger.level
-        logger.setLevel(logging.DEBUG)
-    yield
-    root_logger.setLevel(original_levels.get("root", logging.INFO))
-    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
-        logger = logging.getLogger(logger_name)
-        original_level = original_levels.get(logger_name, logging.INFO)
-        logger.setLevel(original_level)
+#     original_levels = {}
+#     root_logger = logging.getLogger()
+#     original_levels["root"] = root_logger.level
+#     root_logger.setLevel(logging.DEBUG)
+#     for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+#         logger = logging.getLogger(logger_name)
+#         original_levels[logger_name] = logger.level
+#         logger.setLevel(logging.DEBUG)
+#     yield
+#     root_logger.setLevel(original_levels.get("root", logging.INFO))
+#     for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+#         logger = logging.getLogger(logger_name)
+#         original_level = original_levels.get(logger_name, logging.INFO)
+#         logger.setLevel(original_level)
 
 
 @pytest_asyncio.fixture(scope="function")
