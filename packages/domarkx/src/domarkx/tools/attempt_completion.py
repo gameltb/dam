@@ -4,7 +4,7 @@ from domarkx.tools.tool_factory import _tool_handler as tool_handler
 
 
 @tool_handler()
-def attempt_completion_tool(result: str, command: str = None) -> str:
+def attempt_completion_tool(result: str, command: str | None = None) -> str:
     """
     Indicates that a task is complete, providing the result and an optional display command.
 

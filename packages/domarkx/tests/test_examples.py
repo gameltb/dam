@@ -1,11 +1,12 @@
 import os
+from typing import List
 
 import pytest
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 
-def get_example_files():
+def get_example_files() -> List[str]:
     example_dir = os.path.join(os.path.dirname(__file__), "..", "examples")
     if not os.path.isdir(example_dir):
         return []
@@ -13,7 +14,7 @@ def get_example_files():
 
 
 @pytest.mark.parametrize("filepath", get_example_files())
-def test_example_conformance(filepath):
+def test_example_conformance(filepath: str) -> None:
     """
     Tests that example markdown files conform to the domarkx documentation format.
     """

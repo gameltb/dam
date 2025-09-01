@@ -7,7 +7,7 @@ from autogen_core.logging import LLMCallEvent
 
 
 class LLMJsonlTracker(logging.Handler):
-    def __init__(self, log_file) -> None:
+    def __init__(self, log_file: str) -> None:
         """Logging handler that tracks the number of tokens used in the prompt and completion."""
         super().__init__()
         self.log_file = log_file
@@ -28,7 +28,7 @@ class LLMJsonlTracker(logging.Handler):
 
 
 # Set up the logging configuration to use the custom handler
-def setup_jsonl_logger(log_file="autogen_llm_generations.log.jsonl"):
+def setup_jsonl_logger(log_file: str = "autogen_llm_generations.log.jsonl") -> None:
     logger = logging.getLogger(EVENT_LOGGER_NAME)
     logger.setLevel(logging.INFO)
     llm_usage = LLMJsonlTracker(log_file)

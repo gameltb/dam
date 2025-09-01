@@ -1,4 +1,5 @@
 import pathlib
+from typing import Any, Optional
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 from domarkx.utils.markdown_utils import Macro, find_first_macro
@@ -12,7 +13,7 @@ class MacroExpander:
             "set": self._set_macro,
         }
 
-    def expand(self, content: str, override_parameters: dict = None) -> str:
+    def expand(self, content: str, override_parameters: Optional[dict[str, Any]] = None) -> str:
         """Expands macros in the content sequentially: find and expand the first macro, repeat until all macros are processed."""
         if override_parameters is None:
             override_parameters = {}
@@ -25,7 +26,7 @@ class MacroExpander:
                 break
 
             # By default, the macro value is the original markdown link
-            macro_value = ""
+            macro_value: Any = ""
 
             # Special handlers (e.g., include)
             if hasattr(self, f"_{macro.command}_macro"):
@@ -39,13 +40,14 @@ class MacroExpander:
             if isinstance(macro_value, str):
                 macro_value = self.expand(macro_value, override_parameters)
 
+            macro_value_str = str(macro_value)
             expanded_content = (
                 expanded_content[: macro.start + expande_pos]
-                + str(macro_value)
+                + macro_value_str
                 + expanded_content[macro.end + expande_pos :]
             )
-            expande_pos = expande_pos + macro.start + len(str(macro_value))
-        return expanded_content
+            expande_pos = expande_pos + macro.start + len(macro_value_str)
+        return expanded_content  # type: ignore[no-any-return]
 
     def _include_macro(self, macro: Macro, content: str) -> str:
         """Handles the @include macro."""
@@ -53,7 +55,7 @@ class MacroExpander:
         if not path:
             raise Exception()
 
-        include_path = pathlib.Path(path)
+        include_path = pathlib.Path(str(path))
         if not include_path.is_absolute():
             include_path = pathlib.Path(self.base_dir) / include_path
 

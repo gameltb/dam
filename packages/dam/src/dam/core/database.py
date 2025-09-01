@@ -124,7 +124,8 @@ class DatabaseManager:
 
         try:
             async with self._engine.begin() as conn:
-                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                if "sqlite" not in self.world_config.DATABASE_URL:
+                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 await conn.run_sync(Base.metadata.create_all)
             logger.info(
                 f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"

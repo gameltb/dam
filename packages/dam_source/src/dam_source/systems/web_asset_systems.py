@@ -1,14 +1,16 @@
 import logging
 from typing import Optional
 
-from ..commands import IngestWebAssetCommand
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
+
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam_source.models.source_info.web_source_component import WebSourceComponent
 from dam_source.models.source_info.website_profile_component import WebsiteProfileComponent
+
+from ..commands import IngestWebAssetCommand
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,7 @@ async def handle_ingest_web_asset_command(
         if not website_name:
             try:
                 from urllib.parse import urlparse
+
                 parsed_url = urlparse(cmd.website_identifier_url)
                 website_name = parsed_url.netloc.replace("www.", "")
             except Exception:
@@ -90,6 +93,7 @@ async def handle_ingest_web_asset_command(
         if upload_date_str:
             try:
                 from datetime import datetime
+
                 web_source_data["upload_date"] = datetime.fromisoformat(upload_date_str.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {cmd.source_url}")
@@ -101,6 +105,7 @@ async def handle_ingest_web_asset_command(
 
     if cmd.tags:
         import json
+
         web_source_data["tags_json"] = json.dumps(cmd.tags)
 
     valid_web_source_fields = {

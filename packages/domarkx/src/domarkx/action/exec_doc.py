@@ -1,7 +1,7 @@
 import asyncio
 import pathlib
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from prompt_toolkit import PromptSession
@@ -17,9 +17,9 @@ from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 async def aexec_doc(
     doc: pathlib.Path,
     handle_one_toolcall: bool = False,
-    allow_user_message_in_FunctionExecution=True,
+    allow_user_message_in_FunctionExecution: bool = True,
     overwrite: bool = False,
-):
+) -> None:
     console = Console(markup=False)
 
     # Read the content from the document
@@ -82,7 +82,7 @@ async def aexec_doc(
     await session.setup()
 
     while True:
-        task_msg = None
+        task_msg: str | None = None
         latest_msg = session.messages[-1] if len(session.messages) > 0 else None
         if (
             not allow_user_message_in_FunctionExecution
@@ -92,9 +92,9 @@ async def aexec_doc(
             # If the last message is a FunctionExecutionMessage, we don't want to prompt for user input.
             task_msg = None
         elif len(session.messages) == 0 or (
-            latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
+            latest_msg is not None and latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
         ):
-            task_msg: str = await PromptSession().prompt_async(
+            task_msg = await PromptSession().prompt_async(
                 "task > ",
                 multiline=PROMPT_TOOLKIT_IS_MULTILINE_CONDITION,
                 bottom_toolbar=lambda: "press Alt+Enter in order to accept the input. (Or Escape followed by Enter.)"
@@ -102,7 +102,7 @@ async def aexec_doc(
                 else None,
             )
             if latest_msg and latest_msg.get("type", "") in ["FunctionExecutionResultMessage"]:
-                if len(task_msg.strip()) == 0:
+                if task_msg is not None and len(task_msg.strip()) == 0:
                     task_msg = None
 
         response = await domarkx.ui.console.Console(
@@ -117,10 +117,11 @@ async def aexec_doc(
 
         if handle_one_toolcall:
             break
-        user_input: str = await PromptSession().prompt_async("input r to continue > ")
-        user_input = user_input.strip().lower()
-        if len(user_input) != 0 and user_input != "r":
-            break
+        user_input: str | None = await PromptSession().prompt_async("input r to continue > ")
+        if user_input is not None:
+            user_input = user_input.strip().lower()
+            if len(user_input) != 0 and user_input != "r":
+                break
 
 
 def exec_doc(
@@ -130,9 +131,9 @@ def exec_doc(
     ],
     handle_one_toolcall: bool = False,
     overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite the original file in the sessions folder."),
-):
+) -> None:
     asyncio.run(aexec_doc(doc, handle_one_toolcall, overwrite=overwrite))
 
 
-def register(main_app: typer.Typer, settings):
+def register(main_app: typer.Typer, settings: dict[str, Any]) -> None:
     main_app.command()(exec_doc)

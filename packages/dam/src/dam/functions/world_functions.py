@@ -7,12 +7,13 @@ from dam_fs.models.file_location_component import FileLocationComponent
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import joinedload
 
+from dam.functions import ecs_functions
+
 # Use REGISTERED_COMPONENT_TYPES from base_component, which is populated by __init_subclass__
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 
 # Corrected specific imports instead of from top-level dam.models
 from dam.models.core.entity import Entity
-from dam.functions import ecs_functions
 
 # No longer need db_manager here if session is always passed in.
 # from dam.core.database import db_manager
@@ -536,7 +537,9 @@ def split_ecs_world(
             tgt_entity = ecs_functions.create_entity(target_session_for_copy_db)
 
             for ComponentClassToCopy in all_component_types:
-                src_components_to_copy = ecs_functions.get_components(source_session, src_entity.id, ComponentClassToCopy)
+                src_components_to_copy = ecs_functions.get_components(
+                    source_session, src_entity.id, ComponentClassToCopy
+                )
                 for src_comp_instance in src_components_to_copy:
                     comp_data = {
                         attr.key: getattr(src_comp_instance, attr.key)

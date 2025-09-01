@@ -66,7 +66,7 @@ class NoBorderTraceback(Traceback):
         highlighter = ReprHighlighter()
 
         @group()
-        def render_stack(stack, last: bool) -> RenderResult:
+        def render_stack(stack: Stack, last: bool) -> RenderResult:
             if stack.frames:
                 stack_renderable: ConsoleRenderable = Panel(
                     self._render_stack(stack),
@@ -153,7 +153,7 @@ class NoBorderTraceback(Traceback):
                     max_length=self.locals_max_length,
                     max_string=self.locals_max_string,
                 )
-                locals_p.box = BOX_STYLE
+                locals_p.box = BOX_STYLE  # type: ignore
                 yield locals_p
 
         exclude_frames: Optional[range] = None

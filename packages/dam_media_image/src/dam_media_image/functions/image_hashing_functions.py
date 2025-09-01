@@ -1,6 +1,7 @@
 """
 This service provides functions for calculating perceptual hashes for images.
 """
+
 import asyncio
 import logging
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 try:
     import imagehash
     from PIL import Image
+
     _image_deps_available = True
 except ImportError:
     _image_deps_available = False
@@ -28,7 +30,9 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
         Returns empty dict if dependencies are missing, or image cannot be processed.
     """
     if not _image_deps_available:
-        logger.warning("Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled.")
+        logger.warning(
+            "Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled."
+        )
         return {}
 
     hashes = {}

@@ -9,6 +9,7 @@ import py7zr
 from dam.core.config import WorldConfig
 from dam.core.systems import listens_for
 from dam.core.transaction import EcsTransaction
+from dam.functions import hashing_functions
 from dam.models.core import Entity
 from dam.models.hashes import (
     ContentHashCRC32Component,
@@ -16,7 +17,6 @@ from dam.models.hashes import (
     ContentHashSHA1Component,
     ContentHashSHA256Component,
 )
-from dam.functions import hashing_functions
 from dam_fs.functions import file_operations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -200,6 +200,55 @@ async def ingest_psp_isos_from_directory(
                                 if member_name.lower().endswith(".iso"):
                                     await _process_iso_file(session, file_path / member_name, bio)
                         break  # Correct password found
+                    except py7zr.exceptions.PasswordRequired:
+                        continue
+                    except py7zr.exceptions.Bad7zFile:
+                        continue
+                    except Exception:
+                        continue
+
+
+async def scan_psp_isos_from_directory(
+    directory: str,
+    passwords: Optional[List[str]] = None,
+):
+    """
+    Scans a directory for PSP ISOs and archives, and prints the paths of the found ISO files.
+    """
+    if passwords is None:
+        passwords = [None]
+    else:
+        passwords.insert(0, None)
+
+    for root, _, files in os.walk(directory):
+        for filename in files:
+            file_path = Path(root) / filename
+            ext = file_path.suffix.lower()
+
+            if ext == ".iso":
+                print(f"Found ISO: {file_path}")
+
+            elif ext == ".zip":
+                for password in passwords:
+                    try:
+                        with zipfile.ZipFile(file_path, "r") as zf:
+                            if password:
+                                zf.setpassword(password.encode())
+                            for member_name in zf.namelist():
+                                if member_name.lower().endswith(".iso"):
+                                    print(f"Found ISO in zip: {file_path}/{member_name}")
+                        break
+                    except (RuntimeError, zipfile.BadZipFile):
+                        continue
+
+            elif ext == ".7z":
+                for password in passwords:
+                    try:
+                        with py7zr.SevenZipFile(file_path, mode="r", password=password) as szf:
+                            for member_name in szf.getnames():
+                                if member_name.lower().endswith(".iso"):
+                                    print(f"Found ISO in 7z: {file_path}/{member_name}")
+                        break
                     except py7zr.exceptions.PasswordRequired:
                         continue
                     except py7zr.exceptions.Bad7zFile:

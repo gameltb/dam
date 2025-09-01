@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
 from dam.utils.url_utils import get_local_path_for_url
+
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 

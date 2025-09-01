@@ -1,20 +1,15 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-import asyncio
 
 import numpy as np
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam.models.semantic.audio_embedding_component import (
     AUDIO_EMBEDDING_MODEL_REGISTRY,
     AudioModelHyperparameters,
     BaseSpecificAudioEmbeddingComponent,
-    get_audio_embedding_component_class,
 )
-from dam.functions import ecs_functions
 from dam_sire.resource import SireResource
 from sire.core.runtime_resource_management import AutoManageWrapper
 from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper

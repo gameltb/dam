@@ -1,7 +1,6 @@
+from dam.models.core import BaseComponent
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core import BaseComponent
 
 
 class FileLocationComponent(BaseComponent):

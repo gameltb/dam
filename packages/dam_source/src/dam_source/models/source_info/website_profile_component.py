@@ -1,9 +1,8 @@
 from typing import Dict, Optional
 
+from dam.models.core import BaseComponent
 from sqlalchemy import JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core import BaseComponent
 
 
 class WebsiteProfileComponent(BaseComponent):

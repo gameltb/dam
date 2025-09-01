@@ -16,6 +16,9 @@ dam_media_audio = { workspace = true }
 dam_media_transcode = { workspace = true }
 dam_psp = { workspace = true }
 dam_semantic = { workspace = true }
+dam_fs = { workspace = true }
+dam_sire = { workspace = true }
+dam_test_utils = { workspace = true }
 domarkx = { workspace = true }
 sire = { workspace = true }
 sire_pipelines = { workspace = true }
@@ -118,5 +121,12 @@ pyright = "python run_task_in_pkgs_if_exist.py pyright"
 mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
-check = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test \"$@\"' --"
-check-ci = "sh -c 'poe fmt \"$@\" && poe lint \"$@\" && poe test-cov \"$@\"' --"
+check-full = ["fmt", "lint", "pyright", "mypy", "test"]
+check = ["fmt", "lint", "test"]
+check-ci = ["fmt", "lint", "test-cov"]
+
+[tool.pytest.ini_options]
+addopts = "-p no:serial"
+markers = [
+    "serial: mark a test as serial",
+]

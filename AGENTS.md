@@ -63,7 +63,6 @@ Alternatively, you can run all the checks with:
 - `uv run poe check`
 
 To run checks on a specific package, use the `--package` flag:
-- `uv run poe check --package sire`
 - `uv run poe test --package sire`
 
 ### Syncing Dependencies
@@ -73,6 +72,10 @@ When you pull new changes, you may need to update the dependencies. To do so, ru
 ```sh
 uv sync --all-extras
 ```
+
+### Code Quality
+
+-   **Type Checking**: All new or modified code must pass `mypy` and `pyright` checks without introducing new errors. When modifying existing code with type errors, you should aim to fix them as part of your changes. If a fix is not feasible, you may use `# type: ignore` with a clear explanation, but this should be a last resort.
 
 ### Assertion Guideline
 

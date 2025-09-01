@@ -1,15 +1,13 @@
 import binascii  # For hex string to bytes conversion
 import logging
-from typing import Optional
 
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import get_world
-from dam.models.core.entity import Entity
+from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam.functions import ecs_functions
 from dam_source.functions import import_functions
 
 from ..commands import (
@@ -35,7 +33,7 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
         if not world:
             raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
 
-        await import_functions.import_local_file(
+        entity = await import_functions.import_local_file(
             world=world,
             transaction=transaction,
             filepath=cmd.filepath_on_disk,
@@ -103,7 +101,9 @@ async def handle_find_entity_by_hash_command(
         entity_details_dict = None
 
         if entity:
-            logger.info(f"[QueryResult RequestID: {cmd.request_id}] Found Entity ID: {entity.id} for hash {cmd.hash_value}")
+            logger.info(
+                f"[QueryResult RequestID: {cmd.request_id}] Found Entity ID: {entity.id} for hash {cmd.hash_value}"
+            )
             entity_details_dict = {"entity_id": entity.id, "components": {}}
 
             fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
@@ -133,7 +133,9 @@ async def handle_find_entity_by_hash_command(
 
             md5_comp = await transaction.get_component(entity.id, ContentHashMD5Component)
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
+                entity_details_dict["components"]["ContentHashMD5Component"] = [
+                    {"hash_value": md5_comp.hash_value.hex()}
+                ]
         else:
             logger.info(f"[QueryResult RequestID: {cmd.request_id}] No entity found for hash {cmd.hash_value}")
 

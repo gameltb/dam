@@ -174,7 +174,68 @@ The project uses `pytest` for testing, preferably run via `uv` and `poe`.
     uv run poe test-cov
     ```
 
+### 5.2.1. Test Fixtures
+
+The project uses a shared fixture model to simplify testing across the `dam` core and its plugins. The core test fixtures are located in the `packages/dam_test_utils` package.
+
+#### Using Shared Fixtures
+
+To use the shared fixtures in a plugin's test suite, add the following line to your package's `tests/conftest.py` file:
+
+```python
+pytest_plugins = ["dam_test_utils.fixtures"]
+```
+
+This will make all the fixtures defined in `dam_test_utils` available to your tests. This includes fixtures for setting up a test database, creating a `World` instance, and generating sample data.
+
+#### Creating Package-Specific Fixtures
+
+If your package requires specific fixtures that are not provided by `dam_test_utils`, you can define them in your package's `tests/conftest.py` file alongside the `pytest_plugins` line. These fixtures will be available to all tests within your package.
+
 ### 5.3. Code Style and Conventions
 
 -   **Formatting & Linting**: `uv run poe format` and `uv run poe lint`.
 -   **Type Checking**: `uv run poe mypy`.
+
+### 5.4. Testing CLI Commands
+
+When writing tests for `click` or `typer` commands, **do not use `click.testing.CliRunner` or `typer.testing.CliRunner`**. Instead, directly test the functions that the commands call. This ensures that the business logic is tested independently of the command-line interface.
+
+**Incorrect:**
+
+```python
+from click.testing import CliRunner
+from dam.cli import hello
+
+def test_hello():
+    runner = CliRunner()
+    result = runner.invoke(hello, ["Jules"])
+    assert result.exit_code == 0
+    assert "Hello, Jules!" in result.output
+```
+
+**Correct:**
+
+Refactor the code to separate the business logic:
+
+```python
+# In your application code
+def get_greeting(name):
+    return f"Hello, {name}!"
+
+@click.command()
+@click.argument("name")
+def hello(name):
+    """Says hello to a user."""
+    print(get_greeting(name))
+```
+
+And then test the business logic directly:
+
+```python
+# In your test code
+from dam.core import get_greeting
+
+def test_get_greeting():
+    assert get_greeting("Jules") == "Hello, Jules!"
+```

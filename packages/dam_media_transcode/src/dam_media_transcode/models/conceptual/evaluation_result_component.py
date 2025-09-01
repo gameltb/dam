@@ -1,7 +1,6 @@
+from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core.base_component import BaseComponent
 
 
 class EvaluationResultComponent(BaseComponent):
@@ -55,7 +54,6 @@ class EvaluationResultComponent(BaseComponent):
 
     # Notes or comments specific to this evaluation result
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
 
     def __repr__(self) -> str:
         return (

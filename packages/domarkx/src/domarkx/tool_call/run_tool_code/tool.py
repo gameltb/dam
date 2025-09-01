@@ -13,7 +13,10 @@ console_output = io.StringIO()
 console = Console(file=console_output, soft_wrap=True)
 
 
-def register_tool(name: str):
+from typing import Any, Callable
+
+
+def register_tool(name: str) -> Callable[..., Any]:
     """
     一个装饰器，用于注册一个函数作为可执行工具。
 
@@ -21,14 +24,16 @@ def register_tool(name: str):
         name (str): 工具的名称（对应于XML标签名）。
     """
 
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         REGISTERED_TOOLS[name] = func
         return func
 
     return decorator
 
 
-def execute_tool_call(tool_call: dict, return_traceback=False, handle_exception=True):
+def execute_tool_call(
+    tool_call: dict[str, Any], return_traceback: bool = False, handle_exception: bool = True
+) -> tuple[Any, str]:
     """
     执行一个解析出的工具调用。
 
@@ -86,7 +91,7 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
     return f'<tool_output tool_name="{tool_name}">\n{tool_result}\n</tool_output>'
 
 
-def register_tools():
+def register_tools() -> None:
     from domarkx.tools.tool_factory import default_tool_factory
 
     from ...tools.apply_diff import apply_diff_tool

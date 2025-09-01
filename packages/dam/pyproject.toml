@@ -35,47 +35,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-image = [
-    "ImageHash",
-    "Pillow"
-]
-video = [
-]
-audio = [
-]
-metadata = [
-    "hachoir"
-]
-transcode-ffmpeg = []
-transcode-cjxl = []
-transcode-avifenc = []
-
-all-transcode = []
-
 dev = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
     "pytest-mock",
+    "dam_test_utils",
 ]
-
-all = [
-    "dam[image]",
-    "dam[video]",
-    "dam[audio]",
-    "dam[metadata]",
-    "dam[dev]",
-    "dam[all-transcode]",
-]
-
-[project.urls]
-Homepage = "https://example.com/ecs_dam_system" # Placeholder
-Repository = "https://example.com/ecs_dam_system.git" # Placeholder
-
 
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
+include = ["src/**", "tests/**"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
@@ -86,16 +57,11 @@ reportDeprecated = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-asyncio_mode = "auto"
-postgresql_host = "localhost"
-postgresql_port = 5432
-postgresql_user = "postgres"
-postgresql_password = "postgres"
 
 [tool.poe]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=dam --cov-report=term-missing --cov-report=xml"
-mypy = "mypy --config-file ../../pyproject.toml src/dam tests"
+test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
+mypy = "mypy --config-file ../../pyproject.toml src tests"

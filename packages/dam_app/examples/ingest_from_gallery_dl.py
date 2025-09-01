@@ -36,6 +36,7 @@ from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
 from dam.core.world_setup import register_core_systems
+from dam.functions import ecs_functions as ecs_service
 from dam.models import (
     ContentHashMD5Component,
     ContentHashSHA256Component,
@@ -47,7 +48,6 @@ from dam.models import (
     WebsiteProfileComponent,  # Needed if creating website entities
     WebSourceComponent,
 )
-from dam.functions import ecs_functions as ecs_service
 from dam_fs.functions import file_operations
 from dam_fs.resources.file_storage_resource import FileStorageResource
 from dam_source.models.source_info import source_types

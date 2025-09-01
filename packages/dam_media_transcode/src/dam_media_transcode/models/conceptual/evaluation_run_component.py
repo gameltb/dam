@@ -1,10 +1,9 @@
+from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 from sqlalchemy import (
     ForeignKey,  # Added for ForeignKey
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 
 
 class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseComponent
@@ -30,7 +29,6 @@ class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseCompon
     # Fields from BaseConceptualInfoComponent:
     # concept_name: Mapped[str] (will be run_name)
     # concept_description: Mapped[str | None] (can be used for general description)
-
 
     def __repr__(self) -> str:
         return f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, run_name='{self.run_name}')>"

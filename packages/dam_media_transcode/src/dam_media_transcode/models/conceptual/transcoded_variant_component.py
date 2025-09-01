@@ -1,7 +1,6 @@
+from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from dam.models.core.base_component import BaseComponent
 
 
 class TranscodedVariantComponent(BaseComponent):
@@ -30,7 +29,6 @@ class TranscodedVariantComponent(BaseComponent):
     quality_metric_ssim: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Add more metrics as needed, e.g., psnr, or a JSON field for arbitrary metrics
     custom_metrics_json: Mapped[str | None] = mapped_column(String, nullable=True)  # For other metrics as JSON
-
 
     def __repr__(self) -> str:
         return (

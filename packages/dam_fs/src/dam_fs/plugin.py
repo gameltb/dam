@@ -23,6 +23,4 @@ class FsPlugin(Plugin):
             handle_ingest_reference_command,
             command_type=IngestReferenceCommand,
         )
-        world.register_system(
-            handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand
-        )
+        world.register_system(handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand)

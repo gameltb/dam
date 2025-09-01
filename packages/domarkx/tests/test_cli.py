@@ -5,7 +5,7 @@ runner = CliRunner()
 cli_app = setup_test_app()
 
 
-def test_app():
+def test_app() -> None:
     result = runner.invoke(cli_app, ["--help"])
     assert result.exit_code == 0
     assert "exec-doc" in result.stdout

@@ -1,8 +1,7 @@
 from typing import Optional
 
-from sqlalchemy.orm import Mapped, mapped_column
-
 from dam.models.core.base_component import BaseComponent
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 # @dataclass(kw_only=True) # kw_only=True is inherited from Base

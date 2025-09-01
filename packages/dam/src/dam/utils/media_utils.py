@@ -7,8 +7,8 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
 from dam.functions import ecs_functions
+from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
 from dam.utils.url_utils import parse_dam_url
 
 logger = logging.getLogger(__name__)

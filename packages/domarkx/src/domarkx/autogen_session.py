@@ -1,24 +1,29 @@
 import ast
+import io
 import json
 import pathlib
 import textwrap
+from typing import Any
 
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
-from domarkx.utils.chat_doc_parser import CodeBlock, Message
+from domarkx.utils.chat_doc_parser import CodeBlock, MarkdownLLMParser, Message
 from domarkx.utils.code_execution import execute_code_block
 
 
 class AutoGenSession(Session):
     def __init__(self, doc_path: pathlib.Path):
         super().__init__(doc_path)
-        self.messages = []
+        self.messages: list[dict[str, Any]] = []
         self.system_message = ""
+        self.agent: ResumeFunCallAssistantAgent
+        self.llm_config: dict[str, Any] | bool = False
+        self.parser = MarkdownLLMParser()
 
     @classmethod
-    def create_message(cls, speaker: str, content: str, metadata: dict) -> "Message":
+    def create_message(cls, speaker: str, content: str, metadata: dict[str, Any]) -> "Message":
         """
         Creates a Message object with metadata as a code block.
 
@@ -35,17 +40,18 @@ class AutoGenSession(Session):
         )
         return Message(speaker=speaker, content=content, code_blocks=[metadata_code_block])
 
-    def _get_last_expression(self, code):
+    def _get_last_expression(self, code: str) -> tuple[str | None, str]:
         try:
             tree = ast.parse(code)
             if tree.body and isinstance(tree.body[-1], ast.Expr):
-                last_expr = tree.body.pop()
-                return ast.unparse(last_expr), ast.unparse(tree)
+                last_expr_node = tree.body.pop()
+                last_expr = ast.unparse(last_expr_node)
+                return last_expr, ast.unparse(tree)
             return None, code
         except SyntaxError:
             return None, code
 
-    def _process_initial_messages(self):
+    def _process_initial_messages(self) -> None:
         if self.doc.conversation:
             self.system_message = self.doc.conversation[0].content
             if self.system_message is None or len(self.system_message) == 0:
@@ -69,7 +75,7 @@ class AutoGenSession(Session):
             messages.append(message_dict)
         self.messages = messages
 
-    def append_new_messages(self, new_state: dict):
+    def append_new_messages(self, new_state: dict[str, Any]) -> None:
         from domarkx.utils.chat_doc_parser import append_message
 
         for message in new_state["llm_context"]["messages"][len(self.messages) :]:
@@ -88,10 +94,11 @@ class AutoGenSession(Session):
 {content}"""
             with self.doc_path.open("a") as f:
                 append_message(
-                    f, self.create_message(message["source"] if "source" in message else "unknow", content, message)
+                    io.StringIO(str(f)),
+                    self.create_message(message["source"] if "source" in message else "unknow", content, message),
                 )
 
-    async def setup(self, **kwargs):
+    async def setup(self, **kwargs: Any) -> None:
         self._process_initial_messages()
         setup_script_blocks = self.doc.get_code_blocks(language="python", attrs="setup-script")
         if not setup_script_blocks:
@@ -100,8 +107,8 @@ class AutoGenSession(Session):
         setup_script = setup_script_blocks[0].code
 
         # Extract client and tools from the setup script
-        local_vars = {}
-        global_vars = {"get_code_block": self.get_code_block}
+        local_vars: dict[str, Any] = {}
+        global_vars: dict[str, Any] = {"get_code_block": self.get_code_block}
 
         # Try to get the last expression to evaluate
         last_expr, remaining_code = self._get_last_expression(setup_script)

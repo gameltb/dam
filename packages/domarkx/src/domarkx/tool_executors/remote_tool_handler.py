@@ -1,11 +1,14 @@
 import functools
 import logging
 import traceback
+from typing import Any, Callable, TypeVar
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
-def remote_tool_handler(func):
+def remote_tool_handler(func: F) -> F:
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
         logging.info(f"Tool '{func.__name__}' started.")
         try:
@@ -18,4 +21,4 @@ def remote_tool_handler(func):
             traceback.print_exc()
             raise
 
-    return wrapper
+    return wrapper  # type: ignore

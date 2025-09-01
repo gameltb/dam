@@ -1,4 +1,3 @@
-import asyncio
 import binascii
 import logging
 from typing import Annotated, List
@@ -6,13 +5,12 @@ from typing import Annotated, List
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.systems import handles_command, system, listens_for
+from dam.core.systems import handles_command, listens_for, system
 from dam.core.transaction import EcsTransaction
-from dam.models.core.entity import Entity
-from dam_fs.models.file_properties_component import FilePropertiesComponent
-from dam.functions import ecs_functions as ecs_service
 from dam.functions import hashing_functions as hashing_service
+from dam.models.core.entity import Entity
 from dam_fs.functions import file_operations
+from dam_fs.models.file_properties_component import FilePropertiesComponent
 
 from ..commands import FindSimilarImagesCommand
 from ..events import ImageAssetDetected
@@ -54,9 +52,7 @@ async def handle_find_similar_images_command(
         f"System handling FindSimilarImagesCommand for image: {cmd.image_path} in world {cmd.world_name} (Req ID: {cmd.request_id})"
     )
     if not cmd.result_future:
-        logger.error(
-            f"Result future not set on FindSimilarImagesCommand (Req ID: {cmd.request_id}). Cannot proceed."
-        )
+        logger.error(f"Result future not set on FindSimilarImagesCommand (Req ID: {cmd.request_id}). Cannot proceed.")
         return
 
     try:
@@ -83,9 +79,7 @@ async def handle_find_similar_images_command(
         try:
             source_content_hash_hex = await hashing_service.calculate_sha256_async(cmd.image_path)
             source_content_hash_bytes = binascii.unhexlify(source_content_hash_hex)
-            source_entity = await transaction.find_entity_by_content_hash(
-                source_content_hash_bytes, "sha256"
-            )
+            source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
@@ -225,7 +219,9 @@ async def process_image_metadata_system(
         # Get file path from file_id
         file_path = await file_operations.get_file_path_by_id(transaction, event.file_id, world_config)
         if not file_path:
-            logger.warning(f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process image metadata.")
+            logger.warning(
+                f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process image metadata."
+            )
             return
 
         # Extract metadata

@@ -1,7 +1,7 @@
 from domarkx.utils.markdown_utils import find_code_blocks
 
 
-def test_find_code_blocks():
+def test_find_code_blocks() -> None:
     text = """
 Some text
 ```python name=test.py
@@ -16,7 +16,7 @@ Some more text
     assert blocks[0].code == 'print("hello")\n'
 
 
-def test_find_macros():
+def test_find_macros() -> None:
     text = """
 This is a test with a macro: [@my_macro](domarkx://run?arg1=val1&arg2=val2).
 This is a normal link: [google](https://google.com).

@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
+from dam.functions import ecs_functions
 from dam.models.conceptual import (  # Keep conceptual imports that are still relevant
     BaseConceptualInfoComponent,
     BaseVariantInfoComponent,
@@ -19,7 +20,6 @@ from dam.models.tags import (
     EntityTagLinkComponent,
     TagConceptComponent,
 )
-from dam.functions import ecs_functions
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +284,9 @@ async def _is_scope_valid(
                 is_actually_concrete = not comp_type_check.__dict__.get("__abstract__", False) if is_class else False
 
                 if is_class and is_variant_subclass and is_actually_concrete:
-                    variant_comp = await ecs_functions.get_component(session, entity_id_to_tag, comp_type_check)  # Await
+                    variant_comp = await ecs_functions.get_component(
+                        session, entity_id_to_tag, comp_type_check
+                    )  # Await
                     if variant_comp:
                         if hasattr(variant_comp, "conceptual_entity_id"):
                             actual_conceptual_id = variant_comp.conceptual_entity_id
@@ -500,7 +502,9 @@ async def get_or_create_tag_concept(
         try:
             tag_entity_after_failed_create = await get_tag_concept_by_name(session, clean_tag_name)
             if tag_entity_after_failed_create:
-                return await ecs_functions.get_component(session, tag_entity_after_failed_create.id, TagConceptComponent)
+                return await ecs_functions.get_component(
+                    session, tag_entity_after_failed_create.id, TagConceptComponent
+                )
         except TagConceptNotFoundError:
             logger.error(f"Failed to create and subsequently retrieve TagConcept '{clean_tag_name}'.")
             return None

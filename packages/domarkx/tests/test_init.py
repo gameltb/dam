@@ -7,7 +7,7 @@ from domarkx.cli import cli_app
 runner = CliRunner()
 
 
-def test_init_default_path():
+def test_init_default_path() -> None:
     with runner.isolated_filesystem():
         result = runner.invoke(cli_app, ["init"])
         assert result.exit_code == 0
@@ -17,7 +17,7 @@ def test_init_default_path():
         assert os.path.exists("ProjectManager.md")
 
 
-def test_init_custom_path():
+def test_init_custom_path() -> None:
     with runner.isolated_filesystem():
         result = runner.invoke(cli_app, ["init", "--path", "my_project"])
         assert result.exit_code == 0

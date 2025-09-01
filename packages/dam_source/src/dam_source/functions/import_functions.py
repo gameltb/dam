@@ -5,22 +5,23 @@ and handling different import methods (e.g., copying vs. referencing).
 """
 
 import logging
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
-from io import BytesIO
-from dam.core.world import World
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
+from dam.functions import hashing_functions
 from dam.models.core.entity import Entity
-from dam_fs.models.file_location_component import FileLocationComponent
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam_fs.functions import file_operations
+from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent
+
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from dam.functions import hashing_functions
-from dam_fs.functions import file_operations
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ async def import_stream(
         raise ImportFunctionsError("Failed to create or find entity for the asset.")
 
     from dam_fs.resources.file_storage_resource import FileStorageResource
+
     file_storage = world.get_resource(FileStorageResource)
     file_content.seek(0)
     _, physical_path = file_storage.store_file(file_content.read(), original_filename=original_filename)
