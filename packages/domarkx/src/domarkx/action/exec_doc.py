@@ -92,9 +92,7 @@ async def aexec_doc(
             # If the last message is a FunctionExecutionMessage, we don't want to prompt for user input.
             task_msg = None
         elif len(session.messages) == 0 or (
-            latest_msg is not None
-            and latest_msg.get("type", "") not in ["UserMessage"]
-            and "content" in latest_msg
+            latest_msg is not None and latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
         ):
             task_msg = await PromptSession().prompt_async(
                 "task > ",
@@ -107,9 +105,9 @@ async def aexec_doc(
                 if task_msg is not None and len(task_msg.strip()) == 0:
                     task_msg = None
 
-        response = await domarkx.ui.console.Console(  # type: ignore[attr-defined]
+        response = await domarkx.ui.console.Console(
             session.agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
-        ).run()
+        )
 
         new_state = await session.agent.save_state()
 

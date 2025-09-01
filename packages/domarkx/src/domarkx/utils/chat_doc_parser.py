@@ -17,9 +17,7 @@ class Message:
     code_blocks: List[CodeBlock] = field(default_factory=list)
     content: Optional[str] = None
 
-    def get_code_blocks(
-        self, language: Optional[str] = None, attrs: Optional[str] = None
-    ) -> List[CodeBlock]:
+    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> List[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks
@@ -59,9 +57,7 @@ class ParsedDocument:
 
         return writer.getvalue()
 
-    def get_code_blocks(
-        self, language: Optional[str] = None, attrs: Optional[str] = None
-    ) -> List[CodeBlock]:
+    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> List[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks
@@ -81,9 +77,7 @@ class MarkdownLLMParser:
         self.document = ParsedDocument()
         self.logger = logging.getLogger(__name__)
 
-    def _validate_message_content(
-        self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str
-    ) -> None:
+    def _validate_message_content(self, code_blocks: List[CodeBlock], content: Optional[str], speaker: str) -> None:
         if not code_blocks and (content is None or not content.strip()):
             raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content.")
 
@@ -114,9 +108,7 @@ class MarkdownLLMParser:
 
         return self.document
 
-    def _parse_blocks(
-        self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]
-    ) -> int:
+    def _parse_blocks(self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]) -> int:
         i = start_index
         seen_code_blocks = set()
 
