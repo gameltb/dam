@@ -174,6 +174,24 @@ The project uses `pytest` for testing, preferably run via `uv` and `poe`.
     uv run poe test-cov
     ```
 
+### 5.2.1. Test Fixtures
+
+The project uses a shared fixture model to simplify testing across the `dam` core and its plugins. The core test fixtures are located in the `packages/dam_test_utils` package.
+
+#### Using Shared Fixtures
+
+To use the shared fixtures in a plugin's test suite, add the following line to your package's `tests/conftest.py` file:
+
+```python
+pytest_plugins = ["dam_test_utils.fixtures"]
+```
+
+This will make all the fixtures defined in `dam_test_utils` available to your tests. This includes fixtures for setting up a test database, creating a `World` instance, and generating sample data.
+
+#### Creating Package-Specific Fixtures
+
+If your package requires specific fixtures that are not provided by `dam_test_utils`, you can define them in your package's `tests/conftest.py` file alongside the `pytest_plugins` line. These fixtures will be available to all tests within your package.
+
 ### 5.3. Code Style and Conventions
 
 -   **Formatting & Linting**: `uv run poe format` and `uv run poe lint`.

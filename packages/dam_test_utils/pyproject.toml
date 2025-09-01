@@ -22,16 +22,13 @@ classifiers = [
 
 dependencies = [
     "dam",
-    "dam_app",
-    "dam_fs",
-    "dam_semantic",
-    "dam_sire",
-    "dam_media_audio",
     "pytest",
     "pytest-asyncio",
     "psycopg[binary]",
     "Pillow",
     "scipy",
+    "torch",
+    "numpy"
 ]
 
 [tool.ruff]

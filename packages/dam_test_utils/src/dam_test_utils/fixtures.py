@@ -120,7 +120,10 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
     clear_world_registry()
 
 
-async def _setup_world(world_name: str, settings_override_fixture: Settings) -> World:
+async def _setup_world(world_name: str, settings_override_fixture: Settings, plugins: list | None = None) -> World:
+    """
+    A fixture to set up a dam world, with optional plugins.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
@@ -129,30 +132,12 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings) -> 
     world.add_resource(world, World)
     await world.create_db_and_tables()
     from dam.core.world_setup import register_core_systems
-    from dam_app.plugin import AppPlugin
-    from dam_fs.plugin import FsPlugin
 
     register_core_systems(world)
-    logger.info("Loading AppPlugin")
-    world.add_plugin(AppPlugin())
-    logger.info("Loading FsPlugin")
-    world.add_plugin(FsPlugin())
 
-    try:
-        from dam_semantic.plugin import SemanticPlugin
-
-        logger.info("Loading SemanticPlugin")
-        world.add_plugin(SemanticPlugin())
-    except ImportError:
-        pass
-
-    try:
-        from dam_media_audio.plugin import AudioPlugin
-
-        logger.info("Loading AudioPlugin")
-        world.add_plugin(AudioPlugin())
-    except ImportError:
-        pass
+    if plugins:
+        for plugin in plugins:
+            world.add_plugin(plugin)
 
     return world
 
@@ -168,7 +153,7 @@ async def _teardown_world_async(world: World):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
-    world = await _setup_world("test_world_alpha", settings_override)
+    world = await _setup_world("test_world_alpha", settings_override, plugins=None)
     yield world
     await _teardown_world_async(world)
 
@@ -226,14 +211,6 @@ class MockSentenceTransformer(torch.nn.Module):
             return np.array(embeddings) if convert_to_numpy else embeddings
 
 
-@pytest.fixture(autouse=True, scope="function")
-def global_mock_sentence_transformer_loader(monkeypatch):
-    from dam_semantic import semantic_functions as semantic_service
-
-    def mock_load_sync(model_name_str: str, model_load_params: Optional[Dict[str, Any]] = None):
-        return MockSentenceTransformer(model_name_or_path=model_name_str, **(model_load_params or {}))
-
-    monkeypatch.setattr(semantic_service, "_load_sentence_transformer_model_sync", mock_load_sync)
 
 
 @pytest.fixture(scope="session", autouse=True)

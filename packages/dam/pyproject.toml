@@ -40,6 +40,11 @@ dev = [
     "pytest-cov",
     "pytest-asyncio",
     "pytest-mock",
+    "dam_test_utils",
+    "dam_app",
+    "dam_fs",
+    "dam_semantic",
+    "dam_media_audio"
 ]
 
 [tool.ruff]
