@@ -33,7 +33,7 @@ def backup_original_settings():
 
 from pytest_postgresql import factories
 
-db_factory = factories.postgresql_noproc()
+db_factory = factories.postgresql_noproc(password="postgres")
 transacted_postgresql_db = factories.postgresql("db_factory")
 
 

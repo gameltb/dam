@@ -102,10 +102,12 @@ def summarize_conversation(session_name: str, project_path: str | None = None) -
         "ConversationSummarizer",
         summarizer_session_name,
         {"session_to_summarize": session_name},
+        project_path=project_path,
     )
     send_message(
         summarizer_session_name,
         f"Please summarize the conversation in session '{session_name}'.",
+        project_path=project_path,
     )
     # In a real implementation, we would wait for the summarizer to finish
     # and get the result. For now, we'll just return a message.
