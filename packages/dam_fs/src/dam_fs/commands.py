@@ -13,7 +13,6 @@ class IngestFileCommand(BaseCommand):
     filepath_on_disk: Path
     original_filename: str
     size_bytes: int
-    world_name: str
 
 
 @dataclass
@@ -23,7 +22,6 @@ class IngestReferenceCommand(BaseCommand):
     filepath_on_disk: Path
     original_filename: str
     size_bytes: int
-    world_name: str
 
 
 @dataclass

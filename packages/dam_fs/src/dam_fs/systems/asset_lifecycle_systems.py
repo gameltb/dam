@@ -1,10 +1,10 @@
 import binascii  # For hex string to bytes conversion
 import logging
+from typing import TYPE_CHECKING, Annotated
 
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
-from dam.core.world import get_world
 from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -18,21 +18,20 @@ from ..commands import (
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 
+if TYPE_CHECKING:
+    from dam.core.world import World
+
+
 logger = logging.getLogger(__name__)
 
 
 @handles_command(IngestFileCommand)
-async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction):
+async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated["World", "Resource"]):
     """
     Handles the command to ingest an asset file by copying it.
     """
-    logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {cmd.world_name}")
+    logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        # The function still needs the world for resources, which is a design smell to be fixed.
-        world = get_world(cmd.world_name)
-        if not world:
-            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
-
         entity = await import_functions.import_local_file(
             world=world,
             transaction=transaction,
@@ -47,17 +46,12 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
 
 
 @handles_command(IngestReferenceCommand)
-async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction):
+async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated["World", "Resource"]):
     """
     Handles the command to ingest an asset by reference.
     """
-    logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {cmd.world_name}")
+    logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        # The function still needs the world for resources, which is a design smell to be fixed.
-        world = get_world(cmd.world_name)
-        if not world:
-            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
-
         await import_functions.import_local_file(
             world=world,
             transaction=transaction,

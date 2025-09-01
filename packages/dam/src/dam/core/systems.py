@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import logging
+import sys
 from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
@@ -14,6 +15,7 @@ from typing import (
     TypeVar,
     get_args,
     get_origin,
+    get_type_hints,
 )
 
 from dam.core.commands import BaseCommand, CommandResult, ResultType
@@ -35,10 +37,16 @@ T = TypeVar("T")
 
 
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
+    try:
+        module = sys.modules[func.__module__]
+        type_hints = get_type_hints(func, globalns=module.__dict__)
+    except Exception:
+        type_hints = {}
+
     sig = inspect.signature(func)
     param_info = {}
     for name, param in sig.parameters.items():
-        original_param_type = param.annotation
+        original_param_type = type_hints.get(name, param.annotation)
         identity: Optional[str] = None
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
@@ -320,7 +328,12 @@ class WorldScheduler:
                 )
                 kwargs_to_inject[param_name] = transaction.session
             elif identity == "Resource":
-                kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+                resource_type = param_type_hint
+                if isinstance(resource_type, str):
+                    from dam.core.world import World
+                    if resource_type == "World":
+                        resource_type = World
+                kwargs_to_inject[param_name] = self.resource_manager.get_resource(resource_type)
             elif identity == "MarkedEntityList":
                 marker_type = param_meta["marker_component_type"]
                 if not marker_type or not issubclass(marker_type, BaseComponent):
@@ -362,7 +375,12 @@ class WorldScheduler:
                     or param_type_hint is type(None)
                 ):
                     try:
-                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+                        resource_type = param_type_hint
+                        if isinstance(resource_type, str):
+                            from dam.core.world import World
+                            if resource_type == "World":
+                                resource_type = World
+                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(resource_type)
                     except ResourceNotFoundError:
                         self.logger.debug(
                             f"Resource not found for param '{param_name}' (type {param_type_hint}) via direct type injection for {system_func.__name__}. "
