@@ -2,8 +2,6 @@ from typing import Annotated, List, Type, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
-from dam.core.config import WorldConfig  # Assuming WorldConfig is in dam.core.config
-
 # Corrected imports for BaseComponent and Entity
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
@@ -59,35 +57,3 @@ The third argument in `Annotated` (M) specifies the marker component class.
 # If systems are triggered by specific events.
 # E = TypeVar('E') # Event type
 # EventHandlerFor = Annotated[E, "EventHandlerFor"]
-
-
-# --- World Context Object (used by WorldScheduler) ---
-
-
-from dam.core.transaction import EcsTransaction
-
-
-class WorldContext:
-    """
-    A data class that bundles together world-specific contextual information
-    required by the `WorldScheduler` to execute a stage or process events.
-
-    This object is typically constructed by the application logic that initiates
-    a scheduler operation for a specific world.
-
-    Attributes:
-        transaction: The active EcsTransaction for the current operation.
-        world_name: The string name of the world being processed.
-        world_config: The `WorldConfig` object containing settings for this world.
-    """
-
-    def __init__(self, transaction: EcsTransaction, world_name: str, world_config: WorldConfig):
-        self.transaction = transaction
-        self.world_name = world_name
-        self.world_config = world_config
-
-    # Note: While WorldContext holds session, world_name, and world_config,
-    # systems should declare WorldSession via Annotated type for injection.
-    # WorldConfig should be injected by its class type (as a resource).
-    # WorldContext itself can be injected by its class type if needed by advanced systems.
-    # This promotes loose coupling and allows the scheduler to manage how these are provided.
