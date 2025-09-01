@@ -21,7 +21,6 @@ from dam.core.world import (
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.utils.async_typer import AsyncTyper
 from dam_fs.models import FilePropertiesComponent
-from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
 from typing_extensions import Annotated
 
 from .commands import IngestAssetStreamCommand
@@ -332,6 +331,7 @@ def main_callback(
         logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
 
     try:
+        from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
         from dam_semantic import SemanticPlugin
 
         for world_instance in initialized_worlds:
