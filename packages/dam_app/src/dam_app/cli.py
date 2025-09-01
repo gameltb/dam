@@ -283,7 +283,7 @@ def main_callback(
 
     try:
         from dam_psp import PspPlugin
-        from dam_psp.systems import ingest_psp_isos_from_directory
+        from dam_psp.commands import IngestPspIsosCommand
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(PspPlugin())
@@ -310,29 +310,24 @@ def main_callback(
                 typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
                 raise typer.Exit(code=1)
 
-            typer.echo(f"Starting PSP ISO ingestion for world '{target_world.name}' from directory: {directory}")
+            typer.echo(f"Dispatching IngestPspIsosCommand for world '{target_world.name}' from directory: {directory}")
 
-            async with target_world.db_session_maker() as session:
-                try:
-                    await ingest_psp_isos_from_directory(
-                        session=session,
-                        directory=directory,
-                        passwords=passwords,
-                    )
-                    await session.commit()
-                    typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
-                except Exception as e:
-                    await session.rollback()
-                    typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
-                    typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
+            command = IngestPspIsosCommand(directory=Path(directory), passwords=passwords)
+
+            try:
+                await target_world.dispatch_command(command)
+                typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
+            except Exception as e:
+                typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
+                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+                raise typer.Exit(code=1)
 
     except ImportError:
         logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
 
     try:
-        from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
         from dam_semantic import SemanticPlugin
+        from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(SemanticPlugin())
@@ -362,7 +357,6 @@ def main_callback(
             request_id = str(uuid.uuid4())
             query_command = SemanticSearchCommand(
                 query_text=query,
-                world_name=target_world.name,
                 request_id=request_id,
                 top_n=top_n,
                 model_name=model_name,
@@ -372,9 +366,8 @@ def main_callback(
                 f"Dispatching SemanticSearchCommand (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
             )
 
-            query_command.result_future = asyncio.get_running_loop().create_future()
-            await target_world.dispatch_command(query_command)
-            results = await query_command.result_future
+            command_result = await target_world.dispatch_command(query_command)
+            results = command_result.results[0] if command_result.results else None
 
             if not results:
                 typer.secho(

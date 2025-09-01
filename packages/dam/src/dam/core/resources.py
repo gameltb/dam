@@ -123,25 +123,3 @@ class FileOperationsResource:
     # be an instance of that class, or this class could inherit from it.
     # Since it's a module of functions, this wrapper approach is used to make
     # them available as an injectable resource object.
-
-
-class HashingFunctionsResource:
-    """
-    A resource that provides access to hashing functions.
-    """
-
-    def __init__(self):
-        """
-        Initializes the HashingFunctionsResource by binding methods to the
-        functions from the `dam.functions.hashing_functions` module.
-        """
-        from dam.functions import hashing_functions as hf
-
-        self.calculate_md5 = hf.calculate_md5
-        self.calculate_sha1 = hf.calculate_sha1
-        self.calculate_sha256 = hf.calculate_sha256
-        self.calculate_crc32 = hf.calculate_crc32
-        self.calculate_md5_async = hf.calculate_md5_async
-        self.calculate_sha1_async = hf.calculate_sha1_async
-        self.calculate_sha256_async = hf.calculate_sha256_async
-        self.calculate_crc32_async = hf.calculate_crc32_async

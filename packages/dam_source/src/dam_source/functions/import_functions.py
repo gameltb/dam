@@ -9,13 +9,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
+from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam.functions import hashing_functions
 from dam.models.core.entity import Entity
-from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
-from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent
@@ -46,10 +45,8 @@ async def import_stream(
 
     try:
         file_content.seek(0)
-        hashes = await hashing_functions.calculate_hashes_from_stream_async(file_content, ["md5", "sha256"])
-        sha256_hash = hashes["sha256"]
-        md5_hash = hashes["md5"]
-        sha256_bytes = bytes.fromhex(sha256_hash)
+        hashes = calculate_hashes_from_stream(file_content, {HashAlgorithm.SHA256})
+        sha256_bytes = hashes[HashAlgorithm.SHA256]
     except (IOError, FileNotFoundError) as e:
         raise ImportFunctionsError(f"Could not read or hash stream for {original_filename}: {e}") from e
 
@@ -63,30 +60,35 @@ async def import_stream(
         entity = await transaction.create_entity()
         logger.info(f"Creating new Entity ID {entity.id} for '{original_filename}'.")
 
-        chc_sha256 = ContentHashSHA256Component(hash_value=sha256_bytes)
-        await transaction.add_component_to_entity(entity.id, chc_sha256)
-
-        chc_md5 = ContentHashMD5Component(hash_value=bytes.fromhex(md5_hash))
-        await transaction.add_component_to_entity(entity.id, chc_md5)
-
         fpc = FilePropertiesComponent(original_filename=original_filename, file_size_bytes=size_bytes)
         await transaction.add_component_to_entity(entity.id, fpc)
 
     if not entity:
         raise ImportFunctionsError("Failed to create or find entity for the asset.")
 
+    # Dispatch command to add all hashes
+    file_content.seek(0)
+    add_hashes_command = AddHashesFromStreamCommand(
+        entity_id=entity.id,
+        stream=file_content,
+        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
+    )
+    await world.dispatch_command(add_hashes_command)
+
+
     from dam_fs.resources.file_storage_resource import FileStorageResource
 
     file_storage = world.get_resource(FileStorageResource)
     file_content.seek(0)
+    sha256_hash_hex = sha256_bytes.hex()
     _, physical_path = file_storage.store_file(file_content.read(), original_filename=original_filename)
 
-    url = f"dam://local_cas/{sha256_hash}#{original_filename}"
+    url = f"dam://local_cas/{sha256_hash_hex}#{original_filename}"
     source_type = source_types.SOURCE_TYPE_LOCAL_FILE
 
     existing_flcs = await transaction.get_components(entity.id, FileLocationComponent)
     if not any(flc.url == url for flc in existing_flcs):
-        flc = FileLocationComponent(content_identifier=sha256_hash, url=url, credentials=None)
+        flc = FileLocationComponent(content_identifier=sha256_hash_hex, url=url, credentials=None)
         await transaction.add_component_to_entity(entity.id, flc)
 
     existing_osis = await transaction.get_components_by_value(

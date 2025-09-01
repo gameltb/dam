@@ -23,7 +23,6 @@ async def test_handle_ingest_file_command(test_world_alpha: World, temp_asset_fi
                 filepath_on_disk=temp_asset_file,
                 original_filename=temp_asset_file.name,
                 size_bytes=temp_asset_file.stat().st_size,
-                world_name=test_world_alpha.name,
             )
             await test_world_alpha.dispatch_command(command)
             await session.commit()

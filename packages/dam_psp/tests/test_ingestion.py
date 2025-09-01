@@ -86,6 +86,7 @@ def test_process_iso_stream_handles_non_iso_file():
 
 # Tests for the ingestion system
 from unittest.mock import AsyncMock, MagicMock
+from dam.utils.hash_utils import HashAlgorithm
 
 from dam_psp import systems as psp_iso_ingestion_system
 
@@ -103,12 +104,12 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
 
     # Mock the functions and database interactions
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
+        "dam_psp.systems.calculate_hashes_from_stream",
         return_value={
-            "md5": hashlib.md5(b"md5_hash").hexdigest(),
-            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
-            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
-            "crc32": 12345,
+            HashAlgorithm.MD5: hashlib.md5(b"md5_hash").digest(),
+            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
+            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
+            HashAlgorithm.CRC32: 12345,
         },
     )
 
@@ -131,11 +132,14 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     mock_transaction.create_entity = AsyncMock(return_value=MagicMock(id=1))
     mock_transaction.add_component_to_entity = AsyncMock()
 
+    mock_world = MagicMock()
+    mock_world.dispatch_command = AsyncMock()
+
     # 2. Execute
     # We now test _process_iso_file directly as ingest_psp_isos_from_directory is more of an orchestrator
     with open(iso_path, "rb") as f:
         await psp_iso_ingestion_system._process_iso_file(
-            transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
+            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
         )
 
     # 3. Assert
@@ -144,8 +148,8 @@ async def test_ingest_single_iso_file(tmp_path, mocker):
     # Check that a new entity was created
     mock_transaction.create_entity.assert_awaited_once()
 
-    # Check that all components were added
-    assert mock_transaction.add_component_to_entity.await_count == 6  # 4 hashes + 1 SFO + 1 raw SFO
+    # Check that the hash command was dispatched
+    mock_world.dispatch_command.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -159,8 +163,8 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     iso_path.write_bytes(dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
-        return_value={"md5": hashlib.md5(b"duplicate_md5_hash").hexdigest()},
+        "dam_psp.systems.calculate_hashes_from_stream",
+        return_value={HashAlgorithm.MD5: hashlib.md5(b"duplicate_md5_hash").digest()},
     )
 
     mock_session = AsyncMock()
@@ -175,10 +179,12 @@ async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
     mock_transaction.create_entity = AsyncMock()
     mock_transaction.add_component_to_entity = AsyncMock()
 
+    mock_world = MagicMock()
+
     # 2. Execute
     with open(iso_path, "rb") as f:
         await psp_iso_ingestion_system._process_iso_file(
-            transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
+            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
         )
 
     # 3. Assert
@@ -202,12 +208,12 @@ async def test_ingest_iso_from_7z_file(tmp_path, mocker):
         zf.writestr("test.iso", dummy_iso_content)
 
     mocker.patch(
-        "dam_psp.systems.hashing_functions.calculate_hashes_from_stream",
+        "dam_psp.systems.calculate_hashes_from_stream",
         return_value={
-            "md5": hashlib.md5(b"some_hash").hexdigest(),
-            "sha1": hashlib.sha1(b"sha1_hash").hexdigest(),
-            "sha256": hashlib.sha256(b"sha256_hash").hexdigest(),
-            "crc32": 12345,
+            HashAlgorithm.MD5: hashlib.md5(b"some_hash").digest(),
+            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
+            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
+            HashAlgorithm.CRC32: 12345,
         },
     )
     mock_process_iso_stream = mocker.patch(

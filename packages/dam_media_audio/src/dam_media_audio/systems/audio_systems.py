@@ -111,5 +111,4 @@ async def add_audio_components_system(
         logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 
     await transaction.flush()
-    if not cmd.result_future.done():
-        cmd.result_future.set_result(True)
+    return True

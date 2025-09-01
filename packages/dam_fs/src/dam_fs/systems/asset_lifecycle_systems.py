@@ -1,10 +1,11 @@
 import binascii  # For hex string to bytes conversion
 import logging
+from typing import Annotated
 
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
-from dam.core.world import get_world
+from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -22,18 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 @handles_command(IngestFileCommand)
-async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction):
+async def handle_ingest_file_command(
+    cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
+):
     """
     Handles the command to ingest an asset file by copying it.
     """
-    logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {cmd.world_name}")
+    logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        # The function still needs the world for resources, which is a design smell to be fixed.
-        world = get_world(cmd.world_name)
-        if not world:
-            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
-
-        entity = await import_functions.import_local_file(
+        await import_functions.import_local_file(
             world=world,
             transaction=transaction,
             filepath=cmd.filepath_on_disk,
@@ -47,17 +45,14 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
 
 
 @handles_command(IngestReferenceCommand)
-async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction):
+async def handle_ingest_reference_command(
+    cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
+):
     """
     Handles the command to ingest an asset by reference.
     """
-    logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {cmd.world_name}")
+    logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        # The function still needs the world for resources, which is a design smell to be fixed.
-        world = get_world(cmd.world_name)
-        if not world:
-            raise import_functions.ImportServiceError(f"World '{cmd.world_name}' not found.")
-
         await import_functions.import_local_file(
             world=world,
             transaction=transaction,
@@ -76,16 +71,13 @@ async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
-):
+) -> dict | None:
     """
     Handles the command to find an entity by its content hash.
     """
     logger.info(
         f"System handling FindEntityByHashCommand for hash: {cmd.hash_value} (type: {cmd.hash_type}) in world '{world_config.name}' (Req ID: {cmd.request_id})"
     )
-    if not cmd.result_future:
-        logger.error(f"Result future not set on FindEntityByHashCommand (Req ID: {cmd.request_id}). Cannot proceed.")
-        return
 
     try:
         try:
@@ -96,7 +88,6 @@ async def handle_find_entity_by_hash_command(
             )
             raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
 
-        # I need to add find_entity_by_content_hash to the EcsTransaction wrapper
         entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
         entity_details_dict = None
 
@@ -139,13 +130,11 @@ async def handle_find_entity_by_hash_command(
         else:
             logger.info(f"[QueryResult RequestID: {cmd.request_id}] No entity found for hash {cmd.hash_value}")
 
-        if not cmd.result_future.done():
-            cmd.result_future.set_result(entity_details_dict)
+        return entity_details_dict
 
     except Exception as e:
         logger.error(f"Error in handle_find_entity_by_hash_command (Req ID: {cmd.request_id}): {e}", exc_info=True)
-        if not cmd.result_future.done():
-            cmd.result_future.set_exception(e)
+        raise
 
 
 __all__ = [

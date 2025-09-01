@@ -1,27 +1,23 @@
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple  # Added List, Dict, Any for type hints potentially used by events
+from typing import Optional, Tuple
 
-from dam.core.config import settings  # Import the global settings instance
-
-# Updated event imports: BaseEvent is needed, others are now defined in core.events
+from dam.core.config import settings
 from dam.core.world import World
 from dam.functions import (
     ecs_functions,
     file_operations,
-    hashing_functions,
     tag_functions,
 )
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
 from dam.utils import url_utils
-
-# Removed world_functions as it's not directly used here.
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam.utils.media_utils import TranscodeError, transcode_media
 from dam_fs.commands import IngestFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam_fs.models.file_properties_component import FilePropertiesComponent  # Added import
+from dam_fs.models.file_properties_component import FilePropertiesComponent
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -258,7 +254,6 @@ async def apply_transcode_profile(
             filepath_on_disk=transcoded_filepath,
             original_filename=new_asset_original_filename,  # Use the derived meaningful name
             size_bytes=ret_size_bytes,
-            world_name=world.name,
         )
 
         # Dispatch command. The handler will ingest the file.
@@ -270,9 +265,9 @@ async def apply_transcode_profile(
 
         # Find the newly ingested asset by its hash.
         # The ingestion system should have added ContentHashSHA256Component.
-        transcoded_file_sha256_bytes = bytes.fromhex(
-            hashing_functions.calculate_sha256(transcoded_filepath)
-        )  # Ensure bytes
+        with open(transcoded_filepath, "rb") as f:
+            hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
+        transcoded_file_sha256_bytes = hashes[HashAlgorithm.SHA256]
 
         # Query for the entity with this SHA256 hash
         # Use ecs_functions.find_entity_by_content_hash
@@ -399,38 +394,3 @@ except ImportError:
         # ... etc.
 
     print("Note: Using a mock SystemStage enum for transcode_service.py.")
-
-# --- Transcoding Events ---
-# These are now defined in dam.core.events to avoid circular imports.
-# @dataclass
-# class TranscodeJobRequested(BaseEvent):
-#     world_name: str
-#     source_entity_id: int
-#     profile_id: int
-#     priority: int = 100
-#     output_parent_dir: Optional[Path] = None
-
-# @dataclass
-# class TranscodeJobCompleted(BaseEvent):
-#     job_id: int
-#     world_name: str
-#     source_entity_id: int
-#     profile_id: int
-#     output_entity_id: int
-#     output_file_path: Path
-
-# @dataclass
-# class TranscodeJobFailed(BaseEvent):
-#     job_id: int
-#     world_name: str
-#     source_entity_id: int
-#     profile_id: int
-#     error_message: str
-
-# --- Evaluation Events ---
-# Also moved to dam.core.events
-# @dataclass
-# class StartEvaluationForTranscodedAsset(BaseEvent):
-#     world_name: str
-#     evaluation_run_id: int
-#     transcoded_asset_id: int

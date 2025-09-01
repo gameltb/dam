@@ -248,8 +248,9 @@ This section outlines the roles and interactions of Functions, Systems, Commands
     *   Common injectable types for Systems include:
         *   The `Event` or `Command` object that triggered the system.
         *   `EcsTransaction`: The primary mechanism for database interaction. Systems should inject this to perform ECS operations like adding/getting components.
-        *   `Resource[ResourceType]`: `Annotated[MyResourceType, "Resource"]` - Shared resources.
-        *   `WorldContext`: Provides access to the `EcsTransaction`, world name, and `WorldConfig`.
+        *   `World`: The `World` instance itself can be injected to access world-level information or methods.
+        *   `WorldConfig`: The configuration object for the current world.
+        *   Any other resource added to the world's `ResourceManager`, which are injected by their type hint.
         *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - **[DEPRECATED]** Direct access to the session is discouraged. Use `EcsTransaction` instead. This is maintained for backward compatibility during the transition.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the functions they call.
 -   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `World` object manages the transaction boundary (see Section 3.6).

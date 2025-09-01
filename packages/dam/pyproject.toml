@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "blake3",
     "sqlalchemy",
     "typer",
     "python-dotenv",

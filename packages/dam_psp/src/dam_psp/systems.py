@@ -6,23 +6,22 @@ from pathlib import Path
 from typing import List, Optional
 
 import py7zr
+from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.config import WorldConfig
-from dam.core.systems import listens_for
+from dam.core.systems import handles_command, listens_for
 from dam.core.transaction import EcsTransaction
-from dam.functions import hashing_functions
+from dam.core.world import World
 from dam.models.core import Entity
 from dam.models.hashes import (
-    ContentHashCRC32Component,
     ContentHashMD5Component,
-    ContentHashSHA1Component,
-    ContentHashSHA256Component,
 )
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam_psp.psp_iso_functions import process_iso_stream
 
+from .commands import IngestPspIsosCommand
 from .events import PspIsoAssetDetected
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
@@ -88,39 +87,35 @@ async def process_psp_iso_system(
         raise
 
 
-async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_stream: BytesIO) -> None:
+async def _process_iso_file(world: World, transaction: EcsTransaction, file_path: Path, file_stream: BytesIO) -> None:
     """Helper function to process a single ISO stream."""
 
-    # Calculate hashes
+    # Calculate only one hash for duplicate check
     file_stream.seek(0)
-    hash_algorithms = ["md5", "sha1", "sha256", "crc32"]
-    hashes = hashing_functions.calculate_hashes_from_stream(file_stream, hash_algorithms)
+    hashes = calculate_hashes_from_stream(file_stream, {HashAlgorithm.MD5})
     if not hashes:
         return
 
-    md5_hash = bytes.fromhex(hashes["md5"])
+    md5_hash = hashes[HashAlgorithm.MD5]
 
     # Check for duplicates
-    # This is a read operation, so it's fine to use the session directly.
     stmt = select(Entity.id).join(ContentHashMD5Component).where(ContentHashMD5Component.hash_value == md5_hash)
     result = await transaction.session.execute(stmt)
     if result.scalars().first() is not None:
         return
 
-    # Create entity and components
+    # Create entity
     entity = await transaction.create_entity()
 
-    # Add hash components
-    await transaction.add_component_to_entity(entity.id, ContentHashMD5Component(hash_value=md5_hash))
-    await transaction.add_component_to_entity(
-        entity.id, ContentHashSHA1Component(hash_value=bytes.fromhex(hashes["sha1"]))
+    # Dispatch command to add all hashes
+    file_stream.seek(0)
+    add_hashes_command = AddHashesFromStreamCommand(
+        entity_id=entity.id,
+        stream=file_stream,
+        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA1, HashAlgorithm.SHA256, HashAlgorithm.CRC32},
     )
-    await transaction.add_component_to_entity(
-        entity.id, ContentHashSHA256Component(hash_value=bytes.fromhex(hashes["sha256"]))
-    )
-    await transaction.add_component_to_entity(
-        entity.id, ContentHashCRC32Component(hash_value=hashes["crc32"].to_bytes(4, "big"))
-    )
+    await world.dispatch_command(add_hashes_command)
+
 
     # Process SFO metadata
     file_stream.seek(0)
@@ -149,30 +144,28 @@ async def _process_iso_file(transaction: EcsTransaction, file_path: Path, file_s
             await transaction.add_component_to_entity(entity.id, sfo_raw_component)
 
 
-async def ingest_psp_isos_from_directory(
-    session: AsyncSession,
-    directory: str,
-    passwords: Optional[List[str]] = None,
+@handles_command(IngestPspIsosCommand)
+async def ingest_psp_isos_from_directory_system(
+    cmd: IngestPspIsosCommand,
+    world: World,
+    transaction: EcsTransaction,
 ):
-    # TODO: This function creates its own session and is not part of the
-    # main transactional event/command bus. It should be refactored to
-    # be a command handler that uses the EcsTransaction object.
     """
     Scans a directory for PSP ISOs and archives, processes them, and stores them in the database.
     """
-    if passwords is None:
+    if cmd.passwords is None:
         passwords = [None]  # Try with no password first
     else:
-        passwords.insert(0, None)  # Also try with no password first
+        passwords = [None] + cmd.passwords
 
-    for root, _, files in os.walk(directory):
+    for root, _, files in os.walk(cmd.directory):
         for filename in files:
             file_path = Path(root) / filename
             ext = file_path.suffix.lower()
 
             if ext == ".iso":
                 with open(file_path, "rb") as f:
-                    await _process_iso_file(session, file_path, BytesIO(f.read()))
+                    await _process_iso_file(world, transaction, file_path, BytesIO(f.read()))
 
             elif ext == ".zip":
                 for password in passwords:
@@ -184,59 +177,11 @@ async def ingest_psp_isos_from_directory(
                                 if member_name.lower().endswith(".iso"):
                                     with zf.open(member_name) as iso_file:
                                         await _process_iso_file(
-                                            session,
+                                            world,
+                                            transaction,
                                             file_path / member_name,
                                             BytesIO(iso_file.read()),
                                         )
-                        break  # Correct password found
-                    except (RuntimeError, zipfile.BadZipFile):
-                        continue  # Wrong password, try next
-
-            elif ext == ".7z":
-                for password in passwords:
-                    try:
-                        with py7zr.SevenZipFile(file_path, mode="r", password=password) as szf:
-                            for member_name, bio in szf.read().items():
-                                if member_name.lower().endswith(".iso"):
-                                    await _process_iso_file(session, file_path / member_name, bio)
-                        break  # Correct password found
-                    except py7zr.exceptions.PasswordRequired:
-                        continue
-                    except py7zr.exceptions.Bad7zFile:
-                        continue
-                    except Exception:
-                        continue
-
-
-async def scan_psp_isos_from_directory(
-    directory: str,
-    passwords: Optional[List[str]] = None,
-):
-    """
-    Scans a directory for PSP ISOs and archives, and prints the paths of the found ISO files.
-    """
-    if passwords is None:
-        passwords = [None]
-    else:
-        passwords.insert(0, None)
-
-    for root, _, files in os.walk(directory):
-        for filename in files:
-            file_path = Path(root) / filename
-            ext = file_path.suffix.lower()
-
-            if ext == ".iso":
-                print(f"Found ISO: {file_path}")
-
-            elif ext == ".zip":
-                for password in passwords:
-                    try:
-                        with zipfile.ZipFile(file_path, "r") as zf:
-                            if password:
-                                zf.setpassword(password.encode())
-                            for member_name in zf.namelist():
-                                if member_name.lower().endswith(".iso"):
-                                    print(f"Found ISO in zip: {file_path}/{member_name}")
                         break
                     except (RuntimeError, zipfile.BadZipFile):
                         continue
@@ -245,9 +190,9 @@ async def scan_psp_isos_from_directory(
                 for password in passwords:
                     try:
                         with py7zr.SevenZipFile(file_path, mode="r", password=password) as szf:
-                            for member_name in szf.getnames():
+                            for member_name, bio in szf.read().items():
                                 if member_name.lower().endswith(".iso"):
-                                    print(f"Found ISO in 7z: {file_path}/{member_name}")
+                                    await _process_iso_file(world, transaction, file_path / member_name, bio)
                         break
                     except py7zr.exceptions.PasswordRequired:
                         continue
