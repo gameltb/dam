@@ -1,10 +1,11 @@
 import binascii  # For hex string to bytes conversion
 import logging
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -18,15 +19,12 @@ from ..commands import (
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 
-if TYPE_CHECKING:
-    from dam.core.world import World
-
 
 logger = logging.getLogger(__name__)
 
 
 @handles_command(IngestFileCommand)
-async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated["World", "Resource"]):
+async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]):
     """
     Handles the command to ingest an asset file by copying it.
     """
@@ -46,7 +44,7 @@ async def handle_ingest_file_command(cmd: IngestFileCommand, transaction: EcsTra
 
 
 @handles_command(IngestReferenceCommand)
-async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated["World", "Resource"]):
+async def handle_ingest_reference_command(cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]):
     """
     Handles the command to ingest an asset by reference.
     """
