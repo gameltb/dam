@@ -1,15 +1,8 @@
 import logging
-import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from dam.functions import ecs_functions
-from dam.models.core import FileLocationComponent  # Assuming this component stores relative path
-from dam_fs.utils.url_utils import parse_dam_url
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 

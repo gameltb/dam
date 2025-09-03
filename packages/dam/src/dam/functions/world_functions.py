@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Tuple, Type  # Removed List
 
-from dam_fs.models.file_location_component import FileLocationComponent
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import joinedload
 
@@ -274,33 +273,6 @@ def import_ecs_world_from_json(target_world: "World", filepath: Path, merge: boo
                     comp_data_cleaned["entity_id"] = entity_to_update.id
                     # If BaseComponent's __init__ truly needs `entity` object due to kw_only:
                     comp_data_cleaned["entity"] = entity_to_update
-
-                    # Map old FileLocationComponent field names from JSON to new model fields if necessary
-                    if ComponentClass == FileLocationComponent:
-                        if "file_identifier" in comp_data_cleaned and "content_identifier" not in comp_data_cleaned:
-                            comp_data_cleaned["content_identifier"] = comp_data_cleaned.pop("file_identifier")
-                        if "original_filename" in comp_data_cleaned and "contextual_filename" not in comp_data_cleaned:
-                            comp_data_cleaned["contextual_filename"] = comp_data_cleaned.pop("original_filename")
-                        # physical_path_or_key should ideally be in the JSON. If it was 'filepath', map it.
-                        if (
-                            "filepath" in comp_data_cleaned and "physical_path_or_key" not in comp_data_cleaned
-                        ):  # Assuming old key might be 'filepath'
-                            comp_data_cleaned["physical_path_or_key"] = comp_data_cleaned.pop("filepath")
-                        # Ensure physical_path_or_key exists, it's mandatory. This might be an issue if old JSONs don't have it.
-                        if "physical_path_or_key" not in comp_data_cleaned:
-                            # Try to use content_identifier as a fallback if it's a CAS-like scenario,
-                            # or log an error if it's a critical missing piece.
-                            # This depends on how JSONs were generated. For now, let's assume it exists or content_identifier is a proxy.
-                            # If 'local_reference', physical_path_or_key is the direct path.
-                            # If 'local_cas', physical_path_or_key is the relative CAS path (e.g. aa/bb/hash).
-                            # The JSON should reflect this correctly.
-                            # If old JSONs used 'file_identifier' for content and also as part of path for CAS,
-                            # or 'filepath' for referenced files, the mapping must be robust.
-                            # For now, we assume the new field names are in JSON or mapped above.
-                            # If physical_path_or_key is still missing, it's an issue.
-                            logger.warning(
-                                f"FileLocationComponent data for entity {entity_to_update.id} is missing 'physical_path_or_key'. Component might be invalid."
-                            )
 
                     new_component = ComponentClass(**comp_data_cleaned)
                     # session.add(new_component) # add_component_to_entity handles this

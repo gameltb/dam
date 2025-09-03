@@ -1,19 +1,24 @@
-from dam_fs.utils.url_utils import parse_dam_url
+from pathlib import Path
 
-def test_parse_dam_url_with_passwords():
-    url = "dam://local_cas/some_hash?pwd=p1&pwd2=p2"
-    parsed = parse_dam_url(url)
-    assert parsed["passwords"] == ["p1", "p2"]
-    assert "pwd" not in parsed["query"]
-    assert "pwd2" not in parsed["query"]
+import pytest
 
-def test_parse_dam_url_with_single_password():
-    url = "dam://local_cas/some_hash?pwd=p1"
-    parsed = parse_dam_url(url)
-    assert parsed["passwords"] == ["p1"]
-    assert "pwd" not in parsed["query"]
+from dam_fs.utils.url_utils import get_local_path_for_url
 
-def test_parse_dam_url_without_passwords():
-    url = "dam://local_cas/some_hash"
-    parsed = parse_dam_url(url)
-    assert parsed["passwords"] == []
+
+def test_get_local_path_for_url_file_scheme():
+    # Test with a simple file URI
+    url = "file:///tmp/test_file.txt"
+    expected_path = Path("/tmp/test_file.txt")
+    assert get_local_path_for_url(url) == expected_path
+
+    # Test with a file URI with a hostname (should be ignored)
+    url = "file://localhost/tmp/test_file.txt"
+    expected_path = Path("/tmp/test_file.txt")
+    assert get_local_path_for_url(url) == expected_path
+
+
+def test_get_local_path_for_url_unsupported_scheme():
+    # Test with an unsupported scheme
+    url = "http://example.com/some_file"
+    with pytest.raises(ValueError, match="Unsupported URL scheme for local access: 'http://'"):
+        get_local_path_for_url(url)

@@ -1,6 +1,6 @@
-import zipfile
 import io
-from typing import IO, List, Optional, Any
+import zipfile
+from typing import IO, Any, List, Optional
 
 from .base import ArchiveHandler
 from .registry import register_handler
@@ -31,8 +31,8 @@ class ZipArchiveHandler(ArchiveHandler):
         return self.zip_file.namelist()
 
     def open_file(self, file_name: str) -> IO[bytes]:
-        path_parts = file_name.split('/', 1)
-        if len(path_parts) == 1 or not path_parts[0].lower().endswith('.zip'):
+        path_parts = file_name.split("/", 1)
+        if len(path_parts) == 1 or not path_parts[0].lower().endswith(".zip"):
             try:
                 return self.zip_file.open(file_name)
             except (RuntimeError, KeyError) as e:

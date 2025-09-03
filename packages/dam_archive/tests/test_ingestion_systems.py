@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from dam.core.world import World
-from dam_archive.models import ArchiveMemberComponent
 
-from dam_app.commands import IngestAssetsCommand
-from dam_app.systems.ingestion_systems import asset_ingestion_system
+from dam_archive.commands import IngestAssetsCommand
+from dam_archive.models import ArchiveMemberComponent
+from dam_archive.systems import asset_ingestion_system
 
 
 @pytest.fixture
@@ -34,10 +34,10 @@ async def test_asset_ingestion_system_with_archive(dummy_zip_file: Path, mocker)
     mock_archive_entity.id = 1
 
     mocker.patch(
-        "dam_app.systems.ingestion_systems.dam_fs_file_operations.create_entity_with_file",
+        "dam_archive.systems.dam_fs_file_operations.create_entity_with_file",
         return_value=mock_archive_entity,
     )
-    mock_create_entity = mocker.patch("dam_app.systems.ingestion_systems.ecs_functions.create_entity")
+    mock_create_entity = mocker.patch("dam_archive.systems.ecs_functions.create_entity")
 
     # Mock create_entity for the members of the archive
     mock_member_entity_1 = AsyncMock()
@@ -57,7 +57,7 @@ async def test_asset_ingestion_system_with_archive(dummy_zip_file: Path, mocker)
     assert entity_ids == [1, 2, 3]
 
     # Check that create_entity_with_file was called for the archive
-    from dam_app.systems.ingestion_systems import dam_fs_file_operations
+    from dam_archive.systems import dam_fs_file_operations
 
     dam_fs_file_operations.create_entity_with_file.assert_called_once()
 

@@ -22,11 +22,11 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
+from dam_fs.functions import file_operations
+from dam_fs.models.file_location_component import FileLocationComponent
 
 # Corrected direct imports for models
 from dam_fs.utils.url_utils import get_local_path_for_url
-from dam_fs.functions import file_operations
-from dam_fs.models.file_location_component import FileLocationComponent
 
 try:
     from hachoir.core import config as HachoirConfig
@@ -210,7 +210,7 @@ async def extract_metadata_on_asset_ingested(
         for loc in all_locations:
             try:
                 # Use the centralized URL resolver
-                potential_path = get_local_path_for_url(loc.url, world_config)
+                potential_path = get_local_path_for_url(loc.url)
                 # Check if the resolved path actually exists and is a file
                 if potential_path and await asyncio.to_thread(potential_path.is_file):
                     filepath_on_disk = potential_path

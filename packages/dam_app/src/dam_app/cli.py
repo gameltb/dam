@@ -19,11 +19,12 @@ from dam.core.world import (
 )
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.utils.async_typer import AsyncTyper
+from dam_archive.commands import IngestAssetsCommand
 from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
-from .commands import IngestAssetsCommand, IngestAssetStreamCommand
+from .commands import IngestAssetStreamCommand
 
 app = AsyncTyper(
     name="dam-cli",

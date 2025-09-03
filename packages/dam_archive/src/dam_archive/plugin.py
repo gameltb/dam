@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 from dam.core.plugin import Plugin
 from dam_fs.commands import GetAssetStreamCommand
 
+from .commands import IngestAssetsCommand, SetArchivePasswordCommand
+from .systems import asset_ingestion_system, get_archive_asset_stream_handler, set_archive_password_handler
+
 if TYPE_CHECKING:
     from dam.core.world import World
-
-from .systems import get_archive_asset_stream_handler
 
 
 class ArchivePlugin(Plugin):
@@ -21,3 +22,5 @@ class ArchivePlugin(Plugin):
         Builds the archive plugin.
         """
         world.register_system(get_archive_asset_stream_handler, command_type=GetAssetStreamCommand)
+        world.register_system(set_archive_password_handler, command_type=SetArchivePasswordCommand)
+        world.register_system(asset_ingestion_system, command_type=IngestAssetsCommand)

@@ -6,6 +6,17 @@ from dam.core.commands import BaseCommand
 
 
 @dataclass
+class AddFilePropertiesCommand(BaseCommand[None]):
+    """
+    A command to add file properties to an entity.
+    """
+
+    entity_id: int
+    original_filename: str
+    size_bytes: int
+
+
+@dataclass
 class GetAssetStreamCommand(BaseCommand[BinaryIO]):
     """A command to get a readable stream for an asset."""
 

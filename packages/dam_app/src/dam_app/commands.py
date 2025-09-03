@@ -1,6 +1,6 @@
 import traceback
 from dataclasses import dataclass
-from typing import BinaryIO, List, Optional
+from typing import BinaryIO
 
 import typer
 from dam.core.commands import BaseCommand
@@ -18,14 +18,6 @@ class IngestAssetStreamCommand(BaseCommand):
     file_content: BinaryIO
     original_filename: str
     world_name: str
-
-
-@dataclass
-class IngestAssetsCommand(BaseCommand[List[int]]):
-    """A command to ingest new assets from a list of file paths."""
-
-    file_paths: List[str]
-    passwords: Optional[List[str]] = None
 
 
 @dataclass

@@ -25,6 +25,7 @@ async def auto_tag_entity_command_handler(
     logger.info(f"Handling AutoTagEntityCommand for entity {entity.id}")
 
     from dam_fs.functions import file_operations as file_operations_module
+
     from dam_app.functions import tagging_functions as tagging_functions_module
 
     image_path = await file_operations_module.get_file_path_for_entity(transaction, entity.id, world_config)
