@@ -1,7 +1,6 @@
 import traceback
-import uuid
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import BinaryIO, List, Optional
 
 import typer
 from dam.core.commands import BaseCommand
@@ -22,6 +21,14 @@ class IngestAssetStreamCommand(BaseCommand):
 
 
 @dataclass
+class IngestAssetsCommand(BaseCommand[List[int]]):
+    """A command to ingest new assets from a list of file paths."""
+
+    file_paths: List[str]
+    passwords: Optional[List[str]] = None
+
+
+@dataclass
 class AutoTagEntityCommand(BaseCommand):
     """A command to trigger auto-tagging for an entity."""
 
@@ -31,10 +38,10 @@ class AutoTagEntityCommand(BaseCommand):
 async def cli_show_entity(
     ctx: typer.Context,
     entity_id: Annotated[
-        uuid.UUID,
+        int,
         typer.Argument(
             ...,
-            help="The UUID of the entity to show.",
+            help="The ID of the entity to show.",
         ),
     ],
 ):

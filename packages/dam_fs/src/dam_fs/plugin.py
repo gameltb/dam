@@ -3,6 +3,7 @@ from dam.core.world import World
 
 from .commands import (
     FindEntityByHashCommand,
+    GetAssetStreamCommand,
     IngestFileCommand,
     IngestReferenceCommand,
 )
@@ -11,6 +12,7 @@ from .systems.asset_lifecycle_systems import (
     handle_ingest_file_command,
     handle_ingest_reference_command,
 )
+from .systems.stream_handler_system import get_asset_stream_handler
 
 
 class FsPlugin(Plugin):
@@ -24,3 +26,4 @@ class FsPlugin(Plugin):
             command_type=IngestReferenceCommand,
         )
         world.register_system(handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand)
+        world.register_system(get_asset_stream_handler, command_type=GetAssetStreamCommand)

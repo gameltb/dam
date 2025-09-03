@@ -14,9 +14,7 @@ class HashAlgorithm(Enum):
     BLAKE3 = "blake3"
 
 
-def calculate_hashes_from_stream(
-    stream: IO[bytes], algorithms: Set[HashAlgorithm]
-) -> Dict[HashAlgorithm, bytes | int]:
+def calculate_hashes_from_stream(stream: IO[bytes], algorithms: Set[HashAlgorithm]) -> Dict[HashAlgorithm, bytes | int]:
     """
     Calculates multiple hashes from a stream in a single pass.
 
@@ -29,9 +27,7 @@ def calculate_hashes_from_stream(
         (bytes for most, int for crc32).
     """
     hashers = {
-        alg: hashlib.new(alg.value)
-        for alg in algorithms
-        if alg not in [HashAlgorithm.CRC32, HashAlgorithm.BLAKE3]
+        alg: hashlib.new(alg.value) for alg in algorithms if alg not in [HashAlgorithm.CRC32, HashAlgorithm.BLAKE3]
     }
     if HashAlgorithm.BLAKE3 in algorithms:
         hashers[HashAlgorithm.BLAKE3] = blake3.blake3()

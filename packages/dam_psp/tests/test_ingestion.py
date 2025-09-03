@@ -1,10 +1,17 @@
-import hashlib
 from io import BytesIO
+from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
+from dam.core.world import World
+from dam_archive.models import ArchiveMemberComponent
+from dam_fs.commands import GetAssetStreamCommand
+from dam_fs.events import AssetsReadyForMetadataExtraction
+from dam_fs.models import FilePropertiesComponent
 
 from dam_psp import psp_iso_functions
+from dam_psp.models import PSPSFOMetadataComponent
+from dam_psp.systems import psp_iso_metadata_extraction_system
 
 # A more realistic, valid PARAM.SFO file content for testing
 DUMMY_SFO_CONTENT = b"".join(
@@ -84,151 +91,82 @@ def test_process_iso_stream_handles_non_iso_file():
         psp_iso_functions.process_iso_stream(non_iso_stream)
 
 
-# Tests for the ingestion system
-from unittest.mock import AsyncMock, MagicMock
-from dam.utils.hash_utils import HashAlgorithm
-
-from dam_psp import systems as psp_iso_ingestion_system
-
-
 @pytest.mark.asyncio
-async def test_ingest_single_iso_file(tmp_path, mocker):
+async def test_psp_iso_metadata_extraction_system(mocker):
     """
-    Tests that the ingestion system can process a single, standalone ISO file.
+    Tests the psp_iso_metadata_extraction_system with a mix of assets.
     """
     # 1. Setup
-    # Create a dummy ISO file in the temporary directory
-    iso_path = tmp_path / "test.iso"
-    dummy_iso_content = create_dummy_iso_with_sfo().read()
-    iso_path.write_bytes(dummy_iso_content)
+    # Create mock entities
+    standalone_iso_entity_id = 1
+    archived_iso_entity_id = 2
+    non_iso_entity_id = 3
 
-    # Mock the functions and database interactions
-    mocker.patch(
-        "dam_psp.systems.calculate_hashes_from_stream",
-        return_value={
-            HashAlgorithm.MD5: hashlib.md5(b"md5_hash").digest(),
-            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
-            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
-            HashAlgorithm.CRC32: 12345,
-        },
-    )
+    # Mock transaction
+    mock_transaction = AsyncMock()
 
-    mock_sfo = MagicMock()
-    mock_sfo.data = {"TITLE": "Test Game", "DISC_ID": "ULUS-12345"}
-    mock_process_iso_stream = mocker.patch(
-        "dam_psp.systems.process_iso_stream",
-        return_value=mock_sfo,
-    )
+    async def get_component_side_effect(entity_id, component_type):
+        if entity_id == standalone_iso_entity_id:
+            if component_type == PSPSFOMetadataComponent:
+                return None
+            if component_type == ArchiveMemberComponent:
+                return None
+            if component_type == FilePropertiesComponent:
+                return FilePropertiesComponent(original_filename="test.iso")
+        elif entity_id == archived_iso_entity_id:
+            if component_type == PSPSFOMetadataComponent:
+                return None
+            if component_type == ArchiveMemberComponent:
+                return ArchiveMemberComponent(archive_entity_id=99, path_in_archive="game.iso")
+        elif entity_id == non_iso_entity_id:
+            if component_type == PSPSFOMetadataComponent:
+                return None
+            if component_type == ArchiveMemberComponent:
+                return None
+            if component_type == FilePropertiesComponent:
+                return FilePropertiesComponent(original_filename="text.txt")
+        return None
 
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = None
-    mock_result.scalars.return_value = mock_scalars
-    mock_session.execute.return_value = mock_result
-
-    mock_transaction = MagicMock()
-    mock_transaction.session = mock_session
-    mock_transaction.create_entity = AsyncMock(return_value=MagicMock(id=1))
+    mock_transaction.get_component.side_effect = get_component_side_effect
     mock_transaction.add_component_to_entity = AsyncMock()
 
-    mock_world = MagicMock()
-    mock_world.dispatch_command = AsyncMock()
+    # Mock world
+    mock_world = AsyncMock(spec=World)
+
+    async def dispatch_command_side_effect(command):
+        if isinstance(command, GetAssetStreamCommand):
+            return create_dummy_iso_with_sfo()
+        return None
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect
+
+    # Create event
+    event = AssetsReadyForMetadataExtraction(
+        entity_ids=[standalone_iso_entity_id, archived_iso_entity_id, non_iso_entity_id]
+    )
 
     # 2. Execute
-    # We now test _process_iso_file directly as ingest_psp_isos_from_directory is more of an orchestrator
-    with open(iso_path, "rb") as f:
-        await psp_iso_ingestion_system._process_iso_file(
-            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
-        )
+    await psp_iso_metadata_extraction_system(event, mock_transaction, mock_world)
 
     # 3. Assert
-    mock_process_iso_stream.assert_called_once()
+    # Check that add_component_to_entity was called for the two ISO entities
+    assert mock_transaction.add_component_to_entity.call_count == 4  # 2 for SFO, 2 for Raw SFO
 
-    # Check that a new entity was created
-    mock_transaction.create_entity.assert_awaited_once()
+    # Check call for standalone ISO
+    call_args_list = mock_transaction.add_component_to_entity.call_args_list
+    standalone_iso_calls = [c for c in call_args_list if c.args[0] == standalone_iso_entity_id]
+    assert len(standalone_iso_calls) == 2
+    assert isinstance(standalone_iso_calls[0].args[1], PSPSFOMetadataComponent)
+    assert standalone_iso_calls[0].args[1].title == "Test Game"
 
-    # Check that the hash command was dispatched
-    mock_world.dispatch_command.assert_awaited_once()
+    # Check call for archived ISO
+    archived_iso_calls = [c for c in call_args_list if c.args[0] == archived_iso_entity_id]
+    assert len(archived_iso_calls) == 2
+    assert isinstance(archived_iso_calls[0].args[1], PSPSFOMetadataComponent)
+    assert archived_iso_calls[0].args[1].title == "Test Game"
 
-
-@pytest.mark.asyncio
-async def test_ingest_skips_duplicate_iso_file(tmp_path, mocker):
-    """
-    Tests that the ingestion system skips a file if its hash already exists.
-    """
-    # 1. Setup
-    iso_path = tmp_path / "duplicate.iso"
-    dummy_iso_content = create_dummy_iso_with_sfo().read()
-    iso_path.write_bytes(dummy_iso_content)
-
-    mocker.patch(
-        "dam_psp.systems.calculate_hashes_from_stream",
-        return_value={HashAlgorithm.MD5: hashlib.md5(b"duplicate_md5_hash").digest()},
-    )
-
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = 1
-    mock_result.scalars.return_value = mock_scalars
-    mock_session.execute.return_value = mock_result
-
-    mock_transaction = MagicMock()
-    mock_transaction.session = mock_session
-    mock_transaction.create_entity = AsyncMock()
-    mock_transaction.add_component_to_entity = AsyncMock()
-
-    mock_world = MagicMock()
-
-    # 2. Execute
-    with open(iso_path, "rb") as f:
-        await psp_iso_ingestion_system._process_iso_file(
-            world=mock_world, transaction=mock_transaction, file_path=iso_path, file_stream=BytesIO(f.read())
-        )
-
-    # 3. Assert
-    # Ensure entity and components were NOT created
-    mock_transaction.create_entity.assert_not_awaited()
-    mock_transaction.add_component_to_entity.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_ingest_iso_from_7z_file(tmp_path, mocker):
-    """
-    Tests that the system can find and process an ISO file inside a zip archive.
-    """
-    # 1. Setup
-    zip_path = tmp_path / "archive.zip"
-    dummy_iso_content = create_dummy_iso_with_sfo().read()
-
-    import zipfile
-
-    with zipfile.ZipFile(zip_path, "w") as zf:
-        zf.writestr("test.iso", dummy_iso_content)
-
-    mocker.patch(
-        "dam_psp.systems.calculate_hashes_from_stream",
-        return_value={
-            HashAlgorithm.MD5: hashlib.md5(b"some_hash").digest(),
-            HashAlgorithm.SHA1: hashlib.sha1(b"sha1_hash").digest(),
-            HashAlgorithm.SHA256: hashlib.sha256(b"sha256_hash").digest(),
-            HashAlgorithm.CRC32: 12345,
-        },
-    )
-    mock_process_iso_stream = mocker.patch(
-        "dam_psp.psp_iso_functions.process_iso_stream",
-        return_value=None,  # For simplicity, we don't care about SFO data here
-    )
-    mock_session = AsyncMock()
-    mock_session.execute.return_value.scalars.return_value.first.return_value = None
-
-    mock_transaction = MagicMock()
-    mock_transaction.session = mock_session
-    mock_transaction.create_entity = AsyncMock()
-    mock_transaction.add_component_to_entity = AsyncMock()
-
-    # 2. Execute
-    # This test is more about the directory scanning logic, which I've marked as needing a refactor.
-    # I will skip this test for now.
-    pytest.skip("Skipping test for ingest_psp_isos_from_directory as it needs a larger refactor.")
+    # Check that dispatch_command was called for the two ISO entities
+    assert mock_world.dispatch_command.call_count == 2
+    dispatch_calls = mock_world.dispatch_command.call_args_list
+    assert dispatch_calls[0].args[0].entity_id == standalone_iso_entity_id
+    assert dispatch_calls[1].args[0].entity_id == archived_iso_entity_id

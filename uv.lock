@@ -12,6 +12,7 @@ resolution-markers = [
 members = [
     "dam",
     "dam-app",
+    "dam-archive",
     "dam-fs",
     "dam-media-audio",
     "dam-media-image",
@@ -966,6 +967,27 @@ requires-dist = [
     { name = "python-magic" },
 ]
 provides-extras = ["image", "audio", "transcode", "psp", "semantic", "all"]
+
+[[package]]
+name = "dam-archive"
+version = "0.1.0"
+source = { editable = "packages/dam_archive" }
+dependencies = [
+    { name = "dam" },
+    { name = "patool" },
+    { name = "py7zr" },
+    { name = "rarfile" },
+    { name = "zstandard" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dam", editable = "packages/dam" },
+    { name = "patool" },
+    { name = "py7zr" },
+    { name = "rarfile" },
+    { name = "zstandard" },
+]
 
 [[package]]
 name = "dam-fs"

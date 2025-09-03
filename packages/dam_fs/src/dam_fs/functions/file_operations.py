@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 
 from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
+from dam.functions import ecs_functions
+from dam.models.core.entity import Entity
 from dam.utils.url_utils import get_local_path_for_url
 
 from ..models.file_location_component import FileLocationComponent
@@ -102,6 +104,35 @@ async def get_file_properties_async(filepath: Path) -> Tuple[str, int]:
 async def get_mime_type_async(filepath: Path) -> str:
     """Asynchronously detects the MIME type of a file."""
     return await asyncio.to_thread(get_mime_type, filepath)
+
+
+async def create_entity_with_file(transaction: EcsTransaction, world_config: WorldConfig, file_path: str) -> Entity:
+    """
+    Creates an entity for a given file path, with FileLocationComponent and FilePropertiesComponent.
+    """
+    p_file_path = Path(file_path)
+    entity = await ecs_functions.create_entity(transaction.session)
+
+    # Add FileLocationComponent
+    # For now, we only support local files. The URL will be a file URI.
+    file_url = p_file_path.as_uri()
+    location_component = FileLocationComponent(
+        content_identifier="",  # We'll leave this empty for now, hashing can be a separate step
+        url=file_url,
+    )
+    await ecs_functions.add_component_to_entity(transaction.session, entity.id, location_component)
+
+    # Add FilePropertiesComponent
+    original_filename, file_size_bytes = await get_file_properties_async(p_file_path)
+    mime_type = await get_mime_type_async(p_file_path)
+    properties_component = FilePropertiesComponent(
+        original_filename=original_filename,
+        size_bytes=file_size_bytes,
+        mime_type=mime_type,
+    )
+    await ecs_functions.add_component_to_entity(transaction.session, entity.id, properties_component)
+
+    return entity
 
 
 async def get_file_path_by_id(transaction: EcsTransaction, file_id: int, world_config: WorldConfig) -> Optional[Path]:

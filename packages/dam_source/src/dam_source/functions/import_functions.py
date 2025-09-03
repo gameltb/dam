@@ -75,7 +75,6 @@ async def import_stream(
     )
     await world.dispatch_command(add_hashes_command)
 
-
     from dam_fs.resources.file_storage_resource import FileStorageResource
 
     file_storage = world.get_resource(FileStorageResource)
