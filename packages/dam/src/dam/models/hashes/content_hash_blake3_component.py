@@ -1,13 +1,29 @@
-from sqlalchemy import LargeBinary
+from sqlalchemy import (
+    CheckConstraint,
+    LargeBinary,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from dam.models.core.base_component import BaseComponent
+from ..core.base_component import BaseComponent
 
 
 class ContentHashBLAKE3Component(BaseComponent):
+    """
+    Stores BLAKE3 content-based hashes (32 bytes) for an entity.
+    """
+
     __tablename__ = "component_content_hash_blake3"
 
-    hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False, unique=True, index=True)
+    hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
-    def __repr__(self) -> str:
-        return f"ContentHashBLAKE3Component(id={self.id}, hash_value={self.hash_value.hex()})"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_blake3_entity_hash"),
+        CheckConstraint("length(hash_value) = 32", name="cc_content_hash_blake3_hash_value_length"),
+    )
+
+    def __repr__(self):
+        hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
+        return (
+            f"ContentHashBLAKE3Component(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"
+        )

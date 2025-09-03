@@ -51,8 +51,10 @@ async def test_add_hashes_from_stream_system_raises_on_mismatch(test_world_alpha
     world = test_world_alpha
     async with world.db_session_maker() as session:
         entity = await ecs_functions.create_entity(session)
-        # Add a component with a wrong hash
-        wrong_hash_comp = ContentHashMD5Component(hash_value=b"wrong_hash")
+        # Add a component with a wrong hash.
+        # The hash must be 16 bytes long to satisfy the database constraint,
+        # but have a value that does not match the actual hash of the data.
+        wrong_hash_comp = ContentHashMD5Component(hash_value=b"a" * 16)
         await ecs_functions.add_component_to_entity(session, entity.id, wrong_hash_comp)
         await session.commit()
         entity_id = entity.id

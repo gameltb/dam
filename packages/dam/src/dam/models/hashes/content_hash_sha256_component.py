@@ -1,7 +1,11 @@
-from sqlalchemy import LargeBinary, UniqueConstraint  # Changed String to LargeBinary
+from sqlalchemy import (
+    CheckConstraint,
+    LargeBinary,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent  # Corrected import
+from ..core.base_component import BaseComponent
 
 
 class ContentHashSHA256Component(BaseComponent):
@@ -19,6 +23,7 @@ class ContentHashSHA256Component(BaseComponent):
         UniqueConstraint(
             "hash_value", name="uq_sha256_hash_value"
         ),  # Hash values themselves are unique across all components
+        CheckConstraint("length(hash_value) = 32", name="cc_content_hash_sha256_hash_value_length"),
     )
 
     def __repr__(self):

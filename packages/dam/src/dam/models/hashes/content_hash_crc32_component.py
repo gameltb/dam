@@ -1,4 +1,8 @@
-from sqlalchemy import LargeBinary, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    LargeBinary,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.base_component import BaseComponent
@@ -14,7 +18,10 @@ class ContentHashCRC32Component(BaseComponent):
     # CRC32 hash is 4 bytes (32 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(4), index=True, nullable=False)
 
-    __table_args__ = (UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_crc32_entity_hash"),)
+    __table_args__ = (
+        UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_crc32_entity_hash"),
+        CheckConstraint("length(hash_value) = 4", name="cc_content_hash_crc32_hash_value_length"),
+    )
 
     def __repr__(self):
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
