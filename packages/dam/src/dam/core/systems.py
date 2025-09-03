@@ -263,15 +263,16 @@ class WorldScheduler:
             )
             return CommandResult(results=[])
 
-        command_result: CommandResult[ResultType] = CommandResult()
         for handler_func in handlers_to_run:
             result = await self._execute_system_func(
                 handler_func, transaction, event_object=None, command_object=command
             )
             if result is not None:
-                command_result.results.append(result)
+                # First handler to return a non-None result wins
+                return CommandResult(results=[result])
 
-        return command_result
+        # If no handler returned a result, return a CommandResult with an empty list
+        return CommandResult(results=[])
 
     async def run_all_stages(self, transaction: EcsTransaction):
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")

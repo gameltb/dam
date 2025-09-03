@@ -23,7 +23,8 @@ from dam.utils.async_typer import AsyncTyper
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
-from .commands import IngestAssetStreamCommand
+from .commands import IngestAssetStreamCommand, IngestAssetsCommand
+from .events import AssetsReadyForMetadataExtraction
 
 app = AsyncTyper(
     name="dam-cli",
@@ -180,6 +181,71 @@ async def cli_add_asset(
     await add_asset(target_world, files_to_process)
 
 
+@app.command(name="ingest")
+async def cli_ingest(
+    ctx: typer.Context,
+    paths: Annotated[
+        List[str],
+        typer.Argument(
+            ...,
+            help="Paths to the asset files or directories.",
+            exists=True,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    recursive: Annotated[
+        bool,
+        typer.Option("-r", "--recursive", help="Process directories recursively."),
+    ] = False,
+    passwords: Annotated[
+        Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
+    ] = None,
+):
+    """
+    Ingests assets from files or directories, expanding archives.
+    """
+    if not global_state.world_name:
+        typer.secho("Error: No world selected for ingest. Use --world <world_name>.", fg=typer.colors.RED)
+        return
+
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(
+            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
+        )
+        return
+
+    files_to_process: List[str] = []
+    for path_str in paths:
+        input_path = Path(path_str)
+        if input_path.is_file():
+            files_to_process.append(str(input_path))
+        elif input_path.is_dir():
+            pattern = "**/*" if recursive else "*"
+            files_to_process.extend(str(p) for p in input_path.glob(pattern) if p.is_file())
+
+    if not files_to_process:
+        typer.secho("No files found to ingest.", fg=typer.colors.YELLOW)
+        return
+
+    command = IngestAssetsCommand(file_paths=files_to_process, passwords=passwords)
+
+    try:
+        new_entity_ids = await target_world.dispatch_command(command)
+        typer.secho(f"Successfully ingested {len(new_entity_ids)} assets.", fg=typer.colors.GREEN)
+
+        if new_entity_ids:
+            typer.echo("Dispatching assets for metadata extraction...")
+            await target_world.send_event(AssetsReadyForMetadataExtraction(entity_ids=new_entity_ids))
+            typer.secho("Metadata extraction event dispatched.", fg=typer.colors.GREEN)
+
+    except Exception as e:
+        typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command(name="setup-db")
 async def setup_db(ctx: typer.Context):
     if not global_state.world_name:
@@ -282,46 +348,18 @@ def main_callback(
         logging.info("dam_media_transcode plugin not installed. Skipping transcode functionality.")
 
     try:
+        from dam_archive import ArchivePlugin
+
+        for world_instance in initialized_worlds:
+            world_instance.add_plugin(ArchivePlugin())
+    except ImportError:
+        logging.info("dam_archive plugin not installed. Skipping archive functionality.")
+
+    try:
         from dam_psp import PspPlugin
-        from dam_psp.commands import IngestPspIsosCommand
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(PspPlugin())
-
-        @app.command(name="ingest-psp-isos")
-        async def cli_ingest_psp_isos(
-            ctx: typer.Context,
-            directory: Annotated[
-                str,
-                typer.Argument(
-                    ..., help="Directory to scan for PSP ISOs and archives.", exists=True, resolve_path=True
-                ),
-            ],
-            passwords: Annotated[
-                Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
-            ] = None,
-        ):
-            if not global_state.world_name:
-                typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
-            target_world = get_world(global_state.world_name)
-            if not target_world:
-                typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
-            typer.echo(f"Dispatching IngestPspIsosCommand for world '{target_world.name}' from directory: {directory}")
-
-            command = IngestPspIsosCommand(directory=Path(directory), passwords=passwords)
-
-            try:
-                await target_world.dispatch_command(command)
-                typer.secho("Ingestion process completed.", fg=typer.colors.GREEN)
-            except Exception as e:
-                typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
-                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
     except ImportError:
         logging.info("dam_psp plugin not installed. Skipping PSP ISO ingestion functionality.")
 

@@ -1,9 +1,12 @@
-"""
-This file is reserved for event definitions for the dam_app package.
-"""
+from dataclasses import dataclass
+from typing import List
+from dam.core.events import BaseEvent
 
 
-# Example of an event:
-# @dataclass
-# class MyAppEvent(BaseEvent):
-#     my_data: str
+@dataclass
+class AssetsReadyForMetadataExtraction(BaseEvent):
+    """
+    An event that is triggered when a batch of assets is ready for metadata extraction.
+    """
+
+    entity_ids: List[int]

@@ -66,8 +66,7 @@ async def test_register_and_dispatch_single_handler(test_world_alpha: World):
 @pytest.mark.asyncio
 async def test_dispatch_multiple_handlers(test_world_alpha: World):
     """
-    Tests that multiple handlers for the same command are all executed and
-    their results are collected.
+    Tests that the first handler to return a non-None result wins.
     """
     world = test_world_alpha
     world.register_system(system_func=simple_handler_one, command_type=SimpleCommand)
@@ -77,9 +76,8 @@ async def test_dispatch_multiple_handlers(test_world_alpha: World):
     result = await world.dispatch_command(command)
 
     assert result is not None
-    assert len(result.results) == 2
-    assert "Handled one: test" in result.results
-    assert "Handled two: test" in result.results
+    assert len(result.results) == 1
+    assert result.results[0] == "Handled one: test"
 
 
 @pytest.mark.asyncio
