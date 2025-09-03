@@ -7,12 +7,12 @@ from .commands import (
     IngestFileCommand,
     IngestReferenceCommand,
 )
-from .systems import get_asset_stream_handler
 from .systems.asset_lifecycle_systems import (
     handle_find_entity_by_hash_command,
     handle_ingest_file_command,
     handle_ingest_reference_command,
 )
+from .systems.stream_handler_system import get_asset_stream_handler
 
 
 class FsPlugin(Plugin):
