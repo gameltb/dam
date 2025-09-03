@@ -1,5 +1,5 @@
 from dam.models.core import BaseComponent
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -17,7 +17,4 @@ class FileLocationComponent(BaseComponent):
     url: Mapped[str] = mapped_column(String(4096), nullable=False, unique=True)
 
     def __repr__(self):
-        return (
-            f"FileLocationComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"url='{self.url}')"
-        )
+        return f"FileLocationComponent(id={self.id}, entity_id={self.entity_id}, url='{self.url}')"

@@ -85,5 +85,3 @@ class ResourceManager:
             if issubclass(res_type, resource_type):
                 return True
         return False
-
-

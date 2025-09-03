@@ -1,6 +1,6 @@
 import traceback
 from dataclasses import dataclass
-from typing import BinaryIO, List, Optional
+from typing import BinaryIO
 
 import typer
 from dam.core.commands import BaseCommand

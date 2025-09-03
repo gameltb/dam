@@ -23,11 +23,7 @@ class ArchivePasswordComponent(Component):
 
     password: Mapped[str] = mapped_column(String(1024), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("entity_id", name="uq_password_entity"),
-    )
+    __table_args__ = (UniqueConstraint("entity_id", name="uq_password_entity"),)
 
     def __repr__(self):
-        return (
-            f"ArchivePasswordComponent(id={self.id}, entity_id={self.entity_id})"
-        )
+        return f"ArchivePasswordComponent(id={self.id}, entity_id={self.entity_id})"

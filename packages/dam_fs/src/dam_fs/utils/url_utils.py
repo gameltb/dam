@@ -5,8 +5,6 @@ This module provides utility functions for parsing and resolving file URLs.
 from pathlib import Path
 from urllib.parse import urlparse
 
-from dam.core.config import WorldConfig
-
 
 def get_local_path_for_url(url: str) -> Path:
     """

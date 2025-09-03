@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Tuple, Type  # Removed List
 
-from dam_fs.models.file_location_component import FileLocationComponent
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import joinedload
 

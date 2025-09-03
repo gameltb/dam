@@ -5,13 +5,13 @@ from typing import Annotated
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam_fs.utils.url_utils import get_local_path_for_url
 from dam_fs.commands import GetAssetStreamCommand
 from dam_fs.models.file_location_component import FileLocationComponent
+from dam_fs.utils.url_utils import get_local_path_for_url
 
+from .commands import IngestAssetsCommand, SetArchivePasswordCommand
 from .main import open_archive
 from .models import ArchiveMemberComponent, ArchivePasswordComponent
-from .commands import SetArchivePasswordCommand, IngestAssetsCommand
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ async def set_archive_password_handler(
 
 from dam.functions import ecs_functions
 from dam_fs.functions import file_operations as dam_fs_file_operations
+
 
 @handles_command(GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
@@ -73,6 +74,7 @@ async def get_archive_asset_stream_handler(
             continue
 
     return None  # No valid local file found for the archive
+
 
 @handles_command(IngestAssetsCommand)
 async def asset_ingestion_system(

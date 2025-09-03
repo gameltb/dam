@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import BinaryIO
 
 from dam.core.commands import BaseCommand
-from dam.models.core.entity import Entity
 
 
 @dataclass
@@ -11,6 +10,7 @@ class AddFilePropertiesCommand(BaseCommand[None]):
     """
     A command to add file properties to an entity.
     """
+
     entity_id: int
     original_filename: str
     size_bytes: int

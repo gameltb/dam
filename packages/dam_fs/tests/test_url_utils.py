@@ -1,6 +1,10 @@
 from pathlib import Path
+
 import pytest
+
 from dam_fs.utils.url_utils import get_local_path_for_url
+
+
 def test_get_local_path_for_url_file_scheme():
     # Test with a simple file URI
     url = "file:///tmp/test_file.txt"
@@ -11,6 +15,7 @@ def test_get_local_path_for_url_file_scheme():
     url = "file://localhost/tmp/test_file.txt"
     expected_path = Path("/tmp/test_file.txt")
     assert get_local_path_for_url(url) == expected_path
+
 
 def test_get_local_path_for_url_unsupported_scheme():
     # Test with an unsupported scheme

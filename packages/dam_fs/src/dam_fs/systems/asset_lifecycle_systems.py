@@ -11,7 +11,6 @@ from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
-from ..resources.file_storage_resource import FileStorageResource
 
 from ..commands import (
     FindEntityByHashCommand,
@@ -19,11 +18,13 @@ from ..commands import (
 )
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
+from ..resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
 
 
 from ..commands import AddFilePropertiesCommand
+
 
 @handles_command(AddFilePropertiesCommand)
 async def add_file_properties_handler(
@@ -37,9 +38,11 @@ async def add_file_properties_handler(
     fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
     await transaction.add_component_to_entity(cmd.entity_id, fpc)
 
+
 import io
+
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
-from pathlib import Path
+
 
 @handles_command(IngestFileCommand)
 async def handle_ingest_file_command(
@@ -163,5 +166,3 @@ async def handle_find_entity_by_hash_command(
     except Exception as e:
         logger.error(f"Error in handle_find_entity_by_hash_command (Req ID: {cmd.request_id}): {e}", exc_info=True)
         raise
-
-

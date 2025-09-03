@@ -4,9 +4,9 @@ from typing import Annotated
 from dam.core.systems import handles_command, listens_for
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam_fs.commands import AddFilePropertiesCommand
 from dam_fs.events import FileStored
 from dam_fs.resources import FileStorageResource
-from dam_fs.commands import AddFilePropertiesCommand
 
 from ..commands import IngestAssetStreamCommand
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 from dam.core.commands import GetOrCreateEntityFromStreamCommand as CoreGetOrCreateEntityFromStreamCommand
+
 
 @handles_command(IngestAssetStreamCommand)
 async def ingest_asset_stream_command_handler(

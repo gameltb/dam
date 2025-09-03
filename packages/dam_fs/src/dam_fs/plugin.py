@@ -1,18 +1,18 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
-from .resources.file_storage_resource import FileStorageResource
-from .resources.file_operations_resource import FileOperationsResource
 
 from .commands import (
+    AddFilePropertiesCommand,
     FindEntityByHashCommand,
     GetAssetStreamCommand,
     IngestFileCommand,
-    AddFilePropertiesCommand,
 )
+from .resources.file_operations_resource import FileOperationsResource
+from .resources.file_storage_resource import FileStorageResource
 from .systems.asset_lifecycle_systems import (
+    add_file_properties_handler,
     handle_find_entity_by_hash_command,
     handle_ingest_file_command,
-    add_file_properties_handler,
 )
 from .systems.stream_handler_system import get_asset_stream_handler
 

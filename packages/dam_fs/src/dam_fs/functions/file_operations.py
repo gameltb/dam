@@ -7,13 +7,13 @@ from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
-from dam_fs.utils.url_utils import get_local_path_for_url
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from ..resources.file_storage_resource import FileStorageResource
 
+from dam_fs.utils.url_utils import get_local_path_for_url
 
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
+from ..resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,9 @@ async def get_file_path_by_id(transaction: EcsTransaction, file_id: int) -> Opti
     return await get_file_path_for_entity(transaction, fpc.entity_id)
 
 
-async def get_file_path_for_entity(transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original") -> Optional[Path]:
+async def get_file_path_for_entity(
+    transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original"
+) -> Optional[Path]:
     """
     Retrieves the full file path for a given entity.
     """

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 
 from .base import ArchiveHandler
 from .registry import get_handlers

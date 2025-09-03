@@ -29,8 +29,10 @@ class AddHashesFromStreamCommand(BaseCommand[None]):
     algorithms: Set[HashAlgorithm]
 
 
-from dam.models.core.entity import Entity
 from typing import Tuple
+
+from dam.models.core.entity import Entity
+
 
 @dataclass
 class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
@@ -38,6 +40,8 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
     A command to get or create an entity from a stream.
     Returns a tuple of the entity and the calculated sha256 hash.
     """
+
     stream: IO[bytes]
+
 
 __all__ = ["BaseCommand", "CommandResult", "AddHashesFromStreamCommand", "GetOrCreateEntityFromStreamCommand"]
