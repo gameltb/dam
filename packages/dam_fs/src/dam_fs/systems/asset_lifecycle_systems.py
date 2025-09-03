@@ -9,18 +9,95 @@ from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes.content_hash_md5_component import ContentHashMD5Component
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
-from dam_source.functions import import_functions
+from dam.core.commands import AddHashesFromStreamCommand
+from dam.core.components_markers import NeedsMetadataExtractionComponent
+from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
+from dam_source.models.source_info import source_types
+from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
+from ..resources.file_storage_resource import FileStorageResource
 
 from ..commands import (
     FindEntityByHashCommand,
     IngestFileCommand,
-    IngestReferenceCommand,
+    GetOrCreateEntityFromStreamCommand,
 )
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 
 logger = logging.getLogger(__name__)
 
+
+@handles_command(GetOrCreateEntityFromStreamCommand)
+async def get_or_create_entity_from_stream_handler(
+    cmd: GetOrCreateEntityFromStreamCommand,
+    transaction: EcsTransaction,
+    world: Annotated[World, "Resource"],
+):
+    """
+    Handles getting or creating an entity from a stream.
+    """
+    logger.info(f"System handling GetOrCreateEntityFromStreamCommand for: {cmd.original_filename} in world {world.name}")
+    try:
+        cmd.stream.seek(0)
+        hashes = calculate_hashes_from_stream(cmd.stream, {HashAlgorithm.SHA256})
+        sha256_bytes = hashes[HashAlgorithm.SHA256]
+    except (IOError, FileNotFoundError) as e:
+        raise # Re-raise the exception to be handled by the caller
+
+    existing_entity = await transaction.find_entity_by_content_hash(sha256_bytes, "sha256")
+    entity = None
+
+    if existing_entity:
+        entity = existing_entity
+        logger.info(f"Content for '{cmd.original_filename}' already exists as Entity ID {entity.id}.")
+    else:
+        entity = await ecs_functions.create_entity(transaction.session)
+        logger.info(f"Creating new Entity ID {entity.id} for '{cmd.original_filename}'.")
+
+        fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
+        await transaction.add_component_to_entity(entity.id, fpc)
+
+    if not entity:
+        raise Exception("Failed to create or find entity for the asset.")
+
+    # Dispatch command to add all hashes
+    cmd.stream.seek(0)
+    add_hashes_command = AddHashesFromStreamCommand(
+        entity_id=entity.id,
+        stream=cmd.stream,
+        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
+    )
+    await world.dispatch_command(add_hashes_command)
+
+    # Store the file and add components
+    file_storage = world.get_resource(FileStorageResource)
+    cmd.stream.seek(0)
+    _, relative_path = file_storage.store_file(cmd.stream.read(), original_filename=cmd.original_filename)
+
+    absolute_path = file_storage.get_world_asset_storage_path() / relative_path
+    url = absolute_path.as_uri()
+    source_type = source_types.SOURCE_TYPE_LOCAL_FILE
+
+    existing_flcs = await transaction.get_components(entity.id, FileLocationComponent)
+    if not any(flc.url == url for flc in existing_flcs):
+        flc = FileLocationComponent(url=url)
+        await transaction.add_component_to_entity(entity.id, flc)
+
+    existing_osis = await transaction.get_components_by_value(
+        entity.id, OriginalSourceInfoComponent, {"source_type": source_type}
+    )
+    if not existing_osis:
+        osi = OriginalSourceInfoComponent(source_type=source_type)
+        await transaction.add_component_to_entity(entity.id, osi)
+
+    if not await transaction.get_components(entity.id, NeedsMetadataExtractionComponent):
+        marker = NeedsMetadataExtractionComponent()
+        await transaction.add_component_to_entity(entity.id, marker)
+
+    return entity
+
+
+import io
 
 @handles_command(IngestFileCommand)
 async def handle_ingest_file_command(
@@ -31,39 +108,19 @@ async def handle_ingest_file_command(
     """
     logger.info(f"System handling IngestFileCommand for: {cmd.original_filename} in world {world.name}")
     try:
-        await import_functions.import_local_file(
-            world=world,
-            transaction=transaction,
-            filepath=cmd.filepath_on_disk,
-            copy_to_storage=True,
+        with open(cmd.filepath_on_disk, "rb") as f:
+            file_content_stream = io.BytesIO(f.read())
+
+        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(
+            stream=file_content_stream,
             original_filename=cmd.original_filename,
             size_bytes=cmd.size_bytes,
         )
+        await world.dispatch_command(get_or_create_cmd)
+
         logger.info(f"Successfully processed IngestFileCommand for {cmd.original_filename}")
-    except import_functions.ImportFunctionsError as e:
+    except Exception as e:
         logger.error(f"Failed to process IngestFileCommand for {cmd.original_filename}: {e}", exc_info=True)
-
-
-@handles_command(IngestReferenceCommand)
-async def handle_ingest_reference_command(
-    cmd: IngestReferenceCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
-):
-    """
-    Handles the command to ingest an asset by reference.
-    """
-    logger.info(f"System handling IngestReferenceCommand for: {cmd.original_filename} in world {world.name}")
-    try:
-        await import_functions.import_local_file(
-            world=world,
-            transaction=transaction,
-            filepath=cmd.filepath_on_disk,
-            copy_to_storage=False,
-            original_filename=cmd.original_filename,
-            size_bytes=cmd.size_bytes,
-        )
-        logger.info(f"Successfully processed IngestReferenceCommand for {cmd.original_filename}")
-    except import_functions.ImportFunctionsError as e:
-        logger.error(f"Failed to process IngestReferenceCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 
 @handles_command(FindEntityByHashCommand)
@@ -137,8 +194,3 @@ async def handle_find_entity_by_hash_command(
         raise
 
 
-__all__ = [
-    "handle_ingest_file_command",
-    "handle_ingest_reference_command",
-    "handle_find_entity_by_hash_command",
-]

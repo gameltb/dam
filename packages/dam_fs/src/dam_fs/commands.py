@@ -3,6 +3,17 @@ from pathlib import Path
 from typing import BinaryIO
 
 from dam.core.commands import BaseCommand
+from dam.models.core.entity import Entity
+
+
+@dataclass
+class GetOrCreateEntityFromStreamCommand(BaseCommand[Entity]):
+    """
+    A command to get or create an entity from a stream.
+    """
+    stream: BinaryIO
+    original_filename: str
+    size_bytes: int
 
 
 @dataclass
