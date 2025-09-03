@@ -7,7 +7,7 @@ from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
-from dam.utils.url_utils import get_local_path_for_url
+from dam_fs.utils.url_utils import get_local_path_for_url
 
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
@@ -158,5 +158,29 @@ async def get_file_path_by_id(transaction: EcsTransaction, file_id: int, world_c
         except (ValueError, FileNotFoundError) as e:
             logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
             continue
+
+    return None
+
+
+async def get_file_path_for_entity(transaction: EcsTransaction, entity_id: int, world_config: WorldConfig, variant_name: Optional[str] = "original") -> Optional[Path]:
+    """
+    Retrieves the full file path for a given entity.
+    """
+    logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
+
+    all_locations = await transaction.get_components(entity_id, FileLocationComponent)
+    if not all_locations:
+        logger.warning(f"No FileLocationComponent found for entity {entity_id}.")
+        return None
+
+    # TODO: Add proper variant handling logic here
+    target_loc = all_locations[0]
+
+    try:
+        potential_path = get_local_path_for_url(target_loc.url, world_config)
+        if potential_path and await asyncio.to_thread(potential_path.is_file):
+            return potential_path
+    except (ValueError, FileNotFoundError) as e:
+        logger.debug(f"Could not resolve or find file for URL '{target_loc.url}' for entity {entity_id}: {e}")
 
     return None

@@ -24,11 +24,10 @@ async def auto_tag_entity_command_handler(
     entity = cmd.entity
     logger.info(f"Handling AutoTagEntityCommand for entity {entity.id}")
 
-    from dam.utils.media_utils import get_file_path_for_entity
-
+    from dam_fs.functions import file_operations as file_operations_module
     from dam_app.functions import tagging_functions as tagging_functions_module
 
-    image_path = await get_file_path_for_entity(session, entity.id, world_config.ASSET_STORAGE_PATH)
+    image_path = await file_operations_module.get_file_path_for_entity(transaction, entity.id, world_config)
     if not image_path:
         logger.warning(f"Could not determine image file path for entity {entity.id}. Skipping auto-tagging.")
         return

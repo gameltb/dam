@@ -24,7 +24,7 @@ from dam.models.core.entity import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Corrected direct imports for models
-from dam.utils.url_utils import get_local_path_for_url
+from dam_fs.utils.url_utils import get_local_path_for_url
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 

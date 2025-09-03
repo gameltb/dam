@@ -149,7 +149,7 @@ Similar to text embeddings, the system supports storing and searching audio embe
 -   **System (`AudioProcessingSystem`)**:
     *   A system can be designed to react to `AudioComponent` being added to an entity, or it can be triggered by a command.
     *   Uses `audio_functions` to generate embeddings.
-    *   Relies on `dam.utils.media_utils.get_file_path_for_entity` to locate the audio file for an entity.
+    *   Relies on `dam_fs.functions.file_operations.get_file_path_for_entity` to locate the audio file for an entity.
 -   **Commands**:
     *   `AudioSearchCommand` (in `dam_media_audio.commands`): Used to request an audio similarity search.
     *   Handled by `handle_audio_search_command` in `dam_semantic.systems`, which calls the `audio_functions`.

@@ -13,18 +13,29 @@ from dam.core.config import WorldConfig
 def parse_dam_url(url: str) -> dict:
     """
     Parses a DAM URL into its components.
-    Format: dam://<storage_type>/<path_to_file_or_archive>[#<path_inside_archive>]
+    Format: dam://<storage_type>/<path_to_file_or_archive>[#<path_inside_archive>][?pwd=<pwd1>&pwd2=<pwd2>...]
     """
     parsed = urlparse(url)
     storage_type = parsed.hostname
     path = parsed.path.lstrip("/")
     fragment = parsed.fragment
     query = parse_qs(parsed.query)
+
+    passwords = []
+    if "pwd" in query:
+        passwords.append(query.pop("pwd")[0])
+
+    i = 2
+    while f"pwd{i}" in query:
+        passwords.append(query.pop(f"pwd{i}")[0])
+        i += 1
+
     return {
         "storage_type": storage_type,
         "path": path,
         "fragment": fragment,
         "query": query,
+        "passwords": passwords,
     }
 
 
