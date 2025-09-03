@@ -1,6 +1,8 @@
 from typing import Optional
+
 from .base import ArchiveHandler
 from .registry import get_handlers
+
 
 def open_archive(file_path: str, password: Optional[str] = None) -> Optional[ArchiveHandler]:
     """

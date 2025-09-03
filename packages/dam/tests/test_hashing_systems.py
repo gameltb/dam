@@ -1,6 +1,7 @@
 from io import BytesIO
 
 import pytest
+
 from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -36,6 +37,7 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World):
         md5_comp = await ecs_functions.get_component(session, entity_id, ContentHashMD5Component)
         assert md5_comp is not None
         import hashlib
+
         assert md5_comp.hash_value == hashlib.md5(data).digest()
 
         sha256_comp = await ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
@@ -68,6 +70,7 @@ async def test_add_hashes_from_stream_system_raises_on_mismatch(test_world_alpha
     )
 
     from dam.core.exceptions import CommandHandlingError
+
     with pytest.raises(CommandHandlingError) as exc_info:
         await world.dispatch_command(command)
 

@@ -3,7 +3,6 @@ import zlib
 from io import BytesIO
 
 import blake3
-import pytest
 
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 

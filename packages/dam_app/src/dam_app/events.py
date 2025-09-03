@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List
+
 from dam.core.events import BaseEvent
 
 

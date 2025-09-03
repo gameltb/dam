@@ -1,8 +1,9 @@
 import zipfile
-from io import BytesIO
 from typing import IO, List, Optional
+
 from .base import ArchiveHandler
 from .registry import register_handler
+
 
 class ZipArchiveHandler(ArchiveHandler):
     """
@@ -19,7 +20,6 @@ class ZipArchiveHandler(ArchiveHandler):
         except (RuntimeError, zipfile.BadZipFile) as e:
             raise IOError(f"Failed to open zip file: {e}") from e
 
-
     @staticmethod
     def can_handle(file_path: str) -> bool:
         return file_path.lower().endswith(".zip")
@@ -33,7 +33,9 @@ class ZipArchiveHandler(ArchiveHandler):
         except (RuntimeError, KeyError) as e:
             raise IOError(f"Failed to open file in zip: {e}") from e
 
+
 def register():
     register_handler(ZipArchiveHandler)
+
 
 register()

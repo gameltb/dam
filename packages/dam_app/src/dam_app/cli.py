@@ -1,5 +1,4 @@
 # --- Framework Imports for Systems ---
-import asyncio
 import io
 import logging
 import traceback  # Import traceback for detailed error logging
@@ -23,7 +22,7 @@ from dam.utils.async_typer import AsyncTyper
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
-from .commands import IngestAssetStreamCommand, IngestAssetsCommand
+from .commands import IngestAssetsCommand, IngestAssetStreamCommand
 from .events import AssetsReadyForMetadataExtraction
 
 app = AsyncTyper(

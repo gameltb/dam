@@ -1,24 +1,21 @@
+import asyncio
 import logging
 from typing import Annotated
 
-from dam.core.config import WorldConfig
 from dam.core.systems import handles_command, listens_for
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.functions import ecs_functions
+from dam.utils.url_utils import get_local_path_for_url
+from dam_archive.main import open_archive
 from dam_fs.events import FileStored
-from dam_fs.functions import file_operations
+from dam_fs.functions import file_operations as dam_fs_file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.resources import FileStorageResource
-from dam_archive.main import open_archive
 from dam_source.functions import import_functions
-from dam.utils.url_utils import get_local_path_for_url
-import asyncio
 
-from ..commands import GetAssetStreamCommand, IngestAssetStreamCommand, IngestAssetsCommand
-from ..events import AssetsReadyForMetadataExtraction
+from ..commands import GetAssetStreamCommand, IngestAssetsCommand, IngestAssetStreamCommand
 from ..models import ArchiveMemberComponent
-from dam.functions import ecs_functions
-from dam_fs.functions import file_operations as dam_fs_file_operations
 
 logger = logging.getLogger(__name__)
 

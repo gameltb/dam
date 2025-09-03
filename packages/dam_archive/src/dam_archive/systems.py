@@ -1,17 +1,19 @@
-import logging
 import asyncio
+import logging
 from typing import Annotated
 
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.utils.url_utils import get_local_path_for_url
 from dam_app.commands import GetAssetStreamCommand
 from dam_app.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam.utils.url_utils import get_local_path_for_url
+
 from .main import open_archive
 
 logger = logging.getLogger(__name__)
+
 
 @handles_command(GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
@@ -47,4 +49,4 @@ async def get_archive_asset_stream_handler(
             logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {target_entity_id}: {e}")
             continue
 
-    return None # No valid local file found for the archive
+    return None  # No valid local file found for the archive

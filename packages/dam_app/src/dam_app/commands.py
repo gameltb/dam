@@ -1,5 +1,4 @@
 import traceback
-import uuid
 from dataclasses import dataclass
 from typing import BinaryIO, List, Optional
 
@@ -32,6 +31,7 @@ class IngestAssetsCommand(BaseCommand[List[int]]):
 @dataclass
 class GetAssetStreamCommand(BaseCommand):
     """A command to get a readable stream for an asset."""
+
     entity_id: int
 
 

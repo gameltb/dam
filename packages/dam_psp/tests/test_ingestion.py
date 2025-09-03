@@ -1,6 +1,5 @@
-import hashlib
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
