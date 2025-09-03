@@ -50,7 +50,6 @@ from ..commands import ExtractAudioMetadataCommand
 async def add_audio_components_system(
     cmd: ExtractAudioMetadataCommand,
     transaction: EcsTransaction,
-    world_config: WorldConfig,
 ):
     logger.info("Running add_audio_components_system")
     if not _hachoir_available:
@@ -65,7 +64,7 @@ async def add_audio_components_system(
     filepath_on_disk = None
     for loc in all_locations:
         try:
-            potential_path = get_local_path_for_url(loc.url, world_config)
+            potential_path = get_local_path_for_url(loc.url)
             if potential_path and await asyncio.to_thread(potential_path.is_file):
                 filepath_on_disk = potential_path
                 break

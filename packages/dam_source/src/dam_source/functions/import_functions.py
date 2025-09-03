@@ -80,14 +80,15 @@ async def import_stream(
     file_storage = world.get_resource(FileStorageResource)
     file_content.seek(0)
     sha256_hash_hex = sha256_bytes.hex()
-    _, physical_path = file_storage.store_file(file_content.read(), original_filename=original_filename)
+    _, relative_path = file_storage.store_file(file_content.read(), original_filename=original_filename)
 
-    url = f"dam://local_cas/{sha256_hash_hex}#{original_filename}"
+    absolute_path = file_storage.get_world_asset_storage_path() / relative_path
+    url = absolute_path.as_uri()
     source_type = source_types.SOURCE_TYPE_LOCAL_FILE
 
     existing_flcs = await transaction.get_components(entity.id, FileLocationComponent)
     if not any(flc.url == url for flc in existing_flcs):
-        flc = FileLocationComponent(content_identifier=sha256_hash_hex, url=url, credentials=None)
+        flc = FileLocationComponent(url=url)
         await transaction.add_component_to_entity(entity.id, flc)
 
     existing_osis = await transaction.get_components_by_value(

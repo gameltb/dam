@@ -149,7 +149,7 @@ async def _get_source_asset_filepath(world: World, asset_entity_id: int, session
     try:
         # Use the url_utils to resolve the URL to a local, absolute path
         # This requires the world's config to resolve 'local_cas' URLs
-        source_path = url_utils.get_local_path_for_url(flc.url, world.config)
+        source_path = url_utils.get_local_path_for_url(flc.url)
     except ValueError as e:
         # Raised by url_utils if URL scheme is not supported for local access
         raise TranscodeFunctionsError(

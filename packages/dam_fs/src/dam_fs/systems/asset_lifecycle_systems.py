@@ -40,7 +40,7 @@ async def handle_ingest_file_command(
             size_bytes=cmd.size_bytes,
         )
         logger.info(f"Successfully processed IngestFileCommand for {cmd.original_filename}")
-    except import_functions.ImportServiceError as e:
+    except import_functions.ImportFunctionsError as e:
         logger.error(f"Failed to process IngestFileCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 
@@ -62,7 +62,7 @@ async def handle_ingest_reference_command(
             size_bytes=cmd.size_bytes,
         )
         logger.info(f"Successfully processed IngestReferenceCommand for {cmd.original_filename}")
-    except import_functions.ImportServiceError as e:
+    except import_functions.ImportFunctionsError as e:
         logger.error(f"Failed to process IngestReferenceCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 

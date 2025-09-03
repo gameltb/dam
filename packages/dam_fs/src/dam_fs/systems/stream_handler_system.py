@@ -34,7 +34,7 @@ async def get_asset_stream_handler(
     # Find a valid local path
     for loc in all_locations:
         try:
-            potential_path = get_local_path_for_url(loc.url, world_config)
+            potential_path = get_local_path_for_url(loc.url)
             if potential_path and await asyncio.to_thread(potential_path.is_file):
                 return await asyncio.to_thread(open, potential_path, "rb")
         except (ValueError, FileNotFoundError) as e:

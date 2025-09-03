@@ -8,6 +8,9 @@ from dam.core.transaction import EcsTransaction
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
 from dam_fs.utils.url_utils import get_local_path_for_url
+from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from ..resources.file_storage_resource import FileStorageResource
+
 
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
@@ -117,7 +120,6 @@ async def create_entity_with_file(transaction: EcsTransaction, world_config: Wor
     # For now, we only support local files. The URL will be a file URI.
     file_url = p_file_path.as_uri()
     location_component = FileLocationComponent(
-        content_identifier="",  # We'll leave this empty for now, hashing can be a separate step
         url=file_url,
     )
     await ecs_functions.add_component_to_entity(transaction.session, entity.id, location_component)
@@ -135,7 +137,7 @@ async def create_entity_with_file(transaction: EcsTransaction, world_config: Wor
     return entity
 
 
-async def get_file_path_by_id(transaction: EcsTransaction, file_id: int, world_config: WorldConfig) -> Optional[Path]:
+async def get_file_path_by_id(transaction: EcsTransaction, file_id: int) -> Optional[Path]:
     """
     Resolves a file_id (which is the ID of a FilePropertiesComponent) to a local, accessible file path.
     """
@@ -144,30 +146,27 @@ async def get_file_path_by_id(transaction: EcsTransaction, file_id: int, world_c
         logger.warning(f"Could not find FilePropertiesComponent with ID {file_id}.")
         return None
 
-    entity_id = fpc.entity_id
-    all_locations = await transaction.get_components(entity_id, FileLocationComponent)
-    if not all_locations:
-        logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}.")
-        return None
-
-    for loc in all_locations:
-        try:
-            potential_path = get_local_path_for_url(loc.url, world_config)
-            if potential_path and await asyncio.to_thread(potential_path.is_file):
-                return potential_path
-        except (ValueError, FileNotFoundError) as e:
-            logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
-            continue
-
-    return None
+    return await get_file_path_for_entity(transaction, fpc.entity_id)
 
 
-async def get_file_path_for_entity(transaction: EcsTransaction, entity_id: int, world_config: WorldConfig, variant_name: Optional[str] = "original") -> Optional[Path]:
+async def get_file_path_for_entity(transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original") -> Optional[Path]:
     """
     Retrieves the full file path for a given entity.
     """
     logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
 
+    # 1. Try to get path from FileStorageResource using content hash
+    sha256_comp = await transaction.get_component(entity_id, ContentHashSHA256Component)
+    if sha256_comp:
+        file_storage = transaction.world.get_resource(FileStorageResource)
+        if file_storage:
+            content_hash = sha256_comp.hash_value.hex()
+            potential_path = file_storage.get_file_path(content_hash)
+            if potential_path and await asyncio.to_thread(potential_path.is_file):
+                logger.debug(f"Found file in FileStorageResource for entity {entity_id} at {potential_path}")
+                return potential_path
+
+    # 2. Fallback to FileLocationComponent
     all_locations = await transaction.get_components(entity_id, FileLocationComponent)
     if not all_locations:
         logger.warning(f"No FileLocationComponent found for entity {entity_id}.")
@@ -177,8 +176,9 @@ async def get_file_path_for_entity(transaction: EcsTransaction, entity_id: int, 
     target_loc = all_locations[0]
 
     try:
-        potential_path = get_local_path_for_url(target_loc.url, world_config)
+        potential_path = get_local_path_for_url(target_loc.url)
         if potential_path and await asyncio.to_thread(potential_path.is_file):
+            logger.debug(f"Found file via FileLocationComponent for entity {entity_id} at {potential_path}")
             return potential_path
     except (ValueError, FileNotFoundError) as e:
         logger.debug(f"Could not resolve or find file for URL '{target_loc.url}' for entity {entity_id}: {e}")

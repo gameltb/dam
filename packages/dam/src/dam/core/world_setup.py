@@ -3,8 +3,6 @@ import logging
 # --- Core System Registration (merged from world_registrar.py) ---
 from typing import TYPE_CHECKING
 
-from dam_fs.resources.file_storage_resource import FileStorageResource
-
 from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.config import settings as global_app_settings  # WorldConfig no longer needed here directly
 from dam.core.database import DatabaseManager
@@ -52,11 +50,6 @@ def initialize_world_resources(world: World) -> None:
     )
     resource_manager.add_resource(db_manager, DatabaseManager)
     world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
-
-    # 3. FileStorageResource
-    file_storage_svc = FileStorageResource(world_config=world_config)
-    resource_manager.add_resource(file_storage_svc, FileStorageResource)
-    world.logger.debug(f"Added FileStorageResource resource for World '{world_name}'.")
 
     # 4. FileOperationsResource
     resource_manager.add_resource(FileOperationsResource())

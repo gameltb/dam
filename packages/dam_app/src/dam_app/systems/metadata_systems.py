@@ -210,7 +210,7 @@ async def extract_metadata_on_asset_ingested(
         for loc in all_locations:
             try:
                 # Use the centralized URL resolver
-                potential_path = get_local_path_for_url(loc.url, world_config)
+                potential_path = get_local_path_for_url(loc.url)
                 # Check if the resolved path actually exists and is a file
                 if potential_path and await asyncio.to_thread(potential_path.is_file):
                     filepath_on_disk = potential_path
