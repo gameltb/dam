@@ -7,11 +7,11 @@ from dam.models.core.entity import Entity
 
 
 @dataclass
-class GetOrCreateEntityFromStreamCommand(BaseCommand[Entity]):
+class AddFilePropertiesCommand(BaseCommand[None]):
     """
-    A command to get or create an entity from a stream.
+    A command to add file properties to an entity.
     """
-    stream: BinaryIO
+    entity_id: int
     original_filename: str
     size_bytes: int
 

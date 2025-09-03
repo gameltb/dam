@@ -6,12 +6,14 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam_fs.events import FileStored
 from dam_fs.resources import FileStorageResource
-from dam_fs.commands import GetOrCreateEntityFromStreamCommand
+from dam_fs.commands import AddFilePropertiesCommand
 
 from ..commands import IngestAssetStreamCommand
 
 logger = logging.getLogger(__name__)
 
+
+from dam.core.commands import GetOrCreateEntityFromStreamCommand as CoreGetOrCreateEntityFromStreamCommand
 
 @handles_command(IngestAssetStreamCommand)
 async def ingest_asset_stream_command_handler(
@@ -29,13 +31,20 @@ async def ingest_asset_stream_command_handler(
         cmd.file_content.seek(0)
         size_bytes = len(cmd.file_content.getvalue())
 
-        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(
+        # 1. Get or create entity from stream
+        get_or_create_cmd = CoreGetOrCreateEntityFromStreamCommand(
             stream=cmd.file_content,
+        )
+        command_result = await world.dispatch_command(get_or_create_cmd)
+        entity, sha256_bytes = command_result.results[0]
+
+        # 2. Add file properties
+        add_props_cmd = AddFilePropertiesCommand(
+            entity_id=entity.id,
             original_filename=cmd.original_filename,
             size_bytes=size_bytes,
         )
-        command_result = await world.dispatch_command(get_or_create_cmd)
-        entity = command_result.results[0]
+        await world.dispatch_command(add_props_cmd)
 
         await transaction.flush()
 

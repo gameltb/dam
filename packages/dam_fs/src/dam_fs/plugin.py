@@ -1,17 +1,18 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
 from .resources.file_storage_resource import FileStorageResource
+from .resources.file_operations_resource import FileOperationsResource
 
 from .commands import (
     FindEntityByHashCommand,
     GetAssetStreamCommand,
     IngestFileCommand,
-    GetOrCreateEntityFromStreamCommand,
+    AddFilePropertiesCommand,
 )
 from .systems.asset_lifecycle_systems import (
     handle_find_entity_by_hash_command,
     handle_ingest_file_command,
-    get_or_create_entity_from_stream_handler,
+    add_file_properties_handler,
 )
 from .systems.stream_handler_system import get_asset_stream_handler
 
@@ -23,13 +24,17 @@ class FsPlugin(Plugin):
         world.add_resource(file_storage_svc, FileStorageResource)
         world.logger.debug(f"Added FileStorageResource resource for World '{world.name}'.")
 
+        # Add FileOperationsResource
+        world.add_resource(FileOperationsResource())
+        world.logger.debug(f"Added FileOperationsResource for World '{world.name}'.")
+
         world.register_system(
             handle_ingest_file_command,
             command_type=IngestFileCommand,
         )
         world.register_system(
-            get_or_create_entity_from_stream_handler,
-            command_type=GetOrCreateEntityFromStreamCommand,
+            add_file_properties_handler,
+            command_type=AddFilePropertiesCommand,
         )
         world.register_system(handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand)
         world.register_system(get_asset_stream_handler, command_type=GetAssetStreamCommand)

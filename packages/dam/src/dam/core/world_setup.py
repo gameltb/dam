@@ -9,9 +9,10 @@ from dam.core.database import DatabaseManager
 
 # Moved these imports to the top of the file, outside of the TYPE_CHECKING block
 # to resolve E402 errors, as they are needed at runtime for registration.
-from dam.core.resources import FileOperationsResource
 from dam.core.world import World
 from dam.systems.hashing_systems import add_hashes_from_stream_system
+from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
+from dam.core.commands import GetOrCreateEntityFromStreamCommand
 
 if TYPE_CHECKING:
     # World is already imported at the top of this file for initialize_world_resources
@@ -51,9 +52,6 @@ def initialize_world_resources(world: World) -> None:
     resource_manager.add_resource(db_manager, DatabaseManager)
     world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
 
-    # 4. FileOperationsResource
-    resource_manager.add_resource(FileOperationsResource())
-    world.logger.debug(f"Added FileOperationsResource for World '{world_name}'.")
 
     world.logger.info(
         f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
@@ -70,4 +68,5 @@ def register_core_systems(world_instance: "World") -> None:
     This ensures consistency in system registration across different application entry points.
     """
     world_instance.register_system(add_hashes_from_stream_system, command_type=AddHashesFromStreamCommand)
+    world_instance.register_system(get_or_create_entity_from_stream_handler, command_type=GetOrCreateEntityFromStreamCommand)
     logger.info(f"Core system registration complete for world: {world_instance.name}")
