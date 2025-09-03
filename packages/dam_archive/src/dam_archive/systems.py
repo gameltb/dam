@@ -5,7 +5,7 @@ from typing import Annotated
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam.utils.url_utils import get_local_path_for_url
+from dam_fs.utils.url_utils import get_local_path_for_url, parse_dam_url
 from dam_fs.commands import GetAssetStreamCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 
@@ -40,9 +40,11 @@ async def get_archive_asset_stream_handler(
 
     for loc in all_locations:
         try:
+            parsed_url = parse_dam_url(loc.url)
+            passwords = parsed_url.get("passwords", [])
             potential_path = get_local_path_for_url(loc.url, world_config)
             if potential_path and await asyncio.to_thread(potential_path.is_file):
-                archive = open_archive(str(potential_path))
+                archive = open_archive(str(potential_path), passwords)
                 if archive:
                     return archive.open_file(path_in_archive)
         except (ValueError, FileNotFoundError) as e:

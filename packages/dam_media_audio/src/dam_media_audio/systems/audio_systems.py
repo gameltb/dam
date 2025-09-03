@@ -3,7 +3,7 @@ import logging
 
 from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
-from dam.utils.url_utils import get_local_path_for_url
+from dam_fs.utils.url_utils import get_local_path_for_url
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 
