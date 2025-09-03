@@ -29,13 +29,6 @@ class IngestAssetsCommand(BaseCommand[List[int]]):
 
 
 @dataclass
-class GetAssetStreamCommand(BaseCommand):
-    """A command to get a readable stream for an asset."""
-
-    entity_id: int
-
-
-@dataclass
 class AutoTagEntityCommand(BaseCommand):
     """A command to trigger auto-tagging for an entity."""
 

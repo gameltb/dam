@@ -6,11 +6,11 @@ from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.utils.url_utils import get_local_path_for_url
-from dam_app.commands import GetAssetStreamCommand
-from dam_app.models import ArchiveMemberComponent
+from dam_fs.commands import GetAssetStreamCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 
 from .main import open_archive
+from .models import ArchiveMemberComponent
 
 logger = logging.getLogger(__name__)
 

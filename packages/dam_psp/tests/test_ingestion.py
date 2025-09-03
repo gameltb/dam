@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 import pycdlib
 import pytest
 from dam.core.world import World
-from dam_app.commands import GetAssetStreamCommand
-from dam_app.events import AssetsReadyForMetadataExtraction
-from dam_app.models import ArchiveMemberComponent
+from dam_archive.models import ArchiveMemberComponent
+from dam_fs.commands import GetAssetStreamCommand
+from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 
 from dam_psp import psp_iso_functions

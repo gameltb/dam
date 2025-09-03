@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dam.core.plugin import Plugin
-from dam_app.events import AssetsReadyForMetadataExtraction
+from dam_fs.events import AssetsReadyForMetadataExtraction
 
 if TYPE_CHECKING:
     from dam.core.world import World

@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from dam.core.world import World
+from dam_archive.models import ArchiveMemberComponent
 
 from dam_app.commands import IngestAssetsCommand
-from dam_app.models import ArchiveMemberComponent
 from dam_app.systems.ingestion_systems import asset_ingestion_system
 
 
