@@ -23,7 +23,8 @@ from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
-from .commands import IngestAssetsCommand, IngestAssetStreamCommand
+from .commands import IngestAssetStreamCommand
+from dam_archive.commands import IngestAssetsCommand
 
 app = AsyncTyper(
     name="dam-cli",

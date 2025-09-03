@@ -21,14 +21,6 @@ class IngestAssetStreamCommand(BaseCommand):
 
 
 @dataclass
-class IngestAssetsCommand(BaseCommand[List[int]]):
-    """A command to ingest new assets from a list of file paths."""
-
-    file_paths: List[str]
-    passwords: Optional[List[str]] = None
-
-
-@dataclass
 class AutoTagEntityCommand(BaseCommand):
     """A command to trigger auto-tagging for an entity."""
 
