@@ -14,12 +14,13 @@ from dam.models.conceptual.transcoded_variant_component import TranscodedVariant
 from dam.models.core.entity import Entity
 from dam.utils import url_utils
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
-from dam.utils.media_utils import TranscodeError, transcode_media
 from dam_fs.commands import IngestFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session, joinedload
+
+from dam_media_transcode.utils.media_utils import TranscodeError, transcode_media
 
 
 class TranscodeFunctionsError(Exception):

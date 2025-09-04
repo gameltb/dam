@@ -18,11 +18,12 @@ from dam.core.world import (
     get_world,
 )
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam.utils.async_typer import AsyncTyper
 from dam_archive.commands import IngestAssetsCommand
 from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
+
+from dam_app.utils.async_typer import AsyncTyper
 
 from .commands import IngestAssetStreamCommand
 
