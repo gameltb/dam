@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import pytest
 
 from dam.core.commands import BaseCommand
-from dam.core.exceptions import CommandHandlingError
 from dam.core.systems import system
 from dam.core.world import World
 
@@ -60,13 +59,16 @@ async def test_register_and_dispatch_single_handler(test_world_alpha: World):
 
     assert result is not None
     assert len(result.results) == 1
-    assert result.results[0] == 20
+    assert result.results[0].is_ok()
+    assert result.results[0].unwrap() == 20
+    assert result.get_one_value() == 20
 
 
 @pytest.mark.asyncio
 async def test_dispatch_multiple_handlers(test_world_alpha: World):
     """
-    Tests that the first handler to return a non-None result wins.
+    Tests that multiple handlers for the same command all execute and their
+    results are collected.
     """
     world = test_world_alpha
     world.register_system(system_func=simple_handler_one)
@@ -76,8 +78,12 @@ async def test_dispatch_multiple_handlers(test_world_alpha: World):
     result = await world.dispatch_command(command)
 
     assert result is not None
-    assert len(result.results) == 1
-    assert result.results[0] == "Handled one: test"
+    assert len(result.results) == 2
+
+    ok_values = list(result.iter_ok_values())
+    assert len(ok_values) == 2
+    assert "Handled one: test" in ok_values
+    assert "Handled two: test" in ok_values
 
 
 @pytest.mark.asyncio
@@ -97,23 +103,35 @@ async def test_dispatch_command_with_no_handlers(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_command_handler_failure(test_world_alpha: World):
+async def test_command_handler_failure_is_captured(test_world_alpha: World):
     """
-    Tests that if a command handler raises an exception, the dispatch
-    is aborted and a CommandHandlingError is raised.
+    Tests that if a command handler raises an exception, the exception is
+    captured in a HandlerResult and does not abort the dispatch.
     """
     world = test_world_alpha
     world.register_system(system_func=failing_handler)
+    world.register_system(system_func=simple_handler_one)  # Register another handler to ensure it runs
 
     command = FailingCommand()
+    result = await world.dispatch_command(command)
 
-    with pytest.raises(CommandHandlingError) as exc_info:
-        await world.dispatch_command(command)
+    # The dispatch itself should not raise an error
+    assert result is not None
+    assert len(result.results) == 1
 
-    assert exc_info.value.command_type == "FailingCommand"
-    # The new design does not propagate the handler name to the top-level exception
-    # assert exc_info.value.handler_name == "failing_handler"
-    assert isinstance(exc_info.value.original_exception, ValueError)
+    handler_res = result.results[0]
+    assert handler_res.is_err()
+    assert isinstance(handler_res.exception, ValueError)
+
+    with pytest.raises(ValueError, match="This handler is designed to fail."):
+        handler_res.unwrap()
+
+    # Test the convenience methods
+    with pytest.raises(ValueError, match="No successful results found."):
+        result.get_first_ok_value()
+
+    with pytest.raises(ValueError, match="Expected one result, but found none."):
+        result.get_one_value()
 
 
 @pytest.mark.asyncio
@@ -129,11 +147,9 @@ async def test_dispatch_different_commands(test_world_alpha: World):
     # Dispatch first command
     cmd1 = SimpleCommand(data="dispatch one")
     res1 = await world.dispatch_command(cmd1)
-    assert len(res1.results) == 1
-    assert res1.results[0] == "Handled one: dispatch one"
+    assert res1.get_one_value() == "Handled one: dispatch one"
 
     # Dispatch second command
     cmd2 = AnotherCommand(value=5)
     res2 = await world.dispatch_command(cmd2)
-    assert len(res2.results) == 1
-    assert res2.results[0] == 10
+    assert res2.get_one_value() == 10

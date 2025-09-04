@@ -46,16 +46,14 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system_raises_on_mismatch(test_world_alpha: World):
+async def test_add_hashes_from_stream_system_captures_mismatch_error(test_world_alpha: World):
     """
-    Tests that the system raises HashMismatchError if a hash already exists and does not match.
+    Tests that the system returns an Err result if a hash already exists and does not match.
     """
     world = test_world_alpha
     async with world.db_session_maker() as session:
         entity = await ecs_functions.create_entity(session)
         # Add a component with a wrong hash.
-        # The hash must be 16 bytes long to satisfy the database constraint,
-        # but have a value that does not match the actual hash of the data.
         wrong_hash_comp = ContentHashMD5Component(hash_value=b"a" * 16)
         await ecs_functions.add_component_to_entity(session, entity.id, wrong_hash_comp)
         await session.commit()
@@ -69,9 +67,11 @@ async def test_add_hashes_from_stream_system_raises_on_mismatch(test_world_alpha
         algorithms={HashAlgorithm.MD5},
     )
 
-    from dam.core.exceptions import CommandHandlingError
+    result = await world.dispatch_command(command)
 
-    with pytest.raises(CommandHandlingError) as exc_info:
-        await world.dispatch_command(command)
+    assert result is not None
+    assert len(result.results) == 1
+    handler_res = result.results[0]
 
-    assert isinstance(exc_info.value.original_exception, HashMismatchError)
+    assert handler_res.is_err()
+    assert isinstance(handler_res.exception, HashMismatchError)

@@ -232,7 +232,11 @@ async def cli_ingest(
     command = IngestAssetsCommand(file_paths=files_to_process, passwords=passwords)
 
     try:
-        new_entity_ids = await target_world.dispatch_command(command)
+        command_result = await target_world.dispatch_command(command)
+        # The result is a list of entity IDs from the handler.
+        # We expect one handler, so we get the first successful result.
+        new_entity_ids = command_result.get_first_ok_value()
+
         typer.secho(f"Successfully ingested {len(new_entity_ids)} assets.", fg=typer.colors.GREEN)
 
         if new_entity_ids:
@@ -445,7 +449,7 @@ def main_callback(
             )
 
             command_result = await target_world.dispatch_command(query_command)
-            results = command_result.results[0] if command_result.results else None
+            results = command_result.get_first_ok_value() if command_result.results else None
 
             if not results:
                 typer.secho(

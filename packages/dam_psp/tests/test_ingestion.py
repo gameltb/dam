@@ -1,9 +1,11 @@
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.core.commands import CommandResult
+from dam.core.result import HandlerResult
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
@@ -140,12 +142,14 @@ async def test_psp_iso_metadata_extraction_system(mocker):
     async def dispatch_command_side_effect(command):
         if isinstance(command, GetAssetFilenamesCommand):
             if command.entity_id == standalone_iso_entity_id:
-                return MagicMock(results=[["test.iso"]])
+                return CommandResult(results=[HandlerResult(value=["test.iso"])])
             elif command.entity_id == archived_iso_entity_id:
-                return MagicMock(results=[["game.iso"]])
+                return CommandResult(results=[HandlerResult(value=["game.iso"])])
             elif command.entity_id == non_iso_entity_id:
-                return MagicMock(results=[["text.txt"]])
-        return None  # Default return for other commands
+                return CommandResult(results=[HandlerResult(value=["text.txt"])])
+        # For other commands, just return a default empty result.
+        # The call is tracked by the mock automatically.
+        return CommandResult(results=[])
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
 
@@ -170,12 +174,12 @@ async def test_psp_iso_metadata_extraction_system(mocker):
 
     # 4. Execute command handler
     # Reset mock for world dispatch before command handler execution
-    mock_world.dispatch_command.reset_mock()
+    mock_world.dispatch_command.side_effect = None  # Reset side effect
 
     async def dispatch_command_side_effect_for_stream(command):
         if isinstance(command, GetAssetStreamCommand):
-            return create_dummy_iso_with_sfo()
-        return None
+            return CommandResult(results=[HandlerResult(value=create_dummy_iso_with_sfo())])
+        return CommandResult(results=[])  # Default empty result
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect_for_stream
 

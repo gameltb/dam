@@ -19,6 +19,7 @@ from typing import (
 from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.events import BaseEvent
 from dam.core.resources import ResourceNotFoundError
+from dam.core.result import HandlerResult
 from dam.core.stages import SystemStage
 from dam.core.transaction import EcsTransaction
 from dam.models.core.base_component import BaseComponent
@@ -236,22 +237,29 @@ class WorldScheduler:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
+
         if not handlers_to_run:
             self.logger.info(
                 f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}"
             )
             return CommandResult(results=[])
 
+        all_results: List[HandlerResult[ResultType]] = []
         for handler_func in handlers_to_run:
-            result = await self._execute_system_func(
-                handler_func, transaction, event_object=None, command_object=command
-            )
-            if result is not None:
-                # First handler to return a non-None result wins
-                return CommandResult(results=[result])
+            try:
+                result_value = await self._execute_system_func(
+                    handler_func, transaction, event_object=None, command_object=command
+                )
+                # We wrap even None results from successful calls, unless the system is designed to not return anything meaningful
+                all_results.append(HandlerResult(value=result_value))
+            except Exception as e:
+                self.logger.error(
+                    f"Exception caught in command handler '{handler_func.__name__}' for command '{command_type.__name__}': {e}",
+                    exc_info=True,
+                )
+                all_results.append(HandlerResult(exception=e))
 
-        # If no handler returned a result, return a CommandResult with an empty list
-        return CommandResult(results=[])
+        return CommandResult(results=all_results)
 
     async def run_all_stages(self, transaction: EcsTransaction):
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
