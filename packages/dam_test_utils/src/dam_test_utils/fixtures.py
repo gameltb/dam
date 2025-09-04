@@ -128,9 +128,6 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings, plu
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
     await world.create_db_and_tables()
-    from dam.core.world_setup import register_core_systems
-
-    register_core_systems(world)
 
     if plugins:
         for plugin in plugins:

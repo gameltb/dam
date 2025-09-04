@@ -19,7 +19,6 @@ from .world import (
     register_world,  # Added missing register_world
     unregister_world,
 )
-from .world_setup import initialize_world_resources, register_core_systems  # Functions
 
 __all__ = [
     # Config
@@ -55,7 +54,4 @@ __all__ = [
     "unregister_world",
     "get_all_registered_worlds",
     "register_world",
-    # World Setup
-    "initialize_world_resources",
-    "register_core_systems",
 ]

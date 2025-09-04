@@ -294,11 +294,8 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
     world = World(world_config=world_cfg)
 
-    # Initialize resources for the world instance.
-    # initialize_world_resources now takes a World instance and modifies its resource_manager in-place.
-    from .world_setup import initialize_world_resources
-
-    initialize_world_resources(world)  # Populates world.resource_manager
+    from dam.plugins.core import CorePlugin
+    world.add_plugin(CorePlugin())
 
     # The scheduler was initialized with world.resource_manager. Since initialize_world_resources
     # modifies that same instance, the scheduler should already have the correct reference.
@@ -320,12 +317,10 @@ def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings
     logger.info(
         f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)"
     )
-    from .world_setup import register_core_systems  # Import here
 
     for name in world_names:
         try:
             world = create_and_register_world(name, app_settings=current_settings)
-            register_core_systems(world)  # Register systems after world creation
             created_worlds.append(world)
         except Exception as e:
             logger.error(f"Failed to create or register world '{name}': {e}", exc_info=True)
