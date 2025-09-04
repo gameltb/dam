@@ -1,7 +1,7 @@
 import logging
 
 from dam.core.config import WorldConfig
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam_sire.resource import SireResource
 
@@ -10,7 +10,7 @@ from ..commands import AutoTagEntityCommand
 logger = logging.getLogger(__name__)
 
 
-@handles_command(AutoTagEntityCommand)
+@system(on_command=AutoTagEntityCommand)
 async def auto_tag_entity_command_handler(
     cmd: AutoTagEntityCommand,
     transaction: EcsTransaction,

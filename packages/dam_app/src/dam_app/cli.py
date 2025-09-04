@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer  # Ensure typer is imported for annotations like typer.Context
-from dam import DamPlugin
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import (
@@ -291,9 +290,6 @@ def main_callback(
         typer.secho(f"Critical error: Could not initialize worlds from settings: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-
-    for world_instance in initialized_worlds:
-        world_instance.add_plugin(DamPlugin())
 
     from dam_app.plugin import AppPlugin
 

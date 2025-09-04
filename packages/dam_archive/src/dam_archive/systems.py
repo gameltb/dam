@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Annotated
 
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -18,7 +18,7 @@ from .models import ArchiveMemberComponent, ArchivePasswordComponent
 logger = logging.getLogger(__name__)
 
 
-@handles_command(SetArchivePasswordCommand)
+@system(on_command=SetArchivePasswordCommand)
 async def set_archive_password_handler(
     cmd: SetArchivePasswordCommand,
     transaction: EcsTransaction,
@@ -34,7 +34,7 @@ async def set_archive_password_handler(
         await transaction.add_component_to_entity(cmd.entity_id, password_comp)
 
 
-@handles_command(GetAssetStreamCommand)
+@system(on_command=GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: EcsTransaction,
@@ -74,7 +74,7 @@ async def get_archive_asset_stream_handler(
     return None  # No valid local file found for the archive
 
 
-@handles_command(IngestAssetsCommand)
+@system(on_command=IngestAssetsCommand)
 async def asset_ingestion_system(
     cmd: IngestAssetsCommand,
     world: Annotated[World, "Resource"],

@@ -1,6 +1,6 @@
 import logging
 
-from dam.core.systems import listens_for
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam_archive.models import ArchiveMemberComponent
@@ -15,7 +15,7 @@ from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 logger = logging.getLogger(__name__)
 
 
-@listens_for(AssetsReadyForMetadataExtraction)
+@system(on_event=AssetsReadyForMetadataExtraction)
 async def psp_iso_metadata_extraction_system(
     event: AssetsReadyForMetadataExtraction,
     transaction: EcsTransaction,

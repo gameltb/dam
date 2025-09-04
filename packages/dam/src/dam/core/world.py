@@ -295,6 +295,7 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
     world = World(world_config=world_cfg)
 
     from dam.plugins.core import CorePlugin
+
     world.add_plugin(CorePlugin())
 
     # The scheduler was initialized with world.resource_manager. Since initialize_world_resources

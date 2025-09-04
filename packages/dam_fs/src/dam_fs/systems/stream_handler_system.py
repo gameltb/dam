@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Annotated
 
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 
@@ -14,7 +14,7 @@ from ..models.file_location_component import FileLocationComponent
 logger = logging.getLogger(__name__)
 
 
-@handles_command(GetAssetStreamCommand)
+@system(on_command=GetAssetStreamCommand)
 async def get_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: EcsTransaction,

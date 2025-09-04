@@ -4,7 +4,7 @@ from typing import Annotated, Any, Dict, List, Optional
 from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
 from dam.core.stages import SystemStage
-from dam.core.systems import handles_command, listens_for, system
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
@@ -42,7 +42,7 @@ async def add_image_components_system(
     pass
 
 
-@handles_command(FindSimilarImagesCommand)
+@system(on_command=FindSimilarImagesCommand)
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: EcsTransaction,
@@ -184,7 +184,7 @@ async def handle_find_similar_images_command(
         raise
 
 
-@listens_for(ImageAssetDetected)
+@system(on_event=ImageAssetDetected)
 async def process_image_metadata_system(
     event: ImageAssetDetected,
     transaction: EcsTransaction,

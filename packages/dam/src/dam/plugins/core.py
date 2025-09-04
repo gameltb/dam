@@ -1,13 +1,14 @@
 import logging
-from dam.core.plugin import Plugin
-from dam.core.world import World
-from dam.core.commands import AddHashesFromStreamCommand, GetOrCreateEntityFromStreamCommand
+
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
+from dam.core.plugin import Plugin
+from dam.core.world import World
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
 
 logger = logging.getLogger(__name__)
+
 
 class CorePlugin(Plugin):
     """
