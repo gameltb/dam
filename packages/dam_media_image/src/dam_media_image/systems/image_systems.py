@@ -1,12 +1,9 @@
 import logging
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
-from dam.core.stages import SystemStage
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
-from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.file_properties_component import FilePropertiesComponent
@@ -31,15 +28,6 @@ except ImportError:
     imagehash = None
 
 logger = logging.getLogger(__name__)
-
-
-@system(stage=SystemStage.METADATA_EXTRACTION)
-async def add_image_components_system(
-    transaction: EcsTransaction,
-    world_config: WorldConfig,
-    entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
-):
-    pass
 
 
 @system(on_command=FindSimilarImagesCommand)

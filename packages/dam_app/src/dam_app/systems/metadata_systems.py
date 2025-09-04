@@ -1,8 +1,7 @@
 """
 This module defines systems related to metadata extraction for assets.
 
-Systems in this module are responsible for processing entities (typically those
-marked with `NeedsMetadataExtractionComponent`) to extract and store detailed
+Systems in this module are responsible for processing entities to extract and store detailed
 metadata such as dimensions, duration, frame counts, audio properties, etc.,
 using tools like the Hachoir library and exiftool.
 """
@@ -13,20 +12,17 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Annotated, Any, Dict, List
+from typing import Any, Dict
 
-from dam.core.components_markers import NeedsMetadataExtractionComponent
 from dam.core.config import WorldConfig
-from dam.core.stages import SystemStage
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
-from dam.models.core.entity import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
-
-# Corrected direct imports for models
 from dam_fs.utils.url_utils import get_local_path_for_url
+
+from ..commands import ExtractMetadataCommand
 
 try:
     from hachoir.core import config as HachoirConfig
@@ -150,178 +146,70 @@ async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | N
     return await asyncio.to_thread(_parse_metadata_sync_worker, str(filepath_on_disk))
 
 
-@system(stage=SystemStage.METADATA_EXTRACTION)
-async def extract_metadata_on_asset_ingested(
+@system(on_command=ExtractMetadataCommand)
+async def extract_metadata_command_handler(
+    cmd: ExtractMetadataCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
-    entities_to_process: Annotated[List[Entity], "MarkedEntityList", NeedsMetadataExtractionComponent],
 ):
     if not createParser or not extractMetadata:  # Hachoir check
-        logger.warning("Hachoir library not installed. Skipping metadata extraction system.")
-        for entity in entities_to_process:
-            # Attempt to remove marker even if Hachoir is not there
-            markers = await transaction.get_components(entity.id, NeedsMetadataExtractionComponent)
-            for marker_to_remove in markers:
-                await transaction.remove_component(marker_to_remove)
-        if entities_to_process:
-            await transaction.flush()
+        logger.warning("Hachoir library not installed. Skipping metadata extraction.")
         return
 
-    if not entities_to_process:
-        logger.debug("No entities marked for metadata extraction in this run.")
+    entity_id = cmd.entity_id
+    logger.debug(f"Processing entity ID {entity_id} for metadata extraction.")
+
+    all_locations = await transaction.get_components(entity_id, FileLocationComponent)
+    if not all_locations:
+        logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}. Cannot extract metadata.")
         return
 
-    logger.info(
-        f"MetadataExtractionSystem running for {len(entities_to_process)} entities in world '{world_config.DATABASE_URL}'."
-    )
-
-    for entity in entities_to_process:
-        original_entity_id_for_log = entity.id  # Capture for logging in case entity becomes None
-        logger.debug(f"Processing entity ID {original_entity_id_for_log} for metadata extraction.")
-
-        # Workaround for potential duplicate markers:
-        # Fetch all markers, process based on the entity, and ensure all markers for this entity are cleared.
-        current_markers = await transaction.get_components(entity.id, NeedsMetadataExtractionComponent)
-        if not current_markers:
-            logger.info(
-                f"No NeedsMetadataExtractionComponent found for Entity {entity.id}; possibly already processed or removed."
-            )
+    filepath_on_disk: Path | None = None
+    for loc in all_locations:
+        try:
+            potential_path = get_local_path_for_url(loc.url)
+            if potential_path and await asyncio.to_thread(potential_path.is_file):
+                filepath_on_disk = potential_path
+                break
+        except (ValueError, FileNotFoundError) as e:
+            logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
             continue
 
-        if len(current_markers) > 1:
-            logger.warning(
-                f"Entity {entity.id} has multiple NeedsMetadataExtractionComponent instances ({len(current_markers)} found). "
-                f"This indicates a potential issue with duplicate marker creation. All will be processed for removal."
-            )
+    if not filepath_on_disk:
+        logger.error(
+            f"Filepath for Entity ID {entity_id} does not exist or could not be determined. Cannot extract metadata."
+        )
+        return
 
-        # Main processing logic starts here, assuming at least one marker was found.
-        # The marker component itself doesn't hold data needed for extraction,
-        # its presence on the entity is what matters for it to be in `entities_to_process`.
+    mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
+    logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity_id} (MIME: {mime_type})")
+    hachoir_metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
 
-        all_locations = await transaction.get_components(entity.id, FileLocationComponent)
-        if not all_locations:
-            logger.warning(f"No FileLocationComponent found for Entity ID {entity.id}. Cannot extract metadata.")
-            for m_to_del in current_markers:
-                await transaction.remove_component(m_to_del)
-            continue
-
-        filepath_on_disk: Path | None = None
-        # Iterate through all locations and try to find a file that exists.
-        for loc in all_locations:
+    if hachoir_metadata:
+        keys_to_log = []
+        if hasattr(hachoir_metadata, "keys") and callable(hachoir_metadata.keys):
             try:
-                # Use the centralized URL resolver
-                potential_path = get_local_path_for_url(loc.url)
-                # Check if the resolved path actually exists and is a file
-                if potential_path and await asyncio.to_thread(potential_path.is_file):
-                    filepath_on_disk = potential_path
-                    break  # Found a valid, existing file, so we can stop looking.
-            except (ValueError, FileNotFoundError) as e:
-                # These errors are expected if a URL is unresolvable or points to a non-existent file.
-                logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity.id}: {e}")
-                continue  # Try the next location
+                keys_to_log = list(hachoir_metadata.keys())
+            except Exception:
+                keys_to_log = ["<error reading Hachoir metadata keys>"]
+        logger.debug(
+            f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
+        )
+        # Hachoir processing logic would go here
+    else:
+        logger.info(f"No metadata extracted by Hachoir for {filepath_on_disk} (Entity ID {entity_id})")
 
-        if not filepath_on_disk:
-            logger.error(
-                f"Filepath '{filepath_on_disk}' for Entity ID {entity.id} does not exist or could not be determined. Cannot extract metadata."
-            )
-            for m_to_del in current_markers:
-                await transaction.remove_component(m_to_del)
-            continue
+    logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity_id})")
+    exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)
 
-        mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
-        logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity.id} (MIME: {mime_type})")
-        hachoir_metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
-
-        if not hachoir_metadata:
-            logger.info(f"No metadata extracted by Hachoir for {filepath_on_disk} (Entity ID {entity.id})")
+    if exiftool_data:
+        if not await transaction.get_component(entity_id, ExiftoolMetadataComponent):
+            exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
+            await transaction.add_component_to_entity(entity_id, exif_comp)
+            logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity_id}")
         else:
-            keys_to_log = []
-            if hasattr(hachoir_metadata, "keys") and callable(hachoir_metadata.keys):
-                try:
-                    keys_to_log = list(hachoir_metadata.keys())
-                except Exception:
-                    keys_to_log = ["<error reading Hachoir metadata keys>"]
-            logger.debug(
-                f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
-            )
+            logger.info(f"ExiftoolMetadataComponent already exists for Entity ID {entity_id}, not adding duplicate.")
+    else:
+        logger.info(f"No metadata extracted by Exiftool for {filepath_on_disk} (Entity ID {entity_id})")
 
-            # (The rest of the Hachoir metadata processing logic from the original file would go here)
-            # This includes is_video_heuristic, is_audio_file_heuristic, and adding relevant components.
-            # For brevity in this diff, it's omitted but assumed to be the same as the original.
-            has_duration = _has_hachoir_metadata(hachoir_metadata, "duration")
-            has_width = _has_hachoir_metadata(hachoir_metadata, "width")
-            has_frame_rate = _has_hachoir_metadata(hachoir_metadata, "frame_rate")
-            has_audio_codec = _has_hachoir_metadata(hachoir_metadata, "audio_codec")
-            has_sample_rate = _has_hachoir_metadata(hachoir_metadata, "sample_rate")
-
-            is_video_heuristic = (
-                mime_type.startswith("video/")
-                or (
-                    mime_type.startswith("image/")
-                    and _get_hachoir_metadata(hachoir_metadata, "nb_frames", 0) > 1
-                    and has_duration
-                )
-                or (has_duration and (has_width or has_frame_rate) and not mime_type.startswith("audio/"))
-            )
-
-            is_audio_file_heuristic = False
-            if mime_type.startswith("audio/"):
-                is_audio_file_heuristic = True
-            elif has_audio_codec and not is_video_heuristic:
-                is_audio_file_heuristic = True
-            elif (
-                not mime_type.startswith("image/")
-                and not is_video_heuristic
-                and has_duration
-                and (has_sample_rate or has_audio_codec)
-            ):
-                is_audio_file_heuristic = True
-
-            if is_video_heuristic:
-                pass
-
-        # Exiftool metadata extraction
-        logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity.id})")
-        exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)
-
-        if exiftool_data:
-            if not await transaction.get_component(entity.id, ExiftoolMetadataComponent):
-                exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
-                await transaction.add_component_to_entity(entity.id, exif_comp)
-                logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity.id}")
-            else:
-                logger.info(
-                    f"ExiftoolMetadataComponent already exists for Entity ID {entity.id}, not adding duplicate."
-                )
-        else:
-            logger.info(f"No metadata extracted by Exiftool for {filepath_on_disk} (Entity ID {entity.id})")
-
-        # Clean up ALL marker components found at the beginning
-        # The `current_markers` list was fetched at the start of the loop for this entity.
-        for marker_to_remove_loop_var in current_markers:  # Use a different loop variable name
-            # Double check it still exists before removing.
-            # This check might be redundant if remove_component is idempotent or handles missing gracefully.
-            # To be safe, fetch by specific marker ID if possible, or re-fetch by entity_id + type if only one should exist.
-            # Given the issue, it's safer to iterate what we fetched and try to remove each.
-            # The `remove_component` function should ideally take the component instance.
-
-            # Check if the marker (by its specific ID) is still in the session or database before attempting removal
-            # This check might be complex if marker_to_remove_loop_var is detached or stale.
-            # A simpler approach is to just try removing it, assuming remove_component can handle if it's already gone.
-            # Let's assume ecs_functions.remove_component can handle being passed a component instance that might be stale
-            # or already deleted from the session's perspective, or it re-fetches.
-            # To be very safe, we could re-fetch the specific marker by its ID before removing,
-            # but that adds DB calls. The current ecs_functions.remove_component takes the instance.
-
-            # Let's rely on remove_component to handle the instance correctly.
-            # The logger inside remove_component can tell us if it did something.
-            await transaction.remove_component(marker_to_remove_loop_var)
-            logger.debug(
-                f"Attempted removal of NeedsMetadataExtractionComponent (ID: {marker_to_remove_loop_var.id}) from Entity ID {entity.id}"
-            )
-
-    logger.info("MetadataExtractionSystem finished processing entities.")
-    # Session flush will be handled by the WorldScheduler after the stage execution.
-    # If individual flushes are needed per entity inside the loop (e.g. to release locks sooner),
-    # then add session.flush() after each entity's processing, but be mindful of performance.
-    # For now, relying on stage-level flush.
+    logger.info(f"Metadata extraction finished for entity {entity_id}.")
