@@ -1,7 +1,7 @@
 import logging
 
 from dam.core.commands import AddHashesFromStreamCommand
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.hashes import (
     ContentHashBLAKE3Component,
@@ -37,7 +37,7 @@ class HashMismatchError(Exception):
         )
 
 
-@handles_command(AddHashesFromStreamCommand)
+@system(on_command=AddHashesFromStreamCommand)
 async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: EcsTransaction):
     """
     Handles the command to calculate and add multiple hash components to an entity from a stream.

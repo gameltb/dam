@@ -1,6 +1,6 @@
 # This file makes the 'dam.systems' package.
 # We use importlib and pkgutil to dynamically ensure all system modules are loaded,
-# so their @system and @listens_for decorators run and register the systems.
+# so their @system decorators run and register the systems.
 
 import importlib
 import logging

@@ -239,10 +239,11 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 ### 3.2. Systems
 
 -   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to function modules or the `EcsTransaction` object.
--   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with:
-    *   `@dam.core.systems.system(stage=SystemStage.SOME_STAGE)` for stage-based execution.
-    *   `@dam.core.systems.listens_for(EventType)` for event-driven execution.
-    *   `@dam.core.systems.handles_command(CommandType)` for command-driven execution.
+-   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with `@dam.core.systems.system`. This single decorator can be used in the following ways:
+    *   `@system(on_stage=SystemStage.SOME_STAGE)` for stage-based execution.
+    *   `@system(on_event=EventType)` for event-driven execution.
+    *   `@system(on_command=CommandType)` for command-driven execution.
+    *   `@system` (with no arguments) to simply mark a function as a system without scheduling it.
 -   **Dependency Injection**:
     *   Systems declare their dependencies using type hints in their parameters. The `WorldScheduler` injects these dependencies.
     *   Common injectable types for Systems include:
@@ -264,7 +265,7 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 -   **Definition and Purpose**: Commands are requests for the system to perform a specific action. They represent an imperative instruction, such as "ingest this file" or "find similar images". A command is dispatched with the expectation that it will be handled by one or more systems.
 -   **Structure**: Commands are simple data-only classes that inherit from `dam.core.commands.BaseCommand`. They carry the data necessary to execute the action.
 -   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
--   **Handling**: Systems that handle commands are decorated with `@handles_command(MyCommand)`. The system function receives the command object as its first argument.
+-   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as its first argument.
 
 ### 3.4. Events vs. Commands
 

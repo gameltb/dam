@@ -4,7 +4,7 @@ from enum import Enum, auto
 class SystemStage(Enum):
     """
     Defines distinct stages in the application lifecycle where systems can be executed.
-    Systems are registered to run at specific stages using the `@system(stage=SystemStage.SOME_STAGE)`
+    Systems are registered to run at specific stages using the `@system(on_stage=SystemStage.SOME_STAGE)`
     decorator. The `WorldScheduler` then executes systems belonging to a requested stage,
     typically in the order these enum members are defined.
 

@@ -4,7 +4,7 @@ import pytest
 
 from dam.core.commands import BaseCommand
 from dam.core.exceptions import CommandHandlingError
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.world import World
 
 
@@ -25,22 +25,22 @@ class FailingCommand(BaseCommand[None]):
 
 
 # Define some test systems (command handlers)
-@handles_command(SimpleCommand)
+@system(on_command=SimpleCommand)
 def simple_handler_one(cmd: SimpleCommand) -> str:
     return f"Handled one: {cmd.data}"
 
 
-@handles_command(SimpleCommand)
+@system(on_command=SimpleCommand)
 async def simple_handler_two(cmd: SimpleCommand) -> str:
     return f"Handled two: {cmd.data}"
 
 
-@handles_command(AnotherCommand)
+@system(on_command=AnotherCommand)
 def another_handler(cmd: AnotherCommand) -> int:
     return cmd.value * 2
 
 
-@handles_command(FailingCommand)
+@system(on_command=FailingCommand)
 def failing_handler(cmd: FailingCommand):
     raise ValueError("This handler is designed to fail.")
 
@@ -53,7 +53,7 @@ async def test_register_and_dispatch_single_handler(test_world_alpha: World):
     processes a command, returning a result.
     """
     world = test_world_alpha
-    world.register_system(system_func=another_handler, command_type=AnotherCommand)
+    world.register_system(system_func=another_handler)
 
     command = AnotherCommand(value=10)
     result = await world.dispatch_command(command)
@@ -69,8 +69,8 @@ async def test_dispatch_multiple_handlers(test_world_alpha: World):
     Tests that the first handler to return a non-None result wins.
     """
     world = test_world_alpha
-    world.register_system(system_func=simple_handler_one, command_type=SimpleCommand)
-    world.register_system(system_func=simple_handler_two, command_type=SimpleCommand)
+    world.register_system(system_func=simple_handler_one)
+    world.register_system(system_func=simple_handler_two)
 
     command = SimpleCommand(data="test")
     result = await world.dispatch_command(command)
@@ -103,7 +103,7 @@ async def test_command_handler_failure(test_world_alpha: World):
     is aborted and a CommandHandlingError is raised.
     """
     world = test_world_alpha
-    world.register_system(system_func=failing_handler, command_type=FailingCommand)
+    world.register_system(system_func=failing_handler)
 
     command = FailingCommand()
 
@@ -123,8 +123,8 @@ async def test_dispatch_different_commands(test_world_alpha: World):
     specific handlers and not to handlers for other commands.
     """
     world = test_world_alpha
-    world.register_system(system_func=simple_handler_one, command_type=SimpleCommand)
-    world.register_system(system_func=another_handler, command_type=AnotherCommand)
+    world.register_system(system_func=simple_handler_one)
+    world.register_system(system_func=another_handler)
 
     # Dispatch first command
     cmd1 = SimpleCommand(data="dispatch one")

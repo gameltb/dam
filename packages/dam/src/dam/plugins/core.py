@@ -43,8 +43,6 @@ class CorePlugin(Plugin):
         )
 
         # Logic from register_core_systems
-        world.register_system(add_hashes_from_stream_system, command_type=AddHashesFromStreamCommand)
-        world.register_system(
-            get_or_create_entity_from_stream_handler, command_type=GetOrCreateEntityFromStreamCommand
-        )
+        world.register_system(add_hashes_from_stream_system)
+        world.register_system(get_or_create_entity_from_stream_handler)
         logger.info(f"Core system registration complete for world: {world.name}")
