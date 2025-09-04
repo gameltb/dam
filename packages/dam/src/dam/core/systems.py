@@ -118,74 +118,38 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
     return param_info
 
 
-def system(stage: SystemStage, **kwargs):
-    def decorator(func: Callable[..., Any]):
-        param_info = _parse_system_params(func)
-        SYSTEM_METADATA[func] = {
+def system(
+    func: Optional[Callable[..., Any]] = None,
+    *,
+    on_stage: Optional[SystemStage] = None,
+    on_command: Optional[Type[BaseCommand[Any]]] = None,
+    on_event: Optional[Type[BaseEvent]] = None,
+    **kwargs,
+):
+    def decorator(f: Callable[..., Any]):
+        param_info = _parse_system_params(f)
+
+        system_type = "vanilla"
+        if on_stage:
+            system_type = "stage_system"
+        elif on_command:
+            system_type = "command_handler"
+        elif on_event:
+            system_type = "event_handler"
+
+        SYSTEM_METADATA[f] = {
             "params": param_info,
-            "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "stage_system",
-            "stage": stage,
+            "is_async": inspect.iscoroutinefunction(f),
+            "system_type": system_type,
+            "stage": on_stage,
+            "handles_command_type": on_command,
+            "listens_for_event_type": on_event,
             **kwargs,
         }
-        return func
+        return f
 
-    return decorator
-
-
-def handles_command(command_type: Type[BaseCommand[Any]], **kwargs):
-    if not (inspect.isclass(command_type) and issubclass(command_type, BaseCommand)):
-        raise TypeError(f"Invalid command_type '{command_type}'. Must be a class that inherits from BaseCommand.")
-
-    def decorator(func: Callable[..., Any]):
-        param_info = _parse_system_params(func)
-        SYSTEM_METADATA[func] = {
-            "params": param_info,
-            "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "command_handler",
-            "handles_command_type": command_type,
-            **kwargs,
-        }
-        has_command_param = any(p_info.get("command_type_hint") == command_type for p_info in param_info.values())
-        if not has_command_param:
-            found_by_direct_type = any(
-                p_info.get("type_hint") == command_type and p_info.get("identity") == "Command"
-                for p_info in param_info.values()
-            )
-            if not found_by_direct_type:
-                logger.warning(
-                    f"System {func.__name__} registered for command {command_type.__name__} but does not seem to have a parameter matching this command type."
-                )
-        return func
-
-    return decorator
-
-
-def listens_for(event_type: Type[BaseEvent], **kwargs):
-    if not (inspect.isclass(event_type) and issubclass(event_type, BaseEvent)):
-        raise TypeError(f"Invalid event_type '{event_type}'. Must be a class that inherits from BaseEvent.")
-
-    def decorator(func: Callable[..., Any]):
-        param_info = _parse_system_params(func)
-        SYSTEM_METADATA[func] = {
-            "params": param_info,
-            "is_async": inspect.iscoroutinefunction(func),
-            "system_type": "event_handler",
-            "listens_for_event_type": event_type,
-            **kwargs,
-        }
-        has_event_param = any(p_info.get("event_type_hint") == event_type for p_info in param_info.values())
-        if not has_event_param:
-            found_by_direct_type = any(
-                p_info.get("type_hint") == event_type and p_info.get("identity") == "Event"
-                for p_info in param_info.values()
-            )
-            if not found_by_direct_type:
-                logger.warning(
-                    f"System {func.__name__} registered for event {event_type.__name__} but does not seem to have a parameter matching this event type."
-                )
-        return func
-
+    if func:
+        return decorator(func)
     return decorator
 
 
@@ -207,26 +171,41 @@ class WorldScheduler:
         command_type: Optional[Type[BaseCommand[Any]]] = None,
         **kwargs,
     ):
-        if system_func not in self.system_metadata:
+        metadata = self.system_metadata.get(system_func)
+        if not metadata:
             self.logger.warning(
-                f"System function {system_func.__name__} is not in global SYSTEM_METADATA. "
-                "Attempting to parse its parameters now. Ensure systems are decorated."
+                f"System function {system_func.__name__} is not decorated with @system. "
+                "Registration relies on explicit parameters."
             )
-            if not _parse_system_params(system_func):
+            # Fallback to explicit parameters for undecorated systems
+            if stage:
+                self.system_registry[stage].append(system_func)
+            elif event_type:
+                self.event_handler_registry[event_type].append(system_func)
+            elif command_type:
+                self.command_handler_registry[command_type].append(system_func)
+            else:
                 self.logger.error(
-                    f"Failed to parse parameters for undecorated system {system_func.__name__}. Cannot register."
+                    f"Undecorated system {system_func.__name__} must be registered with an explicit stage, event_type, or command_type."
                 )
-                return
-        if stage:
-            self.system_registry[stage].append(system_func)
-        elif event_type:
-            self.event_handler_registry[event_type].append(system_func)
-        elif command_type:
-            self.command_handler_registry[command_type].append(system_func)
+            return
+
+        # Use metadata from the decorator
+        reg_stage = metadata.get("stage")
+        reg_command = metadata.get("handles_command_type")
+        reg_event = metadata.get("listens_for_event_type")
+
+        if reg_stage:
+            self.system_registry[reg_stage].append(system_func)
+            self.logger.info(f"Registered system '{system_func.__name__}' for stage '{reg_stage.name}'.")
+        elif reg_command:
+            self.command_handler_registry[reg_command].append(system_func)
+            self.logger.info(f"Registered system '{system_func.__name__}' for command '{reg_command.__name__}'.")
+        elif reg_event:
+            self.event_handler_registry[reg_event].append(system_func)
+            self.logger.info(f"Registered system '{system_func.__name__}' for event '{reg_event.__name__}'.")
         else:
-            self.logger.error(
-                f"System {system_func.__name__} must be registered with either a stage, an event_type, or a command_type."
-            )
+            self.logger.debug(f"System '{system_func.__name__}' is a vanilla system, not registered for any trigger.")
 
     async def execute_stage(self, stage: SystemStage, transaction: EcsTransaction):
         self.logger.info(f"Executing stage: {stage.name} for world: {self.world.name}")

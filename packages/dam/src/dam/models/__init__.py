@@ -1,11 +1,6 @@
 # This file makes the 'models' directory a Python package.
 
 # Ensure all model modules are imported so they register with Base.metadata
-from ..core.components_markers import (
-    AutoTaggingCompleteMarker,
-    MetadataExtractedComponent,
-    NeedsMetadataExtractionComponent,
-)
 
 # Conceptual components
 # Import the concrete components that are intended for direct use/instantiation
@@ -61,8 +56,4 @@ __all__ = [
     "TagConceptComponent",
     "EntityTagLinkComponent",
     "ModelGeneratedTagLinkComponent",
-    # Marker components
-    "NeedsMetadataExtractionComponent",
-    "MetadataExtractedComponent",
-    "AutoTaggingCompleteMarker",
 ]

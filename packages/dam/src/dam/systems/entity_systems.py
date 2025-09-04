@@ -2,8 +2,7 @@ import logging
 from typing import Annotated
 
 from dam.core.commands import AddHashesFromStreamCommand, GetOrCreateEntityFromStreamCommand
-from dam.core.components_markers import NeedsMetadataExtractionComponent
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -12,7 +11,7 @@ from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 logger = logging.getLogger(__name__)
 
 
-@handles_command(GetOrCreateEntityFromStreamCommand)
+@system(on_command=GetOrCreateEntityFromStreamCommand)
 async def get_or_create_entity_from_stream_handler(
     cmd: GetOrCreateEntityFromStreamCommand,
     transaction: EcsTransaction,
@@ -51,8 +50,8 @@ async def get_or_create_entity_from_stream_handler(
     )
     await world.dispatch_command(add_hashes_command)
 
-    if not await transaction.get_components(entity.id, NeedsMetadataExtractionComponent):
-        marker = NeedsMetadataExtractionComponent()
-        await transaction.add_component_to_entity(entity.id, marker)
+    from dam_app.commands import ExtractMetadataCommand
+
+    await world.dispatch_command(ExtractMetadataCommand(entity_id=entity.id))
 
     return entity, sha256_bytes

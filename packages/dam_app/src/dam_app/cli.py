@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer  # Ensure typer is imported for annotations like typer.Context
-from dam import DamPlugin
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import (
@@ -270,6 +269,49 @@ async def setup_db(ctx: typer.Context):
         raise typer.Exit(code=1)
 
 
+@app.command(name="show-entity")
+async def cli_show_entity(
+    ctx: typer.Context,
+    entity_id: Annotated[
+        int,
+        typer.Argument(
+            ...,
+            help="The ID of the entity to show.",
+        ),
+    ],
+):
+    """
+    Shows all components of a given entity.
+    """
+    if not global_state.world_name:
+        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    target_world = get_world(global_state.world_name)
+    if not target_world:
+        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    async with target_world.db_session_maker() as session:
+        try:
+            components = await dam_ecs_functions.get_all_components_for_entity(session, entity_id)
+            if not components:
+                typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)
+                return
+
+            typer.secho(f"Components for entity {entity_id}:", fg=typer.colors.GREEN)
+            for component in components:
+                typer.echo(f"  - {component.__class__.__name__}:")
+                for key, value in component.__dict__.items():
+                    if not key.startswith("_"):
+                        typer.echo(f"    - {key}: {value}")
+
+        except Exception as e:
+            typer.secho(f"An error occurred: {e}", fg=typer.colors.RED)
+            typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -291,9 +333,6 @@ def main_callback(
         typer.secho(f"Critical error: Could not initialize worlds from settings: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-
-    for world_instance in initialized_worlds:
-        world_instance.add_plugin(DamPlugin())
 
     from dam_app.plugin import AppPlugin
 

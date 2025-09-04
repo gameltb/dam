@@ -28,7 +28,7 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     - By listening for a broadcast `Event`.
     - By handling a dispatched `Command`.
 -   **Implementation**:
-    *   Systems are Python functions decorated with `@system`, `@listens_for`, or `@handles_command`.
+    *   Systems are Python functions decorated with `@system`.
     *   They are organized into modules within the `systems/` directory of each package.
 
 ### 2.5. Plugins
@@ -56,13 +56,20 @@ A brief overview of the key packages:
 
 This section walks through the process of adding new functionality to the DAM system.
 
-### 4.1. Guideline for New Systems
+### 4.1. Architectural Preference: Commands over Events/Stages
+
+A key design principle for the `dam` ecosystem is to **prefer the Command pattern for implementing new functionality**.
+
+-   **Why?**: Commands provide a clear, imperative, and traceable control flow. When you dispatch a command, you have a clear expectation of a specific action being performed. This makes the system easier to understand, debug, and test.
+-   **Guideline**: Unless a task's requirements explicitly call for a decoupled, event-driven workflow (e.g., multiple independent systems reacting to a single occurrence) or a lifecycle-based stage, you should implement the logic as a command and its corresponding handler system. Avoid using events or component markers as the primary mechanism for triggering core business logic.
+
+### 4.2. Guideline for New Systems
 
 When adding a new system, first consider if it can be added to an existing plugin package (e.g., `dam_media_image`, `dam_psp`). If the new system provides functionality that is closely related to an existing plugin, it should be added to that plugin.
 
 If the new system is not a good fit for an existing plugin, create a new plugin package for it. This keeps the codebase modular and allows for optional loading of functionality.
 
-### 4.2. Adding a New Component
+### 4.3. Adding a New Component
 
 The process for adding a new component is as follows:
 1.  **Define the Component:** Create a new component class in the appropriate plugin package (e.g., `dam_media_image/models/`).
@@ -70,7 +77,7 @@ The process for adding a new component is as follows:
 3.  **Create a System:** Create a system to operate on the new component.
 4.  **Register the System:** Register the system in the plugin's `build` method.
 
-### 4.3. Adding a New Command and Handler
+### 4.4. Adding a New Command and Handler
 
 The Command pattern is used for imperative actions where the caller requests a specific operation to be performed.
 
@@ -92,18 +99,18 @@ The Command pattern is used for imperative actions where the caller requests a s
 
 2.  **Create the Command Handler System:**
     - In the package's `systems/` module, create a new function to handle the command.
-    - Decorate the function with `@handles_command(YourCommandClass)`.
+    - Decorate the function with `@system(on_command=YourCommandClass)`.
     - The function must be `async` and its first argument should be the command object.
     - Use functions to perform the business logic.
 
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python
-    from dam.core.systems import handles_command
+    from dam.core.systems import system
     from dam.core.transaction import EcsTransaction
     from my_plugin.commands import RenameAssetCommand
     from my_plugin.models import NameComponent # Assuming a component that stores the name
 
-    @handles_command(RenameAssetCommand)
+    @system(on_command=RenameAssetCommand)
     async def handle_rename_asset_command(
         cmd: RenameAssetCommand,
         transaction: EcsTransaction,
@@ -126,23 +133,7 @@ The Command pattern is used for imperative actions where the caller requests a s
 
     ```
 
-3.  **Register the Handler:**
-    - In your plugin's `build` method, register the system and associate it with the command.
-
-    *Example (`packages/my_plugin/plugin.py`):*
-    ```python
-    from .commands import RenameAssetCommand
-    from .systems.asset_systems import handle_rename_asset_command
-
-    class MyPlugin(Plugin):
-        def build(self, world: "World") -> None:
-            world.register_system(
-                handle_rename_asset_command,
-                command_type=RenameAssetCommand,
-            )
-    ```
-
-4.  **Dispatch the Command:**
+3.  **Dispatch the Command:**
     - From anywhere in the application that has access to a `World` object, you can dispatch the command.
 
     *Example:*

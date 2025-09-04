@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 
@@ -15,7 +15,7 @@ from ..commands import IngestWebAssetCommand
 logger = logging.getLogger(__name__)
 
 
-@handles_command(IngestWebAssetCommand)
+@system(on_command=IngestWebAssetCommand)
 async def handle_ingest_web_asset_command(
     cmd: IngestWebAssetCommand,
     transaction: EcsTransaction,

@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from dam.core.commands import GetOrCreateEntityFromStreamCommand as CoreGetOrCreateEntityFromStreamCommand
-from dam.core.systems import handles_command, listens_for
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam_fs.commands import AddFilePropertiesCommand
@@ -14,7 +14,7 @@ from ..commands import IngestAssetStreamCommand
 logger = logging.getLogger(__name__)
 
 
-@handles_command(IngestAssetStreamCommand)
+@system(on_command=IngestAssetStreamCommand)
 async def ingest_asset_stream_command_handler(
     cmd: IngestAssetStreamCommand,
     world: Annotated[World, "Resource"],
@@ -63,7 +63,7 @@ async def ingest_asset_stream_command_handler(
         raise
 
 
-@listens_for(FileStored)
+@system(on_event=FileStored)
 async def asset_dispatcher_system(
     event: FileStored,
     world: Annotated[World, "Resource"],

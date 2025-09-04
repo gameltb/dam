@@ -7,7 +7,7 @@ from .exceptions import EventHandlingError, StageExecutionError  # ResourceNotFo
 from .resources import ResourceManager, ResourceNotFoundError  # Import ResourceNotFoundError from here
 from .stages import SystemStage
 from .system_params import WorldSession  # WorldSession is an Alias for AsyncSession
-from .systems import WorldScheduler, listens_for, system  # SYSTEM_METADATA might be too internal
+from .systems import WorldScheduler, system  # SYSTEM_METADATA might be too internal
 from .world import (
     World,
     clear_world_registry,
@@ -19,7 +19,6 @@ from .world import (
     register_world,  # Added missing register_world
     unregister_world,
 )
-from .world_setup import initialize_world_resources, register_core_systems  # Functions
 
 __all__ = [
     # Config
@@ -44,7 +43,6 @@ __all__ = [
     # Systems Decorators & Scheduler
     "WorldScheduler",  # Class for managing system execution per world
     "system",  # Decorator for stage-based systems
-    "listens_for",  # Decorator for event-based systems
     # World
     "World",
     "get_world",
@@ -55,7 +53,4 @@ __all__ = [
     "unregister_world",
     "get_all_registered_worlds",
     "register_world",
-    # World Setup
-    "initialize_world_resources",
-    "register_core_systems",
 ]

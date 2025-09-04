@@ -5,7 +5,7 @@ from typing import Annotated
 
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.config import WorldConfig
-from dam.core.systems import handles_command
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -26,7 +26,7 @@ from ..resources.file_storage_resource import FileStorageResource
 logger = logging.getLogger(__name__)
 
 
-@handles_command(AddFilePropertiesCommand)
+@system(on_command=AddFilePropertiesCommand)
 async def add_file_properties_handler(
     cmd: AddFilePropertiesCommand,
     transaction: EcsTransaction,
@@ -39,7 +39,7 @@ async def add_file_properties_handler(
     await transaction.add_component_to_entity(cmd.entity_id, fpc)
 
 
-@handles_command(IngestFileCommand)
+@system(on_command=IngestFileCommand)
 async def handle_ingest_file_command(
     cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
 ):
@@ -92,7 +92,7 @@ async def handle_ingest_file_command(
         logger.error(f"Failed to process IngestFileCommand for {cmd.original_filename}: {e}", exc_info=True)
 
 
-@handles_command(FindEntityByHashCommand)
+@system(on_command=FindEntityByHashCommand)
 async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: EcsTransaction,
