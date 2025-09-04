@@ -1,12 +1,15 @@
 import asyncio
 import logging
 
+from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
 from dam_media_audio.models.properties.audio_properties_component import AudioPropertiesComponent
+
+from ..commands import ExtractAudioMetadataCommand
 
 try:
     from hachoir.core import config as HachoirConfig
@@ -38,11 +41,6 @@ def _get_hachoir_metadata(md, key: str, default=None) -> any:
     except (KeyError, ValueError):
         pass
     return default
-
-
-from dam.core.systems import handles_command
-
-from ..commands import ExtractAudioMetadataCommand
 
 
 @handles_command(ExtractAudioMetadataCommand)

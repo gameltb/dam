@@ -5,7 +5,9 @@ from typing import Annotated
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.functions import ecs_functions
 from dam_fs.commands import GetAssetStreamCommand
+from dam_fs.functions import file_operations as dam_fs_file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
@@ -30,10 +32,6 @@ async def set_archive_password_handler(
     else:
         password_comp = ArchivePasswordComponent(entity_id=cmd.entity_id, password=cmd.password)
         await transaction.add_component_to_entity(cmd.entity_id, password_comp)
-
-
-from dam.functions import ecs_functions
-from dam_fs.functions import file_operations as dam_fs_file_operations
 
 
 @handles_command(GetAssetStreamCommand)

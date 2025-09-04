@@ -6,6 +6,7 @@ from dam.core.systems import handles_command, system
 from dam.core.transaction import EcsTransaction
 from dam_media_audio.commands import AudioSearchCommand
 from dam_media_audio.functions import audio_functions
+from dam_sire.resource import SireResource
 
 from . import semantic_functions
 from .commands import SemanticSearchCommand
@@ -17,9 +18,6 @@ TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
     "TagConceptComponent": ["concept_name", "concept_description"],
     "CharacterConceptComponent": ["concept_name", "concept_description"],
 }
-
-
-from dam_sire.resource import SireResource
 
 
 @system(stage=SystemStage.POST_PROCESSING)

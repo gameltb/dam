@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import torch
 
 # ModelExecutionManager fixture from conftest.py
 from dam_semantic import semantic_functions
@@ -24,11 +25,6 @@ ClipEmbeddingComponent = get_embedding_component_class(TEST_MODEL_CLIP, TEST_PAR
 # Ensure the test models are actually registered and component classes are found
 assert MiniLMEmbeddingComponent is not None, "Test MiniLM model not registered or class not found"
 assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or class not found"
-
-
-import numpy as np
-import pytest
-import torch
 
 
 class MockSentenceTransformer(torch.nn.Module):

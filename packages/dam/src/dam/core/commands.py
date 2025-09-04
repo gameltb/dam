@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from typing import IO, Generic, List, Set, TypeVar
+from typing import IO, Generic, List, Set, Tuple, TypeVar
 
+from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm
 
 ResultType = TypeVar("ResultType")
@@ -27,11 +28,6 @@ class AddHashesFromStreamCommand(BaseCommand[None]):
     entity_id: int
     stream: IO[bytes]
     algorithms: Set[HashAlgorithm]
-
-
-from typing import Tuple
-
-from dam.models.core.entity import Entity
 
 
 @dataclass

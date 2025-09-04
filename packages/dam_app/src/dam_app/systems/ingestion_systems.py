@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated
 
+from dam.core.commands import GetOrCreateEntityFromStreamCommand as CoreGetOrCreateEntityFromStreamCommand
 from dam.core.systems import handles_command, listens_for
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -11,9 +12,6 @@ from dam_fs.resources import FileStorageResource
 from ..commands import IngestAssetStreamCommand
 
 logger = logging.getLogger(__name__)
-
-
-from dam.core.commands import GetOrCreateEntityFromStreamCommand as CoreGetOrCreateEntityFromStreamCommand
 
 
 @handles_command(IngestAssetStreamCommand)

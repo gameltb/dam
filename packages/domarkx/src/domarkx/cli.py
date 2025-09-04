@@ -1,6 +1,7 @@
 import importlib
 import logging
 import os
+from typing import Any
 
 import typer
 from dotenv import load_dotenv
@@ -10,9 +11,6 @@ from domarkx.utils.no_border_rich_tracebacks import NoBorderRichHandler
 
 # Configure logging
 logger = logging.getLogger("domarkx")
-
-
-from typing import Any
 
 
 class StrMsgOnlyFilter(logging.Filter):

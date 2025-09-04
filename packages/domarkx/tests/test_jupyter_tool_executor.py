@@ -1,6 +1,9 @@
 import asyncio
 import pathlib
 
+# Fixture to initialize and finalize code executors
+from typing import Any, AsyncGenerator
+
 import pytest
 from autogen_core.code_executor import CodeExecutor
 from autogen_ext.code_executors.docker_jupyter import DockerJupyterCodeExecutor
@@ -13,10 +16,6 @@ from domarkx.tools.tool_factory import default_tool_factory
 # A sample tool function to be executed remotely
 def sample_tool(a: int, b: int) -> int:
     return a + b
-
-
-# Fixture to initialize and finalize code executors
-from typing import Any, AsyncGenerator
 
 
 @pytest.fixture(params=[JupyterCodeExecutor, DockerJupyterCodeExecutor])

@@ -1,5 +1,6 @@
 import io
 import logging
+from typing import Any, Callable
 
 from rich.console import Console
 
@@ -11,9 +12,6 @@ REGISTERED_TOOLS = {}
 # 初始化一个Console实例，输出到StringIO以捕获内容
 console_output = io.StringIO()
 console = Console(file=console_output, soft_wrap=True)
-
-
-from typing import Any, Callable
 
 
 def register_tool(name: str) -> Callable[..., Any]:

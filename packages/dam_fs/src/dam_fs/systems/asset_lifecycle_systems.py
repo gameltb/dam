@@ -1,7 +1,9 @@
 import binascii  # For hex string to bytes conversion
+import io
 import logging
 from typing import Annotated
 
+from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.config import WorldConfig
 from dam.core.systems import handles_command
 from dam.core.transaction import EcsTransaction
@@ -13,6 +15,7 @@ from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 
 from ..commands import (
+    AddFilePropertiesCommand,
     FindEntityByHashCommand,
     IngestFileCommand,
 )
@@ -21,9 +24,6 @@ from ..models.file_properties_component import FilePropertiesComponent
 from ..resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
-
-
-from ..commands import AddFilePropertiesCommand
 
 
 @handles_command(AddFilePropertiesCommand)
@@ -37,11 +37,6 @@ async def add_file_properties_handler(
     logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
     fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
     await transaction.add_component_to_entity(cmd.entity_id, fpc)
-
-
-import io
-
-from dam.core.commands import GetOrCreateEntityFromStreamCommand
 
 
 @handles_command(IngestFileCommand)

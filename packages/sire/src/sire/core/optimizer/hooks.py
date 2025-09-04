@@ -1,8 +1,11 @@
+import functools
 import logging
 import os
 from collections import defaultdict
 from typing import Any, Dict, Optional, Set, Tuple
 
+import accelerate.hooks
+import accelerate.utils.modeling
 import torch
 import torch.nn as nn
 from accelerate import dispatch_model
@@ -26,10 +29,6 @@ from .signature import ConfigSignatureGenerator, SignatureType
 
 logger = logging.getLogger(__name__)
 
-import functools
-
-import accelerate.hooks
-import accelerate.utils.modeling
 
 # hack
 accelerate.hooks.set_module_tensor_to_device = functools.partial(

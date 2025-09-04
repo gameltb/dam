@@ -1,15 +1,12 @@
 import logging
 import pathlib
-from typing import Annotated
+from typing import Annotated, Any, Optional
 
 import typer
 
 from domarkx.macro_expander import MacroExpander
 
 logger = logging.getLogger(__name__)
-
-
-from typing import Any, Optional
 
 
 def expand(

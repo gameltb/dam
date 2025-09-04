@@ -1,5 +1,6 @@
 from typing import NewType, Optional, TypeVar
 
+import diffusers
 import torch
 
 from .commit_object import (
@@ -31,9 +32,6 @@ class FuseWeightCommit(CommitWithAutoManage):
 
     def revert(self, base_object):
         return super().revert(base_object)
-
-
-import diffusers
 
 
 class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]):
