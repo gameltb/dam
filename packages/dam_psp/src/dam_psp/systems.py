@@ -34,7 +34,7 @@ async def psp_iso_metadata_extraction_event_handler_system(
 
             # Get all possible filenames for the asset
             filenames_result = await world.dispatch_command(GetAssetFilenamesCommand(entity_id=entity_id))
-            all_filenames = [name for name in filenames_result.iter_ok_values() for name in name]
+            all_filenames = list(filenames_result.iter_ok_values_flat())
 
             is_iso = any(filename.lower().endswith(".iso") for filename in all_filenames)
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import IO, Generic, Iterator, List, Set, Tuple, TypeVar
+from typing import IO, Any, Generic, Iterator, List, Set, Tuple, TypeVar
 
 from dam.core.result import HandlerResult
 from dam.models.core.entity import Entity
@@ -47,6 +47,20 @@ class CommandResult(Generic[ResultType]):
         if len(ok_values) > 1:
             raise ValueError(f"Expected one result, but found {len(ok_values)}.")
         return ok_values[0]
+
+    def iter_ok_values_flat(self) -> Iterator[Any]:
+        """
+        Iterates over successful results and "flattens" them.
+        If a successful result value is a list, it yields each item from the list.
+        Otherwise, it yields the value itself.
+        """
+        for res in self.results:
+            if res.is_ok():
+                value = res.unwrap()
+                if isinstance(value, list):
+                    yield from value
+                elif value is not None:
+                    yield value
 
 
 @dataclass

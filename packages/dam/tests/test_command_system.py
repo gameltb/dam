@@ -23,6 +23,16 @@ class FailingCommand(BaseCommand[None]):
     pass
 
 
+@dataclass
+class ListCommand(BaseCommand[list[str]]):
+    pass
+
+
+@dataclass
+class MismatchCommand(BaseCommand[int]):
+    pass
+
+
 # Define some test systems (command handlers)
 @system(on_command=SimpleCommand)
 def simple_handler_one(cmd: SimpleCommand) -> str:
@@ -42,6 +52,21 @@ def another_handler(cmd: AnotherCommand) -> int:
 @system(on_command=FailingCommand)
 def failing_handler(cmd: FailingCommand):
     raise ValueError("This handler is designed to fail.")
+
+
+@system(on_command=ListCommand)
+def list_handler_one(cmd: ListCommand) -> list[str]:
+    return ["a", "b"]
+
+
+@system(on_command=ListCommand)
+def list_handler_two(cmd: ListCommand) -> list[str]:
+    return ["c", "d"]
+
+
+@system(on_command=MismatchCommand)
+def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str, but command expects int
+    return "this is not an int"
 
 
 # Tests
@@ -153,3 +178,41 @@ async def test_dispatch_different_commands(test_world_alpha: World):
     cmd2 = AnotherCommand(value=5)
     res2 = await world.dispatch_command(cmd2)
     assert res2.get_one_value() == 10
+
+
+@pytest.mark.asyncio
+async def test_iter_ok_values_flat(test_world_alpha: World):
+    """
+    Tests the iter_ok_values_flat method.
+    """
+    world = test_world_alpha
+    world.register_system(system_func=list_handler_one)
+    world.register_system(system_func=list_handler_two)
+
+    command = ListCommand()
+    result = await world.dispatch_command(command)
+
+    assert result is not None
+    assert len(result.results) == 2
+
+    flat_values = list(result.iter_ok_values_flat())
+    assert len(flat_values) == 4
+    assert set(flat_values) == {"a", "b", "c", "d"}
+
+
+@pytest.mark.asyncio
+async def test_return_type_mismatch_warning(test_world_alpha: World, caplog):
+    """
+    Tests that a warning is logged when a handler's return type annotation
+    does not match the command's expected result type.
+    """
+    world = test_world_alpha
+    with caplog.at_level("WARNING"):
+        world.register_system(system_func=mismatch_handler)
+
+    assert len(caplog.records) == 1
+    assert "Potential return type mismatch" in caplog.text
+    assert "command 'MismatchCommand'" in caplog.text
+    assert "Handler 'mismatch_handler'" in caplog.text
+    assert "expects '<class 'int'>'" in caplog.text
+    assert "annotated to return '<class 'str'>'" in caplog.text
