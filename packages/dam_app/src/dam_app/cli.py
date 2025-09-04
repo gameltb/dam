@@ -16,9 +16,9 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
+from dam.events import AssetReadyForMetadataExtractionEvent
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam_archive.commands import IngestAssetsCommand
-from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
@@ -232,12 +232,16 @@ async def cli_ingest(
     command = IngestAssetsCommand(file_paths=files_to_process, passwords=passwords)
 
     try:
-        new_entity_ids = await target_world.dispatch_command(command)
+        command_result = await target_world.dispatch_command(command)
+        # The result is a list of entity IDs from the handler.
+        # We expect one handler, so we get the first successful result.
+        new_entity_ids = command_result.get_first_ok_value()
+
         typer.secho(f"Successfully ingested {len(new_entity_ids)} assets.", fg=typer.colors.GREEN)
 
         if new_entity_ids:
             typer.echo("Dispatching assets for metadata extraction...")
-            await target_world.send_event(AssetsReadyForMetadataExtraction(entity_ids=new_entity_ids))
+            await target_world.send_event(AssetReadyForMetadataExtractionEvent(entity_ids=new_entity_ids))
             typer.secho("Metadata extraction event dispatched.", fg=typer.colors.GREEN)
 
     except Exception as e:
@@ -445,7 +449,7 @@ def main_callback(
             )
 
             command_result = await target_world.dispatch_command(query_command)
-            results = command_result.results[0] if command_result.results else None
+            results = command_result.get_first_ok_value() if command_result.results else None
 
             if not results:
                 typer.secho(

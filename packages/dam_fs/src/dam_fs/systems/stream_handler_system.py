@@ -2,13 +2,13 @@ import asyncio
 import logging
 from typing import Annotated
 
+from dam.commands import GetAssetStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 
 from dam_fs.utils.url_utils import get_local_path_for_url
 
-from ..commands import GetAssetStreamCommand
 from ..models.file_location_component import FileLocationComponent
 
 logger = logging.getLogger(__name__)

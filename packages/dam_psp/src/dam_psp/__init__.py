@@ -3,14 +3,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dam.core.plugin import Plugin
-from dam_fs.events import AssetsReadyForMetadataExtraction
+from dam.events import AssetReadyForMetadataExtractionEvent
 
 if TYPE_CHECKING:
     from dam.core.world import World
 
 
 from . import psp_iso_functions
-from .systems import psp_iso_metadata_extraction_system
+from .commands import ExtractPSPMetadataCommand
+from .systems import (
+    psp_iso_metadata_extraction_command_handler_system,
+    psp_iso_metadata_extraction_event_handler_system,
+)
 
 
 class PspPlugin(Plugin):
@@ -22,7 +26,14 @@ class PspPlugin(Plugin):
         """
         Builds the PSP plugin.
         """
-        world.register_system(psp_iso_metadata_extraction_system, event_type=AssetsReadyForMetadataExtraction)
+        world.register_system(
+            psp_iso_metadata_extraction_event_handler_system,
+            event_type=AssetReadyForMetadataExtractionEvent,
+        )
+        world.register_system(
+            psp_iso_metadata_extraction_command_handler_system,
+            command_type=ExtractPSPMetadataCommand,
+        )
 
 
 __all__ = ["PspPlugin", "psp_iso_functions"]

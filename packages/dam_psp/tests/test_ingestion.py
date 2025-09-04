@@ -3,15 +3,21 @@ from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
+from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.core.commands import CommandResult
+from dam.core.result import HandlerResult
 from dam.core.world import World
+from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
-from dam_fs.commands import GetAssetStreamCommand
-from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 
 from dam_psp import psp_iso_functions
+from dam_psp.commands import ExtractPSPMetadataCommand
 from dam_psp.models import PSPSFOMetadataComponent
-from dam_psp.systems import psp_iso_metadata_extraction_system
+from dam_psp.systems import (
+    psp_iso_metadata_extraction_command_handler_system,
+    psp_iso_metadata_extraction_event_handler_system,
+)
 
 # A more realistic, valid PARAM.SFO file content for testing
 DUMMY_SFO_CONTENT = b"".join(
@@ -112,7 +118,7 @@ async def test_psp_iso_metadata_extraction_system(mocker):
             if component_type == ArchiveMemberComponent:
                 return None
             if component_type == FilePropertiesComponent:
-                return FilePropertiesComponent(original_filename="test.iso")
+                return FilePropertiesComponent(original_filename="test.iso", file_size_bytes=0)
         elif entity_id == archived_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
@@ -124,7 +130,7 @@ async def test_psp_iso_metadata_extraction_system(mocker):
             if component_type == ArchiveMemberComponent:
                 return None
             if component_type == FilePropertiesComponent:
-                return FilePropertiesComponent(original_filename="text.txt")
+                return FilePropertiesComponent(original_filename="text.txt", file_size_bytes=0)
         return None
 
     mock_transaction.get_component.side_effect = get_component_side_effect
@@ -134,39 +140,63 @@ async def test_psp_iso_metadata_extraction_system(mocker):
     mock_world = AsyncMock(spec=World)
 
     async def dispatch_command_side_effect(command):
-        if isinstance(command, GetAssetStreamCommand):
-            return create_dummy_iso_with_sfo()
-        return None
+        if isinstance(command, GetAssetFilenamesCommand):
+            if command.entity_id == standalone_iso_entity_id:
+                return CommandResult(results=[HandlerResult(value=["test.iso"])])
+            elif command.entity_id == archived_iso_entity_id:
+                return CommandResult(results=[HandlerResult(value=["game.iso"])])
+            elif command.entity_id == non_iso_entity_id:
+                return CommandResult(results=[HandlerResult(value=["text.txt"])])
+        # For other commands, just return a default empty result.
+        # The call is tracked by the mock automatically.
+        return CommandResult(results=[])
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
 
     # Create event
-    event = AssetsReadyForMetadataExtraction(
+    event = AssetReadyForMetadataExtractionEvent(
         entity_ids=[standalone_iso_entity_id, archived_iso_entity_id, non_iso_entity_id]
     )
 
-    # 2. Execute
-    await psp_iso_metadata_extraction_system(event, mock_transaction, mock_world)
+    # 2. Execute event handler
+    await psp_iso_metadata_extraction_event_handler_system(event, mock_transaction, mock_world)
 
-    # 3. Assert
-    # Check that add_component_to_entity was called for the two ISO entities
+    # 3. Assert event handler dispatched commands correctly
+    # It should have been called 3 times for GetAssetFilenamesCommand and 2 times for ExtractPSPMetadataCommand
+    assert mock_world.dispatch_command.call_count == 5
+    dispatch_calls = mock_world.dispatch_command.call_args_list
+
+    # Check that ExtractPSPMetadataCommand was dispatched for the two ISO entities
+    extract_commands = [call.args[0] for call in dispatch_calls if isinstance(call.args[0], ExtractPSPMetadataCommand)]
+    assert len(extract_commands) == 2
+    assert extract_commands[0].entity_id == standalone_iso_entity_id
+    assert extract_commands[1].entity_id == archived_iso_entity_id
+
+    # 4. Execute command handler
+    # Reset mock for world dispatch before command handler execution
+    mock_world.dispatch_command.side_effect = None  # Reset side effect
+
+    async def dispatch_command_side_effect_for_stream(command):
+        if isinstance(command, GetAssetStreamCommand):
+            return CommandResult(results=[HandlerResult(value=create_dummy_iso_with_sfo())])
+        return CommandResult(results=[])  # Default empty result
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect_for_stream
+
+    # Call command handler for each dispatched command
+    for command in extract_commands:
+        await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
+
+    # 5. Assert command handler added components correctly
     assert mock_transaction.add_component_to_entity.call_count == 4  # 2 for SFO, 2 for Raw SFO
 
-    # Check call for standalone ISO
     call_args_list = mock_transaction.add_component_to_entity.call_args_list
     standalone_iso_calls = [c for c in call_args_list if c.args[0] == standalone_iso_entity_id]
     assert len(standalone_iso_calls) == 2
     assert isinstance(standalone_iso_calls[0].args[1], PSPSFOMetadataComponent)
     assert standalone_iso_calls[0].args[1].title == "Test Game"
 
-    # Check call for archived ISO
     archived_iso_calls = [c for c in call_args_list if c.args[0] == archived_iso_entity_id]
     assert len(archived_iso_calls) == 2
     assert isinstance(archived_iso_calls[0].args[1], PSPSFOMetadataComponent)
     assert archived_iso_calls[0].args[1].title == "Test Game"
-
-    # Check that dispatch_command was called for the two ISO entities
-    assert mock_world.dispatch_command.call_count == 2
-    dispatch_calls = mock_world.dispatch_command.call_args_list
-    assert dispatch_calls[0].args[0].entity_id == standalone_iso_entity_id
-    assert dispatch_calls[1].args[0].entity_id == archived_iso_entity_id

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO
 
 from dam.core.commands import BaseCommand
 
@@ -14,13 +13,6 @@ class AddFilePropertiesCommand(BaseCommand[None]):
     entity_id: int
     original_filename: str
     size_bytes: int
-
-
-@dataclass
-class GetAssetStreamCommand(BaseCommand[BinaryIO]):
-    """A command to get a readable stream for an asset."""
-
-    entity_id: int
 
 
 @dataclass

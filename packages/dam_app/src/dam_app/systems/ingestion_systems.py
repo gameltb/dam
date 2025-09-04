@@ -35,7 +35,7 @@ async def ingest_asset_stream_command_handler(
             stream=cmd.file_content,
         )
         command_result = await world.dispatch_command(get_or_create_cmd)
-        entity, sha256_bytes = command_result.results[0]
+        entity, sha256_bytes = command_result.get_one_value()
 
         # 2. Add file properties
         add_props_cmd = AddFilePropertiesCommand(
