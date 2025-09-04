@@ -2,11 +2,11 @@ import asyncio
 import logging
 from typing import Annotated
 
+from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
-from dam_fs.commands import GetAssetStreamCommand
 from dam_fs.functions import file_operations as dam_fs_file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
@@ -122,3 +122,17 @@ async def asset_ingestion_system(
             logger.error(f"Failed to ingest asset from '{file_path}': {e}", exc_info=True)
 
     return entity_ids
+
+
+@system(on_command=GetAssetFilenamesCommand)
+async def get_archive_asset_filenames_handler(
+    cmd: GetAssetFilenamesCommand,
+    transaction: EcsTransaction,
+):
+    """
+    Handles getting filenames for assets that are members of an archive.
+    """
+    archive_member_comp = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
+    if archive_member_comp and archive_member_comp.path_in_archive:
+        return [archive_member_comp.path_in_archive]
+    return None

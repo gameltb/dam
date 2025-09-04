@@ -16,9 +16,9 @@ from dam.core.world import (
     get_all_registered_worlds,
     get_world,
 )
+from dam.events import AssetReadyForMetadataExtractionEvent
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam_archive.commands import IngestAssetsCommand
-from dam_fs.events import AssetsReadyForMetadataExtraction
 from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
@@ -237,7 +237,7 @@ async def cli_ingest(
 
         if new_entity_ids:
             typer.echo("Dispatching assets for metadata extraction...")
-            await target_world.send_event(AssetsReadyForMetadataExtraction(entity_ids=new_entity_ids))
+            await target_world.send_event(AssetReadyForMetadataExtractionEvent(entity_ids=new_entity_ids))
             typer.secho("Metadata extraction event dispatched.", fg=typer.colors.GREEN)
 
     except Exception as e:

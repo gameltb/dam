@@ -18,8 +18,9 @@ This document outlines the design principles and guidelines for developing model
   - [3.1. Functions](#31-functions)
   - [3.2. Systems](#32-systems)
   - [3.3. Commands](#33-commands)
-  - [3.4. Events vs. Commands](#34-events-vs-commands)
-  - [3.5. Resources](#35-resources)
+  - [3.4. Core Asset Events and Commands](#34-core-asset-events-and-commands)
+  - [3.5. Events vs. Commands](#35-events-vs-commands)
+  - [3.6. Resources](#36-resources)
 - [4. Testing Guidelines](#4-testing-guidelines)
 - [5. Further Information](#5-further-information)
 
@@ -274,16 +275,33 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 -   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
 -   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as its first argument.
 
-### 3.4. Events vs. Commands
+### 3.4. Core Asset Events and Commands
+
+To ensure consistency and promote reuse, the core `dam` package defines a set of fundamental events and commands related to asset lifecycle and operations. Plugins should use these core definitions where applicable, rather than defining their own.
+
+-   **Location**:
+    -   Core asset events are defined in `dam.events`.
+    -   Core asset commands are in `dam.commands`.
+-   **Core Events**:
+    -   `AssetCreatedEvent`: Fired when a new asset entity is created.
+    -   `AssetUpdatedEvent`: Fired when an asset's data is updated.
+    -   `AssetDeletedEvent`: Fired when an asset is deleted.
+    -   `AssetReadyForMetadataExtractionEvent`: Fired when a batch of assets is ready for metadata extraction. This is a general-purpose event that various plugins can listen to.
+-   **Core Commands**:
+    -   `GetAssetStreamCommand`: A command to request a readable, seekable binary stream (`typing.BinaryIO`) for an asset's content. This is the primary way for systems to access the file data of an asset. Different plugins (like `dam_fs` for local files or `dam_archive` for files inside archives) can provide handlers for this command.
+    -   `GetAssetMetadataCommand`: A command to retrieve metadata for an asset.
+    -   `UpdateAssetMetadataCommand`: A command to update metadata for an asset.
+
+### 3.5. Events vs. Commands
 
 It is important to distinguish between Events and Commands to maintain a clean architecture.
 
 -   **Command**: An instruction to do something. It is sent to a specific destination (the `World`'s command dispatcher) with a clear intent. Usually, only one part of the system dispatches a specific command. A command is often (but not always) handled by a single system. Use a command when you want to explicitly trigger a specific piece of business logic.
     -   *Example*: `IngestFileCommand` is dispatched to tell the system to begin the ingestion process for a specific file.
 -   **Event**: A notification that something has happened. It is broadcast to the entire system without knowledge of who, if anyone, is listening. Multiple, unrelated systems can listen for the same event to perform their own independent tasks. Use an event when you want to decouple the producer of the notification from its consumers. If an event is dispatched from within an existing transaction, its handlers will participate in that same transaction.
-    -   *Example*: `FileStored` is fired after the ingestion command handler has saved a file to storage. A metadata extraction system and an image processing system might both listen for this event to start their respective tasks, without knowing about each other, but within the same atomic transaction.
+    -   *Example*: `AssetReadyForMetadataExtractionEvent` is fired after an ingestion process completes. Various metadata plugins (for images, audio, documents, etc.) can listen for this event and then dispatch their own specific metadata extraction *commands*. This decouples the ingestion logic from the specific metadata extraction implementations.
 
-### 3.5. Resources
+### 3.6. Resources
 
 -   **Definition and Purpose**: Resources are shared objects that provide access to external utilities, manage global or world-specific state, or encapsulate connections to infrastructure.
 -   **Types**:

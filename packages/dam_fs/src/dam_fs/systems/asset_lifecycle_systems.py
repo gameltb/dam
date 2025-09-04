@@ -3,6 +3,7 @@ import io
 import logging
 from typing import Annotated
 
+from dam.commands import GetAssetFilenamesCommand
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.config import WorldConfig
 from dam.core.systems import system
@@ -161,3 +162,19 @@ async def handle_find_entity_by_hash_command(
     except Exception as e:
         logger.error(f"Error in handle_find_entity_by_hash_command (Req ID: {cmd.request_id}): {e}", exc_info=True)
         raise
+
+
+@system(on_command=GetAssetFilenamesCommand)
+async def get_fs_asset_filenames_handler(
+    cmd: GetAssetFilenamesCommand,
+    transaction: EcsTransaction,
+):
+    """
+    Handles getting filenames for assets with FilePropertiesComponent.
+    """
+    file_props = await transaction.get_component(cmd.entity_id, FilePropertiesComponent)
+    if file_props and file_props.original_filename:
+        # This system returns a list with one filename
+        return [file_props.original_filename]
+    # This system does not handle this entity if it has no FilePropertiesComponent
+    return None
