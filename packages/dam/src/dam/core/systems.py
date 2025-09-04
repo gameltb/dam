@@ -200,6 +200,38 @@ class WorldScheduler:
             self.system_registry[reg_stage].append(system_func)
             self.logger.info(f"Registered system '{system_func.__name__}' for stage '{reg_stage.name}'.")
         elif reg_command:
+            # Check for return type mismatch
+            command_result_type = None
+            for base in getattr(reg_command, "__orig_bases__", []):
+                if get_origin(base) is BaseCommand:
+                    args = get_args(base)
+                    if args:
+                        command_result_type = args[0]
+                        break
+
+            sig = inspect.signature(system_func)
+            handler_return_type = sig.return_annotation
+
+            if handler_return_type is inspect.Signature.empty:
+                handler_return_type = Any
+
+            if command_result_type is not None and command_result_type is not Any:
+                # Normalize types by getting their origin if they are generic aliases
+                # This handles cases like list vs. List, tuple vs. Tuple
+                normalized_command_type = get_origin(command_result_type) or command_result_type
+                normalized_handler_type = get_origin(handler_return_type) or handler_return_type
+
+                # Normalize None to type(None) for comparison
+                if normalized_handler_type is None:
+                    normalized_handler_type = type(None)
+
+                if normalized_command_type != normalized_handler_type:
+                    self.logger.warning(
+                        f"Potential return type mismatch for command '{reg_command.__name__}'. "
+                        f"Handler '{system_func.__name__}' is annotated to return '{handler_return_type}' "
+                        f"but command expects '{command_result_type}'."
+                    )
+
             self.command_handler_registry[reg_command].append(system_func)
             self.logger.info(f"Registered system '{system_func.__name__}' for command '{reg_command.__name__}'.")
         elif reg_event:

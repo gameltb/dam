@@ -38,7 +38,7 @@ class HashMismatchError(Exception):
 
 
 @system(on_command=AddHashesFromStreamCommand)
-async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: EcsTransaction):
+async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: EcsTransaction) -> None:
     """
     Handles the command to calculate and add multiple hash components to an entity from a stream.
     """

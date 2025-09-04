@@ -6,6 +6,7 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ async def get_or_create_entity_from_stream_handler(
     cmd: GetOrCreateEntityFromStreamCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-):
+) -> tuple[Entity, bytes]:
     """
     Handles getting or creating an entity from a stream.
     """
