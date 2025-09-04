@@ -15,6 +15,10 @@ The `dam` package is organized as follows:
 
 ### Development Guidelines
 
+*   **Architectural Preference: Commands over Events/Stages**
+    *   When implementing new functionality in the `dam` package or its plugins, **prefer using the Command system**.
+    *   Avoid using Events, Component Markers, or Stages for triggering system logic unless the task explicitly requires an event-driven or stage-based workflow. Commands provide a clearer, more direct control flow for most operations.
+
 *   **Adding a new Component:**
     1.  Decide on the appropriate subdirectory in `src/dam/models/`.
     2.  Create a new Python file for the component.

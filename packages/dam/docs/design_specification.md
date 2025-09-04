@@ -33,7 +33,14 @@ The system is built upon the Entity-Component-System (ECS) pattern. This pattern
 
 For a comprehensive understanding of the ECS implementation, refer to the [Developer Guide](developer_guide.md).
 
-### 1.1. Dependency Rule
+### 1.1. Architectural Preference: Commands over Events/Stages
+
+A key design principle for the `dam` ecosystem is to **prefer the Command pattern for implementing new functionality**.
+
+-   **Why?**: Commands provide a clear, imperative, and traceable control flow. When you dispatch a command, you have a clear expectation of a specific action being performed. This makes the system easier to understand, debug, and test.
+-   **Guideline**: Unless a task's requirements explicitly call for a decoupled, event-driven workflow (e.g., multiple independent systems reacting to a single occurrence) or a lifecycle-based stage, you should implement the logic as a command and its corresponding handler system. Avoid using events or component markers as the primary mechanism for triggering core business logic.
+
+### 1.2. Dependency Rule
 
 A critical design principle is that the core `dam` package **must not** depend on any of its plugin packages (e.g., `dam_media_image`, `dam_sire`). This ensures the core remains lean and decoupled.
 
