@@ -15,7 +15,7 @@ class CommandResult(Generic[ResultType]):
     Each result is wrapped in a HandlerResult, which can be either Ok or Err.
     """
 
-    results: List[HandlerResult[ResultType]] = field(default_factory=list)
+    results: List[HandlerResult[ResultType]] = field(default_factory=list)  # type: ignore
 
     def __iter__(self) -> Iterator[HandlerResult[ResultType]]:
         """Iterates over the HandlerResult objects."""

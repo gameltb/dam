@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 from dam.core.commands import BaseCommand
 
@@ -19,7 +19,7 @@ class GetAssetStreamCommand(BaseCommand[BinaryIO]):
 
 
 @dataclass
-class GetAssetMetadataCommand(BaseCommand[dict]):
+class GetAssetMetadataCommand(BaseCommand[dict[str, Any]]):
     """
     A command to get the metadata for an asset.
     """
@@ -34,7 +34,7 @@ class UpdateAssetMetadataCommand(BaseCommand[None]):
     """
 
     entity_id: int
-    metadata: dict
+    metadata: dict[str, Any]
 
 
 @dataclass

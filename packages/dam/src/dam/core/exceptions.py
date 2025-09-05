@@ -20,13 +20,13 @@ class StageExecutionError(DamECSException):
         stage_name: str,
         system_name: Optional[str] = None,
         original_exception: Optional[Exception] = None,
-    ):
+    ) -> None:
         super().__init__(message)
         self.stage_name = stage_name
         self.system_name = system_name
         self.original_exception = original_exception
 
-    def __str__(self):
+    def __str__(self) -> str:
         base_str = super().__str__()
         details = f"Stage: {self.stage_name}"
         if self.system_name:
@@ -45,13 +45,13 @@ class EventHandlingError(DamECSException):
         event_type: str,
         handler_name: Optional[str] = None,
         original_exception: Optional[Exception] = None,
-    ):
+    ) -> None:
         super().__init__(message)
         self.event_type = event_type
         self.handler_name = handler_name
         self.original_exception = original_exception
 
-    def __str__(self):
+    def __str__(self) -> str:
         base_str = super().__str__()
         details = f"Event Type: {self.event_type}"
         if self.handler_name:
@@ -85,13 +85,13 @@ class CommandHandlingError(DamECSException):
         command_type: str,
         handler_name: Optional[str] = None,
         original_exception: Optional[Exception] = None,
-    ):
+    ) -> None:
         super().__init__(message)
         self.command_type = command_type
         self.handler_name = handler_name
         self.original_exception = original_exception
 
-    def __str__(self):
+    def __str__(self) -> str:
         base_str = super().__str__()
         details = f"Command Type: {self.command_type}"
         if self.handler_name:

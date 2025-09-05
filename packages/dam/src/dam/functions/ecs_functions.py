@@ -95,7 +95,7 @@ async def get_components(session: AsyncSession, entity_id: int, component_type: 
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     result = await session.execute(stmt)  # Await execute
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[BaseComponent]:
@@ -255,7 +255,7 @@ async def find_entity_id_by_hash(
         logger.warning(f"Invalid hex string for hash_value: {hash_value}")
         return None
 
-    stmt: Any  # To satisfy mypy for stmt potentially not being assigned if hash_type is invalid
+    stmt = None
     if hash_type.lower() == "sha256":
         stmt = select(ContentHashSHA256Component.entity_id).where(ContentHashSHA256Component.hash_value == hash_bytes)
     elif hash_type.lower() == "md5":
@@ -265,6 +265,9 @@ async def find_entity_id_by_hash(
     else:
         logger.error(f"Unsupported hash type for find_entity_id_by_hash: {hash_type}")
         return None  # Or raise ValueError
+
+    if stmt is None:
+        return None
 
     result = await session.execute(stmt)
     entity_id = result.scalar_one_or_none()
@@ -290,7 +293,7 @@ async def get_components_by_value(  # Made async
         stmt = stmt.where(getattr(component_type, attr_name) == value)
 
     result = await session.execute(stmt)  # Await execute
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def find_entity_by_content_hash(

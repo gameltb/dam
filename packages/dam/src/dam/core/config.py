@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="before")
     @classmethod
-    def _load_and_process_worlds_config(cls, values: Dict) -> Dict:
+    def _load_and_process_worlds_config(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
         This source can be a file path to a JSON file or a direct JSON string.
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
-        raw_world_configs: Dict[str, dict] = {}
+        raw_world_configs: Dict[str, Dict[str, Any]] = {}
         if os.path.exists(config_source):
             try:
                 with open(config_source, "r") as f:

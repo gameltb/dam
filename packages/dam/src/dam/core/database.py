@@ -2,8 +2,7 @@ import logging
 from typing import Optional
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from dam.models.core.base_class import Base  # Corrected import for Base
 
@@ -30,7 +29,7 @@ class DatabaseManager:
         self.world_config = world_config
         self.testing_mode = testing_mode
         self._engine: Optional[AsyncEngine] = None
-        self._session_local: Optional[sessionmaker[AsyncSession]] = None
+        self._session_local: Optional[async_sessionmaker[AsyncSession]] = None
         self._initialize_engine()
 
     def _initialize_engine(self):
@@ -61,9 +60,7 @@ class DatabaseManager:
             connect_args=connect_args,  # Pass empty connect_args
             # echo=True # Uncomment for debugging SQL statements
         )
-        self._session_local = sessionmaker(
-            autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False
-        )
+        self._session_local = async_sessionmaker(bind=self._engine, expire_on_commit=False)
         logger.info(
             f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
         )
@@ -76,7 +73,7 @@ class DatabaseManager:
         return self._engine
 
     @property
-    def session_local(self) -> sessionmaker[AsyncSession]:
+    def session_local(self) -> async_sessionmaker[AsyncSession]:
         """Returns the AsyncSessionLocal factory for this world."""
         if self._session_local is None:
             raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized.")

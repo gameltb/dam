@@ -22,7 +22,7 @@ class BaseConceptualInfoComponent(BaseComponent):
     concept_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     concept_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # Since this is abstract, direct instantiation isn't typical for __repr__
         # but subclasses might call super().__repr__()
         return (

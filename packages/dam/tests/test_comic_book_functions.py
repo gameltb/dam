@@ -498,10 +498,7 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession):
     image_entity3_id = image_entity3.id
 
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity3_id, 1) is None
-    await db_session.rollback()  # Important after expected failure with IntegrityError
-
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity1_id, 3) is None
-    await db_session.rollback()  # Important
 
 
 @pytest.mark.asyncio
@@ -687,4 +684,3 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
 
     with pytest.raises(IntegrityError):
         await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, [img1_id, img1_id])
-    await db_session.rollback()  # Rollback after expected integrity error

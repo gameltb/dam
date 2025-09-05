@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, Dict, Optional, Type, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -6,7 +6,7 @@ T = TypeVar("T")
 class ResourceNotFoundError(Exception):
     """Exception raised when a requested resource is not found."""
 
-    def __init__(self, resource_type: Type):
+    def __init__(self, resource_type: Type[Any]):
         super().__init__(f"Resource of type {resource_type.__name__} not found.")
 
 
@@ -20,11 +20,11 @@ class ResourceManager:
     via type hints, which are then injected by the `WorldScheduler`.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes an empty ResourceManager."""
-        self._resources: Dict[Type, Any] = {}
+        self._resources: Dict[Type[Any], Any] = {}
 
-    def add_resource(self, instance: Any, resource_type: Type[T] = None) -> None:
+    def add_resource(self, instance: T, resource_type: Optional[Type[T]] = None) -> None:
         """
         Adds a resource instance to the manager.
 
@@ -38,16 +38,19 @@ class ResourceManager:
             resource_type: The type (class) to register this instance against. Systems will
                            request resources using this type. Defaults to `type(instance)`.
         """
+        res_type: Type[Any]
         if resource_type is None:
-            resource_type = type(instance)
+            res_type = type(instance)
+        else:
+            res_type = resource_type
 
-        if resource_type in self._resources:
+        if res_type in self._resources:
             # Depending on policy, could raise error, log a warning, or allow replacement.
             # For now, let's log a warning and replace.
             # Consider making this behavior configurable if needed.
-            print(f"Warning: Replacing existing resource for type {resource_type.__name__}")
+            print(f"Warning: Replacing existing resource for type {res_type.__name__}")
 
-        self._resources[resource_type] = instance
+        self._resources[res_type] = instance
 
     def get_resource(self, resource_type: Type[T]) -> T:
         """
@@ -71,11 +74,11 @@ class ResourceManager:
             # Try to find a subclass instance if direct type match fails
             for res_type, res_instance in self._resources.items():
                 if issubclass(res_type, resource_type):  # Check if registered type is a subclass of requested type
-                    return res_instance  # type: ignore
+                    return cast(T, res_instance)
             raise ResourceNotFoundError(resource_type)
-        return instance  # type: ignore
+        return cast(T, instance)
 
-    def has_resource(self, resource_type: Type) -> bool:
+    def has_resource(self, resource_type: Type[Any]) -> bool:
         """
         Checks if a resource of the given type (or a subclass of it) is registered.
         """

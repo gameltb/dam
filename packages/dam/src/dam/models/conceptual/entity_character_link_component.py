@@ -49,7 +49,7 @@ class EntityCharacterLinkComponent(BaseComponent):
         ),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"EntityCharacterLinkComponent(id={self.id}, entity_id={self.entity_id}, "
             f"character_concept_entity_id={self.character_concept_entity_id}, role='{self.role_in_asset}')"

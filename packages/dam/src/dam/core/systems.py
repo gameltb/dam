@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def _parse_system_params(func: Callable[..., Any]) -> Dict[str, Any]:
+def _parse_system_params(func: Callable[..., Any]) -> dict[str, Any]:
     sig = inspect.signature(func)
-    param_info = {}
+    param_info: dict[str, Any] = {}
     for name, param in sig.parameters.items():
         original_param_type = param.annotation
         identity: Optional[str] = None
@@ -125,9 +125,9 @@ def system(
     on_stage: Optional[SystemStage] = None,
     on_command: Optional[Type[BaseCommand[Any]]] = None,
     on_event: Optional[Type[BaseEvent]] = None,
-    **kwargs,
-):
-    def decorator(f: Callable[..., Any]):
+    **kwargs: Any,
+) -> Callable[..., Any]:
+    def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         param_info = _parse_system_params(f)
 
         system_type = "vanilla"
@@ -155,7 +155,7 @@ def system(
 
 
 class WorldScheduler:
-    def __init__(self, world: "World"):
+    def __init__(self, world: "World") -> None:
         self.world = world
         self.resource_manager = world.resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
@@ -170,8 +170,8 @@ class WorldScheduler:
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
         command_type: Optional[Type[BaseCommand[Any]]] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             self.logger.warning(
@@ -240,7 +240,7 @@ class WorldScheduler:
         else:
             self.logger.debug(f"System '{system_func.__name__}' is a vanilla system, not registered for any trigger.")
 
-    async def execute_stage(self, stage: SystemStage, transaction: EcsTransaction):
+    async def execute_stage(self, stage: SystemStage, transaction: EcsTransaction) -> None:
         self.logger.info(f"Executing stage: {stage.name} for world: {self.world.name}")
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
@@ -250,7 +250,7 @@ class WorldScheduler:
         for system_func in systems_to_run:
             await self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
 
-    async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction):
+    async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction) -> None:
         event_type = type(event)
         self.logger.info(f"Dispatching event: {event_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.event_handler_registry.get(event_type, [])
@@ -293,7 +293,7 @@ class WorldScheduler:
 
         return CommandResult(results=all_results)
 
-    async def run_all_stages(self, transaction: EcsTransaction):
+    async def run_all_stages(self, transaction: EcsTransaction) -> None:
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
         ordered_stages = sorted(list(SystemStage), key=lambda s: s.value if isinstance(s.value, int) else str(s.value))
         for stage in ordered_stages:
@@ -320,15 +320,18 @@ class WorldScheduler:
 
         kwargs_to_inject: Dict[str, Any] = {}
 
-        for param_name, value in additional_kwargs.items():
-            if param_name in metadata["params"]:
-                kwargs_to_inject[param_name] = value
-            else:
-                self.logger.warning(
-                    f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored."
-                )
+        assert isinstance(metadata, dict)
+        params = metadata.get("params")
+        if isinstance(params, dict):
+            for param_name, value in additional_kwargs.items():
+                if param_name in params:
+                    kwargs_to_inject[param_name] = value
+                else:
+                    self.logger.warning(
+                        f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored."
+                    )
 
-        for param_name, param_meta in metadata["params"].items():
+        for param_name, param_meta in params.items():
             if param_name in kwargs_to_inject:
                 continue
 

@@ -51,7 +51,11 @@ def extract_poe_tasks(file: Path) -> set[str]:
     return tasks
 
 
+import os
+
+
 def main() -> None:
+    os.environ['MYPYPATH'] = 'packages/'
     pyproject_file = Path(__file__).parent / "pyproject.toml"
     projects = discover_projects(pyproject_file)
 

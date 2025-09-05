@@ -113,7 +113,7 @@ async def find_tag_concepts(  # Made async
 
     stmt = stmt.order_by(TagConceptComponent.tag_name)
     result = await session.execute(stmt)  # Await
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_tag_concept(  # Made async
@@ -432,7 +432,7 @@ async def get_entities_for_tag(  # Made async
 
     stmt = stmt.distinct()
     result = await session.execute(stmt)  # Await
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_or_create_tag_concept(

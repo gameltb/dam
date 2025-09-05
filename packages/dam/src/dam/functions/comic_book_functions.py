@@ -100,13 +100,14 @@ async def link_comic_variant_to_concept(  # Made async
             session.add(existing_primary_variant)
 
     cb_variant_comp = ComicBookVariantComponent(
-        conceptual_asset=comic_concept_entity,
         language=language,
         format=format,
         is_primary_variant=is_primary,
         scan_quality=scan_quality,
         variant_description=variant_description,
     )
+    cb_variant_comp.conceptual_entity_id = comic_concept_entity_id
+    cb_variant_comp.conceptual_asset = comic_concept_entity
     await ecs_functions.add_component_to_entity(session, file_entity.id, cb_variant_comp)
     # await session.flush() # Flushing is handled by add_component_to_entity or caller
     logger.info(
@@ -279,26 +280,36 @@ async def assign_page_to_comic_variant(  # Made async
         logger.error("Page number must be positive.")
         return None
 
+    # Check for existing page link
+    stmt = select(PageLink).where(
+        PageLink.owner_entity_id == comic_variant_entity_id,
+        PageLink.page_number == page_number,
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        logger.error(f"Page number {page_number} already exists for comic variant {comic_variant_entity_id}")
+        return None
+
+    stmt = select(PageLink).where(
+        PageLink.owner_entity_id == comic_variant_entity_id,
+        PageLink.page_image_entity_id == page_image_entity_id,
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        logger.error(f"Image {page_image_entity_id} already exists in comic variant {comic_variant_entity_id}")
+        return None
+
     page_link = PageLink(
         owner=owner_entity,
         page_image=page_image_entity,
         page_number=page_number,
     )
-    try:
-        session.add(page_link)
-        await session.flush()  # Await
-        logger.info(
-            f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
-        )
-        return page_link
-    except IntegrityError as e:
-        await session.rollback()  # Await
-        logger.error(f"Failed to assign page due to integrity error: {e}")
-        return None
-    except Exception as e:
-        await session.rollback()  # Await
-        logger.error(f"An unexpected error occurred while assigning page: {e}")
-        raise
+    session.add(page_link)
+    await session.flush()  # Await
+    logger.info(
+        f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
+    )
+    return page_link
 
 
 async def remove_page_from_comic_variant(
@@ -386,6 +397,9 @@ async def get_comic_variants_containing_image_as_page(  # Made async
 async def update_page_order_for_comic_variant(  # Made async
     session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
 ) -> List[PageLink]:
+    if len(ordered_page_image_entity_ids) != len(set(ordered_page_image_entity_ids)):
+        raise IntegrityError("Duplicate page image entity IDs provided.", params=None, orig=Exception("Duplicate page image entity IDs provided."))
+
     owner_entity = await ecs_functions.get_entity(session, comic_variant_entity_id)  # Await
     if not owner_entity or not await ecs_functions.get_component(
         session, comic_variant_entity_id, ComicBookVariantComponent

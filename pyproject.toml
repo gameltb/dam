@@ -10,6 +10,7 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 dam = { workspace = true }
+dam_archive = { workspace = true }
 dam_app = { workspace = true }
 dam_media_image = { workspace = true }
 dam_media_audio = { workspace = true }
@@ -87,6 +88,7 @@ ignore = ["E501", "F841", "F811"]
 strict = true
 python_version = "3.12"
 ignore_missing_imports = true
+mypy_path = "packages/"
 
 # from https://blog.wolt.com/engineering/2021/09/30/professional-grade-mypy-configuration/
 disallow_untyped_defs = true

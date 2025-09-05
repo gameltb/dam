@@ -39,7 +39,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
         ),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"ModelGeneratedTagLinkComponent(id={self.id}, entity_id={self.entity_id}, "
             f"tag_concept_id={self.tag_concept_id}, source_model_name='{self.source_model_name}', "

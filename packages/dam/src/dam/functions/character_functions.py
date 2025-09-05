@@ -113,7 +113,7 @@ async def find_character_concepts(session: AsyncSession, query_name: Optional[st
         stmt = stmt.where(CharacterConceptComponent.concept_name.ilike(f"%{query_name}%"))
     stmt = stmt.order_by(CharacterConceptComponent.concept_name)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_character_concept(
@@ -333,4 +333,4 @@ async def get_entities_for_character(
 
     stmt = stmt.distinct()  # Ensure each entity is listed once if multiple links match (e.g. different roles if not filtering by specific role)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
