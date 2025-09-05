@@ -14,7 +14,7 @@ from dam.utils.hash_utils import HashAlgorithm
 
 
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system(test_world_alpha: World):
+async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
     """
     Tests that the add_hashes_from_stream_system correctly adds hash components.
     """
@@ -46,7 +46,7 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system_captures_mismatch_error(test_world_alpha: World):
+async def test_add_hashes_from_stream_system_captures_mismatch_error(test_world_alpha: World) -> None:
     """
     Tests that the system returns an Err result if a hash already exists and does not match.
     """

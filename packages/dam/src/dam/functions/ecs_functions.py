@@ -321,7 +321,7 @@ async def find_entity_by_content_hash(
     # We need a broader query for components matching the hash_value across all entities.
 
     # Simpler: query component_to_query directly.
-    stmt = select(component_to_query).where(component_to_query.hash_value == hash_value)
+    stmt = select(component_to_query).where(getattr(component_to_query, "hash_value") == hash_value)
     result = await session.execute(stmt)  # Await execute
     components_found = result.scalars().all()
 
@@ -332,9 +332,11 @@ async def find_entity_by_content_hash(
             # Log a warning if it does.
             entity_ids = sorted(list(set(c.entity_id for c in components_found)))
             logger.warning(
-                f"Found multiple components ({len(components_found)}) matching {hash_type} hash '{hash_value}' "
-                f"across different entities (IDs: {entity_ids}). This might indicate a data integrity issue "
-                f"if content hashes are expected to be unique per entity. Returning entity of the first component found."
+                "Found multiple components (%s) matching %s hash '%s' across different entities (IDs: %r). This might indicate a data integrity issue if content hashes are expected to be unique per entity. Returning entity of the first component found.",
+                len(components_found),
+                hash_type,
+                hash_value,
+                entity_ids,
             )
         # Return the parent Entity of the first found component.
         first_component = components_found[0]

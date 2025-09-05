@@ -106,7 +106,7 @@ async def generic_entity1(db_session: AsyncSession) -> Entity:  # Made async
 
 
 @pytest.mark.asyncio
-async def test_create_tag_concept(db_session: AsyncSession):  # Async
+async def test_create_tag_concept(db_session: AsyncSession) -> None:  # Async
     tag_name = "MyUniqueTag"
     tag_entity = await ts.create_tag_concept(  # Await
         db_session, tag_name=tag_name, scope_type="GLOBAL", description="Test Description", allow_values=True
@@ -130,7 +130,7 @@ async def test_create_tag_concept(db_session: AsyncSession):  # Async
 
 
 @pytest.mark.asyncio
-async def test_get_tag_concept_by_name(db_session: AsyncSession, global_tag_concept: Entity):  # Async
+async def test_get_tag_concept_by_name(db_session: AsyncSession, global_tag_concept: Entity) -> None:  # Async
     retrieved_tag = await ts.get_tag_concept_by_name(db_session, "GlobalTestTag")  # Await
     assert retrieved_tag is not None
     assert retrieved_tag.id == global_tag_concept.id
@@ -139,7 +139,7 @@ async def test_get_tag_concept_by_name(db_session: AsyncSession, global_tag_conc
 
 
 @pytest.mark.asyncio
-async def test_get_tag_concept_by_id(db_session: AsyncSession, global_tag_concept: Entity):  # Async
+async def test_get_tag_concept_by_id(db_session: AsyncSession, global_tag_concept: Entity) -> None:  # Async
     retrieved_tag = await ts.get_tag_concept_by_id(db_session, global_tag_concept.id)  # Await
     assert retrieved_tag is not None
     assert retrieved_tag.id == global_tag_concept.id
@@ -149,7 +149,7 @@ async def test_get_tag_concept_by_id(db_session: AsyncSession, global_tag_concep
 @pytest.mark.asyncio
 async def test_find_tag_concepts(
     db_session: AsyncSession, global_tag_concept: Entity, component_scoped_tag_concept: Entity
-):  # Async
+) -> None:  # Async
     all_tags = await ts.find_tag_concepts(db_session)  # Await
     assert len(all_tags) >= 2  # At least the two created by fixtures
 
@@ -163,7 +163,7 @@ async def test_find_tag_concepts(
 
 
 @pytest.mark.asyncio
-async def test_update_tag_concept(db_session: AsyncSession, global_tag_concept: Entity):  # Async
+async def test_update_tag_concept(db_session: AsyncSession, global_tag_concept: Entity) -> None:  # Async
     updated_comp = await ts.update_tag_concept(  # Await
         db_session, global_tag_concept.id, name="GlobalTestTagUpdated", description="New Desc", allow_values=True
     )
@@ -188,7 +188,7 @@ async def test_update_tag_concept(db_session: AsyncSession, global_tag_concept: 
 
 
 @pytest.mark.asyncio
-async def test_delete_tag_concept(db_session: AsyncSession, generic_entity1: Entity):  # Async
+async def test_delete_tag_concept(db_session: AsyncSession, generic_entity1: Entity) -> None:  # Async
     tag_to_delete_entity = await ts.create_tag_concept(db_session, "ToDeleteTag", "GLOBAL")  # Await
     await db_session.commit()  # Await
     assert tag_to_delete_entity is not None
@@ -213,7 +213,7 @@ async def test_delete_tag_concept(db_session: AsyncSession, generic_entity1: Ent
 @pytest.mark.asyncio
 async def test_apply_and_get_tags_for_entity(
     db_session: AsyncSession, global_tag_concept: Entity, generic_entity1: Entity
-):  # Async
+) -> None:  # Async
     # Apply global tag
     with db_session.no_autoflush:
         link1 = await ts.apply_tag_to_entity(db_session, generic_entity1.id, global_tag_concept.id)  # Await
@@ -242,6 +242,7 @@ async def test_apply_and_get_tags_for_entity(
     tag_names_on_entity = set()
     for tag_concept_e, val in applied_tags:
         comp = await ecs_service.get_component(db_session, tag_concept_e.id, TagConceptComponent)  # Await
+        assert comp is not None
         tag_names_on_entity.add(comp.tag_name)
 
     assert "GlobalTestTag" in tag_names_on_entity
@@ -274,7 +275,7 @@ async def test_apply_and_get_tags_for_entity(
 @pytest.mark.asyncio
 async def test_remove_tag_from_entity(
     db_session: AsyncSession, global_tag_concept: Entity, generic_entity1: Entity
-):  # Async
+) -> None:  # Async
     with db_session.no_autoflush:
         await ts.apply_tag_to_entity(db_session, generic_entity1.id, global_tag_concept.id)  # Await
     await db_session.commit()  # Await
@@ -291,7 +292,7 @@ async def test_remove_tag_from_entity(
 @pytest.mark.asyncio
 async def test_get_entities_for_tag(  # Async
     db_session: AsyncSession, global_tag_concept: Entity, generic_entity1: Entity, comic_concept1: Entity
-):
+) -> None:
     with db_session.no_autoflush:
         await ts.apply_tag_to_entity(db_session, generic_entity1.id, global_tag_concept.id)  # Await
         await ts.apply_tag_to_entity(db_session, comic_concept1.id, global_tag_concept.id)  # Await
@@ -341,7 +342,7 @@ async def test_scope_validation_component_class_required(  # Async
     component_scoped_tag_concept: Entity,  # Scope: ComicBookConceptComponent
     comic_concept1: Entity,
     generic_entity1: Entity,
-):
+) -> None:
     # Should succeed: comic_concept1 has ComicBookConceptComponent
     with db_session.no_autoflush:
         link_success = await ts.apply_tag_to_entity(db_session, comic_concept1.id, component_scoped_tag_concept.id)  # Await
@@ -360,7 +361,7 @@ async def test_scope_validation_conceptual_asset_local(  # Async
     comic_concept1: Entity,
     comic_variant1_of_concept1: Entity,
     local_scoped_tag_concept_for_comic1: Entity,  # Scope: local to comic_concept1
-):
+) -> None:
     # Tagging the conceptual asset itself should succeed
     with db_session.no_autoflush:
         link_on_concept = await ts.apply_tag_to_entity(
@@ -397,7 +398,7 @@ async def test_scope_validation_conceptual_asset_local(  # Async
 
 
 @pytest.mark.asyncio
-async def test_scope_validation_invalid_scope_details(db_session: AsyncSession, generic_entity1: Entity):  # Async
+async def test_scope_validation_invalid_scope_details(db_session: AsyncSession, generic_entity1: Entity) -> None:  # Async
     # COMPONENT_CLASS_REQUIRED with no detail
     no_detail_comp_tag = await ts.create_tag_concept(  # Await
         db_session, "NoDetailCompTag", "COMPONENT_CLASS_REQUIRED", scope_detail=None
@@ -445,7 +446,7 @@ async def test_scope_validation_invalid_scope_details(db_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_unknown_scope_type(db_session: AsyncSession, generic_entity1: Entity):  # Async
+async def test_unknown_scope_type(db_session: AsyncSession, generic_entity1: Entity) -> None:  # Async
     unknown_scope_tag = await ts.create_tag_concept(db_session, "UnknownScopeTag", "MY_CUSTOM_SCOPE_TYPE")  # Await
     await db_session.commit()  # Await
     assert unknown_scope_tag is not None

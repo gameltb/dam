@@ -106,7 +106,7 @@ def _parse_system_params(func: Callable[..., Any]) -> dict[str, Any]:
                     f"Parameter '{name}' in system '{func.__name__}' resolved to 'Command' identity, but its type '{actual_type}' is not a BaseCommand subclass."
                 )
 
-        param_info[name] = {
+        param_info[name] = {  # type: ignore
             "name": name,
             "type_hint": actual_type,
             "identity": identity,
@@ -331,11 +331,12 @@ class WorldScheduler:
                         f"Provided kwarg '{param_name}' for system {system_func.__name__} does not match any system parameter. It will be ignored."
                     )
 
-        for param_name, param_meta in params.items():
-            if param_name in kwargs_to_inject:
-                continue
+        if params:
+            for param_name, param_meta in params.items():
+                if param_name in kwargs_to_inject:
+                    continue
 
-            identity = param_meta["identity"]
+            identity = param_meta["identity"]  # type: ignore
             param_type_hint = param_meta["type_hint"]
 
             if param_type_hint is EcsTransaction:
@@ -363,7 +364,7 @@ class WorldScheduler:
                 kwargs_to_inject[param_name] = entities_to_process
             elif identity == "Event":
                 expected_event_type = param_meta["event_type_hint"]
-                if event_object and isinstance(event_object, expected_event_type):
+                if event_object and isinstance(event_object, expected_event_type):  # type: ignore
                     kwargs_to_inject[param_name] = event_object
                 elif expected_event_type is not None and not event_object:
                     msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects an event of type {expected_event_type.__name__} but none was provided for injection."
@@ -371,7 +372,7 @@ class WorldScheduler:
                     raise ValueError(msg)
             elif identity == "Command":
                 expected_command_type = param_meta["command_type_hint"]
-                if command_object and isinstance(command_object, expected_command_type):
+                if command_object and isinstance(command_object, expected_command_type):  # type: ignore
                     kwargs_to_inject[param_name] = command_object
                 elif expected_command_type is not None and not command_object:
                     msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects a command of type {expected_command_type.__name__} but none was provided for injection."
@@ -434,25 +435,26 @@ class WorldScheduler:
             result = await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
 
         if metadata and metadata.get("system_type") == "stage_system":
-            for param_name, param_meta in metadata["params"].items():
-                if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
-                    marker_type_to_remove = param_meta["marker_component_type"]
-                    entities_processed = kwargs_to_inject.get(param_name, [])
-                    if entities_processed and marker_type_to_remove:
-                        entity_ids_processed = [entity.id for entity in entities_processed]
-                        if entity_ids_processed:
-                            from sqlalchemy import delete as sql_delete
+            if metadata.get("params"):
+                for param_name, param_meta in metadata["params"].items():
+                    if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
+                        marker_type_to_remove = param_meta["marker_component_type"]
+                        entities_processed = kwargs_to_inject.get(param_name, [])
+                        if entities_processed and marker_type_to_remove:
+                            entity_ids_processed = [entity.id for entity in entities_processed]
+                            if entity_ids_processed:
+                                from sqlalchemy import delete as sql_delete
 
-                            self.logger.debug(
-                                f"Scheduler for world '{self.world.name}': Bulk removing {marker_type_to_remove.__name__} from "
-                                f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
-                            )
-                            stmt = sql_delete(marker_type_to_remove).where(
-                                marker_type_to_remove.entity_id.in_(entity_ids_processed)
-                            )
-                            await transaction.session.execute(stmt)
-                            if metadata.get("system_type") == "stage_system":
-                                await transaction.session.flush()
+                                self.logger.debug(
+                                    f"Scheduler for world '{self.world.name}': Bulk removing {marker_type_to_remove.__name__} from "
+                                    f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
+                                )
+                                stmt = sql_delete(marker_type_to_remove).where(
+                                    marker_type_to_remove.entity_id.in_(entity_ids_processed)
+                                )
+                                await transaction.session.execute(stmt)
+                                if metadata.get("system_type") == "stage_system":
+                                    await transaction.session.flush()  # type: ignore
         return result
 
     async def execute_one_time_system(

@@ -8,7 +8,7 @@ from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLink
 
 
 @pytest.mark.asyncio
-async def test_create_character_concept(db_session: AsyncSession):
+async def test_create_character_concept(db_session: AsyncSession) -> None:
     char_name = "Test Character One"
     char_desc = "A character for testing."
 
@@ -28,6 +28,7 @@ async def test_create_character_concept(db_session: AsyncSession):
     assert char_entity_again is not None
     assert char_entity_again.id == char_entity.id  # Should return the existing one
     char_comp_again = await ecs_service.get_component(db_session, char_entity_again.id, CharacterConceptComponent)
+    assert char_comp_again is not None
     assert (
         char_comp_again.concept_description == char_desc
     )  # Description should not have changed by calling create again
@@ -37,7 +38,7 @@ async def test_create_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_character_concept_by_name_and_id(db_session: AsyncSession):
+async def test_get_character_concept_by_name_and_id(db_session: AsyncSession) -> None:
     char_name = "Finder Character"
     char_desc = "Character to be found."
     char_entity = await character_service.create_character_concept(db_session, char_name, char_desc)
@@ -58,7 +59,7 @@ async def test_get_character_concept_by_name_and_id(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_find_character_concepts(db_session: AsyncSession):
+async def test_find_character_concepts(db_session: AsyncSession) -> None:
     await character_service.create_character_concept(db_session, "Alpha Char", "Desc A")
     await character_service.create_character_concept(db_session, "Beta Char", "Desc B")
     await character_service.create_character_concept(db_session, "Gamma Person", "Desc C")
@@ -90,7 +91,7 @@ async def test_find_character_concepts(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_update_character_concept(db_session: AsyncSession):
+async def test_update_character_concept(db_session: AsyncSession) -> None:
     char_entity = await character_service.create_character_concept(db_session, "Updatable Char", "Initial Desc")
     assert char_entity is not None
 
@@ -114,7 +115,7 @@ async def test_update_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_delete_character_concept(db_session: AsyncSession):
+async def test_delete_character_concept(db_session: AsyncSession) -> None:
     char_to_delete = await character_service.create_character_concept(db_session, "Deletable Char", "Will be deleted")
     assert char_to_delete is not None
 
@@ -141,7 +142,7 @@ async def test_delete_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
+async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) -> None:
     char_entity = await character_service.create_character_concept(db_session, "Linkable Char", "For linking tests")
     asset1 = await ecs_service.create_entity(db_session)
     asset2 = await ecs_service.create_entity(db_session)
@@ -249,6 +250,6 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_entities_for_nonexistent_character(db_session: AsyncSession):
+async def test_get_entities_for_nonexistent_character(db_session: AsyncSession) -> None:
     with pytest.raises(character_service.CharacterConceptNotFoundError):
         await character_service.get_entities_for_character(db_session, -999)

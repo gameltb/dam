@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -99,15 +99,14 @@ async def link_comic_variant_to_concept(  # Made async
             existing_primary_variant.is_primary_variant = False
             session.add(existing_primary_variant)
 
-    cb_variant_comp = ComicBookVariantComponent(
+    cb_variant_comp = ComicBookVariantComponent(  # type: ignore[call-arg]
+        conceptual_asset=comic_concept_entity,
         language=language,
         format=format,
         is_primary_variant=is_primary,
         scan_quality=scan_quality,
         variant_description=variant_description,
     )
-    cb_variant_comp.conceptual_entity_id = comic_concept_entity_id
-    cb_variant_comp.conceptual_asset = comic_concept_entity
     await ecs_functions.add_component_to_entity(session, file_entity.id, cb_variant_comp)
     # await session.flush() # Flushing is handled by add_component_to_entity or caller
     logger.info(
@@ -378,10 +377,10 @@ async def get_comic_variants_containing_image_as_page(  # Made async
     stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(
         PageLink.page_image_entity_id == page_image_entity_id
     )
-    results = await session.execute(stmt)  # Await
-    results = results.all()  # Get all rows from result object
+    result_proxy = await session.execute(stmt)  # Await
+    results = result_proxy.all()  # Get all rows from result object
 
-    variant_pages_info = []
+    variant_pages_info: List[tuple[Entity, int]] = []
     for owner_id, page_num in results:
         owner_entity = await ecs_functions.get_entity(session, owner_id)  # Await
         if owner_entity and await ecs_functions.get_component(session, owner_id, ComicBookVariantComponent):  # Await

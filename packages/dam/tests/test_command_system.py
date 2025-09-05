@@ -50,7 +50,7 @@ def another_handler(cmd: AnotherCommand) -> int:
 
 
 @system(on_command=FailingCommand)
-def failing_handler(cmd: FailingCommand):
+def failing_handler(cmd: FailingCommand) -> None:
     raise ValueError("This handler is designed to fail.")
 
 
@@ -71,7 +71,7 @@ def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str,
 
 # Tests
 @pytest.mark.asyncio
-async def test_register_and_dispatch_single_handler(test_world_alpha: World):
+async def test_register_and_dispatch_single_handler(test_world_alpha: World) -> None:
     """
     Tests that a single command handler can be registered and successfully
     processes a command, returning a result.
@@ -90,7 +90,7 @@ async def test_register_and_dispatch_single_handler(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_dispatch_multiple_handlers(test_world_alpha: World):
+async def test_dispatch_multiple_handlers(test_world_alpha: World) -> None:
     """
     Tests that multiple handlers for the same command all execute and their
     results are collected.
@@ -112,7 +112,7 @@ async def test_dispatch_multiple_handlers(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_dispatch_command_with_no_handlers(test_world_alpha: World):
+async def test_dispatch_command_with_no_handlers(test_world_alpha: World) -> None:
     """
     Tests that dispatching a command with no registered handlers returns an
     empty result and does not raise an error.
@@ -128,7 +128,7 @@ async def test_dispatch_command_with_no_handlers(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_command_handler_failure_is_captured(test_world_alpha: World):
+async def test_command_handler_failure_is_captured(test_world_alpha: World) -> None:
     """
     Tests that if a command handler raises an exception, the exception is
     captured in a HandlerResult and does not abort the dispatch.
@@ -160,7 +160,7 @@ async def test_command_handler_failure_is_captured(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_dispatch_different_commands(test_world_alpha: World):
+async def test_dispatch_different_commands(test_world_alpha: World) -> None:
     """
     Tests that the command dispatcher correctly routes commands to their
     specific handlers and not to handlers for other commands.
@@ -181,7 +181,7 @@ async def test_dispatch_different_commands(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_iter_ok_values_flat(test_world_alpha: World):
+async def test_iter_ok_values_flat(test_world_alpha: World) -> None:
     """
     Tests the iter_ok_values_flat method.
     """
@@ -200,8 +200,9 @@ async def test_iter_ok_values_flat(test_world_alpha: World):
     assert set(flat_values) == {"a", "b", "c", "d"}
 
 
+from _pytest.logging import LogCaptureFixture
 @pytest.mark.asyncio
-async def test_return_type_mismatch_warning(test_world_alpha: World, caplog):
+async def test_return_type_mismatch_warning(test_world_alpha: World, caplog: LogCaptureFixture) -> None:
     """
     Tests that a warning is logged when a handler's return type annotation
     does not match the command's expected result type.

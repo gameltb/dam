@@ -39,12 +39,12 @@ class Settings(BaseSettings):
     worlds: Dict[str, WorldConfig] = Field(default_factory=dict, description="Dictionary of configured worlds.")
 
     DEFAULT_WORLD_NAME: Optional[str] = Field(
-        "default",
+        default=None,
         validation_alias="DAM_DEFAULT_WORLD_NAME",
         description="The name of the world to use by default if not specified.",
     )
 
-    TESTING_MODE: bool = Field(False, validation_alias="TESTING_MODE", description="Enable testing mode behaviors.")
+    TESTING_MODE: bool = Field(default=False, validation_alias="TESTING_MODE", description="Enable testing mode behaviors.")
 
     TRANSCODING_TEMP_DIR: str = Field(  # Changed to str, Path will be constructed in code
         default="temp/dam_transcodes",

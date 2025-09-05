@@ -15,7 +15,7 @@ class CorePlugin(Plugin):
     The core plugin for the DAM system.
     """
 
-    def build(self, world: World):
+    def build(self, world: World) -> None:
         """
         Build the core plugin.
         """
