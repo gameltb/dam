@@ -29,18 +29,18 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
         comment="Description of scan quality, if applicable (e.g., '300dpi', 'WebRip', 'Archive Grade').",
     )
 
+    variant_description: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="A general description for this variant, e.g., 'Collector's Edition Scan', 'Digital Release'.",
+    )
+
     is_primary_variant: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
         index=True,
         comment="Indicates if this is the primary or preferred variant for the comic book concept.",
-    )
-
-    variant_description: Mapped[str | None] = mapped_column(
-        String(1024),
-        nullable=True,
-        comment="A general description for this variant, e.g., 'Collector's Edition Scan', 'Digital Release'.",
     )
 
     # Could add other comic variant specific fields:
@@ -71,7 +71,7 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
         # ComicBookVariantComponent row anyway. The main uniqueness is covered by the component type itself on an entity.
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"ComicBookVariantComponent(id={self.id}, entity_id={self.entity_id}, "
             f"conceptual_entity_id={self.conceptual_entity_id}, "

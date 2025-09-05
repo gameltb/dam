@@ -19,7 +19,7 @@ class CharacterConceptComponent(BaseConceptualInfoComponent):
     # species: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # abilities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"CharacterConceptComponent(id={self.id}, entity_id={self.entity_id}, "
             f"name='{self.concept_name}', description='{self.concept_description[:50] if self.concept_description else ''}...')"

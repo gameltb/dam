@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.systems import system
@@ -56,20 +57,22 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
 
         # Special handling for CRC32 as it's an int
         if algorithm == HashAlgorithm.CRC32:
-            hash_value_bytes = hash_value.to_bytes(4, "big")
+            hash_value_bytes = hash_value.to_bytes(4, "big")  # type: ignore
         else:
-            hash_value_bytes = hash_value
+            hash_value_bytes = hash_value  # type: ignore
 
         if existing_component:
-            if existing_component.hash_value != hash_value_bytes:
+            from typing import cast
+            existing_component_any = cast(Any, existing_component)
+            if existing_component_any.hash_value != hash_value_bytes:
                 raise HashMismatchError(
                     entity_id=cmd.entity_id,
                     algorithm=algorithm,
-                    existing_hash=existing_component.hash_value.hex(),
-                    new_hash=hash_value_bytes.hex(),
+                    existing_hash=existing_component_any.hash_value.hex(),
+                    new_hash=hash_value_bytes.hex(),  # type: ignore
                 )
         else:
-            new_component = component_class(hash_value=hash_value_bytes)
+            new_component = component_class(hash_value=hash_value_bytes)  # type: ignore
             await transaction.add_component_to_entity(cmd.entity_id, new_component)
             logger.info(f"Added {component_class.__name__} to entity {cmd.entity_id}")
 

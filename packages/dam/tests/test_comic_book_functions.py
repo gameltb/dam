@@ -18,7 +18,7 @@ from dam.models.conceptual import (
 
 
 @pytest.mark.asyncio
-async def test_create_comic_book_concept(db_session: AsyncSession):
+async def test_create_comic_book_concept(db_session: AsyncSession) -> None:
     """Test creating a new comic book concept."""
     comic_title = "The Adventures of Agent Jules"
     series_title = "Agent Jules Chronicles"
@@ -51,12 +51,13 @@ async def test_create_comic_book_concept(db_session: AsyncSession):
     concept_entity_2 = await cbs.create_comic_book_concept(db_session, comic_title="Solo Story")
     await db_session.commit()
     retrieved_comp_2 = await ecs_service.get_component(db_session, concept_entity_2.id, ComicBookConceptComponent)
+    assert retrieved_comp_2 is not None
     assert retrieved_comp_2.comic_title == "Solo Story"
     assert retrieved_comp_2.series_title == "Solo Story"
 
 
 @pytest.mark.asyncio
-async def test_link_comic_variant_to_concept(db_session: AsyncSession):
+async def test_link_comic_variant_to_concept(db_session: AsyncSession) -> None:
     """Test linking a file entity as a comic variant to a comic concept."""
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Test Comic")
     file_entity = await ecs_service.create_entity(db_session)
@@ -91,7 +92,7 @@ async def test_link_comic_variant_to_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_link_comic_variant_error_cases(db_session: AsyncSession):
+async def test_link_comic_variant_error_cases(db_session: AsyncSession) -> None:
     """Test error cases for linking comic variants."""
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Error Comic")
     file_entity_1 = await ecs_service.create_entity(db_session)
@@ -131,7 +132,7 @@ async def test_link_comic_variant_error_cases(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_variants_for_comic_concept(db_session: AsyncSession):
+async def test_get_variants_for_comic_concept(db_session: AsyncSession) -> None:
     """Test retrieving variants for a comic concept."""
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Variant Test Comic")
     file_entity_1 = await ecs_service.create_entity(db_session)
@@ -182,7 +183,7 @@ async def test_get_variants_for_comic_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_comic_concept_for_variant(db_session: AsyncSession):
+async def test_get_comic_concept_for_variant(db_session: AsyncSession) -> None:
     """Test retrieving the comic concept for a given variant file entity."""
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Owner Comic")
     file_entity_variant = await ecs_service.create_entity(db_session)
@@ -201,7 +202,7 @@ async def test_get_comic_concept_for_variant(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_find_comic_book_concepts(db_session: AsyncSession):
+async def test_find_comic_book_concepts(db_session: AsyncSession) -> None:
     """Test finding comic book concepts by criteria."""
     cc1 = await cbs.create_comic_book_concept(
         db_session,
@@ -252,7 +253,7 @@ async def test_find_comic_book_concepts(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_set_primary_comic_variant(db_session: AsyncSession):
+async def test_set_primary_comic_variant(db_session: AsyncSession) -> None:
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Primary Test")
     v1_e = await ecs_service.create_entity(db_session)
     v2_e = await ecs_service.create_entity(db_session)
@@ -311,7 +312,7 @@ async def test_set_primary_comic_variant(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession):
+async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Get Primary")
     v1 = await ecs_service.create_entity(db_session)
     v2 = await ecs_service.create_entity(db_session)
@@ -336,7 +337,7 @@ async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_unlink_comic_variant(db_session: AsyncSession):
+async def test_unlink_comic_variant(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Unlink Test")
     variant_e = await ecs_service.create_entity(db_session)
     await db_session.commit()
@@ -354,7 +355,7 @@ async def test_unlink_comic_variant(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_comic_variant_unique_constraints(db_session: AsyncSession):
+async def test_comic_variant_unique_constraints(db_session: AsyncSession) -> None:
     """Test unique constraints on ComicBookVariantComponent."""
     concept1_entity = await cbs.create_comic_book_concept(db_session, comic_title="Constraint Test", issue_number="1")
     file1_entity = await ecs_service.create_entity(db_session)
@@ -425,7 +426,7 @@ async def test_comic_variant_unique_constraints(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_primary_variant_logic_on_link_comic(db_session: AsyncSession):
+async def test_primary_variant_logic_on_link_comic(db_session: AsyncSession) -> None:
     concept_entity = await cbs.create_comic_book_concept(db_session, comic_title="Primary Logic")
     f1_entity = await ecs_service.create_entity(db_session)
     f2_entity = await ecs_service.create_entity(db_session)
@@ -465,7 +466,7 @@ async def test_primary_variant_logic_on_link_comic(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_assign_page_to_comic_variant(db_session: AsyncSession):
+async def test_assign_page_to_comic_variant(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Paged Comic")
     variant_entity = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_entity.id, "en", "PDF")
@@ -498,14 +499,11 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession):
     image_entity3_id = image_entity3.id
 
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity3_id, 1) is None
-    await db_session.rollback()  # Important after expected failure with IntegrityError
-
     assert await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity1_id, 3) is None
-    await db_session.rollback()  # Important
 
 
 @pytest.mark.asyncio
-async def test_get_ordered_pages_for_comic_variant(db_session: AsyncSession):
+async def test_get_ordered_pages_for_comic_variant(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Ordered Pages Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id, "en", "CBZ")
@@ -541,7 +539,7 @@ async def test_get_ordered_pages_for_comic_variant(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_remove_page_from_comic_variant(db_session: AsyncSession):
+async def test_remove_page_from_comic_variant(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Remove Page Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id)
@@ -575,7 +573,7 @@ async def test_remove_page_from_comic_variant(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSession):
+async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSession) -> None:
     concept1 = await cbs.create_comic_book_concept(db_session, comic_title="CVCIAP C1")
     variant1_1_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept1.id, variant1_1_e.id, "en", "PDF")
@@ -589,7 +587,6 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
 
     # IDs
     variant1_1_id = variant1_1_e.id
-    variant1_2_id = variant1_2_e.id  # Unused with image1
     variant2_1_id = variant2_1_e.id
 
     image1 = await ecs_service.create_entity(db_session)
@@ -620,7 +617,7 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
 
 
 @pytest.mark.asyncio
-async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
+async def test_update_page_order_for_comic_variant(db_session: AsyncSession) -> None:
     concept = await cbs.create_comic_book_concept(db_session, comic_title="Update Order Comic")
     variant_e = await ecs_service.create_entity(db_session)
     await cbs.link_comic_variant_to_concept(db_session, concept.id, variant_e.id)
@@ -687,4 +684,3 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession):
 
     with pytest.raises(IntegrityError):
         await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, [img1_id, img1_id])
-    await db_session.rollback()  # Rollback after expected integrity error

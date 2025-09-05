@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, List, Type
+from typing import TYPE_CHECKING, Any, List, Type
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
@@ -43,16 +43,16 @@ class BaseComponent(Base):
         # (which will be part of each concrete component's table)
         return relationship(
             "Entity",
-            foreign_keys=[cls.entity_id],  # Explicitly use the component's own entity_id for this link
+            foreign_keys=[cls.entity_id],  # type: ignore # Explicitly use the component's own entity_id for this link
             # back_populates="components", # REMOVED as Entity.components is removed
             repr=False,  # For SQLAlchemy's default repr of this relationship property
             init=False,  # Prevent 'entity' from being an __init__ parameter
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         """
         Registers concrete component subclasses with the ecs_service.
         """

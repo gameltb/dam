@@ -8,7 +8,7 @@ from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLink
 
 
 @pytest.mark.asyncio
-async def test_create_character_concept(db_session: AsyncSession):
+async def test_create_character_concept(db_session: AsyncSession) -> None:
     char_name = "Test Character One"
     char_desc = "A character for testing."
 
@@ -28,6 +28,7 @@ async def test_create_character_concept(db_session: AsyncSession):
     assert char_entity_again is not None
     assert char_entity_again.id == char_entity.id  # Should return the existing one
     char_comp_again = await ecs_service.get_component(db_session, char_entity_again.id, CharacterConceptComponent)
+    assert char_comp_again is not None
     assert (
         char_comp_again.concept_description == char_desc
     )  # Description should not have changed by calling create again
@@ -37,7 +38,7 @@ async def test_create_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_character_concept_by_name_and_id(db_session: AsyncSession):
+async def test_get_character_concept_by_name_and_id(db_session: AsyncSession) -> None:
     char_name = "Finder Character"
     char_desc = "Character to be found."
     char_entity = await character_service.create_character_concept(db_session, char_name, char_desc)
@@ -58,7 +59,7 @@ async def test_get_character_concept_by_name_and_id(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_find_character_concepts(db_session: AsyncSession):
+async def test_find_character_concepts(db_session: AsyncSession) -> None:
     await character_service.create_character_concept(db_session, "Alpha Char", "Desc A")
     await character_service.create_character_concept(db_session, "Beta Char", "Desc B")
     await character_service.create_character_concept(db_session, "Gamma Person", "Desc C")
@@ -78,7 +79,7 @@ async def test_find_character_concepts(db_session: AsyncSession):
     # Let's make names more specific for this test or clear DB before.
     # For now, assuming only the 3 above match "Char" if other tests use different naming.
     # This is brittle. A better way is to check if the expected ones are present.
-    names_found = []
+    names_found: list[str] = []
     for e in char_search:
         comp = await ecs_service.get_component(db_session, e.id, CharacterConceptComponent)
         if comp:
@@ -90,7 +91,7 @@ async def test_find_character_concepts(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_update_character_concept(db_session: AsyncSession):
+async def test_update_character_concept(db_session: AsyncSession) -> None:
     char_entity = await character_service.create_character_concept(db_session, "Updatable Char", "Initial Desc")
     assert char_entity is not None
 
@@ -114,7 +115,7 @@ async def test_update_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_delete_character_concept(db_session: AsyncSession):
+async def test_delete_character_concept(db_session: AsyncSession) -> None:
     char_to_delete = await character_service.create_character_concept(db_session, "Deletable Char", "Will be deleted")
     assert char_to_delete is not None
 
@@ -141,7 +142,7 @@ async def test_delete_character_concept(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
+async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) -> None:
     char_entity = await character_service.create_character_concept(db_session, "Linkable Char", "For linking tests")
     asset1 = await ecs_service.create_entity(db_session)
     asset2 = await ecs_service.create_entity(db_session)
@@ -173,7 +174,7 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
     chars_on_asset1 = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1) == 2
     # Replace None with empty string for sorting, then map back for assertion if needed, or assert against modified list
-    roles_for_sorting = [r if r is not None else "" for e, r in chars_on_asset1]
+    roles_for_sorting = [r if r is not None else "" for _, r in chars_on_asset1]
     roles_on_asset1 = sorted(roles_for_sorting)
     # Expected: None (empty string) sorts before "Protagonist"
     assert roles_on_asset1 == ["", "Protagonist"]
@@ -249,6 +250,6 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_entities_for_nonexistent_character(db_session: AsyncSession):
+async def test_get_entities_for_nonexistent_character(db_session: AsyncSession) -> None:
     with pytest.raises(character_service.CharacterConceptNotFoundError):
         await character_service.get_entities_for_character(db_session, -999)

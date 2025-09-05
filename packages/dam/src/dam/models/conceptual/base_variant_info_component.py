@@ -38,7 +38,7 @@ class BaseVariantInfoComponent(BaseComponent):
         """Relationship to the parent (owning) Conceptual Asset Entity."""
         return relationship(
             "Entity",
-            foreign_keys=[cls.conceptual_entity_id],  # Use cls.conceptual_entity_id
+            foreign_keys=[cls.conceptual_entity_id],  # type: ignore # Use cls.conceptual_entity_id
             # backref="variants_conceptual_links", # Consider if a backref is needed and how it would work with multiple variant types
             repr=False,
         )
@@ -48,5 +48,5 @@ class BaseVariantInfoComponent(BaseComponent):
     # Also removed UniqueConstraints as they were based on the removed fields
     # and specific subclasses might need different constraints.
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"

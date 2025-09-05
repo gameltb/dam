@@ -95,7 +95,7 @@ async def get_components(session: AsyncSession, entity_id: int, component_type: 
     """
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     result = await session.execute(stmt)  # Await execute
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[BaseComponent]:
@@ -127,7 +127,7 @@ async def get_all_components_for_entity_as_dict(
         if component_name not in component_dict:
             component_dict[component_name] = []
 
-        component_data = {}
+        component_data: Dict[str, Any] = {}
         for c in component.__mapper__.column_attrs:
             value = getattr(component, c.key)
             if isinstance(value, bytes):
@@ -153,7 +153,7 @@ async def remove_component(session: AsyncSession, component: BaseComponent, flus
     Raises:
         ValueError: If the component is invalid.
     """
-    if not isinstance(component, BaseComponent) or component.id is None:
+    if not isinstance(component, BaseComponent):
         raise ValueError("Invalid component instance for removal. Must be a session-managed BaseComponent with an ID.")
     # No need to check `if component not in session` if it's fetched via the same session.
     # If it could be from another session, then `session.merge(component)` might be needed before delete.
@@ -220,7 +220,7 @@ async def find_entities_with_components(  # Made async
         return []
 
     stmt = select(Entity)
-    for i, comp_type in enumerate(required_component_types):
+    for comp_type in required_component_types:
         if not issubclass(comp_type, BaseComponent):
             raise TypeError(f"Type {comp_type} is not a BaseComponent subclass.")
         # Use aliasing if the same component type could be required multiple times with different criteria
@@ -255,7 +255,7 @@ async def find_entity_id_by_hash(
         logger.warning(f"Invalid hex string for hash_value: {hash_value}")
         return None
 
-    stmt: Any  # To satisfy mypy for stmt potentially not being assigned if hash_type is invalid
+    stmt = None
     if hash_type.lower() == "sha256":
         stmt = select(ContentHashSHA256Component.entity_id).where(ContentHashSHA256Component.hash_value == hash_bytes)
     elif hash_type.lower() == "md5":
@@ -290,7 +290,7 @@ async def get_components_by_value(  # Made async
         stmt = stmt.where(getattr(component_type, attr_name) == value)
 
     result = await session.execute(stmt)  # Await execute
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def find_entity_by_content_hash(
@@ -318,7 +318,7 @@ async def find_entity_by_content_hash(
     # We need a broader query for components matching the hash_value across all entities.
 
     # Simpler: query component_to_query directly.
-    stmt = select(component_to_query).where(component_to_query.hash_value == hash_value)
+    stmt = select(component_to_query).where(getattr(component_to_query, "hash_value") == hash_value)
     result = await session.execute(stmt)  # Await execute
     components_found = result.scalars().all()
 
@@ -329,9 +329,11 @@ async def find_entity_by_content_hash(
             # Log a warning if it does.
             entity_ids = sorted(list(set(c.entity_id for c in components_found)))
             logger.warning(
-                f"Found multiple components ({len(components_found)}) matching {hash_type} hash '{hash_value}' "
-                f"across different entities (IDs: {entity_ids}). This might indicate a data integrity issue "
-                f"if content hashes are expected to be unique per entity. Returning entity of the first component found."
+                "Found multiple components (%s) matching %s hash '%s' across different entities (IDs: %r). This might indicate a data integrity issue if content hashes are expected to be unique per entity. Returning entity of the first component found.",
+                len(components_found),
+                hash_type,
+                hash_value,
+                entity_ids,
             )
         # Return the parent Entity of the first found component.
         first_component = components_found[0]

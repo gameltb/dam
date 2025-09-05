@@ -29,15 +29,6 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         comment="The unique name of the tag (e.g., 'Sci-Fi', 'Needs Review', 'Artist:JohnDoe').",
     )
 
-    # For simplicity, using strings for scope_type. An Enum could be used for stricter validation.
-    tag_scope_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        default="GLOBAL",  # Default to global scope
-        index=True,
-        comment="Defines the scope of the tag (e.g., 'GLOBAL', 'COMPONENT_CLASS_REQUIRED', 'CONCEPTUAL_ASSET_LOCAL').",
-    )
-
     tag_scope_detail: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
@@ -47,6 +38,15 @@ class TagConceptComponent(BaseConceptualInfoComponent):
 
     tag_description: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, comment="A description of what this tag represents or how it should be used."
+    )
+
+    # For simplicity, using strings for scope_type. An Enum could be used for stricter validation.
+    tag_scope_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="GLOBAL",  # Default to global scope
+        index=True,
+        comment="Defines the scope of the tag (e.g., 'GLOBAL', 'COMPONENT_CLASS_REQUIRED', 'CONCEPTUAL_ASSET_LOCAL').",
     )
 
     allow_values: Mapped[bool] = mapped_column(
@@ -63,5 +63,5 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         # For now, assuming tag_name is globally unique for simplicity of definition.
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<TagConceptComponent id={self.id} entity_id={self.entity_id} name='{self.tag_name}' scope='{self.tag_scope_type}'>"

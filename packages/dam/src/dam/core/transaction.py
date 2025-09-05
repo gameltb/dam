@@ -22,7 +22,7 @@ class EcsTransaction:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def flush(self):
+    async def flush(self) -> None:
         """Flushes the underlying session to persist changes within the current transaction."""
         await self.session.flush()
 
@@ -46,7 +46,7 @@ class EcsTransaction:
     async def get_all_components_for_entity(self, entity_id: int) -> List[BaseComponent]:
         return await ecs_functions.get_all_components_for_entity(self.session, entity_id)
 
-    async def remove_component(self, component: BaseComponent):
+    async def remove_component(self, component: BaseComponent) -> None:
         return await ecs_functions.remove_component(self.session, component, flush=False)
 
     async def delete_entity(self, entity_id: int) -> bool:

@@ -1,4 +1,4 @@
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -37,7 +37,8 @@ class HandlerResult(Generic[T]):
         Raises the contained exception if the result is an error.
         """
         if self.is_ok():
-            return self._value
+            return cast(T, self._value)
+        assert self._exception is not None
         raise self._exception
 
     @property

@@ -99,7 +99,7 @@ async def link_comic_variant_to_concept(  # Made async
             existing_primary_variant.is_primary_variant = False
             session.add(existing_primary_variant)
 
-    cb_variant_comp = ComicBookVariantComponent(
+    cb_variant_comp = ComicBookVariantComponent(  # type: ignore[call-arg]
         conceptual_asset=comic_concept_entity,
         language=language,
         format=format,
@@ -279,26 +279,36 @@ async def assign_page_to_comic_variant(  # Made async
         logger.error("Page number must be positive.")
         return None
 
+    # Check for existing page link
+    stmt = select(PageLink).where(
+        PageLink.owner_entity_id == comic_variant_entity_id,
+        PageLink.page_number == page_number,
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        logger.error(f"Page number {page_number} already exists for comic variant {comic_variant_entity_id}")
+        return None
+
+    stmt = select(PageLink).where(
+        PageLink.owner_entity_id == comic_variant_entity_id,
+        PageLink.page_image_entity_id == page_image_entity_id,
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        logger.error(f"Image {page_image_entity_id} already exists in comic variant {comic_variant_entity_id}")
+        return None
+
     page_link = PageLink(
         owner=owner_entity,
         page_image=page_image_entity,
         page_number=page_number,
     )
-    try:
-        session.add(page_link)
-        await session.flush()  # Await
-        logger.info(
-            f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
-        )
-        return page_link
-    except IntegrityError as e:
-        await session.rollback()  # Await
-        logger.error(f"Failed to assign page due to integrity error: {e}")
-        return None
-    except Exception as e:
-        await session.rollback()  # Await
-        logger.error(f"An unexpected error occurred while assigning page: {e}")
-        raise
+    session.add(page_link)
+    await session.flush()  # Await
+    logger.info(
+        f"Assigned image Entity ID {page_image_entity_id} as page {page_number} to comic variant Entity ID {comic_variant_entity_id}."
+    )
+    return page_link
 
 
 async def remove_page_from_comic_variant(
@@ -367,10 +377,10 @@ async def get_comic_variants_containing_image_as_page(  # Made async
     stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(
         PageLink.page_image_entity_id == page_image_entity_id
     )
-    results = await session.execute(stmt)  # Await
-    results = results.all()  # Get all rows from result object
+    result_proxy = await session.execute(stmt)  # Await
+    results = result_proxy.all()  # Get all rows from result object
 
-    variant_pages_info = []
+    variant_pages_info: List[tuple[Entity, int]] = []
     for owner_id, page_num in results:
         owner_entity = await ecs_functions.get_entity(session, owner_id)  # Await
         if owner_entity and await ecs_functions.get_component(session, owner_id, ComicBookVariantComponent):  # Await
@@ -386,6 +396,9 @@ async def get_comic_variants_containing_image_as_page(  # Made async
 async def update_page_order_for_comic_variant(  # Made async
     session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
 ) -> List[PageLink]:
+    if len(ordered_page_image_entity_ids) != len(set(ordered_page_image_entity_ids)):
+        raise IntegrityError("Duplicate page image entity IDs provided.", params=None, orig=Exception("Duplicate page image entity IDs provided."))
+
     owner_entity = await ecs_functions.get_entity(session, comic_variant_entity_id)  # Await
     if not owner_entity or not await ecs_functions.get_component(
         session, comic_variant_entity_id, ComicBookVariantComponent
@@ -395,7 +408,7 @@ async def update_page_order_for_comic_variant(  # Made async
     stmt_delete = delete(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id)
     await session.execute(stmt_delete)  # Await
 
-    new_page_links = []
+    new_page_links: List[PageLink] = []
     for i, page_image_id in enumerate(ordered_page_image_entity_ids):
         page_number = i + 1
         page_image_entity = await ecs_functions.get_entity(session, page_image_id)  # Await

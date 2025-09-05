@@ -52,8 +52,6 @@ async def create_character_concept(
         pass
 
     character_entity = await ecs_functions.create_entity(session)
-    if character_entity.id is None:  # Should be populated after create_entity if it flushes
-        await session.flush()
 
     # BaseConceptualInfoComponent fields (concept_name, concept_description)
     # are used for the character's name and description.
@@ -113,7 +111,7 @@ async def find_character_concepts(session: AsyncSession, query_name: Optional[st
         stmt = stmt.where(CharacterConceptComponent.concept_name.ilike(f"%{query_name}%"))
     stmt = stmt.order_by(CharacterConceptComponent.concept_name)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_character_concept(
@@ -299,7 +297,7 @@ async def get_characters_for_entity(
     ).where(EntityCharacterLinkComponent.entity_id == entity_id_linked)
     result = await session.execute(stmt)
 
-    character_links_info = []
+    character_links_info: List[Tuple[Entity, Optional[str]]] = []
     for char_concept_id, role in result.all():
         char_concept_entity = await get_character_concept_by_id(session, char_concept_id)
         if char_concept_entity:
@@ -333,4 +331,4 @@ async def get_entities_for_character(
 
     stmt = stmt.distinct()  # Ensure each entity is listed once if multiple links match (e.g. different roles if not filtering by specific role)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())

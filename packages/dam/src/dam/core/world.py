@@ -1,8 +1,7 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dam.core.commands import BaseCommand, CommandResult, ResultType
 from dam.core.config import Settings, WorldConfig
@@ -47,9 +46,7 @@ class World:
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
 
     @property
-    def db_session_maker(
-        self,
-    ) -> sessionmaker:  # Return type might be sessionmaker[AsyncSession] or sessionmaker[Session]
+    def db_session_maker(self) -> async_sessionmaker[AsyncSession]:
         """Returns the SQLAlchemy sessionmaker for this world's database."""
         db_mngr = self.get_resource(DatabaseManager)
         return db_mngr.session_local  # Expose the sessionmaker instance
@@ -57,21 +54,21 @@ class World:
     def get_db_session(self) -> AsyncSession:  # Changed to AsyncSession
         db_mngr = self.get_resource(DatabaseManager)
         # get_db_session in DBManager returns result of session_local(), which is AsyncSession for async engine
-        return db_mngr.get_db_session()  # type: ignore
+        return db_mngr.get_db_session()
 
     async def create_db_and_tables(self) -> None:
         self.logger.info(f"Requesting creation of DB tables for World '{self.name}'.")
         db_mngr = self.get_resource(DatabaseManager)
         await db_mngr.create_db_and_tables()
 
-    def add_resource(self, instance: Any, resource_type: Optional[Type] = None) -> None:
+    def add_resource(self, instance: Any, resource_type: Optional[Type[Any]] = None) -> None:
         self.resource_manager.add_resource(instance, resource_type)
         self.logger.debug(f"Added resource type {resource_type or type(instance)} to World '{self.name}'.")
 
     def get_resource(self, resource_type: Type[T]) -> T:
         return self.resource_manager.get_resource(resource_type)
 
-    def has_resource(self, resource_type: Type) -> bool:
+    def has_resource(self, resource_type: Type[Any]) -> bool:
         return self.resource_manager.has_resource(resource_type)
 
     def add_plugin(self, plugin: Plugin) -> "World":
@@ -90,7 +87,7 @@ class World:
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
         command_type: Optional[Type[BaseCommand[Any]]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
         if num_triggers > 1:
@@ -313,7 +310,7 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
 def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings] = None) -> List[World]:
     current_settings = app_settings or global_app_settings
-    created_worlds = []
+    created_worlds: List[World] = []
     world_names = current_settings.get_all_world_names()
     logger.info(
         f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)"

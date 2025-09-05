@@ -13,5 +13,5 @@ class Entity(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Entity(id={self.id})"

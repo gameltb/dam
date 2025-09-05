@@ -26,10 +26,10 @@ async def get_or_create_entity_from_stream_handler(
         cmd.stream.seek(0)
         hashes = calculate_hashes_from_stream(cmd.stream, {HashAlgorithm.SHA256})
         sha256_bytes = hashes[HashAlgorithm.SHA256]
-    except (IOError, FileNotFoundError) as e:
+    except (IOError, FileNotFoundError):
         raise  # Re-raise the exception to be handled by the caller
 
-    existing_entity = await transaction.find_entity_by_content_hash(sha256_bytes, "sha256")
+    existing_entity = await transaction.find_entity_by_content_hash(sha256_bytes, "sha256")  # type: ignore
     entity = None
 
     if existing_entity:
@@ -55,4 +55,4 @@ async def get_or_create_entity_from_stream_handler(
 
     await world.dispatch_command(ExtractMetadataCommand(entity_id=entity.id))
 
-    return entity, sha256_bytes
+    return entity, sha256_bytes  # type: ignore

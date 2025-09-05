@@ -54,5 +54,5 @@ class EntityTagLinkComponent(BaseComponent):
         UniqueConstraint("entity_id", "tag_concept_entity_id", "tag_value", name="uq_entity_tag_application"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<EntityTagLinkComponent id={self.id} entity_id={self.entity_id} tag_concept_id={self.tag_concept_entity_id} value='{self.tag_value}'>"

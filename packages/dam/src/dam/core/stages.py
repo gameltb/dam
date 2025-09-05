@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from typing import Any
 
 
 class SystemStage(Enum):
@@ -32,7 +33,7 @@ class SystemStage(Enum):
     # General purpose update stage if the application had a main loop
     # UPDATE = auto()
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> bool:
         if self.__class__ is other.__class__:
             # Get all members in definition order
             members = list(self.__class__)

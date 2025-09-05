@@ -1,9 +1,8 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from dam.models.core.base_class import Base  # Corrected import for Base
 
@@ -11,6 +10,8 @@ from dam.models.core.base_class import Base  # Corrected import for Base
 from .config import WorldConfig
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["DatabaseManager", "Base"]
 
 
 class DatabaseManager:
@@ -30,10 +31,10 @@ class DatabaseManager:
         self.world_config = world_config
         self.testing_mode = testing_mode
         self._engine: Optional[AsyncEngine] = None
-        self._session_local: Optional[sessionmaker[AsyncSession]] = None
+        self._session_local: Optional[async_sessionmaker[AsyncSession]] = None
         self._initialize_engine()
 
-    def _initialize_engine(self):
+    def _initialize_engine(self) -> None:
         """Initializes the async engine and session maker for this world."""
         if not self.world_config.DATABASE_URL:
             raise ValueError(f"DATABASE_URL not set for world '{self.world_config.name}'. Cannot initialize database.")
@@ -54,16 +55,14 @@ class DatabaseManager:
         # connect_args for aiosqlite are generally not needed for basic operation.
         # 'check_same_thread' is not applicable.
         # If specific pragmas or extensions are needed, they can be passed via listeners or engine events.
-        connect_args = {}  # Kept empty for now, can be populated if specific needs arise.
+        connect_args: dict[str, Any] = {}  # Kept empty for now, can be populated if specific needs arise.
 
         self._engine = create_async_engine(
             self.world_config.DATABASE_URL,
             connect_args=connect_args,  # Pass empty connect_args
             # echo=True # Uncomment for debugging SQL statements
         )
-        self._session_local = sessionmaker(
-            autocommit=False, autoflush=False, bind=self._engine, class_=AsyncSession, expire_on_commit=False
-        )
+        self._session_local = async_sessionmaker(bind=self._engine, expire_on_commit=False)
         logger.info(
             f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
         )
@@ -76,7 +75,7 @@ class DatabaseManager:
         return self._engine
 
     @property
-    def session_local(self) -> sessionmaker[AsyncSession]:
+    def session_local(self) -> async_sessionmaker[AsyncSession]:
         """Returns the AsyncSessionLocal factory for this world."""
         if self._session_local is None:
             raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized.")
@@ -93,7 +92,7 @@ class DatabaseManager:
             )
         return self._session_local()
 
-    async def create_db_and_tables(self):
+    async def create_db_and_tables(self) -> None:
         """
         Creates all database tables for this world using its async engine.
         In TESTING_MODE, if the database URL suggests a test database,

@@ -10,19 +10,20 @@ logger = logging.getLogger(__name__)
 
 # Dynamically discover and import all modules in the current package
 # This avoids having to manually update a list of system modules.
-for _, module_name, _ in pkgutil.iter_modules(__path__, __name__ + "."):
+# This avoids having to manually update a list of system modules.
+for finder, name, ispkg in pkgutil.iter_modules(__path__, __name__ + "."):
     try:
-        importlib.import_module(module_name)
-        logger.debug(f"Successfully imported system module: {module_name}")
+        importlib.import_module(name)
+        logger.debug(f"Successfully imported system module: {name}")
     except ImportError as e:
         # This error is critical if a system module is expected but not found or fails to import.
         # It's particularly important to log this in case of missing optional dependencies.
         logger.warning(
-            f"Could not import system module {module_name}. "
+            f"Could not import system module {name}. "
             f"This may be expected if optional dependencies are not installed. Error: {e}"
         )
     except Exception as e:
         # Catch other potential errors during module import
-        logger.error(f"An unexpected error occurred while importing system module {module_name}: {e}", exc_info=True)
+        logger.error(f"An unexpected error occurred while importing system module {name}: {e}", exc_info=True)
 
 logger.info("dam.systems package initialized and all discoverable system modules have been loaded.")
