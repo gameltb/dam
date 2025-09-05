@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type, TypeVar, cast
+from typing import Any, Dict, List, Optional, Type, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -88,3 +88,7 @@ class ResourceManager:
             if issubclass(res_type, resource_type):
                 return True
         return False
+
+    def get_all_resource_types(self) -> List[Type[Any]]:
+        """Returns a list of all registered resource types."""
+        return list(self._resources.keys())

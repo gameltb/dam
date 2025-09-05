@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.systems import system
@@ -61,12 +62,14 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
             hash_value_bytes = hash_value  # type: ignore
 
         if existing_component:
-            if getattr(existing_component, "hash_value") != hash_value_bytes:
+            from typing import cast
+            existing_component_any = cast(Any, existing_component)
+            if existing_component_any.hash_value != hash_value_bytes:
                 raise HashMismatchError(
                     entity_id=cmd.entity_id,
                     algorithm=algorithm,
-                    existing_hash=getattr(existing_component, "hash_value").hex(),
-                    new_hash=hash_value_bytes.hex(),
+                    existing_hash=existing_component_any.hash_value.hex(),
+                    new_hash=hash_value_bytes.hex(),  # type: ignore
                 )
         else:
             new_component = component_class(hash_value=hash_value_bytes)  # type: ignore

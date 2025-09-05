@@ -52,8 +52,6 @@ async def create_character_concept(
         pass
 
     character_entity = await ecs_functions.create_entity(session)
-    if character_entity.id is None:  # Should be populated after create_entity if it flushes
-        await session.flush()
 
     # BaseConceptualInfoComponent fields (concept_name, concept_description)
     # are used for the character's name and description.
@@ -299,7 +297,7 @@ async def get_characters_for_entity(
     ).where(EntityCharacterLinkComponent.entity_id == entity_id_linked)
     result = await session.execute(stmt)
 
-    character_links_info = []
+    character_links_info: List[Tuple[Entity, Optional[str]]] = []
     for char_concept_id, role in result.all():
         char_concept_entity = await get_character_concept_by_id(session, char_concept_id)
         if char_concept_entity:

@@ -174,7 +174,7 @@ async def test_update_tag_concept(db_session: AsyncSession, global_tag_concept: 
     assert updated_comp.allow_values is True
 
     # Test update name conflict
-    tag2 = await ts.create_tag_concept(db_session, "AnotherTag", "GLOBAL")  # Await
+    await ts.create_tag_concept(db_session, "AnotherTag", "GLOBAL")  # Await
     await db_session.commit()  # Await
     assert (
         await ts.update_tag_concept(db_session, global_tag_concept.id, name="AnotherTag") is None
@@ -239,9 +239,9 @@ async def test_apply_and_get_tags_for_entity(
     applied_tags = await ts.get_tags_for_entity(db_session, generic_entity1.id)  # Await
     assert len(applied_tags) == 2
 
-    tag_names_on_entity = set()
-    for tag_concept_e, val in applied_tags:
-        comp = await ecs_service.get_component(db_session, tag_concept_e.id, TagConceptComponent)  # Await
+    tag_names_on_entity: set[str] = set()
+    for tag_concept_e, _ in applied_tags:
+        comp = await ecs_service.get_component(db_session, tag_concept_e.id, TagConceptComponent)
         assert comp is not None
         tag_names_on_entity.add(comp.tag_name)
 

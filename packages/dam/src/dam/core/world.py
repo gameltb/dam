@@ -310,7 +310,7 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
 def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings] = None) -> List[World]:
     current_settings = app_settings or global_app_settings
-    created_worlds = []
+    created_worlds: List[World] = []
     world_names = current_settings.get_all_world_names()
     logger.info(
         f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)"

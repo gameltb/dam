@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -408,7 +408,7 @@ async def update_page_order_for_comic_variant(  # Made async
     stmt_delete = delete(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id)
     await session.execute(stmt_delete)  # Await
 
-    new_page_links = []
+    new_page_links: List[PageLink] = []
     for i, page_image_id in enumerate(ordered_page_image_entity_ids):
         page_number = i + 1
         page_image_entity = await ecs_functions.get_entity(session, page_image_id)  # Await

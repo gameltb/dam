@@ -40,7 +40,7 @@ class CorePlugin(Plugin):
         world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
 
         world.logger.info(
-            f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager._resources.keys())}"
+            f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager.get_all_resource_types())}"
         )
 
         # Logic from register_core_systems

@@ -56,8 +56,6 @@ async def create_tag_concept(  # Made async
         pass
 
     tag_concept_entity = await ecs_functions.create_entity(session)  # Await
-    if tag_concept_entity.id is None:
-        await session.flush()  # Ensure ID
 
     tag_concept_comp = TagConceptComponent(
         tag_name=tag_name,
@@ -286,13 +284,12 @@ async def _is_scope_valid(
                 if is_class and is_variant_subclass and is_actually_concrete:
                     variant_comp = await ecs_functions.get_component(
                         session, entity_id_to_tag, comp_type_check
-                    )  # Await
+                    )
                     if variant_comp:
-                        if hasattr(variant_comp, "conceptual_entity_id"):
-                            actual_conceptual_id = variant_comp.conceptual_entity_id
-                            if actual_conceptual_id == conceptual_asset_entity_id_for_scope:
-                                is_valid_variant = True
-                                break
+                        actual_conceptual_id = getattr(variant_comp, "conceptual_entity_id", None)
+                        if actual_conceptual_id == conceptual_asset_entity_id_for_scope:
+                            is_valid_variant = True
+                            break
 
             if is_valid_variant:
                 return True
@@ -404,9 +401,9 @@ async def get_tags_for_entity(
     result = await session.execute(stmt)  # Await
     results_all = result.all()
 
-    tags_info = []
+    tags_info: List[Tuple[Entity, Optional[str]]] = []
     for tag_concept_id, tag_val in results_all:
-        tag_concept_e = await get_tag_concept_by_id(session, tag_concept_id)  # Await
+        tag_concept_e = await get_tag_concept_by_id(session, tag_concept_id)
         if tag_concept_e:
             tags_info.append((tag_concept_e, tag_val))
     return tags_info

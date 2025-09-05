@@ -127,7 +127,7 @@ async def get_all_components_for_entity_as_dict(
         if component_name not in component_dict:
             component_dict[component_name] = []
 
-        component_data = {}
+        component_data: Dict[str, Any] = {}
         for c in component.__mapper__.column_attrs:
             value = getattr(component, c.key)
             if isinstance(value, bytes):
@@ -153,7 +153,7 @@ async def remove_component(session: AsyncSession, component: BaseComponent, flus
     Raises:
         ValueError: If the component is invalid.
     """
-    if not isinstance(component, BaseComponent) or component.id is None:
+    if not isinstance(component, BaseComponent):
         raise ValueError("Invalid component instance for removal. Must be a session-managed BaseComponent with an ID.")
     # No need to check `if component not in session` if it's fetched via the same session.
     # If it could be from another session, then `session.merge(component)` might be needed before delete.
@@ -220,7 +220,7 @@ async def find_entities_with_components(  # Made async
         return []
 
     stmt = select(Entity)
-    for i, comp_type in enumerate(required_component_types):
+    for comp_type in required_component_types:
         if not issubclass(comp_type, BaseComponent):
             raise TypeError(f"Type {comp_type} is not a BaseComponent subclass.")
         # Use aliasing if the same component type could be required multiple times with different criteria
@@ -265,9 +265,6 @@ async def find_entity_id_by_hash(
     else:
         logger.error(f"Unsupported hash type for find_entity_id_by_hash: {hash_type}")
         return None  # Or raise ValueError
-
-    if stmt is None:
-        return None
 
     result = await session.execute(stmt)
     entity_id = result.scalar_one_or_none()

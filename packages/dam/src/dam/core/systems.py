@@ -1,3 +1,4 @@
+# pyright: basic
 import asyncio
 import inspect
 import logging
@@ -106,7 +107,7 @@ def _parse_system_params(func: Callable[..., Any]) -> dict[str, Any]:
                     f"Parameter '{name}' in system '{func.__name__}' resolved to 'Command' identity, but its type '{actual_type}' is not a BaseCommand subclass."
                 )
 
-        param_info[name] = {  # type: ignore
+        param_info[name] = {
             "name": name,
             "type_hint": actual_type,
             "identity": identity,
@@ -336,67 +337,67 @@ class WorldScheduler:
                 if param_name in kwargs_to_inject:
                     continue
 
-            identity = param_meta["identity"]  # type: ignore
-            param_type_hint = param_meta["type_hint"]
+                identity = param_meta["identity"]
+                param_type_hint = param_meta["type_hint"]
 
-            if param_type_hint is EcsTransaction:
-                kwargs_to_inject[param_name] = transaction
-            elif identity == "WorldSession":
-                self.logger.warning(
-                    f"System '{system_func.__name__}' is injecting WorldSession directly. "
-                    "This is deprecated. Please inject EcsTransaction instead."
-                )
-                kwargs_to_inject[param_name] = transaction.session
-            elif identity == "Resource":
-                kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
-            elif identity == "MarkedEntityList":
-                marker_type = param_meta["marker_component_type"]
-                if not marker_type or not issubclass(marker_type, BaseComponent):
-                    msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{self.world.name}'."
-                    self.logger.error(msg)
-                    raise ValueError(msg)
-                from sqlalchemy import exists as sql_exists
-                from sqlalchemy import select as sql_select
+                if param_type_hint is EcsTransaction:
+                    kwargs_to_inject[param_name] = transaction
+                elif identity == "WorldSession":
+                    self.logger.warning(
+                        f"System '{system_func.__name__}' is injecting WorldSession directly. "
+                        "This is deprecated. Please inject EcsTransaction instead."
+                    )
+                    kwargs_to_inject[param_name] = transaction.session
+                elif identity == "Resource":
+                    kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+                elif identity == "MarkedEntityList":
+                    marker_type = param_meta["marker_component_type"]
+                    if not marker_type or not issubclass(marker_type, BaseComponent):
+                        msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{self.world.name}'."
+                        self.logger.error(msg)
+                        raise ValueError(msg)
+                    from sqlalchemy import exists as sql_exists
+                    from sqlalchemy import select as sql_select
 
-                stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
-                result = await transaction.session.execute(stmt)
-                entities_to_process = result.scalars().all()
-                kwargs_to_inject[param_name] = entities_to_process
-            elif identity == "Event":
-                expected_event_type = param_meta["event_type_hint"]
-                if event_object and isinstance(event_object, expected_event_type):  # type: ignore
-                    kwargs_to_inject[param_name] = event_object
-                elif expected_event_type is not None and not event_object:
-                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects an event of type {expected_event_type.__name__} but none was provided for injection."
-                    self.logger.error(msg)
-                    raise ValueError(msg)
-            elif identity == "Command":
-                expected_command_type = param_meta["command_type_hint"]
-                if command_object and isinstance(command_object, expected_command_type):  # type: ignore
-                    kwargs_to_inject[param_name] = command_object
-                elif expected_command_type is not None and not command_object:
-                    msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects a command of type {expected_command_type.__name__} but none was provided for injection."
-                    self.logger.error(msg)
-                    raise ValueError(msg)
-            else:
-                if not (
-                    param_type_hint is str
-                    or param_type_hint is int
-                    or param_type_hint is bool
-                    or param_type_hint is float
-                    or param_type_hint is list
-                    or param_type_hint is dict
-                    or param_type_hint is tuple
-                    or param_type_hint is set
-                    or param_type_hint is type(None)
-                ):
-                    try:
-                        kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
-                    except ResourceNotFoundError:
-                        self.logger.debug(
-                            f"Resource not found for param '{param_name}' (type {param_type_hint}) via direct type injection for {system_func.__name__}. "
-                            "It might be provided by additional_kwargs or be optional."
-                        )
+                    stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
+                    result = await transaction.session.execute(stmt)
+                    entities_to_process = result.scalars().all()
+                    kwargs_to_inject[param_name] = entities_to_process
+                elif identity == "Event":
+                    expected_event_type = param_meta["event_type_hint"]
+                    if event_object and isinstance(event_object, expected_event_type):
+                        kwargs_to_inject[param_name] = event_object
+                    elif expected_event_type is not None and not event_object:
+                        msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects an event of type {expected_event_type.__name__} but none was provided for injection."
+                        self.logger.error(msg)
+                        raise ValueError(msg)
+                elif identity == "Command":
+                    expected_command_type = param_meta["command_type_hint"]
+                    if command_object and isinstance(command_object, expected_command_type):
+                        kwargs_to_inject[param_name] = command_object
+                    elif expected_command_type is not None and not command_object:
+                        msg = f"System {system_func.__name__} parameter '{param_name}' in world '{self.world.name}' expects a command of type {expected_command_type.__name__} but none was provided for injection."
+                        self.logger.error(msg)
+                        raise ValueError(msg)
+                else:
+                    if not (
+                        param_type_hint is str
+                        or param_type_hint is int
+                        or param_type_hint is bool
+                        or param_type_hint is float
+                        or param_type_hint is list
+                        or param_type_hint is dict
+                        or param_type_hint is tuple
+                        or param_type_hint is set
+                        or param_type_hint is type(None)
+                    ):
+                        try:
+                            kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
+                        except ResourceNotFoundError:
+                            self.logger.debug(
+                                f"Resource not found for param '{param_name}' (type {param_type_hint}) via direct type injection for {system_func.__name__}. "
+                                "It might be provided by additional_kwargs or be optional."
+                            )
         return kwargs_to_inject
 
     async def _execute_system_func(
@@ -454,7 +455,7 @@ class WorldScheduler:
                                 )
                                 await transaction.session.execute(stmt)
                                 if metadata.get("system_type") == "stage_system":
-                                    await transaction.session.flush()  # type: ignore
+                                    await transaction.session.flush()
         return result
 
     async def execute_one_time_system(

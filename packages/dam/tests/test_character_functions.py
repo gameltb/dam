@@ -79,7 +79,7 @@ async def test_find_character_concepts(db_session: AsyncSession) -> None:
     # Let's make names more specific for this test or clear DB before.
     # For now, assuming only the 3 above match "Char" if other tests use different naming.
     # This is brittle. A better way is to check if the expected ones are present.
-    names_found = []
+    names_found: list[str] = []
     for e in char_search:
         comp = await ecs_service.get_component(db_session, e.id, CharacterConceptComponent)
         if comp:
@@ -174,7 +174,7 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) 
     chars_on_asset1 = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1) == 2
     # Replace None with empty string for sorting, then map back for assertion if needed, or assert against modified list
-    roles_for_sorting = [r if r is not None else "" for e, r in chars_on_asset1]
+    roles_for_sorting = [r if r is not None else "" for _, r in chars_on_asset1]
     roles_on_asset1 = sorted(roles_for_sorting)
     # Expected: None (empty string) sorts before "Protagonist"
     assert roles_on_asset1 == ["", "Protagonist"]

@@ -587,7 +587,6 @@ async def test_get_comic_variants_containing_image_as_page(db_session: AsyncSess
 
     # IDs
     variant1_1_id = variant1_1_e.id
-    variant1_2_id = variant1_2_e.id  # Unused with image1
     variant2_1_id = variant2_1_e.id
 
     image1 = await ecs_service.create_entity(db_session)
