@@ -282,9 +282,7 @@ async def _is_scope_valid(
                 is_actually_concrete = not comp_type_check.__dict__.get("__abstract__", False) if is_class else False
 
                 if is_class and is_variant_subclass and is_actually_concrete:
-                    variant_comp = await ecs_functions.get_component(
-                        session, entity_id_to_tag, comp_type_check
-                    )
+                    variant_comp = await ecs_functions.get_component(session, entity_id_to_tag, comp_type_check)
                     if variant_comp:
                         actual_conceptual_id = getattr(variant_comp, "conceptual_entity_id", None)
                         if actual_conceptual_id == conceptual_asset_entity_id_for_scope:

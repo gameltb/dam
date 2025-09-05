@@ -41,6 +41,7 @@ class BaseVariantInfoComponent(BaseComponent):
             foreign_keys=[cls.conceptual_entity_id],  # type: ignore # Use cls.conceptual_entity_id
             # backref="variants_conceptual_links", # Consider if a backref is needed and how it would work with multiple variant types
             repr=False,
+            init=False,  # Prevent 'conceptual_asset' from being an __init__ parameter
         )
 
     # Removed fields that will go into concrete subclasses:

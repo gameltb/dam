@@ -44,7 +44,9 @@ class Settings(BaseSettings):
         description="The name of the world to use by default if not specified.",
     )
 
-    TESTING_MODE: bool = Field(default=False, validation_alias="TESTING_MODE", description="Enable testing mode behaviors.")
+    TESTING_MODE: bool = Field(
+        default=False, validation_alias="TESTING_MODE", description="Enable testing mode behaviors."
+    )
 
     TRANSCODING_TEMP_DIR: str = Field(  # Changed to str, Path will be constructed in code
         default="temp/dam_transcodes",

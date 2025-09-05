@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 from dam.core.commands import BaseCommand
 from dam.core.systems import system
@@ -200,7 +201,6 @@ async def test_iter_ok_values_flat(test_world_alpha: World) -> None:
     assert set(flat_values) == {"a", "b", "c", "d"}
 
 
-from _pytest.logging import LogCaptureFixture
 @pytest.mark.asyncio
 async def test_return_type_mismatch_warning(test_world_alpha: World, caplog: LogCaptureFixture) -> None:
     """

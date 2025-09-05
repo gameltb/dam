@@ -345,13 +345,17 @@ async def test_scope_validation_component_class_required(  # Async
 ) -> None:
     # Should succeed: comic_concept1 has ComicBookConceptComponent
     with db_session.no_autoflush:
-        link_success = await ts.apply_tag_to_entity(db_session, comic_concept1.id, component_scoped_tag_concept.id)  # Await
+        link_success = await ts.apply_tag_to_entity(
+            db_session, comic_concept1.id, component_scoped_tag_concept.id
+        )  # Await
     await db_session.commit()  # Await
     assert link_success is not None
 
     # Should fail: generic_entity1 does not have ComicBookConceptComponent
     with db_session.no_autoflush:
-        link_fail = await ts.apply_tag_to_entity(db_session, generic_entity1.id, component_scoped_tag_concept.id)  # Await
+        link_fail = await ts.apply_tag_to_entity(
+            db_session, generic_entity1.id, component_scoped_tag_concept.id
+        )  # Await
     assert link_fail is None
 
 
@@ -398,7 +402,9 @@ async def test_scope_validation_conceptual_asset_local(  # Async
 
 
 @pytest.mark.asyncio
-async def test_scope_validation_invalid_scope_details(db_session: AsyncSession, generic_entity1: Entity) -> None:  # Async
+async def test_scope_validation_invalid_scope_details(
+    db_session: AsyncSession, generic_entity1: Entity
+) -> None:  # Async
     # COMPONENT_CLASS_REQUIRED with no detail
     no_detail_comp_tag = await ts.create_tag_concept(  # Await
         db_session, "NoDetailCompTag", "COMPONENT_CLASS_REQUIRED", scope_detail=None

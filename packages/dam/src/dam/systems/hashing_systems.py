@@ -63,6 +63,7 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
 
         if existing_component:
             from typing import cast
+
             existing_component_any = cast(Any, existing_component)
             if existing_component_any.hash_value != hash_value_bytes:
                 raise HashMismatchError(

@@ -1,6 +1,7 @@
 """
 This module defines the ExiftoolMetadataComponent for storing raw EXIF data.
 """
+
 from typing import Any
 
 from sqlalchemy import JSON  # Changed from JSONB

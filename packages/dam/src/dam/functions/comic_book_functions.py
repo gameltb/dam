@@ -99,14 +99,14 @@ async def link_comic_variant_to_concept(  # Made async
             existing_primary_variant.is_primary_variant = False
             session.add(existing_primary_variant)
 
-    cb_variant_comp = ComicBookVariantComponent(  # type: ignore[call-arg]
-        conceptual_asset=comic_concept_entity,
+    cb_variant_comp = ComicBookVariantComponent(
         language=language,
         format=format,
         is_primary_variant=is_primary,
         scan_quality=scan_quality,
         variant_description=variant_description,
     )
+    cb_variant_comp.conceptual_asset = comic_concept_entity  # Ensure relationship is set
     await ecs_functions.add_component_to_entity(session, file_entity.id, cb_variant_comp)
     # await session.flush() # Flushing is handled by add_component_to_entity or caller
     logger.info(
@@ -397,7 +397,11 @@ async def update_page_order_for_comic_variant(  # Made async
     session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
 ) -> List[PageLink]:
     if len(ordered_page_image_entity_ids) != len(set(ordered_page_image_entity_ids)):
-        raise IntegrityError("Duplicate page image entity IDs provided.", params=None, orig=Exception("Duplicate page image entity IDs provided."))
+        raise IntegrityError(
+            "Duplicate page image entity IDs provided.",
+            params=None,
+            orig=Exception("Duplicate page image entity IDs provided."),
+        )
 
     owner_entity = await ecs_functions.get_entity(session, comic_variant_entity_id)  # Await
     if not owner_entity or not await ecs_functions.get_component(
