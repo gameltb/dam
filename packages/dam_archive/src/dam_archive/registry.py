@@ -5,7 +5,7 @@ from .base import ArchiveHandler
 _handlers: List[Type[ArchiveHandler]] = []
 
 
-def register_handler(handler: Type[ArchiveHandler]):
+def register_handler(handler: Type[ArchiveHandler]) -> None:
     """Register a new archive handler."""
     if handler not in _handlers:
         _handlers.append(handler)

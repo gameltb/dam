@@ -16,5 +16,5 @@ class FileLocationComponent(BaseComponent):
     # The URL representing the file location, e.g., using file:// protocol.
     url: Mapped[str] = mapped_column(String(4096), nullable=False, unique=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"FileLocationComponent(id={self.id}, entity_id={self.entity_id}, url='{self.url}')"

@@ -44,7 +44,7 @@ class FilePropertiesComponent(BaseComponent):
         UniqueConstraint("entity_id", name="uq_file_properties_entity_id"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"FilePropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
             f"filename='{self.original_filename}', size={self.file_size_bytes}, "

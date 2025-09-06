@@ -51,7 +51,7 @@ class ZipArchiveHandler(ArchiveHandler):
                 raise IOError(f"Failed to open nested archive {nested_archive_name}: {e}") from e
 
 
-def register():
+def register() -> None:
     register_handler(ZipArchiveHandler)
 
 

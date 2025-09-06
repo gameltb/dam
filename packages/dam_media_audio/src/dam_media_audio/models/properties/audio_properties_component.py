@@ -26,7 +26,7 @@ class AudioPropertiesComponent(BaseComponent):
     # Relationship to Entity is inherited from BaseComponent
     # entity: Mapped["Entity"] = relationship(back_populates="audio_properties_components")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<AudioPropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
             f"duration={self.duration_seconds}s, codec='{self.codec_name}', "

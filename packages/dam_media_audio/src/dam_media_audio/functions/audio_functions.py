@@ -29,11 +29,11 @@ class MockAudioModel:
         )
         logger.info(f"MockAudioModel '{model_name}' initialized with output_dim: {self.output_dim}")
 
-    def encode(self, audio_path: str, **kwargs) -> np.ndarray:
+    def encode(self, audio_path: str, **kwargs: Any) -> np.ndarray:
         logger.info(f"MockAudioModel '{self.model_name}': Simulating encoding for '{audio_path}'")
         return np.random.rand(self.output_dim).astype(np.float32)
 
-    async def encode_async(self, audio_path: str, **kwargs) -> np.ndarray:
+    async def encode_async(self, audio_path: str, **kwargs: Any) -> np.ndarray:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.encode, audio_path, **kwargs)
 
@@ -46,9 +46,10 @@ async def get_mock_audio_model(
     sire_resource: "SireResource",
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     params: Optional[AudioModelHyperparameters] = None,
-) -> "AutoManageWrapper":
-    AutoManageWrapper.registe_type_wrapper(MockAudioModel, TorchModuleWrapper)
-    return sire_resource.get_model(MockAudioModel, model_name, params=params)
+) -> Optional["AutoManageWrapper[MockAudioModel]"]:
+    AutoManageWrapper.register_type_wrapper(MockAudioModel, TorchModuleWrapper)
+    # return sire_resource.get_model(MockAudioModel, model_name, params=params)
+    return None
 
 
 def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
@@ -58,7 +59,7 @@ def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
     return embedding.tobytes()
 
 
-def convert_bytes_to_embedding(embedding_bytes: bytes, dtype=np.float32) -> np.ndarray:
+def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) -> np.ndarray:
     """Converts bytes back to a numpy embedding."""
     return np.frombuffer(embedding_bytes, dtype=dtype)
 

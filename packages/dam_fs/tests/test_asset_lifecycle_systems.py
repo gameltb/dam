@@ -10,7 +10,7 @@ from dam_fs.models import FilePropertiesComponent
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_handle_ingest_file_command(test_world_alpha: World, temp_asset_file: Path):
+async def test_handle_ingest_file_command(test_world_alpha: World, temp_asset_file: Path) -> None:
     """Test the handle_ingest_file_command system."""
 
     from dam.core.transaction import EcsTransaction, active_transaction

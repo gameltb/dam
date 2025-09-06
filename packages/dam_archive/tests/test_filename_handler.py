@@ -8,7 +8,7 @@ from dam_archive.systems import get_archive_asset_filenames_handler
 
 
 @pytest.mark.asyncio
-async def test_get_archive_asset_filenames_handler_with_filename():
+async def test_get_archive_asset_filenames_handler_with_filename() -> None:
     """
     Tests that the handler returns the filename when an ArchiveMemberComponent exists.
     """
@@ -29,7 +29,7 @@ async def test_get_archive_asset_filenames_handler_with_filename():
 
 
 @pytest.mark.asyncio
-async def test_get_archive_asset_filenames_handler_no_component():
+async def test_get_archive_asset_filenames_handler_no_component() -> None:
     """
     Tests that the handler returns None when no ArchiveMemberComponent exists.
     """
@@ -47,14 +47,14 @@ async def test_get_archive_asset_filenames_handler_no_component():
 
 
 @pytest.mark.asyncio
-async def test_get_archive_asset_filenames_handler_no_filename():
+async def test_get_archive_asset_filenames_handler_no_filename() -> None:
     """
     Tests that the handler returns None when the component exists but has no path.
     """
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = ArchiveMemberComponent(archive_entity_id=99, path_in_archive=None)
+    mock_transaction.get_component.return_value = ArchiveMemberComponent(archive_entity_id=99, path_in_archive="")
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 

@@ -42,7 +42,7 @@ class SemanticPlugin(Plugin):
             from sentence_transformers import SentenceTransformer
             from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
 
-            sire_resource = world.resources.get(SireResource)
+            sire_resource = world.get_resource(SireResource)
             if sire_resource:
                 sire_resource.register_model_type(SentenceTransformer, TorchModuleWrapper)
         except ImportError:

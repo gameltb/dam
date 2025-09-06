@@ -1,7 +1,7 @@
 import binascii  # For hex string to bytes conversion
 import io
 import logging
-from typing import Annotated
+from typing import Annotated, Any, Dict, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 async def add_file_properties_handler(
     cmd: AddFilePropertiesCommand,
     transaction: EcsTransaction,
-):
+) -> None:
     """
     Handles adding file properties to an entity.
     """
@@ -43,7 +43,7 @@ async def add_file_properties_handler(
 @system(on_command=IngestFileCommand)
 async def handle_ingest_file_command(
     cmd: IngestFileCommand, transaction: EcsTransaction, world: Annotated[World, "Resource"]
-):
+) -> None:
     """
     Handles the command to ingest an asset file by copying it.
     """
@@ -57,7 +57,7 @@ async def handle_ingest_file_command(
             stream=file_content_stream,
         )
         command_result = await world.dispatch_command(get_or_create_cmd)
-        entity, sha256_bytes = command_result.get_one_value()
+        entity, _ = command_result.get_one_value()
 
         # 2. Add file properties
         add_props_cmd = AddFilePropertiesCommand(
@@ -98,7 +98,7 @@ async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
-) -> dict | None:
+) -> Optional[Dict[str, Any]]:
     """
     Handles the command to find an entity by its content hash.
     """
@@ -116,17 +116,18 @@ async def handle_find_entity_by_hash_command(
             raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
 
         entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
-        entity_details_dict = None
+        entity_details_dict: Optional[Dict[str, Any]] = None
 
         if entity:
             logger.info(
                 f"[QueryResult RequestID: {cmd.request_id}] Found Entity ID: {entity.id} for hash {cmd.hash_value}"
             )
-            entity_details_dict = {"entity_id": entity.id, "components": {}}
+            components: Dict[str, List[Dict[str, Any]]] = {}
+            entity_details_dict = {"entity_id": entity.id, "components": components}
 
             fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
             if fpc:
-                entity_details_dict["components"]["FilePropertiesComponent"] = [
+                components["FilePropertiesComponent"] = [
                     {
                         "original_filename": fpc.original_filename,
                         "file_size_bytes": fpc.file_size_bytes,
@@ -135,9 +136,8 @@ async def handle_find_entity_by_hash_command(
 
             flcs = await transaction.get_components(entity.id, FileLocationComponent)
             if flcs:
-                entity_details_dict["components"]["FileLocationComponent"] = [
+                components["FileLocationComponent"] = [
                     {
-                        "content_identifier": flc.content_identifier,
                         "url": flc.url,
                     }
                     for flc in flcs
@@ -145,15 +145,11 @@ async def handle_find_entity_by_hash_command(
 
             sha256_comp = await transaction.get_component(entity.id, ContentHashSHA256Component)
             if sha256_comp:
-                entity_details_dict["components"]["ContentHashSHA256Component"] = [
-                    {"hash_value": sha256_comp.hash_value.hex()}
-                ]
+                components["ContentHashSHA256Component"] = [{"hash_value": sha256_comp.hash_value.hex()}]
 
             md5_comp = await transaction.get_component(entity.id, ContentHashMD5Component)
             if md5_comp:
-                entity_details_dict["components"]["ContentHashMD5Component"] = [
-                    {"hash_value": md5_comp.hash_value.hex()}
-                ]
+                components["ContentHashMD5Component"] = [{"hash_value": md5_comp.hash_value.hex()}]
         else:
             logger.info(f"[QueryResult RequestID: {cmd.request_id}] No entity found for hash {cmd.hash_value}")
 
@@ -168,7 +164,7 @@ async def handle_find_entity_by_hash_command(
 async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: EcsTransaction,
-):
+) -> Optional[List[str]]:
     """
     Handles getting filenames for assets with FilePropertiesComponent.
     """

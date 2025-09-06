@@ -10,7 +10,7 @@ class FileOperationsResource:
     `file_ops: Annotated[FileOperationsResource, "Resource"]`
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the FileOperationsResource by binding methods to the
         functions from the `dam_fs.functions.file_operations` module.
