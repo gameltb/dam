@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Annotated
+from typing import IO, Annotated, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.systems import system
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def set_archive_password_handler(
     cmd: SetArchivePasswordCommand,
     transaction: EcsTransaction,
-):
+) -> None:
     """
     Handles setting the password for an archive.
     """
@@ -30,7 +30,7 @@ async def set_archive_password_handler(
     if password_comp:
         password_comp.password = cmd.password
     else:
-        password_comp = ArchivePasswordComponent(entity_id=cmd.entity_id, password=cmd.password)
+        password_comp = ArchivePasswordComponent(password=cmd.password)
         await transaction.add_component_to_entity(cmd.entity_id, password_comp)
 
 
@@ -39,11 +39,10 @@ async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-):
+) -> Optional[IO[bytes]]:
     """
     Handles getting a stream for an asset that is part of an archive.
     """
-    world_config = world.world_config
     archive_member_component = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
 
     if not archive_member_component:
@@ -63,7 +62,10 @@ async def get_archive_asset_stream_handler(
     for loc in all_locations:
         try:
             potential_path = get_local_path_for_url(loc.url)
-            if potential_path and await asyncio.to_thread(potential_path.is_file):
+            is_file = False
+            if potential_path:
+                is_file = await asyncio.to_thread(potential_path.is_file)
+            if potential_path and is_file:
                 archive = open_archive(str(potential_path), passwords)
                 if archive:
                     return archive.open_file(path_in_archive)
@@ -79,24 +81,24 @@ async def asset_ingestion_system(
     cmd: IngestAssetsCommand,
     world: Annotated[World, "Resource"],
     transaction: EcsTransaction,
-):
+) -> List[int]:
     """
     Handles the command to ingest assets from a list of file paths.
     This system expands archives and creates entities for all files.
     """
     logger.info(f"Received asset ingestion request for {len(cmd.file_paths)} files.")
-    entity_ids = []
+    entity_ids: List[int] = []
 
     for file_path in cmd.file_paths:
         try:
             # For now, we only support one password for all archives.
             # A more advanced implementation could try multiple passwords.
             password = cmd.passwords[0] if cmd.passwords else None
-            archive = open_archive(file_path, password)
+            archive = open_archive(file_path, [password] if password else [])
             if archive:
                 # This is an archive file, create an entity for the archive itself
                 archive_entity = await dam_fs_file_operations.create_entity_with_file(
-                    transaction, world.world_config, file_path
+                    transaction, world.config, file_path
                 )
                 entity_ids.append(archive_entity.id)
 
@@ -113,9 +115,7 @@ async def asset_ingestion_system(
                     entity_ids.append(member_entity.id)
             else:
                 # This is a regular file
-                entity = await dam_fs_file_operations.create_entity_with_file(
-                    transaction, world.world_config, file_path
-                )
+                entity = await dam_fs_file_operations.create_entity_with_file(transaction, world.config, file_path)
                 entity_ids.append(entity.id)
 
         except Exception as e:
@@ -128,7 +128,7 @@ async def asset_ingestion_system(
 async def get_archive_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: EcsTransaction,
-):
+) -> Optional[List[str]]:
     """
     Handles getting filenames for assets that are members of an archive.
     """

@@ -72,7 +72,7 @@ class AutoManageWrapper(Generic[T]):
         return self.user.manage_object
 
     @classmethod
-    def registe_type_wrapper(cls, tp, wrapper_cls):
+    def register_type_wrapper(cls, tp: type, wrapper_cls: type) -> None:
         if tp in cls.type_wrapper_map:
             raise RuntimeError(f"type {tp} registed with {cls.type_wrapper_map[tp]}")
         cls.type_wrapper_map[tp] = wrapper_cls

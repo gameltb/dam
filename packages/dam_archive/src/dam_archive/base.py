@@ -31,13 +31,13 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
-    def __init__(self, file_path: str, password: Optional[str] = None):
+    def __init__(self, file_path: str, passwords: Optional[List[str]] = None):
         """
         Initializes the archive handler.
 
         Args:
             file_path: The path to the archive file.
-            password: The password for the archive, if any.
+            passwords: The passwords for the archive, if any.
         """
         pass
 

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, TypedDict
 
 from dam.models.core import BaseComponent
 from sqlalchemy import LargeBinary, String
@@ -18,7 +18,7 @@ class BaseSpecificAudioEmbeddingComponent(BaseComponent):
     # Potentially add fields like 'segment_start_time', 'segment_duration' if embedding parts of audio
     # For now, assumes embedding of the whole audio file or a canonical segment.
 
-    def __repr_base__(self):
+    def __repr_base__(self) -> str:
         return (
             f"entity_id={self.entity_id}, model_name='{self.model_name}', "
             f"embedding_vector_len={len(self.embedding_vector) if self.embedding_vector else 0} bytes"
@@ -34,7 +34,7 @@ class AudioEmbeddingVggishDim128Component(BaseSpecificAudioEmbeddingComponent):
     __tablename__ = "component_audio_embedding_vggish_d128"
     # model_name is already a field in the base class, will be set to "vggish"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"AudioEmbeddingVggishD128Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -46,7 +46,7 @@ class AudioEmbeddingPannsCnn14Dim2048Component(BaseSpecificAudioEmbeddingCompone
     __tablename__ = "component_audio_embedding_panns_cnn14_d2048"
     # model_name is already a field in the base class, will be set to "panns_cnn14"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"AudioEmbeddingPannsCnn14D2048Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -54,21 +54,21 @@ class AudioEmbeddingPannsCnn14Dim2048Component(BaseSpecificAudioEmbeddingCompone
 AudioModelHyperparameters = Dict[str, Any]
 
 
-class AudioEmbeddingModelInfo(Dict[str, Any]):
+class AudioEmbeddingModelInfo(TypedDict):
     model_class: Type[BaseSpecificAudioEmbeddingComponent]
     default_params: AudioModelHyperparameters
     # Potentially add loader function or library info here
 
 
 AUDIO_EMBEDDING_MODEL_REGISTRY: Dict[str, AudioEmbeddingModelInfo] = {
-    "vggish": {
-        "model_class": AudioEmbeddingVggishDim128Component,
-        "default_params": {"dimensions": 128},
-    },
-    "panns_cnn14": {
-        "model_class": AudioEmbeddingPannsCnn14Dim2048Component,
-        "default_params": {"dimensions": 2048},
-    },
+    "vggish": AudioEmbeddingModelInfo(
+        model_class=AudioEmbeddingVggishDim128Component,
+        default_params={"dimensions": 128},
+    ),
+    "panns_cnn14": AudioEmbeddingModelInfo(
+        model_class=AudioEmbeddingPannsCnn14Dim2048Component,
+        default_params={"dimensions": 2048},
+    ),
 }
 
 

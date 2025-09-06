@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, TypedDict
 
 from dam.models.core import BaseComponent
 from sqlalchemy import LargeBinary, String
@@ -21,7 +21,7 @@ class BaseSpecificEmbeddingComponent(BaseComponent):
     source_component_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    def __repr_base__(self):
+    def __repr_base__(self) -> str:
         # Helper for subclasses' __repr__
         return (
             f"entity_id={self.entity_id}, "
@@ -44,7 +44,7 @@ class TextEmbeddingAllMiniLML6V2Dim384Component(BaseSpecificEmbeddingComponent):
     __tablename__ = "component_embedding_minilm_l6_v2_d384"
     # Corresponds to model_name="all-MiniLM-L6-v2", params={"dimensions": 384} (implicitly)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TextEmbeddingAllMiniLML6V2Dim384Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -56,7 +56,7 @@ class TextEmbeddingClipVitB32Dim512Component(BaseSpecificEmbeddingComponent):
     __tablename__ = "component_embedding_clip_vit_b32_d512"
     # Corresponds to model_name="clip-ViT-B-32", params={"dimensions": 512} (implicitly)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TextEmbeddingClipVitB32Dim512Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -66,7 +66,7 @@ class TextEmbeddingClipVitB32Dim512Component(BaseSpecificEmbeddingComponent):
 ModelHyperparameters = Dict[str, Any]
 
 
-class EmbeddingModelInfo(Dict[str, Any]):
+class EmbeddingModelInfo(TypedDict):
     model_class: Type[BaseSpecificEmbeddingComponent]
     default_params: ModelHyperparameters
 
@@ -76,14 +76,14 @@ class EmbeddingModelInfo(Dict[str, Any]):
 # The key for the outer dict is the user-facing model_name.
 # The value contains the component class and any default/fixed parameters for that class.
 EMBEDDING_MODEL_REGISTRY: Dict[str, EmbeddingModelInfo] = {
-    "all-MiniLM-L6-v2": {
-        "model_class": TextEmbeddingAllMiniLML6V2Dim384Component,
-        "default_params": {"dimensions": 384},  # Example, actual params might vary
-    },
-    "clip-ViT-B-32": {
-        "model_class": TextEmbeddingClipVitB32Dim512Component,
-        "default_params": {"dimensions": 512},  # Example
-    },
+    "all-MiniLM-L6-v2": EmbeddingModelInfo(
+        model_class=TextEmbeddingAllMiniLML6V2Dim384Component,
+        default_params={"dimensions": 384},  # Example, actual params might vary
+    ),
+    "clip-ViT-B-32": EmbeddingModelInfo(
+        model_class=TextEmbeddingClipVitB32Dim512Component,
+        default_params={"dimensions": 512},  # Example
+    ),
     # Add other models here as they are defined
     # e.g. "multi-qa-MiniLM-L6-cos-v1": {
     #          "model_class": TextEmbeddingMultiQAMiniLML6CosV1Dim384Component,
@@ -141,7 +141,7 @@ class OldTextEmbeddingComponent(BaseComponent):
     source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # model_parameters: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True) # Was from a previous iteration
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"OldTextEmbeddingComponent(id={self.id}, entity_id={self.entity_id}, "
             f"model_name='{self.model_name}', source='{self.source_component_name}.{self.source_field_name}', "

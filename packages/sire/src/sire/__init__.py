@@ -45,9 +45,9 @@ def initialize():
         management.set_resource_pool(torch_device("cpu"), ResourcePoolCPU(torch_device("cpu")))
 
     # Register default type wrappers
-    AutoManageWrapper.registe_type_wrapper(torch.nn.Module, TorchModuleWrapper)
-    AutoManageWrapper.registe_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)
-    AutoManageWrapper.registe_type_wrapper(CommitObjectProxy, CommitObjectProxyWrapper)
+    AutoManageWrapper.register_type_wrapper(torch.nn.Module, TorchModuleWrapper)
+    AutoManageWrapper.register_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)
+    AutoManageWrapper.register_type_wrapper(CommitObjectProxy, CommitObjectProxyWrapper)
     _initialized = True
 
 

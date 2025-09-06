@@ -1,9 +1,9 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.file_properties_component import FilePropertiesComponent
@@ -176,7 +176,7 @@ async def handle_find_similar_images_command(
 async def process_image_metadata_system(
     event: ImageAssetDetected,
     transaction: EcsTransaction,
-    world_config: WorldConfig,
+    world: World,
 ):
     """
     Listens for an image asset being detected and extracts its metadata.
@@ -193,7 +193,7 @@ async def process_image_metadata_system(
             return
 
         # Get file path from file_id
-        file_path = await file_operations.get_file_path_by_id(transaction, event.file_id, world_config)
+        file_path = await file_operations.get_file_path_by_id(world, transaction, event.file_id)
         if not file_path:
             logger.warning(
                 f"Could not find file path for file_id {event.file_id} on entity {event.entity.id}. Cannot process image metadata."

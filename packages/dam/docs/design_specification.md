@@ -248,7 +248,7 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 
 -   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to function modules or the `EcsTransaction` object.
 -   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with `@dam.core.systems.system`. This single decorator can be used in the following ways:
-    *   `@system(on_stage=SystemStage.SOME_STAGE)` for stage-based execution.
+    *   `@system(stage=SystemStage.SOME_STAGE)` for stage-based execution.
     *   `@system(on_event=EventType)` for event-driven execution.
     *   `@system(on_command=CommandType)` for command-driven execution.
     *   `@system` (with no arguments) to simply mark a function as a system without scheduling it.

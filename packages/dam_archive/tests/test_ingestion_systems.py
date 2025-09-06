@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from dam.core.world import World
+from pytest_mock import MockerFixture
 
 from dam_archive.commands import IngestAssetsCommand
 from dam_archive.models import ArchiveMemberComponent
@@ -20,20 +21,20 @@ def dummy_zip_file(tmp_path: Path) -> Path:
 
 
 @pytest.mark.asyncio
-async def test_asset_ingestion_system_with_archive(dummy_zip_file: Path, mocker):
+async def test_asset_ingestion_system_with_archive(dummy_zip_file: Path, mocker: MockerFixture) -> None:
     """
     Tests the asset_ingestion_system with a zip file.
     """
     # 1. Setup
     mock_world = AsyncMock(spec=World)
-    mock_world.world_config = {}  # Add the missing attribute
+    mock_world.config = {}  # Add the missing attribute
     mock_transaction = AsyncMock()
 
     # Mock create_entity_with_file to return a mock entity with an ID
     mock_archive_entity = AsyncMock()
     mock_archive_entity.id = 1
 
-    mocker.patch(
+    mocked_create_entity_with_file = mocker.patch(
         "dam_archive.systems.dam_fs_file_operations.create_entity_with_file",
         return_value=mock_archive_entity,
     )
@@ -57,9 +58,7 @@ async def test_asset_ingestion_system_with_archive(dummy_zip_file: Path, mocker)
     assert entity_ids == [1, 2, 3]
 
     # Check that create_entity_with_file was called for the archive
-    from dam_archive.systems import dam_fs_file_operations
-
-    dam_fs_file_operations.create_entity_with_file.assert_called_once()
+    mocked_create_entity_with_file.assert_called_once()
 
     # Check that create_entity was called for the two members
     assert mock_create_entity.call_count == 2

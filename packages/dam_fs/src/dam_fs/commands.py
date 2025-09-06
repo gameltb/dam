@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from dam.core.commands import BaseCommand
 
@@ -34,7 +35,7 @@ class IngestReferenceCommand(BaseCommand[None]):
 
 
 @dataclass
-class FindEntityByHashCommand(BaseCommand[dict | None]):
+class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]]]):
     """
     Command to find an entity by its content hash.
     The result is a dictionary with entity details or None, set on the future.

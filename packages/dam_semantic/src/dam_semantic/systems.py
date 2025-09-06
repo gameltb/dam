@@ -2,7 +2,7 @@ import logging
 from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 from dam.core.stages import SystemStage
-from dam.core.systems import handles_command, system
+from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam_media_audio.commands import AudioSearchCommand
 from dam_media_audio.functions import audio_functions
@@ -24,11 +24,11 @@ TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
 async def generate_embeddings_system(
     transaction: EcsTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
-):
+) -> None:
     logger.info("SemanticEmbeddingSystem: Starting embedding generation pass.")
 
 
-@handles_command(SemanticSearchCommand)
+@system(on_command=SemanticSearchCommand)
 async def handle_semantic_search_command(
     cmd: SemanticSearchCommand,
     transaction: EcsTransaction,
@@ -50,7 +50,7 @@ async def handle_semantic_search_command(
         raise
 
 
-@handles_command(AudioSearchCommand)
+@system(on_command=AudioSearchCommand)
 async def handle_audio_search_command(
     cmd: AudioSearchCommand,
     transaction: EcsTransaction,

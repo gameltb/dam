@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 
 from dam.core.config import WorldConfig
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -126,18 +127,16 @@ async def create_entity_with_file(transaction: EcsTransaction, world_config: Wor
 
     # Add FilePropertiesComponent
     original_filename, file_size_bytes = await get_file_properties_async(p_file_path)
-    mime_type = await get_mime_type_async(p_file_path)
     properties_component = FilePropertiesComponent(
         original_filename=original_filename,
-        size_bytes=file_size_bytes,
-        mime_type=mime_type,
+        file_size_bytes=file_size_bytes,
     )
     await ecs_functions.add_component_to_entity(transaction.session, entity.id, properties_component)
 
     return entity
 
 
-async def get_file_path_by_id(transaction: EcsTransaction, file_id: int) -> Optional[Path]:
+async def get_file_path_by_id(world: World, transaction: EcsTransaction, file_id: int) -> Optional[Path]:
     """
     Resolves a file_id (which is the ID of a FilePropertiesComponent) to a local, accessible file path.
     """
@@ -146,11 +145,11 @@ async def get_file_path_by_id(transaction: EcsTransaction, file_id: int) -> Opti
         logger.warning(f"Could not find FilePropertiesComponent with ID {file_id}.")
         return None
 
-    return await get_file_path_for_entity(transaction, fpc.entity_id)
+    return await get_file_path_for_entity(world, transaction, fpc.entity_id)
 
 
 async def get_file_path_for_entity(
-    transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original"
+    world: World, transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original"
 ) -> Optional[Path]:
     """
     Retrieves the full file path for a given entity.
@@ -160,11 +159,14 @@ async def get_file_path_for_entity(
     # 1. Try to get path from FileStorageResource using content hash
     sha256_comp = await transaction.get_component(entity_id, ContentHashSHA256Component)
     if sha256_comp:
-        file_storage = transaction.world.get_resource(FileStorageResource)
+        file_storage = world.get_resource(FileStorageResource)
         if file_storage:
             content_hash = sha256_comp.hash_value.hex()
             potential_path = file_storage.get_file_path(content_hash)
-            if potential_path and await asyncio.to_thread(potential_path.is_file):
+            is_file = False
+            if potential_path:
+                is_file = await asyncio.to_thread(potential_path.is_file)
+            if potential_path and is_file:
                 logger.debug(f"Found file in FileStorageResource for entity {entity_id} at {potential_path}")
                 return potential_path
 
@@ -179,7 +181,10 @@ async def get_file_path_for_entity(
 
     try:
         potential_path = get_local_path_for_url(target_loc.url)
-        if potential_path and await asyncio.to_thread(potential_path.is_file):
+        is_file = False
+        if potential_path:
+            is_file = await asyncio.to_thread(potential_path.is_file)
+        if potential_path and is_file:
             logger.debug(f"Found file via FileLocationComponent for entity {entity_id} at {potential_path}")
             return potential_path
     except (ValueError, FileNotFoundError) as e:

@@ -8,7 +8,7 @@ from dam_fs.systems.asset_lifecycle_systems import get_fs_asset_filenames_handle
 
 
 @pytest.mark.asyncio
-async def test_get_fs_asset_filenames_handler_with_filename():
+async def test_get_fs_asset_filenames_handler_with_filename() -> None:
     """
     Tests that the handler returns the filename when a FilePropertiesComponent exists.
     """
@@ -29,7 +29,7 @@ async def test_get_fs_asset_filenames_handler_with_filename():
 
 
 @pytest.mark.asyncio
-async def test_get_fs_asset_filenames_handler_no_component():
+async def test_get_fs_asset_filenames_handler_no_component() -> None:
     """
     Tests that the handler returns None when no FilePropertiesComponent exists.
     """
@@ -47,7 +47,7 @@ async def test_get_fs_asset_filenames_handler_no_component():
 
 
 @pytest.mark.asyncio
-async def test_get_fs_asset_filenames_handler_no_filename():
+async def test_get_fs_asset_filenames_handler_no_filename() -> None:
     """
     Tests that the handler returns None when the component exists but has no filename.
     """
