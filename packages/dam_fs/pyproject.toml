@@ -31,6 +31,9 @@ reportDeprecated = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+markers = [
+    "serial",
+]
 
 [tool.poe]
 include = "../../shared_tasks.toml"

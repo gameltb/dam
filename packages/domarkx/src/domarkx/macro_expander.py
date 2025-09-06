@@ -26,21 +26,19 @@ class MacroExpander:
                 break
 
             # By default, the macro value is the original markdown link
-            macro_value: Any = ""
+            macro_value: str = ""
 
             # Special handlers (e.g., include)
-            if hasattr(self, f"_{macro.command}_macro"):
+            if macro.command in self.macros:
                 # Combine and overwrite params
                 if macro.link_text in override_parameters:
                     macro.params.update(override_parameters[macro.link_text])
 
-                macro_value = getattr(self, f"_{macro.command}_macro")(macro, expanded_content)
+                handler = self.macros[macro.command]
+                macro_value = handler(macro, expanded_content)
 
             # Recursively expand macros in the replacement value
-            if isinstance(macro_value, str):
-                macro_value = self.expand(macro_value, override_parameters)
-
-            macro_value_str = str(macro_value)
+            macro_value_str = self.expand(macro_value, override_parameters)
             expanded_content = (
                 expanded_content[: macro.start + expande_pos]
                 + macro_value_str

@@ -4,7 +4,6 @@ import inspect
 import logging
 import os
 import textwrap
-from typing import Any
 
 import libcst as cst
 import libcst.matchers as m
@@ -12,12 +11,11 @@ from libcst import FlattenSentinel
 from libcst.metadata import MetadataWrapper, PositionProvider
 
 # Import the decorator and custom exception from the new module
-from domarkx.tools.tool_factory import ToolError
-from domarkx.tools.tool_factory import _tool_handler as tool_handler
+from domarkx.tools.tool_factory import ToolError, tool_handler
 
 
 # Helper for symbol resolution from modify_python_ast.py
-def _resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
+def resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
     """
     Resolves a fully qualified symbol path to its corresponding file path and the
     internal symbol path within that file.
@@ -129,7 +127,7 @@ class LibCstEditor:
         self.module = modified_tree
         logging.info("Transformer applied.")
 
-    def _apply_script(self, script_code: str) -> None:
+    def apply_script(self, script_code: str) -> None:
         """Executes a custom libcst transformation script."""
         exec_globals = {
             "cst": cst,
@@ -289,7 +287,7 @@ class LibCstEditor:
 
             def on_leave(
                 self, original_node: cst.CSTNode, updated_node: cst.CSTNode
-            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel[Any]:
+            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel["cst.CSTNode"]:
                 if m.matches(original_node, self.target_matcher):
                     self.found_target = True
                     if not self.updated:
@@ -385,7 +383,7 @@ class LibCstEditor:
 
             def on_leave(
                 self, original_node: cst.CSTNode, updated_node: cst.CSTNode
-            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel[Any]:
+            ) -> cst.CSTNode | cst.RemovalSentinel | FlattenSentinel["cst.CSTNode"]:
                 if self.deleted:  # Once deleted, propagate the change up
                     return updated_node
 
@@ -397,7 +395,7 @@ class LibCstEditor:
                         logging.debug(f"Handling method deletion in class '{original_node.name.value}'")
                         new_body_elements = []
                         method_found_and_removed = False
-                        if isinstance(updated_node.body, cst.IndentedBlock):
+                        if isinstance(updated_node, cst.ClassDef) and isinstance(updated_node.body, cst.IndentedBlock):
                             for element in updated_node.body.body:
                                 # Check if the element is a function definition and matches the method name
                                 if (
@@ -703,7 +701,7 @@ def _handle_modify_mode(
 
     if modification_script:
         logging.info(f"Applying custom modification script to {file_to_process}...")
-        editor._apply_script(modification_script)
+        editor.apply_script(modification_script)
         result_message = "Custom libcst script executed."
     elif operation:
         valid_target_types = {"function", "class", "method", "assignment", "module"}
@@ -808,6 +806,7 @@ def _handle_diff_method_mode(target: str) -> str:
             return "Source code for one of the methods is not available (e.g., it's a built-in or C extension method)."
 
         # Check if the source code is identical after dedenting
+        assert parent_class is not None
         if subclass_source == parent_source:
             return f"Method '{class_name}.{method_name}' has identical implementation to '{parent_class.__name__}.{method_name}'."
 
@@ -1022,7 +1021,7 @@ def python_code_handler(
         # If no path, 'target' must be a full importable symbol
         # The _resolve_symbol_path function now raises ToolError directly, so no try...except needed here.
         if mode != "diff_method":
-            file_to_process, internal_target_symbol_path = _resolve_symbol_path(target)
+            file_to_process, internal_target_symbol_path = resolve_symbol_path(target)
             logging.info(
                 f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
             )

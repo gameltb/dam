@@ -54,8 +54,12 @@ print("bar")
 
     session = AutoGenSession(doc_path)
 
-    assert session.get_code_block("foo").rstrip() == 'print("foo")'
-    assert session.get_code_block("bar").rstrip() == 'print("bar")'
+    foo_block = session.get_code_block("foo")
+    assert foo_block is not None
+    assert foo_block.rstrip() == 'print("foo")'
+    bar_block = session.get_code_block("bar")
+    assert bar_block is not None
+    assert bar_block.rstrip() == 'print("bar")'
     assert session.get_code_block("baz") is None
 
 

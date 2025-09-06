@@ -17,9 +17,4 @@ Some more text
 
 
 def test_find_macros() -> None:
-    text = """
-This is a test with a macro: [@my_macro](domarkx://run?arg1=val1&arg2=val2).
-This is a normal link: [google](https://google.com).
-This is an escaped macro: [@@not_a_macro](domarkx://run).
-"""
     pass

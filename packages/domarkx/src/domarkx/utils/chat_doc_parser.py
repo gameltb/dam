@@ -173,7 +173,7 @@ class MarkdownLLMParser:
         return i, "".join(content_lines)
 
 
-def append_message(writer: io.StringIO, message: Message) -> None:
+def append_message(writer: io.TextIOBase, message: Message) -> None:
     writer.write(f"\n## {message.speaker}\n\n")
     for code_block in message.code_blocks:
         writer.write(

@@ -14,9 +14,9 @@ from dam_media_audio.models.properties.audio_properties_component import AudioPr
 from ..commands import ExtractAudioMetadataCommand
 
 try:
-    from hachoir.core import config as HachoirConfig  # type: ignore
-    from hachoir.metadata import Metadata, extractMetadata  # type: ignore
-    from hachoir.parser import createParser  # type: ignore
+    from hachoir.core import config as HachoirConfig  # type: ignore[import]
+    from hachoir.metadata import Metadata, extractMetadata  # type: ignore[import]
+    from hachoir.parser import createParser  # type: ignore[import]
 
     HachoirConfig.quiet = True
     _hachoir_available = True

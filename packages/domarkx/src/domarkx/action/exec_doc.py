@@ -1,11 +1,10 @@
 import asyncio
 import pathlib
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 import typer
 from prompt_toolkit import PromptSession
-from rich.console import Console
 
 import domarkx.ui.console
 from domarkx.autogen_session import AutoGenSession
@@ -20,8 +19,6 @@ async def aexec_doc(
     allow_user_message_in_FunctionExecution: bool = True,
     overwrite: bool = False,
 ) -> None:
-    console = Console(markup=False)
-
     # Read the content from the document
     with open(doc, "r") as f:
         content = f.read()
@@ -82,7 +79,7 @@ async def aexec_doc(
     await session.setup()
 
     while True:
-        task_msg: str | None = None
+        task_msg: Optional[str] = None
         latest_msg = session.messages[-1] if len(session.messages) > 0 else None
         if (
             not allow_user_message_in_FunctionExecution
@@ -105,19 +102,19 @@ async def aexec_doc(
                 if task_msg is not None and len(task_msg.strip()) == 0:
                     task_msg = None
 
-        response = await domarkx.ui.console.Console(
+        await domarkx.ui.console.Console(
             session.agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
         )
 
         new_state = await session.agent.save_state()
 
-        session.append_new_messages(new_state)
+        session.append_new_messages(dict(new_state))
 
         session.messages = new_state["llm_context"]["messages"]
 
         if handle_one_toolcall:
             break
-        user_input: str | None = await PromptSession().prompt_async("input r to continue > ")
+        user_input: Optional[str] = await PromptSession().prompt_async("input r to continue > ")
         if user_input is not None:
             user_input = user_input.strip().lower()
             if len(user_input) != 0 and user_input != "r":

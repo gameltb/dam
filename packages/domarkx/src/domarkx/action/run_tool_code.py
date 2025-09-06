@@ -1,5 +1,5 @@
 import pathlib
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -10,26 +10,29 @@ from domarkx.tool_call.run_tool_code.tool import execute_tool_call, format_assis
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser, append_message
 
 
-def do_roo_code_action(
+def do_run_code_action(
     doc: Annotated[
         pathlib.Path,
         typer.Argument(exists=True, file_okay=True, dir_okay=False, writable=True, readable=True, resolve_path=True),
     ],
     message_index: int,
-):
+) -> None:
     with doc.open() as f:
         md_content = f.read()
 
     parser = MarkdownLLMParser()
-    parser.parse(md_content, resolve_inclusions=False)
+    parsed_doc = parser.parse(md_content)
 
-    message_obj, code_block = parser.get_message_and_code_block(message_index)
+    message_obj = parsed_doc.conversation[message_index]
 
     console = Console(markup=False)
     console.rule("message")
-    console.print(message_obj.content)
+    if message_obj.content:
+        console.print(message_obj.content)
     console.rule("tool_calls")
-    tool_calls = parse_tool_calls(message_obj.content)
+    tool_calls = []
+    if message_obj.content:
+        tool_calls = parse_tool_calls(message_obj.content)
     assistant_responses = ""
     for tool_call in tool_calls:
         console.print(tool_call)
@@ -51,5 +54,5 @@ def do_roo_code_action(
         )
 
 
-def register(main_app: typer.Typer, settings):
-    main_app.command()(do_roo_code_action)
+def register(main_app: typer.Typer, settings: Any) -> None:
+    main_app.command()(do_run_code_action)

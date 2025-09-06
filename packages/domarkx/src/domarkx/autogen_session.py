@@ -9,8 +9,9 @@ from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
-from domarkx.utils.chat_doc_parser import CodeBlock, MarkdownLLMParser, Message
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, Message
 from domarkx.utils.code_execution import execute_code_block
+from domarkx.utils.markdown_utils import CodeBlock
 
 
 class AutoGenSession(Session):
@@ -53,23 +54,25 @@ class AutoGenSession(Session):
 
     def _process_initial_messages(self) -> None:
         if self.doc.conversation:
-            self.system_message = self.doc.conversation[0].content
+            self.system_message = self.doc.conversation[0].content or "You are a helpful AI assistant. "
             if self.system_message is None or len(self.system_message) == 0:
                 self.system_message = "You are a helpful AI assistant. "
         else:
             self.system_message = "You are a helpful AI assistant. "
 
-        messages = []
+        messages: list[dict[str, Any]] = []
         for md_message in self.doc.conversation[1:]:
             message_dict = md_message.metadata
+            if message_dict is None:
+                continue
             thought = content = ""
             if md_message.content is not None:
                 thought, content = parse_r1_content(md_message.content)
             if "content" not in message_dict:
-                message_dict["content"] = content
-            elif isinstance(message_dict["content"], list) and len(message_dict["content"]) == 1:
+                message_dict["content"] = content or ""
+            elif isinstance(message_dict.get("content"), list) and len(message_dict["content"]) == 1:
                 if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
-                    message_dict["content"][0]["content"] = content
+                    message_dict["content"][0]["content"] = content or ""
             if thought:
                 message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
             messages.append(message_dict)

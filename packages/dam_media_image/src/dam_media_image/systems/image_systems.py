@@ -25,7 +25,7 @@ from ..models.properties.image_dimensions_component import ImageDimensionsCompon
 try:
     import imagehash
 except ImportError:
-    imagehash = None
+    imagehash = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ async def handle_find_similar_images_command(
             with open(cmd.image_path, "rb") as f:
                 hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
             source_content_hash_bytes = hashes[HashAlgorithm.SHA256]
-            source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")
+            source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")  # type: ignore
             if source_entity:
                 source_entity_id = source_entity.id
         except Exception as e_src:
@@ -150,11 +150,15 @@ async def handle_find_similar_images_command(
                 except Exception as e_cmp:
                     logger.warning(f"Error comparing dHash for entity {d_comp.entity_id}: {e_cmp}")
 
-        final_matches_map = {}
+        final_matches_map: Dict[int, Dict[str, Any]] = {}
         for match in potential_matches:
             entity_id = match["entity_id"]
-            if entity_id not in final_matches_map or match["distance"] < final_matches_map[entity_id]["distance"]:
-                final_matches_map[entity_id] = match
+            if isinstance(entity_id, int):
+                if entity_id not in final_matches_map or (
+                    match["distance"] is not None
+                    and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
+                ):
+                    final_matches_map[entity_id] = match
 
         similar_entities_info = list(final_matches_map.values())
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
@@ -177,7 +181,7 @@ async def process_image_metadata_system(
     event: ImageAssetDetected,
     transaction: EcsTransaction,
     world: World,
-):
+) -> None:
     """
     Listens for an image asset being detected and extracts its metadata.
     """
@@ -206,7 +210,9 @@ async def process_image_metadata_system(
             mode = img.mode
 
         # Add component
-        dimensions_component = ImageDimensionsComponent(width=width, height=height, mode=mode)
+        dimensions_component = ImageDimensionsComponent()
+        dimensions_component.width_pixels = width
+        dimensions_component.height_pixels = height
         await transaction.add_component_to_entity(event.entity.id, dimensions_component)
 
         logger.info(f"Successfully added ImageDimensionsComponent to entity {event.entity.id}.")

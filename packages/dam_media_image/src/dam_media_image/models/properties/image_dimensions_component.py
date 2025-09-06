@@ -23,5 +23,5 @@ class ImageDimensionsComponent(BaseComponent):
         UniqueConstraint("entity_id", name="uq_image_dimensions_entity_id"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ImageDimensionsComponent(id={self.id}, entity_id={self.entity_id}, width={self.width_pixels}, height={self.height_pixels})>"

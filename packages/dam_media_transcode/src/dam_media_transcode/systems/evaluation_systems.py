@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from dam.core.exceptions import EntityNotFoundError
 from dam.core.world import World
-from dam.functions import ecs_functions, tag_functions, transcode_functions
+from dam.functions import ecs_functions, tag_functions
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
@@ -11,6 +11,8 @@ from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
+
+from ..functions import transcode_functions
 
 
 class EvaluationError(Exception):
@@ -51,7 +53,7 @@ async def create_evaluation_run_concept(
 
         run_entity = Entity()
         db_session.add(run_entity)
-        await db_session.flush()
+        db_session.flush()
 
         eval_run_comp = EvaluationRunComponent(
             id=run_entity.id,  # For EvaluationRunComponent's own PK/FK 'id' field
@@ -82,9 +84,9 @@ async def create_evaluation_run_concept(
         except Exception as e:
             world.logger.warning(f"Could not apply system tag to evaluation run '{run_name}': {e}")
 
-        await db_session.commit()
-        await db_session.refresh(run_entity)
-        await db_session.refresh(eval_run_comp)
+        db_session.commit()
+        db_session.refresh(run_entity)
+        db_session.refresh(eval_run_comp)
         world.logger.info(f"Evaluation Run '{run_name}' (Entity ID: {run_entity.id}) created.")
         return run_entity
 
@@ -125,7 +127,7 @@ async def get_evaluation_run_by_name_or_id(
             return await _get(new_session)
 
 
-async def evaluate_transcode_output(event, world, session):
+async def evaluate_transcode_output(event: Any, world: World, session: Any) -> None:
     # Placeholder for old test, actual logic might be in execute_evaluation_run
     # or an event listener for StartEvaluationForTranscodedAsset
     world.logger.warning("Placeholder evaluate_transcode_output called by an outdated test.")

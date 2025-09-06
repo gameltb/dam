@@ -35,7 +35,7 @@ class FramePropertiesComponent(BaseComponent):
 
     # entity_id is inherited from BaseComponent
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<FramePropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
             f"frames={self.frame_count}, duration_sec={self.animation_duration_seconds}, "

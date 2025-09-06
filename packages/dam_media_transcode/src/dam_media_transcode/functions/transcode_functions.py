@@ -6,19 +6,19 @@ from dam.core.config import settings
 from dam.core.world import World
 from dam.functions import (
     ecs_functions,
-    file_operations,
     tag_functions,
 )
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
-from dam.utils import url_utils
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.commands import IngestFileCommand
+from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent
+from dam_fs.utils import url_utils
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from dam_media_transcode.utils.media_utils import TranscodeError, transcode_media
 
@@ -337,9 +337,6 @@ async def get_transcoded_variants_for_original(
                 TranscodedVariantComponent.transcode_profile_entity_id == TranscodeProfileComponent.entity_id,
             )
             .where(TranscodedVariantComponent.original_asset_entity_id == original_asset_entity_id)
-            .options(
-                joinedload(Entity.components_collection)  # Ensure components are loaded for the transcoded entity
-            )
         )
         results = (await db_session.execute(stmt)).all()
         return [(row.Entity, row.TranscodedVariantComponent, row.TranscodeProfileComponent) for row in results]
@@ -364,9 +361,6 @@ async def get_assets_using_profile(
             select(Entity, TranscodedVariantComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
             .where(TranscodedVariantComponent.transcode_profile_entity_id == profile_entity_id)
-            .options(
-                joinedload(Entity.components_collection)  # Ensure components are loaded for the transcoded entity
-            )
         )
         results = (await db_session.execute(stmt)).all()
         return [(row.Entity, row.TranscodedVariantComponent) for row in results]

@@ -14,6 +14,6 @@ class ImagePerceptualDHashComponent(BaseComponent):
 
     __table_args__ = (UniqueConstraint("entity_id", "hash_value", name="uq_image_dhash_entity_hash"),)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return f"ImagePerceptualDHashComponent(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash}')"  # Show full hex for short hashes
