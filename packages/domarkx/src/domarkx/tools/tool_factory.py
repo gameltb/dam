@@ -23,7 +23,7 @@ class ToolError(Exception):
         self.captured_logs = captured_logs_str
 
 
-def _tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> Callable[..., Any]:
+def tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> Callable[..., Any]:
     """
     A decorator for tool functions to handle logging and exception wrapping.
     This is a private function used by the ToolFactory.
@@ -37,7 +37,6 @@ def _tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> 
             runtime_log_level = kwargs.pop("log_level", log_level)
             runtime_capture_logs = kwargs.pop("capture_logs", capture_logs)
             show_locals = kwargs.pop("show_locals", False)
-            show_stacktrace = kwargs.pop("show_stacktrace", False)
 
             original_level = logging.getLogger().level
             rich_handler = RichHandler(
@@ -120,7 +119,7 @@ class ToolFactory:
                     for attribute_name, attribute in inspect.getmembers(module, inspect.isfunction):
                         if attribute_name.startswith("tool_"):
                             self._tool_registry_unwrapped[attribute_name] = attribute
-                            wrapped_tool = _tool_handler()(attribute)
+                            wrapped_tool = tool_handler()(attribute)
                             wrapped_tool.__source_code__ = module_source
                             self._tool_registry[attribute_name] = wrapped_tool
 
@@ -155,7 +154,7 @@ class ToolFactory:
         """
         Wraps a given function to be used as a tool, with an optional executor.
         """
-        wrapped_func = _tool_handler()(func)
+        wrapped_func = tool_handler()(func)
 
         class DynamicToolWrapper(FunctionTool):
             def __init__(self, tool_func: Callable[..., Any], tool_executor: Optional[Any], **kwargs: Any) -> None:
@@ -172,7 +171,7 @@ class ToolFactory:
             @property
             def source_code(self) -> str:
                 if hasattr(self.fn, "__source_code__"):
-                    return self.fn.__source_code__
+                    return str(self.fn.__source_code__)
                 try:
                     return inspect.getsource(self.fn)
                 except TypeError:

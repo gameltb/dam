@@ -24,7 +24,7 @@ class JupyterToolExecutor:
         if hasattr(self.code_executor, "restart"):
             await self.code_executor.restart()
 
-    async def execute(self, tool_func: Callable, **kwargs: Any) -> Any:
+    async def execute(self, tool_func: Callable[..., Any], **kwargs: Any) -> Any:
         if hasattr(tool_func, "__source_code__"):
             tool_source = tool_func.__source_code__
         else:
@@ -65,7 +65,7 @@ print(result)
         else:
             cancellation_token = CancellationToken()
             code_block = CodeBlock(code=code_to_execute, language="python")
-            execution_result = await self.code_executor._execute_code_block(code_block, cancellation_token)
+            execution_result = await self.code_executor.execute_code_blocks([code_block], cancellation_token)
 
         if execution_result.exit_code != 0:
             raise RuntimeError(f"Tool execution failed: {execution_result.output}")

@@ -3,8 +3,14 @@ import os
 import uuid
 from pathlib import Path
 from typing import (
+    Any,
     AsyncGenerator,
+    Callable,
+    Dict,
     Generator,
+    List,
+    Optional,
+    Union,
 )
 
 import numpy as np
@@ -23,11 +29,11 @@ from dam.core.world import (
 from dam.models.core.base_class import Base
 from sqlalchemy.ext.asyncio import AsyncSession
 
-_original_settings_values = {}
+_original_settings_values: Dict[str, Any] = {}
 
 
 @pytest.fixture(scope="session", autouse=True)
-def backup_original_settings():
+def backup_original_settings() -> Generator[None, None, None]:
     _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
     _original_settings_values["worlds"] = global_settings.worlds.copy()
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
@@ -68,8 +74,8 @@ async def test_db() -> AsyncGenerator[str, None]:
 
 
 @pytest.fixture(scope="function")
-def test_worlds_config_data_factory(test_db: str):
-    def _factory():
+def test_worlds_config_data_factory(test_db: str) -> Callable[[], Dict[str, Dict[str, str]]]:
+    def _factory() -> Dict[str, Dict[str, str]]:
         return {
             "test_world_alpha": {"DATABASE_URL": test_db},
             "test_world_beta": {"DATABASE_URL": test_db},
@@ -83,9 +89,11 @@ def test_worlds_config_data_factory(test_db: str):
 
 
 @pytest.fixture(scope="function")
-def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) -> Generator[Settings, None, None]:
+def settings_override(
+    test_worlds_config_data_factory: Callable[[], Dict[str, Dict[str, str]]], monkeypatch: Any, tmp_path: Path
+) -> Generator[Settings, None, None]:
     raw_world_configs = test_worlds_config_data_factory()
-    updated_test_worlds_config = {}
+    updated_test_worlds_config: Dict[str, Any] = {}
 
     for world_name, config_template in raw_world_configs.items():
         asset_temp_dir = tmp_path / f"assets_{world_name}"
@@ -98,11 +106,10 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
     default_test_world_name = "test_world_alpha"
     new_settings = Settings(
         DAM_WORLDS_CONFIG=json.dumps(updated_test_worlds_config),
-        DAM_DEFAULT_WORLD_NAME=default_test_world_name,
+        DEFAULT_WORLD_NAME=default_test_world_name,
         TESTING_MODE=True,
     )
 
-    original_settings_instance = global_settings
     monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", new_settings.DAM_WORLDS_CONFIG)
     monkeypatch.setattr(global_settings, "worlds", new_settings.worlds)
     monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", new_settings.DEFAULT_WORLD_NAME)
@@ -117,13 +124,12 @@ def settings_override(test_worlds_config_data_factory, monkeypatch, tmp_path) ->
     clear_world_registry()
 
 
-async def _setup_world(world_name: str, settings_override_fixture: Settings, plugins: list | None = None) -> World:
+async def _setup_world(
+    world_name: str, settings_override_fixture: Settings, plugins: Optional[List[Any]] = None
+) -> World:
     """
     A fixture to set up a dam world, with optional plugins.
     """
-    import logging
-
-    logger = logging.getLogger(__name__)
 
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
@@ -136,7 +142,7 @@ async def _setup_world(world_name: str, settings_override_fixture: Settings, plu
     return world
 
 
-async def _teardown_world_async(world: World):
+async def _teardown_world_async(world: World) -> None:
     if world and world.has_resource(DatabaseManager):
         db_mngr = world.get_resource(DatabaseManager)
         if db_mngr and db_mngr.engine:
@@ -160,7 +166,7 @@ async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, No
 
 
 class MockSentenceTransformer(torch.nn.Module):
-    def __init__(self, model_name_or_path=None, **kwargs):
+    def __init__(self, model_name_or_path: Optional[str] = None, **kwargs: Any) -> None:
         super().__init__()
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
@@ -170,14 +176,16 @@ class MockSentenceTransformer(torch.nn.Module):
         else:
             self.dim = 384
 
-    def forward(self, features):
+    def forward(self, features: Any) -> Any:
         return features
 
-    def encode(self, sentences, convert_to_numpy=True, **kwargs):
+    def encode(
+        self, sentences: Union[str, List[str]], convert_to_numpy: bool = True, **kwargs: Any
+    ) -> Union[np.ndarray, List[List[float]]]:
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
-        embeddings = []
+        embeddings: List[Any] = []
         for s in sentences:
             if not s or not s.strip():
                 embeddings.append(np.zeros(self.dim, dtype=np.float32))
@@ -220,14 +228,14 @@ async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World,
 
 
 @pytest.fixture
-def temp_asset_file(tmp_path):
+def temp_asset_file(tmp_path: Path) -> Path:
     file_path = tmp_path / "test_asset.txt"
     file_path.write_text("This is a test asset.")
     return file_path
 
 
 @pytest.fixture
-def temp_image_file(tmp_path):
+def temp_image_file(tmp_path: Path) -> Path:
     from PIL import Image
 
     file_path = tmp_path / "test_image.png"
@@ -264,7 +272,7 @@ def sample_video_file_placeholder(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
     import numpy as np
-    from scipy.io.wavfile import write as write_wav
+    from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 
     file_path = tmp_path / "sample_audio_placeholder.wav"
     samplerate = 44100
@@ -290,7 +298,7 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
     import numpy as np
-    from scipy.io.wavfile import write as write_wav
+    from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 
     file_path = tmp_path / "sample.wav"
     samplerate = 48000

@@ -96,7 +96,7 @@ async def Console(
     output_stats: bool = False,
     user_input_manager: UserInputManager | None = None,
     exit_after_one_toolcall: bool = False,
-) -> T:
+) -> Optional[T]:
     """
     Consumes the message stream from :meth:`~autogen_agentchat.base.TaskRunner.run_stream`
     or :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream` and renders the messages to the console.
@@ -212,12 +212,9 @@ async def Console(
                     user_input: str = await PromptSession().prompt_async("ToolCallRequestEvent > ")
                     user_input = user_input.strip().lower()
                     if len(user_input) != 0 and user_input != "d" and user_input != "do":
-                        return
+                        return last_processed
                 if isinstance(message, ToolCallSummaryMessage):
                     if exit_after_one_toolcall:
-                        return
-
-    if last_processed is None:
-        raise ValueError("No TaskResult or Response was processed.")
+                        return last_processed
 
     return last_processed

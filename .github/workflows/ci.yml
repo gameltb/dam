@@ -50,6 +50,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-uv-${{ matrix.python-version }}-
 
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
     - name: Create virtual environment and install dependencies
       run: |
         uv sync --all-extras

@@ -4,7 +4,7 @@ from typing import Any
 
 from domarkx.config import settings
 from domarkx.tools.session_management import create_session, send_message
-from domarkx.tools.tool_factory import _tool_handler as tool_handler
+from domarkx.tools.tool_factory import tool_handler
 
 
 @tool_handler()
@@ -70,7 +70,7 @@ def update_session_metadata(session_name: str, metadata: dict[str, Any], project
     # This is a simplified implementation. A more robust solution would parse the
     # markdown and update the metadata block.
     with open(session_path, "r+") as f:
-        content = f.read()
+        f.read()
         # This is a placeholder for a more robust metadata update logic.
         # For now, we'll just append the metadata as a comment.
         f.write(f"\n\n<!-- METADATA: {metadata} -->")

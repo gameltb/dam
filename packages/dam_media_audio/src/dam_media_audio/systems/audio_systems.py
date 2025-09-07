@@ -1,7 +1,7 @@
 import asyncio
+import json
 import logging
-from datetime import timedelta
-from typing import Any
+import subprocess
 
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
@@ -13,36 +13,7 @@ from dam_media_audio.models.properties.audio_properties_component import AudioPr
 
 from ..commands import ExtractAudioMetadataCommand
 
-try:
-    from hachoir.core import config as HachoirConfig  # type: ignore
-    from hachoir.metadata import Metadata, extractMetadata  # type: ignore
-    from hachoir.parser import createParser  # type: ignore
-
-    HachoirConfig.quiet = True
-    _hachoir_available = True
-except ImportError:
-    _hachoir_available = False
-
-
 logger = logging.getLogger(__name__)
-
-
-def _has_hachoir_metadata(md: Metadata, key: str) -> bool:
-    """Safely checks if Hachoir metadata object has a given key."""
-    try:
-        return md.has(key)
-    except (KeyError, ValueError):
-        return False
-
-
-def _get_hachoir_metadata(md: Metadata, key: str, default: Any = None) -> Any:
-    """Safely gets a value from Hachoir metadata object for a given key."""
-    try:
-        if md.has(key):
-            return md.get(key)
-    except (KeyError, ValueError):
-        pass
-    return default
 
 
 @system(on_command=ExtractAudioMetadataCommand)
@@ -50,10 +21,7 @@ async def add_audio_components_system(
     cmd: ExtractAudioMetadataCommand,
     transaction: EcsTransaction,
 ) -> None:
-    logger.info("Running add_audio_components_system")
-    if not _hachoir_available:
-        logger.warning("Hachoir library not installed. Skipping audio metadata extraction system.")
-        return
+    logger.info("Running add_audio_components_system with ffprobe")
 
     entity = cmd.entity
     all_locations = await transaction.get_components(entity.id, FileLocationComponent)
@@ -81,33 +49,55 @@ async def add_audio_components_system(
     if not mime_type.startswith("audio/"):
         return
 
-    parser = createParser(str(filepath_on_disk))
-    if not parser:
+    try:
+        ffprobe_cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            str(filepath_on_disk),
+        ]
+        result = await asyncio.to_thread(
+            subprocess.run, ffprobe_cmd, capture_output=True, text=True, check=True
+        )
+        metadata = json.loads(result.stdout)
+    except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
+        logger.warning(f"ffprobe failed for {filepath_on_disk}: {e}")
         return
 
-    with parser:
-        try:
-            hachoir_metadata = extractMetadata(parser)
-        except Exception:
-            hachoir_metadata = None
+    audio_stream = next(
+        (stream for stream in metadata.get("streams", []) if stream.get("codec_type") == "audio"),
+        None,
+    )
 
-    if not hachoir_metadata:
+    if not audio_stream:
+        logger.warning(f"No audio stream found in {filepath_on_disk}")
         return
 
     if not await transaction.get_components(entity.id, AudioPropertiesComponent):
         audio_comp = AudioPropertiesComponent()
-        duration = _get_hachoir_metadata(hachoir_metadata, "duration")
-        if isinstance(duration, timedelta):
-            audio_comp.duration_seconds = duration.total_seconds()
-        audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "audio_codec")
-        if not audio_codec_val and _has_hachoir_metadata(hachoir_metadata, "compression"):
-            audio_codec_val = _get_hachoir_metadata(hachoir_metadata, "compression")
-        audio_comp.codec_name = audio_codec_val
-        audio_comp.sample_rate_hz = _get_hachoir_metadata(hachoir_metadata, "sample_rate")
-        audio_comp.channels = _get_hachoir_metadata(hachoir_metadata, "nb_channel")
-        bit_rate_bps = _get_hachoir_metadata(hachoir_metadata, "bit_rate")
-        if bit_rate_bps:
-            audio_comp.bit_rate_kbps = bit_rate_bps // 1000
+
+        duration = audio_stream.get("duration", metadata.get("format", {}).get("duration"))
+        if duration:
+            audio_comp.duration_seconds = float(duration)
+
+        audio_comp.codec_name = audio_stream.get("codec_name")
+
+        sample_rate = audio_stream.get("sample_rate")
+        if sample_rate:
+            audio_comp.sample_rate_hz = int(sample_rate)
+
+        channels = audio_stream.get("channels")
+        if channels:
+            audio_comp.channels = int(channels)
+
+        bit_rate = audio_stream.get("bit_rate", metadata.get("format", {}).get("bit_rate"))
+        if bit_rate:
+            audio_comp.bit_rate_kbps = int(bit_rate) // 1000
+
         await transaction.add_component_to_entity(entity.id, audio_comp)
         logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
 

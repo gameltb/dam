@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from dam.models.core import BaseComponent
 from sqlalchemy import JSON, String, Text, UniqueConstraint
@@ -35,7 +35,7 @@ class WebsiteProfileComponent(BaseComponent):
     api_endpoint: Mapped[Optional[str]] = mapped_column(
         String(2048), comment="Primary API endpoint for the website, if applicable.", default=None
     )
-    parser_rules: Mapped[Optional[Dict[str, any]]] = mapped_column(
+    parser_rules: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON,  # Using standard JSON for compatibility (e.g., SQLite)
         nullable=True,
         comment="JSON field to store site-specific parsing/scraping hints or configurations.",
@@ -47,5 +47,5 @@ class WebsiteProfileComponent(BaseComponent):
     # Unique constraint on entity_id ensures one profile per website entity.
     __table_args__ = (UniqueConstraint("entity_id", name="uq_website_profile_entity_id"),)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"WebsiteProfileComponent(id={self.id}, entity_id={self.entity_id}, name='{self.name}', main_url='{self.main_url}')"

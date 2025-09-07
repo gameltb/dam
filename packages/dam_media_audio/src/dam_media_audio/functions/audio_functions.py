@@ -21,7 +21,7 @@ MOCK_AUDIO_MODEL_IDENTIFIER = "mock_audio_model"
 
 
 class MockAudioModel:
-    def __init__(self, model_name: str, params: Optional[AudioModelHyperparameters]):
+    def __init__(self, model_name: str, params: Optional[AudioModelHyperparameters]) -> None:
         self.model_name = model_name
         self.params = params
         self.output_dim = (
@@ -42,7 +42,7 @@ def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[s
     return MockAudioModel(model_name_or_path, params)
 
 
-async def get_mock_audio_model(
+async def get_mock_audio_model(  # type: ignore[no-any-unimported]
     sire_resource: "SireResource",
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
     params: Optional[AudioModelHyperparameters] = None,
@@ -64,7 +64,7 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) 
     return np.frombuffer(embedding_bytes, dtype=dtype)
 
 
-async def generate_audio_embedding_for_entity(
+async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported]
     transaction: EcsTransaction,
     sire_resource: "SireResource",
     entity_id: int,
@@ -76,7 +76,7 @@ async def generate_audio_embedding_for_entity(
     return None
 
 
-async def find_similar_entities_by_audio_embedding(
+async def find_similar_entities_by_audio_embedding(  # type: ignore[no-any-unimported]
     transaction: EcsTransaction,
     sire_resource: "SireResource",
     query_audio_path: str,

@@ -63,10 +63,22 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             and isinstance(model_context_messages[-1].content, list)
             and all(isinstance(item, FunctionCall) for item in model_context_messages[-1].content)
         ):
-            fun_model_result = model_context_messages[-1].model_copy(update={"usage": None})
+            fun_model_result = model_context_messages[-1]
+            from typing import cast
+
+            from autogen_core.models import RequestUsage
+
+            create_result = CreateResult(
+                finish_reason="function_calls",
+                content=cast(List[FunctionCall], fun_model_result.content),
+                usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
+                cached=False,
+                logprobs=None,
+                thought=None,
+            )
             message_id = str(uuid.uuid4())
             async for output_event in self._process_model_result(
-                model_result=fun_model_result,
+                model_result=create_result,
                 inner_messages=inner_messages,
                 cancellation_token=cancellation_token,
                 agent_name=agent_name,

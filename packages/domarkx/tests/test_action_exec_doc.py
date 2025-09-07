@@ -2,6 +2,7 @@ import asyncio
 import pathlib
 import re
 import time
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
@@ -16,12 +17,12 @@ class StopTest(Exception):
 
 
 @pytest.fixture
-def stop_after_file_creation():
+def stop_after_file_creation() -> Generator[Any, None, None]:
     with patch("domarkx.action.exec_doc.AutoGenSession", side_effect=StopTest) as mock_session:
         yield mock_session
 
 
-def test_exec_doc_creates_timestamped_file(tmp_path: pathlib.Path, stop_after_file_creation):
+def test_exec_doc_creates_timestamped_file(tmp_path: pathlib.Path, stop_after_file_creation: Any) -> None:
     test_file = tmp_path / "test.md"
     test_file.write_text(VALID_MD_CONTENT)
 
@@ -34,7 +35,7 @@ def test_exec_doc_creates_timestamped_file(tmp_path: pathlib.Path, stop_after_fi
     assert re.match(r"test_\d{8}_\d{6}\.md", new_file.name)
 
 
-def test_exec_doc_appends_A_to_timestamped_file(tmp_path: pathlib.Path, stop_after_file_creation):
+def test_exec_doc_appends_A_to_timestamped_file(tmp_path: pathlib.Path, stop_after_file_creation: Any) -> None:
     ts_file = tmp_path / "test_20250101_120000.md"
     ts_file.write_text(VALID_MD_CONTENT)
 
@@ -45,7 +46,7 @@ def test_exec_doc_appends_A_to_timestamped_file(tmp_path: pathlib.Path, stop_aft
     assert new_file.exists()
 
 
-def test_exec_doc_creates_new_timestamp_if_A_exists(tmp_path: pathlib.Path, stop_after_file_creation):
+def test_exec_doc_creates_new_timestamp_if_A_exists(tmp_path: pathlib.Path, stop_after_file_creation: Any) -> None:
     ts_file = tmp_path / "test_20250101_120000.md"
     ts_file.write_text(VALID_MD_CONTENT)
 

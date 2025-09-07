@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import JSON, Integer, String
@@ -22,7 +22,7 @@ class PSPSFOMetadataComponent(BaseComponent):
     psp_system_ver: Mapped[Optional[str]] = mapped_column(String(255))
     title: Mapped[Optional[str]] = mapped_column(String(255), index=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"PSPSFOMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
             f"title='{self.title}', disc_id='{self.disc_id}')"
@@ -36,9 +36,9 @@ class PspSfoRawMetadataComponent(BaseComponent):
 
     __tablename__ = "component_psp_sfo_raw_metadata"
 
-    metadata_json: Mapped[dict] = mapped_column(JSON)
+    metadata_json: Mapped[Dict[str, Any]] = mapped_column(JSON)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"PspSfoRawMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
             f"metadata_json_keys='{list(self.metadata_json.keys())}')"

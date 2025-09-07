@@ -40,7 +40,7 @@ def do_extract_code_to_file(
     # unless it's a shebang or a comment type that is typically kept (like CSS block comments).
     first_line_is_code = False
 
-    for pattern_idx, pattern in enumerate(FILENAME_PATTERNS):
+    for _, pattern in enumerate(FILENAME_PATTERNS):
         match = pattern.match(first_line)
         if match:
             filepath_extracted = match.group(1).strip()
@@ -108,14 +108,15 @@ def extract_code_to_file(
         md_content = f.read()
 
     parser = MarkdownLLMParser()
-    doc = parser.parse(md_content)
-    message_obj = doc.conversation[message_index]
+    parsed_doc = parser.parse(md_content)
+    message_obj = parsed_doc.conversation[message_index]
     code_block = message_obj.code_blocks[code_block_in_message_index]
 
     console = Console(markup=False)
-    md = rich.markdown.Markdown(message_obj.content)
-    console.rule("message")
-    console.print(md)
+    if message_obj.content:
+        md = rich.markdown.Markdown(message_obj.content)
+        console.rule("message")
+        console.print(md)
     console.rule("code")
     console.print(rich.markdown.Markdown(f"```{code_block.language}\n{code_block.code}\n```"))
 

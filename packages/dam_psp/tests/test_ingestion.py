@@ -1,8 +1,10 @@
 from io import BytesIO
+from typing import Any, Generator, Optional
 from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
+from pytest_mock import MockerFixture
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.commands import CommandResult
 from dam.core.result import HandlerResult
@@ -56,7 +58,7 @@ DUMMY_SFO_CONTENT = b"".join(
 
 def create_dummy_iso_with_sfo() -> BytesIO:
     """Creates a dummy ISO 9660 image with a PARAM.SFO file in memory."""
-    iso = pycdlib.PyCdlib()
+    iso = pycdlib.PyCdlib()  # type: ignore[attr-defined]
     iso.new(interchange_level=1, joliet=True)
     iso.add_directory("/PSP_GAME")
     iso.add_fp(BytesIO(DUMMY_SFO_CONTENT), len(DUMMY_SFO_CONTENT), "/PSP_GAME/PARAM.SFO;1")
@@ -70,12 +72,12 @@ def create_dummy_iso_with_sfo() -> BytesIO:
 
 
 @pytest.fixture
-def dummy_iso_stream() -> BytesIO:
+def dummy_iso_stream() -> Generator[BytesIO, None, None]:
     """Pytest fixture to provide a dummy ISO stream."""
-    return create_dummy_iso_with_sfo()
+    yield create_dummy_iso_with_sfo()
 
 
-def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream):
+def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream: BytesIO) -> None:
     """
     Tests that process_iso_stream correctly extracts metadata from a dummy ISO.
     """
@@ -88,7 +90,7 @@ def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream):
     assert sfo_metadata.get("DISC_ID") == "ULUS-12345"
 
 
-def test_process_iso_stream_handles_non_iso_file():
+def test_process_iso_stream_handles_non_iso_file() -> None:
     """
     Tests that process_iso_stream raises an IOError for non-ISO files.
     """
@@ -98,7 +100,7 @@ def test_process_iso_stream_handles_non_iso_file():
 
 
 @pytest.mark.asyncio
-async def test_psp_iso_metadata_extraction_system(mocker):
+async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None:
     """
     Tests the psp_iso_metadata_extraction_system with a mix of assets.
     """
@@ -111,7 +113,7 @@ async def test_psp_iso_metadata_extraction_system(mocker):
     # Mock transaction
     mock_transaction = AsyncMock()
 
-    async def get_component_side_effect(entity_id, component_type):
+    async def get_component_side_effect(entity_id: int, component_type: Any) -> Optional[Any]:
         if entity_id == standalone_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
@@ -139,7 +141,7 @@ async def test_psp_iso_metadata_extraction_system(mocker):
     # Mock world
     mock_world = AsyncMock(spec=World)
 
-    async def dispatch_command_side_effect(command):
+    async def dispatch_command_side_effect(command: Any) -> CommandResult[Any]:
         if isinstance(command, GetAssetFilenamesCommand):
             if command.entity_id == standalone_iso_entity_id:
                 return CommandResult(results=[HandlerResult(value=["test.iso"])])
@@ -176,7 +178,7 @@ async def test_psp_iso_metadata_extraction_system(mocker):
     # Reset mock for world dispatch before command handler execution
     mock_world.dispatch_command.side_effect = None  # Reset side effect
 
-    async def dispatch_command_side_effect_for_stream(command):
+    async def dispatch_command_side_effect_for_stream(command: Any) -> CommandResult[Any]:
         if isinstance(command, GetAssetStreamCommand):
             return CommandResult(results=[HandlerResult(value=create_dummy_iso_with_sfo())])
         return CommandResult(results=[])  # Default empty result

@@ -78,7 +78,7 @@ def call_modify_python_ast_tool(
         raise ValueError("Either operation or modification_script must be provided.")
 
     tool_call_dict = {"tool_name": "modify_python_ast", "parameters": parameters}
-    tool_name, result = execute_tool_call(tool_call_dict, handle_exception=False)
+    _, result = execute_tool_call(tool_call_dict, handle_exception=False)
     # If the tool returns an "Error:" string, raise it as a ValueError
     if result.startswith("Error:"):
         raise ValueError(result)

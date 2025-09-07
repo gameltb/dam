@@ -36,6 +36,7 @@ from autogen_ext.models.openai._openai_client import (
 from openai.types.chat import (
     ChatCompletionChunk,
 )
+from openai.types.chat.chat_completion_chunk import Choice
 from pydantic import BaseModel
 
 
@@ -132,6 +133,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         empty_chunk_count = 0
         first_chunk = True
         is_reasoning = False
+        choice: Choice | None = None
 
         # Process the stream of chunks.
         async for chunk in chunks:
@@ -285,18 +287,20 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             if isinstance(content, str) and self._model_info["family"] == ModelFamily.R1 and thought is None:
                 thought, content = parse_r1_content(content)
 
-        choice.delta.content = content
+        if isinstance(content, str):
+            choice.delta.content = content
         if thought is not None and len(thought) > 0:
-            choice.delta.reasoning = thought
+            choice.delta.reasoning = thought  # type: ignore[attr-defined]
 
-        logger.info(
-            LLMCallEvent(
-                messages=cast(Dict[str, Any], create_params.messages),
-                response=chunk.model_dump(),
-                prompt_tokens=usage.prompt_tokens,
-                completion_tokens=usage.completion_tokens,
+        if chunk:
+            logger.info(
+                LLMCallEvent(
+                    messages=cast(List[Dict[str, Any]], create_params.messages),
+                    response=chunk.model_dump(),
+                    prompt_tokens=usage.prompt_tokens,
+                    completion_tokens=usage.completion_tokens,
+                )
             )
-        )
 
         # Create the result.
         result = CreateResult(
@@ -318,8 +322,8 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         )
 
         # Update the total usage.
-        self._total_usage = _add_usage(self._total_usage, usage)
-        self._actual_usage = _add_usage(self._actual_usage, usage)
+        self._total_usage = _add_usage(self._total_usage, usage)  # pyright: ignore[reportPrivateUsage]
+        self._actual_usage = _add_usage(self._actual_usage, usage)  # pyright: ignore[reportPrivateUsage]
 
         # Yield the CreateResult.
         yield result

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from dam.core.exceptions import EntityNotFoundError
 from dam.core.world import World
-from dam.functions import ecs_functions, tag_functions, transcode_functions
+from dam.functions import ecs_functions, tag_functions
 from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
 from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
 from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
@@ -11,6 +11,9 @@ from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..functions import transcode_functions
 
 
 class EvaluationError(Exception):
@@ -35,13 +38,13 @@ class EvaluationError(Exception):
 
 
 async def create_evaluation_run_concept(
-    world: World, run_name: str, description: Optional[str] = None, session: Optional[Session] = None
+    world: World, run_name: str, description: Optional[str] = None, session: Optional[AsyncSession] = None
 ) -> Entity:
     """
     Creates a new EvaluationRun conceptual asset.
     """
 
-    async def _create(db_session: Session):
+    async def _create(db_session: AsyncSession) -> Entity:
         existing_run_stmt = select(EvaluationRunComponent).where(EvaluationRunComponent.run_name == run_name)
         existing_run = (await db_session.execute(existing_run_stmt)).scalars().first()
         if existing_run:
@@ -65,6 +68,7 @@ async def create_evaluation_run_concept(
         # Tag it as an "Evaluation Run"
         try:
             tag_concept_name = "System:EvaluationRun"
+            tag_concept: Optional[Entity] = None
             try:
                 # Pass db_session directly, world is not used by get_tag_concept_by_name
                 tag_concept = await tag_functions.get_tag_concept_by_name(db_session, tag_concept_name)
@@ -78,6 +82,8 @@ async def create_evaluation_run_concept(
                     # session=db_session # Removed redundant keyword argument
                 )
             # apply_tag_to_entity call confirmed to be correct
+            if tag_concept is None:
+                raise EvaluationError(f"Could not get or create tag concept '{tag_concept_name}'")
             await tag_functions.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
         except Exception as e:
             world.logger.warning(f"Could not apply system tag to evaluation run '{run_name}': {e}")
@@ -96,11 +102,11 @@ async def create_evaluation_run_concept(
 
 
 async def get_evaluation_run_by_name_or_id(
-    world: World, identifier: str | int, session: Optional[Session] = None
+    world: World, identifier: str | int, session: Optional[AsyncSession] = None
 ) -> Tuple[Entity, EvaluationRunComponent]:
     """Retrieves an evaluation run by its name or entity ID."""
 
-    async def _get(db_session: Session):
+    async def _get(db_session: AsyncSession) -> Tuple[Entity, EvaluationRunComponent]:
         if isinstance(identifier, int):  # Entity ID
             stmt = (
                 select(Entity, EvaluationRunComponent)
@@ -125,7 +131,7 @@ async def get_evaluation_run_by_name_or_id(
             return await _get(new_session)
 
 
-async def evaluate_transcode_output(event, world, session):
+async def evaluate_transcode_output(event: Any, world: World, session: Any) -> None:
     # Placeholder for old test, actual logic might be in execute_evaluation_run
     # or an event listener for StartEvaluationForTranscodedAsset
     world.logger.warning("Placeholder evaluate_transcode_output called by an outdated test.")
@@ -274,7 +280,7 @@ async def execute_evaluation_run(
                         f"    EvaluationResultComponent created (ID: {eval_result_comp.id}) for asset {transcoded_asset_entity.id}"
                     )
 
-                except transcode_functions.TranscodeServiceError as tse:
+                except transcode_functions.TranscodeFunctionsError as tse:
                     world.logger.error(
                         f"    Failed to transcode asset ID {original_asset_entity_id} with profile '{profile_comp.profile_name}': {tse}"
                     )
@@ -290,13 +296,13 @@ async def execute_evaluation_run(
 
 
 async def get_evaluation_results(
-    world: World, evaluation_run_id_or_name: str | int, session: Optional[Session] = None
+    world: World, evaluation_run_id_or_name: str | int, session: Optional[AsyncSession] = None
 ) -> List[Dict[str, Any]]:
     """
     Retrieves and formats results for a given evaluation run.
     """
 
-    async def _get(db_session: Session):
+    async def _get(db_session: AsyncSession) -> List[Dict[str, Any]]:
         _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
             world, evaluation_run_id_or_name, session=db_session
         )

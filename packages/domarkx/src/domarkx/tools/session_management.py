@@ -5,7 +5,7 @@ from typing import Any
 
 from domarkx.config import settings
 from domarkx.macro_expander import MacroExpander
-from domarkx.tools.tool_factory import _tool_handler as tool_handler
+from domarkx.tools.tool_factory import tool_handler
 
 
 @tool_handler()

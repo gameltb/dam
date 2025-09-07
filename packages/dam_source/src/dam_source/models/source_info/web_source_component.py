@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
 from dam.models.core import BaseComponent, Entity
@@ -80,14 +80,14 @@ class WebSourceComponent(BaseComponent):
     # Using JSON type if database supports it (like PostgreSQL).
     # For SQLite, this might default to TEXT and require manual JSON parsing.
     # Using sqlalchemy.types.JSON for broader compatibility including SQLite.
-    raw_metadata_dump: Mapped[Optional[Dict[str, any]]] = mapped_column(
+    raw_metadata_dump: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True, comment="Dump of raw metadata from the web source, for extensibility.", default=None
     )
 
     # Consider adding a 'downloaded_at' timestamp if the file is fetched later.
     # Consider a 'last_checked_at' timestamp for link validation.
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"WebSourceComponent(id={self.id}, entity_id={self.entity_id}, website_entity_id={self.website_entity_id}, source_url='{self.source_url[:50]}...')"
 
     # Potential __table_args__:
@@ -104,4 +104,4 @@ class WebSourceComponent(BaseComponent):
     # Usually, an entity is unique, and components are attached. If an entity can have only one WebSource, then (entity_id) unique.
     # If a source_url should only ever create one WebSourceComponent record globally (tied to one entity), then source_url unique.
     # The current model allows multiple WebSourceComponent for an entity and multiple entities pointing to the same URL (though services should prevent this).
-    # For now, no additional table args. Service layer will manage uniqueness logic.
+    # For now, no additional table args.

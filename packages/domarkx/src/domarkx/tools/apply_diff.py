@@ -3,7 +3,7 @@ import os
 import re
 from typing import TypedDict
 
-from domarkx.tools.tool_factory import _tool_handler as tool_handler
+from domarkx.tools.tool_factory import tool_handler
 
 
 class Operation(TypedDict):
