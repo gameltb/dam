@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
 
@@ -16,7 +16,7 @@ class CodeBlock:
 CODE_BLOCK_REGEX = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DOTALL)
 
 
-def find_code_blocks(text: str) -> List[CodeBlock]:
+def find_code_blocks(text: str) -> list[CodeBlock]:
     """Finds all code blocks in a Markdown string."""
     matches = CODE_BLOCK_REGEX.finditer(text)
     results: list[CodeBlock] = []
@@ -36,7 +36,7 @@ class Macro:
     """Represents a macro command parsed from a Markdown link."""
 
     command: str
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=lambda: {})
     link_text: str = ""
     url: str = ""
     original_text: str = ""

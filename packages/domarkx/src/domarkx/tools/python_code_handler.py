@@ -231,7 +231,7 @@ class LibCstEditor:
                                 new_body.append(new_node)
                             new_body.append(cst.SimpleStatementLine(body=[]))
                             self.created = True
-                            return updated_node.with_changes(body=tuple(new_body))  # type: ignore[arg-type]
+                            return updated_node.with_changes(body=tuple(new_body))  # type: ignore[assignment]
                 return updated_node
 
             def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
@@ -245,7 +245,7 @@ class LibCstEditor:
                                 raise ToolError("Code content for 'method' must be a function definition.")
 
                             existing_body = list(updated_node.body.body)
-                            new_body_elements: list[cst.BaseStatement | cst.SimpleStatementLine] = []
+                            new_body_elements: list[cst.BaseStatement] = []
                             if not existing_body:
                                 # For empty class body, ensure proper indentation is handled by libcst
                                 new_body_elements = [
@@ -254,7 +254,7 @@ class LibCstEditor:
                                     cst.SimpleStatementLine(body=[]),
                                 ]
                             else:
-                                new_body_elements = list(existing_body)
+                                new_body_elements = list(existing_body)  # type: ignore[arg-type]
                                 if not isinstance(new_body_elements[-1], cst.SimpleStatementLine):
                                     new_body_elements.append(cst.SimpleStatementLine(body=[]))
                                 if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
@@ -264,7 +264,7 @@ class LibCstEditor:
                             self.created = True
                             return updated_node.with_changes(
                                 body=updated_node.body.with_changes(
-                                    body=tuple(new_body_elements)  # type: ignore[arg-type]
+                                    body=tuple(new_body_elements)  # type: ignore[assignment]
                                 )
                             )
                 return updated_node
@@ -390,7 +390,7 @@ class LibCstEditor:
                         # This matcher should ideally be for the class containing the method
                         self.found_target = True
                         logging.debug(f"Handling method deletion in class '{original_node.name.value}'")
-                        new_body_elements = []
+                        new_body_elements: list[cst.BaseStatement] = []
                         method_found_and_removed = False
                         if isinstance(updated_node, cst.ClassDef) and isinstance(updated_node.body, cst.IndentedBlock):
                             for element in updated_node.body.body:
@@ -406,9 +406,10 @@ class LibCstEditor:
 
                         if method_found_and_removed:
                             self.deleted = True
-                            return updated_node.with_changes(
-                                body=updated_node.body.with_changes(body=tuple(new_body_elements))
-                            )
+                            if isinstance(updated_node, cst.ClassDef):
+                                return updated_node.with_changes(
+                                    body=updated_node.body.with_changes(body=tuple(new_body_elements))
+                                )
                     return updated_node
 
                 # For function, class, assignment (top-level or nested non-method)

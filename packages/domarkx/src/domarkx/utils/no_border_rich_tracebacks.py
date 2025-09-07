@@ -5,12 +5,13 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Tuple,
+    TypeVar,
 )
 
 import rich.box
 from pygments.token import Comment, Keyword, Name, Number, Operator, String, Token
 from pygments.token import Text as TextToken
-from rich._loop import loop_last
 from rich._null_file import NullFile
 from rich.columns import Columns
 from rich.console import (
@@ -30,7 +31,51 @@ from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
 from rich.theme import Theme
-from rich.traceback import Frame, PathHighlighter, Stack, Traceback, _iter_syntax_lines
+from rich.traceback import Frame, PathHighlighter, Stack, Traceback
+
+T = TypeVar("T")
+
+
+def _loop_first_last(
+    values: Iterable[T],
+) -> Iterable[Tuple[bool, bool, T]]:
+    """Iterate and generate flags for first and last value."""
+    iter_values = iter(values)
+    try:
+        value = next(iter_values)
+    except StopIteration:
+        return
+    first = True
+    while True:
+        try:
+            next_value = next(iter_values)
+            yield first, False, value
+            value = next_value
+            first = False
+        except StopIteration:
+            yield first, True, value
+            break
+
+
+def _iter_syntax_lines(
+    start: Tuple[int, int], end: Tuple[int, int]
+) -> Iterable[Tuple[int, int, int]]:
+    """Yield start and end positions per line."""
+
+    line1, column1 = start
+    line2, column2 = end
+
+    if line1 == line2:
+        yield line1, column1, column2
+    else:
+        for first, last, line_no in _loop_first_last(range(line1, line2 + 1)):
+            if first:
+                yield line_no, column1, -1
+            elif last:
+                yield line_no, 0, column2
+            else:
+                yield line_no, 0, -1
+
 
 BOX_STYLE = rich.box.SIMPLE
 
@@ -113,7 +158,7 @@ class NoBorderTraceback(Traceback):
             if stack.is_group:
                 for group_no, group_exception in enumerate(stack.exceptions, 1):
                     grouped_exceptions: List[Group] = []
-                    for group_last, group_stack in loop_last(group_exception.stacks):
+                    for _, group_last, group_stack in _loop_first_last(group_exception.stacks):
                         grouped_exceptions.append(render_stack(group_stack, group_last))
                     yield ""
                     yield Constrain(
@@ -136,7 +181,7 @@ class NoBorderTraceback(Traceback):
                         "\n[i]During handling of the above exception, another exception occurred:\n",
                     )
 
-        for last, stack in loop_last(reversed(self.trace.stacks)):
+        for _, last, stack in _loop_first_last(reversed(self.trace.stacks)):
             yield render_stack(stack, last)
 
     @group()
