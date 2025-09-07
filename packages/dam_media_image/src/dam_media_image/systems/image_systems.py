@@ -66,7 +66,7 @@ async def handle_find_similar_images_command(
                 f"Could not determine source entity for {cmd.image_path.name} to exclude from results: {e_src}"
             )
 
-        potential_matches = []
+        potential_matches: list[dict[str, Any]] = []
         from sqlalchemy import select as sql_select
 
         if input_phash_obj:
@@ -207,7 +207,6 @@ async def process_image_metadata_system(
         # Extract metadata
         with Image.open(file_path) as img:
             width, height = img.size
-            mode = img.mode
 
         # Add component
         dimensions_component = ImageDimensionsComponent()

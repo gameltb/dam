@@ -6,13 +6,8 @@ import asyncio
 import logging
 from pathlib import Path
 
-try:
-    import imagehash
-    from PIL import Image
-
-    _image_deps_available = True
-except ImportError:
-    _image_deps_available = False
+import imagehash
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +24,8 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
         Example: {"phash": "...", "ahash": "...", "dhash": "..."}
         Returns empty dict if dependencies are missing, or image cannot be processed.
     """
-    if not _image_deps_available:
-        logger.warning(
-            "Optional dependencies ImageHash and/or Pillow not found. Perceptual image hashing will be disabled."
-        )
-        return {}
 
-    hashes = {}
+    hashes: dict[str, str] = {}
     try:
         img = Image.open(image_filepath)
 
@@ -47,7 +37,7 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
 
         # aHash (Average Hash)
         try:
-            hashes["ahash"] = str(imagehash.average_hash(img))
+            hashes["ahash"] = str(imagehash.average_hash(img))  # type: ignore
         except Exception as e_ahash:
             logger.warning(f"Could not generate aHash for {image_filepath.name}: {e_ahash}", exc_info=True)
 

@@ -1,6 +1,6 @@
 import contextlib
 import weakref
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from accelerate.hooks import ModelHook, add_hook_to_module
 from accelerate.utils import send_to_device
@@ -11,29 +11,6 @@ from .runtime_resource_pool import ResourcePool, resources_device
 from .runtime_resource_user import ResourcePoolUserABC
 
 T = TypeVar("T")
-
-
-@contextlib.contextmanager
-def auto_manage(obj: T, **kwargs):
-    """
-    A context manager to automatically manage the memory of a resource,
-    such as a PyTorch model.
-
-    Args:
-        obj: The object to manage.
-        **kwargs: Configuration options passed to the underlying resource wrapper
-                  (e.g., `inference_memory_estimator` for a `TorchModuleWrapper`).
-    """
-    if isinstance(obj, AutoManageWrapper):
-        am = obj
-    else:
-        am = AutoManageWrapper(obj, **kwargs)
-    try:
-        # Note: Loading is no longer done automatically on entry.
-        # The user should call am.load() explicitly if not using a hook.
-        yield am
-    finally:
-        am.offload()
 
 
 class AutoManageWrapper(Generic[T]):
@@ -76,6 +53,29 @@ class AutoManageWrapper(Generic[T]):
         if tp in cls.type_wrapper_map:
             raise RuntimeError(f"type {tp} registed with {cls.type_wrapper_map[tp]}")
         cls.type_wrapper_map[tp] = wrapper_cls
+
+
+@contextlib.contextmanager
+def auto_manage(obj: T, **kwargs: Any) -> contextlib.AbstractContextManager[AutoManageWrapper[T]]:
+    """
+    A context manager to automatically manage the memory of a resource,
+    such as a PyTorch model.
+
+    Args:
+        obj: The object to manage.
+        **kwargs: Configuration options passed to the underlying resource wrapper
+                  (e.g., `inference_memory_estimator` for a `TorchModuleWrapper`).
+    """
+    if isinstance(obj, AutoManageWrapper):
+        am = obj
+    else:
+        am = AutoManageWrapper(obj, **kwargs)
+    try:
+        # Note: Loading is no longer done automatically on entry.
+        # The user should call am.load() explicitly if not using a hook.
+        yield am
+    finally:
+        am.offload()
 
 
 class AutoManageHook(ModelHook):

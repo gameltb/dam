@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 from dam.models.core import BaseComponent
 from sqlalchemy import JSON, String, Text, UniqueConstraint

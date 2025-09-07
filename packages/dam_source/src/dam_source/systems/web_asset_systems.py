@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction

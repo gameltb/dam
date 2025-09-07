@@ -4,14 +4,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from dam.core.exceptions import EntityNotFoundError
 from dam.core.world import World
 from dam.functions import ecs_functions, tag_functions
-from dam.models.conceptual.evaluation_result_component import EvaluationResultComponent
-from dam.models.conceptual.evaluation_run_component import EvaluationRunComponent
-from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from dam.models.core.entity import Entity
 from dam_fs.models.file_properties_component import FilePropertiesComponent
-from sqlalchemy.future import select
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from dam_media_transcode.models.conceptual.evaluation_result_component import EvaluationResultComponent
+from dam_media_transcode.models.conceptual.evaluation_run_component import EvaluationRunComponent
+from dam_media_transcode.models.conceptual.transcode_profile_component import TranscodeProfileComponent
 
 from ..functions import transcode_functions
 
@@ -326,7 +326,7 @@ async def get_evaluation_results(
 
         db_results = (await db_session.execute(stmt)).all()
 
-        formatted_results = []
+        formatted_results: list[dict[str, Any]] = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results:  # type: ignore
             # Fetch FilePropertiesComponent for the original asset
             orig_fpc = await ecs_functions.get_component(

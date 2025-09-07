@@ -24,10 +24,6 @@ classifiers = [
 dependencies = [
     "dam",
     "pycdlib",
-    "py7zr",
-    "patool",
-    "zstandard",
-    "rarfile",
 ]
 
 [tool.ruff]

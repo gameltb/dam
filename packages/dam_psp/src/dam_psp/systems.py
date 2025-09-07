@@ -63,8 +63,7 @@ async def psp_iso_metadata_extraction_command_handler_system(
         # Use get_first_ok_value to get the first available stream.
         # This will raise an exception if no handlers succeed, which is desired.
         with stream_result.get_first_ok_value() as stream:
-            if stream:
-                sfo = process_iso_stream(stream)
+            sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:
                 sfo_metadata = sfo.data

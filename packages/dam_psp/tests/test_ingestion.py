@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
-from pytest_mock import MockerFixture
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.commands import CommandResult
 from dam.core.result import HandlerResult
@@ -12,6 +11,7 @@ from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models import FilePropertiesComponent
+from pytest_mock import MockerFixture
 
 from dam_psp import psp_iso_functions
 from dam_psp.commands import ExtractPSPMetadataCommand
@@ -59,12 +59,12 @@ DUMMY_SFO_CONTENT = b"".join(
 def create_dummy_iso_with_sfo() -> BytesIO:
     """Creates a dummy ISO 9660 image with a PARAM.SFO file in memory."""
     iso = pycdlib.PyCdlib()  # type: ignore[attr-defined]
-    iso.new(interchange_level=1, joliet=True)
-    iso.add_directory("/PSP_GAME")
-    iso.add_fp(BytesIO(DUMMY_SFO_CONTENT), len(DUMMY_SFO_CONTENT), "/PSP_GAME/PARAM.SFO;1")
+    iso.new(interchange_level=1, joliet=True)  # type: ignore
+    iso.add_directory("/PSP_GAME")  # type: ignore
+    iso.add_fp(BytesIO(DUMMY_SFO_CONTENT), len(DUMMY_SFO_CONTENT), "/PSP_GAME/PARAM.SFO;1")  # type: ignore
 
     iso_fp = BytesIO()
-    iso.write_fp(iso_fp)
+    iso.write_fp(iso_fp)  # type: ignore
     iso.close()
 
     iso_fp.seek(0)

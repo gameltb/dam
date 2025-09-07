@@ -1093,21 +1093,13 @@ version = "0.1.0"
 source = { editable = "packages/dam_psp" }
 dependencies = [
     { name = "dam" },
-    { name = "patool" },
-    { name = "py7zr" },
     { name = "pycdlib" },
-    { name = "rarfile" },
-    { name = "zstandard" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
-    { name = "patool" },
-    { name = "py7zr" },
     { name = "pycdlib" },
-    { name = "rarfile" },
-    { name = "zstandard" },
 ]
 
 [[package]]

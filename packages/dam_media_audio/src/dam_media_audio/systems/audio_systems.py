@@ -60,9 +60,7 @@ async def add_audio_components_system(
             "-show_streams",
             str(filepath_on_disk),
         ]
-        result = await asyncio.to_thread(
-            subprocess.run, ffprobe_cmd, capture_output=True, text=True, check=True
-        )
+        result = await asyncio.to_thread(subprocess.run, ffprobe_cmd, capture_output=True, text=True, check=True)
         metadata = json.loads(result.stdout)
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
         logger.warning(f"ffprobe failed for {filepath_on_disk}: {e}")

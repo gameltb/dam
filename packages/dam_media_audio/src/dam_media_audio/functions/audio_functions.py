@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
-from dam.models.semantic.audio_embedding_component import (
+from dam_semantic.models.audio_embedding_component import (
     AUDIO_EMBEDDING_MODEL_REGISTRY,
     AudioModelHyperparameters,
     BaseSpecificAudioEmbeddingComponent,
@@ -36,10 +36,6 @@ class MockAudioModel:
     async def encode_async(self, audio_path: str, **kwargs: Any) -> np.ndarray:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.encode, audio_path, **kwargs)
-
-
-def _load_mock_audio_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> MockAudioModel:
-    return MockAudioModel(model_name_or_path, params)
 
 
 async def get_mock_audio_model(  # type: ignore[no-any-unimported]

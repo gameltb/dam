@@ -1,6 +1,6 @@
 import struct
 from io import BytesIO
-from typing import Any, BinaryIO, Dict, Optional, Union
+from typing import BinaryIO, Dict, Optional, Union, cast
 
 import pycdlib  # type: ignore[import]
 
@@ -71,17 +71,19 @@ def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
     """
     iso = pycdlib.PyCdlib()  # type: ignore[attr-defined]
     try:
-        iso.open_fp(stream)
+        iso.open_fp(stream)  # type: ignore[arg-type]
     except Exception as e:
         raise IOError("Failed to open stream as ISO file") from e
 
     try:
-        for dirname, _, filelist in iso.walk(iso_path="/"):
+        for dirname, _, filelist in iso.walk(iso_path="/"):  # type: ignore
+            dirname = cast(str, dirname)
+            filelist = cast(list[str], filelist)
             for file in filelist:
                 if file.upper().startswith("PARAM.SFO"):
                     sfo_path = f"/{dirname}/{file}".replace("//", "/")
                     extracted_sfo = BytesIO()
-                    iso.get_file_from_iso_fp(extracted_sfo, iso_path=sfo_path)
+                    iso.get_file_from_iso_fp(extracted_sfo, iso_path=sfo_path)  # pyright: ignore[reportUnknownMemberType]
                     raw_sfo = extracted_sfo.getvalue()
                     try:
                         return SFO(raw_sfo)

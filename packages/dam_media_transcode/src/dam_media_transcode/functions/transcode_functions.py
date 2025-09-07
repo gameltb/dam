@@ -4,25 +4,24 @@ from pathlib import Path
 from typing import Optional, Tuple, cast
 
 from dam.core.config import settings
+from dam.core.stages import SystemStage
 from dam.core.world import World
 from dam.functions import (
     ecs_functions,
     tag_functions,
 )
-from dam.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
-from dam.core.stages import SystemStage
 from dam_fs.commands import IngestFileCommand
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam_fs.utils import url_utils
-from sqlalchemy.future import select
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
+from dam_media_transcode.models.conceptual.transcode_profile_component import TranscodeProfileComponent
+from dam_media_transcode.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam_media_transcode.utils.media_utils import TranscodeError, transcode_media
 
 
@@ -335,7 +334,9 @@ async def get_transcoded_variants_for_original(
     Returns a list of tuples: (transcoded_entity, variant_component, profile_component).
     """
 
-    async def _get(db_session: AsyncSession) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
+    async def _get(
+        db_session: AsyncSession,
+    ) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
         stmt = (
             select(Entity, TranscodedVariantComponent, TranscodeProfileComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
@@ -377,5 +378,3 @@ async def get_assets_using_profile(
     else:
         async with world.db_session_maker() as new_session:
             return await _get(new_session)
-
-
