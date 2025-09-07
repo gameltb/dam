@@ -88,7 +88,6 @@ ignore = ["E501", "F841", "F811"]
 strict = true
 python_version = "3.12"
 ignore_missing_imports = true
-mypy_path = "packages/:packages/dam_media_audio/stubs"
 
 # from https://blog.wolt.com/engineering/2021/09/30/professional-grade-mypy-configuration/
 disallow_untyped_defs = true
@@ -104,7 +103,6 @@ disallow_any_unimported = true
 
 [tool.pyright]
 include = ["src", "tests", "samples"]
-exclude = ["samples/core_xlang_hello_python_agent/protos"]
 typeCheckingMode = "strict"
 reportUnnecessaryIsInstance = false
 reportMissingTypeStubs = false
