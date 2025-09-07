@@ -287,10 +287,11 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             if isinstance(content, str) and self._model_info["family"] == ModelFamily.R1 and thought is None:
                 thought, content = parse_r1_content(content)
 
-        if isinstance(content, str):
-            choice.delta.content = content
-        if thought is not None and len(thought) > 0:
-            choice.delta.reasoning = thought  # type: ignore[attr-defined]
+        if choice:
+            if isinstance(content, str):
+                choice.delta.content = content
+            if thought is not None and len(thought) > 0:
+                choice.delta.reasoning = thought  # type: ignore[attr-defined]
 
         if chunk:
             logger.info(

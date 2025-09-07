@@ -65,7 +65,7 @@ class MacroExpander:
 
     def _set_macro(self, macro: Macro, content: str) -> str:
         """Handles the @set macro."""
-        return macro.params.get("value", "")
+        return str(macro.params.get("value", ""))
 
 
 class DocExpander:

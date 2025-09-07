@@ -65,7 +65,9 @@ class AutoGenSession(Session):
             message_dict = md_message.metadata
             if message_dict is None:
                 continue
-            thought = content = ""
+            thought: str | None
+            content: str
+            thought, content = "", ""
             if md_message.content is not None:
                 thought, content = parse_r1_content(md_message.content)
             if "content" not in message_dict:
