@@ -1,6 +1,7 @@
+import asyncio
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 
 from dam.core.config import settings
 from dam.core.world import World
@@ -12,6 +13,7 @@ from dam.models.conceptual.transcode_profile_component import TranscodeProfileCo
 from dam.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
+from dam.core.stages import SystemStage
 from dam_fs.commands import IngestFileCommand
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
@@ -19,6 +21,7 @@ from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam_fs.utils import url_utils
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam_media_transcode.utils.media_utils import TranscodeError, transcode_media
 
@@ -73,6 +76,7 @@ async def create_transcode_profile(
         # This uses the existing tag_functions
         try:
             tag_concept_name = "System:TranscodeProfile"
+            tag_concept_entity: Optional[Entity] = None
             # Ensure the tag concept exists
             try:
                 tag_concept_entity = await tag_functions.get_tag_concept_by_name(session, tag_concept_name)
@@ -84,6 +88,8 @@ async def create_transcode_profile(
                     scope_type="GLOBAL",  # Or a more specific scope if desired
                 )
 
+            if tag_concept_entity is None:
+                raise TranscodeFunctionsError(f"Could not get or create tag concept '{tag_concept_name}'")
             await tag_functions.apply_tag_to_entity(
                 session,  # Pass session directly
                 entity_id_to_tag=profile_entity.id,
@@ -105,13 +111,13 @@ async def create_transcode_profile(
 
 
 async def get_transcode_profile_by_name_or_id(
-    world: World, profile_identifier: str | int, session: Optional[Session] = None
+    world: World, profile_identifier: str | int, session: Optional[AsyncSession] = None
 ) -> Tuple[Entity, TranscodeProfileComponent]:
     """
     Retrieves a transcode profile entity and its component by name or entity ID.
     """
 
-    async def _get(db_session: Session):
+    async def _get(db_session: AsyncSession) -> Tuple[Entity, TranscodeProfileComponent]:
         if isinstance(profile_identifier, int):  # It's an entity ID
             stmt = (
                 select(Entity, TranscodeProfileComponent)
@@ -137,7 +143,7 @@ async def get_transcode_profile_by_name_or_id(
             return await _get(new_session)
 
 
-async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: Session) -> Path:
+async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: AsyncSession) -> Path:
     """Helper to get a readable filepath for a source asset using its URL."""
     flc = await ecs_functions.get_component(
         session,
@@ -224,7 +230,8 @@ async def apply_transcode_profile(
         print(f"Output will be temporarily written to: {temp_output_filepath}")
 
         try:
-            transcoded_filepath = await transcode_media(  # Added await
+            transcoded_filepath = await asyncio.to_thread(
+                transcode_media,
                 input_path=source_filepath,
                 output_path=temp_output_filepath,
                 tool_name=profile_component.tool_name,
@@ -268,7 +275,7 @@ async def apply_transcode_profile(
         # The ingestion system should have added ContentHashSHA256Component.
         with open(transcoded_filepath, "rb") as f:
             hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
-        transcoded_file_sha256_bytes = hashes[HashAlgorithm.SHA256]
+        transcoded_file_sha256_bytes = cast(bytes, hashes[HashAlgorithm.SHA256])
 
         # Query for the entity with this SHA256 hash
         # Use ecs_functions.find_entity_by_content_hash
@@ -321,14 +328,14 @@ async def apply_transcode_profile(
 
 
 async def get_transcoded_variants_for_original(
-    world: World, original_asset_entity_id: int, session: Optional[Session] = None
+    world: World, original_asset_entity_id: int, session: Optional[AsyncSession] = None
 ) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
     """
     Retrieves all transcoded variants for a given original asset entity.
     Returns a list of tuples: (transcoded_entity, variant_component, profile_component).
     """
 
-    async def _get(db_session: Session):
+    async def _get(db_session: AsyncSession) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
         stmt = (
             select(Entity, TranscodedVariantComponent, TranscodeProfileComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
@@ -349,14 +356,14 @@ async def get_transcoded_variants_for_original(
 
 
 async def get_assets_using_profile(
-    world: World, profile_entity_id: int, session: Optional[Session] = None
+    world: World, profile_entity_id: int, session: Optional[AsyncSession] = None
 ) -> list[Tuple[Entity, TranscodedVariantComponent]]:
     """
     Retrieves all assets that were transcoded using a specific profile.
     Returns a list of tuples: (transcoded_entity, variant_component).
     """
 
-    async def _get(db_session: Session):
+    async def _get(db_session: AsyncSession) -> list[Tuple[Entity, TranscodedVariantComponent]]:
         stmt = (
             select(Entity, TranscodedVariantComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
@@ -372,20 +379,3 @@ async def get_assets_using_profile(
             return await _get(new_session)
 
 
-# Example of how SystemStage might be defined (if not already available)
-# This is just for context, assuming SystemStage is part of dam.core.stages
-try:
-    from dam.core.stages import SystemStage
-except ImportError:
-    from enum import Enum
-
-    class SystemStage(Enum):  # pragma: no cover
-        INGESTION = "INGESTION"
-        METADATA_EXTRACTION = "METADATA_EXTRACTION"
-        # ... other stages
-        POST_PROCESSING = "POST_PROCESSING"
-        TRANSCODING_QUEUE = "TRANSCODING_QUEUE"  # Example if we had async queue
-        EVALUATION = "EVALUATION"
-        # ... etc.
-
-    print("Note: Using a mock SystemStage enum for transcode_service.py.")

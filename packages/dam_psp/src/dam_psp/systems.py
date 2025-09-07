@@ -1,4 +1,5 @@
 import logging
+from typing import Optional, cast
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.systems import system
@@ -19,7 +20,7 @@ async def psp_iso_metadata_extraction_event_handler_system(
     event: AssetReadyForMetadataExtractionEvent,
     transaction: EcsTransaction,
     world: World,
-):
+) -> None:
     """
     Listens for assets ready for metadata extraction and processes PSP ISOs.
     """
@@ -50,7 +51,7 @@ async def psp_iso_metadata_extraction_command_handler_system(
     command: ExtractPSPMetadataCommand,
     transaction: EcsTransaction,
     world: World,
-):
+) -> None:
     """
     Handles the command to extract metadata from a PSP ISO file.
     """
@@ -68,14 +69,14 @@ async def psp_iso_metadata_extraction_command_handler_system(
             if sfo and sfo.data:
                 sfo_metadata = sfo.data
                 sfo_component = PSPSFOMetadataComponent(
-                    app_ver=sfo_metadata.get("APP_VER"),
-                    bootable=sfo_metadata.get("BOOTABLE"),
-                    category=sfo_metadata.get("CATEGORY"),
-                    disc_id=sfo_metadata.get("DISC_ID"),
-                    disc_version=sfo_metadata.get("DISC_VERSION"),
-                    parental_level=sfo_metadata.get("PARENTAL_LEVEL"),
-                    psp_system_ver=sfo_metadata.get("PSP_SYSTEM_VER"),
-                    title=sfo_metadata.get("TITLE"),
+                    app_ver=cast(Optional[str], sfo_metadata.get("APP_VER")),
+                    bootable=cast(Optional[int], sfo_metadata.get("BOOTABLE")),
+                    category=cast(Optional[str], sfo_metadata.get("CATEGORY")),
+                    disc_id=cast(Optional[str], sfo_metadata.get("DISC_ID")),
+                    disc_version=cast(Optional[str], sfo_metadata.get("DISC_VERSION")),
+                    parental_level=cast(Optional[int], sfo_metadata.get("PARENTAL_LEVEL")),
+                    psp_system_ver=cast(Optional[str], sfo_metadata.get("PSP_SYSTEM_VER")),
+                    title=cast(Optional[str], sfo_metadata.get("TITLE")),
                 )
                 await transaction.add_component_to_entity(entity_id, sfo_component)
 

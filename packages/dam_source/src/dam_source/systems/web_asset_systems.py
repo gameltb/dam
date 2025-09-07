@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Any, Dict
 
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 async def handle_ingest_web_asset_command(
     cmd: IngestWebAssetCommand,
     transaction: EcsTransaction,
-):
+) -> None:
     """
     Handles the command to ingest an asset from a web source.
     Primarily stores metadata and URLs. File download/processing is deferred.
@@ -56,7 +56,8 @@ async def handle_ingest_web_asset_command(
             main_url=cmd.website_identifier_url,
             description=cmd.metadata_payload.get("website_description") if cmd.metadata_payload else None,
         )
-        await transaction.add_component_to_entity(website_entity.id, profile_comp)
+        if website_entity:
+            await transaction.add_component_to_entity(website_entity.id, profile_comp)
 
     # 2. Create Asset Entity
     asset_entity = await transaction.create_entity()
@@ -77,8 +78,8 @@ async def handle_ingest_web_asset_command(
     await transaction.add_component_to_entity(asset_entity.id, osi_comp)
 
     # 4. Create WebSourceComponent for the Asset Entity
-    web_source_data = {
-        "website_entity_id": website_entity.id,
+    web_source_data: Dict[str, Any] = {
+        "website_entity_id": website_entity.id if website_entity else None,
         "source_url": cmd.source_url,
         "original_file_url": cmd.original_file_url,
     }
@@ -125,11 +126,24 @@ async def handle_ingest_web_asset_command(
         k: v for k, v in web_source_data.items() if k in valid_web_source_fields and v is not None
     }
 
-    web_comp = WebSourceComponent(**cleaned_web_source_data)
-    await transaction.add_component_to_entity(asset_entity.id, web_comp)
+    if "website_entity_id" in cleaned_web_source_data and "source_url" in cleaned_web_source_data:
+        web_comp = WebSourceComponent(
+            website_entity_id=cleaned_web_source_data["website_entity_id"],
+            source_url=cleaned_web_source_data["source_url"],
+            original_file_url=cleaned_web_source_data.get("original_file_url"),
+            gallery_id=cleaned_web_source_data.get("gallery_id"),
+            uploader_name=cleaned_web_source_data.get("uploader_name"),
+            uploader_url=cleaned_web_source_data.get("uploader_url"),
+            upload_date=cleaned_web_source_data.get("upload_date"),
+            asset_title=cleaned_web_source_data.get("asset_title"),
+            asset_description=cleaned_web_source_data.get("asset_description"),
+            tags_json=cleaned_web_source_data.get("tags_json"),
+            raw_metadata_dump=cleaned_web_source_data.get("raw_metadata_dump"),
+        )
+        await transaction.add_component_to_entity(asset_entity.id, web_comp)
 
     logger.info(
-        f"Finished IngestWebAssetCommand for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id}) from URL: {cmd.source_url}"
+        f"Finished IngestWebAssetCommand for Asset Entity ID {asset_entity.id} (Website Entity ID {website_entity.id if website_entity else 'N/A'}) from URL: {cmd.source_url}"
     )
 
 

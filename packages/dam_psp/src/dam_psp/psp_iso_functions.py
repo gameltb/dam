@@ -1,8 +1,8 @@
 import struct
 from io import BytesIO
-from typing import Any, BinaryIO, Dict, Optional
+from typing import Any, BinaryIO, Dict, Optional, Union
 
-import pycdlib
+import pycdlib  # type: ignore[import]
 
 
 class SFODataFormat:
@@ -12,7 +12,7 @@ class SFODataFormat:
 
 
 class SFOIndexTableEntry:
-    def __init__(self, raw, offset):
+    def __init__(self, raw: bytes, offset: int) -> None:
         fields = struct.unpack("<HHIII", raw[offset : offset + 0x10])
         self.key_offset = fields[0]
         self.data_fmt = fields[1]
@@ -22,7 +22,7 @@ class SFOIndexTableEntry:
 
 
 class SFO:
-    def __init__(self, raw_sfo: bytes):
+    def __init__(self, raw_sfo: bytes) -> None:
         if raw_sfo[:0x4] != b"\x00PSF":
             raise ValueError("Invalid SFO file format")
 
@@ -32,11 +32,11 @@ class SFO:
 
         self.idx_table = [SFOIndexTableEntry(raw_sfo, 0x14 + idx * 0x10) for idx in range(self.table_entries)]
 
-        self.data: Dict[str, Any] = {}
+        self.data: Dict[str, Union[int, str]] = {}
         for i in range(len(self.idx_table)):
             self._read_entry(raw_sfo, i)
 
-    def _read_entry(self, raw_sfo: bytes, idx: int):
+    def _read_entry(self, raw_sfo: bytes, idx: int) -> None:
         entry = self.idx_table[idx]
 
         k_start = self.key_table_start + entry.key_offset
@@ -50,6 +50,7 @@ class SFO:
         d_end = d_start + entry.data_len
 
         raw_data_bytes = raw_sfo[d_start:d_end]
+        data: Union[int, str]
         if entry.data_fmt == SFODataFormat.INT32:
             data = int.from_bytes(raw_data_bytes, "little")
         else:
@@ -68,7 +69,7 @@ def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
     Returns:
         An SFO object if found, otherwise None.
     """
-    iso = pycdlib.PyCdlib()
+    iso = pycdlib.PyCdlib()  # type: ignore[attr-defined]
     try:
         iso.open_fp(stream)
     except Exception as e:
