@@ -42,6 +42,7 @@ dev = [
     "packaging",
     "grpcio-tools~=1.70.0",
     "mypy-protobuf",
+    "types-PyYAML",
     "cookiecutter",
     "tomli",
     "tomli-w",
