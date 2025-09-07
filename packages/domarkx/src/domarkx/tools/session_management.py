@@ -41,7 +41,7 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
 
     expander = MacroExpander(base_dir=os.path.join(settings.project_path, "templates"))
 
-    override_parameters = {}
+    override_parameters: dict[str, dict[str, Any]] = {}
     for key, value in parameters.items():
         override_parameters[key] = {"value": value}
 

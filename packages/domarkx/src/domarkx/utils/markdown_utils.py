@@ -19,7 +19,7 @@ CODE_BLOCK_REGEX = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DO
 def find_code_blocks(text: str) -> List[CodeBlock]:
     """Finds all code blocks in a Markdown string."""
     matches = CODE_BLOCK_REGEX.finditer(text)
-    results = []
+    results: list[CodeBlock] = []
     for match in matches:
         results.append(
             CodeBlock(
@@ -62,7 +62,7 @@ def find_first_macro(content: str) -> Optional[Macro]:
     # Extract params from URL query
     parsed_params = parse_qs(parsed_url.query)
     # Flatten the lists of params
-    params = {k: v[0] for k, v in parsed_params.items()}
+    params: dict[str, str] = {k: v[0] for k, v in parsed_params.items()}
 
     # Check for a following URL which is treated as a parameter
     match_end = match.end()

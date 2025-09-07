@@ -1,6 +1,6 @@
 import inspect
 import json
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from autogen_core import CancellationToken
 from autogen_core.code_executor import CodeBlock, CodeExecutor
@@ -59,13 +59,15 @@ result = wrapped_tool(**args)
 print(result)
 """
 
-        # Execute the code
-        if hasattr(self.code_executor, "execute_code_block"):
-            execution_result = self.code_executor.execute_code_block(language="python", code=code_to_execute)
+        # Execute the code. autogen_core.CodeExecutor implementations vary; cast to Any
+        executor = cast(Any, self.code_executor)
+        if hasattr(executor, "execute_code_block"):
+            # Some executors provide a sync execute_code_block
+            execution_result: Any = executor.execute_code_block(language="python", code=code_to_execute)
         else:
             cancellation_token = CancellationToken()
             code_block = CodeBlock(code=code_to_execute, language="python")
-            execution_result = await self.code_executor.execute_code_blocks([code_block], cancellation_token)
+            execution_result: Any = await executor.execute_code_blocks([code_block], cancellation_token)
 
         if execution_result.exit_code != 0:
             raise RuntimeError(f"Tool execution failed: {execution_result.output}")

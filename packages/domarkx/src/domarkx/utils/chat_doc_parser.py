@@ -89,7 +89,7 @@ class MarkdownLLMParser:
         # Parse frontmatter
         if lines and lines[0].startswith("---"):
             i = 1
-            yaml_lines = []
+            yaml_lines: list[str] = []
             while i < len(lines) and not lines[i].startswith("---"):
                 yaml_lines.append(lines[i])
                 i += 1
@@ -110,7 +110,7 @@ class MarkdownLLMParser:
 
     def _parse_blocks(self, lines: List[str], start_index: int, target: Union[ParsedDocument, Message]) -> int:
         i = start_index
-        seen_code_blocks = set()
+        seen_code_blocks: set[tuple[Optional[str], Optional[str]]] = set()
 
         while i < len(lines) and not lines[i].startswith("## "):
             if lines[i].startswith("```"):
@@ -166,7 +166,7 @@ class MarkdownLLMParser:
 
     def _parse_blockquote(self, lines: List[str], start_index: int) -> Tuple[int, str]:
         i = start_index
-        content_lines = []
+        content_lines: list[str] = []
         while i < len(lines) and lines[i].startswith(">"):
             content_lines.append(lines[i][1:].lstrip())
             i += 1

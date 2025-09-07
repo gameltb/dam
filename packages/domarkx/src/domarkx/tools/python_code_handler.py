@@ -24,9 +24,9 @@ def resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
     """
     parts = full_symbol.split(".")
     file_path = None
-    internal_symbol_parts = []
+    internal_symbol_parts: list[str] = []
 
-    current_module_path_elements = []
+    current_module_path_elements: list[str] = []
     module_found = False
 
     for i, part in enumerate(parts):
@@ -110,15 +110,15 @@ class LibCstEditor:
         if modified_tree.deep_equals(self.module):
             operation_performed = False
             # Check for specific flags from the transformer if it indicates action
-            if hasattr(transformer, "updated") and transformer.updated:
+            if getattr(transformer, "updated", False):
                 operation_performed = True
-            elif hasattr(transformer, "created") and transformer.created:
+            elif getattr(transformer, "created", False):
                 operation_performed = True
-            elif hasattr(transformer, "deleted") and transformer.deleted:
+            elif getattr(transformer, "deleted", False):
                 operation_performed = True
 
             if not operation_performed:
-                if hasattr(transformer, "found_target") and not transformer.found_target:
+                if not getattr(transformer, "found_target", True):
                     raise ValueError("Operation failed: Target node not found.")
                 else:
                     raise ValueError(
@@ -498,7 +498,7 @@ def _handle_list_mode_by_path(
     """
     Handles the logic for list mode when the path argument is provided (uses libcst).
     """
-    files_to_process = []
+    files_to_process: list[str] = []
     if os.path.isfile(file_path):
         files_to_process = [file_path]
     elif os.path.isdir(file_path):
@@ -509,7 +509,7 @@ def _handle_list_mode_by_path(
     else:
         raise ValueError(f"Path '{file_path}' is neither a file nor a directory.")
 
-    output = []
+    output: list[str] = []
     for current_file_path in files_to_process:
         if not current_file_path.lower().endswith(".py"):
             output.append(f"File: {current_file_path} (Not a Python file, skipping)")
@@ -552,7 +552,7 @@ def _handle_list_mode_by_path(
                     self.node_stack.pop()
 
             def _get_current_symbol_path(self, node_name: str) -> str:
-                path_parts = []
+                path_parts: list[str] = []
                 for n in self.node_stack[:-1]:
                     if isinstance(n, cst.ClassDef):
                         path_parts.append(n.name.value)
@@ -602,14 +602,17 @@ def _handle_list_mode_by_path(
                     self.found_specific_target = True
 
                 position_data = self.get_metadata(PositionProvider, node)
-                start_line_num = position_data.start.line
+                start = getattr(position_data, "start", None)
+                start_line_num = getattr(start, "line", -1)
 
                 docstring = ""
                 full_code = ""
                 # --- Docstring Extraction Logic ---
                 if self.detail_level in ["with_docstring", "full_definition"]:
                     if isinstance(node, (cst.FunctionDef, cst.ClassDef, cst.Module)):
-                        docstring = f"\n    --- Docstring ---\n{node.get_docstring()}"  # type: ignore[attr-defined]
+                        get_doc = getattr(node, "get_docstring", None)
+                        if callable(get_doc):
+                            docstring = f"\n    --- Docstring ---\n{get_doc()}"  # type: ignore[arg-type]
 
                 # --- Full Source Code Extraction Logic ---
                 if self.detail_level == "full_definition":

@@ -79,7 +79,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 raise ValueError("Invalid diff format: SEARCH block missing '-------' separator after start line.")
             current_line_in_diff += 1
 
-            search_content_lines = []
+            search_content_lines: list[str] = []
             while current_line_in_diff < len(diff_lines) and not re.fullmatch(
                 r"\s*=======\s*", diff_lines[current_line_in_diff].strip()
             ):
@@ -93,7 +93,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 raise ValueError("Invalid diff format: SEARCH content missing '=======' separator.")
             current_line_in_diff += 1
 
-            replace_content_lines = []
+            replace_content_lines: list[str] = []
             while current_line_in_diff < len(diff_lines):
                 line = diff_lines[current_line_in_diff]
                 if re.fullmatch(r"\s*>{5,9} ?REPLACE\s*", line.strip()):
@@ -110,7 +110,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
 
             start_idx = start_line_num - 1
             # Use splitlines(keepends=True) to preserve original line endings for accurate comparison
-            normalized_search_lines = search_content.splitlines(keepends=True)
+            normalized_search_lines: list[str] = search_content.splitlines(keepends=True)
 
             if start_idx < 0 or start_idx > len(original_lines):
                 raise ValueError(
@@ -146,10 +146,10 @@ def apply_diff_tool(path: str, diff: str) -> str:
                         break
 
             if not found_match:
-                mismatch_info = []
+                mismatch_info: list[str] = []
                 actual_content_for_error = original_lines[start_idx : min(start_idx + search_len, original_len)]
-                actual_stripped_for_error = [line.strip() for line in actual_content_for_error]
-                search_stripped_for_error = [line.strip() for line in normalized_search_lines]
+                actual_stripped_for_error: list[str] = [line.strip() for line in actual_content_for_error]
+                search_stripped_for_error: list[str] = [line.strip() for line in normalized_search_lines]
 
                 max_len = max(len(actual_stripped_for_error), len(search_stripped_for_error))
                 for i in range(max_len):

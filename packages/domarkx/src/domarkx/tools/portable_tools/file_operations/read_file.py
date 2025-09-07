@@ -56,7 +56,7 @@ def tool_read_file(
                 lines = f.readlines()
             logging.info(f"Successfully read {len(lines)} lines from file '{file_path}'.")
 
-            output_lines = []
+            output_lines: list[str] = []
             start_idx = (s_line - 1) if s_line is not None and s_line > 0 else 0
             end_idx = e_line if e_line is not None and e_line > 0 else len(lines)
             start_idx = max(0, min(start_idx, len(lines)))
@@ -86,7 +86,7 @@ def tool_read_file(
             raise Exception(error_msg)
 
     def _read_multiple_files(file_list: List[str]) -> str:
-        results = []
+        results: list[str] = []
         for file_item in sorted(file_list):
             try:
                 file_content = _read_single_file(file_item, None, None)
