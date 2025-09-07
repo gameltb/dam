@@ -53,7 +53,9 @@ def do_extract_code_to_file(
             # If the comment IS the path, we usually want to strip it for Python/other similar files.
             break
 
-    filepath_extracted = PromptSession().prompt("filepath > ", default=filepath_extracted if filepath_extracted else "")
+    filepath_extracted = PromptSession[Optional[str]]().prompt(
+        "filepath > ", default=filepath_extracted if filepath_extracted else ""
+    )
 
     if filepath_extracted:
         # Construct full path relative to the output_base_dir

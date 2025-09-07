@@ -55,7 +55,7 @@ def init_project(
 
 def register(app: typer.Typer, settings: Settings) -> None:
     @app.command(name="init")
-    def init_command(
+    def init_command(  # type: ignore
         project_path: str = typer.Option(
             settings.DOMARKX_PROJECT_PATH,
             "--path",

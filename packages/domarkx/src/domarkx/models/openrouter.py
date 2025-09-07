@@ -30,7 +30,7 @@ from autogen_ext.models._utils.normalize_stop_reason import normalize_stop_reaso
 from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.models.openai._openai_client import (
-    _add_usage,
+    _add_usage,  # pyright: ignore[reportPrivateUsage]
     logger,
 )
 from openai.types.chat import (

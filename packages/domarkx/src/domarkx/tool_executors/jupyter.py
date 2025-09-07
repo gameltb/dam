@@ -26,7 +26,7 @@ class JupyterToolExecutor:
 
     async def execute(self, tool_func: Callable[..., Any], **kwargs: Any) -> Any:
         if hasattr(tool_func, "__source_code__"):
-            tool_source = tool_func.__source_code__
+            tool_source = tool_func.__source_code__  # type: ignore
         else:
             tool_module = inspect.getmodule(tool_func)
             if tool_module is None:

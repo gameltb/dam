@@ -91,7 +91,7 @@ async def aexec_doc(
         elif len(session.messages) == 0 or (
             latest_msg is not None and latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
         ):
-            task_msg = await PromptSession().prompt_async(
+            task_msg = await PromptSession[Optional[str]]().prompt_async(
                 "task > ",
                 multiline=PROMPT_TOOLKIT_IS_MULTILINE_CONDITION,
                 bottom_toolbar=lambda: "press Alt+Enter in order to accept the input. (Or Escape followed by Enter.)"
@@ -114,7 +114,7 @@ async def aexec_doc(
 
         if handle_one_toolcall:
             break
-        user_input: Optional[str] = await PromptSession().prompt_async("input r to continue > ")
+        user_input = await PromptSession[Optional[str]]().prompt_async("input r to continue > ")
         if user_input is not None:
             user_input = user_input.strip().lower()
             if len(user_input) != 0 and user_input != "r":

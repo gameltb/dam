@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 import difflib
 import importlib.util
 import inspect

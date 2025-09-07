@@ -55,7 +55,7 @@ class AutoGenSession(Session):
     def _process_initial_messages(self) -> None:
         if self.doc.conversation:
             self.system_message = self.doc.conversation[0].content or "You are a helpful AI assistant. "
-            if self.system_message is None or len(self.system_message) == 0:
+            if len(self.system_message) == 0:
                 self.system_message = "You are a helpful AI assistant. "
         else:
             self.system_message = "You are a helpful AI assistant. "

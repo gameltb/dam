@@ -209,7 +209,7 @@ async def Console(
                     total_usage.completion_tokens += message.models_usage.completion_tokens
                     total_usage.prompt_tokens += message.models_usage.prompt_tokens
                 if not exit_after_one_toolcall and isinstance(message, ToolCallRequestEvent):
-                    user_input: str = await PromptSession().prompt_async("ToolCallRequestEvent > ")
+                    user_input = await PromptSession[str]().prompt_async("ToolCallRequestEvent > ")
                     user_input = user_input.strip().lower()
                     if len(user_input) != 0 and user_input != "d" and user_input != "do":
                         return last_processed

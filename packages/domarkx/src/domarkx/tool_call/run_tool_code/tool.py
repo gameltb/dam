@@ -6,7 +6,7 @@ from rich.console import Console
 
 from ...utils.no_border_rich_tracebacks import NoBorderTraceback
 
-REGISTERED_TOOLS = {}
+REGISTERED_TOOLS: dict[str, Callable[..., Any]] = {}
 
 
 # 初始化一个Console实例，输出到StringIO以捕获内容

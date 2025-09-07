@@ -40,7 +40,7 @@ def do_run_code_action(
         try:
             tool_name, result = execute_tool_call(tool_call)
         except Exception as e:
-            tool_name = tool_call.get("tool_name")
+            tool_name = tool_call.get("tool_name", "")
             result = str(e)
         if tool_name in ["thinking"]:
             continue

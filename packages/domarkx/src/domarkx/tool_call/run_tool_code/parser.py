@@ -30,7 +30,7 @@ def parse_tool_calls(message: str) -> list[dict[str, Any]]:
         >>> parse_tool_calls("<tool3><paramC>valueC")  # 缺少工具结束标签
         [{'tool_name': 'tool3', 'parameters': {'paramC': 'valueC'}}]
     """
-    tool_calls = []
+    tool_calls: list[dict[str, Any]] = []
 
     idx = 0
     while idx < len(message):
