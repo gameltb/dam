@@ -35,7 +35,10 @@ async def generate_embedding(
             params.pop("dimensions", None)
         model = SentenceTransformer(model_name, **(params or {}))
         with sire_resource.auto_manage(model) as managed_model_wrapper:
-            managed_model = managed_model_wrapper.user.manage_object
+            managed_model = managed_model_wrapper.get_manage_object()
+            if managed_model is None:
+                logger.error("Managed model is None, cannot encode text.")
+                return None
             embedding = managed_model.encode(text, convert_to_numpy=True)
         return embedding
     except Exception as e:

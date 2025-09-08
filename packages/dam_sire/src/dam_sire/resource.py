@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Callable, ContextManager, Type
 
-from sire.core.runtime_resource_management import AutoManageWrapper, get_management
+from sire.core.runtime_resource_management import AutoManageWrapper, auto_manage, get_management
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,4 @@ class SireResource:
 
     @property
     def auto_manage(self) -> Callable[..., ContextManager[AutoManageWrapper[Any]]]:
-        from sire.core.runtime_resource_management import auto_manage
-
         return auto_manage

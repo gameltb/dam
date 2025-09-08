@@ -123,8 +123,8 @@ mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
 check-full = ["fmt", "lint", "pyright", "mypy", "test"]
-check = ["fmt", "lint", "test"]
-check-ci = ["fmt", "lint", "test-cov"]
+check = ["fmt", "lint", "pyright", "test"]
+check-ci = ["fmt", "lint", "pyright", "test-cov"]
 
 [tool.pytest.ini_options]
 addopts = "-p no:serial"

@@ -1,11 +1,10 @@
-# type: ignore
 import contextlib
 import weakref
-from typing import Any, Generic, Iterator, Optional, TypeVar
+from typing import Any, Generic, Iterator, Optional, TypeVar, cast
 
 import torch
 from accelerate.hooks import ModelHook, add_hook_to_module
-from accelerate.utils import send_to_device
+from accelerate.utils import send_to_device  # type: ignore
 
 from ..utils.runtime_resource_util import clear_device_cache_and_libc_alloc
 from .context import sire_inference_context
@@ -17,7 +16,7 @@ T = TypeVar("T")
 
 class AutoManageWrapper(Generic[T]):
     type_wrapper_map: dict[type, type] = {}
-    wrapper_obj_map: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+    wrapper_obj_map: weakref.WeakKeyDictionary[Any, ResourcePoolUserABC[Any]] = weakref.WeakKeyDictionary()
 
     def __init__(self, obj: Any, **kwargs: Any) -> None:
         if not isinstance(obj, ResourcePoolUserABC):
@@ -31,7 +30,7 @@ class AutoManageWrapper(Generic[T]):
             if user is None:
                 raise NotImplementedError()
         else:
-            user = obj
+            user = cast(ResourcePoolUserABC[Any], obj)
         assert user is not None
         self.user: ResourcePoolUserABC[T] = user
         get_management().clean_user()
@@ -69,9 +68,9 @@ def auto_manage(obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
                   (e.g., `inference_memory_estimator` for a `TorchModuleWrapper`).
     """
     if isinstance(obj, AutoManageWrapper):
-        am = obj
+        am = cast(AutoManageWrapper[Any], obj)
     else:
-        am = AutoManageWrapper(obj, **kwargs)
+        am = AutoManageWrapper(obj, **kwargs)  # type: ignore
     try:
         # Note: Loading is no longer done automatically on entry.
         # The user should call am.load() explicitly if not using a hook.
@@ -81,7 +80,7 @@ def auto_manage(obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
 
 
 class AutoManageHook(ModelHook):
-    cache_hook_map: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+    cache_hook_map: weakref.WeakKeyDictionary[Any, "AutoManageHook"] = weakref.WeakKeyDictionary()
 
     def __init__(self, am: AutoManageWrapper[Any]):
         self.am = am
@@ -95,7 +94,7 @@ class AutoManageHook(ModelHook):
         self.am.load()
         return send_to_device(args, self.am.get_execution_device()), send_to_device(
             kwargs, self.am.get_execution_device()
-        )
+        )  # type: ignore
 
     def post_forward(self, module: torch.nn.Module, output: Any) -> Any:
         self.am.offload()
@@ -107,11 +106,10 @@ class AutoManageHook(ModelHook):
     @classmethod
     def manage_module(cls, module: torch.nn.Module) -> "AutoManageHook":
         # If a user for this module already exists in the central map, do nothing.
-        if module in AutoManageWrapper.wrapper_obj_map:
-            # Return the existing hook if possible, or None
-            return cls.cache_hook_map.get(module, None)
+        hook = cls.cache_hook_map.get(module)
+        if hook is not None:
+            return hook
 
-        hook = cls.cache_hook_map.get(module, None)
         if hook is None or getattr(module, "_hf_hook", None) is None:
             hook = cls(AutoManageWrapper(module))
             add_hook_to_module(module, hook, append=True)
@@ -125,7 +123,7 @@ class ResourcePoolManagement:
         self.user_pool_map: dict[ResourcePoolUserABC[Any], list[ResourcePool]] = {}
 
     def get_resource_pool(self, device: resources_device) -> Optional[ResourcePool]:
-        if device.type != "cpu" and device.index is None:
+        if device.type != "cpu" and device.index is None:  # type: ignore
             device = resources_device(device.type, 0)
         return self.resource_pools.get(device, None)
 
