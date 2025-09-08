@@ -1,6 +1,14 @@
 import logging
 import os
 import sys
+from typing import Dict, Optional, TypedDict
+
+
+class LevelConfig(TypedDict):
+    level_color: str
+    message_color: str
+    path_color: str
+    width: int
 
 
 class LoggerFormatter(logging.Formatter):
@@ -16,7 +24,7 @@ class LoggerFormatter(logging.Formatter):
         "reset": "\033[0m",
     }
 
-    LEVEL_CONFIGS = {
+    LEVEL_CONFIGS: Dict[int, LevelConfig] = {
         logging.DEBUG: {
             "level_color": "grey",
             "message_color": "grey",
@@ -49,13 +57,13 @@ class LoggerFormatter(logging.Formatter):
         },
     }
 
-    def __init__(self, project_root=None):
+    def __init__(self, project_root: Optional[str] = None):
         super().__init__()
         self.project_root = project_root or os.getcwd()
-        self._formatters = self._compile_formatters()
+        self._formatters: Dict[int, logging.Formatter] = self._compile_formatters()
 
-    def _compile_formatters(self):
-        formatters = {}
+    def _compile_formatters(self) -> Dict[int, logging.Formatter]:
+        formatters: Dict[int, logging.Formatter] = {}
         base_fmt = (
             "{grey}%(asctime)s{reset} "
             "[{level_color}%(levelname).1s{reset}] "
@@ -77,14 +85,14 @@ class LoggerFormatter(logging.Formatter):
             formatters[level] = logging.Formatter(fmt=fmt, datefmt="%y-%m-%d %H:%M:%S")
         return formatters
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         if self.project_root and record.pathname.startswith(self.project_root):
             record.pathname = os.path.relpath(record.pathname, self.project_root)
         formatter = self._formatters.get(record.levelno, self._formatters[logging.DEBUG])
         return formatter.format(record)
 
 
-def setup_logger(name=None):
+def setup_logger(name: Optional[str] = None) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 

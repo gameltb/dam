@@ -14,10 +14,10 @@ from domarkx.utils.markdown_utils import CodeBlock
 @dataclass
 class Message:
     speaker: str
-    code_blocks: List[CodeBlock] = field(default_factory=list)
+    code_blocks: list[CodeBlock] = field(default_factory=lambda: [])
     content: Optional[str] = None
 
-    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> List[CodeBlock]:
+    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> list[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks
@@ -35,8 +35,8 @@ class Message:
 @dataclass
 class ParsedDocument:
     global_metadata: dict[str, Any] = field(default_factory=lambda: {})
-    code_blocks: List[CodeBlock] = field(default_factory=list)
-    conversation: List[Message] = field(default_factory=list)
+    code_blocks: list[CodeBlock] = field(default_factory=lambda: [])
+    conversation: list[Message] = field(default_factory=lambda: [])
 
     def to_markdown(self) -> str:
         """Serializes the document back to a markdown string."""
@@ -57,7 +57,7 @@ class ParsedDocument:
 
         return writer.getvalue()
 
-    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> List[CodeBlock]:
+    def get_code_blocks(self, language: Optional[str] = None, attrs: Optional[str] = None) -> list[CodeBlock]:
         return [
             cb
             for cb in self.code_blocks

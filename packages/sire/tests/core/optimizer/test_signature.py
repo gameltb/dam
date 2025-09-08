@@ -5,16 +5,16 @@ from sire.core.optimizer.signature import ConfigSignatureGenerator
 
 
 class SimpleModel(nn.Module):
-    def __init__(self):
-        super().__init__()
+    def __init__(self) -> None:
+        super().__init__()  # type: ignore
         self.linear1 = nn.Linear(10, 20)
         self.linear2 = nn.Linear(20, 5)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.linear2(self.linear1(x))
 
 
-def test_signature_generator_consistency():
+def test_signature_generator_consistency() -> None:
     """
     Tests that the signature generator produces the same signature for the same inputs.
     """
@@ -24,13 +24,13 @@ def test_signature_generator_consistency():
     kwargs = {"an_option": True}
     dtype = torch.float32
 
-    sig1, _ = gen.generate_config_signature(model, args, kwargs, dtype)
-    sig2, _ = gen.generate_config_signature(model, args, kwargs, dtype)
+    sig1, _ = gen.generate_config_signature(model, args, kwargs, dtype)  # type: ignore
+    sig2, _ = gen.generate_config_signature(model, args, kwargs, dtype)  # type: ignore
 
     assert sig1 == sig2
 
 
-def test_signature_generator_input_change_sensitivity():
+def test_signature_generator_input_change_sensitivity() -> None:
     """
     Tests that the signature changes when model inputs change.
     """
@@ -40,24 +40,24 @@ def test_signature_generator_input_change_sensitivity():
 
     args1 = (torch.randn(8, 10),)
     kwargs1 = {"an_option": True}
-    sig1, _ = gen.generate_config_signature(model, args1, kwargs1, dtype)
+    sig1, _ = gen.generate_config_signature(model, args1, kwargs1, dtype)  # type: ignore
 
     # Change args shape
     args2 = (torch.randn(16, 10),)
     kwargs2 = {"an_option": True}
-    sig2, _ = gen.generate_config_signature(model, args2, kwargs2, dtype)
+    sig2, _ = gen.generate_config_signature(model, args2, kwargs2, dtype)  # type: ignore
 
     # Change kwargs value
     args3 = (torch.randn(8, 10),)
     kwargs3 = {"an_option": False}
-    sig3, _ = gen.generate_config_signature(model, args3, kwargs3, dtype)
+    sig3, _ = gen.generate_config_signature(model, args3, kwargs3, dtype)  # type: ignore
 
     assert sig1 != sig2
     assert sig1 != sig3
     assert sig2 != sig3
 
 
-def test_signature_generator_model_change_sensitivity():
+def test_signature_generator_model_change_sensitivity() -> None:
     """
     Tests that the signature changes when the model changes.
     """
@@ -67,23 +67,23 @@ def test_signature_generator_model_change_sensitivity():
     dtype = torch.float32
 
     model1 = SimpleModel()
-    sig1, _ = gen.generate_config_signature(model1, args, kwargs, dtype)
+    sig1, _ = gen.generate_config_signature(model1, args, kwargs, dtype)  # type: ignore
 
     # Same architecture, but different weights
     model2 = SimpleModel()
-    sig2, _ = gen.generate_config_signature(model2, args, kwargs, dtype)
+    sig2, _ = gen.generate_config_signature(model2, args, kwargs, dtype)  # type: ignore
 
     # Different architecture
     class DifferentModel(nn.Module):
-        def __init__(self):
-            super().__init__()
+        def __init__(self) -> None:
+            super().__init__()  # type: ignore
             self.linear = nn.Linear(10, 5)
 
-        def forward(self, x):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
             return self.linear(x)
 
     model3 = DifferentModel()
-    sig3, _ = gen.generate_config_signature(model3, args, kwargs, dtype)
+    sig3, _ = gen.generate_config_signature(model3, args, kwargs, dtype)  # type: ignore
 
     # Models 1 and 2 have different weights, so their weight hash should differ,
     # resulting in different final signatures.
@@ -91,7 +91,7 @@ def test_signature_generator_model_change_sensitivity():
     assert sig1 != sig3
 
 
-def test_plan_identifier_generator():
+def test_plan_identifier_generator() -> None:
     """
     Tests the generation of the plan identifier based on memory constraints.
     """

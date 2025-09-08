@@ -1,6 +1,10 @@
+from typing import Any, List, Union
+from unittest.mock import MagicMock
+
 import numpy as np
 import pytest
 import torch
+from dam_sire.resource import SireResource
 
 # ModelExecutionManager fixture from conftest.py
 from dam_semantic import semantic_functions
@@ -28,8 +32,8 @@ assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or cl
 
 
 class MockSentenceTransformer(torch.nn.Module):
-    def __init__(self, model_name_or_path=None, **kwargs):
-        super().__init__()
+    def __init__(self, model_name_or_path: str = "", **kwargs: Any):
+        super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
             self.dim = 512
@@ -38,14 +42,16 @@ class MockSentenceTransformer(torch.nn.Module):
         else:
             self.dim = 384
 
-    def forward(self, features):
+    def forward(self, features: Any) -> Any:
         return features
 
-    def encode(self, sentences, convert_to_numpy=True, **kwargs):
+    def encode(
+        self, sentences: Union[str, List[str]], convert_to_numpy: bool = True, **kwargs: Any
+    ) -> Union[np.ndarray, List[Any]]:
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
-        embeddings = []
+        embeddings: List[np.ndarray] = []
         for s in sentences:
             if not s or not s.strip():
                 embeddings.append(np.zeros(self.dim, dtype=np.float32))
@@ -66,16 +72,23 @@ class MockSentenceTransformer(torch.nn.Module):
                 vec = np.array([], dtype=np.float32)
             embeddings.append(vec)
         if not convert_to_numpy:
-            embeddings = [e.tolist() for e in embeddings]
+            embeddings_list: List[Any] = [e.tolist() for e in embeddings]
+            if original_sentences_type is str:
+                return embeddings_list[0] if embeddings_list else []
+            return embeddings_list
         if original_sentences_type is str:
             return embeddings[0] if embeddings else np.array([])
         else:
-            return np.array(embeddings) if convert_to_numpy else embeddings
+            return np.array(embeddings)
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_and_conversion(monkeypatch):
-    async def mock_generate_embedding(sire_resource, text, model_name, params):
+async def test_generate_embedding_and_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
+    sire_resource_mock = MagicMock(spec=SireResource)
+
+    async def mock_generate_embedding(
+        sire_resource: SireResource, text: str, model_name: str, params: Any
+    ) -> Union[np.ndarray, None]:
         if not text or not text.strip():
             return None
         if model_name == TEST_MODEL_MINILM:
@@ -89,7 +102,7 @@ async def test_generate_embedding_and_conversion(monkeypatch):
     text = "Hello world"
     # Test with MiniLM
     embedding_minilm_np = await semantic_functions.generate_embedding(
-        None,
+        sire_resource_mock,
         text,
         model_name=TEST_MODEL_MINILM,
         params=TEST_PARAMS_MINILM,
@@ -100,7 +113,7 @@ async def test_generate_embedding_and_conversion(monkeypatch):
 
     # Test with CLIP
     embedding_clip_np = await semantic_functions.generate_embedding(
-        None,
+        sire_resource_mock,
         text,
         model_name=TEST_MODEL_CLIP,
         params=TEST_PARAMS_CLIP,
@@ -112,12 +125,14 @@ async def test_generate_embedding_and_conversion(monkeypatch):
     assert not np.array_equal(embedding_minilm_np, embedding_clip_np)
 
     assert (
-        await semantic_functions.generate_embedding(None, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM)
+        await semantic_functions.generate_embedding(
+            sire_resource_mock, "", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
+        )
         is None
     )
     assert (
         await semantic_functions.generate_embedding(
-            None, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
+            sire_resource_mock, "   ", model_name=TEST_MODEL_MINILM, params=TEST_PARAMS_MINILM
         )
         is None
     )

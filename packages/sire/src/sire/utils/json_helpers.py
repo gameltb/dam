@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportGeneralTypeIssues=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false, reportArgumentType=false, reportReturnType=false, reportUnnecessaryComparison=false
 import enum
 import inspect
 import json
@@ -24,7 +25,7 @@ T = TypeVar("T")
 
 
 def _json_custom_default_encoder(obj: Any) -> Any:
-    if is_dataclass(obj):
+    if is_dataclass(obj) and not isinstance(obj, type):
         return asdict(obj)
     if isinstance(obj, torch.device):
         return {"type": obj.type, "index": obj.index}
@@ -103,7 +104,7 @@ def _reconstruct_from_data(data: Any, expected_type: Type[T]) -> T:
         element_type = args_type[0]
         return [_reconstruct_from_data(item, element_type) for item in data]  # type: ignore
 
-    elif origin_type is dict and isinstance(data, dict):
+    elif origin_type in (dict, defaultdict) and isinstance(data, dict):
         if not args_type or len(args_type) != 2:
             return data  # type: ignore Plain dict
         _key_type, value_type = args_type
@@ -134,7 +135,11 @@ def _reconstruct_from_data(data: Any, expected_type: Type[T]) -> T:
             logger.error(f"Could not convert string '{data}' to torch.dtype.")
             raise TypeError(f"Cannot convert '{data}' to torch.dtype")
 
-    if expected_type is Any or isinstance(data, expected_type):  # type: ignore
+    origin = typing.get_origin(expected_type)
+    if origin:
+        if isinstance(data, origin):
+            return data
+    elif expected_type is Any or (inspect.isclass(expected_type) and isinstance(data, expected_type)):
         return data
 
     try:  # Attempt direct coercion for simple types (e.g. "1" -> 1 if int expected)

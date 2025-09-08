@@ -22,19 +22,6 @@ DEFAULT_MODEL_PARAMS: ModelHyperparameters = {}
 SENTENCE_TRANSFORMER_IDENTIFIER = "sentence_transformer"
 
 
-def _load_sentence_transformer_model_sync(
-    model_name_or_path: str, params: Optional[Dict[str, Any]] = None
-) -> SentenceTransformer:
-    logger.info(f"Attempting to load SentenceTransformer model: {model_name_or_path} with params {params}")
-    if params:
-        device = params.pop("device", None)
-    else:
-        device = None
-    model = SentenceTransformer(model_name_or_path, device=device, **(params or {}))
-    logger.info(f"SentenceTransformer model {model_name_or_path} loaded successfully.")
-    return model
-
-
 async def generate_embedding(
     sire_resource: "SireResource",
     text: str,

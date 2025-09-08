@@ -22,7 +22,7 @@ def get_sire_inference_context() -> Optional[Dict[str, Any]]:
 
 
 @contextlib.contextmanager
-def sire_inference_context_manager(*args, **kwargs):
+def sire_inference_context_manager(*args: Any, **kwargs: Any):
     """
     A context manager to set the inference context for the duration of a `with` block.
     """

@@ -171,7 +171,7 @@ class ToolFactory:
             @property
             def source_code(self) -> str:
                 if hasattr(self.fn, "__source_code__"):
-                    return str(self.fn.__source_code__)
+                    return str(getattr(self.fn, "__source_code__"))
                 try:
                     return inspect.getsource(self.fn)
                 except TypeError:

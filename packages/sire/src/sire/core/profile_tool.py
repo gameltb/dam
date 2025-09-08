@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import copy
 import csv
@@ -9,22 +11,24 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from typing import (
     Any,
+    DefaultDict,
     Dict,
     List,
     Optional,
     Tuple,
+    cast,
 )
 
 import torch
 import torch.nn as nn
-from accelerate import dispatch_model
+from accelerate import dispatch_model  # type: ignore
 from accelerate.hooks import (
     ModelHook,
     add_hook_to_module,
     clear_device_cache,
 )
 from accelerate.utils import (
-    find_device,
+    find_device,  # type: ignore
 )
 
 from ..utils import human_readable_filesize
@@ -51,7 +55,7 @@ class InferenceMemorySizeCSVPoint:
     model_dtype: str = ""
 
 
-def csv_dump(objects, filename):
+def csv_dump(objects: List[Any], filename: str):
     with open(filename, "w") as f:
         flds = [fld.name for fld in fields(objects[0])]
         w = csv.DictWriter(f, flds)
@@ -59,7 +63,7 @@ def csv_dump(objects, filename):
         w.writerows([asdict(object) for object in objects])
 
 
-def csv_load(object_cls, filename):
+def csv_load(object_cls: type, filename: str) -> List[Any]:
     with open(filename, "r") as f:
         results = csv.DictReader(f)
         return [object_cls(**result) for result in results]
@@ -79,32 +83,30 @@ def profile_torch():
     ) as prof:
         yield
 
-    prof.export_memory_timeline(os.path.join(PROF_OUT_DIR, f"{timestamp}.json"), device="cuda:0")
-    prof.mem_tl.export_memory_timeline_html(os.path.join(PROF_OUT_DIR, f"{timestamp}.html"), device_str="cuda:0")
-    prof.mem_tl.export_memory_timeline_raw(os.path.join(PROF_OUT_DIR, f"{timestamp}.raw.json"), device_str="cuda:0")
+    prof.export_chrome_trace(os.path.join(PROF_OUT_DIR, f"{timestamp}.json"))
 
 
 @contextlib.contextmanager
-def record_cuda_memory_history():
+def record_cuda_memory_history():  # type: ignore
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT: int = 100000
 
-    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)
+    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)  # type: ignore
 
     try:
         yield
     finally:
         try:
-            torch.cuda.memory._dump_snapshot(os.path.join(PROF_OUT_DIR, f"{timestamp}.pickle"))
+            torch.cuda.memory._dump_snapshot(os.path.join(PROF_OUT_DIR, f"{timestamp}.pickle"))  # type: ignore
         except Exception as e:
             _logger.error(f"Failed to capture memory snapshot {e}")
 
         # Stop recording memory snapshot history.
-        torch.cuda.memory._record_memory_history(enabled=None)
+        torch.cuda.memory._record_memory_history(enabled=None)  # type: ignore
 
 
 @contextlib.contextmanager
-def memory_stats(kwargs=None):
+def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     # When dynamic weights are not involved, we can use this simple method to determine how much memory we need.
     # When the weights are only transferred when needed,
@@ -143,7 +145,7 @@ def memory_stats(kwargs=None):
             latent_image = kwargs.get("latent_image", None)
 
             if latent_image is not None:
-                B, C, H, W = latent_image["samples"].shape
+                B, _, H, W = latent_image["samples"].shape
                 point.batch_size = B
                 point.width = W
                 point.height = H
@@ -162,8 +164,8 @@ def memory_stats(kwargs=None):
 
 @dataclass
 class ModuleStats:
-    exec_times: List[float] = field(default_factory=list)
-    peak_vram_usages: List[int] = field(default_factory=list)
+    exec_times: List[float] = field(default_factory=list)  # type: ignore
+    peak_vram_usages: List[int] = field(default_factory=list)  # type: ignore
     weight_size: int = 0
 
 
@@ -179,18 +181,18 @@ class AverageModuleStats:
 
 @dataclass
 class AverageProfilingStats:
-    avg_module_stats: Dict[str, AverageModuleStats] = field(default_factory=dict)
-    avg_move_times: Dict[str, float] = field(default_factory=dict)
-    execution_order: List[str] = field(default_factory=list)
-    module_vram_footprint: Dict[str, int] = field(default_factory=dict)
+    avg_module_stats: Dict[str, AverageModuleStats] = field(default_factory=dict)  # type: ignore
+    avg_move_times: Dict[str, float] = field(default_factory=dict)  # type: ignore
+    execution_order: List[str] = field(default_factory=list)  # type: ignore
+    module_vram_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
 
 
 @dataclass
 class ProfilingData:
-    module_stats: Dict[str, ModuleStats] = field(default_factory=dict)
-    move_times: Dict[str, List[float]] = field(default_factory=dict)
-    execution_order: List[str] = field(default_factory=list)
-    module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)
+    module_stats: DefaultDict[str, ModuleStats] = field(default_factory=lambda: defaultdict(ModuleStats))
+    move_times: DefaultDict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
+    execution_order: List[str] = field(default_factory=list)  # type: ignore
+    module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
 
     def __post_init__(self):
         self.module_stats = defaultdict(ModuleStats, self.module_stats or {})
@@ -222,7 +224,7 @@ class ProfilingData:
             peak_vram_delta = max(stats_data.peak_vram_usages) if stats_data.peak_vram_usages else 0
             self.module_VRAM_footprint[name] = stats_data.weight_size + peak_vram_delta
 
-    def get_avg_stats(self) -> "AverageProfilingStats":
+    def get_avg_stats(self) -> AverageProfilingStats:
         avg_stats_map = {
             name: AverageModuleStats(
                 avg_exec_time=sum(data.exec_times) / len(data.exec_times) if data.exec_times else 0.0,
@@ -243,7 +245,7 @@ class ProfilingData:
         save_to_json_file(self, filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> Optional["ProfilingData"]:
+    def load(cls, filepath: str) -> ProfilingData | None:
         instance = load_from_json_file(filepath, cls)
         if isinstance(instance, cls):
             instance.__post_init__()
@@ -277,8 +279,8 @@ def _profile_run_context(data_store: ProfilingData):
 
 
 def get_module_size(module: nn.Module, include_children: bool = True) -> int:
-    s = sum(p.numel() * p.element_size() for p in module.parameters(False) if p is not None and p.device.type != "meta")
-    s += sum(b.numel() * b.element_size() for b in module.buffers(False) if b is not None and b.device.type != "meta")
+    s = sum(p.numel() * p.element_size() for p in module.parameters(False) if p.device.type != "meta")
+    s += sum(b.numel() * b.element_size() for b in module.buffers(False) if b.device.type != "meta")
     if include_children:
         s += sum(get_module_size(c, True) for c in module.children())
     return s
@@ -306,7 +308,7 @@ def infer_fine_grained_device_map(
         is_frozen = any(path.startswith(p + ".") for p in frozen if p)
         if is_frozen:
             pass
-        elif cls_name in no_split:
+        elif cls_name in (no_split or []):
             if path:
                 dev_map[path] = default_dev
                 frozen.add(path)
@@ -337,10 +339,10 @@ class Profiler:
 
     def run(
         self,
-        *args,
+        *args: Any,
         no_split_module_classes: Optional[List[str]] = None,
         max_memory: Optional[Dict[str, int]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ProfilingData:
         """
         Runs a profiling pass on the module.
@@ -379,13 +381,13 @@ class Profiler:
                 else torch.device("cpu")
             )
             # dispatch_model will add AlignDevicesHook where needed.
-            dispatch_model(self.module, init_map, main_dev_prof, force_hooks=True)
+            dispatch_model(self.module, device_map=cast(Any, init_map), main_device=main_dev_prof, force_hooks=True)  # type: ignore
 
             # Now, append ProfilerHook to the hooks created by dispatch_model.
             ph_count = 0
-            for name, sub_mod in self.module.named_modules():
-                if hasattr(sub_mod, "_hf_hook"):
-                    add_hook_to_module(sub_mod, ProfilerHook(name), append=True)
+            for name, sub_mod in self.module.named_modules():  # type: ignore
+                if hasattr(sub_mod, "_hf_hook"):  # type: ignore
+                    add_hook_to_module(sub_mod, ProfilerHook(name), append=True)  # type: ignore
                     ph_count += 1
             _logger.info(f"Registered {ph_count} ProfilerHooks.")
 
@@ -411,7 +413,7 @@ class ProfilerHook(ModelHook):
         self.module_name = module_name
         self.module: Optional[nn.Module] = None
 
-    def pre_forward(self, module: nn.Module, *args, **kwargs):
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[Any, Any]:
         if not (_profiling_enabled_global and _current_profiling_data_global):
             return args, kwargs
         name, module_id = self.module_name, id(module)
@@ -422,10 +424,10 @@ class ProfilerHook(ModelHook):
                     _current_profiling_data_global.record_weight_size(name, size)
                 elif name not in _current_profiling_data_global.execution_order:
                     _current_profiling_data_global.record_execution(name, None, None)
-            dev = find_device(module.state_dict())
+            dev = find_device(module.state_dict())  # type: ignore
             if dev and dev.type == "cuda":
                 try:
-                    self.module_start_vram_max[module_id] = torch.cuda.max_memory_allocated(dev)
+                    self.module_start_vram_max[module_id] = torch.cuda.max_memory_allocated(dev)  # type: ignore
                     s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
                     s.record()
                     self.module_timing_events[module_id] = (s, e)
@@ -439,7 +441,7 @@ class ProfilerHook(ModelHook):
             _logger.error(f"ProfilerHook: pre_fwd error [{name}]: {e}", exc_info=True)
         return args, kwargs
 
-    def post_forward(self, module: nn.Module, output: Any):
+    def post_forward(self, module: nn.Module, output: Any) -> Any:
         if not (_profiling_enabled_global and _current_profiling_data_global):
             return output
         name, module_id = self.module_name, id(module)
@@ -449,17 +451,17 @@ class ProfilerHook(ModelHook):
             return output
 
         time_ms, vram_delta = None, None
-        dev = find_device(output if output is not None else module.state_dict())
-        if dev and dev.type == "cuda":
+        dev = find_device(output if output is not None else module.state_dict())  # type: ignore
+        if dev and dev.type == "cuda":  # type: ignore
             try:
                 if module_id in self.module_timing_events:
                     s, e = self.module_timing_events[module_id]
                     e.record()
-                    torch.cuda.synchronize(dev)
-                    time_ms = s.elapsed_time(e)
+                    torch.cuda.synchronize(dev)  # type: ignore
+                    time_ms = s.elapsed_time(e)  # type: ignore
                 if module_id in self.module_start_vram_max:
                     vram_before = self.module_start_vram_max[module_id]
-                    vram_after = torch.cuda.max_memory_allocated(dev)
+                    vram_after = torch.cuda.max_memory_allocated(dev)  # type: ignore
                     vram_delta = max(0, vram_after - vram_before)
             except Exception as e_post:
                 _logger.error(f"ProfilerHook: post_fwd CUDA error [{name} on {dev}]: {e_post}", exc_info=True)
@@ -469,7 +471,8 @@ class ProfilerHook(ModelHook):
                 if module_id in self.module_start_vram_max:
                     del self.module_start_vram_max[module_id]
         if name:
-            _current_profiling_data_global.record_execution(name, time_ms / 1000.0 if time_ms else None, vram_delta)
+            if _current_profiling_data_global:
+                _current_profiling_data_global.record_execution(name, time_ms / 1000.0 if time_ms else None, vram_delta)
         else:
             _logger.warning(f"ProfilerHook: Skipping recording, missing name for module ID {module_id}.")
         return output

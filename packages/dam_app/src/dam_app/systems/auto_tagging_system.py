@@ -1,8 +1,9 @@
 import logging
+from typing import Annotated
 
-from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
 from dam_sire.resource import SireResource
 
 from ..commands import AutoTagEntityCommand
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def auto_tag_entity_command_handler(
     cmd: AutoTagEntityCommand,
     transaction: EcsTransaction,
-    world_config: WorldConfig,
+    world: Annotated[World, "Resource"],
     sire_resource: SireResource,
 ):
     """
@@ -28,7 +29,7 @@ async def auto_tag_entity_command_handler(
 
     from dam_app.functions import tagging_functions as tagging_functions_module
 
-    image_path = await file_operations_module.get_file_path_for_entity(transaction, entity.id, world_config)
+    image_path = await file_operations_module.get_file_path_for_entity(world, transaction, entity.id)
     if not image_path:
         logger.warning(f"Could not determine image file path for entity {entity.id}. Skipping auto-tagging.")
         return

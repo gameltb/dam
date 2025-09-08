@@ -1,6 +1,6 @@
 import collections
 import logging
-from typing import Any
+from typing import Any, Dict
 
 import safetensors.torch
 import torch
@@ -10,12 +10,12 @@ _logger = logging.getLogger(__name__)
 
 class TensorCheckPoint:
     def __init__(self) -> None:
-        self.state_dict_name_counter = collections.defaultdict(lambda: 0)
-        self.state_dict = {}
+        self.state_dict_name_counter: collections.defaultdict[str, int] = collections.defaultdict(lambda: 0)
+        self.state_dict: Dict[str, torch.Tensor] = {}
         self.check = False
         self.enable = False
 
-    def __call__(self, /, *args, **kwds: Any) -> Any:
+    def __call__(self, /, *_: Any, **kwds: torch.Tensor) -> Any:
         if not self.enable:
             return
         for name, state in kwds.items():
@@ -35,16 +35,16 @@ class TensorCheckPoint:
 
             self.state_dict_name_counter[name] = name_count + 1
 
-    def save(self, path, tiny=False):
-        safetensors.torch.save_file(self.state_dict, path)
+    def save(self, path: str, tiny: bool = False):
+        safetensors.torch.save_file(self.state_dict, path)  # type: ignore
 
-    def load(self, path):
-        self.state_dict = safetensors.torch.load_file(path)
+    def load(self, path: str):
+        self.state_dict = safetensors.torch.load_file(path)  # type: ignore
         self.check = True
         self.state_dict_name_counter = collections.defaultdict(lambda: 0)
 
 
-def check_tensor(tensor: torch.Tensor, other_tensor: torch.Tensor = None):
+def check_tensor(tensor: torch.Tensor, other_tensor: torch.Tensor | None = None):
     tensor_is_nan = torch.isnan(tensor)
     if torch.any(tensor_is_nan):
         _logger.warning(torch.nonzero(tensor_is_nan))

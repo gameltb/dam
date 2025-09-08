@@ -1,6 +1,7 @@
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from typing import Generator
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import torch
@@ -12,26 +13,26 @@ from sire.core.optimizer.plan import OptimizationPlan
 
 
 class SimpleModel(nn.Module):
-    def __init__(self):
-        super().__init__()
+    def __init__(self) -> None:
+        super().__init__()  # type: ignore
         self.layer1 = nn.Linear(10, 20)
         self.layer2 = nn.Linear(20, 5)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
         x = self.layer2(x)
         return x
 
 
 @pytest.fixture(autouse=True)
-def mock_nvtx(mocker):
+def mock_nvtx(mocker: Mock):
     """Mocks nvtx functions for CPU-only test environments."""
     mocker.patch("sire.core.optimizer.hooks.nvtx.range_push", return_value=None)
     mocker.patch("sire.core.optimizer.hooks.nvtx.range_pop", return_value=None)
 
 
 @pytest.fixture
-def temp_cache_dir():
+def temp_cache_dir() -> Generator[str, None, None]:
     """Provides a temporary directory for cache files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
@@ -41,8 +42,8 @@ def temp_cache_dir():
 @patch("sire.core.optimizer.hooks.torch.cuda.device_count", return_value=1)
 @patch("sire.core.optimizer.hooks.get_balanced_memory", return_value={"0": 1e10, "cpu": 1e10})
 def test_inference_optimizer_hook_first_run_profiling(
-    mock_get_mem, mock_dev_count, mock_cuda_avail, temp_cache_dir, mocker
-):
+    mock_get_mem: Mock, mock_dev_count: Mock, mock_cuda_avail: Mock, temp_cache_dir: str, mocker: Mock
+) -> None:
     """
     Tests the hook's behavior on the first run for a new configuration,
     triggering profiling and plan generation.
@@ -81,8 +82,8 @@ def test_inference_optimizer_hook_first_run_profiling(
 @patch("sire.core.optimizer.hooks.torch.cuda.device_count", return_value=1)
 @patch("sire.core.optimizer.hooks.get_balanced_memory", return_value={"0": 1e10, "cpu": 1e10})
 def test_inference_optimizer_hook_second_run_cached(
-    mock_get_mem, mock_dev_count, mock_cuda_avail, temp_cache_dir, mocker
-):
+    mock_get_mem: Mock, mock_dev_count: Mock, mock_cuda_avail: Mock, temp_cache_dir: str, mocker: Mock
+) -> None:
     """
     Tests the hook's behavior on a second run, verifying it loads from cache.
     """
@@ -107,7 +108,7 @@ def test_inference_optimizer_hook_second_run_cached(
     model(torch.randn(4, 10))
 
     # Assertions
-    mock_profiler_instance.run.assert_not_called()
+    mock_profiler_instance.run.assert_not_called()  # type: ignore
     mock_gen_plan.assert_not_called()
     mock_setup_with_plan.assert_called_once()
     # Check that the loaded plan was used
@@ -119,8 +120,8 @@ def test_inference_optimizer_hook_second_run_cached(
 @patch("sire.core.optimizer.hooks.torch.cuda.device_count", return_value=1)
 @patch("sire.core.optimizer.hooks.get_balanced_memory", return_value={"0": 1e10, "cpu": 1e10})
 def test_inference_optimizer_hook_force_profiling(
-    mock_get_mem, mock_dev_count, mock_cuda_avail, temp_cache_dir, mocker
-):
+    mock_get_mem: Mock, mock_dev_count: Mock, mock_cuda_avail: Mock, temp_cache_dir: str, mocker: Mock
+) -> None:
     """
     Tests that `force_profiling=True` re-runs profiling even if caches exist.
     """
@@ -148,7 +149,7 @@ def test_inference_optimizer_hook_force_profiling(
     mock_gen_plan.assert_called_once()
     mock_setup_with_plan.assert_called_once()
     # Check that the internal flag is reset after one run
-    assert hook._force_profiling_active is False
+    assert hook._force_profiling_active is False  # type: ignore
 
 
 @pytest.mark.skipif(
@@ -156,7 +157,7 @@ def test_inference_optimizer_hook_force_profiling(
     reason="Requires GPU and RUN_GPU_TESTS=1 env var",
 )
 @patch("sire.core.optimizer.hooks.StableDiffusionXLPipeline.from_single_file")
-def test_e2e_optimizer_hook_on_sdxl_unet(mock_from_single_file, temp_cache_dir):
+def test_e2e_optimizer_hook_on_sdxl_unet(mock_from_single_file: Mock, temp_cache_dir: str) -> None:
     """
     An end-to-end test that runs the optimizer on a mocked SDXL UNet.
     This test requires a GPU and a specific environment variable to run.
@@ -170,7 +171,7 @@ def test_e2e_optimizer_hook_on_sdxl_unet(mock_from_single_file, temp_cache_dir):
     # --- Setup the hook ---
     optimizer_hook = InferenceOptimizerHook(
         cache_dir=temp_cache_dir,
-        max_memory_gb={0: 8, "cpu": 24},
+        max_memory_gb={"0": 8, "cpu": 24},  # type: ignore
         force_profiling=True,  # Force profiling for a clean test run
     )
     add_hook_to_module(mock_pipe.unet, optimizer_hook)

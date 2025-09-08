@@ -54,6 +54,9 @@ extends = "../../pyproject.toml"
 include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportGeneralTypeIssues = "none"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

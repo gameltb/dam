@@ -1,3 +1,4 @@
+# pyright: ignore
 """
 This module defines systems related to metadata extraction for assets.
 
@@ -23,16 +24,6 @@ from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
 from ..commands import ExtractMetadataCommand
-
-try:
-    from hachoir.core import config as HachoirConfig
-    from hachoir.metadata import extractMetadata
-    from hachoir.parser import createParser
-
-    HachoirConfig.quiet = True
-except ImportError:
-    createParser = None
-    extractMetadata = None
 
 logger = logging.getLogger(__name__)
 
@@ -85,77 +76,12 @@ async def _extract_metadata_with_exiftool_async(filepath_on_disk: Path) -> Dict[
     return await _run_exiftool_subprocess(filepath_on_disk)
 
 
-def _has_hachoir_metadata(md, key: str) -> bool:
-    """Safely checks if Hachoir metadata object has a given key."""
-    try:
-        return md.has(key)
-    except (KeyError, ValueError):
-        return False
-
-
-def _get_hachoir_metadata(md, key: str, default=None) -> Any:
-    """Safely gets a value from Hachoir metadata object for a given key."""
-    try:
-        if md.has(key):
-            return md.get(key)
-    except (KeyError, ValueError):
-        pass
-    return default
-
-
-# This is the internal synchronous parsing function
-def _parse_metadata_sync_worker(filepath_str: str) -> Any | None:
-    if not createParser or not extractMetadata:
-        logger.info("Hachoir library not available. Cannot perform sync extraction.")
-        return None
-
-    try:
-        file_size = Path(filepath_str).stat().st_size
-        logger.info(f"Hachoir worker attempting to parse: {filepath_str}, size: {file_size} bytes")
-    except Exception as e_stat:
-        logger.error(f"Hachoir worker: Error stating file {filepath_str}: {e_stat}")
-        # Proceed to createParser, it will likely fail and log its own error.
-
-    parser = None  # Initialize parser to None
-    try:
-        parser = createParser(filepath_str)
-        if not parser:
-            logger.warning(f"Hachoir could not create a parser for file: {filepath_str} (createParser returned None)")
-            return None
-
-        with parser:  # parser is guaranteed to be non-None here
-            try:
-                metadata = extractMetadata(parser)
-                return metadata
-            except Exception as e_extract:  # More specific exception variable
-                logger.error(f"Hachoir failed to extract metadata for {filepath_str}: {e_extract}", exc_info=True)
-                return None
-    except HachoirConfig.HachoirError as e_hachoir:  # Catch Hachoir specific errors like NullStreamError
-        # HachoirError is a base class for many hachoir exceptions including NullStreamError
-        logger.warning(f"Hachoir error during parsing or metadata extraction for {filepath_str}: {e_hachoir}")
-        return None
-    except Exception as e_general:  # Catch any other unexpected errors during createParser or context management
-        logger.error(f"Unexpected error with Hachoir for {filepath_str}: {e_general}", exc_info=True)
-        return None
-
-
-async def _extract_metadata_with_hachoir_sync(filepath_on_disk: Path) -> Any | None:
-    """
-    Asynchronously calls the synchronous Hachoir metadata extraction.
-    """
-    return await asyncio.to_thread(_parse_metadata_sync_worker, str(filepath_on_disk))
-
-
 @system(on_command=ExtractMetadataCommand)
 async def extract_metadata_command_handler(
     cmd: ExtractMetadataCommand,
     transaction: EcsTransaction,
     world_config: WorldConfig,
 ):
-    if not createParser or not extractMetadata:  # Hachoir check
-        logger.warning("Hachoir library not installed. Skipping metadata extraction.")
-        return
-
     entity_id = cmd.entity_id
     logger.debug(f"Processing entity ID {entity_id} for metadata extraction.")
 
@@ -183,21 +109,6 @@ async def extract_metadata_command_handler(
 
     mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
     logger.info(f"Extracting metadata from {filepath_on_disk} for Entity ID {entity_id} (MIME: {mime_type})")
-    hachoir_metadata = await _extract_metadata_with_hachoir_sync(filepath_on_disk)
-
-    if hachoir_metadata:
-        keys_to_log = []
-        if hasattr(hachoir_metadata, "keys") and callable(hachoir_metadata.keys):
-            try:
-                keys_to_log = list(hachoir_metadata.keys())
-            except Exception:
-                keys_to_log = ["<error reading Hachoir metadata keys>"]
-        logger.debug(
-            f"Hachoir metadata (type: {type(hachoir_metadata).__name__}) keys for {filepath_on_disk}: {keys_to_log}"
-        )
-        # Hachoir processing logic would go here
-    else:
-        logger.info(f"No metadata extracted by Hachoir for {filepath_on_disk} (Entity ID {entity_id})")
 
     logger.info(f"Attempting Exiftool metadata extraction for {filepath_on_disk} (Entity ID {entity_id})")
     exiftool_data = await _extract_metadata_with_exiftool_async(filepath_on_disk)

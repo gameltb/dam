@@ -15,6 +15,7 @@ from typing import (
 
 import numpy as np
 import psycopg
+import psycopg.sql as sql
 import pytest
 import pytest_asyncio
 import torch
@@ -53,7 +54,7 @@ async def test_db() -> AsyncGenerator[str, None]:
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
     )
     try:
-        await conn.execute(f"CREATE DATABASE {db_name}")
+        await conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
     finally:
         await conn.close()
 
@@ -65,8 +66,10 @@ async def test_db() -> AsyncGenerator[str, None]:
     )
     try:
         # Need to terminate all connections before dropping the database
-        await conn.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}'")
-        await conn.execute(f"DROP DATABASE {db_name}")
+        await conn.execute(
+            sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"), (db_name,)
+        )
+        await conn.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name)))
     except psycopg.errors.InvalidCatalogName:
         pass  # Database does not exist
     finally:
@@ -167,7 +170,7 @@ async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, No
 
 class MockSentenceTransformer(torch.nn.Module):
     def __init__(self, model_name_or_path: Optional[str] = None, **kwargs: Any) -> None:
-        super().__init__()
+        super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
             self.dim = 512

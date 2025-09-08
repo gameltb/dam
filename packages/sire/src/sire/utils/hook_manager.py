@@ -45,18 +45,18 @@ class HookManager:
         Hooks are expected to be stored in the `_hf_hook` attribute by `accelerate`.
         """
         all_hooks: Dict[str, ModelHook] = {}
-        for name, sub_mod in self.module.named_modules():
-            hook = getattr(sub_mod, "_hf_hook", None)
+        for name, sub_mod in self.module.named_modules():  # type: ignore
+            hook = getattr(sub_mod, "_hf_hook", None)  # type: ignore
             if hook is not None:
                 all_hooks[name] = hook
         return all_hooks
 
     def _add_hooks(self, hooks: Dict[str, ModelHook], append: bool = True):
         """Adds a dictionary of hooks to the corresponding submodules."""
-        module_map = {name: mod for name, mod in self.module.named_modules()}
+        module_map = {name: mod for name, mod in self.module.named_modules()}  # type: ignore
         for name, hook in hooks.items():
             if name in module_map:
-                add_hook_to_module(module_map[name], hook, append=append)
+                add_hook_to_module(module_map[name], hook, append=append)  # type: ignore
             else:
                 logger.warning(f"Could not find submodule '{name}' to attach hook.")
 

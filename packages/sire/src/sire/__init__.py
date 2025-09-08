@@ -1,5 +1,7 @@
 __version__ = "0.2.0"
 
+from typing import Any
+
 import diffusers
 import torch
 from torch import device as torch_device
@@ -46,12 +48,12 @@ def initialize():
 
     # Register default type wrappers
     AutoManageWrapper.register_type_wrapper(torch.nn.Module, TorchModuleWrapper)
-    AutoManageWrapper.register_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)
+    AutoManageWrapper.register_type_wrapper(diffusers.DiffusionPipeline, DiffusersPipelineWrapper)  # type: ignore
     AutoManageWrapper.register_type_wrapper(CommitObjectProxy, CommitObjectProxyWrapper)
     _initialized = True
 
 
-def manage(model_object):
+def manage(model_object: Any) -> AutoManageWrapper[Any]:
     """
     Wraps a model or object to be managed by Sire's resource manager.
     This is the main entry point for making an object "Sire-aware".

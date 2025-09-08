@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, TypeVar, Union
+from typing import Any, Optional, Type, TypeVar
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class AnnotatedBaseModel(BaseModel):
 M = TypeVar("M", bound=AnnotatedBaseModel)
 
 
-def find_annotated_model(annotation: Union[type, M], model_type: type[M] = AnnotatedBaseModel) -> Optional[M]:
+def find_annotated_model(annotation: Any, model_type: Type[M] = AnnotatedBaseModel) -> Optional[M]:  # type: ignore
     if isinstance(annotation, model_type):
         return annotation
     elif hasattr(annotation, "__metadata__"):
@@ -26,12 +26,13 @@ def find_annotated_model(annotation: Union[type, M], model_type: type[M] = Annot
             elif type(meta) is slice:
                 build_kwargs_list.append(meta)
         if annotated_model is not None:
-            build_kwargs = {}
+            build_kwargs: dict[str, Any] = {}
             for build_kwarg in reversed(build_kwargs_list):
-                build_kwargs[build_kwarg.start] = build_kwarg.stop
+                if isinstance(build_kwarg.start, str):
+                    build_kwargs[build_kwarg.start] = build_kwarg.stop
 
             build_kwargs_kset = set(build_kwargs.keys())
-            model_fields_set = set(annotated_model.model_fields.keys())
+            model_fields_set = set(type(annotated_model).model_fields.keys())
             for k in build_kwargs_kset - model_fields_set:
                 _logger.warning(f"Ignored annotated key {k}:{build_kwargs[k]}.")
 

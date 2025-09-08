@@ -35,7 +35,7 @@ async def ingest_asset_stream_command_handler(
             stream=cmd.file_content,
         )
         command_result = await world.dispatch_command(get_or_create_cmd)
-        entity, sha256_bytes = command_result.get_one_value()
+        entity, _ = command_result.get_one_value()
 
         # 2. Add file properties
         add_props_cmd = AddFilePropertiesCommand(
@@ -77,13 +77,13 @@ async def asset_dispatcher_system(
     logger.info(f"Dispatching asset for entity {event.entity.id} with file path '{event.file_path}'.")
 
     try:
-        mime_type = magic.from_file(str(event.file_path), mime=True)
+        mime_type = magic.from_file(str(event.file_path), mime=True)  # type: ignore
         logger.info(f"Detected MIME type '{mime_type}' for entity {event.entity.id}.")
 
         if mime_type.startswith("image/"):
             from dam_media_image.events import ImageAssetDetected
 
-            await world.send_event(ImageAssetDetected(entity=event.entity, file_id=event.file_id))
+            await world.dispatch_event(ImageAssetDetected(entity=event.entity, file_id=event.file_id))
             logger.info(f"Dispatched entity {event.entity.id} to image processing pipeline.")
 
         else:

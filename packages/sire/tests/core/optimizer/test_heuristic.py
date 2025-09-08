@@ -1,21 +1,23 @@
+from typing import Dict, List
+
 import torch
 
 from sire.core.optimizer.heuristic import HeuristicOptimizer
 from sire.core.profile_tool import AverageModuleStats, AverageProfilingStats, ProfilingData
 
 
-def _create_mock_profiling_data(module_stats, execution_order):
+def _create_mock_profiling_data(module_stats: Dict[str, Dict[str, float]], execution_order: List[str]) -> ProfilingData:
     """Creates a mock ProfilingData object for testing."""
     profiling_data = ProfilingData()
-    avg_module_stats = {}
+    avg_module_stats: Dict[str, AverageModuleStats] = {}
     for name, stats in module_stats.items():
         avg_module_stats[name] = AverageModuleStats(
             avg_exec_time=stats["time"],
-            max_peak_vram_delta=stats["vram"],
-            weight_size=stats["size"],
+            max_peak_vram_delta=int(stats["vram"]),
+            weight_size=int(stats["size"]),
         )
 
-    profiling_data.get_avg_stats = lambda: AverageProfilingStats(
+    profiling_data.get_avg_stats = lambda: AverageProfilingStats(  # type: ignore
         avg_module_stats=avg_module_stats,
         avg_move_times={},  # Use estimated move times for simplicity
         execution_order=execution_order,
@@ -41,7 +43,7 @@ def test_heuristic_optimizer_simple_placement():
 
     optimizer = HeuristicOptimizer(profiling_data, max_memory_bytes)
     # Mock move time to be very high to prevent prefetching
-    optimizer._estimate_move_time = lambda size, src, tgt: 100.0
+    optimizer._estimate_move_time = lambda size_bytes, src, tgt: 100.0  # type: ignore
     plan = optimizer.optimize()
 
     # All modules should be placed on the GPU
@@ -77,7 +79,7 @@ def test_heuristic_optimizer_with_prefetching():
 
     optimizer = HeuristicOptimizer(profiling_data, max_memory_bytes)
     # Mock estimate_move_time to return predictable values
-    optimizer._estimate_move_time = lambda size, src, tgt: (size / MB) / 5000.0
+    optimizer._estimate_move_time = lambda size_bytes, src, tgt: (size_bytes / MB) / 5000.0  # type: ignore
     plan = optimizer.optimize()
 
     # Expected logic:
