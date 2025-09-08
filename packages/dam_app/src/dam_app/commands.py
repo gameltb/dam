@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import io
+from dataclasses import dataclass
 
 from dam.core.commands import BaseCommand
 from dam.models.core.entity import Entity

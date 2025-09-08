@@ -1,4 +1,3 @@
-# pyright: ignore
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +10,7 @@ from typer import Typer
 
 class AsyncTyper(Typer):
     @staticmethod
-    def maybe_run_async(decorator: Callable, func: Callable) -> Any:
+    def maybe_run_async(decorator: Callable[..., Any], func: Callable[..., Any]) -> Any:
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
@@ -26,10 +25,10 @@ class AsyncTyper(Typer):
             decorator(func)
         return func
 
-    def callback(self, *args: Any, **kwargs: Any) -> Any:
+    def callback(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         decorator = super().callback(*args, **kwargs)
         return partial(self.maybe_run_async, decorator)
 
-    def command(self, *args: Any, **kwargs: Any) -> Any:
+    def command(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         decorator = super().command(*args, **kwargs)
         return partial(self.maybe_run_async, decorator)

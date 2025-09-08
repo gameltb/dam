@@ -57,9 +57,7 @@ def _loop_first_last(
             break
 
 
-def _iter_syntax_lines(
-    start: Tuple[int, int], end: Tuple[int, int]
-) -> Iterable[Tuple[int, int, int]]:
+def _iter_syntax_lines(start: Tuple[int, int], end: Tuple[int, int]) -> Iterable[Tuple[int, int, int]]:
     """Yield start and end positions per line."""
 
     line1, column1 = start

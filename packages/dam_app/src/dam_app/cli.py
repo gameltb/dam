@@ -17,7 +17,6 @@ from dam.core.world import (
 )
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam.functions import ecs_functions as dam_ecs_functions
-
 from dam_archive.commands import IngestAssetsCommand
 from typing_extensions import Annotated
 
