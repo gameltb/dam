@@ -2,7 +2,6 @@
 import io
 import logging
 import traceback  # Import traceback for detailed error logging
-import uuid  # For generating request_ids
 from pathlib import Path
 from typing import List, Optional
 
@@ -18,8 +17,8 @@ from dam.core.world import (
 )
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam.functions import ecs_functions as dam_ecs_functions
+
 from dam_archive.commands import IngestAssetsCommand
-from dam_fs.models import FilePropertiesComponent
 from typing_extensions import Annotated
 
 from dam_app.utils.async_typer import AsyncTyper
@@ -30,7 +29,7 @@ app = AsyncTyper(
     name="dam-cli",
     help="Digital Asset Management System CLI",
     add_completion=True,
-    rich_markup_mode="raw",
+    rich_markup_mode=None,
 )
 
 
@@ -241,7 +240,7 @@ async def cli_ingest(
 
         if new_entity_ids:
             typer.echo("Dispatching assets for metadata extraction...")
-            await target_world.send_event(AssetReadyForMetadataExtractionEvent(entity_ids=new_entity_ids))
+            await target_world.dispatch_event(AssetReadyForMetadataExtractionEvent(entity_ids=new_entity_ids))
             typer.secho("Metadata extraction event dispatched.", fg=typer.colors.GREEN)
 
     except Exception as e:
@@ -409,68 +408,9 @@ def main_callback(
 
     try:
         from dam_semantic import SemanticPlugin
-        from dam_semantic.commands import SemanticSearchCommand  # For semantic search CLI
 
         for world_instance in initialized_worlds:
             world_instance.add_plugin(SemanticPlugin())
-
-        search_app = AsyncTyper(name="search", help="Search for assets using various methods.")
-        app.add_typer(search_app)
-
-        @search_app.command("semantic")
-        async def cli_search_semantic(
-            ctx: typer.Context,
-            query: Annotated[str, typer.Option("--query", "-q", help="Text query for semantic search.")],
-            top_n: Annotated[int, typer.Option("--top-n", "-n", help="Number of top results to return.")] = 10,
-            model_name: Annotated[
-                Optional[str],
-                typer.Option("--model", "-m", help="Name of the sentence transformer model to use (optional)."),
-            ] = None,
-        ):
-            """Performs semantic search based on text query."""
-            if not global_state.world_name:
-                typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-            target_world = get_world(global_state.world_name)
-            if not target_world:
-                typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
-                raise typer.Exit(code=1)
-
-            request_id = str(uuid.uuid4())
-            query_command = SemanticSearchCommand(
-                query_text=query,
-                request_id=request_id,
-                top_n=top_n,
-                model_name=model_name,
-            )
-
-            typer.echo(
-                f"Dispatching SemanticSearchCommand (Request ID: {request_id}) to world '{target_world.name}' for query: '{query[:100]}...'"
-            )
-
-            command_result = await target_world.dispatch_command(query_command)
-            results = command_result.get_first_ok_value() if command_result.results else None
-
-            if not results:
-                typer.secho(
-                    f"No semantic matches found for query: '{query[:100]}...'. Request ID: {request_id}",
-                    fg=typer.colors.YELLOW,
-                )
-                return
-
-            typer.secho(f"--- Semantic Search Results (Request ID: {request_id}) ---", fg=typer.colors.GREEN)
-            typer.echo(f"Found {len(results)} results for query '{query[:100]}...':")
-            async with target_world.db_session_maker() as session:
-                for entity, score, emb_comp in results:
-                    fpc = await dam_ecs_functions.get_component(session, entity.id, FilePropertiesComponent)
-                    filename = fpc.original_filename if fpc else "N/A"
-                    source_info = (
-                        f"{emb_comp.source_component_name}.{emb_comp.source_field_name}" if emb_comp else "N/A"
-                    )
-                    typer.echo(
-                        f"  - Entity ID: {entity.id}, Score: {score:.4f}, Filename: {filename}"
-                        f"\n    Matched on: {source_info} (Model: {model_name})"
-                    )
 
     except ImportError:
         logging.info("dam_semantic plugin not installed. Skipping semantic search functionality.")

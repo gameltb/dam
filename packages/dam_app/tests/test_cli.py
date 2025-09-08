@@ -1,7 +1,10 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
+from dam.core.config import Settings
 from dam.core.world import World
+from pytest import CaptureFixture
 
 
 @pytest.mark.serial
@@ -26,12 +29,12 @@ async def test_add_asset(test_world_alpha: World, temp_asset_file: Path):
 
 
 @pytest.mark.serial
-def test_cli_list_worlds(settings_override, capsys):
+def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any]):
     """Test the list-worlds command."""
     from dam_app.cli import cli_list_worlds, create_and_register_all_worlds_from_settings
 
     # Ensure worlds are registered
-    create_and_register_all_worlds_from_settings(settings_override)
+    create_and_register_all_worlds_from_settings(app_settings=settings_override)
 
     cli_list_worlds()
 

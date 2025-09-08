@@ -11,7 +11,6 @@ from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
 
 @pytest.mark.asyncio  # Added async marker
 async def test_cli_character_create(test_world_alpha: World):
-    world_name = test_world_alpha.name
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
 
@@ -64,8 +63,6 @@ async def test_cli_character_create(test_world_alpha: World):
 async def test_cli_character_apply_list_find(  # Made async
     test_world_alpha: World, sample_text_file: str
 ):
-    world_name = test_world_alpha.name
-
     # 1. Create a character by directly calling the service
     char_name = "Linkable Service Char"
     char_id: Optional[int] = None
@@ -149,7 +146,6 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     test_world_alpha: World, sample_image_a: Path
 ):
     # This test uses asset SHA256 hash and character name for identification
-    world_name = test_world_alpha.name
 
     # 1. Add an asset to get its SHA256 hash
     # This test specifically tests CLI invocation with different identifier types (hash for asset).

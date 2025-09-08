@@ -41,10 +41,6 @@ class MockWd14Tagger:
             return [{"tag_name": "generic_tag1", "confidence": 0.80}, {"tag_name": "generic_tag2", "confidence": 0.70}]
 
 
-def _load_mock_tagging_model_sync(model_name_or_path: str, params: Optional[Dict[str, Any]] = None) -> MockWd14Tagger:
-    return MockWd14Tagger(model_name_or_path, params)
-
-
 TAGGING_MODEL_CONCEPTUAL_PARAMS: Dict[str, Dict[str, Any]] = {
     "wd-v1-4-moat-tagger-v2": {
         "default_conceptual_params": {"threshold": 0.35, "tag_limit": 50},
@@ -56,9 +52,9 @@ async def get_tagging_model(
     sire_resource: "SireResource",
     model_name: str,
     model_load_params: Optional[Dict[str, Any]] = None,
-) -> Optional["AutoManageWrapper"]:
-    AutoManageWrapper.registe_type_wrapper(MockWd14Tagger, TorchModuleWrapper)
-    return sire_resource.get_model(MockWd14Tagger, model_name, params=model_load_params)
+) -> Optional[Any]:
+    AutoManageWrapper.registe_type_wrapper(MockWd14Tagger, TorchModuleWrapper)  # type: ignore
+    return sire_resource.get_model(MockWd14Tagger, model_name, params=model_load_params)  # type: ignore
 
 
 async def generate_tags_from_image(
