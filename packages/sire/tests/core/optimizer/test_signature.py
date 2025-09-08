@@ -24,8 +24,8 @@ def test_signature_generator_consistency() -> None:
     kwargs = {"an_option": True}
     dtype = torch.float32
 
-    sig1, _ = gen.generate_config_signature(model, args, kwargs, dtype)
-    sig2, _ = gen.generate_config_signature(model, args, kwargs, dtype)
+    sig1, _ = gen.generate_config_signature(model, args, kwargs, dtype)  # type: ignore
+    sig2, _ = gen.generate_config_signature(model, args, kwargs, dtype)  # type: ignore
 
     assert sig1 == sig2
 
@@ -40,17 +40,17 @@ def test_signature_generator_input_change_sensitivity() -> None:
 
     args1 = (torch.randn(8, 10),)
     kwargs1 = {"an_option": True}
-    sig1, _ = gen.generate_config_signature(model, args1, kwargs1, dtype)
+    sig1, _ = gen.generate_config_signature(model, args1, kwargs1, dtype)  # type: ignore
 
     # Change args shape
     args2 = (torch.randn(16, 10),)
     kwargs2 = {"an_option": True}
-    sig2, _ = gen.generate_config_signature(model, args2, kwargs2, dtype)
+    sig2, _ = gen.generate_config_signature(model, args2, kwargs2, dtype)  # type: ignore
 
     # Change kwargs value
     args3 = (torch.randn(8, 10),)
     kwargs3 = {"an_option": False}
-    sig3, _ = gen.generate_config_signature(model, args3, kwargs3, dtype)
+    sig3, _ = gen.generate_config_signature(model, args3, kwargs3, dtype)  # type: ignore
 
     assert sig1 != sig2
     assert sig1 != sig3
@@ -67,11 +67,11 @@ def test_signature_generator_model_change_sensitivity() -> None:
     dtype = torch.float32
 
     model1 = SimpleModel()
-    sig1, _ = gen.generate_config_signature(model1, args, kwargs, dtype)
+    sig1, _ = gen.generate_config_signature(model1, args, kwargs, dtype)  # type: ignore
 
     # Same architecture, but different weights
     model2 = SimpleModel()
-    sig2, _ = gen.generate_config_signature(model2, args, kwargs, dtype)
+    sig2, _ = gen.generate_config_signature(model2, args, kwargs, dtype)  # type: ignore
 
     # Different architecture
     class DifferentModel(nn.Module):
@@ -83,7 +83,7 @@ def test_signature_generator_model_change_sensitivity() -> None:
             return self.linear(x)
 
     model3 = DifferentModel()
-    sig3, _ = gen.generate_config_signature(model3, args, kwargs, dtype)
+    sig3, _ = gen.generate_config_signature(model3, args, kwargs, dtype)  # type: ignore
 
     # Models 1 and 2 have different weights, so their weight hash should differ,
     # resulting in different final signatures.

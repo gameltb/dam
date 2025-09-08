@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import diffusers
 import torch
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 
 from ..runtime_resource_management import AutoManageHook, ResourcePoolManagement
 from ..runtime_resource_pool import ResourcePool, resources_device
@@ -11,8 +11,8 @@ from . import WeakRefResourcePoolUser
 from .pytorch_module import get_module_size
 
 
-class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeline]):  # type: ignore
-    def __init__(self, manage_object: diffusers.DiffusionPipeline):  # type: ignore
+class DiffusersPipelineWrapper(WeakRefResourcePoolUser[DiffusionPipeline]):
+    def __init__(self, manage_object: DiffusionPipeline):
         super().__init__(manage_object)
         self.all_module_hooks_map: dict[str, AutoManageHook] = {}
 
@@ -57,7 +57,7 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
             hook.post_forward(None, None)  # type: ignore
 
 
-def get_pipeline_size(pipeline: diffusers.DiffusionPipeline):
+def get_pipeline_size(pipeline: DiffusionPipeline):
     pipe_mem = 0
     for _, comp in pipeline.components.items():
         if isinstance(comp, torch.nn.Module):

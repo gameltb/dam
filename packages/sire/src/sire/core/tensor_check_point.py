@@ -36,10 +36,10 @@ class TensorCheckPoint:
             self.state_dict_name_counter[name] = name_count + 1
 
     def save(self, path: str, tiny: bool = False):
-        safetensors.torch.save_file(self.state_dict, path)
+        safetensors.torch.save_file(self.state_dict, path)  # type: ignore
 
     def load(self, path: str):
-        self.state_dict = safetensors.torch.load_file(path)
+        self.state_dict = safetensors.torch.load_file(path)  # type: ignore
         self.check = True
         self.state_dict_name_counter = collections.defaultdict(lambda: 0)
 

@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from urllib.parse import ParseResult
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download  # type: ignore
 from huggingface_hub.errors import LocalEntryNotFoundError
 
 # from ...common.path_tool import get_local_huggingface_path

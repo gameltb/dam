@@ -21,14 +21,14 @@ from typing import (
 
 import torch
 import torch.nn as nn
-from accelerate import dispatch_model
+from accelerate import dispatch_model  # type: ignore
 from accelerate.hooks import (
     ModelHook,
     add_hook_to_module,
     clear_device_cache,
 )
 from accelerate.utils import (
-    find_device,
+    find_device,  # type: ignore
 )
 
 from ..utils import human_readable_filesize
@@ -191,8 +191,8 @@ class AverageProfilingStats:
 class ProfilingData:
     module_stats: DefaultDict[str, ModuleStats] = field(default_factory=lambda: defaultdict(ModuleStats))
     move_times: DefaultDict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
-    execution_order: List[str] = field(default_factory=list)
-    module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)
+    execution_order: List[str] = field(default_factory=list)  # type: ignore
+    module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
 
     def __post_init__(self):
         self.module_stats = defaultdict(ModuleStats, self.module_stats or {})
@@ -385,8 +385,8 @@ class Profiler:
 
             # Now, append ProfilerHook to the hooks created by dispatch_model.
             ph_count = 0
-            for name, sub_mod in self.module.named_modules():
-                if hasattr(sub_mod, "_hf_hook"):
+            for name, sub_mod in self.module.named_modules():  # type: ignore
+                if hasattr(sub_mod, "_hf_hook"):  # type: ignore
                     add_hook_to_module(sub_mod, ProfilerHook(name), append=True)  # type: ignore
                     ph_count += 1
             _logger.info(f"Registered {ph_count} ProfilerHooks.")
@@ -452,7 +452,7 @@ class ProfilerHook(ModelHook):
 
         time_ms, vram_delta = None, None
         dev = find_device(output if output is not None else module.state_dict())  # type: ignore
-        if dev and dev.type == "cuda":
+        if dev and dev.type == "cuda":  # type: ignore
             try:
                 if module_id in self.module_timing_events:
                     s, e = self.module_timing_events[module_id]

@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportGeneralTypeIssues=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false, reportArgumentType=false, reportReturnType=false, reportUnnecessaryComparison=false
 import enum
 import inspect
 import json

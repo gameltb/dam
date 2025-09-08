@@ -118,6 +118,37 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         # of the model during the actual forward pass. Calling `.to()` here ensures
         # that at least the top-level module object is on the right device and
         # that non-parameter/buffer tensors are moved. For models with advanced
+        _ = self.manage_object
+        if not torch_model:
+            return
+        runtime_device = self.get_runtime_device()
+        if not runtime_device:
+            return
+
+        # Step 1: Estimate the required memory for this inference operation.
+        inference_memory_size = self._estimate_inference_memory()
+
+        # Step 2: Calculate the memory needed for the model's weights.
+        # This only includes weights currently offloaded that need to be moved.
+        module_memory_size = get_module_size(torch_model) - self.get_used_resource_size(runtime_device)
+
+        # Step 3: Request the total required memory from the pool.
+        total_request_size = module_memory_size + inference_memory_size
+        if self.runtime_resource_pool:
+            self.runtime_resource_pool.request_resource(total_request_size)
+            self.logger.info(
+                f"Requesting {human_readable_filesize(total_request_size)} "
+                f"(weights: {human_readable_filesize(module_memory_size)}, "
+                f"inference: {human_readable_filesize(inference_memory_size)}). "
+                f"Pool free: {human_readable_filesize(self.runtime_resource_pool.get_pool_free_size())}"
+            )
+
+        # Step 4: Move the model to the runtime device.
+        # If the model has hooks (e.g., InferenceOptimizerHook), it will not be
+        # moved monolithically. The hooks themselves will manage moving sub-parts
+        # of the model during the actual forward pass. Calling `.to()` here ensures
+        # that at least the top-level module object is on the right device and
+        # that non-parameter/buffer tensors are moved. For models with advanced
         # hooks, this might be a no-op for the parameters themselves.
         torch_model.to(device=self.get_runtime_device())
 
@@ -163,7 +194,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         return 0
 
     def get_used_resource_devices(self) -> set[torch.device]:
-        devices = set()
+        devices: set[torch.device] = set()
         if self.manage_object:
             for param in self.manage_object.parameters():
                 devices.add(param.device)
