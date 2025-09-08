@@ -167,6 +167,13 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
             return get_module_size(self.manage_object, device)
         return 0
 
+    def get_used_resource_devices(self) -> set[torch.device]:
+        devices = set()
+        if self.manage_object:
+            for param in self.manage_object.parameters():
+                devices.add(param.device)
+        return devices
+
     def lock(self):
         super().lock()
         # self.logger.info("lock")

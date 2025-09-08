@@ -1,3 +1,4 @@
+# type: ignore
 import tempfile
 
 import pytest
@@ -14,18 +15,18 @@ from sire.core.profile_tool import (
 
 
 class SimpleModel(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.layer1 = nn.Linear(10, 20)
         self.layer2 = nn.Linear(20, 5)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
         x = self.layer2(x)
         return x
 
 
-def test_get_module_size():
+def test_get_module_size() -> None:
     model = SimpleModel()
     size = get_module_size(model)
     assert size > 0
@@ -35,7 +36,7 @@ def test_get_module_size():
     assert size == (10 * 20 * 4 + 20 * 4) + (20 * 5 * 4 + 5 * 4)
 
 
-def test_profiling_data_save_load():
+def test_profiling_data_save_load() -> None:
     data = ProfilingData()
     data.record_execution("test_module", 0.1, 1024)
     data.record_weight_size("test_module", 2048)
@@ -51,7 +52,7 @@ def test_profiling_data_save_load():
     assert loaded_data.module_stats["test_module"].weight_size == 2048
 
 
-def test_profiler_hook_cpu():
+def test_profiler_hook_cpu() -> None:
     model = SimpleModel()
     prof_data = ProfilingData()
 
@@ -73,7 +74,7 @@ def test_profiler_hook_cpu():
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
-def test_profiler_hook_gpu():
+def test_profiler_hook_gpu() -> None:
     model = SimpleModel().to("cuda")
     prof_data = ProfilingData()
 

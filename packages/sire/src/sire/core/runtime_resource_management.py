@@ -1,6 +1,7 @@
+# type: ignore
 import contextlib
 import weakref
-from typing import Any, Generic, Iterator, TypeVar
+from typing import Any, Generic, Iterator, Optional, TypeVar
 
 import torch
 from accelerate.hooks import ModelHook, add_hook_to_module

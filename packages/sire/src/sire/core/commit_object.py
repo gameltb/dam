@@ -5,7 +5,10 @@ import logging
 import uuid
 import weakref
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Type, TypeVar, Union
+
+if TYPE_CHECKING:
+    from .runtime_resource_user.commit_object import CommitObjectProxyWrapper
 
 _logger = logging.getLogger(__name__)
 
@@ -290,6 +293,7 @@ class CommitObjectProxy(Generic[T]):
     def __init__(self, base_object: Union[T, BaseCommitObjectRef[T]]):
         self.manager_uuid = uuid.uuid4()
         self.commit_stack: list[CommitABC[T]] = []
+        self.am_ref: Optional[weakref.ref[CommitObjectProxyWrapper[T]]] = None
 
         self.base_object_ref: BaseCommitObjectRef[T]
         if isinstance(base_object, BaseCommitObjectRef):

@@ -4,7 +4,7 @@ import logging
 import sys
 import weakref
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, List, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, Set, TypeVar
 
 import torch
 
@@ -48,7 +48,7 @@ class ResourcePoolUserABC(ABC, Generic[T]):
         ...
 
     @abstractmethod
-    def get_runtime_device(self) -> resources_device:
+    def get_runtime_device(self) -> resources_device | None:
         """get execution device for manage_object, mainly for torch module.
 
         Returns:

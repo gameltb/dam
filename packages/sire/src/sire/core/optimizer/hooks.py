@@ -1,3 +1,4 @@
+# type: ignore
 import functools
 import logging
 import os
@@ -31,13 +32,13 @@ logger = logging.getLogger(__name__)
 
 
 # hack
-accelerate.hooks.set_module_tensor_to_device = functools.partial(  # type: ignore
+accelerate.hooks.set_module_tensor_to_device = functools.partial(
     accelerate.utils.modeling.set_module_tensor_to_device, non_blocking=True, clear_cache=False
 )
 
 
 class PrefetchContext:
-    def __init__(self, plan: OptimizationPlan, model: nn.Module, num_streams: int, offload_policy: str):
+    def __init__(self, plan: OptimizationPlan, model: nn.Module, num_streams: int, offload_policy: str) -> None:
         self.plan, self.model = plan, model
         self.module_map: Dict[str, nn.Module] = {name: mod for name, mod in model.named_modules()}
         self.num_streams, self.offload_policy = num_streams, offload_policy
@@ -66,18 +67,18 @@ class PrefetchContext:
         self.stream_mgr["stream_idx"][device.index] = (idx + 1) % len(pool)
         return stream
 
-    def set_module_prefetch_stream(self, name: str, stream: torch.cuda.Stream):
+    def set_module_prefetch_stream(self, name: str, stream: torch.cuda.Stream) -> None:
         self.module_pf_streams[name] = stream
 
     def get_module_prefetch_stream(self, name: str) -> Optional[torch.cuda.Stream]:
         return self.module_pf_streams.get(name)
 
-    def clear_all_module_prefetch_streams(self):
+    def clear_all_module_prefetch_streams(self) -> None:
         self.module_pf_streams.clear()
 
 
 class PrefetchingWaitHook(ModelHook):
-    def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module, exec_dev: torch.device):
+    def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module, exec_dev: torch.device) -> None:
         super().__init__()
         self.ctx, self.name, self.mod_inst, self.exec_dev = ctx, name, mod_inst, exec_dev
         self.tied_ptrs_to_rm: Set[Tuple[int, torch.device]] = set()
@@ -85,7 +86,7 @@ class PrefetchingWaitHook(ModelHook):
         logger.debug(f"PrefetchingWaitHook for {self.name} on {self.exec_dev}")
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:  # type: ignore
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         if module is not self.mod_inst:
             logger.warning(f"WaitHook for {self.name} called on wrong mod")
             return args, kwargs
@@ -107,25 +108,25 @@ class AlignDevicesHookTorchCompilerDisable(AlignDevicesHook):
         cls, align_devices_hook: AlignDevicesHook
     ) -> "AlignDevicesHookTorchCompilerDisable":
         align_devices_hook.__class__ = cls
-        return align_devices_hook  # type: ignore
+        return align_devices_hook
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:  # type: ignore
-        return super().pre_forward(module, *args, **kwargs)  # type: ignore
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        return super().pre_forward(module, *args, **kwargs)
 
     @torch.compiler.disable()
-    def post_forward(self, module: nn.Module, output: Any) -> Any:  # type: ignore
+    def post_forward(self, module: nn.Module, output: Any) -> Any:
         return super().post_forward(module, output)
 
 
 class PrefetchingHook(ModelHook):  # Placed on trigger module
-    def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module):
+    def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module) -> None:
         super().__init__()
         self.ctx, self.name, self.mod_inst = ctx, name, mod_inst
         logger.debug(f"PrefetchingHook (trigger) for {self.name}")
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:  # type: ignore
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         if module is not self.mod_inst:
             logger.warning(f"TriggerHook for {self.name} called on wrong mod")
             return args, kwargs
@@ -150,7 +151,9 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
         nvtx.range_pop()
         return args, kwargs
 
-    def do_prefetch(self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream):
+    def do_prefetch(
+        self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream
+    ) -> None:
         nvtx.range_push(f"pf_task_{pf_name}_on_{pf_stream.stream_id}")
         try:
             pf_stream.wait_stream(torch.cuda.current_stream())
@@ -158,7 +161,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                 hook = getattr(pf_mod, "_hf_hook", None)
                 align_hook, wait_hook = None, None
                 if isinstance(hook, SequentialHook):
-                    for h_ in hook.hooks:  # type: ignore
+                    for h_ in hook.hooks:
                         if isinstance(h_, AlignDevicesHook):
                             align_hook = h_
                         elif isinstance(h_, PrefetchingWaitHook):
@@ -192,7 +195,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     return
                 align_hook.execution_device = pf_dev
 
-                for name, val in named_module_tensors(pf_mod, True, False, True):  # type: ignore
+                for name, val in named_module_tensors(pf_mod, True, False, True):
                     if val.device.type == "meta":
                         map_val = w_map.get(name)
                         if map_val is None:
@@ -236,7 +239,7 @@ class InferenceOptimizerHook(ModelHook):
         force_profiling: bool = False,
         run_profiling_if_needed: bool = True,
         max_memory_gb: Optional[Dict[str, float]] = None,
-    ):
+    ) -> None:
         super().__init__()
         self.base_cache_dir = cache_dir
         os.makedirs(self.base_cache_dir, exist_ok=True)
@@ -282,9 +285,9 @@ class InferenceOptimizerHook(ModelHook):
                     no_split_module_classes=self.no_split_module_classes,
                 )
                 if balanced:
-                    mem_map = {str(k): v for k, v in balanced.items()}  # type: ignore
+                    mem_map = {str(k): v for k, v in balanced.items()}
                 mem_str = {k: f"{val / (1024**3):.1f}GB" for k, val in mem_map.items()}
-                logger.info(f"Auto-balanced max_mem: {mem_str}")  # type: ignore
+                logger.info(f"Auto-balanced max_mem: {mem_str}")
             except Exception as e:
                 logger.error(f"Auto-balance fail: {e}", exc_info=True)
                 mem_map = {"cpu": 64 * (1024**3)}
@@ -333,9 +336,9 @@ class InferenceOptimizerHook(ModelHook):
         map_for_dispatch: Dict[str, Any] = {
             k: ("cpu" if v.type == "cpu" else f"{v.type}:{v.index}") for k, v in plan.optimized_device_map.items()
         }
-        dispatch_model(  # type: ignore
+        dispatch_model(
             mod_to_opt,
-            map_for_dispatch,
+            device_map=map_for_dispatch,
             main_device=main_dev_dispatch,
             force_hooks=True,
             state_dict=self.cpu_state_dict,
@@ -360,7 +363,7 @@ class InferenceOptimizerHook(ModelHook):
         return pf_ctx
 
     @torch.compiler.disable()
-    def pre_forward(  # type: ignore
+    def pre_forward(
         self, module: nn.Module, *args: Any, **kwargs: Any
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         nvtx.range_push("IOHook.full_forward")
@@ -545,14 +548,14 @@ class InferenceOptimizerHook(ModelHook):
                 )
                 if align_hook:
                     logger.debug(f"Manually calling pre_forward of AlignDevicesHook: {type(align_hook)}")
-                    result = align_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)  # type: ignore
-                    args, kwargs = result[0], result[1]  # type: ignore
+                    result = align_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)
+                    args, kwargs = result[0], result[1]
                 else:
                     logger.warning("No AlignDevicesHook found in SequentialHook post-setup.")
             elif hf_hook is not self and isinstance(hf_hook, AlignDevicesHook):
                 logger.debug(f"Manually calling pre_forward of sole AlignDevicesHook: {type(hf_hook)}")
-                result = hf_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)  # type: ignore
-                args, kwargs = result[0], result[1]  # type: ignore
+                result = hf_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)
+                args, kwargs = result[0], result[1]
             else:
                 logger.warning(
                     f"No applicable hook found for arg alignment on {self.hooked_module_instance.__class__.__name__} post-setup. Hook is: {type(hf_hook)}"

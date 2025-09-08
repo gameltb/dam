@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import copy
 import csv
@@ -13,6 +15,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    cast,
 )
 
 import torch
@@ -87,18 +90,18 @@ def record_cuda_memory_history():  # type: ignore
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT: int = 100000
 
-    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)
+    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)  # type: ignore
 
     try:
         yield
     finally:
         try:
-            torch.cuda.memory._dump_snapshot(os.path.join(PROF_OUT_DIR, f"{timestamp}.pickle"))
+            torch.cuda.memory._dump_snapshot(os.path.join(PROF_OUT_DIR, f"{timestamp}.pickle"))  # type: ignore
         except Exception as e:
             _logger.error(f"Failed to capture memory snapshot {e}")
 
         # Stop recording memory snapshot history.
-        torch.cuda.memory._record_memory_history(enabled=None)
+        torch.cuda.memory._record_memory_history(enabled=None)  # type: ignore
 
 
 @contextlib.contextmanager
@@ -191,8 +194,8 @@ class ProfilingData:
     module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self):
-        self.module_stats = defaultdict(ModuleStats, self.module_stats or {})
-        self.move_times = defaultdict(list, self.move_times or {})
+        self.module_stats: defaultdict[str, ModuleStats] = defaultdict(ModuleStats, self.module_stats or {})
+        self.move_times: defaultdict[str, list[float]] = defaultdict(list, self.move_times or {})
 
     def record_execution(self, name: str, exec_time: Optional[float], peak_vram_delta: Optional[int]):
         if name not in self.execution_order:
@@ -220,7 +223,7 @@ class ProfilingData:
             peak_vram_delta = max(stats_data.peak_vram_usages) if stats_data.peak_vram_usages else 0
             self.module_VRAM_footprint[name] = stats_data.weight_size + peak_vram_delta
 
-    def get_avg_stats(self) -> "AverageProfilingStats":
+    def get_avg_stats(self) -> AverageProfilingStats:
         avg_stats_map = {
             name: AverageModuleStats(
                 avg_exec_time=sum(data.exec_times) / len(data.exec_times) if data.exec_times else 0.0,
@@ -241,7 +244,7 @@ class ProfilingData:
         save_to_json_file(self, filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> Optional["ProfilingData"]:
+    def load(cls, filepath: str) -> ProfilingData | None:
         instance = load_from_json_file(filepath, cls)
         if isinstance(instance, cls):
             instance.__post_init__()
@@ -275,8 +278,8 @@ def _profile_run_context(data_store: ProfilingData):
 
 
 def get_module_size(module: nn.Module, include_children: bool = True) -> int:
-    s = sum(p.numel() * p.element_size() for p in module.parameters(False) if p is not None and p.device.type != "meta")
-    s += sum(b.numel() * b.element_size() for b in module.buffers(False) if b is not None and b.device.type != "meta")
+    s = sum(p.numel() * p.element_size() for p in module.parameters(False) if p.device.type != "meta")
+    s += sum(b.numel() * b.element_size() for b in module.buffers(False) if b.device.type != "meta")
     if include_children:
         s += sum(get_module_size(c, True) for c in module.children())
     return s
@@ -304,7 +307,7 @@ def infer_fine_grained_device_map(
         is_frozen = any(path.startswith(p + ".") for p in frozen if p)
         if is_frozen:
             pass
-        elif cls_name in no_split:
+        elif cls_name in (no_split or []):
             if path:
                 dev_map[path] = default_dev
                 frozen.add(path)
@@ -335,10 +338,10 @@ class Profiler:
 
     def run(
         self,
-        *args,
+        *args: Any,
         no_split_module_classes: Optional[List[str]] = None,
         max_memory: Optional[Dict[str, int]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ProfilingData:
         """
         Runs a profiling pass on the module.
@@ -377,7 +380,7 @@ class Profiler:
                 else torch.device("cpu")
             )
             # dispatch_model will add AlignDevicesHook where needed.
-            dispatch_model(self.module, init_map, main_dev_prof, force_hooks=True)
+            dispatch_model(self.module, device_map=cast(Any, init_map), main_device=main_dev_prof, force_hooks=True)
 
             # Now, append ProfilerHook to the hooks created by dispatch_model.
             ph_count = 0
@@ -409,7 +412,7 @@ class ProfilerHook(ModelHook):
         self.module_name = module_name
         self.module: Optional[nn.Module] = None
 
-    def pre_forward(self, module: nn.Module, *args, **kwargs):
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[Any, Any]:
         if not (_profiling_enabled_global and _current_profiling_data_global):
             return args, kwargs
         name, module_id = self.module_name, id(module)
@@ -437,7 +440,7 @@ class ProfilerHook(ModelHook):
             _logger.error(f"ProfilerHook: pre_fwd error [{name}]: {e}", exc_info=True)
         return args, kwargs
 
-    def post_forward(self, module: nn.Module, output: Any):
+    def post_forward(self, module: nn.Module, output: Any) -> Any:
         if not (_profiling_enabled_global and _current_profiling_data_global):
             return output
         name, module_id = self.module_name, id(module)
@@ -467,7 +470,10 @@ class ProfilerHook(ModelHook):
                 if module_id in self.module_start_vram_max:
                     del self.module_start_vram_max[module_id]
         if name:
-            _current_profiling_data_global.record_execution(name, time_ms / 1000.0 if time_ms else None, vram_delta)
+            if _current_profiling_data_global:
+                _current_profiling_data_global.record_execution(
+                    name, time_ms / 1000.0 if time_ms else None, vram_delta
+                )
         else:
             _logger.warning(f"ProfilerHook: Skipping recording, missing name for module ID {module_id}.")
         return output

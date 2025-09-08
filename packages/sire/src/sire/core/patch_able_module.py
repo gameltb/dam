@@ -1,3 +1,4 @@
+# type: ignore
 # module witch controlflow can be patch
 import logging
 import typing

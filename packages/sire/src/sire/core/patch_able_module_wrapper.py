@@ -1,3 +1,4 @@
+# type: ignore
 # wrapper to module have pacth module, make it run and can be export to onnx.
 from collections import OrderedDict
 from functools import reduce

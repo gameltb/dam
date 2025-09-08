@@ -5,16 +5,16 @@ from sire.core.optimizer.signature import ConfigSignatureGenerator
 
 
 class SimpleModel(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.linear1 = nn.Linear(10, 20)
         self.linear2 = nn.Linear(20, 5)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.linear2(self.linear1(x))
 
 
-def test_signature_generator_consistency():
+def test_signature_generator_consistency() -> None:
     """
     Tests that the signature generator produces the same signature for the same inputs.
     """
@@ -30,7 +30,7 @@ def test_signature_generator_consistency():
     assert sig1 == sig2
 
 
-def test_signature_generator_input_change_sensitivity():
+def test_signature_generator_input_change_sensitivity() -> None:
     """
     Tests that the signature changes when model inputs change.
     """
@@ -57,7 +57,7 @@ def test_signature_generator_input_change_sensitivity():
     assert sig2 != sig3
 
 
-def test_signature_generator_model_change_sensitivity():
+def test_signature_generator_model_change_sensitivity() -> None:
     """
     Tests that the signature changes when the model changes.
     """
@@ -75,11 +75,11 @@ def test_signature_generator_model_change_sensitivity():
 
     # Different architecture
     class DifferentModel(nn.Module):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
             self.linear = nn.Linear(10, 5)
 
-        def forward(self, x):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
             return self.linear(x)
 
     model3 = DifferentModel()
@@ -91,7 +91,7 @@ def test_signature_generator_model_change_sensitivity():
     assert sig1 != sig3
 
 
-def test_plan_identifier_generator():
+def test_plan_identifier_generator() -> None:
     """
     Tests the generation of the plan identifier based on memory constraints.
     """
