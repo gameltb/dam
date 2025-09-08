@@ -257,15 +257,16 @@ class BaseCommitObjectRef(Generic[T]):
         self.revert_commit(len(self.applied_commit_ref_stack))
 
 
-BASE_COMMIT_OBJECT_REF_OBJECT_MAP: weakref.WeakKeyDictionary[
-    Any, weakref.ref[BaseCommitObjectRef[Any]]
-] = weakref.WeakKeyDictionary()
+BASE_COMMIT_OBJECT_REF_OBJECT_MAP: weakref.WeakKeyDictionary[Any, weakref.ref[BaseCommitObjectRef[Any]]] = (
+    weakref.WeakKeyDictionary()
+)
 
 BCO = TypeVar("BCO", bound=BaseCommitObjectRef[Any])
 
 
 def get_base_commit_object_ref(
-    base_object: Any, base_commit_object_ref_cls: Type[BCO] = BaseCommitObjectRef  # type: ignore
+    base_object: Any,
+    base_commit_object_ref_cls: Type[BCO] = BaseCommitObjectRef,  # type: ignore
 ) -> BCO:
     """
     pipeline <- ref1

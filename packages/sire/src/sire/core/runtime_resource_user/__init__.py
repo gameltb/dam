@@ -24,12 +24,10 @@ class ResourcePoolUserABC(ABC, Generic[T]):
 
     @property
     @abstractmethod
-    def manage_object(self) -> Optional[T]:
-        ...
+    def manage_object(self) -> Optional[T]: ...
 
     @abstractmethod
-    def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]:
-        ...
+    def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]: ...
 
     @abstractmethod
     def on_load(self) -> None:
@@ -40,12 +38,10 @@ class ResourcePoolUserABC(ABC, Generic[T]):
         self.loaded = False
 
     @abstractmethod
-    def get_used_resource_size(self, device: resources_device) -> int:
-        ...
+    def get_used_resource_size(self, device: resources_device) -> int: ...
 
     @abstractmethod
-    def get_used_resource_devices(self) -> Set[resources_device]:
-        ...
+    def get_used_resource_devices(self) -> Set[resources_device]: ...
 
     @abstractmethod
     def get_runtime_device(self) -> resources_device | None:
@@ -88,9 +84,7 @@ class WeakRefResourcePoolUser(ResourcePoolUserABC[T]):
         super().__init__()
         self._manage_object_weak_ref = weakref.ref(manage_object)
         if hasattr(manage_object, "__class__"):
-            self.logger = logging.getLogger(
-                f"{__name__}_{self.__class__.__name__}_{manage_object.__class__.__name__}"
-            )
+            self.logger = logging.getLogger(f"{__name__}_{self.__class__.__name__}_{manage_object.__class__.__name__}")
         else:
             self.logger = logging.getLogger(f"{__name__}_{self.__class__.__name__}")
 

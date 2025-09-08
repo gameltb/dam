@@ -90,9 +90,7 @@ class AutoManageHook(ModelHook):
     def execution_device(self):
         return self.am.get_execution_device()
 
-    def pre_forward(
-        self, module: torch.nn.Module, *args: Any, **kwargs: Any
-    ) -> tuple[Any, Any]:
+    def pre_forward(self, module: torch.nn.Module, *args: Any, **kwargs: Any) -> tuple[Any, Any]:
         self.context_token = sire_inference_context.set({"args": args, "kwargs": kwargs})
         self.am.load()
         return send_to_device(args, self.am.get_execution_device()), send_to_device(

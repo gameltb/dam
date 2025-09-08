@@ -6,7 +6,7 @@ from sire.core.optimizer.signature import ConfigSignatureGenerator
 
 class SimpleModel(nn.Module):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()  # type: ignore
         self.linear1 = nn.Linear(10, 20)
         self.linear2 = nn.Linear(20, 5)
 
@@ -76,7 +76,7 @@ def test_signature_generator_model_change_sensitivity() -> None:
     # Different architecture
     class DifferentModel(nn.Module):
         def __init__(self) -> None:
-            super().__init__()
+            super().__init__()  # type: ignore
             self.linear = nn.Linear(10, 5)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:

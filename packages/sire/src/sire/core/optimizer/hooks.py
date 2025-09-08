@@ -104,9 +104,7 @@ class PrefetchingWaitHook(ModelHook):
 
 class AlignDevicesHookTorchCompilerDisable(AlignDevicesHook):
     @classmethod
-    def from_align_devices_hook(
-        cls, align_devices_hook: AlignDevicesHook
-    ) -> "AlignDevicesHookTorchCompilerDisable":
+    def from_align_devices_hook(cls, align_devices_hook: AlignDevicesHook) -> "AlignDevicesHookTorchCompilerDisable":
         align_devices_hook.__class__ = cls
         return align_devices_hook
 
@@ -151,9 +149,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
         nvtx.range_pop()
         return args, kwargs
 
-    def do_prefetch(
-        self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream
-    ) -> None:
+    def do_prefetch(self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream) -> None:
         nvtx.range_push(f"pf_task_{pf_name}_on_{pf_stream.stream_id}")
         try:
             pf_stream.wait_stream(torch.cuda.current_stream())
@@ -363,9 +359,7 @@ class InferenceOptimizerHook(ModelHook):
         return pf_ctx
 
     @torch.compiler.disable()
-    def pre_forward(
-        self, module: nn.Module, *args: Any, **kwargs: Any
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         nvtx.range_push("IOHook.full_forward")
         nvtx.range_push("IOHook.pre_forward")
         self.hooked_module_instance = module
@@ -544,7 +538,8 @@ class InferenceOptimizerHook(ModelHook):
             hf_hook = getattr(self.hooked_module_instance, "_hf_hook", None)
             if isinstance(hf_hook, SequentialHook):
                 align_hook = next(
-                    (h for h in hf_hook.hooks if isinstance(h, AlignDevicesHook) and not isinstance(h, type(self))), None
+                    (h for h in hf_hook.hooks if isinstance(h, AlignDevicesHook) and not isinstance(h, type(self))),
+                    None,
                 )
                 if align_hook:
                     logger.debug(f"Manually calling pre_forward of AlignDevicesHook: {type(align_hook)}")

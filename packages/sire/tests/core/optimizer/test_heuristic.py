@@ -6,9 +6,7 @@ from sire.core.optimizer.heuristic import HeuristicOptimizer
 from sire.core.profile_tool import AverageModuleStats, AverageProfilingStats, ProfilingData
 
 
-def _create_mock_profiling_data(
-    module_stats: Dict[str, Dict[str, float]], execution_order: List[str]
-) -> ProfilingData:
+def _create_mock_profiling_data(module_stats: Dict[str, Dict[str, float]], execution_order: List[str]) -> ProfilingData:
     """Creates a mock ProfilingData object for testing."""
     profiling_data = ProfilingData()
     avg_module_stats: Dict[str, AverageModuleStats] = {}

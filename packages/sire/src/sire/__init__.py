@@ -1,6 +1,7 @@
 __version__ = "0.2.0"
 
 from typing import Any
+
 import diffusers
 import torch
 from torch import device as torch_device

@@ -8,8 +8,8 @@ from torch import device
 from ..commit_object import CommitObjectProxy
 from ..runtime_resource_management import (
     AutoManageWrapper,
-    ResourcePoolManagement,
     ResourcePool,
+    ResourcePoolManagement,
 )
 from . import WeakRefResourcePoolUser
 

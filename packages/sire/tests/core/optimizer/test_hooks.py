@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Any
+from typing import Generator
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -14,7 +14,7 @@ from sire.core.optimizer.plan import OptimizationPlan
 
 class SimpleModel(nn.Module):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()  # type: ignore
         self.layer1 = nn.Linear(10, 20)
         self.layer2 = nn.Linear(20, 5)
 
@@ -32,7 +32,7 @@ def mock_nvtx(mocker: Mock):
 
 
 @pytest.fixture
-def temp_cache_dir() -> str:
+def temp_cache_dir() -> Generator[str, None, None]:
     """Provides a temporary directory for cache files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
@@ -90,7 +90,7 @@ def test_inference_optimizer_hook_second_run_cached(
     # Mock the main methods
     mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
     mock_profiler_instance = mock_profiler_cls.return_value
-    mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._gen_opt_plan")
+    mock_gen_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._gen_opt_plan")
     mock_setup_with_plan = mocker.patch("sire.core.optimizer.hooks.InferenceOptimizerHook._setup_module_with_plan")
 
     # Mock file system interactions to simulate cached files
@@ -108,7 +108,7 @@ def test_inference_optimizer_hook_second_run_cached(
     model(torch.randn(4, 10))
 
     # Assertions
-    mock_profiler_instance.run.assert_not_called()
+    mock_profiler_instance.run.assert_not_called()  # type: ignore
     mock_gen_plan.assert_not_called()
     mock_setup_with_plan.assert_called_once()
     # Check that the loaded plan was used
@@ -149,7 +149,7 @@ def test_inference_optimizer_hook_force_profiling(
     mock_gen_plan.assert_called_once()
     mock_setup_with_plan.assert_called_once()
     # Check that the internal flag is reset after one run
-    assert hook._force_profiling_active is False
+    assert hook._force_profiling_active is False  # type: ignore
 
 
 @pytest.mark.skipif(
@@ -171,7 +171,7 @@ def test_e2e_optimizer_hook_on_sdxl_unet(mock_from_single_file: Mock, temp_cache
     # --- Setup the hook ---
     optimizer_hook = InferenceOptimizerHook(
         cache_dir=temp_cache_dir,
-        max_memory_gb={0: 8, "cpu": 24},
+        max_memory_gb={"0": 8, "cpu": 24},  # type: ignore
         force_profiling=True,  # Force profiling for a clean test run
     )
     add_hook_to_module(mock_pipe.unet, optimizer_hook)

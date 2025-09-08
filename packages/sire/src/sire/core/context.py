@@ -21,9 +21,6 @@ def get_sire_inference_context() -> Optional[Dict[str, Any]]:
     return sire_inference_context.get()
 
 
-from typing import Any
-
-
 @contextlib.contextmanager
 def sire_inference_context_manager(*args: Any, **kwargs: Any):
     """

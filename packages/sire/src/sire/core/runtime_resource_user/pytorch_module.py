@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, Union
 
 import accelerate
-import accelerate.hooks
 import torch
 
 from ...utils import human_readable_filesize
@@ -11,7 +10,7 @@ from ..context import get_sire_inference_context
 from ..optimizer.plan import OptimizationPlan
 from ..profile_tool import Profiler
 from ..runtime_resource_management import ResourcePoolManagement
-from ..runtime_resource_pool import resources_device
+from ..runtime_resource_pool import ResourcePool, resources_device
 from . import WeakRefResourcePoolUser
 
 
@@ -20,9 +19,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         self,
         torch_model: torch.nn.Module,
         *,
-        inference_memory_estimator: Union[
-            int, Callable[..., int], Profiler, OptimizationPlan, None
-        ] = None,
+        inference_memory_estimator: Union[int, Callable[..., int], Profiler, OptimizationPlan, None] = None,
     ) -> None:
         super().__init__(torch_model)
         self.inference_memory_estimator = inference_memory_estimator
@@ -68,8 +65,6 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         return inference_memory_size
 
     def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]:
-        from ..runtime_resource_pool import ResourcePool
-
         self.offload_resource_pool = manager.get_resource_pool(torch.device("cpu"))
 
         if torch.cuda.is_available():
@@ -186,7 +181,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 def get_module_size(module: torch.nn.Module, device: Optional[torch.device] = None) -> int:
     module_mem = 0
     sd: dict[str, torch.Tensor] = module.state_dict()
-    for k, t in sd.items():
+    for _, t in sd.items():
         if device is None or t.device == device:
             module_mem += t.nelement() * t.element_size()
     return module_mem

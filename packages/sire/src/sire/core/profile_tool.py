@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from typing import (
     Any,
+    DefaultDict,
     Dict,
     List,
     Optional,
@@ -144,7 +145,7 @@ def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
             latent_image = kwargs.get("latent_image", None)
 
             if latent_image is not None:
-                B, C, H, W = latent_image["samples"].shape
+                B, _, H, W = latent_image["samples"].shape
                 point.batch_size = B
                 point.width = W
                 point.height = H
@@ -163,8 +164,8 @@ def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
 
 @dataclass
 class ModuleStats:
-    exec_times: List[float] = field(default_factory=list)
-    peak_vram_usages: List[int] = field(default_factory=list)
+    exec_times: List[float] = field(default_factory=list)  # type: ignore
+    peak_vram_usages: List[int] = field(default_factory=list)  # type: ignore
     weight_size: int = 0
 
 
@@ -180,22 +181,22 @@ class AverageModuleStats:
 
 @dataclass
 class AverageProfilingStats:
-    avg_module_stats: Dict[str, AverageModuleStats] = field(default_factory=dict)
-    avg_move_times: Dict[str, float] = field(default_factory=dict)
-    execution_order: List[str] = field(default_factory=list)
-    module_vram_footprint: Dict[str, int] = field(default_factory=dict)
+    avg_module_stats: Dict[str, AverageModuleStats] = field(default_factory=dict)  # type: ignore
+    avg_move_times: Dict[str, float] = field(default_factory=dict)  # type: ignore
+    execution_order: List[str] = field(default_factory=list)  # type: ignore
+    module_vram_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
 
 
 @dataclass
 class ProfilingData:
-    module_stats: Dict[str, ModuleStats] = field(default_factory=dict)
-    move_times: Dict[str, List[float]] = field(default_factory=dict)
+    module_stats: DefaultDict[str, ModuleStats] = field(default_factory=lambda: defaultdict(ModuleStats))
+    move_times: DefaultDict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
     execution_order: List[str] = field(default_factory=list)
     module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self):
-        self.module_stats: defaultdict[str, ModuleStats] = defaultdict(ModuleStats, self.module_stats or {})
-        self.move_times: defaultdict[str, list[float]] = defaultdict(list, self.move_times or {})
+        self.module_stats = defaultdict(ModuleStats, self.module_stats or {})
+        self.move_times = defaultdict(list, self.move_times or {})
 
     def record_execution(self, name: str, exec_time: Optional[float], peak_vram_delta: Optional[int]):
         if name not in self.execution_order:
@@ -380,13 +381,13 @@ class Profiler:
                 else torch.device("cpu")
             )
             # dispatch_model will add AlignDevicesHook where needed.
-            dispatch_model(self.module, device_map=cast(Any, init_map), main_device=main_dev_prof, force_hooks=True)
+            dispatch_model(self.module, device_map=cast(Any, init_map), main_device=main_dev_prof, force_hooks=True)  # type: ignore
 
             # Now, append ProfilerHook to the hooks created by dispatch_model.
             ph_count = 0
             for name, sub_mod in self.module.named_modules():
                 if hasattr(sub_mod, "_hf_hook"):
-                    add_hook_to_module(sub_mod, ProfilerHook(name), append=True)
+                    add_hook_to_module(sub_mod, ProfilerHook(name), append=True)  # type: ignore
                     ph_count += 1
             _logger.info(f"Registered {ph_count} ProfilerHooks.")
 
@@ -423,10 +424,10 @@ class ProfilerHook(ModelHook):
                     _current_profiling_data_global.record_weight_size(name, size)
                 elif name not in _current_profiling_data_global.execution_order:
                     _current_profiling_data_global.record_execution(name, None, None)
-            dev = find_device(module.state_dict())
+            dev = find_device(module.state_dict())  # type: ignore
             if dev and dev.type == "cuda":
                 try:
-                    self.module_start_vram_max[module_id] = torch.cuda.max_memory_allocated(dev)
+                    self.module_start_vram_max[module_id] = torch.cuda.max_memory_allocated(dev)  # type: ignore
                     s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
                     s.record()
                     self.module_timing_events[module_id] = (s, e)
@@ -450,17 +451,17 @@ class ProfilerHook(ModelHook):
             return output
 
         time_ms, vram_delta = None, None
-        dev = find_device(output if output is not None else module.state_dict())
+        dev = find_device(output if output is not None else module.state_dict())  # type: ignore
         if dev and dev.type == "cuda":
             try:
                 if module_id in self.module_timing_events:
                     s, e = self.module_timing_events[module_id]
                     e.record()
-                    torch.cuda.synchronize(dev)
-                    time_ms = s.elapsed_time(e)
+                    torch.cuda.synchronize(dev)  # type: ignore
+                    time_ms = s.elapsed_time(e)  # type: ignore
                 if module_id in self.module_start_vram_max:
                     vram_before = self.module_start_vram_max[module_id]
-                    vram_after = torch.cuda.max_memory_allocated(dev)
+                    vram_after = torch.cuda.max_memory_allocated(dev)  # type: ignore
                     vram_delta = max(0, vram_after - vram_before)
             except Exception as e_post:
                 _logger.error(f"ProfilerHook: post_fwd CUDA error [{name} on {dev}]: {e_post}", exc_info=True)
@@ -471,9 +472,7 @@ class ProfilerHook(ModelHook):
                     del self.module_start_vram_max[module_id]
         if name:
             if _current_profiling_data_global:
-                _current_profiling_data_global.record_execution(
-                    name, time_ms / 1000.0 if time_ms else None, vram_delta
-                )
+                _current_profiling_data_global.record_execution(name, time_ms / 1000.0 if time_ms else None, vram_delta)
         else:
             _logger.warning(f"ProfilerHook: Skipping recording, missing name for module ID {module_id}.")
         return output

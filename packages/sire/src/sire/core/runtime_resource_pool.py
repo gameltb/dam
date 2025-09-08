@@ -1,5 +1,6 @@
 import logging
 import weakref
+from typing import Any
 
 from ..utils.runtime_resource_util import get_free_mem_size_cpu, get_free_mem_size_cuda_pytorch
 from .runtime_resource_user import ResourcePoolUserABC, resources_device
@@ -9,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 class ResourcePool:
     def __init__(self, runtime_device: resources_device = resources_device("cpu", 0)) -> None:
-        self.users: weakref.WeakSet[ResourcePoolUserABC] = weakref.WeakSet()
+        self.users: weakref.WeakSet[ResourcePoolUserABC[Any]] = weakref.WeakSet()
         self.resource_device: resources_device = runtime_device
         self.pool_size = 0
         self.shared_pool_size = 0
@@ -34,13 +35,13 @@ class ResourcePool:
     def get_pool_free_size(self) -> int:
         raise NotImplementedError()
 
-    def register_resource_pool_user(self, user: ResourcePoolUserABC):
+    def register_resource_pool_user(self, user: ResourcePoolUserABC[Any]):
         self.users.add(user)
 
-    def remove_resource_pool_user(self, user: ResourcePoolUserABC):
+    def remove_resource_pool_user(self, user: ResourcePoolUserABC[Any]):
         self.users.remove(user)
 
-    def have_resource_pool_user(self, user: ResourcePoolUserABC) -> bool:
+    def have_resource_pool_user(self, user: ResourcePoolUserABC[Any]) -> bool:
         return user in self.users
 
 

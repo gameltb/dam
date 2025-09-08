@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import diffusers
 import torch
 
@@ -16,6 +18,8 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
 
     def apply_components_hook(self):
         pipeline = self.manage_object
+        if pipeline is None:
+            return
 
         self.all_module_hooks_map = {}
 
@@ -49,13 +53,13 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
 
     def unlock(self) -> None:
         super().unlock()
-        for name, hook in self.all_module_hooks_map.items():
+        for _, hook in self.all_module_hooks_map.items():
             hook.post_forward(None, None)  # type: ignore
 
 
 def get_pipeline_size(pipeline: diffusers.DiffusionPipeline):
     pipe_mem = 0
-    for comp_name, comp in pipeline.components.items():
+    for _, comp in pipeline.components.items():
         if isinstance(comp, torch.nn.Module):
             pipe_mem += get_module_size(comp)
     return pipe_mem

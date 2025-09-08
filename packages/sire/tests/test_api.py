@@ -9,7 +9,7 @@ import sire
 # A simple model for testing
 class SimpleModel(torch.nn.Module):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()  # type: ignore
         self.linear = torch.nn.Linear(10, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -57,7 +57,7 @@ def test_manage_and_auto_manage_simple() -> None:
 
 class ManagedCommit(sire.CommitWithAutoManage[Any]):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()  # type: ignore
         self.apply_called = False
         self.revert_called = False
         self.execution_device_at_apply = None

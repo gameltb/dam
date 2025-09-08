@@ -1,5 +1,6 @@
 import functools
 import json
+from typing import Any
 
 import numpy as np
 
@@ -7,9 +8,9 @@ import numpy as np
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types"""
 
-    def default(self, obj):
+    def default(self, o: Any) -> Any:
         if isinstance(
-            obj,
+            o,
             (
                 np.int_,
                 np.intc,
@@ -24,24 +25,24 @@ class NumpyEncoder(json.JSONEncoder):
                 np.uint64,
             ),
         ):
-            return int(obj)
+            return int(o)
 
-        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
-            return float(obj)
+        elif isinstance(o, (np.float_, np.float16, np.float32, np.float64)):
+            return float(o)
 
-        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
-            return {"real": obj.real, "imag": obj.imag}
+        elif isinstance(o, (np.complex_, np.complex64, np.complex128)):
+            return {"real": o.real, "imag": o.imag}
 
-        elif isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
+        elif isinstance(o, (np.ndarray,)):
+            return o.tolist()
 
-        elif isinstance(obj, (np.bool_)):
-            return bool(obj)
+        elif isinstance(o, (np.bool_)):
+            return bool(o)
 
-        elif isinstance(obj, (np.void)):
+        elif isinstance(o, (np.void)):
             return None
 
-        return json.JSONEncoder.default(self, obj)
+        return super().default(o)
 
 
 np_dumps = functools.partial(json.dumps, cls=NumpyEncoder)
