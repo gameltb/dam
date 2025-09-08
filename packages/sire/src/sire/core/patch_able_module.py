@@ -4,7 +4,9 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Generic, Self, TypeVar
+from typing import Any, Generic, Self, TypeVar
+
+import torch.nn as nn
 
 _logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class PatchDefine:
     patch_type: PatchType = PatchType.EXCLUSIVE
 
     @staticmethod
-    def from_type_hint(patch_type_hint):
+    def from_type_hint(patch_type_hint: Any):
         if typing.get_origin(patch_type_hint) is list:
             patch_define = PatchDefine(PatchType.RANDOM_ORDER)
         else:
@@ -28,7 +30,10 @@ class PatchDefine:
         return patch_define
 
 
-class ControlFlowPatchModuleMixin:
+class ControlFlowPatchModuleMixin(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
     def get_patch_module_name(self) -> str:
         """
 
@@ -59,22 +64,27 @@ T = TypeVar("T")
 
 class ControlFlowPatchAbleModule(Generic[T]):
     def __init__(self) -> None:
-        self.patcher_module_map: T = OrderedDict()
-        for patch_name, patch_type_hint in self.get_patch_module_type_hints().items():
-            patch_define = PatchDefine.from_type_hint(patch_type_hint)
-            if patch_define.patch_type == PatchType.RANDOM_ORDER:
-                self.patcher_module_map[patch_name] = []
-            else:
-                self.patcher_module_map[patch_name] = None
+        self.patcher_module_map: "OrderedDict[str, Any]" = OrderedDict()
+        type_hints = self.get_patch_module_type_hints()
+        if type_hints:
+            for patch_name, patch_type_hint in type_hints.items():
+                patch_define = PatchDefine.from_type_hint(patch_type_hint)
+                if patch_define.patch_type == PatchType.RANDOM_ORDER:
+                    self.patcher_module_map[patch_name] = []
+                else:
+                    self.patcher_module_map[patch_name] = None
 
     def get_patch_module_type_hints(self):
         type_hints = None
 
         patch_module_map_type = None
-        for type_ in type(self).__orig_bases__:
-            if typing.get_origin(type_) is ControlFlowPatchAbleModule:
-                patch_module_map_type = typing.get_args(type_)[0]
-                break
+        if hasattr(type(self), "__orig_bases__"):
+            for type_ in type(self).__orig_bases__:  # type: ignore
+                if typing.get_origin(type_) is ControlFlowPatchAbleModule:
+                    args = typing.get_args(type_)
+                    if args:
+                        patch_module_map_type = args[0]
+                    break
 
         if patch_module_map_type is not None:
             type_hints = typing.get_type_hints(patch_module_map_type)
@@ -94,19 +104,19 @@ class ControlFlowPatchAbleModule(Generic[T]):
             raise Exception(f"patch_define {patch_type} not registered")
         return patch_define
 
-    def add_patch(self, patch_type: str, patch_object: ControlFlowPatchModuleMixin):
+    def add_patch(self, patch_type: str, patch_object: "ControlFlowPatchModuleMixin"):
         patch_define = self.get_patch_module_define(patch_type)
 
         if patch_define.patch_type == PatchType.EXCLUSIVE:
-            if patch_type in self.patcher_module_map:
+            if self.patcher_module_map.get(patch_type, None) is not None:
                 raise Exception(f"EXCLUSIVE patch {patch_type} has been applied.")
 
         if patch_define.patch_type == PatchType.EXCLUSIVE:
             self.patcher_module_map[patch_type] = patch_object
         elif patch_define.patch_type == PatchType.RANDOM_ORDER:
-            if patch_type not in self.patcher_module_map:
+            if patch_type not in self.patcher_module_map or self.patcher_module_map[patch_type] is None:
                 self.patcher_module_map[patch_type] = []
-            self.patcher_module_map[patch_type].append(patch_object)
+            self.patcher_module_map[patch_type].append(patch_object)  # type: ignore
 
     def copy_patch_from_other(self, other_patch_module: Self):
         self_type_hints = self.get_patch_module_type_hints()

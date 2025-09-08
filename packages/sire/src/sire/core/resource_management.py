@@ -2,14 +2,14 @@ import logging
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Union
+from typing import IO, Optional, Union
 from urllib.parse import ParseResult, urlparse
 
 _logger = logging.getLogger(__name__)
 
 
 class Resource:
-    def get_bytes_io(self) -> BytesIO:
+    def get_bytes_io(self) -> IO[bytes]:
         raise NotImplementedError()
 
     def get_filesystem_path(self) -> Optional[Path]:
@@ -17,10 +17,10 @@ class Resource:
 
 
 class FileSystemResource(Resource):
-    def __init__(self, file_path) -> None:
+    def __init__(self, file_path: Union[str, Path]) -> None:
         self.file_path = file_path
 
-    def get_bytes_io(self) -> BytesIO:
+    def get_bytes_io(self) -> IO[bytes]:
         return open(self.file_path, "rb")
 
     def get_filesystem_path(self) -> Optional[Path]:
@@ -28,7 +28,7 @@ class FileSystemResource(Resource):
 
 
 class BytesBuffResource(Resource):
-    def __init__(self, bytes_buff) -> None:
+    def __init__(self, bytes_buff: bytes) -> None:
         self.bytes_buff = bytes_buff
 
     def get_bytes_io(self) -> BytesIO:
@@ -36,7 +36,9 @@ class BytesBuffResource(Resource):
 
 
 class ResourceResolver:
-    def get_resource(self, url: Union[str, ParseResult], cls=None) -> Optional[Resource]:
+    def get_resource(
+        self, url: Union[str, ParseResult], cls: Optional[type["ResourceResolver"]] = None
+    ) -> Optional[Resource]:
         _logger.info(f"try get resource {url}")
         if isinstance(url, str):
             url = urlparse(url)
@@ -57,7 +59,7 @@ class MutiSchemeResourceResolver(ResourceResolver):
     def __init__(self) -> None:
         self.scheme_resolver_map: dict[str, ResourceResolver] = {}
 
-    def registe_scheme_resolver(self, scheme, scheme_resolver):
+    def registe_scheme_resolver(self, scheme: str, scheme_resolver: "ResourceResolver"):
         self.scheme_resolver_map[scheme] = scheme_resolver
 
     def _get_resource(self, url: ParseResult) -> Optional[Resource]:
@@ -79,7 +81,7 @@ class ProxyMutiSchemeResourceResolver(MutiSchemeResourceResolver):
         for url in new_identical_resource_urls:
             self.identical_resource_url_map[url] = new_identical_resource_urls
 
-    def find_identical_resource_url(self, url, scheme=None):
+    def find_identical_resource_url(self, url: str, scheme: Optional[str] = None) -> Optional[set[str]]:
         if identical_resource_urls := self.identical_resource_url_map.get(url):
             if scheme is None:
                 return identical_resource_urls
@@ -89,6 +91,7 @@ class ProxyMutiSchemeResourceResolver(MutiSchemeResourceResolver):
                 if id_url_parse.scheme == scheme:
                     new_identical_resource_urls.add(id_url)
             return new_identical_resource_urls
+        return None
 
     def _get_resource(self, url: ParseResult) -> Optional[Resource]:
         if url.geturl() not in self.identical_resource_url_map:

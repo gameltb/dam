@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Union
+from typing import Any, Callable, Optional, Union
 
 import accelerate
 import accelerate.hooks
@@ -10,6 +10,8 @@ from ...utils import human_readable_filesize
 from ..context import get_sire_inference_context
 from ..optimizer.plan import OptimizationPlan
 from ..profile_tool import Profiler
+from ..runtime_resource_management import ResourcePoolManagement
+from ..runtime_resource_pool import resources_device
 from . import WeakRefResourcePoolUser
 
 
@@ -18,7 +20,9 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         self,
         torch_model: torch.nn.Module,
         *,
-        inference_memory_estimator: Union[int, Callable, Profiler, OptimizationPlan, None] = None,
+        inference_memory_estimator: Union[
+            int, Callable[..., int], Profiler, OptimizationPlan, None
+        ] = None,
     ) -> None:
         super().__init__(torch_model)
         self.inference_memory_estimator = inference_memory_estimator
@@ -33,8 +37,8 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         # For estimators that depend on runtime context, get it from the context var.
         context = get_sire_inference_context()
-        args = context.get("args", []) if context else []
-        kwargs = context.get("kwargs", {}) if context else {}
+        args: list[Any] = context.get("args", []) if context else []
+        kwargs: dict[str, Any] = context.get("kwargs", {}) if context else {}
 
         if callable(estimator):
             # The new signature for a callable estimator is (model, *args, **kwargs) -> int
@@ -63,7 +67,9 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         # ... other hardcoded cases ...
         return inference_memory_size
 
-    def on_setup(self, manager):
+    def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]:
+        from ..runtime_resource_pool import ResourcePool
+
         self.offload_resource_pool = manager.get_resource_pool(torch.device("cpu"))
 
         if torch.cuda.is_available():
@@ -72,7 +78,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
             self.runtime_resource_pool = self.offload_resource_pool
 
         # Collect existing pools
-        pools = []
+        pools: list[ResourcePool] = []
         if self.runtime_resource_pool:
             pools.append(self.runtime_resource_pool)
 
@@ -80,14 +86,18 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         if self.offload_resource_pool and self.offload_resource_pool not in pools:
             pools.append(self.offload_resource_pool)
 
-        return pools
+        return [p for p in pools if p]
 
     def on_load(self):
         if self.loaded:
             return
 
         torch_model = self.manage_object
+        if not torch_model:
+            return
         runtime_device = self.get_runtime_device()
+        if not runtime_device:
+            return
 
         # Step 1: Estimate the required memory for this inference operation.
         inference_memory_size = self._estimate_inference_memory()
@@ -98,13 +108,14 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         # Step 3: Request the total required memory from the pool.
         total_request_size = module_memory_size + inference_memory_size
-        self.runtime_resource_pool.request_resource(total_request_size)
-        self.logger.info(
-            f"Requesting {human_readable_filesize(total_request_size)} "
-            f"(weights: {human_readable_filesize(module_memory_size)}, "
-            f"inference: {human_readable_filesize(inference_memory_size)}). "
-            f"Pool free: {human_readable_filesize(self.runtime_resource_pool.get_pool_free_size())}"
-        )
+        if self.runtime_resource_pool:
+            self.runtime_resource_pool.request_resource(total_request_size)
+            self.logger.info(
+                f"Requesting {human_readable_filesize(total_request_size)} "
+                f"(weights: {human_readable_filesize(module_memory_size)}, "
+                f"inference: {human_readable_filesize(inference_memory_size)}). "
+                f"Pool free: {human_readable_filesize(self.runtime_resource_pool.get_pool_free_size())}"
+            )
 
         # Step 4: Move the model to the runtime device.
         # If the model has hooks (e.g., InferenceOptimizerHook), it will not be
@@ -121,34 +132,40 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         super().on_load()
 
-    def on_resource_request(self, device, size):
+    def on_resource_request(self, device: "resources_device", size: int):
         if self.manage_object is None:
             return
 
         self.logger.info(
             f"Offloading model in response to resource request on {device} for {human_readable_filesize(int(size))}"
         )
-        pre_free_size = self.runtime_resource_pool.get_pool_free_size()
+        if self.runtime_resource_pool:
+            pre_free_size = self.runtime_resource_pool.get_pool_free_size()
 
-        # The wrapper's only job is to move the object to the offload device.
-        # Any hooks on the object (from accelerate or InferenceOptimizerHook) are
-        # responsible for managing their own state during this move.
-        self.manage_object.to(device=self.offload_resource_pool.get_pool_device())
+            # The wrapper's only job is to move the object to the offload device.
+            # Any hooks on the object (from accelerate or InferenceOptimizerHook) are
+            # responsible for managing their own state during this move.
+            if self.offload_resource_pool:
+                self.manage_object.to(device=self.offload_resource_pool.get_pool_device())
 
-        accelerate.utils.memory.clear_device_cache(garbage_collection=True)
+            accelerate.utils.memory.clear_device_cache(garbage_collection=True)
 
-        post_free_size = self.runtime_resource_pool.get_pool_free_size()
-        self.logger.info(
-            f"Freed {human_readable_filesize(post_free_size - pre_free_size)}. "
-            f"Pool free size now: {human_readable_filesize(post_free_size)}"
-        )
+            post_free_size = self.runtime_resource_pool.get_pool_free_size()
+            self.logger.info(
+                f"Freed {human_readable_filesize(post_free_size - pre_free_size)}. "
+                f"Pool free size now: {human_readable_filesize(post_free_size)}"
+            )
         super().on_resource_request(device, size)
 
-    def get_runtime_device(self):
-        return self.runtime_resource_pool.get_pool_device()
+    def get_runtime_device(self) -> Optional["resources_device"]:
+        if self.runtime_resource_pool:
+            return self.runtime_resource_pool.get_pool_device()
+        return None
 
-    def get_used_resource_size(self, device):
-        return get_module_size(self.manage_object, device)
+    def get_used_resource_size(self, device: "resources_device") -> int:
+        if self.manage_object:
+            return get_module_size(self.manage_object, device)
+        return 0
 
     def lock(self):
         super().lock()
@@ -159,7 +176,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         # self.logger.info("unlock")
 
 
-def get_module_size(module: torch.nn.Module, device=None):
+def get_module_size(module: torch.nn.Module, device: Optional[torch.device] = None) -> int:
     module_mem = 0
     sd: dict[str, torch.Tensor] = module.state_dict()
     for k, t in sd.items():

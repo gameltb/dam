@@ -3,13 +3,14 @@ from __future__ import annotations
 import diffusers
 import torch
 
-from ..runtime_resource_management import AutoManageHook
+from ..runtime_resource_management import AutoManageHook, ResourcePoolManagement
+from ..runtime_resource_pool import ResourcePool, resources_device
 from . import WeakRefResourcePoolUser
 from .pytorch_module import get_module_size
 
 
-class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeline]):
-    def __init__(self, manage_object):
+class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeline]):  # type: ignore
+    def __init__(self, manage_object: diffusers.DiffusionPipeline):  # type: ignore
         super().__init__(manage_object)
         self.all_module_hooks_map: dict[str, AutoManageHook] = {}
 
@@ -29,25 +30,27 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[diffusers.DiffusionPipeli
             hook = AutoManageHook.manage_module(model)
             self.all_module_hooks_map[name] = hook
 
-    def on_setup(self, manager):
+    def on_setup(self, manager: ResourcePoolManagement) -> list[ResourcePool]:
         self.resource_pool = manager.get_resource_pool(torch.device("cpu"))
-        return [self.resource_pool]
+        if self.resource_pool:
+            return [self.resource_pool]
+        return []
 
-    def on_load(self, user_context=None):
+    def on_load(self, user_context: Any = None):
         self.apply_components_hook()
         super().on_load()
 
-    def on_resource_request(self, device, size):
+    def on_resource_request(self, device: resources_device, size: int):
         super().on_resource_request(device, size)
 
     def get_runtime_device(self):
         for hook in self.all_module_hooks_map.values():
             return hook.am.get_execution_device()
 
-    def unlock(self):
+    def unlock(self) -> None:
         super().unlock()
         for name, hook in self.all_module_hooks_map.items():
-            hook.post_forward(None, None)
+            hook.post_forward(None, None)  # type: ignore
 
 
 def get_pipeline_size(pipeline: diffusers.DiffusionPipeline):

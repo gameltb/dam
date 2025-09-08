@@ -95,7 +95,8 @@ class HeuristicOptimizer:
             if self.execution_order[cursor] in opt_map_str:
                 cursor += 1
                 continue
-            accum_time, window = 0.0, []
+            accum_time = 0.0
+            window: list[str] = []
             last_processed_idx = cursor
 
             for pf_cand_idx in range(cursor, exec_len):

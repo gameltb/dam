@@ -8,13 +8,13 @@ _logger = logging.getLogger(__name__)
 
 
 class ResourcePool:
-    def __init__(self, runtime_device=resources_device("cpu", 0)) -> None:
+    def __init__(self, runtime_device: resources_device = resources_device("cpu", 0)) -> None:
         self.users: weakref.WeakSet[ResourcePoolUserABC] = weakref.WeakSet()
         self.resource_device: resources_device = runtime_device
         self.pool_size = 0
         self.shared_pool_size = 0
 
-    def request_resource(self, size):
+    def request_resource(self, size: int):
         for user in self.users:
             if user.locked:
                 _logger.warning(
@@ -28,19 +28,19 @@ class ResourcePool:
             else:
                 break
 
-    def get_pool_device(self):
+    def get_pool_device(self) -> resources_device:
         return self.resource_device
 
-    def get_pool_free_size(self):
+    def get_pool_free_size(self) -> int:
         raise NotImplementedError()
 
-    def register_resource_pool_user(self, user):
+    def register_resource_pool_user(self, user: ResourcePoolUserABC):
         self.users.add(user)
 
-    def remove_resource_pool_user(self, user):
+    def remove_resource_pool_user(self, user: ResourcePoolUserABC):
         self.users.remove(user)
 
-    def have_resource_pool_user(self, user):
+    def have_resource_pool_user(self, user: ResourcePoolUserABC) -> bool:
         return user in self.users
 
 

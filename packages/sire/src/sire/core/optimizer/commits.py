@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 import torch.nn as nn
 from accelerate.hooks import add_hook_to_module, remove_hook_from_module
 
@@ -12,7 +13,7 @@ class InferenceOptimizerCommit(CommitABC[nn.Module]):
     A commit that applies the InferenceOptimizerHook to a torch.nn.Module.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         """
         Initializes the commit with arguments for the InferenceOptimizerHook.
         """
@@ -20,7 +21,7 @@ class InferenceOptimizerCommit(CommitABC[nn.Module]):
         self.hook_kwargs = kwargs
         self.hook_instance: InferenceOptimizerHook | None = None
 
-    def apply(self, base_object: nn.Module, **kwargs):
+    def apply(self, base_object: nn.Module, **kwargs: Any):
         """
         Applies the InferenceOptimizerHook to the base module.
         If a hook is already applied, it's first removed.
@@ -36,5 +37,5 @@ class InferenceOptimizerCommit(CommitABC[nn.Module]):
         Removes the InferenceOptimizerHook from the base module.
         """
         if self.hook_instance:
-            remove_hook_from_module(self.hook_instance)
+            remove_hook_from_module(base_object)
             self.hook_instance = None

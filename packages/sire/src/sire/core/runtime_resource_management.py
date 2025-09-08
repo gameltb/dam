@@ -1,7 +1,8 @@
 import contextlib
 import weakref
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Iterator, TypeVar
 
+import torch
 from accelerate.hooks import ModelHook, add_hook_to_module
 from accelerate.utils import send_to_device
 
@@ -14,10 +15,10 @@ T = TypeVar("T")
 
 
 class AutoManageWrapper(Generic[T]):
-    type_wrapper_map = {}
-    wrapper_obj_map = weakref.WeakKeyDictionary()
+    type_wrapper_map: dict[type, type] = {}
+    wrapper_obj_map: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
 
-    def __init__(self, obj, **kwargs) -> None:
+    def __init__(self, obj: Any, **kwargs: Any) -> None:
         if not isinstance(obj, ResourcePoolUserABC):
             user = self.wrapper_obj_map.get(obj, None)
             if user is None:
@@ -56,7 +57,7 @@ class AutoManageWrapper(Generic[T]):
 
 
 @contextlib.contextmanager
-def auto_manage(obj: T, **kwargs: Any) -> contextlib.AbstractContextManager[AutoManageWrapper[T]]:
+def auto_manage(obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
     """
     A context manager to automatically manage the memory of a resource,
     such as a PyTorch model.
@@ -79,23 +80,25 @@ def auto_manage(obj: T, **kwargs: Any) -> contextlib.AbstractContextManager[Auto
 
 
 class AutoManageHook(ModelHook):
-    cache_hook_map = weakref.WeakKeyDictionary()
+    cache_hook_map: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
 
-    def __init__(self, am: AutoManageWrapper):
+    def __init__(self, am: AutoManageWrapper[Any]):
         self.am = am
 
     @property
     def execution_device(self):
         return self.am.get_execution_device()
 
-    def pre_forward(self, module, *args, **kwargs):
+    def pre_forward(
+        self, module: torch.nn.Module, *args: Any, **kwargs: Any
+    ) -> tuple[Any, Any]:
         self.context_token = sire_inference_context.set({"args": args, "kwargs": kwargs})
         self.am.load()
         return send_to_device(args, self.am.get_execution_device()), send_to_device(
             kwargs, self.am.get_execution_device()
         )
 
-    def post_forward(self, module, output):
+    def post_forward(self, module: torch.nn.Module, output: Any) -> Any:
         self.am.offload()
         if hasattr(self, "context_token"):
             sire_inference_context.reset(self.context_token)
@@ -103,7 +106,7 @@ class AutoManageHook(ModelHook):
         return output
 
     @classmethod
-    def manage_module(cls, module):
+    def manage_module(cls, module: torch.nn.Module) -> "AutoManageHook":
         # If a user for this module already exists in the central map, do nothing.
         if module in AutoManageWrapper.wrapper_obj_map:
             # Return the existing hook if possible, or None
@@ -120,35 +123,38 @@ class AutoManageHook(ModelHook):
 class ResourcePoolManagement:
     def __init__(self) -> None:
         self.resource_pools: dict[resources_device, ResourcePool] = {}
-        self.user_pool_map: dict[ResourcePoolUserABC, list[ResourcePool]] = {}
+        self.user_pool_map: dict[ResourcePoolUserABC[Any], list[ResourcePool]] = {}
 
-    def get_resource_pool(self, device: resources_device):
+    def get_resource_pool(self, device: resources_device) -> Optional[ResourcePool]:
         if device.type != "cpu" and device.index is None:
             device = resources_device(device.type, 0)
         return self.resource_pools.get(device, None)
 
-    def set_resource_pool(self, device: resources_device, resource_pool):
+    def set_resource_pool(self, device: resources_device, resource_pool: ResourcePool) -> None:
         self.resource_pools[device] = resource_pool
 
-    def get_devices(self):
+    def get_devices(self) -> list[resources_device]:
         return list(self.resource_pools.keys())
 
-    def get_user_pools(self, user: ResourcePoolUserABC):
+    def get_user_pools(self, user: ResourcePoolUserABC[Any]) -> list[ResourcePool]:
         return self.user_pool_map.get(user, [])
 
-    def setup_user(self, user: ResourcePoolUserABC):
+    def setup_user(self, user: ResourcePoolUserABC[Any]) -> None:
         if len(self.get_user_pools(user)) != 0:
             return
         pools = user.on_setup(self)
-        for pool in pools:
-            pool.register_resource_pool_user(user)
-        self.user_pool_map[user] = pools
+        if pools:
+            for pool in pools:
+                if pool:
+                    pool.register_resource_pool_user(user)
+            self.user_pool_map[user] = pools
 
-    def forget_user(self, user: ResourcePoolUserABC):
+    def forget_user(self, user: ResourcePoolUserABC[Any]) -> None:
         pools = self.user_pool_map.pop(user, [])
-        for pool in pools:
-            if pool.have_resource_pool_user(user):
-                pool.remove_resource_pool_user(user)
+        if pools:
+            for pool in pools:
+                if pool and pool.have_resource_pool_user(user):
+                    pool.remove_resource_pool_user(user)
 
     def clean_user(self):
         for user in list(self.user_pool_map):

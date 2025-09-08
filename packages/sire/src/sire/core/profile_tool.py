@@ -51,7 +51,7 @@ class InferenceMemorySizeCSVPoint:
     model_dtype: str = ""
 
 
-def csv_dump(objects, filename):
+def csv_dump(objects: List[Any], filename: str):
     with open(filename, "w") as f:
         flds = [fld.name for fld in fields(objects[0])]
         w = csv.DictWriter(f, flds)
@@ -59,7 +59,7 @@ def csv_dump(objects, filename):
         w.writerows([asdict(object) for object in objects])
 
 
-def csv_load(object_cls, filename):
+def csv_load(object_cls: type, filename: str) -> List[Any]:
     with open(filename, "r") as f:
         results = csv.DictReader(f)
         return [object_cls(**result) for result in results]
@@ -79,13 +79,11 @@ def profile_torch():
     ) as prof:
         yield
 
-    prof.export_memory_timeline(os.path.join(PROF_OUT_DIR, f"{timestamp}.json"), device="cuda:0")
-    prof.mem_tl.export_memory_timeline_html(os.path.join(PROF_OUT_DIR, f"{timestamp}.html"), device_str="cuda:0")
-    prof.mem_tl.export_memory_timeline_raw(os.path.join(PROF_OUT_DIR, f"{timestamp}.raw.json"), device_str="cuda:0")
+    prof.export_chrome_trace(os.path.join(PROF_OUT_DIR, f"{timestamp}.json"))
 
 
 @contextlib.contextmanager
-def record_cuda_memory_history():
+def record_cuda_memory_history():  # type: ignore
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT: int = 100000
 
@@ -104,7 +102,7 @@ def record_cuda_memory_history():
 
 
 @contextlib.contextmanager
-def memory_stats(kwargs=None):
+def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     # When dynamic weights are not involved, we can use this simple method to determine how much memory we need.
     # When the weights are only transferred when needed,
