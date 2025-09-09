@@ -4,8 +4,8 @@ from dam.core.world import World
 
 from .commands import (
     AddFilePropertiesCommand,
-    FindEntityByFilePropertiesCommand,
     FindEntityByHashCommand,
+    FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
@@ -13,9 +13,9 @@ from .resources.file_operations_resource import FileOperationsResource
 from .resources.file_storage_resource import FileStorageResource
 from .systems.asset_lifecycle_systems import (
     add_file_properties_handler,
-    find_entity_by_file_properties_handler,
     get_fs_asset_filenames_handler,
     handle_find_entity_by_hash_command,
+    find_entity_by_file_properties_handler,
     register_local_file_handler,
     store_assets_handler,
 )

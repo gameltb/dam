@@ -15,10 +15,9 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 
 
 @dataclass
-class ExtractArchiveCommand(BaseCommand[None]):
+class ProcessArchiveCommand(BaseCommand[None]):
     """
-    A command to extract an archive asset and ingest its members.
+    A command to process an archive asset and ingest its members.
     """
-
     entity_id: int
     passwords: Optional[List[str]] = None

@@ -11,6 +11,7 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import (
     OriginalSourceInfoComponent,
@@ -37,11 +38,10 @@ async def add_file_properties_handler(
     cmd: AddFilePropertiesCommand,
     transaction: EcsTransaction,
 ) -> None:
-    """
-    Handles adding file properties to an entity.
-    """
     logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
-    fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
+    fpc = FilePropertiesComponent(
+        original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes
+    )
     await transaction.add_component_to_entity(cmd.entity_id, fpc)
 
 
@@ -51,29 +51,19 @@ async def handle_find_entity_by_hash_command(
     transaction: EcsTransaction,
     world_config: WorldConfig,
 ) -> Optional[Dict[str, Any]]:
-    """
-    Handles the command to find an entity by its content hash.
-    """
     logger.info(
         f"System handling FindEntityByHashCommand for hash: {cmd.hash_value} (type: {cmd.hash_type}) in world '{world_config.name}' (Req ID: {cmd.request_id})"
     )
     try:
         hash_bytes = binascii.unhexlify(cmd.hash_value)
     except binascii.Error as e:
-        logger.error(
-            f"[QueryResult RequestID: {cmd.request_id}] Invalid hex string for hash_value '{cmd.hash_value}': {e}"
-        )
         raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
-    entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
+    entity = await ecs_functions.find_entity_by_content_hash(
+        transaction.session, hash_bytes, cmd.hash_type
+    )
     if not entity:
         return None
-
-    components: Dict[str, List[Dict[str, Any]]] = {}
-    entity_details_dict: Optional[Dict[str, Any]] = {
-        "entity_id": entity.id,
-        "components": components,
-    }
-    return entity_details_dict
+    return {"entity_id": entity.id, "components": {}}
 
 
 @system(on_command=GetAssetFilenamesCommand)
@@ -81,9 +71,6 @@ async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: EcsTransaction,
 ) -> Optional[List[str]]:
-    """
-    Handles getting filenames for assets with FilePropertiesComponent.
-    """
     file_props = await transaction.get_component(cmd.entity_id, FilePropertiesComponent)
     if file_props and file_props.original_filename:
         return [file_props.original_filename]
@@ -96,11 +83,6 @@ async def register_local_file_handler(
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
 ) -> int:
-    """
-    Handles registering a local file, creating an entity and components.
-    If entity exists (by hash), it adds new source info.
-    If entity is new, it adds all components.
-    """
     file_path = cmd.file_path
     with open(file_path, "rb") as f:
         file_content_stream = io.BytesIO(f.read())
@@ -112,7 +94,9 @@ async def register_local_file_handler(
     async with transaction.session.begin_nested():
         existing_fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
         if not existing_fpc:
-            mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
+            mod_time = datetime.datetime.fromtimestamp(
+                file_path.stat().st_mtime, tz=datetime.timezone.utc
+            )
             fpc = FilePropertiesComponent(
                 original_filename=file_path.name,
                 file_size_bytes=file_path.stat().st_size,
@@ -121,11 +105,15 @@ async def register_local_file_handler(
             await transaction.add_component_to_entity(entity.id, fpc)
 
         file_uri = file_path.as_uri()
-        existing_flcs = await transaction.get_components_by_value(entity.id, FileLocationComponent, {"url": file_uri})
+        existing_flcs = await transaction.get_components_by_value(
+            entity.id, FileLocationComponent, {"url": file_uri}
+        )
         if not existing_flcs:
             flc = FileLocationComponent(url=file_uri)
             await transaction.add_component_to_entity(entity.id, flc)
-            osi = OriginalSourceInfoComponent(source_type=source_types.SOURCE_TYPE_LOCAL_FILE)
+            osi = OriginalSourceInfoComponent(
+                source_type=source_types.SOURCE_TYPE_LOCAL_FILE
+            )
             await transaction.add_component_to_entity(entity.id, osi)
     return entity.id
 
@@ -135,9 +123,6 @@ async def find_entity_by_file_properties_handler(
     cmd: FindEntityByFilePropertiesCommand,
     transaction: EcsTransaction,
 ) -> Optional[int]:
-    """
-    Finds an entity by its local file path and modification time.
-    """
     stmt = (
         select(FileLocationComponent.entity_id)
         .join(
@@ -149,8 +134,7 @@ async def find_entity_by_file_properties_handler(
         .limit(1)
     )
     result = await transaction.session.execute(stmt)
-    entity_id = result.scalar_one_or_none()
-    return entity_id
+    return result.scalar_one_or_none()
 
 
 @system(on_command=StoreAssetsCommand)
@@ -159,46 +143,37 @@ async def store_assets_handler(
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
 ) -> None:
-    """
-    Handles storing assets in the content-addressable storage.
-    """
-    if cmd.query == "local_not_stored":
-        stmt = select(FileLocationComponent).where(FileLocationComponent.url.startswith("file:///"))
-        result = await transaction.session.execute(stmt)
-        local_files = result.scalars().all()
-
-        stored_count = 0
-        for local_file_loc in local_files:
-            # Check if a CAS location already exists
-            all_locations = await transaction.get_components(local_file_loc.entity_id, FileLocationComponent)
-            has_cas_location = any(loc.url.startswith("cas://") for loc in all_locations)
-
-            if has_cas_location:
-                continue
-
-            # Store the file
-            try:
-                local_path = get_local_path_for_url(local_file_loc.url)
-                if not local_path or not local_path.exists():
-                    logger.warning(f"Local file for {local_file_loc.url} not found, skipping store.")
-                    continue
-
-                with open(local_path, "rb") as f:
-                    content = f.read()
-
-                storage_resource = world.get_resource(FileStorageResource)
-                content_hash, _ = storage_resource.store_file(content)
-
-                cas_url = f"cas://{content_hash}"
-                cas_flc = FileLocationComponent(url=cas_url)
-                await transaction.add_component_to_entity(local_file_loc.entity_id, cas_flc)
-                stored_count += 1
-                logger.info(f"Stored entity {local_file_loc.entity_id} to {cas_url}")
-
-            except Exception as e:
-                logger.error(f"Failed to store entity {local_file_loc.entity_id}: {e}", exc_info=True)
-
-        logger.info(f"Successfully stored {stored_count} new assets.")
-
-    else:
+    if cmd.query != "local_not_stored":
         logger.warning(f"Query '{cmd.query}' not supported by store_assets_handler.")
+        return
+
+    stmt = select(FileLocationComponent).where(FileLocationComponent.url.startswith("file:///"))
+    result = await transaction.session.execute(stmt)
+    local_files = result.scalars().all()
+    storage_resource = world.get_resource(FileStorageResource)
+    stored_count = 0
+
+    for loc in local_files:
+        sha256_comp = await transaction.get_component(loc.entity_id, ContentHashSHA256Component)
+        if not sha256_comp:
+            logger.warning(f"Entity {loc.entity_id} has a local file but no SHA256 hash. Cannot store.")
+            continue
+
+        content_hash = sha256_comp.hash_value.hex()
+        if storage_resource.has_file(content_hash):
+            continue
+
+        try:
+            local_path = get_local_path_for_url(loc.url)
+            if not local_path or not local_path.exists():
+                logger.warning(f"Local file for {loc.url} not found, skipping store.")
+                continue
+            with open(local_path, "rb") as f:
+                content = f.read()
+            storage_resource.store_file(content)
+            stored_count += 1
+            logger.info(f"Stored entity {loc.entity_id} (hash: {content_hash})")
+        except Exception as e:
+            logger.error(f"Failed to store entity {loc.entity_id}: {e}", exc_info=True)
+    
+    logger.info(f"Successfully stored {stored_count} new assets.")

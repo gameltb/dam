@@ -86,6 +86,13 @@ def store_file(
     return content_hash, physical_storage_path_suffix
 
 
+def has_file(file_identifier: str, world_config: WorldConfig) -> bool:
+    """
+    Checks if a file with the given identifier (SHA256 hash) exists in storage.
+    """
+    return get_file_path(file_identifier, world_config) is not None
+
+
 def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]:  # Changed from world_name
     """
     Returns the absolute path to the file identified by file_identifier (SHA256 hash)
