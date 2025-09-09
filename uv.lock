@@ -925,6 +925,7 @@ dependencies = [
     { name = "alembic" },
     { name = "dam" },
     { name = "python-magic" },
+    { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
@@ -966,6 +967,7 @@ requires-dist = [
     { name = "dam-psp", marker = "extra == 'psp'", editable = "packages/dam_psp" },
     { name = "dam-semantic", marker = "extra == 'semantic'", editable = "packages/dam_semantic" },
     { name = "python-magic" },
+    { name = "tqdm" },
 ]
 provides-extras = ["image", "audio", "transcode", "psp", "semantic", "all"]
 

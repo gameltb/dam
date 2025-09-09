@@ -47,7 +47,7 @@ async def get_or_create_entity_from_stream_handler(
     add_hashes_command = AddHashesFromStreamCommand(
         entity_id=entity.id,
         stream=cmd.stream,
-        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
+        algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256, HashAlgorithm.CRC32, HashAlgorithm.BLAKE3},
     )
     await world.dispatch_command(add_hashes_command)
 

@@ -8,6 +8,7 @@ from dam_fs.commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
+from tqdm import tqdm
 from typing_extensions import Annotated
 
 from dam_app.state import get_world
@@ -60,35 +61,30 @@ async def add_assets(
     skipped_count = 0
     error_count = 0
 
-    for file_path in files_to_process:
-        try:
-            typer.echo(f"Processing: {file_path.name}")
+    total_size = sum(p.stat().st_size for p in files_to_process)
 
-            mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
-            pre_check_cmd = FindEntityByFilePropertiesCommand(file_path=file_path.as_uri(), file_modified_at=mod_time)
-            cmd_result = await target_world.dispatch_command(pre_check_cmd)
-            existing_entity_id = cmd_result.get_one_value()
-
-            if existing_entity_id:
-                typer.secho(
-                    f"  Skipping '{file_path.name}', up-to-date entity {existing_entity_id} already exists.",
-                    fg=typer.colors.YELLOW,
+    with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets") as pbar:
+        for file_path in files_to_process:
+            pbar.set_postfix_str(file_path.name)
+            try:
+                mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
+                pre_check_cmd = FindEntityByFilePropertiesCommand(
+                    file_path=file_path.as_uri(), file_modified_at=mod_time
                 )
-                skipped_count += 1
-                continue
+                cmd_result = await target_world.dispatch_command(pre_check_cmd)
+                existing_entity_id = cmd_result.get_one_value()
 
-            register_cmd = RegisterLocalFileCommand(file_path=file_path)
-            register_result = await target_world.dispatch_command(register_cmd)
-            new_entity_id = register_result.get_one_value()
-            typer.secho(
-                f"  Successfully registered '{file_path.name}' as entity {new_entity_id}.",
-                fg=typer.colors.GREEN,
-            )
-            success_count += 1
+                if existing_entity_id:
+                    skipped_count += 1
+                else:
+                    register_cmd = RegisterLocalFileCommand(file_path=file_path)
+                    await target_world.dispatch_command(register_cmd)
+                    success_count += 1
 
-        except Exception as e:
-            typer.secho(f"  Error processing file {file_path.name}: {e}", fg=typer.colors.RED)
-            error_count += 1
+            except Exception as e:
+                error_count += 1
+                tqdm.write(f"Error processing file {file_path.name}: {e}")
+            pbar.update(file_path.stat().st_size)
 
     typer.echo("\n--- Summary ---")
     typer.echo(f"Successfully registered: {success_count}")

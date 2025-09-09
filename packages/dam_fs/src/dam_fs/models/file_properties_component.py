@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
-from sqlalchemy import DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 # Base is inherited via BaseComponent
@@ -30,7 +30,7 @@ class FilePropertiesComponent(BaseComponent):
     # id, entity_id are inherited from BaseComponent
 
     original_filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
-    file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, default=None)
     file_modified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
     # mime_type is removed as per user request.
     # It will be determined at runtime when needed.
