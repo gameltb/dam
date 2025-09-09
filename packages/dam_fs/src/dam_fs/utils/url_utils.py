@@ -19,6 +19,6 @@ def get_local_path_for_url(url: str) -> Path:
 
     if scheme == "file":
         # Standard file URI, e.g., file:///path/to/file
-        return Path(parsed.path)
+        return Path.from_uri(url)
     else:
         raise ValueError(f"Unsupported URL scheme for local access: '{scheme}://'")

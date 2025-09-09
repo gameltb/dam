@@ -81,10 +81,9 @@ async def register_local_file_handler(
 ) -> int:
     file_path = cmd.file_path
     with open(file_path, "rb") as f:
-        file_content_stream = io.BytesIO(f.read())
+        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=f)
+        command_result = await world.dispatch_command(get_or_create_cmd)
 
-    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=file_content_stream)
-    command_result = await world.dispatch_command(get_or_create_cmd)
     entity, _ = command_result.get_one_value()
 
     async with transaction.session.begin_nested():
