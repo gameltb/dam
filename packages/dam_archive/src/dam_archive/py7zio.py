@@ -1,14 +1,16 @@
-from typing import override, Union, Optional
-from py7zr import Py7zIO, WriterFactory
 import io
+from typing import Dict, Optional, Union, override
+
+from py7zr import Py7zIO, WriterFactory
+
 
 class InMemoryIO(Py7zIO):
     def __init__(self):
         self._buffer = io.BytesIO()
 
     @override
-    def write(self, s: Union[bytes, bytearray]):
-        self._buffer.write(s)
+    def write(self, s: Union[bytes, bytearray]) -> int:
+        return self._buffer.write(s)
 
     @override
     def read(self, size: Optional[int] = None) -> bytes:
@@ -22,7 +24,6 @@ class InMemoryIO(Py7zIO):
     def flush(self) -> None:
         self._buffer.flush()
 
-    @property
     @override
     def size(self) -> int:
         return len(self.getbuffer())
@@ -37,7 +38,7 @@ class InMemoryIO(Py7zIO):
 
 class InMemoryIOFactory(WriterFactory):
     def __init__(self):
-        self.products = {}
+        self.products: Dict[str, InMemoryIO] = {}
 
     @override
     def create(self, filename: str) -> Py7zIO:

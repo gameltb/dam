@@ -1,7 +1,7 @@
 from pathlib import Path
+
 import py7zr
 import pytest
-
 
 from dam_archive.main import open_archive
 
@@ -27,8 +27,6 @@ def test_open_7z_archive(dummy_7z_file: Path) -> None:
 
     with archive.open_file("dir/file2.txt") as f:
         assert f.read() == b"content2"
-
-
 
 
 @pytest.fixture

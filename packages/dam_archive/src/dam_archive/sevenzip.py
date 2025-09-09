@@ -1,10 +1,10 @@
-import io
-import py7zr
 from typing import IO, Any, List, Optional
 
+import py7zr
+
 from .base import ArchiveHandler
-from .registry import register_handler
 from .py7zio import InMemoryIOFactory
+from .registry import register_handler
 
 
 class SevenZipArchiveHandler(ArchiveHandler):

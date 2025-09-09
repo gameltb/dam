@@ -1,10 +1,8 @@
 from typing import Any, List, Optional
 
+from . import rar, sevenzip, zip
 from .base import ArchiveHandler
 from .registry import get_handlers
-from . import zip
-from . import sevenzip
-from . import rar
 
 
 def register_all_handlers() -> None:

@@ -1,6 +1,6 @@
-import io
-import rarfile
 from typing import IO, Any, List, Optional
+
+import rarfile
 
 from .base import ArchiveHandler
 from .registry import register_handler
@@ -11,8 +11,8 @@ class RarArchiveHandler(ArchiveHandler):
     An archive handler for rar files.
     """
 
-    import tempfile
     import shutil
+    import tempfile
 
     def __init__(self, file: Any, passwords: Optional[List[str]] = None):
         self.file = file
@@ -28,13 +28,16 @@ class RarArchiveHandler(ArchiveHandler):
     def _open_archive_with_temp_file(self, pwd: Optional[str] = None):
         tmp_path = None
         if isinstance(self.file, str):
-            rar_file = rarfile.RarFile(self.file, "r", pwd=pwd)
+            rar_file = rarfile.RarFile(self.file, "r")
         else:
             self.file.seek(0)
             with self.tempfile.NamedTemporaryFile(delete=False) as tmp:
                 self.shutil.copyfileobj(self.file, tmp)
                 tmp_path = tmp.name
-            rar_file = rarfile.RarFile(tmp_path, "r", pwd=pwd)
+            rar_file = rarfile.RarFile(tmp_path, "r")
+
+        if pwd:
+            rar_file.setpassword(pwd)  # type: ignore
 
         try:
             yield rar_file
@@ -42,6 +45,7 @@ class RarArchiveHandler(ArchiveHandler):
             rar_file.close()
             if tmp_path:
                 import os
+
                 os.unlink(tmp_path)
 
     def _try_open(self):
@@ -55,11 +59,11 @@ class RarArchiveHandler(ArchiveHandler):
 
     def list_files(self) -> List[str]:
         with self._try_open() as archive:
-            return [f.filename for f in archive.infolist() if not f.isdir()]
+            return [f.filename for f in archive.infolist() if not f.isdir()]  # type: ignore
 
     def open_file(self, file_name: str) -> IO[bytes]:
         with self._try_open() as archive:
-            return archive.open(file_name)
+            return archive.open(file_name)  # type: ignore
 
 
 def register() -> None:
