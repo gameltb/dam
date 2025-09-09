@@ -42,7 +42,7 @@ all = [
 ]
 
 [project.scripts]
-dam-cli = "dam_app.cli:app"
+dam-cli = "dam_app.main:app"
 
 [tool.ruff]
 extend = "../../pyproject.toml"

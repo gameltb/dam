@@ -31,6 +31,12 @@ class FileStorageResource:
         """
         return file_storage.get_file_path(file_identifier=file_identifier, world_config=self.world_config)
 
+    def has_file(self, file_identifier: str) -> bool:
+        """
+        Checks if a file exists in this world's configured storage.
+        """
+        return file_storage.has_file(file_identifier=file_identifier, world_config=self.world_config)
+
     def delete_file(self, file_identifier: str) -> bool:
         """
         Deletes a file from this world's configured storage.

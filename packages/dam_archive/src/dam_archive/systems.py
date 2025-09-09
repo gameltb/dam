@@ -1,19 +1,16 @@
-import asyncio
 import logging
 from typing import IO, Annotated, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam.functions import ecs_functions
-from dam_fs.functions import file_operations as dam_fs_file_operations
-from dam_fs.models.file_location_component import FileLocationComponent
-from dam_fs.utils.url_utils import get_local_path_for_url
 
-from .commands import IngestAssetsCommand, SetArchivePasswordCommand
+from .commands import ExtractArchiveMembersCommand, SetArchivePasswordCommand
+from .exceptions import PasswordRequiredError
 from .main import open_archive
-from .models import ArchiveMemberComponent, ArchivePasswordComponent
+from .models import ArchiveInfoComponent, ArchiveMemberComponent, ArchivePasswordComponent
 
 logger = logging.getLogger(__name__)
 
@@ -44,84 +41,40 @@ async def get_archive_asset_stream_handler(
     Handles getting a stream for an asset that is part of an archive.
     """
     archive_member_component = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
-
     if not archive_member_component:
-        return None  # This handler only deals with assets in archives
+        return None
 
     target_entity_id = archive_member_component.archive_entity_id
     path_in_archive = archive_member_component.path_in_archive
-
-    all_locations = await transaction.get_components(target_entity_id, FileLocationComponent)
-    if not all_locations:
-        logger.warning(f"No FileLocationComponent found for archive entity {target_entity_id}.")
-        return None
-
     password_comp = await transaction.get_component(target_entity_id, ArchivePasswordComponent)
     passwords = [password_comp.password] if password_comp else []
 
-    for loc in all_locations:
-        try:
-            potential_path = get_local_path_for_url(loc.url)
-            is_file = False
-            if potential_path:
-                is_file = await asyncio.to_thread(potential_path.is_file)
-            if potential_path and is_file:
-                archive = open_archive(str(potential_path), passwords)
-                if archive:
-                    return archive.open_file(path_in_archive)
-        except (ValueError, FileNotFoundError) as e:
-            logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {target_entity_id}: {e}")
-            continue
+    archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
+    archive_stream_result = await world.dispatch_command(archive_stream_cmd)
+    archive_stream = archive_stream_result.get_first_ok_value()
 
-    return None  # No valid local file found for the archive
+    if not archive_stream:
+        logger.warning(f"Could not get stream for parent archive {target_entity_id}")
+        return None
 
+    # Get asset filenames for the parent archive
+    filenames_cmd = GetAssetFilenamesCommand(entity_id=target_entity_id)
+    filenames_result = await world.dispatch_command(filenames_cmd)
+    filenames = filenames_result.get_first_ok_value()
+    filename = filenames[0] if filenames else None
 
-@system(on_command=IngestAssetsCommand)
-async def asset_ingestion_system(
-    cmd: IngestAssetsCommand,
-    world: Annotated[World, "Resource"],
-    transaction: EcsTransaction,
-) -> List[int]:
-    """
-    Handles the command to ingest assets from a list of file paths.
-    This system expands archives and creates entities for all files.
-    """
-    logger.info(f"Received asset ingestion request for {len(cmd.file_paths)} files.")
-    entity_ids: List[int] = []
+    if not filename:
+        logger.warning(f"Could not get filename for parent archive {target_entity_id}")
+        return None
 
-    for file_path in cmd.file_paths:
-        try:
-            # For now, we only support one password for all archives.
-            # A more advanced implementation could try multiple passwords.
-            password = cmd.passwords[0] if cmd.passwords else None
-            archive = open_archive(file_path, [password] if password else [])
-            if archive:
-                # This is an archive file, create an entity for the archive itself
-                archive_entity = await dam_fs_file_operations.create_entity_with_file(
-                    transaction, world.config, file_path
-                )
-                entity_ids.append(archive_entity.id)
+    try:
+        archive = open_archive(archive_stream, filename, passwords)
+        if archive:
+            return archive.open_file(path_in_archive)
+    except Exception as e:
+        logger.error(f"Failed to open member '{path_in_archive}' from archive stream for entity {cmd.entity_id}: {e}")
 
-                # Now, create entities for each file within the archive
-                for member_name in archive.list_files():
-                    member_entity = await ecs_functions.create_entity(transaction.session)
-                    await transaction.add_component_to_entity(
-                        member_entity.id,
-                        ArchiveMemberComponent(
-                            archive_entity_id=archive_entity.id,
-                            path_in_archive=member_name,
-                        ),
-                    )
-                    entity_ids.append(member_entity.id)
-            else:
-                # This is a regular file
-                entity = await dam_fs_file_operations.create_entity_with_file(transaction, world.config, file_path)
-                entity_ids.append(entity.id)
-
-        except Exception as e:
-            logger.error(f"Failed to ingest asset from '{file_path}': {e}", exc_info=True)
-
-    return entity_ids
+    return None
 
 
 @system(on_command=GetAssetFilenamesCommand)
@@ -136,3 +89,99 @@ async def get_archive_asset_filenames_handler(
     if archive_member_comp and archive_member_comp.path_in_archive:
         return [archive_member_comp.path_in_archive]
     return None
+
+
+@system(on_command=ExtractArchiveMembersCommand)
+async def extract_archive_members_handler(
+    cmd: ExtractArchiveMembersCommand,
+    transaction: EcsTransaction,
+    world: Annotated[World, "Resource"],
+) -> None:
+    """
+    Handles processing an archive, ingesting its members, and linking them.
+    """
+    logger.info(f"Processing archive for entity {cmd.entity_id}")
+
+    # Get asset stream
+    archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
+    archive_stream_result = await world.dispatch_command(archive_stream_cmd)
+    archive_stream = archive_stream_result.get_first_ok_value()
+
+    if not archive_stream:
+        logger.error(f"Could not get stream for archive entity {cmd.entity_id}")
+        return
+
+    # Get asset filenames
+    filenames_cmd = GetAssetFilenamesCommand(entity_id=cmd.entity_id)
+    filenames_result = await world.dispatch_command(filenames_cmd)
+    filenames = filenames_result.get_first_ok_value()
+    filename = filenames[0] if filenames else None
+
+    if not filename:
+        logger.error(f"Could not get filename for archive entity {cmd.entity_id}")
+        return
+
+    # Prioritize stored password
+    stored_password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
+    stored_password = stored_password_comp.password if stored_password_comp else None
+
+    passwords_to_try: List[Optional[str]] = [None]
+    if stored_password:
+        passwords_to_try.append(stored_password)
+    if cmd.passwords:
+        passwords_to_try.extend(p for p in cmd.passwords if p)
+
+    archive = None
+    correct_password = None
+
+    for pwd in passwords_to_try:
+        try:
+            archive_stream.seek(0)
+            archive = open_archive(archive_stream, filename, [pwd] if pwd else None)
+            if not archive:
+                logger.error("Could not find a handler for the archive type.")
+                return
+
+            member_files = archive.list_files()
+            if not member_files:
+                break
+
+            with archive.open_file(member_files[0]):
+                pass
+
+            correct_password = pwd
+            logger.info(f"Successfully opened archive {cmd.entity_id} with password: {'yes' if pwd else 'no'}")
+            break
+
+        except (IOError, RuntimeError) as e:
+            if "password" in str(e).lower():
+                archive = None
+                continue
+            else:
+                logger.error(f"Failed to open archive {cmd.entity_id}: {e}")
+                return
+
+    if not archive:
+        raise PasswordRequiredError(f"A password is required for archive entity {cmd.entity_id}")
+
+    # Save the correct password if we found a new one
+    if correct_password and (not stored_password or correct_password != stored_password):
+        await world.dispatch_command(SetArchivePasswordCommand(entity_id=cmd.entity_id, password=correct_password))
+
+    member_files = archive.list_files()
+    for member_name in member_files:
+        with archive.open_file(member_name) as member_stream:
+            get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
+            command_result = await world.dispatch_command(get_or_create_cmd)
+            member_entity, _ = command_result.get_one_value()
+
+            member_comp = ArchiveMemberComponent(
+                archive_entity_id=cmd.entity_id,
+                path_in_archive=member_name,
+            )
+            await transaction.add_component_to_entity(member_entity.id, member_comp)
+
+    info_comp = ArchiveInfoComponent(file_count=len(member_files))
+    await transaction.add_component_to_entity(cmd.entity_id, info_comp)
+
+    logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(member_files)} members.")

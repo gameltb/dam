@@ -31,7 +31,7 @@ dependencies = [
 
 [tool.ruff]
 extend = "../../pyproject.toml"
-exclude = ["build", "dist"]
+exclude = ["build", "dist", "tests/test_assets"]
 include = ["src/**", "tests/**"]
 
 [tool.pyright]

@@ -4,16 +4,20 @@ from dam.core.world import World
 
 from .commands import (
     AddFilePropertiesCommand,
+    FindEntityByFilePropertiesCommand,
     FindEntityByHashCommand,
-    IngestFileCommand,
+    RegisterLocalFileCommand,
+    StoreAssetsCommand,
 )
 from .resources.file_operations_resource import FileOperationsResource
 from .resources.file_storage_resource import FileStorageResource
 from .systems.asset_lifecycle_systems import (
     add_file_properties_handler,
+    find_entity_by_file_properties_handler,
     get_fs_asset_filenames_handler,
     handle_find_entity_by_hash_command,
-    handle_ingest_file_command,
+    register_local_file_handler,
+    store_assets_handler,
 )
 from .systems.stream_handler_system import get_asset_stream_handler
 
@@ -30,13 +34,21 @@ class FsPlugin(Plugin):
         world.logger.debug(f"Added FileOperationsResource for World '{world.name}'.")
 
         world.register_system(
-            handle_ingest_file_command,
-            command_type=IngestFileCommand,
-        )
-        world.register_system(
             add_file_properties_handler,
             command_type=AddFilePropertiesCommand,
         )
         world.register_system(handle_find_entity_by_hash_command, command_type=FindEntityByHashCommand)
         world.register_system(get_asset_stream_handler, command_type=GetAssetStreamCommand)
         world.register_system(get_fs_asset_filenames_handler, command_type=GetAssetFilenamesCommand)
+        world.register_system(
+            find_entity_by_file_properties_handler,
+            command_type=FindEntityByFilePropertiesCommand,
+        )
+        world.register_system(
+            register_local_file_handler,
+            command_type=RegisterLocalFileCommand,
+        )
+        world.register_system(
+            store_assets_handler,
+            command_type=StoreAssetsCommand,
+        )

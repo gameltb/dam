@@ -3,17 +3,6 @@ from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class ArchiveMemberComponent(Component):
-    """
-    A component that marks an asset as a member of an archive.
-    """
-
-    __tablename__ = "component_archive_member"
-
-    archive_entity_id: Mapped[int] = mapped_column(nullable=False)
-    path_in_archive: Mapped[str] = mapped_column(String(4096), nullable=False)
-
-
 class ArchivePasswordComponent(Component):
     """
     Stores the password for an encrypted archive.
