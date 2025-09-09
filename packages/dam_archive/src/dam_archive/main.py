@@ -2,6 +2,18 @@ from typing import Any, List, Optional
 
 from .base import ArchiveHandler
 from .registry import get_handlers
+from . import zip
+from . import sevenzip
+from . import rar
+
+
+def register_all_handlers() -> None:
+    """
+    Registers all available archive handlers.
+    """
+    zip.register()
+    sevenzip.register()
+    rar.register()
 
 
 def open_archive(file_obj: Any, filename: str, passwords: Optional[List[str]] = None) -> Optional[ArchiveHandler]:
@@ -20,3 +32,6 @@ def open_archive(file_obj: Any, filename: str, passwords: Optional[List[str]] = 
         if handler_class.can_handle(filename):
             return handler_class(file_obj, passwords)
     return None
+
+
+register_all_handlers()
