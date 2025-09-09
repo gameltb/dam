@@ -63,7 +63,7 @@ async def add_assets(
 
     total_size = sum(p.stat().st_size for p in files_to_process)
 
-    with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets") as pbar:
+    with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets", smoothing=0.0) as pbar:
         for file_path in files_to_process:
             pbar.set_postfix_str(file_path.name)
             try:

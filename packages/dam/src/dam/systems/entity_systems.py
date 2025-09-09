@@ -51,8 +51,4 @@ async def get_or_create_entity_from_stream_handler(
     )
     await world.dispatch_command(add_hashes_command)
 
-    from dam_app.commands import ExtractMetadataCommand
-
-    await world.dispatch_command(ExtractMetadataCommand(entity_id=entity.id))
-
     return entity, sha256_bytes  # type: ignore
