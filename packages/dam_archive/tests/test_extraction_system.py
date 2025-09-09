@@ -1,14 +1,18 @@
 from pathlib import Path
+
 import pytest
 from dam.core.world import World
 from dam.functions import ecs_functions
-from dam_archive.commands import ProcessArchiveCommand
-from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 from dam_fs.commands import RegisterLocalFileCommand
+from sqlalchemy import select
+
+from dam_archive.commands import ExtractArchiveMembersCommand
+from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
+
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_extract_archives(test_world_alpha: World, test_archives):
+async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
     """
     Tests extracting both regular and protected archives using the new fixture.
     """
@@ -22,7 +26,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives):
     entity_id_reg = cmd_result_reg.get_one_value()
 
     # 2. Run the extraction command
-    extract_cmd_reg = ProcessArchiveCommand(entity_id=entity_id_reg)
+    extract_cmd_reg = ExtractArchiveMembersCommand(entity_id=entity_id_reg)
     await world.dispatch_command(extract_cmd_reg)
 
     # 3. Verify the results for the regular archive
@@ -43,7 +47,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives):
     entity_id_prot = cmd_result_prot.get_one_value()
 
     # 2. Run the extraction command with the correct password
-    extract_cmd_prot = ProcessArchiveCommand(entity_id=entity_id_prot, passwords=["password"])
+    extract_cmd_prot = ExtractArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
     await world.dispatch_command(extract_cmd_prot)
 
     # 3. Verify the results for the protected archive
@@ -51,7 +55,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives):
         info_prot = await ecs_functions.get_component(session, entity_id_prot, ArchiveInfoComponent)
         assert info_prot is not None
         assert info_prot.file_count == 2
-        
+
         members_prot = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_prot)
         )

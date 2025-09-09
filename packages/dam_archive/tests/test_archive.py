@@ -16,7 +16,7 @@ def dummy_zip_file(tmp_path: Path) -> Path:
 
 
 def test_open_zip_archive(dummy_zip_file: Path) -> None:
-    archive = open_archive(str(dummy_zip_file))
+    archive = open_archive(str(dummy_zip_file), dummy_zip_file.name)
     assert archive is not None
     files = archive.list_files()
     assert "file1.txt" in files
@@ -46,7 +46,7 @@ def nested_zip_file(tmp_path: Path) -> Path:
 
 
 def test_open_nested_zip_archive(nested_zip_file: Path) -> None:
-    archive = open_archive(str(nested_zip_file))
+    archive = open_archive(str(nested_zip_file), nested_zip_file.name)
     assert archive is not None
     with archive.open_file("inner.zip/file2.txt") as f:
         assert f.read() == b"content2"

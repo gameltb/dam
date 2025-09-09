@@ -55,6 +55,7 @@ class RegisterLocalFileCommand(BaseCommand[int]):
     Command to register a local file, creating an entity if needed.
     Returns the entity ID.
     """
+
     file_path: Path
 
 
@@ -63,4 +64,5 @@ class StoreAssetsCommand(BaseCommand[None]):
     """
     Command to store assets based on a query.
     """
+
     query: str

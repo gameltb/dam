@@ -3,14 +3,15 @@ from pathlib import Path
 from typing import List
 
 import typer
-from dam_app.state import get_world
-from dam_app.utils.async_typer import AsyncTyper
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
 from typing_extensions import Annotated
+
+from dam_app.state import get_world
+from dam_app.utils.async_typer import AsyncTyper
 
 app = AsyncTyper()
 
@@ -63,12 +64,8 @@ async def add_assets(
         try:
             typer.echo(f"Processing: {file_path.name}")
 
-            mod_time = datetime.datetime.fromtimestamp(
-                file_path.stat().st_mtime, tz=datetime.timezone.utc
-            )
-            pre_check_cmd = FindEntityByFilePropertiesCommand(
-                file_path=file_path.as_uri(), file_modified_at=mod_time
-            )
+            mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
+            pre_check_cmd = FindEntityByFilePropertiesCommand(file_path=file_path.as_uri(), file_modified_at=mod_time)
             cmd_result = await target_world.dispatch_command(pre_check_cmd)
             existing_entity_id = cmd_result.get_one_value()
 

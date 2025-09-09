@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import IO, Annotated, List, Optional
 
@@ -7,9 +6,8 @@ from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam_fs.models import FileLocationComponent
 
-from .commands import ProcessArchiveCommand, SetArchivePasswordCommand
+from .commands import ExtractArchiveMembersCommand, SetArchivePasswordCommand
 from .exceptions import PasswordRequiredError
 from .main import open_archive
 from .models import ArchiveInfoComponent, ArchiveMemberComponent, ArchivePasswordComponent
@@ -53,14 +51,24 @@ async def get_archive_asset_stream_handler(
 
     archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-    archive_stream = archive_stream_result.get_one_value()
+    archive_stream = archive_stream_result.get_first_ok_value()
 
     if not archive_stream:
         logger.warning(f"Could not get stream for parent archive {target_entity_id}")
         return None
 
+    # Get asset filenames for the parent archive
+    filenames_cmd = GetAssetFilenamesCommand(entity_id=target_entity_id)
+    filenames_result = await world.dispatch_command(filenames_cmd)
+    filenames = filenames_result.get_first_ok_value()
+    filename = filenames[0] if filenames else None
+
+    if not filename:
+        logger.warning(f"Could not get filename for parent archive {target_entity_id}")
+        return None
+
     try:
-        archive = open_archive(archive_stream, passwords)
+        archive = open_archive(archive_stream, filename, passwords)
         if archive:
             return archive.open_file(path_in_archive)
     except Exception as e:
@@ -83,9 +91,9 @@ async def get_archive_asset_filenames_handler(
     return None
 
 
-@system(on_command=ProcessArchiveCommand)
-async def process_archive_handler(
-    cmd: ProcessArchiveCommand,
+@system(on_command=ExtractArchiveMembersCommand)
+async def extract_archive_members_handler(
+    cmd: ExtractArchiveMembersCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
 ) -> None:
@@ -94,21 +102,34 @@ async def process_archive_handler(
     """
     logger.info(f"Processing archive for entity {cmd.entity_id}")
 
+    # Get asset stream
     archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-    archive_stream = archive_stream_result.get_one_value()
-    
+    archive_stream = archive_stream_result.get_first_ok_value()
+
     if not archive_stream:
         logger.error(f"Could not get stream for archive entity {cmd.entity_id}")
+        return
+
+    # Get asset filenames
+    filenames_cmd = GetAssetFilenamesCommand(entity_id=cmd.entity_id)
+    filenames_result = await world.dispatch_command(filenames_cmd)
+    filenames = filenames_result.get_first_ok_value()
+    filename = filenames[0] if filenames else None
+
+    if not filename:
+        logger.error(f"Could not get filename for archive entity {cmd.entity_id}")
         return
 
     # Prioritize stored password
     stored_password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     stored_password = stored_password_comp.password if stored_password_comp else None
 
-    passwords_to_try = [stored_password] + (cmd.passwords or [])
-    passwords_to_try = [p for p in passwords_to_try if p is not None] # Filter out None from the list if it's there
-    passwords_to_try.insert(0, None) # Always try with no password first
+    passwords_to_try: List[Optional[str]] = [None]
+    if stored_password:
+        passwords_to_try.append(stored_password)
+    if cmd.passwords:
+        passwords_to_try.extend(p for p in cmd.passwords if p)
 
     archive = None
     correct_password = None
@@ -116,18 +137,18 @@ async def process_archive_handler(
     for pwd in passwords_to_try:
         try:
             archive_stream.seek(0)
-            archive = open_archive(archive_stream, [pwd] if pwd else None)
+            archive = open_archive(archive_stream, filename, [pwd] if pwd else None)
             if not archive:
                 logger.error("Could not find a handler for the archive type.")
                 return
 
             member_files = archive.list_files()
             if not member_files:
-                break 
-            
+                break
+
             with archive.open_file(member_files[0]):
                 pass
-            
+
             correct_password = pwd
             logger.info(f"Successfully opened archive {cmd.entity_id} with password: {'yes' if pwd else 'no'}")
             break
@@ -139,7 +160,7 @@ async def process_archive_handler(
             else:
                 logger.error(f"Failed to open archive {cmd.entity_id}: {e}")
                 return
-    
+
     if not archive:
         raise PasswordRequiredError(f"A password is required for archive entity {cmd.entity_id}")
 
@@ -162,5 +183,5 @@ async def process_archive_handler(
 
     info_comp = ArchiveInfoComponent(file_count=len(member_files))
     await transaction.add_component_to_entity(cmd.entity_id, info_comp)
-    
+
     logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(member_files)} members.")

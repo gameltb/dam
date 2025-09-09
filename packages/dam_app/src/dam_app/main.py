@@ -1,12 +1,11 @@
 import logging
 import traceback
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.world import (
-    World,
     clear_world_registry,
     create_and_register_all_worlds_from_settings,
     get_all_registered_worlds,
@@ -142,7 +141,9 @@ def main_callback(
             raise typer.Exit(code=1)
 
     if ctx.invoked_subcommand is None:
-        typer.echo(f"Current world: '{get_world().name if get_world() else 'None'}'")
+        current_world = get_world()
+        world_name = current_world.name if current_world else "None"
+        typer.echo(f"Current world: '{world_name}'")
 
 
 def run_cli_directly():

@@ -92,19 +92,15 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
     store_cmd = StoreAssetsCommand(query="local_not_stored")
     await world.dispatch_command(store_cmd)
 
-    # 3. Verify the new CAS location
+    # 3. Verify the file is in storage
     async with world.db_session_maker() as session:
-        flcs = await ecs_functions.get_components(session, entity_id, FileLocationComponent)
-        assert len(flcs) == 2  # Should now have the original file:/// and the new cas:///
+        from dam.models.hashes import ContentHashSHA256Component
 
-        cas_locs = [flc for flc in flcs if flc.url.startswith("cas://")]
-        assert len(cas_locs) == 1
-
-        # Check that the stored file exists
         from dam_fs.resources import FileStorageResource
 
-        storage = world.get_resource(FileStorageResource)
-        cas_hash = cas_locs[0].url.split("://")[1]
-        stored_path = storage.get_file_path(cas_hash)
-        assert stored_path is not None
-        assert stored_path.exists()
+        sha256_comp = await ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
+        assert sha256_comp is not None
+
+        storage_resource = world.get_resource(FileStorageResource)
+        content_hash = sha256_comp.hash_value.hex()
+        assert storage_resource.has_file(content_hash)

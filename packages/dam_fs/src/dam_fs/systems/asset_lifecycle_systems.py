@@ -4,13 +4,14 @@ import io
 import logging
 from typing import Annotated, Any, Dict, List, Optional
 
-from dam.commands import GetAssetFilenamesCommand
+from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import (
@@ -28,7 +29,6 @@ from ..commands import (
 from ..models.file_location_component import FileLocationComponent
 from ..models.file_properties_component import FilePropertiesComponent
 from ..resources.file_storage_resource import FileStorageResource
-from ..utils.url_utils import get_local_path_for_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,7 @@ async def add_file_properties_handler(
     transaction: EcsTransaction,
 ) -> None:
     logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
-    fpc = FilePropertiesComponent(
-        original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes
-    )
+    fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
     await transaction.add_component_to_entity(cmd.entity_id, fpc)
 
 
@@ -58,9 +56,7 @@ async def handle_find_entity_by_hash_command(
         hash_bytes = binascii.unhexlify(cmd.hash_value)
     except binascii.Error as e:
         raise ValueError(f"Invalid hash_value format: {cmd.hash_value}") from e
-    entity = await ecs_functions.find_entity_by_content_hash(
-        transaction.session, hash_bytes, cmd.hash_type
-    )
+    entity = await ecs_functions.find_entity_by_content_hash(transaction.session, hash_bytes, cmd.hash_type)
     if not entity:
         return None
     return {"entity_id": entity.id, "components": {}}
@@ -94,9 +90,7 @@ async def register_local_file_handler(
     async with transaction.session.begin_nested():
         existing_fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
         if not existing_fpc:
-            mod_time = datetime.datetime.fromtimestamp(
-                file_path.stat().st_mtime, tz=datetime.timezone.utc
-            )
+            mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
             fpc = FilePropertiesComponent(
                 original_filename=file_path.name,
                 file_size_bytes=file_path.stat().st_size,
@@ -105,15 +99,11 @@ async def register_local_file_handler(
             await transaction.add_component_to_entity(entity.id, fpc)
 
         file_uri = file_path.as_uri()
-        existing_flcs = await transaction.get_components_by_value(
-            entity.id, FileLocationComponent, {"url": file_uri}
-        )
+        existing_flcs = await transaction.get_components_by_value(entity.id, FileLocationComponent, {"url": file_uri})
         if not existing_flcs:
             flc = FileLocationComponent(url=file_uri)
             await transaction.add_component_to_entity(entity.id, flc)
-            osi = OriginalSourceInfoComponent(
-                source_type=source_types.SOURCE_TYPE_LOCAL_FILE
-            )
+            osi = OriginalSourceInfoComponent(source_type=source_types.SOURCE_TYPE_LOCAL_FILE)
             await transaction.add_component_to_entity(entity.id, osi)
     return entity.id
 
@@ -143,37 +133,43 @@ async def store_assets_handler(
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
 ) -> None:
-    if cmd.query != "local_not_stored":
-        logger.warning(f"Query '{cmd.query}' not supported by store_assets_handler.")
-        return
-
-    stmt = select(FileLocationComponent).where(FileLocationComponent.url.startswith("file:///"))
-    result = await transaction.session.execute(stmt)
-    local_files = result.scalars().all()
+    """
+    Handles storing assets in the file storage based on a query.
+    Currently, it stores all assets that are not yet in the storage.
+    """
     storage_resource = world.get_resource(FileStorageResource)
     stored_count = 0
 
-    for loc in local_files:
-        sha256_comp = await transaction.get_component(loc.entity_id, ContentHashSHA256Component)
+    # A simple implementation: iterate through all entities.
+    # This could be optimized with a more specific query if needed.
+    all_entities_stmt = select(Entity)
+    all_entities_result = await transaction.session.execute(all_entities_stmt)
+    all_entities = all_entities_result.scalars().all()
+
+    for entity in all_entities:
+        sha256_comp = await transaction.get_component(entity.id, ContentHashSHA256Component)
         if not sha256_comp:
-            logger.warning(f"Entity {loc.entity_id} has a local file but no SHA256 hash. Cannot store.")
-            continue
+            continue  # Cannot store without a hash
 
         content_hash = sha256_comp.hash_value.hex()
         if storage_resource.has_file(content_hash):
-            continue
+            continue  # Already stored
 
-        try:
-            local_path = get_local_path_for_url(loc.url)
-            if not local_path or not local_path.exists():
-                logger.warning(f"Local file for {loc.url} not found, skipping store.")
-                continue
-            with open(local_path, "rb") as f:
-                content = f.read()
-            storage_resource.store_file(content)
-            stored_count += 1
-            logger.info(f"Stored entity {loc.entity_id} (hash: {content_hash})")
-        except Exception as e:
-            logger.error(f"Failed to store entity {loc.entity_id}: {e}", exc_info=True)
-    
+        # Get the asset stream to store it
+        asset_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
+        asset_stream_result = await world.dispatch_command(asset_stream_cmd)
+
+        asset_stream = asset_stream_result.get_one_value()
+
+        if asset_stream:
+            try:
+                content = asset_stream.read()
+                storage_resource.store_file(content)
+                stored_count += 1
+                logger.info(f"Stored entity {entity.id} (hash: {content_hash})")
+            except Exception as e:
+                logger.error(f"Failed to store entity {entity.id}: {e}", exc_info=True)
+            finally:
+                asset_stream.close()
+
     logger.info(f"Successfully stored {stored_count} new assets.")

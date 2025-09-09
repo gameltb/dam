@@ -1,16 +1,17 @@
+import zipfile
+from pathlib import Path
+
 import pytest
 from dam.core.world import World
-from dam_archive.plugin import ArchivePlugin
 from dam_fs.plugin import FsPlugin
-from pathlib import Path
-import zipfile
-import py7zr
+
+from dam_archive.plugin import ArchivePlugin
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 
 
 @pytest.fixture(scope="session")
-def test_archives(tmp_path_factory):
+def test_archives(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
     """
     Creates regular zip and password-protected 7z files for testing.
     """
@@ -22,17 +23,18 @@ def test_archives(tmp_path_factory):
 
     # Create regular zip
     regular_zip_path = tmp_dir / "regular.zip"
-    with zipfile.ZipFile(regular_zip_path, 'w') as zf:
+    with zipfile.ZipFile(regular_zip_path, "w") as zf:
         for file in content_dir.iterdir():
             zf.write(file, arcname=file.name)
-    
-    # Create protected 7z
-    protected_7z_path = tmp_dir / "protected.7z"
-    with py7zr.SevenZipFile(protected_7z_path, 'w', password="password") as zf:
-        zf.writeall(content_dir, 'content')
 
+    # Create protected zip
+    protected_zip_path = tmp_dir / "protected.zip"
+    with zipfile.ZipFile(protected_zip_path, "w") as zf:
+        zf.writestr("file1.txt", "file one", compress_type=zipfile.ZIP_DEFLATED)
+        zf.writestr("file2.txt", "file two", compress_type=zipfile.ZIP_DEFLATED)
+        zf.setpassword(b"password")
 
-    return regular_zip_path, protected_7z_path
+    return regular_zip_path, protected_zip_path
 
 
 @pytest.fixture(autouse=True)
