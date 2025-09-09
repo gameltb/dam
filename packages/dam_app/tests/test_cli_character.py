@@ -168,18 +168,10 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     # The stdout assertions have been removed from it in a previous step.
 
     # 1. Add an asset via service calls to ensure it's properly ingested with hashes
-    from dam.core.stages import SystemStage
-    from dam_fs.commands import IngestFileCommand
-    from dam_fs.functions import file_operations
+    from dam_fs.commands import RegisterLocalFileCommand
 
-    original_filename, size_bytes = file_operations.get_file_properties(sample_image_a)
-    add_command = IngestFileCommand(
-        filepath_on_disk=sample_image_a,
-        original_filename=original_filename,
-        size_bytes=size_bytes,
-    )
+    add_command = RegisterLocalFileCommand(file_path=sample_image_a)
     await test_world_alpha.dispatch_command(add_command)
-    await test_world_alpha.execute_stage(SystemStage.METADATA_EXTRACTION)
     # No add_result or exit_code to check here, assume success if no exceptions
 
     asset_id_for_test: Optional[int] = None

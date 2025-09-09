@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -12,15 +13,6 @@ class AddFilePropertiesCommand(BaseCommand[None]):
     """
 
     entity_id: int
-    original_filename: str
-    size_bytes: int
-
-
-@dataclass
-class IngestFileCommand(BaseCommand[None]):
-    """Command to ingest a file by copying it into the asset storage."""
-
-    filepath_on_disk: Path
     original_filename: str
     size_bytes: int
 
@@ -44,3 +36,33 @@ class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]]]):
     hash_value: str
     hash_type: str  # e.g., "sha256", "md5"
     request_id: str
+
+
+@dataclass
+class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int]]):
+    """
+    Command to find an entity by its file properties (path and modification time).
+    The result is the entity ID or None.
+    """
+
+    file_path: str
+    file_modified_at: datetime
+
+
+@dataclass
+class RegisterLocalFileCommand(BaseCommand[int]):
+    """
+    Command to register a local file, creating an entity if needed.
+    Returns the entity ID.
+    """
+
+    file_path: Path
+
+
+@dataclass
+class StoreAssetsCommand(BaseCommand[None]):
+    """
+    Command to store assets based on a query.
+    """
+
+    query: str

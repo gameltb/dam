@@ -15,8 +15,10 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 
 
 @dataclass
-class IngestAssetsCommand(BaseCommand[List[int]]):
-    """A command to ingest new assets from a list of file paths."""
+class ExtractArchiveCommand(BaseCommand[None]):
+    """
+    A command to extract an archive asset and ingest its members.
+    """
 
-    file_paths: List[str]
+    entity_id: int
     passwords: Optional[List[str]] = None

@@ -1,8 +1,6 @@
 # --- Framework Imports for Systems ---
-import io
 import logging
 import traceback  # Import traceback for detailed error logging
-from pathlib import Path
 from typing import List, Optional
 
 import typer  # Ensure typer is imported for annotations like typer.Context
@@ -13,16 +11,13 @@ from dam.core.world import (
     clear_world_registry,
     create_and_register_all_worlds_from_settings,
     get_all_registered_worlds,
-    get_world,
 )
-from dam.events import AssetReadyForMetadataExtractionEvent
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam_archive.commands import IngestAssetsCommand
 from typing_extensions import Annotated
 
+from dam_app.cli import assets, systems
+from dam_app.state import get_world, global_state
 from dam_app.utils.async_typer import AsyncTyper
-
-from .commands import IngestAssetStreamCommand
 
 app = AsyncTyper(
     name="dam-cli",
@@ -32,11 +27,8 @@ app = AsyncTyper(
 )
 
 
-class GlobalState:
-    world_name: Optional[str] = None
-
-
-global_state = GlobalState()
+app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
+app.add_typer(systems.app, name="systems", help="Commands for running systems.")
 
 
 @app.command(name="list-worlds")
@@ -76,185 +68,9 @@ def cli_list_worlds():
         return
 
 
-async def add_asset(world: World, files_to_process: List[Path]):
-    total_files = len(files_to_process)
-    typer.echo(f"Found {total_files} file(s) to process for world '{world.name}'.")
-
-    processed_count = 0
-    error_count = 0
-
-    async with world.db_session_maker() as session:
-        for filepath in files_to_process:
-            processed_count += 1
-            typer.echo(f"\nProcessing file {processed_count}/{total_files}: {filepath.name}")
-            try:
-                # Create a new entity for this asset first
-                entity = await dam_ecs_functions.create_entity(session)
-                await session.flush()  # Ensure entity gets an ID
-
-                # Read file content into an in-memory stream
-                with open(filepath, "rb") as f:
-                    file_content_stream = io.BytesIO(f.read())
-
-                # Create and dispatch the initial command
-                command = IngestAssetStreamCommand(
-                    entity=entity,
-                    file_content=file_content_stream,
-                    original_filename=filepath.name,
-                    world_name=world.name,
-                )
-
-                await world.dispatch_command(command)
-
-                # The command handler now handles everything. We just need to commit the session.
-                await session.commit()
-                typer.secho(
-                    f"  Successfully dispatched ingestion command for '{filepath.name}'.", fg=typer.colors.GREEN
-                )
-
-            except Exception as e:
-                await session.rollback()
-                typer.secho(f"  Error processing file {filepath.name}: {e}", fg=typer.colors.RED)
-                typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-                error_count += 1
-                # Continue to next file
-
-    typer.echo("\n--- Summary ---")
-    typer.echo(f"World: '{world.name}'")
-    typer.echo(f"Total files attempted: {processed_count}")
-    typer.echo(f"Errors encountered: {error_count}")
-    if error_count > 0:
-        typer.secho("Some files could not be processed. Check errors above.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
-@app.command(name="add-asset")
-async def cli_add_asset(
-    ctx: typer.Context,
-    path_str: Annotated[
-        str,
-        typer.Argument(
-            ...,
-            help="Path to the asset file or directory of asset files.",
-            exists=True,
-            readable=True,
-            resolve_path=True,
-        ),
-    ],
-    recursive: Annotated[
-        bool,
-        typer.Option("-r", "--recursive", help="Process directory recursively."),
-    ] = False,
-):
-    """
-    Adds one or more assets to the DAM, initiating the new event-driven ingestion pipeline.
-    """
-    if not global_state.world_name:
-        typer.secho("Error: No world selected for add-asset. Use --world <world_name>.", fg=typer.colors.RED)
-        return
-
-    target_world = get_world(global_state.world_name)
-    if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
-        return
-
-    input_path = Path(path_str)
-    files_to_process: List[Path] = []
-
-    if input_path.is_file():
-        files_to_process.append(input_path)
-    elif input_path.is_dir():
-        typer.echo(f"Scanning directory: {input_path} for world '{global_state.world_name}'")
-        pattern = "**/*" if recursive else "*"
-        files_to_process.extend(p for p in input_path.glob(pattern) if p.is_file())
-        if not files_to_process:
-            typer.secho(f"No files found in {input_path}", fg=typer.colors.YELLOW)
-            return
-    else:
-        typer.secho(f"Error: Path {input_path} is not a file or directory.", fg=typer.colors.RED)
-        return
-
-    await add_asset(target_world, files_to_process)
-
-
-@app.command(name="ingest")
-async def cli_ingest(
-    ctx: typer.Context,
-    paths: Annotated[
-        List[str],
-        typer.Argument(
-            ...,
-            help="Paths to the asset files or directories.",
-            exists=True,
-            readable=True,
-            resolve_path=True,
-        ),
-    ],
-    recursive: Annotated[
-        bool,
-        typer.Option("-r", "--recursive", help="Process directories recursively."),
-    ] = False,
-    passwords: Annotated[
-        Optional[List[str]], typer.Option("--password", "-p", help="Password for encrypted archives.")
-    ] = None,
-):
-    """
-    Ingests assets from files or directories, expanding archives.
-    """
-    if not global_state.world_name:
-        typer.secho("Error: No world selected for ingest. Use --world <world_name>.", fg=typer.colors.RED)
-        return
-
-    target_world = get_world(global_state.world_name)
-    if not target_world:
-        typer.secho(
-            f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
-        )
-        return
-
-    files_to_process: List[str] = []
-    for path_str in paths:
-        input_path = Path(path_str)
-        if input_path.is_file():
-            files_to_process.append(str(input_path))
-        elif input_path.is_dir():
-            pattern = "**/*" if recursive else "*"
-            files_to_process.extend(str(p) for p in input_path.glob(pattern) if p.is_file())
-
-    if not files_to_process:
-        typer.secho("No files found to ingest.", fg=typer.colors.YELLOW)
-        return
-
-    command = IngestAssetsCommand(file_paths=files_to_process, passwords=passwords)
-
-    try:
-        command_result = await target_world.dispatch_command(command)
-        # The result is a list of entity IDs from the handler.
-        # We expect one handler, so we get the first successful result.
-        new_entity_ids = command_result.get_first_ok_value()
-
-        typer.secho(f"Successfully ingested {len(new_entity_ids)} assets.", fg=typer.colors.GREEN)
-
-        if new_entity_ids:
-            typer.echo("Dispatching assets for metadata extraction...")
-            await target_world.dispatch_event(AssetReadyForMetadataExtractionEvent(entity_ids=new_entity_ids))
-            typer.secho("Metadata extraction event dispatched.", fg=typer.colors.GREEN)
-
-    except Exception as e:
-        typer.secho(f"An error occurred during ingestion: {e}", fg=typer.colors.RED)
-        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-
 @app.command(name="setup-db")
 async def setup_db(ctx: typer.Context):
-    if not global_state.world_name:
-        typer.secho("Error: No world selected for setup-db. Use --world <world_name>.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-    target_world = get_world(global_state.world_name)
+    target_world = get_world()
     if not target_world:
         typer.secho(
             f"Error: World '{global_state.world_name}' not found or not initialized correctly.", fg=typer.colors.RED
@@ -285,11 +101,7 @@ async def cli_show_entity(
     """
     Shows all components of a given entity.
     """
-    if not global_state.world_name:
-        typer.secho("Error: No world selected. Use --world <world_name>.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-
-    target_world = get_world(global_state.world_name)
+    target_world = get_world()
     if not target_world:
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -423,7 +235,7 @@ def main_callback(
     global_state.world_name = target_world_name_candidate
 
     if global_state.world_name:
-        selected_world_instance = get_world(global_state.world_name)
+        selected_world_instance = get_world()
         if selected_world_instance:
             if ctx.invoked_subcommand:
                 typer.echo(f"Operating on world: '{global_state.world_name}'")

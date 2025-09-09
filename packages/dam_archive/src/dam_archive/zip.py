@@ -16,11 +16,7 @@ class ZipArchiveHandler(ArchiveHandler):
         self.passwords = passwords
         try:
             self.zip_file = zipfile.ZipFile(self.file, "r")
-            if self.passwords:
-                self.zip_file.setpassword(self.passwords[0].encode())
-                if self.zip_file.testzip() is not None:
-                    raise RuntimeError("Bad password for file")
-        except (RuntimeError, zipfile.BadZipFile) as e:
+        except zipfile.BadZipFile as e:
             raise IOError(f"Failed to open zip file: {e}") from e
 
     @staticmethod
@@ -28,13 +24,14 @@ class ZipArchiveHandler(ArchiveHandler):
         return file_path.lower().endswith(".zip")
 
     def list_files(self) -> List[str]:
-        return self.zip_file.namelist()
+        return [f.filename for f in self.zip_file.infolist() if not f.is_dir()]
 
     def open_file(self, file_name: str) -> IO[bytes]:
         path_parts = file_name.split("/", 1)
         if len(path_parts) == 1 or not path_parts[0].lower().endswith(".zip"):
             try:
-                return self.zip_file.open(file_name)
+                pwd = self.passwords[0].encode() if self.passwords else None
+                return self.zip_file.open(file_name, pwd=pwd)
             except (RuntimeError, KeyError) as e:
                 raise IOError(f"Failed to open file in zip: {e}") from e
         else:

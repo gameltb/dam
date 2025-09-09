@@ -12,10 +12,8 @@ from dam.functions import (
 )
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
-from dam_fs.commands import IngestFileCommand
-from dam_fs.functions import file_operations
+from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
-from dam_fs.models.file_properties_component import FilePropertiesComponent
 from dam_fs.utils import url_utils
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -193,14 +191,6 @@ async def apply_transcode_profile(
 
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
-        # Determine original filename for the new asset based on source, if possible
-        source_fpc = await ecs_functions.get_component(session, source_asset_entity_id, FilePropertiesComponent)  # type: ignore
-        original_filename_base = "transcoded_file"
-        if source_fpc and source_fpc.original_filename:  # type: ignore
-            original_filename_base = Path(source_fpc.original_filename).stem  # type: ignore
-
-        new_asset_original_filename = f"{original_filename_base}_{profile_component.profile_name.replace(' ', '_')}.{profile_component.output_format}"
-
         # 3. Determine Output Path for Transcoded File
         # Use a temporary/cache directory from settings or a specific output_parent_dir
         # The actual filename will be unique.
@@ -250,18 +240,7 @@ async def apply_transcode_profile(
         # 5. Ingest the Transcoded File as a New Asset
         # This uses the existing asset ingestion event flow.
         # The ingestion system will calculate hashes, extract metadata, and create FileLocationComponent.
-        try:
-            _ret_original_filename, ret_size_bytes = file_operations.get_file_properties(transcoded_filepath)
-        except Exception as e:
-            if transcoded_filepath.exists():  # Check if it exists before unlinking
-                transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
-            raise TranscodeFunctionsError(f"Could not get properties of transcoded file {transcoded_filepath}: {e}")
-
-        ingestion_command = IngestFileCommand(
-            filepath_on_disk=transcoded_filepath,
-            original_filename=new_asset_original_filename,  # Use the derived meaningful name
-            size_bytes=ret_size_bytes,
-        )
+        ingestion_command = RegisterLocalFileCommand(file_path=transcoded_filepath)
 
         # Dispatch command. The handler will ingest the file.
         await world.dispatch_command(ingestion_command)
