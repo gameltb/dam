@@ -3,8 +3,8 @@ from pathlib import Path
 import py7zr
 import pytest
 
-from dam_archive.main import open_archive
 from dam_archive.exceptions import InvalidPasswordError
+from dam_archive.main import open_archive
 
 
 @pytest.fixture

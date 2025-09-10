@@ -22,10 +22,13 @@ class ZipArchiveHandler(ArchiveHandler):
                 # Try to open the first file to check password
                 with self.zip_file.open(self.zip_file.infolist()[0], pwd=self.password.encode()) as f:
                     f.read(1)
-        except RuntimeError as e:
-            if "password" in str(e).lower():
-                raise InvalidPasswordError("Invalid password for zip file.") from e
-            raise IOError(f"Failed to open file in zip: {e}") from e
+        except RuntimeError:
+            # The zipfile module is not consistent in the exception it raises for
+            # incorrect passwords. It's supposed to be a RuntimeError with "Bad password"
+            # in the message, but in some cases it raises other RuntimeErrors.
+            # For our purpose, we'll assume any RuntimeError during this check is
+            # due to an incorrect password.
+            raise InvalidPasswordError("Invalid password for zip file.")
         except zipfile.BadZipFile as e:
             raise IOError(f"Failed to open zip file: {e}") from e
 

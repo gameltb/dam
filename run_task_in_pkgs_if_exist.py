@@ -76,13 +76,31 @@ def main() -> None:
             print("Error: --package flag must be followed by a package name.")
             sys.exit(1)
 
+    task_name = sys.argv[1]
+
+    if task_name in ("check", "check-full", "check-ci"):
+        tasks_to_run = {
+            "check": ["fmt", "lint", "pyright", "test"],
+            "check-full": ["fmt", "lint", "pyright", "mypy", "test"],
+            "check-ci": ["fmt", "lint", "pyright", "test-cov"],
+        }[task_name]
+
+        for sub_task in tasks_to_run:
+            command = f"uv run poe {sub_task}"
+            if package_to_run:
+                command += f" --package {package_to_run}"
+            print(f"Running command: {command}")
+            result = os.system(command)
+            if result != 0:
+                sys.exit(result)
+        sys.exit(0)
+
     if package_to_run:
         projects = [p for p in projects if p.name == package_to_run]
         if not projects:
             print(f"Package '{package_to_run}' not found in workspace.")
             sys.exit(1)
 
-    task_name = sys.argv[1]
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
         if task_name in tasks:
