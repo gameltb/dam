@@ -31,12 +31,26 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
             assert f_in_zip.read() == b"content2"
 
 
+import subprocess
+
 @pytest.fixture
 def protected_zip_file(tmp_path: Path) -> Path:
     zip_path = tmp_path / "protected.zip"
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.setpassword(b"password")
-        zf.writestr("file1.txt", b"content1")
+    file_to_zip = tmp_path / "file1.txt"
+    file_to_zip.write_text("content1")
+
+    subprocess.run(
+        [
+            "zip",
+            "-j",
+            "-P",
+            "password",
+            str(zip_path),
+            str(file_to_zip),
+        ],
+        check=True,
+    )
+
     return zip_path
 
 
