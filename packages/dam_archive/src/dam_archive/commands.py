@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional
 
 from dam.core.commands import BaseCommand
 
@@ -22,3 +22,6 @@ class ExtractArchiveMembersCommand(BaseCommand[None]):
 
     entity_id: int
     passwords: Optional[List[str]] = None
+    init_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
+    update_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
+    error_callback: Optional[Callable[[str, Exception], bool]] = field(default=None, repr=False)

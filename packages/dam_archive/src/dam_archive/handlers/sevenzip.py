@@ -1,11 +1,12 @@
 import _lzma
 import io
+from pathlib import PurePosixPath
 from typing import IO, BinaryIO, List, Optional, Union
 
 import py7zr
 from py7zr.io import BytesIOFactory
 
-from ..base import ArchiveHandler
+from ..base import ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
 
@@ -18,11 +19,19 @@ class SevenZipArchiveHandler(ArchiveHandler):
     def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
         self.file = file
         self.password = password
+        self.members: List[ArchiveMemberInfo] = []
+        self.filenames: List[str] = []
 
         try:
             with self._open_7z_file() as archive:
-                self.filenames = archive.getnames()
-                if self.password:
+                for member in archive.list():
+                    if not member.filename.endswith("/"):  # type: ignore
+                        self.members.append(
+                            ArchiveMemberInfo(name=member.filename, size=member.uncompressed)  # type: ignore
+                        )
+                        self.filenames.append(member.filename)  # type: ignore
+
+                if self.password and self.filenames:
                     # Try to extract the first file to check password
                     factory = BytesIOFactory(limit=1)
                     archive.extract(targets=[self.filenames[0]], factory=factory)
@@ -45,16 +54,30 @@ class SevenZipArchiveHandler(ArchiveHandler):
     def can_handle(file_path: str) -> bool:
         return file_path.lower().endswith(".7z")
 
-    def list_files(self) -> List[str]:
-        return self.filenames
+    def list_files(self) -> List[ArchiveMemberInfo]:
+        return self.members
 
     def open_file(self, file_name: str) -> IO[bytes]:
         try:
             # We need to re-open the file for each extraction.
             with self._open_7z_file() as archive:
+                # To extract a file from a directory, py7zr needs the parent directories
+                # to be included in the `targets` list.
+                targets = [file_name]
+                p = PurePosixPath(file_name)
+                for parent in p.parents:
+                    if parent.name:  # not root
+                        parent_str = str(parent)
+                        # Directory names in 7z archives usually end with a slash.
+                        if parent_str + "/" in self.filenames:
+                            targets.append(parent_str + "/")
+                        # Some archivers might not include the trailing slash.
+                        elif parent_str in self.filenames:
+                            targets.append(parent_str)
+
                 # Use a large limit to avoid issues with large files.
                 factory = BytesIOFactory(limit=1024 * 1024 * 1024)  # 1GB limit
-                archive.extract(targets=[file_name], factory=factory)
+                archive.extract(targets=targets, factory=factory)
                 if file_name in factory.products:
                     product = factory.get(file_name)  # type: ignore
                     if product:
