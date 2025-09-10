@@ -1,6 +1,5 @@
 import binascii
 import datetime
-import io
 import logging
 from typing import Annotated, Any, Dict, List, Optional
 

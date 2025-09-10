@@ -46,7 +46,7 @@ def protected_rar_file(tmp_path: Path) -> Path:
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
-    archive = open_archive(str(protected_rar_file), protected_rar_file.name, passwords=["password"])
+    archive = open_archive(str(protected_rar_file), protected_rar_file.name, password="password")
     assert archive is not None
     with archive.open_file("file1.txt") as f:
         assert f.read() == b"content1"

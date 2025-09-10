@@ -2,7 +2,7 @@
 DAM Archive package.
 """
 
-from . import zip
+from . import handlers
 from .plugin import ArchivePlugin
 
-__all__ = ["ArchivePlugin", "zip"]
+__all__ = ["ArchivePlugin", "handlers"]

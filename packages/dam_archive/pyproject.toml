@@ -23,7 +23,7 @@ classifiers = [
 
 dependencies = [
     "dam",
-    "py7zr",
+    "py7zr>=1.0.0",
     "patool",
     "zstandard",
     "rarfile",
