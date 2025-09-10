@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING, Any, List, Type
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from .base_class import Base
@@ -28,9 +28,11 @@ class BaseComponent(Base):
 
     # Using declared_attr for fields that might need table-specific context.
     # For entity_id, declared_attr ensures it's correctly set up for each subclass's table.
-    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), index=True, nullable=False, init=False)
+    entity_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("entities.id"), index=True, nullable=False, init=False
+    )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, init=False)
 
     # To guide dataclass for __init__ (init=False) and repr (repr=False)
     # The `entity` relationship is defined below using @declared_attr to correctly link via entity_id
