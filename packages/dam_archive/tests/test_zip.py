@@ -25,6 +25,9 @@ def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
         files = archive.list_files()
         assert "测试.txt" in [m.name for m in files]
 
+        with archive.open_file("测试.txt") as f_in_zip:
+            assert f_in_zip.read() == b"content"
+
 
 @pytest.fixture
 def cp437_encoded_zip_file(tmp_path: Path) -> Path:
