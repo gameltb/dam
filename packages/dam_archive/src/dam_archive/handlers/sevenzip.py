@@ -1,5 +1,5 @@
-import io
 import _lzma
+import io
 from typing import IO, BinaryIO, List, Optional, Union
 
 import py7zr
@@ -56,7 +56,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
                 factory = BytesIOFactory(limit=1024 * 1024 * 1024)  # 1GB limit
                 archive.extract(targets=[file_name], factory=factory)
                 if file_name in factory.products:
-                    product = factory.get(file_name)
+                    product = factory.get(file_name)  # type: ignore
                     if product:
                         product.seek(0)
                         # We need to return a file-like object that supports the context manager protocol
@@ -73,5 +73,6 @@ class SevenZipArchiveHandler(ArchiveHandler):
 
 def register() -> None:
     register_handler(SevenZipArchiveHandler)
+
 
 register()

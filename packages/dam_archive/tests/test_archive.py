@@ -1,3 +1,4 @@
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -30,8 +31,6 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
         with archive.open_file("dir/file2.txt") as f_in_zip:
             assert f_in_zip.read() == b"content2"
 
-
-import subprocess
 
 @pytest.fixture
 def protected_zip_file(tmp_path: Path) -> Path:
