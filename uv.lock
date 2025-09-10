@@ -987,7 +987,7 @@ dependencies = [
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
     { name = "patool" },
-    { name = "py7zr" },
+    { name = "py7zr", specifier = ">=1.0.0" },
     { name = "rarfile" },
     { name = "zstandard" },
 ]
