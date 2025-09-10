@@ -2,8 +2,9 @@
 This module provides utility functions for parsing and resolving file URLs.
 """
 
+import os
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote_to_bytes, urlparse
 
 
 def get_local_path_for_url(url: str) -> Path:
@@ -19,6 +20,6 @@ def get_local_path_for_url(url: str) -> Path:
 
     if scheme == "file":
         # Standard file URI, e.g., file:///path/to/file
-        return Path(parsed.path)
+        return Path(os.fsdecode(unquote_to_bytes(parsed.path)))
     else:
         raise ValueError(f"Unsupported URL scheme for local access: '{scheme}://'")
