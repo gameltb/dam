@@ -1,7 +1,7 @@
 import zipfile
 from typing import IO, BinaryIO, List, Optional, Union
 
-from ..base import ArchiveHandler
+from ..base import ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
 
@@ -36,8 +36,35 @@ class ZipArchiveHandler(ArchiveHandler):
     def can_handle(file_path: str) -> bool:
         return file_path.lower().endswith(".zip")
 
-    def list_files(self) -> List[str]:
-        return [f.filename for f in self.zip_file.infolist() if not f.is_dir()]
+    def list_files(self) -> List[ArchiveMemberInfo]:
+        file_list: List[ArchiveMemberInfo] = []
+        for f in self.zip_file.infolist():
+            if f.is_dir():
+                continue
+
+            filename: str = f.filename
+            # ZIP spec says that if the 8th bit of the general purpose bit flag is set,
+            # the filename is encoded in UTF-8.
+            # Otherwise, it's encoded in CP437.
+            # https://stackoverflow.com/questions/37723505/namelist-from-zipfile-returns-strings-with-an-invalid-encoding
+            ZIP_FILENAME_UTF8_FLAG = 0x800
+            if f.flag_bits & ZIP_FILENAME_UTF8_FLAG == 0:
+                try:
+                    # The filename is decoded with cp437 by default by zipfile module.
+                    # We re-encode it to get the original bytes.
+                    filename_bytes = filename.encode("cp437")
+                    # Then, we try to decode it with common encodings.
+                    # UTF-8 is tried first, which can handle most cases if the creating system was modern.
+                    # GBK is a common encoding for Chinese systems.
+                    try:
+                        filename = filename_bytes.decode("utf-8")
+                    except UnicodeDecodeError:
+                        filename = filename_bytes.decode("gbk")
+                except Exception:
+                    # If any error occurs, we just fall back to the default filename provided by zipfile.
+                    pass
+            file_list.append(ArchiveMemberInfo(name=filename, size=f.file_size))
+        return file_list
 
     def open_file(self, file_name: str) -> IO[bytes]:
         try:

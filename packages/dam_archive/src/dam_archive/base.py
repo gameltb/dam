@@ -1,5 +1,16 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import IO, BinaryIO, List, Optional, Union
+
+
+@dataclass
+class ArchiveMemberInfo:
+    """
+    Represents information about a member in an archive.
+    """
+
+    name: str
+    size: int
 
 
 class ArchiveFile(ABC):
@@ -42,8 +53,8 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
-    def list_files(self) -> List[str]:
-        """List all file names in the archive."""
+    def list_files(self) -> List[ArchiveMemberInfo]:
+        """List all file names and sizes in the archive."""
         pass
 
     @abstractmethod

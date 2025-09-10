@@ -2,7 +2,7 @@ from typing import IO, BinaryIO, List, Optional, Union
 
 import rarfile
 
-from ..base import ArchiveHandler
+from ..base import ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
 
@@ -39,8 +39,8 @@ class RarArchiveHandler(ArchiveHandler):
     def can_handle(file_path: str) -> bool:
         return file_path.lower().endswith(".rar")
 
-    def list_files(self) -> List[str]:
-        return [f.filename for f in self.rar_file.infolist() if not f.isdir()]  # type: ignore
+    def list_files(self) -> List[ArchiveMemberInfo]:
+        return [ArchiveMemberInfo(name=f.filename, size=f.file_size) for f in self.rar_file.infolist() if not f.isdir()]  # type: ignore
 
     def open_file(self, file_name: str) -> IO[bytes]:
         try:

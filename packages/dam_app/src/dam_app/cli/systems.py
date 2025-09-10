@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import typer
 from dam.commands import GetAssetFilenamesCommand
@@ -7,6 +7,7 @@ from dam_archive.commands import ExtractArchiveMembersCommand
 from dam_archive.exceptions import PasswordRequiredError
 from dam_archive.models import ArchiveInfoComponent
 from sqlalchemy import select
+from tqdm import tqdm
 from typing_extensions import Annotated
 
 from dam_app.state import get_world
@@ -70,22 +71,47 @@ async def process_archives(
     for entity_id in archives_to_process:
         typer.echo(f"Processing archive entity {entity_id}...")
 
+        pbar: Optional[tqdm[Any]] = None
+
+        def init_progress(total_size: int):
+            nonlocal pbar
+            pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc="Extracting members")
+
+        def update_progress(size: int):
+            if pbar:
+                pbar.update(size)
+
+        def error_handler(member_name: str, e: Exception) -> bool:
+            typer.secho(f"  Failed to process member '{member_name}': {e}", fg=typer.colors.RED)
+            return typer.confirm("Do you want to continue with other files?")
+
         while True:
             try:
-                cmd = ExtractArchiveMembersCommand(entity_id=entity_id, passwords=known_passwords)
+                cmd = ExtractArchiveMembersCommand(
+                    entity_id=entity_id,
+                    passwords=known_passwords,
+                    init_progress_callback=init_progress,
+                    update_progress_callback=update_progress,
+                    error_callback=error_handler,
+                )
                 await target_world.dispatch_command(cmd)
+                if pbar:
+                    pbar.close()
                 typer.secho(f"  Successfully processed archive {entity_id}", fg=typer.colors.GREEN)
                 break
             except PasswordRequiredError:
+                if pbar:
+                    pbar.close()
                 typer.secho(f"  Password required for archive {entity_id}.", fg=typer.colors.YELLOW)
                 new_password = typer.prompt("Enter password (or press Enter to skip)", default="", show_default=False)
                 if not new_password:
                     typer.secho(f"  Skipping archive {entity_id}.", fg=typer.colors.YELLOW)
                     break
-
                 if new_password not in known_passwords:
                     known_passwords.append(new_password)
             except Exception as e:
+                if pbar:
+                    pbar.close()
                 typer.secho(
                     f"  An unexpected error occurred while processing archive {entity_id}: {e}", fg=typer.colors.RED
                 )

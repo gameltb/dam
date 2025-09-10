@@ -22,8 +22,9 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
         archive = open_archive(f, dummy_zip_file.name)
         assert archive is not None
         files = archive.list_files()
-        assert "file1.txt" in files
-        assert "dir/file2.txt" in files
+        file_names = [f.name for f in files]
+        assert "file1.txt" in file_names
+        assert "dir/file2.txt" in file_names
 
         with archive.open_file("file1.txt") as f_in_zip:
             assert f_in_zip.read() == b"content1"

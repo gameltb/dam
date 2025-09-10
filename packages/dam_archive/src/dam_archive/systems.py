@@ -162,17 +162,31 @@ async def extract_archive_members_handler(
         await world.dispatch_command(SetArchivePasswordCommand(entity_id=cmd.entity_id, password=correct_password))
 
     member_files = archive.list_files()
-    for member_name in member_files:
-        with archive.open_file(member_name) as member_stream:
-            get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
-            command_result = await world.dispatch_command(get_or_create_cmd)
-            member_entity, _ = command_result.get_one_value()
+    total_size = sum(m.size for m in member_files)
+    if cmd.init_progress_callback:
+        cmd.init_progress_callback(total_size)
 
-            member_comp = ArchiveMemberComponent(
-                archive_entity_id=cmd.entity_id,
-                path_in_archive=member_name,
-            )
-            await transaction.add_component_to_entity(member_entity.id, member_comp)
+    for member in member_files:
+        try:
+            with archive.open_file(member.name) as member_stream:
+                get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
+                command_result = await world.dispatch_command(get_or_create_cmd)
+                member_entity, _ = command_result.get_one_value()
+
+                member_comp = ArchiveMemberComponent(
+                    archive_entity_id=cmd.entity_id,
+                    path_in_archive=member.name,
+                )
+                await transaction.add_component_to_entity(member_entity.id, member_comp)
+
+            if cmd.update_progress_callback:
+                cmd.update_progress_callback(member.size)
+        except Exception as e:
+            logger.error(f"Failed to process member '{member.name}' from archive {cmd.entity_id}: {e}")
+            if cmd.error_callback:
+                if not cmd.error_callback(member.name, e):
+                    break
+            # If no error callback, continue by default
 
     info_comp = ArchiveInfoComponent(file_count=len(member_files))
     await transaction.add_component_to_entity(cmd.entity_id, info_comp)

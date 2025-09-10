@@ -20,7 +20,8 @@ def test_open_7z_archive(dummy_7z_file: Path) -> None:
         archive = open_archive(f, dummy_7z_file.name)
         assert archive is not None
         files = archive.list_files()
-        assert "file1.txt" in files
+        file_names = [f.name for f in files]
+        assert "file1.txt" in file_names
 
 
 @pytest.fixture
