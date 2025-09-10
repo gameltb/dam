@@ -8,7 +8,7 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 
 from .commands import ExtractArchiveMembersCommand, SetArchivePasswordCommand
-from .exceptions import PasswordRequiredError
+from .exceptions import InvalidPasswordError, PasswordRequiredError
 from .main import open_archive
 from .models import ArchiveInfoComponent, ArchiveMemberComponent, ArchivePasswordComponent
 
@@ -47,7 +47,7 @@ async def get_archive_asset_stream_handler(
     target_entity_id = archive_member_component.archive_entity_id
     path_in_archive = archive_member_component.path_in_archive
     password_comp = await transaction.get_component(target_entity_id, ArchivePasswordComponent)
-    passwords = [password_comp.password] if password_comp else []
+    password = password_comp.password if password_comp else None
 
     archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
@@ -68,7 +68,7 @@ async def get_archive_asset_stream_handler(
         return None
 
     try:
-        archive = open_archive(archive_stream, filename, passwords)
+        archive = open_archive(archive_stream, filename, password)
         if archive:
             return archive.open_file(path_in_archive)
     except Exception as e:
@@ -137,29 +137,22 @@ async def extract_archive_members_handler(
     for pwd in passwords_to_try:
         try:
             archive_stream.seek(0)
-            archive = open_archive(archive_stream, filename, [pwd] if pwd else None)
+            archive = open_archive(archive_stream, filename, pwd)
             if not archive:
                 logger.error("Could not find a handler for the archive type.")
                 return
 
-            member_files = archive.list_files()
-            if not member_files:
-                break
-
-            with archive.open_file(member_files[0]):
-                pass
-
+            # Test the password by trying to list files
+            archive.list_files()
             correct_password = pwd
             logger.info(f"Successfully opened archive {cmd.entity_id} with password: {'yes' if pwd else 'no'}")
             break
-
+        except InvalidPasswordError:
+            archive = None
+            continue
         except (IOError, RuntimeError) as e:
-            if "password" in str(e).lower():
-                archive = None
-                continue
-            else:
-                logger.error(f"Failed to open archive {cmd.entity_id}: {e}")
-                return
+            logger.error(f"Failed to open archive {cmd.entity_id}: {e}")
+            return
 
     if not archive:
         raise PasswordRequiredError(f"A password is required for archive entity {cmd.entity_id}")

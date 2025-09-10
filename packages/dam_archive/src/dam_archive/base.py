@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import IO, List, Optional
+from typing import IO, BinaryIO, List, Optional, Union
 
 
 class ArchiveFile(ABC):
@@ -31,13 +31,13 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
-    def __init__(self, file_path: str, passwords: Optional[List[str]] = None):
+    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
         """
         Initializes the archive handler.
 
         Args:
-            file_path: The path to the archive file.
-            passwords: The passwords for the archive, if any.
+            file: The path to the archive file or a file-like object.
+            password: The password for the archive, if any.
         """
         pass
 

@@ -5,7 +5,7 @@ from py7zr import Py7zIO, WriterFactory
 
 
 class InMemoryIO(Py7zIO):
-    def __init__(self):
+    def __init__(self) -> None:
         self._buffer = io.BytesIO()
 
     @override
@@ -37,7 +37,7 @@ class InMemoryIO(Py7zIO):
 
 
 class InMemoryIOFactory(WriterFactory):
-    def __init__(self):
+    def __init__(self) -> None:
         self.products: Dict[str, InMemoryIO] = {}
 
     @override

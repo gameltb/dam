@@ -4,3 +4,9 @@ class PasswordRequiredError(Exception):
     """
 
     pass
+
+
+class InvalidPasswordError(Exception):
+    """Raised when an incorrect password is used for an archive."""
+
+    pass
