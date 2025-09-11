@@ -140,7 +140,6 @@ async def extract_archive_members_handler(
                 logger.error("Could not find a handler for the archive type.")
                 return
 
-            list(temp_archive.iter_files())
             correct_password = pwd
             archive = temp_archive
             logger.info(f"Successfully opened archive {cmd.entity_id} with password: {'yes' if pwd else 'no'}")
@@ -162,14 +161,14 @@ async def extract_archive_members_handler(
         if correct_password and (not stored_password or correct_password != stored_password):
             await world.dispatch_command(SetArchivePasswordCommand(entity_id=cmd.entity_id, password=correct_password))
 
-        member_files = list(archive.iter_files())
-        total_size = sum(m.size for m in member_files)
+        total_size = sum(m.size for m in archive.list_files())
         if cmd.init_progress_callback:
             cmd.init_progress_callback(total_size)
 
-        for member_file in member_files:
+        for member_file in archive.iter_files():
             try:
                 with member_file as member_stream:
+                    print(member_file.name)
                     get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
                     command_result = await world.dispatch_command(get_or_create_cmd)
                     member_entity, _ = command_result.get_one_value()
@@ -188,10 +187,10 @@ async def extract_archive_members_handler(
                     if not cmd.error_callback(member_file.name, e):
                         break
 
-        info_comp = ArchiveInfoComponent(file_count=len(member_files))
+        info_comp = ArchiveInfoComponent(file_count=len(archive.list_files()))
         await transaction.add_component_to_entity(cmd.entity_id, info_comp)
 
-        logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(member_files)} members.")
+        logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(archive.list_files())} members.")
     finally:
         if archive:
             archive.close()
