@@ -16,12 +16,17 @@ def dummy_7z_file(tmp_path: Path) -> Path:
 
 
 def test_open_7z_archive(dummy_7z_file: Path) -> None:
-    with open(dummy_7z_file, "rb") as f:
-        archive = open_archive(f, dummy_7z_file.name)
-        assert archive is not None
-        files = archive.list_files()
-        file_names = [f.name for f in files]
-        assert "file1.txt" in file_names
+    archive = None
+    try:
+        with open(dummy_7z_file, "rb") as f:
+            archive = open_archive(f, dummy_7z_file.name)
+            assert archive is not None
+            files = archive.list_files()
+            file_names = [f.name for f in files]
+            assert "file1.txt" in file_names
+    finally:
+        if archive:
+            archive.close()
 
 
 @pytest.fixture
@@ -33,17 +38,27 @@ def protected_7z_file(tmp_path: Path) -> Path:
 
 
 def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> None:
-    with open(protected_7z_file, "rb") as f:
-        archive = open_archive(f, protected_7z_file.name, password="password")
-        assert archive is not None
-        with archive.open_file("file1.txt") as f_in_zip:
-            assert f_in_zip.read() == b"content1"
+    archive = None
+    try:
+        with open(protected_7z_file, "rb") as f:
+            archive = open_archive(f, protected_7z_file.name, password="password")
+            assert archive is not None
+            with archive.open_file("file1.txt") as f_in_zip:
+                assert f_in_zip.read() == b"content1"
+    finally:
+        if archive:
+            archive.close()
 
 
 def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path) -> None:
-    with open(protected_7z_file, "rb") as f:
-        with pytest.raises(InvalidPasswordError):
-            open_archive(f, protected_7z_file.name, password="wrong_password")
+    archive = None
+    try:
+        with open(protected_7z_file, "rb") as f:
+            with pytest.raises(InvalidPasswordError):
+                archive = open_archive(f, protected_7z_file.name, password="wrong_password")
+    finally:
+        if archive:
+            archive.close()
 
 
 @pytest.fixture
@@ -55,10 +70,36 @@ def nested_7z_file(tmp_path: Path) -> Path:
 
 
 def test_open_nested_7z_file(nested_7z_file: Path) -> None:
-    with open(nested_7z_file, "rb") as f:
-        archive = open_archive(f, nested_7z_file.name)
-        assert archive is not None
-        files = archive.list_files()
-        assert "folder/nested_file.txt" in [m.name for m in files]
-        with archive.open_file("folder/nested_file.txt") as f_in_zip:
-            assert f_in_zip.read() == b"content_nested"
+    archive = None
+    try:
+        with open(nested_7z_file, "rb") as f:
+            archive = open_archive(f, nested_7z_file.name)
+            assert archive is not None
+            files = archive.list_files()
+            assert "folder/nested_file.txt" in [m.name for m in files]
+            with archive.open_file("folder/nested_file.txt") as f_in_zip:
+                assert f_in_zip.read() == b"content_nested"
+    finally:
+        if archive:
+            archive.close()
+
+
+def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
+    archive = None
+    try:
+        with open(dummy_7z_file, "rb") as f:
+            archive = open_archive(f, dummy_7z_file.name)
+            assert archive is not None
+
+            files = list(archive.iter_files())
+            assert len(files) == 1
+
+            member_file = files[0]
+            assert member_file.name == "file1.txt"
+            assert member_file.size == 8
+
+            with member_file.open() as f_in_zip:
+                assert f_in_zip.read() == b"content1"
+    finally:
+        if archive:
+            archive.close()
