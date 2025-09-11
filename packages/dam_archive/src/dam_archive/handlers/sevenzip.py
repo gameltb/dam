@@ -87,7 +87,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
         try:
             with self._open_7z_file() as archive:
                 for member in archive.list():
-                    if not member.filename.endswith("/"):
+                    if not member.is_directory:
                         self.members.append(
                             ArchiveMemberInfo(name=member.filename, size=member.uncompressed)
                         )
