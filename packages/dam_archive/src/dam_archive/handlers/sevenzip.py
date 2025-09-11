@@ -3,7 +3,7 @@ import lzma
 import threading
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Union
+from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import py7zr
 from py7zr.exceptions import PasswordRequired
@@ -14,6 +14,8 @@ from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
 
 logger = logging.getLogger(__name__)
+
+QUEUE_MAX_SIZE = 100
 
 
 class SevenZipArchiveFile(ArchiveFile):
@@ -43,14 +45,12 @@ class SevenZipArchiveFile(ArchiveFile):
             return b""
 
         if n < 0:
-            # Read everything
             while not self._eof:
                 self._read_from_queue()
             data = self._buffer
             self._buffer = b""
             return data
 
-        # Read until we have enough data or hit EOF
         while len(self._buffer) < n and not self._eof:
             self._read_from_queue()
 
@@ -70,15 +70,16 @@ class SevenZipArchiveFile(ArchiveFile):
         elif item is None:
             self._eof = True
         else:
-            # Should be unreachable
             self._eof = True
             raise TypeError(f"Unexpected item in queue: {type(item)}")
 
     def close(self) -> None:
         if not self._closed:
-            # Consume the rest of the queue to allow the producer to exit
             while not self._eof:
-                self._read_from_queue()
+                try:
+                    self._read_from_queue()
+                except Exception:
+                    break
             self._closed = True
 
     def __enter__(self) -> "SevenZipArchiveFile":
@@ -91,7 +92,6 @@ class SevenZipArchiveFile(ArchiveFile):
         if self._closed:
             raise ValueError("I/O operation on closed file.")
 
-        # Read until we find a newline or hit EOF
         newline_pos = -1
         while newline_pos == -1 and not self._eof:
             newline_pos = self._buffer.find(b"\n")
@@ -114,7 +114,6 @@ class SevenZipArchiveFile(ArchiveFile):
         return line
 
     def readlines(self, hint: int = -1) -> list[bytes]:
-        # Simple, non-optimized implementation
         lines: List[bytes] = []
         while True:
             line = self.readline()
@@ -185,9 +184,9 @@ class QueueWriter(Py7zIO):
         return b""
 
     def seek(self, offset: int, whence: int = 0) -> int:
-        if offset == 0 and whence in (0, 1):  # os.SEEK_SET, os.SEEK_CUR
+        if offset == 0 and whence in (0, 1):
             return 0
-        raise OSError("seek not supported")
+        raise OSError(f"seek not supported (offset={offset}, whence={whence})")
 
     def flush(self) -> None:
         pass
@@ -196,7 +195,6 @@ class QueueWriter(Py7zIO):
         return self._size
 
     def seekable(self) -> bool:
-        # Lie to py7zr to make it happy
         return True
 
     def close(self) -> None:
@@ -205,26 +203,36 @@ class QueueWriter(Py7zIO):
 
 class StreamingFactory(WriterFactory):
     """
-    A factory that creates a queue for each file.
+    A factory that creates a data queue for each file and reports it back to the main thread.
     """
 
     def __init__(
         self,
-        handler: "SevenZipArchiveHandler",
         members_map: Dict[str, ArchiveMemberInfo],
-        file_queues: Dict[str, "Queue[Union[bytes, Exception, None]]"],
+        results_queue: "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]",
     ):
-        self.handler = handler
         self.members_map = members_map
-        self.file_queues = file_queues
+        self.results_queue = results_queue
+        self.last_writer: Optional[QueueWriter] = None
 
     def create(self, filename: str, mode: str = "wb") -> Optional[Py7zIO]:  # type: ignore[override]
+        if self.last_writer:
+            self.last_writer.close()
+            self.last_writer = None
+
         norm = PurePosixPath(filename).as_posix()
         if norm in self.members_map:
-            q: "Queue[Union[bytes, Exception, None]]" = Queue()
-            self.file_queues[norm] = q
-            return QueueWriter(q)
+            data_queue: "Queue[Union[bytes, Exception, None]]" = Queue(maxsize=QUEUE_MAX_SIZE)
+            self.results_queue.put((norm, data_queue))
+            writer = QueueWriter(data_queue)
+            self.last_writer = writer
+            return writer
         return None
+
+    def close_last_writer(self) -> None:
+        if self.last_writer:
+            self.last_writer.close()
+            self.last_writer = None
 
 
 class SevenZipArchiveHandler(ArchiveHandler):
@@ -243,6 +251,12 @@ class SevenZipArchiveHandler(ArchiveHandler):
                 for member in archive.list():  # type: ignore
                     if not member.is_directory:
                         self.members.append(ArchiveMemberInfo(name=member.filename, size=member.uncompressed))  # type: ignore
+                if self.password and self.members:
+                    with self._open_7z_file() as test_archive:
+                        test_archive.testzip()
+                    if hasattr(self.file, "seek"):
+                        self.file.seek(0)  # type: ignore
+
         except (lzma.LZMAError, py7zr.Bad7zFile, PasswordRequired) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
 
@@ -254,32 +268,44 @@ class SevenZipArchiveHandler(ArchiveHandler):
                 self.file.seek(0)
             return py7zr.SevenZipFile(self.file, "r", password=self.password)
 
-    def _start_producer(self, targets: Optional[List[str]] = None) -> Dict[str, "Queue[Union[bytes, Exception, None]]"]:
-        file_queues: Dict[str, "Queue[Union[bytes, Exception, None]]"] = {}
+    def _start_producer(
+        self, targets: Optional[List[str]] = None
+    ) -> "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]":
+        results_queue: "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]" = Queue()
         members_map = {PurePosixPath(m.name).as_posix(): m for m in self.members}
 
         def producer() -> None:
+            factory = StreamingFactory(members_map, results_queue)
             try:
-                factory = StreamingFactory(self, members_map, file_queues)
                 with self._open_7z_file() as archive:
-                    archive.extract(targets=targets, factory=factory)
+                    if targets:
+                        archive.extract(targets=targets, factory=factory)
+                    else:
+                        archive.extractall(factory=factory)
             except Exception as e:
-                # If extraction fails, put the exception in all queues
-                for q in file_queues.values():
-                    q.put(e)
+                results_queue.put(e)
+            finally:
+                factory.close_last_writer()
+                results_queue.put(None)
 
         thread = threading.Thread(target=producer)
         thread.start()
         self._threads.append(thread)
-        return file_queues
+        return results_queue
 
     def iter_files(self) -> Iterator[ArchiveFile]:
-        file_queues = self._start_producer()
-        for member in self.members:
-            norm_name = PurePosixPath(member.name).as_posix()
-            q = file_queues.get(norm_name)
-            if q:
-                yield SevenZipArchiveFile(member, q)
+        results_queue = self._start_producer()
+        while True:
+            item = results_queue.get()
+            if item is None:
+                break
+            if isinstance(item, Exception):
+                raise item
+
+            norm_name, data_queue = item
+            member_info = next((m for m in self.members if PurePosixPath(m.name).as_posix() == norm_name), None)
+            if member_info:
+                yield SevenZipArchiveFile(member_info, data_queue)
 
     def open_file(self, file_name: str) -> ArchiveFile:
         norm_name = PurePosixPath(file_name).as_posix()
@@ -287,12 +313,23 @@ class SevenZipArchiveHandler(ArchiveHandler):
         if not member_info:
             raise IOError(f"File not found in 7z archive: {file_name}")
 
-        file_queues = self._start_producer(targets=[file_name])
-        q = file_queues.get(norm_name)
-        if not q:
-            # This should not happen if the producer works correctly
-            raise IOError(f"Failed to create stream for file: {file_name}")
-        return SevenZipArchiveFile(member_info, q)
+        results_queue = self._start_producer(targets=[file_name])
+
+        while True:
+            item = results_queue.get()
+            if item is None:
+                raise IOError(f"File not found in 7z archive stream: {file_name}")
+            if isinstance(item, Exception):
+                raise item
+
+            current_norm_name, data_queue = item
+            if current_norm_name == norm_name:
+                return SevenZipArchiveFile(member_info, data_queue)
+            else:
+                # This is a stream for a different file, which can happen
+                # if py7zr decides to extract dependencies. We need to drain it.
+                temp_file = SevenZipArchiveFile(member_info, data_queue)
+                temp_file.close()
 
     def close(self) -> None:
         for t in self._threads:
