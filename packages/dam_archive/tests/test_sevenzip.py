@@ -98,7 +98,7 @@ def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
             assert member_file.name == "file1.txt"
             assert member_file.size == 8
 
-            with member_file.open() as f_in_zip:
+            with member_file as f_in_zip:
                 assert f_in_zip.read() == b"content1"
     finally:
         if archive:

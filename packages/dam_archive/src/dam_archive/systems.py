@@ -169,7 +169,7 @@ async def extract_archive_members_handler(
 
         for member_file in member_files:
             try:
-                with member_file.open() as member_stream:
+                with member_file as member_stream:
                     get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
                     command_result = await world.dispatch_command(get_or_create_cmd)
                     member_entity, _ = command_result.get_one_value()

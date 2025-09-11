@@ -12,16 +12,14 @@ class ZipArchiveFile(ArchiveFile):
     """
 
     def __init__(
-        self,
-        zip_file: zipfile.ZipFile,
-        zip_info: zipfile.ZipInfo,
-        decoded_name: str,
-        password: Optional[str] = None,
+        self, zip_file: zipfile.ZipFile, zip_info: zipfile.ZipInfo, decoded_name: str, password: Optional[str] = None
     ):
         self._zip_file = zip_file
         self._zip_info = zip_info
         self._decoded_name = decoded_name
         self._password = password
+        self._fileobj: Optional[IO[bytes]] = None
+        self._closed = False
 
     @property
     def name(self) -> str:
@@ -31,17 +29,98 @@ class ZipArchiveFile(ArchiveFile):
     def size(self) -> int:
         return self._zip_info.file_size
 
-    def open(self) -> IO[bytes]:
-        try:
-            pwd = self._password.encode() if self._password else None
-            return self._zip_file.open(self._zip_info, pwd=pwd)
-        except RuntimeError as e:
-            if "password" in str(e).lower():
-                raise InvalidPasswordError("Invalid password for zip file.") from e
-            raise IOError(f"Failed to open file in zip: {e}") from e
+    def read(self, *args: object, **kwargs: object) -> bytes:
+        if self._fileobj is None:
+            try:
+                pwd = self._password.encode() if self._password else None
+                self._fileobj = self._zip_file.open(self._zip_info, pwd=pwd)
+            except RuntimeError as e:
+                if "password" in str(e).lower():
+                    raise InvalidPasswordError("Invalid password for zip file.") from e
+                raise IOError(f"Failed to open file in zip: {e}") from e
+        return self._fileobj.read(*args, **kwargs)
+
+    def fileno(self) -> int:
+        raise OSError("fileno is not supported")
+
+    def flush(self) -> None:
+        if self._fileobj is not None:
+            self._fileobj.flush()
+
+    def isatty(self) -> bool:
+        return False
+
+    def readable(self) -> bool:
+        return True
+
+    def readline(self, *args: object, **kwargs: object) -> bytes:
+        if self._fileobj is None:
+            self._fileobj = self._zip_file.open(self._zip_info, pwd=self._password.encode() if self._password else None)
+        return self._fileobj.readline(*args, **kwargs)
+
+    def readlines(self, *args: object, **kwargs: object) -> list[bytes]:
+        if self._fileobj is None:
+            self._fileobj = self._zip_file.open(self._zip_info, pwd=self._password.encode() if self._password else None)
+        return self._fileobj.readlines(*args, **kwargs)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        if self._fileobj is None:
+            self._fileobj = self._zip_file.open(self._zip_info, pwd=self._password.encode() if self._password else None)
+        return self._fileobj.seek(offset, whence)
+
+    def seekable(self) -> bool:
+        if self._fileobj is None:
+            self._fileobj = self._zip_file.open(self._zip_info, pwd=self._password.encode() if self._password else None)
+        return self._fileobj.seekable()
+
+    def tell(self) -> int:
+        if self._fileobj is None:
+            self._fileobj = self._zip_file.open(self._zip_info, pwd=self._password.encode() if self._password else None)
+        return self._fileobj.tell()
+
+    def truncate(self, size: Optional[int] = None) -> int:
+        raise OSError("truncate is not supported")
+
+    def writable(self) -> bool:
+        return False
+
+    def write(self, *args: object, **kwargs: object) -> int:
+        raise OSError("write is not supported")
+
+    def writelines(self, lines) -> None:
+        raise OSError("writelines is not supported")
+
+    def close(self):
+        if not self._closed:
+            if self._fileobj:
+                try:
+                    self._fileobj.close()
+                except Exception:
+                    pass
+            self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[object]) -> None:
+        self.close()
+
+    def __del__(self):
+        self.close()
 
 
 class ZipArchiveHandler(ArchiveHandler):
+    def close(self) -> None:
+        try:
+            self.zip_file.close()
+        except Exception:
+            pass
+        if hasattr(self.file, "close"):
+            try:
+                self.file.close()
+            except Exception:
+                pass
+
     """
     An archive handler for zip files.
     """
@@ -118,21 +197,14 @@ class ZipArchiveHandler(ArchiveHandler):
             decoded_name = self._decode_zip_filename(f)
             yield ZipArchiveFile(self.zip_file, f, decoded_name, self.password)
 
-    def open_file(self, file_name: str) -> IO[bytes]:
+    def open_file(self, file_name: str) -> ArchiveFile:
         original_name = self.filename_map.get(file_name)
         if not original_name:
             raise IOError(f"File not found in zip: {file_name}")
-
-        try:
-            pwd = self.password.encode() if self.password else None
-            return self.zip_file.open(original_name, pwd=pwd)
-        except RuntimeError as e:
-            if "password" in str(e).lower():
-                raise InvalidPasswordError("Invalid password for zip file.") from e
-            raise IOError(f"Failed to open file in zip: {e}") from e
-        except KeyError as e:
-            # This should not happen if the filename_map is correct
-            raise IOError(f"File not found in zip: {file_name}") from e
+        for f in self.zip_file.infolist():
+            if f.filename == original_name:
+                return ZipArchiveFile(self.zip_file, f, file_name, self.password)
+        raise IOError(f"File not found in zip: {file_name}")
 
 
 def register() -> None:

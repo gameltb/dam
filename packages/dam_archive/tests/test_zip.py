@@ -70,5 +70,5 @@ def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
         assert member_file.name == "测试.txt"
         assert member_file.size == 7  # "content" is 7 bytes
 
-        with member_file.open() as f_in_zip:
+        with member_file as f_in_zip:
             assert f_in_zip.read() == b"content"

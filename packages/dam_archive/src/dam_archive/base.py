@@ -13,7 +13,7 @@ class ArchiveMemberInfo:
     size: int
 
 
-class ArchiveFile(ABC):
+class ArchiveFile(IO[bytes], ABC):
     """
     Represents a file within an archive.
     """
@@ -28,11 +28,6 @@ class ArchiveFile(ABC):
     @abstractmethod
     def size(self) -> int:
         """The size of the file in bytes."""
-        pass
-
-    @abstractmethod
-    def open(self) -> IO[bytes]:
-        """Open the file and return a file-like object."""
         pass
 
 
@@ -64,7 +59,7 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
-    def iter_files(self) -> Iterator["ArchiveFile"]:
+    def iter_files(self) -> Iterator[ArchiveFile]:
         """
         Iterate over all files in the archive in their natural order.
 
@@ -79,10 +74,12 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
-    def open_file(self, file_name: str) -> IO[bytes]:
+    def open_file(self, file_name: str) -> ArchiveFile:
         """Open a specific file from the archive and return a file-like object."""
+
         pass
 
+    @abstractmethod
     def close(self) -> None:
         """
         Closes the archive file and releases any resources.
