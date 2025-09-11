@@ -29,6 +29,7 @@ class SevenZipArchiveFile(ArchiveFile):
         self._buffer = b""
         self._closed = False
         self._eof = False
+        self._has_read = False
 
     @property
     def name(self) -> str:
@@ -43,6 +44,7 @@ class SevenZipArchiveFile(ArchiveFile):
             raise ValueError("I/O operation on closed file.")
         if self._eof and not self._buffer:
             return b""
+        self._has_read = True
 
         if n < 0:
             while not self._eof:
@@ -128,6 +130,8 @@ class SevenZipArchiveFile(ArchiveFile):
         return False
 
     def seek(self, offset: int, whence: int = 0) -> int:
+        if not self._has_read and offset == 0 and whence in (0, 1):
+            return 0
         raise OSError("seek is not supported on this file-like object")
 
     def tell(self) -> int:
