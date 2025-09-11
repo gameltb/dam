@@ -79,20 +79,32 @@ def main() -> None:
     task_name = sys.argv[1]
 
     if task_name in ("check", "check-full", "check-ci"):
+        # Map the umbrella check tasks to the sequence of poe subtasks
         tasks_to_run = {
             "check": ["fmt", "lint", "pyright", "test"],
             "check-full": ["fmt", "lint", "pyright", "mypy", "test"],
             "check-ci": ["fmt", "lint", "pyright", "test-cov"],
         }[task_name]
 
-        for sub_task in tasks_to_run:
-            command = f"uv run poe {sub_task}"
-            if package_to_run:
-                command += f" --package {package_to_run}"
-            print(f"Running command: {command}")
-            result = os.system(command)
-            if result != 0:
-                sys.exit(result)
+        # If a package was specified, filter the discovered projects now so
+        # we can run the subtasks inside each project's PoeThePoet context.
+        if package_to_run:
+            projects = [p for p in projects if p.name == package_to_run]
+            if not projects:
+                print(f"Package '{package_to_run}' not found in workspace.")
+                sys.exit(1)
+
+        # Run each subtask using PoeThePoet within the target project's cwd.
+        for project in projects:
+            print(f"Running check tasks in {project}")
+            app = PoeThePoet(cwd=project)
+            for sub_task in tasks_to_run:
+                print(f"Running task {sub_task} in {project}")
+                # run the subtask via the PoeThePoet app API
+                result = app(cli_args=[sub_task])
+                if result:
+                    # Propagate the first non-zero exit code
+                    sys.exit(result)
         sys.exit(0)
 
     if package_to_run:
