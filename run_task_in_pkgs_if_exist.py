@@ -97,14 +97,16 @@ def main() -> None:
         # Run each subtask using PoeThePoet within the target project's cwd.
         for project in projects:
             print(f"Running check tasks in {project}")
+            tasks = extract_poe_tasks(project / "pyproject.toml")
             app = PoeThePoet(cwd=project)
             for sub_task in tasks_to_run:
-                print(f"Running task {sub_task} in {project}")
-                # run the subtask via the PoeThePoet app API
-                result = app(cli_args=[sub_task])
-                if result:
-                    # Propagate the first non-zero exit code
-                    sys.exit(result)
+                if sub_task in tasks:
+                    print(f"Running task {sub_task} in {project}")
+                    # run the subtask via the PoeThePoet app API
+                    result = app(cli_args=[sub_task])
+                    if result:
+                        # Propagate the first non-zero exit code
+                        sys.exit(result)
         sys.exit(0)
 
     if package_to_run:
