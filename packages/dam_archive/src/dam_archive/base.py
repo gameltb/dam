@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import IO, BinaryIO, List, Optional, Union
+from typing import IO, BinaryIO, Iterator, List, Optional, Union
 
 
 @dataclass
@@ -22,6 +22,12 @@ class ArchiveFile(ABC):
     @abstractmethod
     def name(self) -> str:
         """The name of the file."""
+        pass
+
+    @property
+    @abstractmethod
+    def size(self) -> int:
+        """The size of the file in bytes."""
         pass
 
     @abstractmethod
@@ -58,6 +64,28 @@ class ArchiveHandler(ABC):
         pass
 
     @abstractmethod
+    def iter_files(self) -> Iterator["ArchiveFile"]:
+        """
+        Iterate over all files in the archive in their natural order.
+
+        This method is designed for efficient, sequential processing of archive
+        members. It yields `ArchiveFile` objects, which can be used to access
+        member information and open a stream to the file's content.
+
+        For archive formats that support it, this method should be implemented
+        to stream data from the archive rather than performing random-access reads,
+        which can be inefficient, especially for solid archives.
+        """
+        pass
+
+    @abstractmethod
     def open_file(self, file_name: str) -> IO[bytes]:
         """Open a specific file from the archive and return a file-like object."""
+        pass
+
+    def close(self) -> None:
+        """
+        Closes the archive file and releases any resources.
+        This should be called when the handler is no longer needed.
+        """
         pass

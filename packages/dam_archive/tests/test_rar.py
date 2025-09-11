@@ -50,3 +50,15 @@ def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
     assert archive is not None
     with archive.open_file("file1.txt") as f:
         assert f.read() == b"content1"
+
+
+@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
+def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
+    # This test checks the iter_files method for rar archives.
+    archive = open_archive(str(dummy_rar_file), dummy_rar_file.name)
+    assert archive is not None
+
+    files = list(archive.iter_files())
+    assert len(files) == 2  # Assuming dummy rar has 2 files
+
+    # Further assertions would go here if the test could be run

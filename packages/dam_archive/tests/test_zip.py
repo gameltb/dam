@@ -55,3 +55,20 @@ def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> None:
         assert archive is not None
         files = archive.list_files()
         assert "tést.txt" in [m.name for m in files]
+
+
+def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
+    # This test checks the iter_files method.
+    with open(utf8_encoded_zip_file, "rb") as f:
+        archive = open_archive(f, utf8_encoded_zip_file.name)
+        assert archive is not None
+
+        files = list(archive.iter_files())
+        assert len(files) == 1
+
+        member_file = files[0]
+        assert member_file.name == "测试.txt"
+        assert member_file.size == 7  # "content" is 7 bytes
+
+        with member_file.open() as f_in_zip:
+            assert f_in_zip.read() == b"content"

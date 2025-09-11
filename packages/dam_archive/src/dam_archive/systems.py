@@ -102,7 +102,6 @@ async def extract_archive_members_handler(
     """
     logger.info(f"Processing archive for entity {cmd.entity_id}")
 
-    # Get asset stream
     archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
     archive_stream = archive_stream_result.get_first_ok_value()
@@ -111,7 +110,6 @@ async def extract_archive_members_handler(
         logger.error(f"Could not get stream for archive entity {cmd.entity_id}")
         return
 
-    # Get asset filenames
     filenames_cmd = GetAssetFilenamesCommand(entity_id=cmd.entity_id)
     filenames_result = await world.dispatch_command(filenames_cmd)
     filenames = filenames_result.get_first_ok_value()
@@ -121,7 +119,6 @@ async def extract_archive_members_handler(
         logger.error(f"Could not get filename for archive entity {cmd.entity_id}")
         return
 
-    # Prioritize stored password
     stored_password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     stored_password = stored_password_comp.password if stored_password_comp else None
 
@@ -135,60 +132,66 @@ async def extract_archive_members_handler(
     correct_password = None
 
     for pwd in passwords_to_try:
+        temp_archive = None
         try:
             archive_stream.seek(0)
-            archive = open_archive(archive_stream, filename, pwd)
-            if not archive:
+            temp_archive = open_archive(archive_stream, filename, pwd)
+            if not temp_archive:
                 logger.error("Could not find a handler for the archive type.")
                 return
 
-            # Test the password by trying to list files
-            archive.list_files()
+            list(temp_archive.iter_files())
             correct_password = pwd
+            archive = temp_archive
             logger.info(f"Successfully opened archive {cmd.entity_id} with password: {'yes' if pwd else 'no'}")
             break
         except InvalidPasswordError:
-            archive = None
+            if temp_archive:
+                temp_archive.close()
             continue
         except (IOError, RuntimeError) as e:
+            if temp_archive:
+                temp_archive.close()
             logger.error(f"Failed to open archive {cmd.entity_id}: {e}")
             return
 
     if not archive:
         raise PasswordRequiredError(f"A password is required for archive entity {cmd.entity_id}")
 
-    # Save the correct password if we found a new one
-    if correct_password and (not stored_password or correct_password != stored_password):
-        await world.dispatch_command(SetArchivePasswordCommand(entity_id=cmd.entity_id, password=correct_password))
+    try:
+        if correct_password and (not stored_password or correct_password != stored_password):
+            await world.dispatch_command(SetArchivePasswordCommand(entity_id=cmd.entity_id, password=correct_password))
 
-    member_files = archive.list_files()
-    total_size = sum(m.size for m in member_files)
-    if cmd.init_progress_callback:
-        cmd.init_progress_callback(total_size)
+        member_files = list(archive.iter_files())
+        total_size = sum(m.size for m in member_files)
+        if cmd.init_progress_callback:
+            cmd.init_progress_callback(total_size)
 
-    for member in member_files:
-        try:
-            with archive.open_file(member.name) as member_stream:
-                get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
-                command_result = await world.dispatch_command(get_or_create_cmd)
-                member_entity, _ = command_result.get_one_value()
+        for member_file in member_files:
+            try:
+                with member_file.open() as member_stream:
+                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
+                    command_result = await world.dispatch_command(get_or_create_cmd)
+                    member_entity, _ = command_result.get_one_value()
 
-                member_comp = ArchiveMemberComponent(
-                    archive_entity_id=cmd.entity_id,
-                    path_in_archive=member.name,
-                )
-                await transaction.add_component_to_entity(member_entity.id, member_comp)
+                    member_comp = ArchiveMemberComponent(
+                        archive_entity_id=cmd.entity_id,
+                        path_in_archive=member_file.name,
+                    )
+                    await transaction.add_component_to_entity(member_entity.id, member_comp)
 
-            if cmd.update_progress_callback:
-                cmd.update_progress_callback(member.size)
-        except Exception as e:
-            logger.error(f"Failed to process member '{member.name}' from archive {cmd.entity_id}: {e}")
-            if cmd.error_callback:
-                if not cmd.error_callback(member.name, e):
-                    break
-            # If no error callback, continue by default
+                if cmd.update_progress_callback:
+                    cmd.update_progress_callback(member_file.size)
+            except Exception as e:
+                logger.error(f"Failed to process member '{member_file.name}' from archive {cmd.entity_id}: {e}")
+                if cmd.error_callback:
+                    if not cmd.error_callback(member_file.name, e):
+                        break
 
-    info_comp = ArchiveInfoComponent(file_count=len(member_files))
-    await transaction.add_component_to_entity(cmd.entity_id, info_comp)
+        info_comp = ArchiveInfoComponent(file_count=len(member_files))
+        await transaction.add_component_to_entity(cmd.entity_id, info_comp)
 
-    logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(member_files)} members.")
+        logger.info(f"Finished processing archive {cmd.entity_id}, processed {len(member_files)} members.")
+    finally:
+        if archive:
+            archive.close()

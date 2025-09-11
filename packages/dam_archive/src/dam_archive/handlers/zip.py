@@ -1,9 +1,44 @@
 import zipfile
-from typing import IO, BinaryIO, Dict, List, Optional, Union
+from typing import IO, BinaryIO, Dict, Iterator, List, Optional, Union
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
+
+
+class ZipArchiveFile(ArchiveFile):
+    """
+    Represents a file within a zip archive.
+    """
+
+    def __init__(
+        self,
+        zip_file: zipfile.ZipFile,
+        zip_info: zipfile.ZipInfo,
+        decoded_name: str,
+        password: Optional[str] = None,
+    ):
+        self._zip_file = zip_file
+        self._zip_info = zip_info
+        self._decoded_name = decoded_name
+        self._password = password
+
+    @property
+    def name(self) -> str:
+        return self._decoded_name
+
+    @property
+    def size(self) -> int:
+        return self._zip_info.file_size
+
+    def open(self) -> IO[bytes]:
+        try:
+            pwd = self._password.encode() if self._password else None
+            return self._zip_file.open(self._zip_info, pwd=pwd)
+        except RuntimeError as e:
+            if "password" in str(e).lower():
+                raise InvalidPasswordError("Invalid password for zip file.") from e
+            raise IOError(f"Failed to open file in zip: {e}") from e
 
 
 class ZipArchiveHandler(ArchiveHandler):
@@ -74,6 +109,14 @@ class ZipArchiveHandler(ArchiveHandler):
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
+
+    def iter_files(self) -> Iterator[ArchiveFile]:
+        """Iterate over all files in the archive."""
+        for f in self.zip_file.infolist():
+            if f.is_dir():
+                continue
+            decoded_name = self._decode_zip_filename(f)
+            yield ZipArchiveFile(self.zip_file, f, decoded_name, self.password)
 
     def open_file(self, file_name: str) -> IO[bytes]:
         original_name = self.filename_map.get(file_name)

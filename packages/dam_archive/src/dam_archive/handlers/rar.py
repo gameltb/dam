@@ -1,10 +1,36 @@
-from typing import IO, BinaryIO, List, Optional, Union
+from typing import IO, BinaryIO, Iterator, List, Optional, Union
 
 import rarfile
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
+
+
+class RarArchiveFile(ArchiveFile):
+    """
+    Represents a file within a rar archive.
+    """
+
+    def __init__(self, rar_file: rarfile.RarFile, rar_info: rarfile.RarInfo):
+        self._rar_file = rar_file
+        self._rar_info = rar_info
+
+    @property
+    def name(self) -> str:
+        return self._rar_info.filename  # type: ignore
+
+    @property
+    def size(self) -> int:
+        return self._rar_info.file_size  # type: ignore
+
+    def open(self) -> IO[bytes]:
+        try:
+            return self._rar_file.open(self._rar_info)  # type: ignore
+        except rarfile.WrongPassword as e:  # type: ignore
+            raise InvalidPasswordError(f"Invalid password for file '{self._rar_info.filename}' in rar archive.") from e
+        except KeyError as e:
+            raise IOError(f"File not found in rar: {self._rar_info.filename}") from e
 
 
 class RarArchiveHandler(ArchiveHandler):
@@ -41,6 +67,13 @@ class RarArchiveHandler(ArchiveHandler):
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return [ArchiveMemberInfo(name=f.filename, size=f.file_size) for f in self.rar_file.infolist() if not f.isdir()]  # type: ignore
+
+    def iter_files(self) -> Iterator[ArchiveFile]:
+        """Iterate over all files in the archive."""
+        for f in self.rar_file.infolist():  # type: ignore
+            if f.isdir():  # type: ignore
+                continue
+            yield RarArchiveFile(self.rar_file, f)  # type: ignore
 
     def open_file(self, file_name: str) -> IO[bytes]:
         try:
