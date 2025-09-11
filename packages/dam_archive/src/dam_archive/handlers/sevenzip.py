@@ -1,18 +1,24 @@
 import _lzma
-import io
+import logging
+import os
+import threading
+from pathlib import PurePosixPath
+from queue import Queue
 from typing import IO, BinaryIO, Iterator, List, Optional, Union
 
 import py7zr
-from py7zr.io import BytesIOFactory
+from py7zr.io import Py7zIO, WriterFactory
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
 from ..registry import register_handler
 
+logger = logging.getLogger(__name__)
+
 
 class SevenZipArchiveFile(ArchiveFile):
     """
-    Represents a file within a 7z archive, backed by an in-memory stream.
+    Represents a file within a 7z archive, backed by a streaming pipe.
     """
 
     def __init__(self, member_info: ArchiveMemberInfo, stream: IO[bytes]):
@@ -28,40 +34,67 @@ class SevenZipArchiveFile(ArchiveFile):
         return self._member_info.size
 
     def open(self) -> IO[bytes]:
-        self._stream.seek(0)
         return self._stream
+
+
+class StreamingPy7zIO(Py7zIO):
+    """A file-like object that writes to a pipe."""
+
+    def __init__(self, write_pipe: int):
+        self._pipe = write_pipe
+
+    def write(self, data: bytes) -> int:
+        return os.write(self._pipe, data)
+
+    def seekable(self) -> bool:
+        return False
+
+    def close(self) -> None:
+        os.close(self._pipe)
+
+
+class StreamingFactory(WriterFactory):
+    """
+    A factory that creates a pipe for each file and puts the readable
+    end on a queue for the consumer.
+    """
+
+    def __init__(self, queue: Queue, members: List[ArchiveMemberInfo]):
+        self.queue = queue
+        self.members_map = {m.name: m for m in members}
+
+    def create(self, filename: str, mode: str = "wb") -> Optional[StreamingPy7zIO]:
+        if filename in self.members_map:
+            read_pipe, write_pipe = os.pipe()
+            member_info = self.members_map[filename]
+            read_stream = os.fdopen(read_pipe, "rb")
+            archive_file = SevenZipArchiveFile(member_info, read_stream)
+            self.queue.put(archive_file)
+            return StreamingPy7zIO(write_pipe)
+        return None
 
 
 class SevenZipArchiveHandler(ArchiveHandler):
     """
-    An archive handler for 7z files.
+    An archive handler for 7z files that supports true streaming extraction.
     """
 
     def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
         self.file = file
         self.password = password
         self.members: List[ArchiveMemberInfo] = []
-        self.filenames: List[str] = []
 
         try:
             with self._open_7z_file() as archive:
                 for member in archive.list():
-                    if not member.filename.endswith("/"):  # type: ignore
+                    if not member.filename.endswith("/"):
                         self.members.append(
-                            ArchiveMemberInfo(name=member.filename, size=member.uncompressed)  # type: ignore
+                            ArchiveMemberInfo(name=member.filename, size=member.uncompressed)
                         )
-                        self.filenames.append(member.filename)  # type: ignore
-
-                if self.password and self.filenames:
-                    # Try to extract the first file to check password
-                    factory = BytesIOFactory(limit=1)
-                    archive.extract(targets=[self.filenames[0]], factory=factory)
-
         except (_lzma.LZMAError, py7zr.Bad7zFile) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
 
     def _open_7z_file(self) -> py7zr.SevenZipFile:
-        """Helper to open the 7z file, handling seeks for file-like objects."""
         if isinstance(self.file, str):
             return py7zr.SevenZipFile(self.file, "r", password=self.password)
         else:
@@ -70,7 +103,6 @@ class SevenZipArchiveHandler(ArchiveHandler):
             return py7zr.SevenZipFile(self.file, "r", password=self.password)
 
     def close(self) -> None:
-        """Does nothing, as the archive is opened on demand."""
         pass
 
     @staticmethod
@@ -81,47 +113,59 @@ class SevenZipArchiveHandler(ArchiveHandler):
         return self.members
 
     def iter_files(self) -> Iterator[ArchiveFile]:
-        """
-        Iterate over all files in the archive.
+        q: Queue = Queue()
 
-        Note: This implementation uses `extractall()`, which extracts the entire
-        archive into memory. This is a trade-off for performance and to work
-        around issues in the py7zr library, but it can consume a large
-        amount of memory for large archives.
-        """
-        factory = BytesIOFactory(limit=1024 * 1024 * 1024)  # 1GB limit
-        with self._open_7z_file() as archive:
-            archive.extractall(factory=factory)
+        def producer():
+            try:
+                factory = StreamingFactory(q, self.members)
+                with self._open_7z_file() as archive:
+                    archive.extractall(factory=factory)
+            except Exception as e:
+                q.put(e)
+            finally:
+                q.put(None)
 
-        for member_info in self.members:
-            if member_info.name in factory.products:
-                stream = factory.get(member_info.name)  # type: ignore
-                if stream:
-                    yield SevenZipArchiveFile(member_info, io.BytesIO(stream.read()))
+        thread = threading.Thread(target=producer)
+        thread.start()
+
+        processed_files = 0
+        while processed_files < len(self.members):
+            item = q.get()
+            if item is None:
+                break
+            if isinstance(item, Exception):
+                raise item
+
+            processed_files += 1
+            yield item
+
+        thread.join()
+
 
     def open_file(self, file_name: str) -> IO[bytes]:
-        """
-        Opens a single file from the archive.
+        q: Queue = Queue()
 
-        Note: This implementation uses `extract()`, which extracts the requested
-        file into memory.
-        """
-        # Note: We re-open the archive for each file extraction.
-        # This is a workaround for a defect in py7zr where multiple `extract`
-        # calls on the same SevenZipFile instance can lead to a deadlock.
-        # Re-opening the archive for each file is less efficient but more stable.
-        try:
-            factory = BytesIOFactory(limit=1024 * 1024 * 1024)  # 1GB limit
-            with self._open_7z_file() as archive:
-                archive.extract(targets=[file_name], factory=factory)
-                if file_name in factory.products:
-                    stream = factory.get(file_name)  # type: ignore
-                    if stream:
-                        return io.BytesIO(stream.read())
-        except (_lzma.LZMAError, py7zr.Bad7zFile) as e:
-            raise InvalidPasswordError(f"Invalid password for file '{file_name}' in 7z archive.") from e
+        def producer():
+            try:
+                factory = StreamingFactory(q, self.members)
+                with self._open_7z_file() as archive:
+                    archive.extract(targets=[file_name], factory=factory)
+            except Exception as e:
+                q.put(e)
+            finally:
+                q.put(None)
 
-        raise IOError(f"File not found in 7z archive: {file_name}")
+        thread = threading.Thread(target=producer)
+        thread.start()
+
+        item = q.get()
+        if isinstance(item, Exception):
+            raise item
+        if item is None:
+            raise IOError(f"File not found in 7z archive: {file_name}")
+
+        thread.join()
+        return item.open()
 
 
 def register() -> None:
