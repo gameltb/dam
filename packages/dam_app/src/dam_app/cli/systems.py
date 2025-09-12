@@ -42,24 +42,16 @@ async def process_archives(
     typer.echo("Finding archives to process...")
 
     async with target_world.db_session_maker() as session:
-        # Find entities that could be archives but haven't been processed
+        # Find entities that have a supported archive MIME type but haven't been processed yet.
         stmt = (
             select(Entity.id)
-            .select_from(Entity)
+            .join(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
             .outerjoin(ArchiveInfoComponent, Entity.id == ArchiveInfoComponent.entity_id)
+            .where(MimeTypeComponent.value.in_(MIME_TYPE_HANDLERS.keys()))
             .where(ArchiveInfoComponent.id.is_(None))
         )
         result = await session.execute(stmt)
-        candidate_ids = result.scalars().all()
-
-    archives_to_process: List[int] = []
-    async with target_world.db_session_maker() as session:
-        for entity_id in candidate_ids:
-            stmt = select(MimeTypeComponent).where(MimeTypeComponent.entity_id == entity_id)
-            result = await session.execute(stmt)
-            mime_type_comp = result.scalar_one_or_none()
-            if mime_type_comp and mime_type_comp.value in MIME_TYPE_HANDLERS:
-                archives_to_process.append(entity_id)
+        archives_to_process = result.scalars().all()
 
     if not archives_to_process:
         typer.secho("No new archives found to process.", fg=typer.colors.GREEN)
