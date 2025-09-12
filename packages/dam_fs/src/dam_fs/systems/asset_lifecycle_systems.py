@@ -157,7 +157,10 @@ async def store_assets_handler(
         asset_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
         asset_stream_result = await world.dispatch_command(asset_stream_cmd)
 
-        asset_stream = asset_stream_result.get_one_value()
+        try:
+            asset_stream = asset_stream_result.get_first_non_none_value()
+        except ValueError:
+            asset_stream = None
 
         if asset_stream:
             try:
