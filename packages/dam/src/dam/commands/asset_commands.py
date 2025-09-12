@@ -19,6 +19,16 @@ class GetAssetStreamCommand(BaseCommand[BinaryIO]):
 
 
 @dataclass
+class SetMimeTypeCommand(BaseCommand[None]):
+    """
+    A command to set the mime type for an asset.
+    """
+
+    entity_id: int
+    mime_type: str
+
+
+@dataclass
 class GetAssetMetadataCommand(BaseCommand[dict[str, Any]]):
     """
     A command to get the metadata for an asset.

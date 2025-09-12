@@ -19,7 +19,7 @@ def test_open_7z_archive(dummy_7z_file: Path) -> None:
     archive = None
     try:
         with open(dummy_7z_file, "rb") as f:
-            archive = open_archive(f, dummy_7z_file.name)
+            archive = open_archive(f, "application/x-7z-compressed")
             assert archive is not None
             files = archive.list_files()
             file_names = [f.name for f in files]
@@ -41,7 +41,7 @@ def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> Non
     archive = None
     try:
         with open(protected_7z_file, "rb") as f:
-            archive = open_archive(f, protected_7z_file.name, password="password")
+            archive = open_archive(f, "application/x-7z-compressed", password="password")
             assert archive is not None
             with archive.open_file("file1.txt") as f_in_zip:
                 assert f_in_zip.read() == b"content1"
@@ -55,7 +55,7 @@ def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path) -> N
     try:
         with open(protected_7z_file, "rb") as f:
             with pytest.raises(InvalidPasswordError):
-                archive = open_archive(f, protected_7z_file.name, password="wrong_password")
+                archive = open_archive(f, "application/x-7z-compressed", password="wrong_password")
     finally:
         if archive:
             archive.close()
@@ -73,7 +73,7 @@ def test_open_nested_7z_file(nested_7z_file: Path) -> None:
     archive = None
     try:
         with open(nested_7z_file, "rb") as f:
-            archive = open_archive(f, nested_7z_file.name)
+            archive = open_archive(f, "application/x-7z-compressed")
             assert archive is not None
             files = archive.list_files()
             assert "folder/nested_file.txt" in [m.name for m in files]
@@ -88,7 +88,7 @@ def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
     archive = None
     try:
         with open(dummy_7z_file, "rb") as f:
-            archive = open_archive(f, dummy_7z_file.name)
+            archive = open_archive(f, "application/x-7z-compressed")
             assert archive is not None
 
             files = list(archive.iter_files())

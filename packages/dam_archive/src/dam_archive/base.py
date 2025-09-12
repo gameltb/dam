@@ -36,12 +36,6 @@ class ArchiveHandler(ABC):
     Abstract base class for archive handlers.
     """
 
-    @staticmethod
-    @abstractmethod
-    def can_handle(file_path: str) -> bool:
-        """Check if this handler can open the given file."""
-        pass
-
     @abstractmethod
     def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
         """

@@ -11,7 +11,6 @@ from py7zr.io import Py7zIO, WriterFactory
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
-from ..registry import register_handler
 
 logger = logging.getLogger(__name__)
 
@@ -344,16 +343,5 @@ class SevenZipArchiveHandler(ArchiveHandler):
             except Exception:
                 pass
 
-    @staticmethod
-    def can_handle(file_path: str) -> bool:
-        return file_path.lower().endswith(".7z")
-
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
-
-
-def register() -> None:
-    register_handler(SevenZipArchiveHandler)
-
-
-register()

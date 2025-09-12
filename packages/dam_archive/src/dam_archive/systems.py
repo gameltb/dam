@@ -6,6 +6,7 @@ from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.models.metadata.mime_type_component import MimeTypeComponent
 from sqlalchemy import select
 
 from .commands import (
@@ -62,18 +63,13 @@ async def get_archive_asset_stream_handler(
         logger.warning(f"Could not get stream for parent archive {target_entity_id}")
         return None
 
-    # Get asset filenames for the parent archive
-    filenames_cmd = GetAssetFilenamesCommand(entity_id=target_entity_id)
-    filenames_result = await world.dispatch_command(filenames_cmd)
-    filenames = filenames_result.get_first_ok_value()
-    filename = filenames[0] if filenames else None
-
-    if not filename:
-        logger.warning(f"Could not get filename for parent archive {target_entity_id}")
+    mime_type_comp = await transaction.get_component(target_entity_id, MimeTypeComponent)
+    if not mime_type_comp:
+        logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
         return None
 
     try:
-        archive = open_archive(archive_stream, filename, password)
+        archive = open_archive(archive_stream, mime_type_comp.value, password)
         if archive:
             return archive.open_file(path_in_archive)
     except Exception as e:
@@ -115,13 +111,9 @@ async def extract_archive_members_handler(
         logger.error(f"Could not get stream for archive entity {cmd.entity_id}")
         return
 
-    filenames_cmd = GetAssetFilenamesCommand(entity_id=cmd.entity_id)
-    filenames_result = await world.dispatch_command(filenames_cmd)
-    filenames = filenames_result.get_first_ok_value()
-    filename = filenames[0] if filenames else None
-
-    if not filename:
-        logger.error(f"Could not get filename for archive entity {cmd.entity_id}")
+    mime_type_comp = await transaction.get_component(cmd.entity_id, MimeTypeComponent)
+    if not mime_type_comp:
+        logger.error(f"Could not get mime type for archive entity {cmd.entity_id}")
         return
 
     stored_password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
@@ -140,7 +132,7 @@ async def extract_archive_members_handler(
         temp_archive = None
         try:
             archive_stream.seek(0)
-            temp_archive = open_archive(archive_stream, filename, pwd)
+            temp_archive = open_archive(archive_stream, mime_type_comp.value, pwd)
             if not temp_archive:
                 logger.error("Could not find a handler for the archive type.")
                 return

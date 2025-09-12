@@ -1,8 +1,11 @@
 import datetime
+import json
 from pathlib import Path
 from typing import List
 
 import typer
+from dam.commands.asset_commands import SetMimeTypeCommand
+from dam.functions import ecs_functions as dam_ecs_functions
 from dam_archive.commands import ClearArchiveComponentsCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
@@ -139,3 +142,43 @@ async def clear_archive_info(
     await target_world.dispatch_command(clear_cmd)
 
     typer.secho("Archive info clearing process complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="set-mime-type")
+async def set_mime_type(
+    entity_id: Annotated[int, typer.Argument(..., help="The ID of the entity.")],
+    mime_type: Annotated[str, typer.Argument(..., help="The mime type to set.")],
+):
+    """
+    Sets the mime type for an entity.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Setting mime type for entity {entity_id} to {mime_type}...")
+
+    set_cmd = SetMimeTypeCommand(entity_id=entity_id, mime_type=mime_type)
+    await target_world.dispatch_command(set_cmd)
+
+    typer.secho("Mime type set successfully.", fg=typer.colors.GREEN)
+
+
+@app.command(name="show")
+async def show_entity(
+    entity_id: Annotated[int, typer.Argument(..., help="The ID of the entity to show.")],
+):
+    """
+    Shows all components of a given entity in JSON format.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    async with target_world.db_session_maker() as session:
+        components_dict = await dam_ecs_functions.get_all_components_for_entity_as_dict(session, entity_id)
+        if not components_dict:
+            typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)
+            return
+
+        typer.echo(json.dumps(components_dict, indent=2))
