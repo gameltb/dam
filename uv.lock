@@ -998,6 +998,7 @@ version = "0.1.0"
 source = { editable = "packages/dam_fs" }
 dependencies = [
     { name = "dam" },
+    { name = "python-magic" },
 ]
 
 [package.optional-dependencies]
@@ -1015,6 +1016,7 @@ requires-dist = [
     { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "python-magic" },
 ]
 provides-extras = ["dev"]
 

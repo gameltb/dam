@@ -1,11 +1,8 @@
 import logging
-import mimetypes
 from typing import Annotated
 
-from dam.commands.asset_commands import (
-    AutoSetMimeTypeCommand,
-    GetAssetFilenamesCommand,
-)
+import magic
+from dam.commands.asset_commands import AutoSetMimeTypeCommand, GetAssetStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -26,7 +23,7 @@ async def auto_set_mime_type_from_filename_system(
     world: Annotated[World, "Resource"],
 ):
     """
-    Automatically sets the mime type for entities with a filename but no mime type.
+    Automatically sets the mime type for entities by reading the file content.
     """
     if command.entity_id:
         stmt = (
@@ -48,29 +45,24 @@ async def auto_set_mime_type_from_filename_system(
     entities_to_process = result.scalars().all()
 
     if not entities_to_process:
-        logger.info("No entities found needing mime type from filename.")
+        logger.info("No entities found needing mime type detection.")
         return
 
-    logger.info(f"Found {len(entities_to_process)} entities to set mime type from filename.")
+    logger.info(f"Found {len(entities_to_process)} entities for mime type detection.")
 
     for entity in entities_to_process:
-        cmd = GetAssetFilenamesCommand(entity_id=entity.id)
-        cmd_result = await world.dispatch_command(cmd)
-
-        filenames = list(cmd_result.iter_ok_values_flat())
-        if not filenames:
-            continue
-
-        sorted_filenames = sorted(filenames, key=lambda f: "." in f, reverse=True)
-
-        mime_type_found = False
-        for filename in sorted_filenames:
-            mime_type, _ = mimetypes.guess_type(filename)
-            if mime_type:
-                logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
-                await set_entity_mime_type(transaction.session, entity.id, mime_type)
-                mime_type_found = True
-                break
-
-        if not mime_type_found:
-            logger.warning(f"Could not guess mime type for any filename for entity {entity.id}")
+        get_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
+        stream_result = await world.dispatch_command(get_stream_cmd)
+        try:
+            with stream_result.get_first_non_none_value() as stream:
+                buffer = stream.read(4096)
+                mime_type = magic.from_buffer(buffer, mime=True)
+                if mime_type:
+                    logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
+                    await set_entity_mime_type(transaction.session, entity.id, mime_type)
+                else:
+                    logger.warning(f"Could not determine mime type for entity {entity.id}")
+        except ValueError:
+            logger.warning(f"Could not get asset stream for entity {entity.id}")
+        except Exception as e:
+            logger.error(f"Error processing entity {entity.id}: {e}", exc_info=True)
