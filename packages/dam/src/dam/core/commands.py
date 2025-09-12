@@ -36,6 +36,16 @@ class CommandResult(Generic[ResultType]):
             return value
         raise ValueError("No successful results found.")
 
+    def get_first_non_none_value(self) -> ResultType:
+        """
+        Returns the first successful result value that is not None.
+        Raises ValueError if no such result is found.
+        """
+        for value in self.iter_ok_values():
+            if value is not None:
+                return value
+        raise ValueError("No successful, non-None results found.")
+
     def get_one_value(self) -> ResultType:
         """
         Returns the single successful result value.

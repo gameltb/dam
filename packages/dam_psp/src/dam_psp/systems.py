@@ -60,9 +60,9 @@ async def psp_iso_metadata_extraction_command_handler_system(
         # Get the stream
         stream_result = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id))
 
-        # Use get_first_ok_value to get the first available stream.
+        # Use get_first_non_none_value to get the first available stream.
         # This will raise an exception if no handlers succeed, which is desired.
-        with stream_result.get_first_ok_value() as stream:
+        with stream_result.get_first_non_none_value() as stream:
             sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:

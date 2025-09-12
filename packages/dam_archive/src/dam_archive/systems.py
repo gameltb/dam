@@ -57,7 +57,10 @@ async def get_archive_asset_stream_handler(
 
     archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-    archive_stream = archive_stream_result.get_first_ok_value()
+    try:
+        archive_stream = archive_stream_result.get_first_non_none_value()
+    except ValueError:
+        archive_stream = None
 
     if not archive_stream:
         logger.warning(f"Could not get stream for parent archive {target_entity_id}")
@@ -105,7 +108,10 @@ async def extract_archive_members_handler(
 
     archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
     archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-    archive_stream = archive_stream_result.get_first_ok_value()
+    try:
+        archive_stream = archive_stream_result.get_first_non_none_value()
+    except ValueError:
+        archive_stream = None
 
     if not archive_stream:
         logger.error(f"Could not get stream for archive entity {cmd.entity_id}")

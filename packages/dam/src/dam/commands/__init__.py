@@ -1,7 +1,10 @@
 from .asset_commands import (
+    AutoSetMimeTypeCommand,
     GetAssetFilenamesCommand,
     GetAssetMetadataCommand,
     GetAssetStreamCommand,
+    GetMimeTypeCommand,
+    SetMimeTypeCommand,
     UpdateAssetMetadataCommand,
 )
 
@@ -10,4 +13,7 @@ __all__ = [
     "GetAssetMetadataCommand",
     "GetAssetStreamCommand",
     "UpdateAssetMetadataCommand",
+    "SetMimeTypeCommand",
+    "GetMimeTypeCommand",
+    "AutoSetMimeTypeCommand",
 ]
