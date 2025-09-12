@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 import typer
+from dam_archive.commands import ClearArchiveComponentsCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -117,3 +118,24 @@ async def store_assets(
     await target_world.dispatch_command(store_cmd)
 
     typer.secho("Asset storage process complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="clear-archive-info")
+async def clear_archive_info(
+    entity_id: Annotated[int, typer.Argument(..., help="The ID of the archive entity to clear.")],
+):
+    """
+    Removes archive-related components from an entity and its members.
+
+    This is useful when you want to re-process an archive from scratch.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Clearing archive info for entity: {entity_id}...")
+
+    clear_cmd = ClearArchiveComponentsCommand(entity_id=entity_id)
+    await target_world.dispatch_command(clear_cmd)
+
+    typer.secho("Archive info clearing process complete.", fg=typer.colors.GREEN)

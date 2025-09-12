@@ -6,8 +6,13 @@ from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from sqlalchemy import select
 
-from .commands import ExtractArchiveMembersCommand, SetArchivePasswordCommand
+from .commands import (
+    ClearArchiveComponentsCommand,
+    ExtractArchiveMembersCommand,
+    SetArchivePasswordCommand,
+)
 from .exceptions import InvalidPasswordError, PasswordRequiredError
 from .main import open_archive
 from .models import ArchiveInfoComponent, ArchiveMemberComponent, ArchivePasswordComponent
@@ -194,3 +199,30 @@ async def extract_archive_members_handler(
     finally:
         if archive:
             archive.close()
+
+
+@system(on_command=ClearArchiveComponentsCommand)
+async def clear_archive_components_handler(
+    cmd: ClearArchiveComponentsCommand,
+    transaction: EcsTransaction,
+) -> None:
+    """
+    Handles clearing archive-related components from an entity and its members.
+    """
+    # Delete ArchiveInfoComponent from the main archive entity
+    info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
+    if info_comp:
+        await transaction.remove_component(info_comp)
+        logger.info(f"Deleted ArchiveInfoComponent from entity {cmd.entity_id}")
+
+    # Find all ArchiveMemberComponents that point to this archive entity
+    stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == cmd.entity_id)
+    result = await transaction.session.execute(stmt)
+    member_components = result.scalars().all()
+
+    for member_comp in member_components:
+        await transaction.remove_component(member_comp)
+        logger.info(
+            f"Deleted ArchiveMemberComponent from member entity {member_comp.entity_id} "
+            f"(linked to archive {cmd.entity_id})"
+        )

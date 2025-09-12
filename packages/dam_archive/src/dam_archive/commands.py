@@ -25,3 +25,12 @@ class ExtractArchiveMembersCommand(BaseCommand[None]):
     init_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
     update_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
     error_callback: Optional[Callable[[str, Exception], bool]] = field(default=None, repr=False)
+
+
+@dataclass
+class ClearArchiveComponentsCommand(BaseCommand[None]):
+    """
+    A command to clear archive-related components from an entity.
+    """
+
+    entity_id: int

@@ -49,7 +49,7 @@ async def test_get_archive_asset_filenames_handler_no_component() -> None:
 @pytest.mark.asyncio
 async def test_get_archive_asset_filenames_handler_no_filename() -> None:
     """
-    Tests that the handler returns None when the component exists but has no path.
+    Tests that the handler returns an empty string when the component exists but has no path.
     """
     entity_id = 1
 
