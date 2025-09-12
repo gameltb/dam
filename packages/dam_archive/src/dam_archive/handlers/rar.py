@@ -1,4 +1,4 @@
-from typing import BinaryIO, BinaryIO, Iterable, Iterator, List, Optional, Union
+from typing import IO, BinaryIO, Iterable, Iterator, List, Optional, Union
 
 import rarfile
 

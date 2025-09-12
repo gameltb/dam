@@ -1,5 +1,5 @@
 import logging
-from typing import BinaryIO, Annotated, List, Optional
+from typing import Annotated, BinaryIO, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.commands import GetOrCreateEntityFromStreamCommand

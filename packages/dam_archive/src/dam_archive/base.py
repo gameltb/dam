@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import BinaryIO, BinaryIO, Iterator, List, Optional, Union
+from typing import BinaryIO, Iterator, List, Optional, Union
 
 
 @dataclass

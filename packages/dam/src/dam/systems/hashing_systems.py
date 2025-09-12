@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast, Dict
+from typing import Any, Dict, cast
 
 from dam.core.commands import AddHashesFromStreamCommand
 from dam.core.systems import system
@@ -100,11 +100,14 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
     hashes = calculate_hashes_from_stream(cmd.stream, cmd.algorithms)
 
     for algorithm, hash_value in hashes.items():
-        # Special handling for CRC32 as it's an int
-        if algorithm == HashAlgorithm.CRC32:
-            hash_value_bytes = hash_value.to_bytes(4, "big")  # type: ignore
+        hash_value_bytes: bytes
+        if isinstance(hash_value, int):
+            hash_value_bytes = hash_value.to_bytes(4, "big")
+        elif isinstance(hash_value, bytes):
+            hash_value_bytes = hash_value
         else:
-            hash_value_bytes = hash_value  # type: ignore
+            logger.warning(f"Unsupported hash value type for {algorithm}: {type(hash_value)}")
+            continue
 
         await add_hash_component(
             transaction=transaction,

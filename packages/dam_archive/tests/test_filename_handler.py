@@ -16,16 +16,16 @@ async def test_get_archive_asset_filenames_handler_with_filename() -> None:
     path_in_archive = "path/to/file.jpg"
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = ArchiveMemberComponent(
-        archive_entity_id=99, path_in_archive=path_in_archive
-    )
+    mock_transaction.get_components.return_value = [
+        ArchiveMemberComponent(archive_entity_id=99, path_in_archive=path_in_archive)
+    ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_archive_asset_filenames_handler(command, mock_transaction)
 
     assert result == [path_in_archive]
-    mock_transaction.get_component.assert_called_once_with(entity_id, ArchiveMemberComponent)
+    mock_transaction.get_components.assert_called_once_with(entity_id, ArchiveMemberComponent)
 
 
 @pytest.mark.asyncio
@@ -36,14 +36,14 @@ async def test_get_archive_asset_filenames_handler_no_component() -> None:
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = None
+    mock_transaction.get_components.return_value = []
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_archive_asset_filenames_handler(command, mock_transaction)
 
     assert result is None
-    mock_transaction.get_component.assert_called_once_with(entity_id, ArchiveMemberComponent)
+    mock_transaction.get_components.assert_called_once_with(entity_id, ArchiveMemberComponent)
 
 
 @pytest.mark.asyncio
@@ -54,11 +54,11 @@ async def test_get_archive_asset_filenames_handler_no_filename() -> None:
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = ArchiveMemberComponent(archive_entity_id=99, path_in_archive="")
+    mock_transaction.get_components.return_value = [ArchiveMemberComponent(archive_entity_id=99, path_in_archive="")]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_archive_asset_filenames_handler(command, mock_transaction)
 
-    assert result is None
-    mock_transaction.get_component.assert_called_once_with(entity_id, ArchiveMemberComponent)
+    assert result == [""]
+    mock_transaction.get_components.assert_called_once_with(entity_id, ArchiveMemberComponent)
