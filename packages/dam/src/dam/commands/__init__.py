@@ -5,6 +5,7 @@ from .asset_commands import (
     GetAssetStreamCommand,
     GetMimeTypeCommand,
     SetMimeTypeCommand,
+    SetMimeTypeFromBufferCommand,
     UpdateAssetMetadataCommand,
 )
 
@@ -16,4 +17,5 @@ __all__ = [
     "SetMimeTypeCommand",
     "GetMimeTypeCommand",
     "AutoSetMimeTypeCommand",
+    "SetMimeTypeFromBufferCommand",
 ]

@@ -38,6 +38,16 @@ class SetMimeTypeCommand(BaseCommand[None]):
 
 
 @dataclass
+class SetMimeTypeFromBufferCommand(BaseCommand[None]):
+    """
+    A command to set the mime type for an asset from a buffer.
+    """
+
+    entity_id: int
+    buffer: bytes
+
+
+@dataclass
 class GetMimeTypeCommand(BaseCommand[str | None]):
     """
     A command to get the mime type for an asset.

@@ -1,12 +1,18 @@
+import io
 import logging
-from typing import Annotated, BinaryIO, List, Optional
+from typing import Annotated, BinaryIO, List, Optional, cast
 
-from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.commands import (
+    GetAssetFilenamesCommand,
+    GetAssetStreamCommand,
+    SetMimeTypeFromBufferCommand,
+)
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.models.metadata.mime_type_component import MimeTypeComponent
+from dam.utils.stream_utils import ChainedStream
 from sqlalchemy import select
 
 from .commands import (
@@ -16,7 +22,11 @@ from .commands import (
 )
 from .exceptions import InvalidPasswordError, PasswordRequiredError
 from .main import open_archive
-from .models import ArchiveInfoComponent, ArchiveMemberComponent, ArchivePasswordComponent
+from .models import (
+    ArchiveInfoComponent,
+    ArchiveMemberComponent,
+    ArchivePasswordComponent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,37 +56,40 @@ async def get_archive_asset_stream_handler(
     """
     Handles getting a stream for an asset that is part of an archive.
     """
-    archive_member_component = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
-    if not archive_member_component:
+    archive_member_components = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
+    if not archive_member_components:
         return None
 
-    target_entity_id = archive_member_component.archive_entity_id
-    path_in_archive = archive_member_component.path_in_archive
-    password_comp = await transaction.get_component(target_entity_id, ArchivePasswordComponent)
-    password = password_comp.password if password_comp else None
+    for component in archive_member_components:
+        target_entity_id = component.archive_entity_id
+        path_in_archive = component.path_in_archive
+        password_comp = await transaction.get_component(target_entity_id, ArchivePasswordComponent)
+        password = password_comp.password if password_comp else None
 
-    archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
-    archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-    try:
-        archive_stream = archive_stream_result.get_first_non_none_value()
-    except ValueError:
-        archive_stream = None
+        archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
+        archive_stream_result = await world.dispatch_command(archive_stream_cmd)
+        try:
+            archive_stream = archive_stream_result.get_first_non_none_value()
+        except ValueError:
+            archive_stream = None
 
-    if not archive_stream:
-        logger.warning(f"Could not get stream for parent archive {target_entity_id}")
-        return None
+        if not archive_stream:
+            logger.warning(f"Could not get stream for parent archive {target_entity_id}")
+            continue
 
-    mime_type_comp = await transaction.get_component(target_entity_id, MimeTypeComponent)
-    if not mime_type_comp:
-        logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
-        return None
+        mime_type_comp = await transaction.get_component(target_entity_id, MimeTypeComponent)
+        if not mime_type_comp:
+            logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
+            continue
 
-    try:
-        archive = open_archive(archive_stream, mime_type_comp.value, password)
-        if archive:
-            return archive.open_file(path_in_archive)
-    except Exception as e:
-        logger.error(f"Failed to open member '{path_in_archive}' from archive stream for entity {cmd.entity_id}: {e}")
+        try:
+            archive = open_archive(archive_stream, mime_type_comp.value, password)
+            if archive:
+                return archive.open_file(path_in_archive)
+        except Exception as e:
+            logger.error(
+                f"Failed to open member '{path_in_archive}' from archive stream for entity {cmd.entity_id}: {e}"
+            )
 
     return None
 
@@ -171,10 +184,15 @@ async def extract_archive_members_handler(
         for member_file in archive.iter_files():
             try:
                 with member_file as member_stream:
-                    print(member_file.name)
-                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=member_stream)
+                    header = member_stream.read(4096)
+                    full_stream = ChainedStream([io.BytesIO(header), member_stream])
+
+                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=cast(BinaryIO, full_stream))
                     command_result = await world.dispatch_command(get_or_create_cmd)
                     member_entity, _ = command_result.get_one_value()
+
+                    set_mime_cmd = SetMimeTypeFromBufferCommand(entity_id=member_entity.id, buffer=header)
+                    await world.dispatch_command(set_mime_cmd)
 
                     member_comp = ArchiveMemberComponent(
                         archive_entity_id=cmd.entity_id,

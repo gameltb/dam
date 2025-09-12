@@ -2,7 +2,11 @@ import logging
 from typing import Annotated
 
 import magic
-from dam.commands.asset_commands import AutoSetMimeTypeCommand, GetAssetStreamCommand
+from dam.commands.asset_commands import (
+    AutoSetMimeTypeCommand,
+    GetAssetStreamCommand,
+    SetMimeTypeFromBufferCommand,
+)
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -66,3 +70,23 @@ async def auto_set_mime_type_from_filename_system(
             logger.warning(f"Could not get asset stream for entity {entity.id}")
         except Exception as e:
             logger.error(f"Error processing entity {entity.id}: {e}", exc_info=True)
+
+
+@system(on_command=SetMimeTypeFromBufferCommand)
+async def set_mime_type_from_buffer_system(
+    command: SetMimeTypeFromBufferCommand,
+    transaction: EcsTransaction,
+):
+    """
+    Sets the mime type for an entity from a buffer, if it doesn't have one.
+    """
+    existing_mime_type = await transaction.get_component(command.entity_id, MimeTypeComponent)
+    if existing_mime_type:
+        return
+
+    mime_type = magic.from_buffer(command.buffer, mime=True)
+    if mime_type:
+        logger.info(f"Setting mime type for entity {command.entity_id} to {mime_type}")
+        await set_entity_mime_type(transaction.session, command.entity_id, mime_type)
+    else:
+        logger.warning(f"Could not determine mime type from buffer for entity {command.entity_id}")
