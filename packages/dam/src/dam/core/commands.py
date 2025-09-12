@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import BinaryIO, Any, Generic, Iterator, List, Set, Tuple, TypeVar
+from typing import Any, BinaryIO, Generic, Iterator, List, Set, Tuple, TypeVar
 
 from dam.core.result import HandlerResult
 from dam.models.core.entity import Entity

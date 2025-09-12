@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import BinaryIO, Annotated, Optional
+from typing import Annotated, BinaryIO, Optional
 
 from dam.commands import GetAssetStreamCommand
 from dam.core.systems import system

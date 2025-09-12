@@ -3,7 +3,7 @@ import lzma
 import threading
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import IO, BinaryIO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import py7zr
 from py7zr.exceptions import PasswordRequired

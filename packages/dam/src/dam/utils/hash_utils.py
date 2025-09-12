@@ -1,7 +1,7 @@
 import hashlib
 import zlib
 from enum import Enum
-from typing import BinaryIO, Any, Dict, Protocol, Set, runtime_checkable
+from typing import Any, BinaryIO, Dict, Protocol, Set, runtime_checkable
 
 import blake3
 
