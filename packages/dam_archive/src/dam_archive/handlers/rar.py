@@ -173,3 +173,6 @@ class RarArchiveHandler(ArchiveHandler):
 
 def register() -> None:
     register_handler(RarArchiveHandler)
+
+
+register()
