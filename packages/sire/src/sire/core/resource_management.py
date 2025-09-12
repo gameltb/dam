@@ -3,14 +3,14 @@ import logging
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Optional, Union
+from typing import BinaryIO, Optional, Union
 from urllib.parse import ParseResult, urlparse
 
 _logger = logging.getLogger(__name__)
 
 
 class Resource:
-    def get_bytes_io(self) -> IO[bytes]:
+    def get_bytes_io(self) -> BinaryIO:
         raise NotImplementedError()
 
     def get_filesystem_path(self) -> Optional[Path]:
@@ -21,7 +21,7 @@ class FileSystemResource(Resource):
     def __init__(self, file_path: Union[str, Path]) -> None:
         self.file_path = file_path
 
-    def get_bytes_io(self) -> IO[bytes]:
+    def get_bytes_io(self) -> BinaryIO:
         return open(self.file_path, "rb")
 
     def get_filesystem_path(self) -> Optional[Path]:

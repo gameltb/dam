@@ -1,5 +1,5 @@
 import logging
-from typing import IO, Annotated, List, Optional
+from typing import BinaryIO, Annotated, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
@@ -36,7 +36,7 @@ async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[IO[bytes]]:
+) -> Optional[BinaryIO]:
     """
     Handles getting a stream for an asset that is part of an archive.
     """
@@ -85,9 +85,9 @@ async def get_archive_asset_filenames_handler(
     """
     Handles getting filenames for assets that are members of an archive.
     """
-    archive_member_comp = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
-    if archive_member_comp and archive_member_comp.path_in_archive:
-        return [archive_member_comp.path_in_archive]
+    archive_member_comps = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
+    if archive_member_comps:
+        return [archive_member_comp.path_in_archive for archive_member_comp in archive_member_comps]
     return None
 
 

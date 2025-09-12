@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import IO, BinaryIO, Iterator, List, Optional, Union
+from typing import BinaryIO, BinaryIO, Iterator, List, Optional, Union
 
 
 @dataclass
@@ -13,7 +13,7 @@ class ArchiveMemberInfo:
     size: int
 
 
-class ArchiveFile(IO[bytes], ABC):
+class ArchiveFile(BinaryIO, ABC):
     """
     Represents a file within an archive.
     """

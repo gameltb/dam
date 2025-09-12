@@ -1,7 +1,7 @@
 import hashlib
 import zlib
 from enum import Enum
-from typing import IO, Any, Dict, Protocol, Set, runtime_checkable
+from typing import BinaryIO, Any, Dict, Protocol, Set, runtime_checkable
 
 import blake3
 
@@ -20,7 +20,7 @@ class HashAlgorithm(Enum):
     BLAKE3 = "blake3"
 
 
-def calculate_hashes_from_stream(stream: IO[bytes], algorithms: Set[HashAlgorithm]) -> Dict[HashAlgorithm, bytes | int]:
+def calculate_hashes_from_stream(stream: BinaryIO, algorithms: Set[HashAlgorithm]) -> Dict[HashAlgorithm, bytes | int]:
     """
     Calculates multiple hashes from a stream in a single pass.
 

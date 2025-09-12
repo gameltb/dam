@@ -25,15 +25,7 @@ async def get_or_create_entity_from_stream_handler(
     logger.info(f"System handling GetOrCreateEntityFromStreamCommand in world {world.name}")
     all_algorithms = {HashAlgorithm.MD5, HashAlgorithm.SHA256, HashAlgorithm.CRC32, HashAlgorithm.BLAKE3}
 
-    can_seek = False
-    try:
-        cmd.stream.seek(0)
-        can_seek = True
-    except (IOError, AttributeError):
-        logger.info("Stream is not seekable.")
-        can_seek = False
-
-    if can_seek:
+    if cmd.stream.seekable():
         # For seekable streams, we first get SHA256 to check for existence
         hashes = calculate_hashes_from_stream(cmd.stream, {HashAlgorithm.SHA256})
         sha256_bytes = hashes[HashAlgorithm.SHA256]
@@ -56,7 +48,7 @@ async def get_or_create_entity_from_stream_handler(
     if not entity:
         raise Exception("Failed to create or find entity for the asset.")
 
-    if can_seek:
+    if cmd.stream.seekable():
         # Dispatch command to add all hashes, which will re-read the stream.
         add_hashes_command = AddHashesFromStreamCommand(
             entity_id=entity.id,

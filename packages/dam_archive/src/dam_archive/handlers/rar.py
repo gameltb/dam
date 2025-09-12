@@ -1,4 +1,4 @@
-from typing import IO, BinaryIO, Iterable, Iterator, List, Optional, Union
+from typing import BinaryIO, BinaryIO, Iterable, Iterator, List, Optional, Union
 
 import rarfile
 
@@ -15,10 +15,10 @@ class RarArchiveFile(ArchiveFile):
     def __init__(self, rar_file: rarfile.RarFile, rar_info: rarfile.RarInfo):
         self._rar_file = rar_file
         self._rar_info = rar_info
-        self._fileobj: Optional[IO[bytes]] = None
+        self._fileobj: Optional[BinaryIO] = None
         self._closed = False
 
-    def _get_fileobj(self) -> IO[bytes]:
+    def _get_fileobj(self) -> BinaryIO:
         if self._fileobj is None:
             try:
                 self._fileobj = self._rar_file.open(self._rar_info)  # type: ignore

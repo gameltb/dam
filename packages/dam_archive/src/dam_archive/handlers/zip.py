@@ -1,5 +1,5 @@
 import zipfile
-from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Union
+from typing import BinaryIO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Union
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
@@ -18,10 +18,10 @@ class ZipArchiveFile(ArchiveFile):
         self._zip_info = zip_info
         self._decoded_name = decoded_name
         self._password = password
-        self._fileobj: Optional[IO[bytes]] = None
+        self._fileobj: Optional[BinaryIO] = None
         self._closed = False
 
-    def _get_fileobj(self) -> IO[bytes]:
+    def _get_fileobj(self) -> BinaryIO:
         if self._fileobj is None:
             try:
                 pwd = self._password.encode() if self._password else None

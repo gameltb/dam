@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     worlds: Dict[str, WorldConfig] = Field(default_factory=dict, description="Dictionary of configured worlds.")
 
     DEFAULT_WORLD_NAME: Optional[str] = Field(
-        default=None,
+        default="default",
         validation_alias="DAM_DEFAULT_WORLD_NAME",
         description="The name of the world to use by default if not specified.",
     )

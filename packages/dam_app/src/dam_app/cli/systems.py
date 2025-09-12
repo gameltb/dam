@@ -55,12 +55,10 @@ async def process_archives(
     for entity_id in candidate_ids:
         cmd = GetAssetFilenamesCommand(entity_id=entity_id)
         cmd_result = await target_world.dispatch_command(cmd)
-        filenames = cmd_result.get_first_ok_value()
-        if filenames:
-            for filename in filenames:
-                if filename.lower().endswith((".zip", ".rar", ".7z")):
-                    archives_to_process.append(entity_id)
-                    break
+        for filename in cmd_result.iter_ok_values_flat():
+            if filename.lower().endswith((".zip", ".rar", ".7z")):
+                archives_to_process.append(entity_id)
+                break
 
     if not archives_to_process:
         typer.secho("No new archives found to process.", fg=typer.colors.GREEN)

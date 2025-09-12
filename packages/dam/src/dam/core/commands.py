@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import IO, Any, Generic, Iterator, List, Set, Tuple, TypeVar
+from typing import BinaryIO, Any, Generic, Iterator, List, Set, Tuple, TypeVar
 
 from dam.core.result import HandlerResult
 from dam.models.core.entity import Entity
@@ -75,7 +75,7 @@ class AddHashesFromStreamCommand(BaseCommand[None]):
     """Command to calculate and add multiple hash components to an entity from a stream."""
 
     entity_id: int
-    stream: IO[bytes]
+    stream: BinaryIO
     algorithms: Set[HashAlgorithm]
 
 
@@ -86,7 +86,7 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
     Returns a tuple of the entity and the calculated sha256 hash.
     """
 
-    stream: IO[bytes]
+    stream: BinaryIO
 
 
 __all__ = ["BaseCommand", "CommandResult", "AddHashesFromStreamCommand", "GetOrCreateEntityFromStreamCommand"]
