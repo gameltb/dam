@@ -1,4 +1,8 @@
-from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.commands import (
+    AutoSetMimeTypeCommand,
+    GetAssetFilenamesCommand,
+    GetAssetStreamCommand,
+)
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
@@ -19,6 +23,7 @@ from .systems.asset_lifecycle_systems import (
     register_local_file_handler,
     store_assets_handler,
 )
+from .systems.mime_type_system import auto_set_mime_type_from_filename_system
 from .systems.stream_handler_system import get_asset_stream_handler
 
 
@@ -51,4 +56,8 @@ class FsPlugin(Plugin):
         world.register_system(
             store_assets_handler,
             command_type=StoreAssetsCommand,
+        )
+        world.register_system(
+            auto_set_mime_type_from_filename_system,
+            command_type=AutoSetMimeTypeCommand,
         )

@@ -56,8 +56,8 @@ async def auto_set_mime_type_from_filename_system(
     for entity in entities_to_process:
         cmd = GetAssetFilenamesCommand(entity_id=entity.id)
         cmd_result = await world.dispatch_command(cmd)
-        filenames = cmd_result.get_first_ok_value()
 
+        filenames = list(cmd_result.iter_ok_values_flat())
         if not filenames:
             continue
 

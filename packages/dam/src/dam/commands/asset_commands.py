@@ -38,6 +38,15 @@ class SetMimeTypeCommand(BaseCommand[None]):
 
 
 @dataclass
+class GetMimeTypeCommand(BaseCommand[str | None]):
+    """
+    A command to get the mime type for an asset.
+    """
+
+    entity_id: int
+
+
+@dataclass
 class GetAssetMetadataCommand(BaseCommand[dict[str, Any]]):
     """
     A command to get the metadata for an asset.

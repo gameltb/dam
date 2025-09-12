@@ -1,11 +1,12 @@
 from typing import Any, List, Optional
 
 import typer
-from dam.commands import GetAssetFilenamesCommand
 from dam.models.core import Entity
+from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam_archive.commands import ExtractArchiveMembersCommand
 from dam_archive.exceptions import PasswordRequiredError
 from dam_archive.models import ArchiveInfoComponent
+from dam_archive.registry import MIME_TYPE_HANDLERS
 from sqlalchemy import select
 from tqdm import tqdm
 from typing_extensions import Annotated
@@ -52,13 +53,13 @@ async def process_archives(
         candidate_ids = result.scalars().all()
 
     archives_to_process: List[int] = []
-    for entity_id in candidate_ids:
-        cmd = GetAssetFilenamesCommand(entity_id=entity_id)
-        cmd_result = await target_world.dispatch_command(cmd)
-        for filename in cmd_result.iter_ok_values_flat():
-            if filename.lower().endswith((".zip", ".rar", ".7z")):
+    async with target_world.db_session_maker() as session:
+        for entity_id in candidate_ids:
+            stmt = select(MimeTypeComponent).where(MimeTypeComponent.entity_id == entity_id)
+            result = await session.execute(stmt)
+            mime_type_comp = result.scalar_one_or_none()
+            if mime_type_comp and mime_type_comp.value in MIME_TYPE_HANDLERS:
                 archives_to_process.append(entity_id)
-                break
 
     if not archives_to_process:
         typer.secho("No new archives found to process.", fg=typer.colors.GREEN)
