@@ -66,9 +66,9 @@ async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: EcsTransaction,
 ) -> Optional[List[str]]:
-    file_props = await transaction.get_component(cmd.entity_id, FilePropertiesComponent)
-    if file_props and file_props.original_filename:
-        return [file_props.original_filename]
+    file_props = await transaction.get_components(cmd.entity_id, FilePropertiesComponent)
+    if file_props:
+        return [file_prop.original_filename for file_prop in file_props]
     return None
 
 

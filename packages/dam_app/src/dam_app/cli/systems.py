@@ -66,7 +66,7 @@ async def process_archives(
 
         def init_progress(total_size: int):
             nonlocal pbar
-            pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc="Extracting members")
+            pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc="Extracting members", smoothing=0)
 
         def update_progress(size: int):
             if pbar:

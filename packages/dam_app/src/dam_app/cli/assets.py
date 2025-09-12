@@ -183,8 +183,9 @@ async def show_entity(
         if not components_dict:
             typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)
             return
+        from rich import print_json
 
-        typer.echo(json.dumps(components_dict, indent=2))
+        print_json(data=components_dict)
 
 
 @app.command(name="auto-set-mime-type")
