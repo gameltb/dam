@@ -10,7 +10,6 @@ from dam.core.world import (
     create_and_register_all_worlds_from_settings,
     get_all_registered_worlds,
 )
-from dam.functions import ecs_functions as dam_ecs_functions
 from typing_extensions import Annotated
 
 from dam_app.cli import assets, systems
@@ -60,29 +59,6 @@ async def setup_db(ctx: typer.Context):
     except Exception as e:
         typer.secho(f"Error during database setup: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-
-
-@app.command(name="show-entity")
-async def cli_show_entity(
-    ctx: typer.Context,
-    entity_id: Annotated[int, typer.Argument(..., help="The ID of the entity to show.")],
-):
-    """Shows all components of a given entity."""
-    target_world = get_world()
-    if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    async with target_world.db_session_maker() as session:
-        components = await dam_ecs_functions.get_all_components_for_entity(session, entity_id)
-        if not components:
-            typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)
-            return
-        typer.secho(f"Components for entity {entity_id}:", fg=typer.colors.GREEN)
-        for component in components:
-            typer.echo(f"  - {component.__class__.__name__}:")
-            for key, value in component.__dict__.items():
-                if not key.startswith("_"):
-                    typer.echo(f"    - {key}: {value}")
 
 
 @app.callback(invoke_without_command=True)

@@ -1,18 +1,15 @@
-from typing import TYPE_CHECKING
-
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.plugin import Plugin
+from dam.core.world import World
 
-from .commands import ExtractArchiveMembersCommand, SetArchivePasswordCommand, ClearArchiveComponentsCommand
+from .commands import ClearArchiveComponentsCommand, ExtractArchiveMembersCommand, SetArchivePasswordCommand
 from .systems import (
+    clear_archive_components_handler,
     extract_archive_members_handler,
     get_archive_asset_filenames_handler,
     get_archive_asset_stream_handler,
     set_archive_password_handler,
-    clear_archive_components_handler,
 )
-
-from dam.core.world import World
 
 
 class ArchivePlugin(Plugin):

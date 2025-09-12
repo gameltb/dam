@@ -1,16 +1,12 @@
-from typing import List, Type
+from typing import Dict, Type
 
 from .base import ArchiveHandler
+from .handlers.rar import RarArchiveHandler
+from .handlers.sevenzip import SevenZipArchiveHandler
+from .handlers.zip import ZipArchiveHandler
 
-_handlers: List[Type[ArchiveHandler]] = []
-
-
-def register_handler(handler: Type[ArchiveHandler]) -> None:
-    """Register a new archive handler."""
-    if handler not in _handlers:
-        _handlers.append(handler)
-
-
-def get_handlers() -> List[Type[ArchiveHandler]]:
-    """Get a list of all registered archive handlers."""
-    return _handlers.copy()
+MIME_TYPE_HANDLERS: Dict[str, Type[ArchiveHandler]] = {
+    "application/zip": ZipArchiveHandler,
+    "application/vnd.rar": RarArchiveHandler,
+    "application/x-7z-compressed": SevenZipArchiveHandler,
+}

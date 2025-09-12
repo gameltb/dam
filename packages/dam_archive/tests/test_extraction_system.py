@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.functions.mime_type_functions import set_entity_mime_type
 from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
@@ -25,6 +26,10 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     cmd_result_reg = await world.dispatch_command(register_cmd_reg)
     entity_id_reg = cmd_result_reg.get_one_value()
 
+    async with world.db_session_maker() as session:
+        await set_entity_mime_type(session, entity_id_reg, "application/zip")
+        await session.commit()
+
     # 2. Run the extraction command
     extract_cmd_reg = ExtractArchiveMembersCommand(entity_id=entity_id_reg)
     await world.dispatch_command(extract_cmd_reg)
@@ -45,6 +50,10 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     register_cmd_prot = RegisterLocalFileCommand(file_path=protected_archive_path)
     cmd_result_prot = await world.dispatch_command(register_cmd_prot)
     entity_id_prot = cmd_result_prot.get_one_value()
+
+    async with world.db_session_maker() as session:
+        await set_entity_mime_type(session, entity_id_prot, "application/zip")
+        await session.commit()
 
     # 2. Run the extraction command with the correct password
     extract_cmd_prot = ExtractArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])

@@ -19,7 +19,7 @@ def dummy_zip_file(tmp_path: Path) -> Path:
 
 def test_open_zip_archive(dummy_zip_file: Path) -> None:
     with open(dummy_zip_file, "rb") as f:
-        archive = open_archive(f, dummy_zip_file.name)
+        archive = open_archive(f, "application/zip")
         assert archive is not None
         files = archive.list_files()
         file_names = [f.name for f in files]
@@ -56,7 +56,7 @@ def protected_zip_file(tmp_path: Path) -> Path:
 
 def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> None:
     with open(protected_zip_file, "rb") as f:
-        archive = open_archive(f, protected_zip_file.name, password="password")
+        archive = open_archive(f, "application/zip", password="password")
         assert archive is not None
         with archive.open_file("file1.txt") as f_in_zip:
             assert f_in_zip.read() == b"content1"
@@ -65,4 +65,4 @@ def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> N
 def test_open_protected_zip_with_incorrect_password(protected_zip_file: Path) -> None:
     with open(protected_zip_file, "rb") as f:
         with pytest.raises(InvalidPasswordError):
-            open_archive(f, protected_zip_file.name, password="wrong_password")
+            open_archive(f, "application/zip", password="wrong_password")

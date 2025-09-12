@@ -4,7 +4,6 @@ import rarfile
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
-from ..registry import register_handler
 
 
 class RarArchiveFile(ArchiveFile):
@@ -150,10 +149,6 @@ class RarArchiveHandler(ArchiveHandler):
             except Exception:
                 pass
 
-    @staticmethod
-    def can_handle(file_path: str) -> bool:
-        return file_path.lower().endswith(".rar")
-
     def list_files(self) -> List[ArchiveMemberInfo]:
         return [ArchiveMemberInfo(name=f.filename, size=f.file_size) for f in self.rar_file.infolist() if not f.isdir()]  # type: ignore
 
@@ -169,10 +164,3 @@ class RarArchiveHandler(ArchiveHandler):
             if f.filename == file_name:  # type: ignore
                 return RarArchiveFile(self.rar_file, f)  # type: ignore
         raise IOError(f"File not found in rar: {file_name}")
-
-
-def register() -> None:
-    register_handler(RarArchiveHandler)
-
-
-register()

@@ -3,7 +3,6 @@ from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Union
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import InvalidPasswordError
-from ..registry import register_handler
 
 
 class ZipArchiveFile(ArchiveFile):
@@ -180,10 +179,6 @@ class ZipArchiveHandler(ArchiveHandler):
             except Exception:
                 pass
 
-    @staticmethod
-    def can_handle(file_path: str) -> bool:
-        return file_path.lower().endswith(".zip")
-
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
 
@@ -203,10 +198,3 @@ class ZipArchiveHandler(ArchiveHandler):
             if f.filename == original_name:
                 return ZipArchiveFile(self.zip_file, f, file_name, self.password)
         raise IOError(f"File not found in zip: {file_name}")
-
-
-def register() -> None:
-    register_handler(ZipArchiveHandler)
-
-
-register()
