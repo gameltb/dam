@@ -8,7 +8,7 @@ from dam.models.core.base_component import BaseComponent
 
 @dataclass
 class MimeTypeComponent(BaseComponent):
-    __tablename__ = "mime_types"
+    __tablename__ = "component_mime_type"
     """
     A component that stores the mime type of an asset.
     """

@@ -2,8 +2,10 @@ import logging
 import mimetypes
 from typing import Annotated
 
-from dam.commands.asset_commands import GetAssetFilenamesCommand
-from dam.core.stages import SystemStage
+from dam.commands.asset_commands import (
+    AutoSetMimeTypeCommand,
+    GetAssetFilenamesCommand,
+)
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -17,17 +19,30 @@ from dam_fs.models.file_properties_component import FilePropertiesComponent
 logger = logging.getLogger(__name__)
 
 
-@system(on_stage=SystemStage.METADATA_EXTRACTION)
-async def auto_set_mime_type_from_filename_system(transaction: EcsTransaction, world: Annotated[World, "Resource"]):
+@system(on_command=AutoSetMimeTypeCommand)
+async def auto_set_mime_type_from_filename_system(
+    command: AutoSetMimeTypeCommand,
+    transaction: EcsTransaction,
+    world: Annotated[World, "Resource"],
+):
     """
     Automatically sets the mime type for entities with a filename but no mime type.
     """
-    stmt = (
-        select(Entity)
-        .join(FilePropertiesComponent, Entity.id == FilePropertiesComponent.entity_id)
-        .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
-        .where(MimeTypeComponent.id.is_(None))
-    )
+    if command.entity_id:
+        stmt = (
+            select(Entity)
+            .where(Entity.id == command.entity_id)
+            .join(FilePropertiesComponent, Entity.id == FilePropertiesComponent.entity_id)
+            .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
+            .where(MimeTypeComponent.id.is_(None))
+        )
+    else:
+        stmt = (
+            select(Entity)
+            .join(FilePropertiesComponent, Entity.id == FilePropertiesComponent.entity_id)
+            .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
+            .where(MimeTypeComponent.id.is_(None))
+        )
 
     result = await transaction.session.execute(stmt)
     entities_to_process = result.scalars().all()

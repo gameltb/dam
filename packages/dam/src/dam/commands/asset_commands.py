@@ -19,6 +19,15 @@ class GetAssetStreamCommand(BaseCommand[BinaryIO]):
 
 
 @dataclass
+class AutoSetMimeTypeCommand(BaseCommand[None]):
+    """
+    A command to automatically set the mime type for an asset or all assets.
+    """
+
+    entity_id: int | None = None
+
+
+@dataclass
 class SetMimeTypeCommand(BaseCommand[None]):
     """
     A command to set the mime type for an asset.

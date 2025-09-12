@@ -1,10 +1,13 @@
 import datetime
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import typer
-from dam.commands.asset_commands import SetMimeTypeCommand
+from dam.commands.asset_commands import (
+    AutoSetMimeTypeCommand,
+    SetMimeTypeCommand,
+)
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam_archive.commands import ClearArchiveComponentsCommand
 from dam_fs.commands import (
@@ -182,3 +185,32 @@ async def show_entity(
             return
 
         typer.echo(json.dumps(components_dict, indent=2))
+
+
+@app.command(name="auto-set-mime-type")
+async def auto_set_mime_type(
+    entity_id: Annotated[
+        Optional[int],
+        typer.Option(
+            "--entity-id",
+            "-e",
+            help="The ID of the entity to process. If not provided, all entities will be processed.",
+        ),
+    ] = None,
+):
+    """
+    Automatically sets the mime type for an entity or all entities.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    if entity_id:
+        typer.echo(f"Automatically setting mime type for entity {entity_id}...")
+    else:
+        typer.echo("Automatically setting mime type for all entities...")
+
+    set_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)
+    await target_world.dispatch_command(set_cmd)
+
+    typer.secho("Mime type setting process complete.", fg=typer.colors.GREEN)
