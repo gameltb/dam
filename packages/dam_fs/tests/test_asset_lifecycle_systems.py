@@ -42,6 +42,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
 
     # 2. Find the entity by its properties
     mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
+    mod_time = mod_time.replace(microsecond=0)
     find_cmd = FindEntityByFilePropertiesCommand(
         file_path=temp_asset_file.as_uri(),
         file_modified_at=mod_time,
