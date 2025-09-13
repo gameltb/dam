@@ -69,3 +69,44 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_prot)
         )
         assert len(members_prot.scalars().all()) == 2
+
+
+@pytest.mark.serial
+@pytest.mark.asyncio
+async def test_skip_already_extracted(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
+    """
+    Tests that the IngestArchiveMembersCommand skips archives that have already been processed.
+    """
+    world = test_world_alpha
+    regular_archive_path, _ = test_archives
+
+    # 1. Register the archive file
+    register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
+    cmd_result = await world.dispatch_command(register_cmd)
+    entity_id = cmd_result.get_one_value()
+
+    async with world.db_session_maker() as session:
+        await set_entity_mime_type(session, entity_id, "application/zip")
+        await session.commit()
+
+    # 2. Run the extraction command for the first time
+    ingest_cmd1 = IngestArchiveMembersCommand(entity_id=entity_id)
+    await world.dispatch_command(ingest_cmd1)
+
+    # 3. Verify that it was processed
+    async with world.db_session_maker() as session:
+        info1 = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
+        assert info1 is not None
+        assert info1.file_count == 2
+
+    # 4. Run the extraction command for the second time
+    ingest_cmd2 = IngestArchiveMembersCommand(entity_id=entity_id)
+    await world.dispatch_command(ingest_cmd2)
+
+    # 5. Verify that it was skipped (no new components were created)
+    # We can't easily check the logs here, so we will check that the number of members is still the same.
+    async with world.db_session_maker() as session:
+        members = await session.execute(
+            select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
+        )
+        assert len(members.scalars().all()) == 2

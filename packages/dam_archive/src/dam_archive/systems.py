@@ -393,6 +393,11 @@ async def ingest_archive_members_handler(
     """
     logger.info(f"Ingestion command received for entity {cmd.entity_id}")
 
+    info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
+    if info_comp:
+        logger.info(f"Entity {cmd.entity_id} has already been processed. Skipping ingestion.")
+        return
+
     # Case 1: The entity is a master entity for a split archive.
     manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest_comp:
