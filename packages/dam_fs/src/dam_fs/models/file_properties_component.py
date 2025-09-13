@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
+from pydantic import field_validator
 from sqlalchemy import BigInteger, DateTime, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +44,12 @@ class FilePropertiesComponent(BaseComponent):
         # this constraint would be removed or made composite with other fields.
         UniqueConstraint("entity_id", name="uq_file_properties_entity_id"),
     )
+
+    @field_validator("file_modified_at")
+    def truncate_microseconds(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if isinstance(v, datetime):
+            return v.replace(microsecond=0)
+        return v
 
     def __repr__(self) -> str:
         return (

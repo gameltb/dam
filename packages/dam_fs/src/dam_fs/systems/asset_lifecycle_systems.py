@@ -89,6 +89,7 @@ async def register_local_file_handler(
         existing_fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
         if not existing_fpc:
             mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
+            mod_time = mod_time.replace(microsecond=0)  # Truncate to second
             fpc = FilePropertiesComponent(
                 original_filename=file_path.name,
                 file_size_bytes=file_path.stat().st_size,

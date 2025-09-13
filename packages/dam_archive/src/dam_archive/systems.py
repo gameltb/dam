@@ -1,6 +1,9 @@
 import io
 import logging
-from typing import IO, Annotated, BinaryIO, List, Optional, cast
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import IO, Annotated, BinaryIO, Dict, List, Optional, Tuple, cast
 
 from dam.commands import (
     GetAssetFilenamesCommand,
@@ -13,6 +16,7 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam.utils.stream_utils import ChainedStream
+from dam_fs.commands import FindEntityByFilePropertiesCommand
 from dam_fs.models import FilePropertiesComponent
 from sqlalchemy import select
 
@@ -42,17 +46,15 @@ logger = logging.getLogger(__name__)
 async def discover_and_bind_handler(
     cmd: DiscoverAndBindCommand,
     transaction: EcsTransaction,
+    world: Annotated[World, "Resource"],
 ):
     """
-    Scans given paths, tags archive parts, and assembles complete sets.
+    Scans given paths, detects complete split archives, and creates a master entity for each.
     """
-    import os
-    from pathlib import Path
-
     logger.info(f"Starting discovery and binding for paths: {cmd.paths}")
 
-    # 1. Collect all filenames from the given paths
-    target_filenames: set[str] = set()
+    # 1. Scan file system and detect split archive parts
+    all_files: List[Tuple[str, float]] = []
     for p_str in cmd.paths:
         p = Path(p_str)
         if not p.exists():
@@ -61,69 +63,70 @@ async def discover_and_bind_handler(
         if p.is_dir():
             for root, _, files in os.walk(p):
                 for name in files:
-                    target_filenames.add(os.path.join(root, name))
+                    full_path = os.path.join(root, name)
+                    try:
+                        mtime = os.path.getmtime(full_path)
+                        all_files.append((full_path, mtime))
+                    except FileNotFoundError:
+                        continue
         else:
-            target_filenames.add(str(p))
+            try:
+                mtime = os.path.getmtime(p)
+                all_files.append((str(p), mtime))
+            except FileNotFoundError:
+                pass
 
-    # 2. Find entities corresponding to these filenames
-    stmt = select(FilePropertiesComponent).where(FilePropertiesComponent.original_filename.in_(target_filenames))
-    result = await transaction.session.execute(stmt)
-    file_props_comps = result.scalars().all()
+    # Group detected parts by base_name
+    parts_by_basename: Dict[str, List[Tuple[str, float, int]]] = {}
+    for path, mtime in all_files:
+        split_info = split_detector.detect(os.path.basename(path))
+        if split_info:
+            parts_by_basename.setdefault(split_info.base_name, []).append((path, mtime, split_info.part_num))
 
-    logger.info(f"Found {len(file_props_comps)} entities in the world matching the given paths.")
+    # 2. Process each group to find complete archives
+    for base_name, parts_with_meta in parts_by_basename.items():
+        parts_by_num = {part_num: (path, mtime) for path, mtime, part_num in parts_with_meta}
+        if not parts_by_num:
+            continue
 
-    # 3. Tag all found entities if they are split archive parts
-    for props in file_props_comps:
-        if props.original_filename:
-            split_info = split_detector.detect(props.original_filename)
-            if split_info:
-                existing_comp = await transaction.get_component(props.entity_id, SplitArchivePartInfoComponent)
-                if not existing_comp:
-                    logger.info(f"Tagging '{props.original_filename}' as a split archive part.")
-                    part_info_comp = SplitArchivePartInfoComponent(
-                        base_name=split_info.base_name, part_num=split_info.part_num
-                    )
-                    await transaction.add_component_to_entity(props.entity_id, part_info_comp)
-
-    # 4. Find all untagged parts and group them
-    stmt_untagged = select(SplitArchivePartInfoComponent).where(
-        SplitArchivePartInfoComponent.master_entity_id.is_(None)
-    )
-    result_untagged = await transaction.session.execute(stmt_untagged)
-    untagged_parts = result_untagged.scalars().all()
-
-    parts_by_basename: dict[str, List[SplitArchivePartInfoComponent]] = {}
-    for part in untagged_parts:
-        parts_by_basename.setdefault(part.base_name, []).append(part)
-
-    # 5. Assemble complete groups
-    for base_name, parts in parts_by_basename.items():
-        parts_by_num = {p.part_num: p for p in parts}
         max_part_num = max(parts_by_num.keys())
         is_complete = all(i in parts_by_num for i in range(1, max_part_num + 1))
 
         if is_complete:
-            logger.info(f"Found complete split archive '{base_name}' with {max_part_num} parts. Assembling.")
+            logger.info(f"Found complete split archive '{base_name}' with {max_part_num} parts.")
 
-            master_entity = await transaction.create_entity()
-            await transaction.add_component_to_entity(
-                master_entity.id,
-                FilePropertiesComponent(original_filename=f"{base_name} (Split Archive)"),
-            )
+            part_entity_ids: List[int] = []
+            is_valid_group = True
 
-            sorted_part_ids = [parts_by_num[i].entity_id for i in range(1, max_part_num + 1)]
-            manifest = SplitArchiveManifestComponent(part_entity_ids=sorted_part_ids)
-            await transaction.add_component_to_entity(master_entity.id, manifest)
+            # 3. Find entity IDs for each part
+            sorted_parts_meta = [parts_by_num[i] for i in range(1, max_part_num + 1)]
 
-            first_part_entity_id = sorted_part_ids[0]
-            mime_type_comp = await transaction.get_component(first_part_entity_id, MimeTypeComponent)
-            if mime_type_comp:
-                await transaction.add_component_to_entity(
-                    master_entity.id, MimeTypeComponent(value=mime_type_comp.value)
-                )
+            for path, mtime in sorted_parts_meta:
+                file_uri = Path(path).as_uri()
+                modified_at = datetime.fromtimestamp(mtime, tz=timezone.utc)
+                modified_at = modified_at.replace(microsecond=0)  # Truncate to second
 
-            for part_comp in parts:
-                part_comp.master_entity_id = master_entity.id
+                # Dispatch command to find entity
+                find_cmd = FindEntityByFilePropertiesCommand(file_path=file_uri, file_modified_at=modified_at)
+                result = await world.dispatch_command(find_cmd)
+                entity_id = result.get_one_value()
+
+                if entity_id:
+                    part_entity_ids.append(entity_id)
+                else:
+                    logger.warning(
+                        f"Could not find a matching entity for part '{path}' with mtime {mtime}. "
+                        "Skipping assembly for this group."
+                    )
+                    is_valid_group = False
+                    break
+
+            # 4. Dispatch CreateMasterArchiveCommand
+            if is_valid_group:
+                logger.info(f"Assembling master archive for '{base_name}' with parts: {part_entity_ids}")
+                master_name = f"{base_name} (Split Archive)"
+                create_cmd = CreateMasterArchiveCommand(name=master_name, part_entity_ids=part_entity_ids)
+                await world.dispatch_command(create_cmd)
         else:
             logger.info(f"Split archive '{base_name}' is incomplete. Skipping assembly.")
 
@@ -144,7 +147,7 @@ async def create_master_archive_handler(
         master_entity.id,
         FilePropertiesComponent(original_filename=cmd.name),
     )
-    manifest = SplitArchiveManifestComponent(part_entity_ids=cmd.part_entity_ids)
+    manifest = SplitArchiveManifestComponent()
     await transaction.add_component_to_entity(master_entity.id, manifest)
 
     # 2. Copy mime type from first part
@@ -171,7 +174,6 @@ async def create_master_archive_handler(
             part_info_comp.master_entity_id = master_entity.id
         else:
             new_part_info = SplitArchivePartInfoComponent(
-                base_name=split_info.base_name,
                 part_num=split_info.part_num,
                 master_entity_id=master_entity.id,
             )
@@ -196,10 +198,13 @@ async def unbind_split_archive_handler(
         return
 
     # Delete part info from all parts
-    for part_id in manifest.part_entity_ids:
-        part_info = await transaction.get_component(part_id, SplitArchivePartInfoComponent)
-        if part_info:
-            await transaction.remove_component(part_info)
+    stmt = select(SplitArchivePartInfoComponent).where(
+        SplitArchivePartInfoComponent.master_entity_id == cmd.master_entity_id
+    )
+    result = await transaction.session.execute(stmt)
+    parts_to_unbind = result.scalars().all()
+    for part_info in parts_to_unbind:
+        await transaction.remove_component(part_info)
 
     # Delete the manifest from the master
     await transaction.remove_component(manifest)
@@ -300,13 +305,14 @@ async def _perform_ingestion(
         return
 
     stored_password_comp = await transaction.get_component(entity_id, ArchivePasswordComponent)
-    stored_password = stored_password_comp.password if stored_password_comp else None
 
-    passwords_to_try: List[Optional[str]] = [None]
-    if stored_password:
-        passwords_to_try.append(stored_password)
-    if cmd.passwords:
-        passwords_to_try.extend(p for p in cmd.passwords if p)
+    passwords_to_try: List[Optional[str]]
+    if stored_password_comp:
+        passwords_to_try = [stored_password_comp.password]
+    else:
+        passwords_to_try = [None]
+        if cmd.passwords:
+            passwords_to_try.extend(p for p in cmd.passwords if p)
 
     archive = None
     correct_password = None
@@ -337,6 +343,7 @@ async def _perform_ingestion(
         raise PasswordRequiredError(f"A password is required for archive entity {entity_id}")
 
     try:
+        stored_password = stored_password_comp.password if stored_password_comp else None
         if correct_password and (not stored_password or correct_password != stored_password):
             await world.dispatch_command(SetArchivePasswordCommand(entity_id=entity_id, password=correct_password))
 
@@ -390,9 +397,19 @@ async def ingest_archive_members_handler(
     manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest_comp:
         logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams for ingestion.")
+
+        stmt = (
+            select(SplitArchivePartInfoComponent)
+            .where(SplitArchivePartInfoComponent.master_entity_id == cmd.entity_id)
+            .order_by(SplitArchivePartInfoComponent.part_num)
+        )
+        result = await transaction.session.execute(stmt)
+        parts = result.scalars().all()
+        part_entity_ids = [part.entity_id for part in parts]
+
         part_streams: List[IO[bytes]] = []
         try:
-            for part_entity_id in manifest_comp.part_entity_ids:
+            for part_entity_id in part_entity_ids:
                 stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
                 stream_result = await world.dispatch_command(stream_cmd)
                 part_stream = stream_result.get_first_non_none_value()

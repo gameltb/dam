@@ -3,9 +3,8 @@ from pathlib import Path
 from typing import Annotated, List
 
 import pytest
-from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam_fs.models import FilePropertiesComponent
+from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
 from dam_archive.commands import (
@@ -32,18 +31,14 @@ async def test_discover_and_bind_workflow(
     base_name = "test_discover"
     entity_ids: List[int] = []
 
-    # 1. Setup: Manually create entities, but without the SplitArchivePartInfoComponent
-    async with world.db_session_maker() as session:
-        transaction = EcsTransaction(session)
-        for i in range(1, 3):
-            part_file = tmp_path / f"{base_name}.part{i}.rar"
-            part_file.touch()
-            entity = await transaction.create_entity()
-            entity_ids.append(entity.id)
-            await transaction.add_component_to_entity(
-                entity.id, FilePropertiesComponent(original_filename=str(part_file))
-            )
-        await session.commit()
+    # 1. Setup: Register local files to create entities with all necessary components
+    for i in range(1, 3):
+        part_file = tmp_path / f"{base_name}.part{i}.rar"
+        part_file.write_text(f"content of part {i}")  # Write unique content
+        register_cmd = RegisterLocalFileCommand(file_path=part_file)
+        result = await world.dispatch_command(register_cmd)
+        entity_id = result.get_one_value()
+        entity_ids.append(entity_id)
 
     # 2. Action: Run the discovery and binding command
     discover_cmd = DiscoverAndBindCommand(paths=[str(tmp_path)])
@@ -55,12 +50,15 @@ async def test_discover_and_bind_workflow(
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         manifests = manifest_query.scalars().all()
         assert len(manifests) == 1
-        assert manifests[0].part_entity_ids == entity_ids
+        master_entity_id = manifests[0].entity_id
 
-        for entity_id in entity_ids:
-            part_info = await session.get(SplitArchivePartInfoComponent, entity_id)
-            assert part_info is not None
-            assert part_info.master_entity_id == manifests[0].entity_id
+        part_info_query = await session.execute(
+            select(SplitArchivePartInfoComponent)
+            .where(SplitArchivePartInfoComponent.master_entity_id == master_entity_id)
+            .order_by(SplitArchivePartInfoComponent.part_num)
+        )
+        parts = part_info_query.scalars().all()
+        assert [part.entity_id for part in parts] == entity_ids
 
 
 @pytest.mark.serial
@@ -76,6 +74,9 @@ async def test_manual_create_and_unbind_workflow(
 
     # 1. Setup: Manually create part entities
     async with world.db_session_maker() as session:
+        from dam.core.transaction import EcsTransaction
+        from dam_fs.models import FilePropertiesComponent
+
         transaction = EcsTransaction(session)
         for i in range(1, 3):
             entity = await transaction.create_entity()
@@ -97,7 +98,14 @@ async def test_manual_create_and_unbind_workflow(
         manifests = manifest_query.scalars().all()
         assert len(manifests) == 1
         master_entity_id = manifests[0].entity_id
-        assert manifests[0].part_entity_ids == entity_ids
+
+        part_info_query = await session.execute(
+            select(SplitArchivePartInfoComponent)
+            .where(SplitArchivePartInfoComponent.master_entity_id == master_entity_id)
+            .order_by(SplitArchivePartInfoComponent.part_num)
+        )
+        parts = part_info_query.scalars().all()
+        assert [part.entity_id for part in parts] == entity_ids
 
     # 4. Action: Unbind the archive
     unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_entity_id)
@@ -109,4 +117,5 @@ async def test_manual_create_and_unbind_workflow(
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         assert len(manifest_query.scalars().all()) == 0
         part_info_query = await session.execute(select(SplitArchivePartInfoComponent))
+        # The part info components should be deleted after unbinding
         assert len(part_info_query.scalars().all()) == 0
