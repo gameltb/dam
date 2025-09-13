@@ -86,6 +86,18 @@ async def asset_dispatcher_system(
             await world.dispatch_event(ImageAssetDetected(entity=event.entity, file_id=event.file_id))
             logger.info(f"Dispatched entity {event.entity.id} to image processing pipeline.")
 
+        elif mime_type in [
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/vnd.rar",
+            "application/x-rar-compressed",
+            "application/x-7z-compressed",
+        ]:
+            from dam_archive.commands import TagArchivePartCommand
+
+            await world.dispatch_command(TagArchivePartCommand(entity_id=event.entity.id))
+            logger.info(f"Dispatched entity {event.entity.id} to archive tagging pipeline.")
+
         else:
             logger.info(
                 f"No specific processing pipeline found for MIME type '{mime_type}' on entity {event.entity.id}."

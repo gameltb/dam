@@ -28,6 +28,15 @@ class ExtractArchiveMembersCommand(BaseCommand[None]):
 
 
 @dataclass
+class TagArchivePartCommand(BaseCommand[None]):
+    """
+    A command to tag a file as a potential split archive part.
+    """
+
+    entity_id: int
+
+
+@dataclass
 class ClearArchiveComponentsCommand(BaseCommand[None]):
     """
     A command to clear archive-related components from an entity.
