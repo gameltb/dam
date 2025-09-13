@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 import typer
 from dam.models.core import Entity
 from dam.models.metadata.mime_type_component import MimeTypeComponent
-from dam_archive.commands import ExtractArchiveMembersCommand
+from dam_archive.commands import IngestArchiveMembersCommand
 from dam_archive.exceptions import PasswordRequiredError
 from dam_archive.models import ArchiveInfoComponent
 from dam_archive.registry import MIME_TYPE_HANDLERS
@@ -78,7 +78,7 @@ async def process_archives(
 
         while True:
             try:
-                cmd = ExtractArchiveMembersCommand(
+                cmd = IngestArchiveMembersCommand(
                     entity_id=entity_id,
                     passwords=known_passwords,
                     init_progress_callback=init_progress,

@@ -16,16 +16,16 @@ async def test_get_fs_asset_filenames_handler_with_filename() -> None:
     filename = "test.jpg"
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = FilePropertiesComponent(
-        original_filename=filename, file_size_bytes=123
-    )
+    mock_transaction.get_components.return_value = [
+        FilePropertiesComponent(original_filename=filename, file_size_bytes=123)
+    ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_fs_asset_filenames_handler(command, mock_transaction)
 
     assert result == [filename]
-    mock_transaction.get_component.assert_called_once_with(entity_id, FilePropertiesComponent)
+    mock_transaction.get_components.assert_called_once_with(entity_id, FilePropertiesComponent)
 
 
 @pytest.mark.asyncio
@@ -36,14 +36,14 @@ async def test_get_fs_asset_filenames_handler_no_component() -> None:
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = None
+    mock_transaction.get_components.return_value = []
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_fs_asset_filenames_handler(command, mock_transaction)
 
     assert result is None
-    mock_transaction.get_component.assert_called_once_with(entity_id, FilePropertiesComponent)
+    mock_transaction.get_components.assert_called_once_with(entity_id, FilePropertiesComponent)
 
 
 @pytest.mark.asyncio
@@ -54,11 +54,13 @@ async def test_get_fs_asset_filenames_handler_no_filename() -> None:
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_component.return_value = FilePropertiesComponent(original_filename=None, file_size_bytes=123)
+    mock_transaction.get_components.return_value = [
+        FilePropertiesComponent(original_filename=None, file_size_bytes=123)
+    ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
     result = await get_fs_asset_filenames_handler(command, mock_transaction)
 
-    assert result is None
-    mock_transaction.get_component.assert_called_once_with(entity_id, FilePropertiesComponent)
+    assert result == []
+    mock_transaction.get_components.assert_called_once_with(entity_id, FilePropertiesComponent)

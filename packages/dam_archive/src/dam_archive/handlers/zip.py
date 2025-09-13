@@ -142,7 +142,7 @@ class ZipArchiveHandler(ArchiveHandler):
         except RuntimeError:
             raise InvalidPasswordError("Invalid password for zip file.")
         except zipfile.BadZipFile as e:
-            raise IOError(f"Failed to open zip file: {e}") from e
+            raise InvalidPasswordError(f"Invalid password for zip file: {e}") from e
 
     def _decode_zip_filename(self, info: zipfile.ZipInfo) -> str:
         filename = info.filename
