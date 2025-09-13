@@ -9,7 +9,12 @@ from dam.commands.asset_commands import (
     SetMimeTypeCommand,
 )
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam_archive.commands import ClearArchiveComponentsCommand
+from dam_archive.commands import (
+    ClearArchiveComponentsCommand,
+    CreateMasterArchiveCommand,
+    DiscoverAndBindCommand,
+    UnbindSplitArchiveCommand,
+)
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -215,3 +220,70 @@ async def auto_set_mime_type(
     await target_world.dispatch_command(set_cmd)
 
     typer.secho("Mime type setting process complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="discover-and-bind")
+async def discover_and_bind(
+    paths: Annotated[
+        List[Path],
+        typer.Argument(
+            ...,
+            help="Path to the asset file or directory to scan.",
+            exists=True,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+):
+    """
+    Scans paths for split archive parts, tags them, and binds complete sets.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Discovering and binding split archives in paths: {paths}...")
+
+    discover_cmd = DiscoverAndBindCommand(paths=[str(p) for p in paths])
+    await target_world.dispatch_command(discover_cmd)
+
+    typer.secho("Discovery and binding process complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="create-master")
+async def create_master(
+    name: Annotated[str, typer.Option("--name", "-n", help="The name for the master archive entity.")],
+    part_ids: Annotated[List[int], typer.Argument(..., help="An ordered list of entity IDs for the parts.")],
+):
+    """
+    Manually creates a master entity for a split archive from a list of parts.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Creating master archive '{name}' with parts: {part_ids}...")
+
+    create_cmd = CreateMasterArchiveCommand(name=name, part_entity_ids=part_ids)
+    await target_world.dispatch_command(create_cmd)
+
+    typer.secho("Master archive created successfully.", fg=typer.colors.GREEN)
+
+
+@app.command(name="unbind-master")
+async def unbind_master(
+    master_id: Annotated[int, typer.Argument(..., help="The entity ID of the master archive to unbind.")],
+):
+    """
+    Unbinds a split archive, removing the master entity's manifest and part info.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Unbinding master archive with ID: {master_id}...")
+
+    unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_id)
+    await target_world.dispatch_command(unbind_cmd)
+
+    typer.secho("Master archive unbound successfully.", fg=typer.colors.GREEN)

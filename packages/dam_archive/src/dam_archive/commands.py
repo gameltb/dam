@@ -5,6 +5,34 @@ from dam.core.commands import BaseCommand
 
 
 @dataclass
+class UnbindSplitArchiveCommand(BaseCommand[None]):
+    """
+    A command to unbind a split archive by deleting its manifest and part info.
+    """
+
+    master_entity_id: int
+
+
+@dataclass
+class CreateMasterArchiveCommand(BaseCommand[None]):
+    """
+    A command to manually create a master entity for a split archive.
+    """
+
+    name: str
+    part_entity_ids: List[int]
+
+
+@dataclass
+class DiscoverAndBindCommand(BaseCommand[None]):
+    """
+    A command to discover and bind split archives from a list of paths.
+    """
+
+    paths: List[str]
+
+
+@dataclass
 class SetArchivePasswordCommand(BaseCommand[None]):
     """
     A command to set the password for an archive.
@@ -15,9 +43,9 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 
 
 @dataclass
-class ExtractArchiveMembersCommand(BaseCommand[None]):
+class IngestArchiveMembersCommand(BaseCommand[None]):
     """
-    A command to extract members from an archive asset and ingest them.
+    A command to ingest members from an archive asset into the ECS world.
     """
 
     entity_id: int
