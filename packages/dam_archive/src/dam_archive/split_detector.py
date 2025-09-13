@@ -1,12 +1,15 @@
 import re
 from typing import List, NamedTuple, Optional, Pattern
 
+
 class SplitArchiveInfo(NamedTuple):
     """
     Information about a detected split archive part.
     """
+
     base_name: str
     part_num: int
+
 
 # List of regex patterns to detect split archives.
 # Each pattern must contain two capturing groups:
@@ -23,6 +26,7 @@ SPLIT_ARCHIVE_PATTERNS: List[Pattern[str]] = [
     # ZIP style: myarchive.z01
     re.compile(r"^(.*?)\.z(\d{2})$", re.IGNORECASE),
 ]
+
 
 def detect(filename: str) -> Optional[SplitArchiveInfo]:
     """

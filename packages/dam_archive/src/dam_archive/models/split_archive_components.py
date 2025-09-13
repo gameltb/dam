@@ -23,9 +23,7 @@ class SplitArchivePartInfoComponent(Component):
         default=None,
     )
 
-    __table_args__ = (
-        UniqueConstraint("entity_id", name="uq_split_archive_part_info_entity_id"),
-    )
+    __table_args__ = (UniqueConstraint("entity_id", name="uq_split_archive_part_info_entity_id"),)
 
 
 class SplitArchiveManifestComponent(Component):
@@ -38,6 +36,4 @@ class SplitArchiveManifestComponent(Component):
 
     part_entity_ids: Mapped[List[int]] = mapped_column(ARRAY(BigInteger), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("entity_id", name="uq_split_archive_manifest_entity_id"),
-    )
+    __table_args__ = (UniqueConstraint("entity_id", name="uq_split_archive_manifest_entity_id"),)

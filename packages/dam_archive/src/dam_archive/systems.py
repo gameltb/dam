@@ -1,6 +1,6 @@
 import io
 import logging
-from typing import Annotated, BinaryIO, List, Optional, cast
+from typing import IO, Annotated, BinaryIO, List, Optional, cast
 
 from dam.commands import (
     GetAssetFilenamesCommand,
@@ -52,7 +52,7 @@ async def discover_and_bind_handler(
     logger.info(f"Starting discovery and binding for paths: {cmd.paths}")
 
     # 1. Collect all filenames from the given paths
-    target_filenames = set()
+    target_filenames: set[str] = set()
     for p_str in cmd.paths:
         p = Path(p_str)
         if not p.exists():
@@ -66,9 +66,7 @@ async def discover_and_bind_handler(
             target_filenames.add(str(p))
 
     # 2. Find entities corresponding to these filenames
-    stmt = select(FilePropertiesComponent).where(
-        FilePropertiesComponent.original_filename.in_(target_filenames)
-    )
+    stmt = select(FilePropertiesComponent).where(FilePropertiesComponent.original_filename.in_(target_filenames))
     result = await transaction.session.execute(stmt)
     file_props_comps = result.scalars().all()
 
@@ -76,15 +74,16 @@ async def discover_and_bind_handler(
 
     # 3. Tag all found entities if they are split archive parts
     for props in file_props_comps:
-        split_info = split_detector.detect(props.original_filename)
-        if split_info:
-            existing_comp = await transaction.get_component(props.entity_id, SplitArchivePartInfoComponent)
-            if not existing_comp:
-                logger.info(f"Tagging '{props.original_filename}' as a split archive part.")
-                part_info_comp = SplitArchivePartInfoComponent(
-                    base_name=split_info.base_name, part_num=split_info.part_num
-                )
-                await transaction.add_component_to_entity(props.entity_id, part_info_comp)
+        if props.original_filename:
+            split_info = split_detector.detect(props.original_filename)
+            if split_info:
+                existing_comp = await transaction.get_component(props.entity_id, SplitArchivePartInfoComponent)
+                if not existing_comp:
+                    logger.info(f"Tagging '{props.original_filename}' as a split archive part.")
+                    part_info_comp = SplitArchivePartInfoComponent(
+                        base_name=split_info.base_name, part_num=split_info.part_num
+                    )
+                    await transaction.add_component_to_entity(props.entity_id, part_info_comp)
 
     # 4. Find all untagged parts and group them
     stmt_untagged = select(SplitArchivePartInfoComponent).where(
@@ -93,7 +92,7 @@ async def discover_and_bind_handler(
     result_untagged = await transaction.session.execute(stmt_untagged)
     untagged_parts = result_untagged.scalars().all()
 
-    parts_by_basename = {}
+    parts_by_basename: dict[str, List[SplitArchivePartInfoComponent]] = {}
     for part in untagged_parts:
         parts_by_basename.setdefault(part.base_name, []).append(part)
 
@@ -119,7 +118,9 @@ async def discover_and_bind_handler(
             first_part_entity_id = sorted_part_ids[0]
             mime_type_comp = await transaction.get_component(first_part_entity_id, MimeTypeComponent)
             if mime_type_comp:
-                await transaction.add_component_to_entity(master_entity.id, MimeTypeComponent(value=mime_type_comp.value))
+                await transaction.add_component_to_entity(
+                    master_entity.id, MimeTypeComponent(value=mime_type_comp.value)
+                )
 
             for part_comp in parts:
                 part_comp.master_entity_id = master_entity.id
@@ -156,7 +157,7 @@ async def create_master_archive_handler(
     # 3. Update all part components to link to the new master
     for part_id in cmd.part_entity_ids:
         file_props = await transaction.get_component(part_id, FilePropertiesComponent)
-        if not file_props:
+        if not file_props or not file_props.original_filename:
             logger.warning(f"Skipping part entity {part_id} as it has no file properties.")
             continue
 
@@ -353,9 +354,7 @@ async def _perform_ingestion(
                     member_entity, _ = command_result.get_one_value()
                     set_mime_cmd = SetMimeTypeFromBufferCommand(entity_id=member_entity.id, buffer=header)
                     await world.dispatch_command(set_mime_cmd)
-                    member_comp = ArchiveMemberComponent(
-                        archive_entity_id=entity_id, path_in_archive=member_file.name
-                    )
+                    member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
                     await transaction.add_component_to_entity(member_entity.id, member_comp)
                 if cmd.update_progress_callback:
                     cmd.update_progress_callback(member_file.size)
@@ -391,7 +390,7 @@ async def ingest_archive_members_handler(
     manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest_comp:
         logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams for ingestion.")
-        part_streams = []
+        part_streams: List[IO[bytes]] = []
         try:
             for part_entity_id in manifest_comp.part_entity_ids:
                 stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
@@ -402,7 +401,7 @@ async def ingest_archive_members_handler(
                 else:
                     raise ValueError(f"Stream for part {part_entity_id} is None")
             archive_stream = ChainedStream(part_streams)
-            await _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction)
+            await _perform_ingestion(cmd.entity_id, cast(BinaryIO, archive_stream), cmd, world, transaction)
         except (ValueError, FileNotFoundError) as e:
             logger.error(f"Could not get stream for split archive part: {e}")
             for s in part_streams:
@@ -412,9 +411,7 @@ async def ingest_archive_members_handler(
     # Case 2: The entity is a part of an already assembled split archive.
     part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
     if part_info and part_info.master_entity_id:
-        logger.info(
-            f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}."
-        )
+        logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
         await world.dispatch_command(IngestArchiveMembersCommand(entity_id=part_info.master_entity_id))
         return
 
