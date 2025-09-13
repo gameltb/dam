@@ -7,7 +7,7 @@ from dam.functions.mime_type_functions import set_entity_mime_type
 from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
-from dam_archive.commands import ExtractArchiveMembersCommand
+from dam_archive.commands import IngestArchiveMembersCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 
@@ -31,8 +31,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command
-    extract_cmd_reg = ExtractArchiveMembersCommand(entity_id=entity_id_reg)
-    await world.dispatch_command(extract_cmd_reg)
+    ingest_cmd_reg = IngestArchiveMembersCommand(entity_id=entity_id_reg)
+    await world.dispatch_command(ingest_cmd_reg)
 
     # 3. Verify the results for the regular archive
     async with world.db_session_maker() as session:
@@ -56,8 +56,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command with the correct password
-    extract_cmd_prot = ExtractArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
-    await world.dispatch_command(extract_cmd_prot)
+    ingest_cmd_prot = IngestArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
+    await world.dispatch_command(ingest_cmd_prot)
 
     # 3. Verify the results for the protected archive
     async with world.db_session_maker() as session:

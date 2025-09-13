@@ -133,7 +133,7 @@ class RarArchiveHandler(ArchiveHandler):
             if self.rar_file.infolist():
                 self.rar_file.infolist()[0].filename  # type: ignore
 
-        except rarfile.WrongPassword as e:  # type: ignore
+        except rarfile.RarWrongPassword as e:  # type: ignore
             raise InvalidPasswordError("Invalid password for rar file.") from e
         except rarfile.BadRarFile as e:
             raise IOError(f"Failed to open rar file: {e}") from e
