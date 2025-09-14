@@ -1,4 +1,5 @@
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.orm import declared_attr
 
 
 class UniqueComponentMixin:
@@ -10,4 +11,6 @@ class UniqueComponentMixin:
     table-specific name based on the `uq` key in the convention dictionary.
     """
 
-    __table_args__ = (UniqueConstraint("entity_id"),)
+    @declared_attr.directive
+    def __table_args__(cls):
+        return (UniqueConstraint("entity_id"),)

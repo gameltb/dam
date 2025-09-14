@@ -38,7 +38,6 @@ def backup_original_settings() -> Generator[None, None, None]:
     _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
     _original_settings_values["worlds"] = global_settings.worlds.copy()
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
-    _original_settings_values["TESTING_MODE"] = global_settings.TESTING_MODE
     yield
 
 
@@ -110,20 +109,17 @@ def settings_override(
     new_settings = Settings(
         DAM_WORLDS_CONFIG=json.dumps(updated_test_worlds_config),
         DEFAULT_WORLD_NAME=default_test_world_name,
-        TESTING_MODE=True,
     )
 
     monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", new_settings.DAM_WORLDS_CONFIG)
     monkeypatch.setattr(global_settings, "worlds", new_settings.worlds)
     monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", new_settings.DEFAULT_WORLD_NAME)
-    monkeypatch.setattr(global_settings, "TESTING_MODE", new_settings.TESTING_MODE)
 
     clear_world_registry()
     yield new_settings
     monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", _original_settings_values["DAM_WORLDS_CONFIG"])
     monkeypatch.setattr(global_settings, "worlds", _original_settings_values["worlds"])
     monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", _original_settings_values["DEFAULT_WORLD_NAME"])
-    monkeypatch.setattr(global_settings, "TESTING_MODE", _original_settings_values["TESTING_MODE"])
     clear_world_registry()
 
 
