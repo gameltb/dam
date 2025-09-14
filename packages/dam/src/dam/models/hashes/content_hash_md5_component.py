@@ -6,9 +6,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.base_component import BaseComponent
+from ..core.component_mixins import UniqueComponentMixin
 
 
-class ContentHashMD5Component(BaseComponent):
+class ContentHashMD5Component(UniqueComponentMixin, BaseComponent):
     """
     Stores MD5 content-based hashes (16 bytes) for an entity.
     """
@@ -18,7 +19,7 @@ class ContentHashMD5Component(BaseComponent):
     # MD5 hash is 16 bytes (128 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(16), index=True, nullable=False)
 
-    __table_args__ = (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_md5_entity_hash"),
         CheckConstraint("length(hash_value) = 16", name="cc_content_hash_md5_hash_value_length"),
     )

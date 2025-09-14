@@ -1,6 +1,5 @@
 import logging
 
-from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
 from dam.core.plugin import Plugin
 from dam.core.world import World
@@ -35,7 +34,6 @@ class CorePlugin(Plugin):
 
         db_manager = DatabaseManager(
             world_config=world_config,
-            testing_mode=global_app_settings.TESTING_MODE,
         )
         resource_manager.add_resource(db_manager, DatabaseManager)
         world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")

@@ -4,10 +4,11 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
 
 
 @dataclass
-class MimeTypeComponent(BaseComponent):
+class MimeTypeComponent(UniqueComponentMixin, BaseComponent):
     __tablename__ = "component_mime_type"
     """
     A component that stores the mime type of an asset.

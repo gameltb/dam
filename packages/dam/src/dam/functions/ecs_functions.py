@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type 
 
 # Corrected imports for BaseComponent and Entity
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
 from dam.models.core.entity import Entity
 
 # No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
@@ -60,11 +61,21 @@ async def add_component_to_entity(
     Returns:
         The added component instance.
     Raises:
-        ValueError: If the entity is not found.
+        ValueError: If the entity is not found, or if a unique component of the same type already exists.
     """
-    entity = await get_entity(session, entity_id)  # Await async call
+    entity = await get_entity(session, entity_id)
     if not entity:
         raise ValueError(f"Entity with ID {entity_id} not found in the provided session.")
+
+    component_type = type(component_instance)
+    # Check if the component is a subclass of UniqueComponentMixin
+    if issubclass(component_type, UniqueComponentMixin):
+        # If it is unique, check if one already exists for this entity
+        existing_component = await get_component(session, entity_id, component_type)
+        if existing_component:
+            raise ValueError(
+                f"Cannot add another instance of unique component '{component_type.__name__}' to entity {entity_id}."
+            )
 
     component_instance.entity_id = entity.id
     component_instance.entity = entity  # Link in ORM

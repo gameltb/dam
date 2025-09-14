@@ -4,9 +4,10 @@ from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core import BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
 
 
-class ContentLengthComponent(BaseComponent):
+class ContentLengthComponent(UniqueComponentMixin, BaseComponent):
     """
     Stores the size of the asset's content in bytes.
     """
