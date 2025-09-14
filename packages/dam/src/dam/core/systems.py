@@ -23,6 +23,7 @@ from dam.core.events import BaseEvent
 from dam.core.resources import ResourceNotFoundError
 from dam.core.result import HandlerResult
 from dam.core.stages import SystemStage
+from dam.core.streaming import StreamingEvent
 from dam.core.transaction import EcsTransaction
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
@@ -297,7 +298,7 @@ class WorldScheduler:
 
     async def dispatch_streaming_command(
         self, command: BaseCommand[Any], transaction: EcsTransaction
-    ) -> AsyncGenerator[Any, None]:
+    ) -> AsyncGenerator[StreamingEvent, None]:
         """
         Dispatches a command that is expected to be handled by a single system
         that returns an AsyncGenerator.
@@ -320,7 +321,9 @@ class WorldScheduler:
         result = await self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
 
         if not isinstance(result, AsyncGenerator):
-            self.logger.error(f"Handler {handler_func.__name__} for command {command_type.__name__} did not return an AsyncGenerator.")
+            self.logger.error(
+                f"Handler {handler_func.__name__} for command {command_type.__name__} did not return an AsyncGenerator."
+            )
             raise TypeError(f"Handler for command {command_type.__name__} did not return an AsyncGenerator.")
 
         return result

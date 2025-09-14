@@ -9,7 +9,7 @@ from dam_archive.exceptions import PasswordRequiredError
 from dam_archive.models import ArchiveInfoComponent
 from dam_archive.registry import MIME_TYPE_HANDLERS
 from sqlalchemy import select
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 from typing_extensions import Annotated
 
 from dam_app.state import get_world
@@ -64,11 +64,12 @@ async def process_archives(
 
         processing_failed = False
         while not processing_failed:
-            async with target_world.transaction() as transaction:
+            async with target_world.transaction():
                 cmd = IngestArchiveMembersCommand(entity_id=entity_id, passwords=known_passwords)
-                pbar: Optional[tqdm[None]] = None
+                pbar: Optional[tqdm] = None
                 try:
-                    async for event in target_world.dispatch_streaming_command(cmd, transaction):
+                    stream = await target_world.dispatch_streaming_command(cmd)
+                    async for event in stream:
                         match event:
                             case StreamStarted():
                                 pass
@@ -109,6 +110,9 @@ async def process_archives(
                                     f"  Successfully processed archive {entity_id}. {message or ''}",
                                     fg=typer.colors.GREEN,
                                 )
+                            case _:
+                                pass
+
                         if processing_failed:
                             break  # Stop processing events for this archive
                     else:

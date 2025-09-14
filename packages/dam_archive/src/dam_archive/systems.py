@@ -14,9 +14,9 @@ from dam.core.commands import GetOrCreateEntityFromStreamCommand
 from dam.core.streaming import (
     StreamCompleted,
     StreamError,
+    StreamingEvent,
     StreamProgress,
     StreamStarted,
-    StreamingEvent,
 )
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
@@ -443,7 +443,11 @@ async def ingest_archive_members_handler(
                     raise ValueError(f"Stream for part {part_entity_id} is None")
             archive_stream = ChainedStream(part_streams)
             # Directly return the generator from _perform_ingestion
-            return _perform_ingestion(cmd.entity_id, cast(BinaryIO, archive_stream), cmd, world, transaction)
+            async for event in _perform_ingestion(
+                cmd.entity_id, cast(BinaryIO, archive_stream), cmd, world, transaction
+            ):
+                yield event
+            return
         except (ValueError, FileNotFoundError) as e:
             logger.error(f"Could not get stream for split archive part: {e}")
             for s in part_streams:
@@ -456,7 +460,8 @@ async def ingest_archive_members_handler(
     if part_info and part_info.master_entity_id:
         logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
         redirect_cmd = IngestArchiveMembersCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
-        async for event in world.dispatch_streaming_command(redirect_cmd, transaction):
+        stream = await world.dispatch_streaming_command(redirect_cmd)
+        async for event in stream:
             yield event
         return
 
@@ -476,7 +481,9 @@ async def ingest_archive_members_handler(
         archive_stream_result = await world.dispatch_command(archive_stream_cmd)
         archive_stream = archive_stream_result.get_first_non_none_value()
         if archive_stream:
-            return _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction)
+            async for event in _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction):
+                yield event
+            return
         else:
             err_msg = f"Could not get stream for single-file archive {cmd.entity_id}"
             logger.error(err_msg)
