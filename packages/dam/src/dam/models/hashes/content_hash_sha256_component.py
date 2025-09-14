@@ -19,7 +19,7 @@ class ContentHashSHA256Component(UniqueComponentMixin, BaseComponent):
     # SHA256 hash is 32 bytes (256 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint(
             "hash_value", name="uq_sha256_hash_value"
         ),  # Hash values themselves are unique across all components

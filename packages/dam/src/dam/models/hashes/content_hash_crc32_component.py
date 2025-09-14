@@ -19,7 +19,7 @@ class ContentHashCRC32Component(UniqueComponentMixin, BaseComponent):
     # CRC32 hash is 4 bytes (32 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(4), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_crc32_entity_hash"),
         CheckConstraint("length(hash_value) = 4", name="cc_content_hash_crc32_hash_value_length"),
     )

@@ -44,7 +44,7 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
         comment="Indicates if this is the primary or preferred variant for the comic book concept.",
     )
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint(
             "conceptual_entity_id",
             "language",
