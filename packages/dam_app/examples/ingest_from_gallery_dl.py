@@ -42,7 +42,8 @@ from dam.models import (
     ContentHashSHA256Component,
     Entity,
     FileLocationComponent,
-    FilePropertiesComponent,
+    FilenameComponent,
+    ContentLengthComponent,
     NeedsMetadataExtractionComponent,
     OriginalSourceInfoComponent,
     WebsiteProfileComponent,  # Needed if creating website entities
@@ -162,13 +163,20 @@ async def ingest_gallery_dl_asset_async(
             chc_md5 = ContentHashMD5Component(entity=entity, hash_value=md5_hash_bytes)
             ecs_service.add_component_to_entity(session, entity.id, chc_md5)
 
-            # Add FilePropertiesComponent
-            fpc = FilePropertiesComponent(
+            # Add FilenameComponent and ContentLengthComponent
+            from datetime import datetime, timezone
+            fnc = FilenameComponent(
                 entity=entity,
-                original_filename=actual_filename,  # Name of the downloaded file
+                filename=actual_filename,
+                first_seen_at=datetime.fromtimestamp(downloaded_filepath.stat().st_mtime, tz=timezone.utc),
+            )
+            ecs_service.add_component_to_entity(session, entity.id, fnc)
+
+            clc = ContentLengthComponent(
+                entity=entity,
                 file_size_bytes=size_bytes,
             )
-            ecs_service.add_component_to_entity(session, entity.id, fpc)
+            ecs_service.add_component_to_entity(session, entity.id, clc)
 
             # Add FileLocationComponent (DAM managed storage)
             flc = FileLocationComponent(

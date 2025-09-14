@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Generator, Optional
 from unittest.mock import AsyncMock
@@ -10,7 +11,7 @@ from dam.core.result import HandlerResult
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
-from dam_fs.models import FilePropertiesComponent
+from dam_fs.models import FilenameComponent
 from pytest_mock import MockerFixture
 
 from dam_psp import psp_iso_functions
@@ -119,8 +120,8 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
                 return None
             if component_type == ArchiveMemberComponent:
                 return None
-            if component_type == FilePropertiesComponent:
-                return FilePropertiesComponent(original_filename="test.iso", file_size_bytes=0)
+            if component_type == FilenameComponent:
+                return FilenameComponent(filename="test.iso", first_seen_at=datetime.now(timezone.utc))
         elif entity_id == archived_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
@@ -131,8 +132,8 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
                 return None
             if component_type == ArchiveMemberComponent:
                 return None
-            if component_type == FilePropertiesComponent:
-                return FilePropertiesComponent(original_filename="text.txt", file_size_bytes=0)
+            if component_type == FilenameComponent:
+                return FilenameComponent(filename="text.txt", first_seen_at=datetime.now(timezone.utc))
         return None
 
     mock_transaction.get_component.side_effect = get_component_side_effect

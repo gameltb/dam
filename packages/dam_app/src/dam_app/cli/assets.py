@@ -80,7 +80,7 @@ async def add_assets(
             try:
                 mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
                 pre_check_cmd = FindEntityByFilePropertiesCommand(
-                    file_path=file_path.as_uri(), file_modified_at=mod_time
+                    file_path=file_path.as_uri(), last_modified_at=mod_time
                 )
                 cmd_result = await target_world.dispatch_command(pre_check_cmd)
                 existing_entity_id = cmd_result.get_one_value()

@@ -1,7 +1,7 @@
 from .file_location_component import FileLocationComponent
-from .file_properties_component import FilePropertiesComponent
+from .filename_component import FilenameComponent
 
 __all__ = [
     "FileLocationComponent",
-    "FilePropertiesComponent",
+    "FilenameComponent",
 ]

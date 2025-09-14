@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 from pathlib import Path
 from typing import Optional, Tuple
@@ -9,11 +10,12 @@ from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam.models.metadata.content_length_component import ContentLengthComponent
 
 from dam_fs.utils.url_utils import get_local_path_for_url
 
 from ..models.file_location_component import FileLocationComponent
-from ..models.file_properties_component import FilePropertiesComponent
+from ..models.filename_component import FilenameComponent
 from ..resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
@@ -112,40 +114,50 @@ async def get_mime_type_async(filepath: Path) -> str:
 
 async def create_entity_with_file(transaction: EcsTransaction, world_config: WorldConfig, file_path: str) -> Entity:
     """
-    Creates an entity for a given file path, with FileLocationComponent and FilePropertiesComponent.
+    Creates an entity for a given file path, with file-related components.
+    Note: This is a simplified helper and does not perform content-based deduplication.
     """
     p_file_path = Path(file_path)
     entity = await ecs_functions.create_entity(transaction.session)
 
+    file_stat = p_file_path.stat()
+    mod_time = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc).replace(microsecond=0)
+
     # Add FileLocationComponent
-    # For now, we only support local files. The URL will be a file URI.
     file_url = p_file_path.as_uri()
     location_component = FileLocationComponent(
         url=file_url,
+        last_modified_at=mod_time,
     )
     await ecs_functions.add_component_to_entity(transaction.session, entity.id, location_component)
 
-    # Add FilePropertiesComponent
-    original_filename, file_size_bytes = await get_file_properties_async(p_file_path)
-    properties_component = FilePropertiesComponent(
-        original_filename=original_filename,
-        file_size_bytes=file_size_bytes,
+    # Add FilenameComponent
+    filename_component = FilenameComponent(
+        filename=p_file_path.name,
+        first_seen_at=mod_time,
     )
-    await ecs_functions.add_component_to_entity(transaction.session, entity.id, properties_component)
+    await ecs_functions.add_component_to_entity(transaction.session, entity.id, filename_component)
+
+    # Add ContentLengthComponent
+    content_length_component = ContentLengthComponent(
+        file_size_bytes=file_stat.st_size,
+    )
+    await ecs_functions.add_component_to_entity(transaction.session, entity.id, content_length_component)
 
     return entity
 
 
 async def get_file_path_by_id(world: World, transaction: EcsTransaction, file_id: int) -> Optional[Path]:
     """
-    Resolves a file_id (which is the ID of a FilePropertiesComponent) to a local, accessible file path.
+    Resolves a file_id (which is the ID of a FilenameComponent) to a local, accessible file path.
+    TODO: This function is fragile as it assumes file_id is a component ID. Refactor to use entity_id.
     """
-    fpc = await transaction.get_component(file_id, FilePropertiesComponent)
-    if not fpc:
-        logger.warning(f"Could not find FilePropertiesComponent with ID {file_id}.")
+    fnc = await transaction.get_component(file_id, FilenameComponent)
+    if not fnc:
+        logger.warning(f"Could not find FilenameComponent with ID {file_id}.")
         return None
 
-    return await get_file_path_for_entity(world, transaction, fpc.entity_id)
+    return await get_file_path_for_entity(world, transaction, fnc.entity_id)
 
 
 async def get_file_path_for_entity(

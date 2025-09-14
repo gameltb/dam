@@ -17,7 +17,7 @@ from dam.core.world import World
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import FindEntityByFilePropertiesCommand
-from dam_fs.models import FilePropertiesComponent
+from dam_fs.models import FilenameComponent
 from sqlalchemy import select
 
 from . import split_detector
@@ -107,7 +107,7 @@ async def discover_and_bind_handler(
                 modified_at = modified_at.replace(microsecond=0)  # Truncate to second
 
                 # Dispatch command to find entity
-                find_cmd = FindEntityByFilePropertiesCommand(file_path=file_uri, file_modified_at=modified_at)
+                find_cmd = FindEntityByFilePropertiesCommand(file_path=file_uri, last_modified_at=modified_at)
                 result = await world.dispatch_command(find_cmd)
                 entity_id = result.get_one_value()
 
@@ -145,7 +145,7 @@ async def create_master_archive_handler(
     master_entity = await transaction.create_entity()
     await transaction.add_component_to_entity(
         master_entity.id,
-        FilePropertiesComponent(original_filename=cmd.name),
+        FilenameComponent(filename=cmd.name, first_seen_at=datetime.now(timezone.utc)),
     )
     manifest = SplitArchiveManifestComponent()
     await transaction.add_component_to_entity(master_entity.id, manifest)
@@ -159,12 +159,12 @@ async def create_master_archive_handler(
 
     # 3. Update all part components to link to the new master
     for part_id in cmd.part_entity_ids:
-        file_props = await transaction.get_component(part_id, FilePropertiesComponent)
-        if not file_props or not file_props.original_filename:
-            logger.warning(f"Skipping part entity {part_id} as it has no file properties.")
+        fnc = await transaction.get_component(part_id, FilenameComponent)
+        if not fnc or not fnc.filename:
+            logger.warning(f"Skipping part entity {part_id} as it has no filename component.")
             continue
 
-        split_info = split_detector.detect(file_props.original_filename)
+        split_info = split_detector.detect(fnc.filename)
         if not split_info:
             logger.warning(f"Skipping part entity {part_id} as it does not look like a split archive part.")
             continue
