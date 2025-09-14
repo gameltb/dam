@@ -12,6 +12,7 @@ from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_source.models.source_info import source_types
 from dam_source.models.source_info.original_source_info_component import (
     OriginalSourceInfoComponent,
@@ -26,7 +27,7 @@ from ..commands import (
     StoreAssetsCommand,
 )
 from ..models.file_location_component import FileLocationComponent
-from ..models.file_properties_component import FilePropertiesComponent
+from ..models.filename_component import FilenameComponent
 from ..resources.file_storage_resource import FileStorageResource
 
 logger = logging.getLogger(__name__)
@@ -38,8 +39,14 @@ async def add_file_properties_handler(
     transaction: EcsTransaction,
 ) -> None:
     logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
-    fpc = FilePropertiesComponent(original_filename=cmd.original_filename, file_size_bytes=cmd.size_bytes)
-    await transaction.add_component_to_entity(cmd.entity_id, fpc)
+
+    # Add FilenameComponent
+    fnc = FilenameComponent(filename=cmd.original_filename, first_seen_at=cmd.modified_at)
+    await transaction.add_component_to_entity(cmd.entity_id, fnc)
+
+    # Add ContentLengthComponent
+    clc = ContentLengthComponent(file_size_bytes=cmd.size_bytes)
+    await transaction.add_component_to_entity(cmd.entity_id, clc)
 
 
 @system(on_command=FindEntityByHashCommand)
@@ -66,9 +73,9 @@ async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: EcsTransaction,
 ) -> Optional[List[str]]:
-    file_props = await transaction.get_components(cmd.entity_id, FilePropertiesComponent)
-    if file_props:
-        return [file_prop.original_filename for file_prop in file_props if file_prop.original_filename is not None]
+    fncs = await transaction.get_components(cmd.entity_id, FilenameComponent)
+    if fncs:
+        return [fnc.filename for fnc in fncs if fnc.filename is not None]
     return None
 
 
@@ -77,33 +84,58 @@ async def register_local_file_handler(
     cmd: RegisterLocalFileCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-) -> int:
+) -> Optional[int]:
     file_path = cmd.file_path
+    file_uri = file_path.as_uri()
+
+    try:
+        file_stat = file_path.stat()
+        current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc).replace(
+            microsecond=0
+        )
+        current_size = file_stat.st_size
+    except FileNotFoundError:
+        logger.warning(f"File not found during registration: {file_path}")
+        return None
+
+    # Check if we've seen this file location before and if it's modified
+    stmt = select(FileLocationComponent).where(FileLocationComponent.url == file_uri)
+    existing_flc = (await transaction.session.execute(stmt)).scalar_one_or_none()
+
+    if existing_flc and existing_flc.last_modified_at == current_mtime:
+        logger.info(f"File '{file_path}' is unchanged since last scan. Skipping.")
+        return existing_flc.entity_id
+
+    # File is new or modified, proceed with hash-based entity creation/retrieval
     with open(file_path, "rb") as f:
         get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=f)
         command_result = await world.dispatch_command(get_or_create_cmd)
-
     entity, _ = command_result.get_one_value()
 
     async with transaction.session.begin_nested():
-        existing_fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
-        if not existing_fpc:
-            mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
-            mod_time = mod_time.replace(microsecond=0)  # Truncate to second
-            fpc = FilePropertiesComponent(
-                original_filename=file_path.name,
-                file_size_bytes=file_path.stat().st_size,
-                file_modified_at=mod_time,
-            )
-            await transaction.add_component_to_entity(entity.id, fpc)
-
-        file_uri = file_path.as_uri()
-        existing_flcs = await transaction.get_components_by_value(entity.id, FileLocationComponent, {"url": file_uri})
-        if not existing_flcs:
-            flc = FileLocationComponent(url=file_uri)
+        # Update FileLocationComponent
+        if existing_flc:
+            existing_flc.last_modified_at = current_mtime
+        else:
+            flc = FileLocationComponent(url=file_uri, last_modified_at=current_mtime)
             await transaction.add_component_to_entity(entity.id, flc)
             osi = OriginalSourceInfoComponent(source_type=source_types.SOURCE_TYPE_LOCAL_FILE)
             await transaction.add_component_to_entity(entity.id, osi)
+
+        # Add ContentLengthComponent if it doesn't exist
+        if not await transaction.get_component(entity.id, ContentLengthComponent):
+            clc = ContentLengthComponent(file_size_bytes=current_size)
+            await transaction.add_component_to_entity(entity.id, clc)
+
+        # Add or update FilenameComponent
+        existing_fnc = await transaction.get_component(entity.id, FilenameComponent)
+        if not existing_fnc:
+            fnc = FilenameComponent(filename=file_path.name, first_seen_at=current_mtime)
+            await transaction.add_component_to_entity(entity.id, fnc)
+        elif existing_fnc.first_seen_at and current_mtime < existing_fnc.first_seen_at:
+            # We found an earlier instance of this filename, update the timestamp
+            existing_fnc.first_seen_at = current_mtime
+
     return entity.id
 
 
@@ -114,12 +146,8 @@ async def find_entity_by_file_properties_handler(
 ) -> Optional[int]:
     stmt = (
         select(FileLocationComponent.entity_id)
-        .join(
-            FilePropertiesComponent,
-            FileLocationComponent.entity_id == FilePropertiesComponent.entity_id,
-        )
         .where(FileLocationComponent.url == cmd.file_path)
-        .where(FilePropertiesComponent.file_modified_at == cmd.file_modified_at)
+        .where(FileLocationComponent.last_modified_at == cmd.last_modified_at)
         .limit(1)
     )
     result = await transaction.session.execute(stmt)

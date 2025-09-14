@@ -14,7 +14,7 @@ from .commands import SemanticSearchCommand
 logger = logging.getLogger(__name__)
 
 TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
-    "FilePropertiesComponent": ["original_filename"],
+    "FilenameComponent": ["filename"],
     "TagConceptComponent": ["concept_name", "concept_description"],
     "CharacterConceptComponent": ["concept_name", "concept_description"],
 }

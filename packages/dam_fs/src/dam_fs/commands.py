@@ -15,6 +15,7 @@ class AddFilePropertiesCommand(BaseCommand[None]):
     entity_id: int
     original_filename: str
     size_bytes: int
+    modified_at: datetime
 
 
 @dataclass
@@ -46,7 +47,7 @@ class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int]]):
     """
 
     file_path: str
-    file_modified_at: datetime
+    last_modified_at: datetime
 
 
 @dataclass

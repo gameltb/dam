@@ -6,7 +6,7 @@ from dam.core.world import World
 from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
-from dam_fs.models import FilePropertiesComponent  # For creating dummy assets
+from dam_fs.models import FilenameComponent  # For creating dummy assets
 
 
 @pytest.mark.asyncio  # Added async marker
@@ -77,10 +77,17 @@ async def test_cli_character_apply_list_find(  # Made async
     asset_id: Optional[int] = None
     asset_filename = "asset_for_char_link_service.txt"
     async with test_world_alpha.db_session_maker() as session:
+        from datetime import datetime, timezone
+
+        from dam.models.metadata.content_length_component import ContentLengthComponent
+
         asset_entity = await ecs_service.create_entity(session)
         await ecs_service.add_component_to_entity(
-            session, asset_entity.id, FilePropertiesComponent(original_filename=asset_filename)
+            session,
+            asset_entity.id,
+            FilenameComponent(filename=asset_filename, first_seen_at=datetime.now(timezone.utc)),
         )
+        await ecs_service.add_component_to_entity(session, asset_entity.id, ContentLengthComponent(file_size_bytes=100))
         await session.commit()
         asset_id = asset_entity.id
     assert asset_id is not None
@@ -121,9 +128,9 @@ async def test_cli_character_apply_list_find(  # Made async
         linked_assets = await character_service.get_entities_for_character(session, char_id)
         assert len(linked_assets) == 1
         assert linked_assets[0].id == asset_id
-        fpc = await ecs_service.get_component(session, linked_assets[0].id, FilePropertiesComponent)
-        assert fpc is not None
-        assert fpc.original_filename == asset_filename
+        fnc = await ecs_service.get_component(session, linked_assets[0].id, FilenameComponent)
+        assert fnc is not None
+        assert fnc.filename == asset_filename
 
     # 6. Find assets for character with role filter (using service call)
     async with test_world_alpha.db_session_maker() as session:
@@ -179,7 +186,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
 
     async with test_world_alpha.db_session_maker() as session:
         entities = await ecs_service.find_entities_by_component_attribute_value(
-            session, FilePropertiesComponent, "original_filename", sample_image_a.name
+            session, FilenameComponent, "filename", sample_image_a.name
         )
         assert len(entities) == 1
         asset_entity = entities[0]

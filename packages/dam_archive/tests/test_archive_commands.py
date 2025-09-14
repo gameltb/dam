@@ -74,16 +74,20 @@ async def test_manual_create_and_unbind_workflow(
 
     # 1. Setup: Manually create part entities
     async with world.db_session_maker() as session:
+        from datetime import datetime, timezone
+
         from dam.core.transaction import EcsTransaction
-        from dam_fs.models import FilePropertiesComponent
+        from dam.models.metadata.content_length_component import ContentLengthComponent
+        from dam_fs.models import FilenameComponent
 
         transaction = EcsTransaction(session)
         for i in range(1, 3):
             entity = await transaction.create_entity()
             entity_ids.append(entity.id)
             await transaction.add_component_to_entity(
-                entity.id, FilePropertiesComponent(original_filename=f"manual.part{i}.rar")
+                entity.id, FilenameComponent(filename=f"manual.part{i}.rar", first_seen_at=datetime.now(timezone.utc))
             )
+            await transaction.add_component_to_entity(entity.id, ContentLengthComponent(file_size_bytes=100))
         await session.commit()
 
     # 2. Action: Create the master entity manually

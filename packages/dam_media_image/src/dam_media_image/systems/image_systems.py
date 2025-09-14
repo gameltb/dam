@@ -6,7 +6,7 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
-from dam_fs.models.file_properties_component import FilePropertiesComponent
+from dam_fs.models.filename_component import FilenameComponent
 
 from ..commands import FindSimilarImagesCommand
 from ..events import ImageAssetDetected
@@ -83,11 +83,11 @@ async def handle_find_similar_images_command(
                     if distance <= cmd.phash_threshold:
                         entity = await transaction.get_entity(p_comp.entity_id)
                         if entity:
-                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
+                            fnc = await transaction.get_component(entity.id, FilenameComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
-                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "original_filename": fnc.filename if fnc else "N/A",
                                     "match_type": "phash_match",
                                     "distance": distance,
                                     "hash_type": "phash",
@@ -110,11 +110,11 @@ async def handle_find_similar_images_command(
                     if distance <= cmd.ahash_threshold:
                         entity = await transaction.get_entity(a_comp.entity_id)
                         if entity:
-                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
+                            fnc = await transaction.get_component(entity.id, FilenameComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
-                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "original_filename": fnc.filename if fnc else "N/A",
                                     "match_type": "ahash_match",
                                     "distance": distance,
                                     "hash_type": "ahash",
@@ -137,11 +137,11 @@ async def handle_find_similar_images_command(
                     if distance <= cmd.dhash_threshold:
                         entity = await transaction.get_entity(d_comp.entity_id)
                         if entity:
-                            fpc = await transaction.get_component(entity.id, FilePropertiesComponent)
+                            fnc = await transaction.get_component(entity.id, FilenameComponent)
                             potential_matches.append(
                                 {
                                     "entity_id": entity.id,
-                                    "original_filename": fpc.original_filename if fpc else "N/A",
+                                    "original_filename": fnc.filename if fnc else "N/A",
                                     "match_type": "dhash_match",
                                     "distance": distance,
                                     "hash_type": "dhash",

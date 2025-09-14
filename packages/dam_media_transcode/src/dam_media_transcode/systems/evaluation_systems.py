@@ -5,7 +5,8 @@ from dam.core.exceptions import EntityNotFoundError
 from dam.core.world import World
 from dam.functions import ecs_functions, tag_functions
 from dam.models.core.entity import Entity
-from dam_fs.models.file_properties_component import FilePropertiesComponent
+from dam.models.metadata.content_length_component import ContentLengthComponent
+from dam_fs.models.filename_component import FilenameComponent
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -248,12 +249,12 @@ async def execute_evaluation_run(
                     # this would be necessary. However, current code below only fetches FPC by ID.
 
                     # Use ecs_functions.get_component with entity_id
-                    fpc = await ecs_functions.get_component(
+                    clc = await ecs_functions.get_component(
                         session,
                         transcoded_asset_entity.id,
-                        FilePropertiesComponent,  # type: ignore
+                        ContentLengthComponent,
                     )
-                    file_size = fpc.file_size_bytes if fpc else None  # type: ignore
+                    file_size = clc.file_size_bytes if clc else None
 
                     vmaf = None
                     ssim = None
@@ -328,15 +329,15 @@ async def get_evaluation_results(
 
         formatted_results: list[dict[str, Any]] = []
         for res_comp, prof_comp, transcoded_entity_obj in db_results:  # type: ignore
-            # Fetch FilePropertiesComponent for the original asset
-            orig_fpc = await ecs_functions.get_component(
-                db_session, res_comp.original_asset_entity_id, FilePropertiesComponent
-            )  # type: ignore
-            original_filename = orig_fpc.original_filename if orig_fpc else "N/A"  # type: ignore
+            # Fetch FilenameComponent for the original asset
+            orig_fnc = await ecs_functions.get_component(
+                db_session, res_comp.original_asset_entity_id, FilenameComponent
+            )
+            original_filename = orig_fnc.filename if orig_fnc else "N/A"
 
-            # Fetch FilePropertiesComponent for the transcoded asset
-            trans_fpc = await ecs_functions.get_component(db_session, transcoded_entity_obj.id, FilePropertiesComponent)  # type: ignore
-            transcoded_filename = trans_fpc.original_filename if trans_fpc else "N/A"
+            # Fetch FilenameComponent for the transcoded asset
+            trans_fnc = await ecs_functions.get_component(db_session, transcoded_entity_obj.id, FilenameComponent)
+            transcoded_filename = trans_fnc.filename if trans_fnc else "N/A"
 
             # TranscodedVariantComponent is not directly used in the loop for constructing formatted_results,
             # so no need to fetch it separately unless its fields were to be added to the report.

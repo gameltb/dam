@@ -20,6 +20,7 @@ from .hashes.content_hash_md5_component import ContentHashMD5Component
 from .hashes.content_hash_sha256_component import ContentHashSHA256Component
 
 # Metadata components
+from .metadata.content_length_component import ContentLengthComponent
 from .metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 
 # Property components
@@ -45,6 +46,7 @@ __all__ = [
     "ContentHashSHA256Component",
     # Properties
     # Metadata
+    "ContentLengthComponent",
     "ExiftoolMetadataComponent",
     # Source Info
     # Conceptual (Concrete Components and Association Objects)
