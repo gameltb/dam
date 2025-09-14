@@ -7,7 +7,7 @@ import pytest_asyncio
 from dam.core.config import Settings
 from dam.core.world import World
 from dam_fs.plugin import FsPlugin
-from dam_test_utils.fixtures import _setup_world, _teardown_world_async
+from dam_test_utils.fixtures import _setup_world, _teardown_world_async  # type: ignore
 
 from dam_archive.plugin import ArchivePlugin
 

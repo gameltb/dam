@@ -19,7 +19,7 @@ class ContentHashMD5Component(UniqueComponentMixin, BaseComponent):
     # MD5 hash is 16 bytes (128 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(16), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_md5_entity_hash"),
         CheckConstraint("length(hash_value) = 16", name="cc_content_hash_md5_hash_value_length"),
     )

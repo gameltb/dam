@@ -18,7 +18,7 @@ class ContentHashBLAKE3Component(UniqueComponentMixin, BaseComponent):
 
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_blake3_entity_hash"),
         CheckConstraint("length(hash_value) = 32", name="cc_content_hash_blake3_hash_value_length"),
     )

@@ -19,7 +19,7 @@ class ContentHashSHA1Component(UniqueComponentMixin, BaseComponent):
     # SHA1 hash is 20 bytes (160 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(20), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (
+    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_sha1_entity_hash"),
         CheckConstraint("length(hash_value) = 20", name="cc_content_hash_sha1_hash_value_length"),
     )
