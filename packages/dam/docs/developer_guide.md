@@ -71,11 +71,74 @@ If the new system is not a good fit for an existing plugin, create a new plugin 
 
 ### 4.3. Adding a New Component
 
-The process for adding a new component is as follows:
-1.  **Define the Component:** Create a new component class in the appropriate plugin package (e.g., `dam_media_image/models/`).
-2.  **Register the Component:** Ensure the component is imported in the `__init__.py` of its package so that SQLAlchemy is aware of it.
-3.  **Create a System:** Create a system to operate on the new component.
-4.  **Register the System:** Register the system in the plugin's `build` method.
+When defining a component, you must decide if an entity can have multiple instances of it or only one.
+
+#### 4.3.1. Standard (Multi-Instance) Components
+
+These are the default. An entity can have many of these components attached. For example, an entity could have multiple `EntityTagLinkComponent` components, linking it to various tags.
+
+To create a standard component, simply inherit from `BaseComponent`.
+
+```python
+from dam.models.core import BaseComponent
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String
+
+class MyStandardComponent(BaseComponent):
+    __tablename__ = "my_standard_component"
+    some_data: Mapped[str] = mapped_column(String)
+```
+
+#### 4.3.2. Unique Components
+
+A unique component is a component of which there can be only **one** instance per entity. For example, an entity can only have one `MimeTypeComponent`. This uniqueness is enforced at both the application and database level.
+
+To create a unique component, inherit from `UniqueComponentMixin` in addition to `BaseComponent`.
+
+**Example: Simple Unique Component**
+
+For a component that has no other table arguments, simply add the mixin.
+
+```python
+from dam.models.core import BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Integer
+
+class MyUniqueComponent(UniqueComponentMixin, BaseComponent):
+    __tablename__ = "my_unique_component"
+    some_value: Mapped[int] = mapped_column(Integer)
+```
+
+**Example: Unique Component with other Table Arguments**
+
+If your component needs to define its own `__table_args__` (e.g., for other constraints), you must define them using the `@declared_attr` pattern so they can be combined with the constraint from the `UniqueComponentMixin`.
+
+```python
+from sqlalchemy import CheckConstraint, String
+from sqlalchemy.orm import Mapped, mapped_column, declared_attr
+from dam.models.core import BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
+
+class MyComplexUniqueComponent(UniqueComponentMixin, BaseComponent):
+    __tablename__ = "my_complex_unique_component"
+
+    name: Mapped[str] = mapped_column(String)
+    value: Mapped[int] = mapped_column(Integer)
+
+    @declared_attr.directive
+    def __table_args__(cls):
+        # Get the UniqueConstraint from the mixin
+        mixin_args = UniqueComponentMixin.__table_args__(cls)
+
+        # Define this component's specific constraints
+        local_args = (
+            CheckConstraint("value > 0", name="value_positive_check"),
+        )
+
+        # Return the combined tuple of all arguments
+        return mixin_args + local_args
+```
 
 ### 4.4. Adding a New Command and Handler
 
