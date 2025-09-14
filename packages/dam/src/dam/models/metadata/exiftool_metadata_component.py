@@ -8,9 +8,10 @@ from sqlalchemy import JSON  # Changed from JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent
+from dam.models.core.component_mixins import UniqueComponentMixin
 
 
-class ExiftoolMetadataComponent(BaseComponent):
+class ExiftoolMetadataComponent(UniqueComponentMixin, BaseComponent):
     """
     Component to store raw metadata extracted by exiftool.
     """

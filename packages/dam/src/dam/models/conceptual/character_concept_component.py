@@ -1,9 +1,10 @@
+from ..core.component_mixins import UniqueComponentMixin
 from .base_conceptual_info_component import BaseConceptualInfoComponent
 
 # from ..core.types import مفهوم_موجودیت_آی_دی # Assuming this is EntityId or similar - Removed for now, will use int
 
 
-class CharacterConceptComponent(BaseConceptualInfoComponent):
+class CharacterConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponent):
     """
     Defines a character as a conceptual entity.
     """

@@ -1,10 +1,11 @@
 from sqlalchemy import Boolean, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, declared_attr
 
+from ..core.component_mixins import UniqueComponentMixin
 from .base_variant_info_component import BaseVariantInfoComponent
 
 
-class ComicBookVariantComponent(BaseVariantInfoComponent):
+class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
     """
     Represents a specific variant of a Comic Book Concept.
     This component is attached to a File Entity and links it to a
@@ -43,33 +44,19 @@ class ComicBookVariantComponent(BaseVariantInfoComponent):
         comment="Indicates if this is the primary or preferred variant for the comic book concept.",
     )
 
-    # Could add other comic variant specific fields:
-    # page_count: Mapped[int | None]
-    # cover_image_entity_id: Mapped[int | None] (ForeignKey to another Entity that is the cover image)
-    # edition_notes: Mapped[str | None]
-
-    __table_args__ = (
-        # Ensures that for a given comic book concept, you don't have two variants
-        # described identically by language, format, and description (if description is key).
-        # Adjust this constraint based on what truly makes a comic variant unique for a concept.
-        # For example, if description isn't a good uniqueifier, remove it.
-        # If multiple "English PDF" variants are allowed (e.g. different scans), then this constraint needs refinement
-        # or an additional field like 'version_tag' or rely on distinct File Entities.
-        UniqueConstraint(
-            "conceptual_entity_id",
-            "language",
-            "format",
-            "variant_description",  # This might be too specific for a unique constraint
-            name="uq_comic_variant_details_per_concept",
-        ),
-        # An Entity (file) can only be one specific comic book variant of one comic book concept.
-        # This is implicitly handled by BaseVariantInfoComponent having conceptual_entity_id
-        # and the component being on a specific entity_id.
-        # If further constraint is needed here, it would be similar to what was on the old VariantComponent:
-        # UniqueConstraint("entity_id", "conceptual_entity_id", name="uq_comic_variant_entity_conceptual_entity"),
-        # However, since entity_id is the PK of the component table (via BaseComponent), an entity can only have one
-        # ComicBookVariantComponent row anyway. The main uniqueness is covered by the component type itself on an entity.
-    )
+    @declared_attr.directive
+    def __table_args__(cls):
+        mixin_args = UniqueComponentMixin.__table_args__(cls)
+        local_args = (
+            UniqueConstraint(
+                "conceptual_entity_id",
+                "language",
+                "format",
+                "variant_description",
+                name="uq_comic_variant_details_per_concept",
+            ),
+        )
+        return mixin_args + local_args
 
     def __repr__(self) -> str:
         return (

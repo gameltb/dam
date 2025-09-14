@@ -1,10 +1,11 @@
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from ..core.component_mixins import UniqueComponentMixin
 from .base_conceptual_info_component import BaseConceptualInfoComponent
 
 
-class ComicBookConceptComponent(BaseConceptualInfoComponent):
+class ComicBookConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponent):
     """
     Represents the concept of a specific comic book issue or work.
     This component is attached to an Entity that acts as the central identifier
