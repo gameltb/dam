@@ -46,13 +46,11 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 class IngestArchiveMembersCommand(BaseCommand[None]):
     """
     A command to ingest members from an archive asset into the ECS world.
+    This command returns a stream of events.
     """
 
     entity_id: int
     passwords: Optional[List[str]] = None
-    init_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
-    update_progress_callback: Optional[Callable[[int], None]] = field(default=None, repr=False)
-    error_callback: Optional[Callable[[str, Exception], bool]] = field(default=None, repr=False)
 
 
 @dataclass

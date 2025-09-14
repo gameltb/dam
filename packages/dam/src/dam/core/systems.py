@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    AsyncGenerator,
     Callable,
     Dict,
     List,
@@ -293,6 +294,36 @@ class WorldScheduler:
                 all_results.append(HandlerResult(exception=e))
 
         return CommandResult(results=all_results)
+
+    async def dispatch_streaming_command(
+        self, command: BaseCommand[Any], transaction: EcsTransaction
+    ) -> AsyncGenerator[Any, None]:
+        """
+        Dispatches a command that is expected to be handled by a single system
+        that returns an AsyncGenerator.
+        """
+        command_type = type(command)
+        self.logger.info(f"Dispatching streaming command: {command_type.__name__} for world: {self.world.name}")
+        handlers_to_run = self.command_handler_registry.get(command_type, [])
+
+        if not handlers_to_run:
+            self.logger.error(f"No command handlers for streaming command {command_type.__name__}")
+            raise ValueError(f"No command handlers for streaming command {command_type.__name__}")
+
+        if len(handlers_to_run) > 1:
+            self.logger.warning(
+                f"Multiple handlers found for streaming command {command_type.__name__}. "
+                "Only the first one will be executed."
+            )
+
+        handler_func = handlers_to_run[0]
+        result = await self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
+
+        if not isinstance(result, AsyncGenerator):
+            self.logger.error(f"Handler {handler_func.__name__} for command {command_type.__name__} did not return an AsyncGenerator.")
+            raise TypeError(f"Handler for command {command_type.__name__} did not return an AsyncGenerator.")
+
+        return result
 
     async def run_all_stages(self, transaction: EcsTransaction) -> None:
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")

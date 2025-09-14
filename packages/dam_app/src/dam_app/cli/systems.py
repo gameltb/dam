@@ -1,6 +1,7 @@
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import typer
+from dam.core.streaming import StreamCompleted, StreamError, StreamProgress, StreamStarted
 from dam.models.core import Entity
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam_archive.commands import IngestArchiveMembersCommand
@@ -42,7 +43,6 @@ async def process_archives(
     typer.echo("Finding archives to process...")
 
     async with target_world.db_session_maker() as session:
-        # Find entities that have a supported archive MIME type but haven't been processed yet.
         stmt = (
             select(Entity.id)
             .join(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
@@ -62,50 +62,60 @@ async def process_archives(
     for entity_id in archives_to_process:
         typer.echo(f"Processing archive entity {entity_id}...")
 
-        pbar: Optional[tqdm[Any]] = None
-
-        def init_progress(total_size: int):
-            nonlocal pbar
-            pbar = tqdm(total=total_size, unit="B", unit_scale=True, desc="Extracting members", smoothing=0)
-
-        def update_progress(size: int):
-            if pbar:
-                pbar.update(size)
-
-        def error_handler(member_name: str, e: Exception) -> bool:
-            typer.secho(f"  Failed to process member '{member_name}': {e}", fg=typer.colors.RED)
-            return typer.confirm("Do you want to continue with other files?")
-
-        while True:
-            try:
-                cmd = IngestArchiveMembersCommand(
-                    entity_id=entity_id,
-                    passwords=known_passwords,
-                    init_progress_callback=init_progress,
-                    update_progress_callback=update_progress,
-                    error_callback=error_handler,
-                )
-                await target_world.dispatch_command(cmd)
-                if pbar:
-                    pbar.close()
-                typer.secho(f"  Successfully processed archive {entity_id}", fg=typer.colors.GREEN)
-                break
-            except PasswordRequiredError:
-                if pbar:
-                    pbar.close()
-                typer.secho(f"  Password required for archive {entity_id}.", fg=typer.colors.YELLOW)
-                new_password = typer.prompt("Enter password (or press Enter to skip)", default="", show_default=False)
-                if not new_password:
-                    typer.secho(f"  Skipping archive {entity_id}.", fg=typer.colors.YELLOW)
-                    break
-                if new_password not in known_passwords:
-                    known_passwords.append(new_password)
-            except Exception as e:
-                if pbar:
-                    pbar.close()
-                typer.secho(
-                    f"  An unexpected error occurred while processing archive {entity_id}: {e}", fg=typer.colors.RED
-                )
-                break
+        processing_failed = False
+        while not processing_failed:
+            async with target_world.transaction() as transaction:
+                cmd = IngestArchiveMembersCommand(entity_id=entity_id, passwords=known_passwords)
+                pbar: Optional[tqdm[None]] = None
+                try:
+                    async for event in target_world.dispatch_streaming_command(cmd, transaction):
+                        match event:
+                            case StreamStarted():
+                                pass
+                            case StreamProgress(total, current, message):
+                                if pbar is None and total is not None:
+                                    pbar = tqdm(
+                                        total=total,
+                                        unit="B",
+                                        unit_scale=True,
+                                        desc="Extracting members",
+                                        smoothing=0,
+                                    )
+                                if pbar is not None and current is not None:
+                                    pbar.update(current - pbar.n)
+                                if message and pbar:
+                                    pbar.set_postfix_str(message)
+                            case StreamError(exception):
+                                if isinstance(exception, PasswordRequiredError):
+                                    typer.secho(f"  Password required for archive {entity_id}.", fg=typer.colors.YELLOW)
+                                    new_password = typer.prompt(
+                                        "Enter password (or press Enter to skip)", default="", show_default=False
+                                    )
+                                    if new_password and new_password not in known_passwords:
+                                        known_passwords.append(new_password)
+                                        # Break inner loop to retry with new password
+                                        break
+                                    else:
+                                        typer.secho(f"  Skipping archive {entity_id}.", fg=typer.colors.YELLOW)
+                                        processing_failed = True
+                                else:
+                                    typer.secho(
+                                        f"  An error occurred while processing archive {entity_id}: {exception}",
+                                        fg=typer.colors.RED,
+                                    )
+                                    processing_failed = True
+                            case StreamCompleted(message):
+                                typer.secho(
+                                    f"  Successfully processed archive {entity_id}. {message or ''}",
+                                    fg=typer.colors.GREEN,
+                                )
+                        if processing_failed:
+                            break  # Stop processing events for this archive
+                    else:
+                        # This 'else' belongs to the 'for' loop, executed when the loop finishes without 'break'
+                        break  # Exit the 'while' loop on successful completion
+                finally:
+                    if pbar:
+                        pbar.close()
 
     typer.echo("Archive processing complete.")
