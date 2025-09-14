@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import IO, Annotated, BinaryIO, Dict, List, Optional, Tuple, cast
+from typing import IO, Annotated, AsyncGenerator, BinaryIO, Dict, List, Optional, Tuple, cast
 
 from dam.commands import (
     GetAssetFilenamesCommand,
@@ -11,6 +11,13 @@ from dam.commands import (
     SetMimeTypeFromBufferCommand,
 )
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
+from dam.core.streaming import (
+    StreamCompleted,
+    StreamError,
+    StreamingEvent,
+    StreamProgress,
+    StreamStarted,
+)
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -295,24 +302,26 @@ async def _perform_ingestion(
     cmd: IngestArchiveMembersCommand,
     world: Annotated[World, "Resource"],
     transaction: EcsTransaction,
-):
+) -> AsyncGenerator[StreamingEvent, None]:
     """
     The core extraction logic, once an archive stream is prepared.
+    This is an async generator that yields streaming events.
     """
+    yield StreamStarted()
+
     mime_type_comp = await transaction.get_component(entity_id, MimeTypeComponent)
     if not mime_type_comp:
-        logger.error(f"Could not get mime type for archive entity {entity_id}")
+        yield StreamError(message=f"Could not get mime type for archive entity {entity_id}", exception=ValueError())
         return
 
     stored_password_comp = await transaction.get_component(entity_id, ArchivePasswordComponent)
 
-    passwords_to_try: List[Optional[str]]
-    if stored_password_comp:
-        passwords_to_try = [stored_password_comp.password]
-    else:
-        passwords_to_try = [None]
-        if cmd.passwords:
-            passwords_to_try.extend(p for p in cmd.passwords if p)
+    passwords_to_try: List[Optional[str]] = [None]
+    if stored_password_comp and stored_password_comp.password:
+        passwords_to_try.insert(0, stored_password_comp.password)
+    if cmd.passwords:
+        passwords_to_try.extend(p for p in cmd.passwords if p)
+    passwords_to_try = list(dict.fromkeys(passwords_to_try))  # Remove duplicates
 
     archive = None
     correct_password = None
@@ -322,34 +331,38 @@ async def _perform_ingestion(
         try:
             archive_stream.seek(0)
             temp_archive = open_archive(archive_stream, mime_type_comp.value, pwd)
-            if not temp_archive:
-                logger.error("Could not find a handler for the archive type.")
-                return
-            correct_password = pwd
-            archive = temp_archive
-            logger.info(f"Successfully opened archive {entity_id} with password: {'yes' if pwd else 'no'}")
-            break
+            if temp_archive:
+                correct_password = pwd
+                archive = temp_archive
+                logger.info(f"Successfully opened archive {entity_id} with password: {'yes' if pwd else 'no'}")
+                break
         except InvalidPasswordError:
             if temp_archive:
                 temp_archive.close()
-            continue
+            continue  # Try next password
         except (IOError, RuntimeError) as e:
             if temp_archive:
                 temp_archive.close()
-            logger.error(f"Failed to open archive {entity_id}: {e}")
+            yield StreamError(message=f"Failed to open archive {entity_id}", exception=e)
             return
 
     if not archive:
-        raise PasswordRequiredError(f"A password is required for archive entity {entity_id}")
+        yield StreamError(
+            message=f"A password is required or the provided passwords are wrong for archive entity {entity_id}",
+            exception=PasswordRequiredError(),
+        )
+        return
 
     try:
+        # Save the correct password if it wasn't already stored
         stored_password = stored_password_comp.password if stored_password_comp else None
         if correct_password and (not stored_password or correct_password != stored_password):
             await world.dispatch_command(SetArchivePasswordCommand(entity_id=entity_id, password=correct_password))
 
-        total_size = sum(m.size for m in archive.list_files())
-        if cmd.init_progress_callback:
-            cmd.init_progress_callback(total_size)
+        all_members = archive.list_files()
+        total_size = sum(m.size for m in all_members)
+        processed_size = 0
+        yield StreamProgress(total=total_size, current=processed_size, message="Starting ingestion.")
 
         for member_file in archive.iter_files():
             try:
@@ -359,20 +372,29 @@ async def _perform_ingestion(
                     get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=cast(BinaryIO, full_stream))
                     command_result = await world.dispatch_command(get_or_create_cmd)
                     member_entity, _ = command_result.get_one_value()
+
                     set_mime_cmd = SetMimeTypeFromBufferCommand(entity_id=member_entity.id, buffer=header)
                     await world.dispatch_command(set_mime_cmd)
+
                     member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
                     await transaction.add_component_to_entity(member_entity.id, member_comp)
-                if cmd.update_progress_callback:
-                    cmd.update_progress_callback(member_file.size)
+
+                processed_size += member_file.size
+                yield StreamProgress(
+                    total=total_size,
+                    current=processed_size,
+                    message=f"Processed '{member_file.name}'.",
+                )
             except Exception as e:
                 logger.error(f"Failed to process member '{member_file.name}' from archive {entity_id}: {e}")
-                if cmd.error_callback:
-                    if not cmd.error_callback(member_file.name, e):
-                        break
-        info_comp = ArchiveInfoComponent(file_count=len(archive.list_files()))
+                yield StreamError(message=f"Failed to process member '{member_file.name}'", exception=e)
+                # Decide whether to continue or not. For now, we stop.
+                return
+
+        info_comp = ArchiveInfoComponent(file_count=len(all_members))
         await transaction.add_component_to_entity(entity_id, info_comp)
-        logger.info(f"Finished processing archive {entity_id}, processed {len(archive.list_files())} members.")
+        logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
+        yield StreamCompleted()
     finally:
         if archive:
             archive.close()
@@ -383,26 +405,23 @@ async def ingest_archive_members_handler(
     cmd: IngestArchiveMembersCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-) -> None:
+) -> AsyncGenerator[StreamingEvent, None]:
     """
     Handles processing an archive. It's the main entry point for ingestion.
-    - If it's a master entity for a split archive, it ingests it.
-    - If it's a part of an already assembled archive, it redirects to the master.
-    - If it's a part of a non-assembled archive, it triggers assembly.
-    - If it's a regular file, it ingests it.
+    This handler returns an async generator of streaming events.
     """
     logger.info(f"Ingestion command received for entity {cmd.entity_id}")
 
     info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
     if info_comp:
         logger.info(f"Entity {cmd.entity_id} has already been processed. Skipping ingestion.")
+        yield StreamCompleted(message="Already processed.")
         return
 
-    # Case 1: The entity is a master entity for a split archive.
+    # Case 1: Master entity for a split archive.
     manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest_comp:
         logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams for ingestion.")
-
         stmt = (
             select(SplitArchivePartInfoComponent)
             .where(SplitArchivePartInfoComponent.master_entity_id == cmd.entity_id)
@@ -423,39 +442,57 @@ async def ingest_archive_members_handler(
                 else:
                     raise ValueError(f"Stream for part {part_entity_id} is None")
             archive_stream = ChainedStream(part_streams)
-            await _perform_ingestion(cmd.entity_id, cast(BinaryIO, archive_stream), cmd, world, transaction)
+            # Directly return the generator from _perform_ingestion
+            async for event in _perform_ingestion(
+                cmd.entity_id, cast(BinaryIO, archive_stream), cmd, world, transaction
+            ):
+                yield event
+            return
         except (ValueError, FileNotFoundError) as e:
             logger.error(f"Could not get stream for split archive part: {e}")
             for s in part_streams:
                 s.close()
-        return
+            yield StreamError(message=str(e), exception=e)
+            return
 
-    # Case 2: The entity is a part of an already assembled split archive.
+    # Case 2: Part of an already assembled split archive.
     part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
     if part_info and part_info.master_entity_id:
         logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
-        await world.dispatch_command(IngestArchiveMembersCommand(entity_id=part_info.master_entity_id))
+        redirect_cmd = IngestArchiveMembersCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
+        stream = await world.dispatch_streaming_command(redirect_cmd)
+        async for event in stream:
+            yield event
         return
 
-    # Case 3: The entity is a part of a non-assembled split archive.
+    # Case 3: Part of a non-assembled split archive.
     if part_info:
-        raise RuntimeError(
+        err_msg = (
             f"Entity {cmd.entity_id} is part of a non-assembled split archive. "
             "Please run 'discover-and-bind' or 'create-master' command first."
         )
+        yield StreamError(message=err_msg, exception=RuntimeError(err_msg))
+        return
 
-    # Case 4: The entity is a regular, single-file archive.
+    # Case 4: Regular, single-file archive.
     logger.info(f"Entity {cmd.entity_id} is a single-file archive. Ingesting.")
     try:
         archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
         archive_stream_result = await world.dispatch_command(archive_stream_cmd)
         archive_stream = archive_stream_result.get_first_non_none_value()
         if archive_stream:
-            await _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction)
+            async for event in _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction):
+                yield event
+            return
         else:
-            logger.error(f"Could not get stream for single-file archive {cmd.entity_id}")
+            err_msg = f"Could not get stream for single-file archive {cmd.entity_id}"
+            logger.error(err_msg)
+            yield StreamError(message=err_msg, exception=FileNotFoundError(err_msg))
+            return
     except (ValueError, FileNotFoundError) as e:
         logger.error(f"Could not get stream for single-file archive {cmd.entity_id}: {e}")
+        yield StreamError(message=str(e), exception=e)
+        return
 
 
 @system(on_command=ClearArchiveComponentsCommand)

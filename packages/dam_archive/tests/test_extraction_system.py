@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from dam.core.streaming import StreamCompleted
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_entity_mime_type
@@ -32,7 +33,10 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
 
     # 2. Run the extraction command
     ingest_cmd_reg = IngestArchiveMembersCommand(entity_id=entity_id_reg)
-    await world.dispatch_command(ingest_cmd_reg)
+    async with world.transaction():
+        stream = await world.dispatch_streaming_command(ingest_cmd_reg)
+        events = [event async for event in stream]
+        assert any(isinstance(event, StreamCompleted) for event in events)
 
     # 3. Verify the results for the regular archive
     async with world.db_session_maker() as session:
@@ -57,7 +61,10 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
 
     # 2. Run the extraction command with the correct password
     ingest_cmd_prot = IngestArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
-    await world.dispatch_command(ingest_cmd_prot)
+    async with world.transaction():
+        stream = await world.dispatch_streaming_command(ingest_cmd_prot)
+        events = [event async for event in stream]
+        assert any(isinstance(event, StreamCompleted) for event in events)
 
     # 3. Verify the results for the protected archive
     async with world.db_session_maker() as session:
@@ -91,7 +98,10 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
 
     # 2. Run the extraction command for the first time
     ingest_cmd1 = IngestArchiveMembersCommand(entity_id=entity_id)
-    await world.dispatch_command(ingest_cmd1)
+    async with world.transaction():
+        stream1 = await world.dispatch_streaming_command(ingest_cmd1)
+        events1 = [event async for event in stream1]
+        assert any(isinstance(event, StreamCompleted) for event in events1)
 
     # 3. Verify that it was processed
     async with world.db_session_maker() as session:
@@ -101,7 +111,12 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
 
     # 4. Run the extraction command for the second time
     ingest_cmd2 = IngestArchiveMembersCommand(entity_id=entity_id)
-    await world.dispatch_command(ingest_cmd2)
+    async with world.transaction():
+        stream2 = await world.dispatch_streaming_command(ingest_cmd2)
+        events2 = [event async for event in stream2]
+        completed_event = next((e for e in events2 if isinstance(e, StreamCompleted)), None)
+        assert completed_event is not None
+        assert completed_event.message == "Already processed."
 
     # 5. Verify that it was skipped (no new components were created)
     # We can't easily check the logs here, so we will check that the number of members is still the same.

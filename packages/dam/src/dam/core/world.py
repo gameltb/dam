@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Type, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -11,6 +12,7 @@ from dam.core.events import BaseEvent
 from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
+from dam.core.streaming import StreamingEvent
 from dam.core.systems import WorldScheduler
 from dam.core.transaction import EcsTransaction, active_transaction
 
@@ -230,6 +232,47 @@ class World:
                 await db_session.close()
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for one-time system '{system_func.__name__}'.")
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[EcsTransaction, None]:
+        """Provides a transactional context for database operations."""
+        transaction = active_transaction.get()
+        if transaction:
+            self.logger.debug("Joining existing transaction.")
+            yield transaction
+            return
+
+        self.logger.debug("Creating new top-level transaction.")
+        db_session = self.get_db_session()
+        new_transaction = EcsTransaction(db_session)
+        token = active_transaction.set(new_transaction)
+        try:
+            yield new_transaction
+            await db_session.commit()
+        except Exception:
+            self.logger.exception("Exception in top-level transaction, rolling back.")
+            await db_session.rollback()
+            raise
+        finally:
+            await db_session.close()
+            active_transaction.reset(token)
+            self.logger.debug("Top-level transaction closed.")
+
+    async def dispatch_streaming_command(self, command: BaseCommand[Any]) -> AsyncGenerator[StreamingEvent, None]:
+        """
+        Dispatches a command that is expected to be handled by a single system
+        that returns an AsyncGenerator.
+        """
+        self.logger.info(f"Dispatching streaming command '{type(command).__name__}' for World '{self.name}'.")
+
+        transaction = active_transaction.get()
+        if not transaction:
+            raise RuntimeError(
+                "Streaming commands must be dispatched within an existing transaction context. "
+                "Use 'async with world.transaction():' to create one."
+            )
+
+        return await self.scheduler.dispatch_streaming_command(command, transaction)
 
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"
