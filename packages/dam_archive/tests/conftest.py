@@ -1,9 +1,13 @@
 import zipfile
 from pathlib import Path
+from typing import AsyncGenerator
 
 import pytest
+import pytest_asyncio
+from dam.core.config import Settings
 from dam.core.world import World
 from dam_fs.plugin import FsPlugin
+from dam_test_utils.fixtures import _setup_world, _teardown_world_async
 
 from dam_archive.plugin import ArchivePlugin
 
@@ -37,8 +41,9 @@ def test_archives(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]
     return regular_zip_path, protected_zip_path
 
 
-@pytest.fixture(autouse=True)
-def setup_world_with_plugins(test_world_alpha: World) -> None:
-    # The archive plugin depends on the fs plugin, so we need both.
-    test_world_alpha.add_plugin(FsPlugin())
-    test_world_alpha.add_plugin(ArchivePlugin())
+@pytest_asyncio.fixture(scope="function")
+async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
+    plugins = [FsPlugin(), ArchivePlugin()]
+    world = await _setup_world("test_world_alpha", settings_override, plugins=plugins)
+    yield world
+    await _teardown_world_async(world)

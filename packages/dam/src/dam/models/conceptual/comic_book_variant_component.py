@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.component_mixins import UniqueComponentMixin
 from .base_variant_info_component import BaseVariantInfoComponent
@@ -44,19 +44,15 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
         comment="Indicates if this is the primary or preferred variant for the comic book concept.",
     )
 
-    @declared_attr.directive
-    def __table_args__(cls):
-        mixin_args = UniqueComponentMixin.__table_args__(cls)
-        local_args = (
-            UniqueConstraint(
-                "conceptual_entity_id",
-                "language",
-                "format",
-                "variant_description",
-                name="uq_comic_variant_details_per_concept",
-            ),
-        )
-        return mixin_args + local_args
+    __table_args__ = UniqueComponentMixin.__table_args__ + (
+        UniqueConstraint(
+            "conceptual_entity_id",
+            "language",
+            "format",
+            "variant_description",  # This might be too specific for a unique constraint
+            name="uq_comic_variant_details_per_concept",
+        ),
+    )
 
     def __repr__(self) -> str:
         return (

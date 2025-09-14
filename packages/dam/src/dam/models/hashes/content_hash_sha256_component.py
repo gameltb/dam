@@ -3,7 +3,7 @@ from sqlalchemy import (
     LargeBinary,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.base_component import BaseComponent
 from ..core.component_mixins import UniqueComponentMixin
@@ -19,16 +19,12 @@ class ContentHashSHA256Component(UniqueComponentMixin, BaseComponent):
     # SHA256 hash is 32 bytes (256 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
-    @declared_attr.directive
-    def __table_args__(cls):
-        mixin_args = UniqueComponentMixin.__table_args__(cls)
-        local_args = (
-            UniqueConstraint(
-                "hash_value", name="uq_sha256_hash_value"
-            ),  # Hash values themselves are unique across all components
-            CheckConstraint("length(hash_value) = 32", name="cc_content_hash_sha256_hash_value_length"),
-        )
-        return mixin_args + local_args
+    __table_args__ = UniqueComponentMixin.__table_args__ + (
+        UniqueConstraint(
+            "hash_value", name="uq_sha256_hash_value"
+        ),  # Hash values themselves are unique across all components
+        CheckConstraint("length(hash_value) = 32", name="cc_content_hash_sha256_hash_value_length"),
+    )
 
     def __repr__(self) -> str:
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"

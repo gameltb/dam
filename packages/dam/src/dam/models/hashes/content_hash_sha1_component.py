@@ -1,8 +1,9 @@
 from sqlalchemy import (
     CheckConstraint,
     LargeBinary,
+    UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.base_component import BaseComponent
 from ..core.component_mixins import UniqueComponentMixin
@@ -18,13 +19,10 @@ class ContentHashSHA1Component(UniqueComponentMixin, BaseComponent):
     # SHA1 hash is 20 bytes (160 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(20), index=True, nullable=False)
 
-    @declared_attr.directive
-    def __table_args__(cls):
-        mixin_args = UniqueComponentMixin.__table_args__(cls)
-        local_args = (
-            CheckConstraint("length(hash_value) = 20", name="cc_content_hash_sha1_hash_value_length"),
-        )
-        return mixin_args + local_args
+    __table_args__ = UniqueComponentMixin.__table_args__ + (
+        UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_sha1_entity_hash"),
+        CheckConstraint("length(hash_value) = 20", name="cc_content_hash_sha1_hash_value_length"),
+    )
 
     def __repr__(self) -> str:
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"

@@ -30,9 +30,7 @@ The project is a monorepo divided into several packages:
 The architecture is based on the ECS pattern, which promotes a data-oriented approach to programming.
 
 *   **Entities:** Simple identifiers for assets.
-*   **Components:** Data-only dataclasses that describe the properties of an entity. They are also SQLAlchemy models for database persistence. Components can be one of two types:
-    *   **Standard Components:** An entity can have multiple instances of these components.
-    *   **Unique Components:** An entity can only have one instance of this type of component. This is enforced at both the application and database level.
+*   **Components:** Data-only dataclasses that describe the properties of an entity. They are also SQLAlchemy models for database persistence.
 *   **Systems:** Logic that operates on entities based on the components they possess.
 
 ### Functions and Systems
