@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from dam.core.streaming import StreamCompleted
+from dam.core.system_events.progress import ProgressCompleted
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_entity_mime_type
@@ -35,7 +35,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_reg)
         events = [event async for event in stream]
-        assert any(isinstance(event, StreamCompleted) for event in events)
+        assert any(isinstance(event, ProgressCompleted) for event in events)
 
     # 3. Verify the results for the regular archive
     async with world.db_session_maker() as session:
@@ -62,7 +62,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_prot)
         events = [event async for event in stream]
-        assert any(isinstance(event, StreamCompleted) for event in events)
+        assert any(isinstance(event, ProgressCompleted) for event in events)
 
     # 3. Verify the results for the protected archive
     async with world.db_session_maker() as session:
@@ -98,7 +98,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     async with world.transaction():
         stream1 = world.dispatch_command(ingest_cmd1)
         events1 = [event async for event in stream1]
-        assert any(isinstance(event, StreamCompleted) for event in events1)
+        assert any(isinstance(event, ProgressCompleted) for event in events1)
 
     # 3. Verify that it was processed
     async with world.db_session_maker() as session:
@@ -111,7 +111,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     async with world.transaction():
         stream2 = world.dispatch_command(ingest_cmd2)
         events2 = [event async for event in stream2]
-        completed_event = next((e for e in events2 if isinstance(e, StreamCompleted)), None)
+        completed_event = next((e for e in events2 if isinstance(e, ProgressCompleted)), None)
         assert completed_event is not None
         assert completed_event.message == "Already processed."
 

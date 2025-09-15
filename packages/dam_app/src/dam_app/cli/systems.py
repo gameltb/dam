@@ -1,7 +1,12 @@
 from typing import List, Optional
 
 import typer
-from dam.core.streaming import StreamCompleted, StreamError, StreamProgress, StreamStarted
+from dam.core.system_events.progress import (
+    ProgressCompleted,
+    ProgressError,
+    ProgressStarted,
+    ProgressUpdate,
+)
 from dam.models.core import Entity
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam_archive.commands import IngestArchiveMembersCommand
@@ -71,9 +76,9 @@ async def process_archives(
                     stream = target_world.dispatch_command(cmd)
                     async for event in stream:
                         match event:
-                            case StreamStarted():
+                            case ProgressStarted():
                                 pass
-                            case StreamProgress(total, current, message):
+                            case ProgressUpdate(total, current, message):
                                 if pbar is None and total is not None:
                                     pbar = tqdm(
                                         total=total,
@@ -86,7 +91,7 @@ async def process_archives(
                                     pbar.update(current - pbar.n)
                                 if message and pbar:
                                     pbar.set_postfix_str(message)
-                            case StreamError(exception):
+                            case ProgressError(exception, _):
                                 if isinstance(exception, PasswordRequiredError):
                                     typer.secho(f"  Password required for archive {entity_id}.", fg=typer.colors.YELLOW)
                                     new_password = typer.prompt(
@@ -105,7 +110,7 @@ async def process_archives(
                                         fg=typer.colors.RED,
                                     )
                                     processing_failed = True
-                            case StreamCompleted(message):
+                            case ProgressCompleted(message):
                                 typer.secho(
                                     f"  Successfully processed archive {entity_id}. {message or ''}",
                                     fg=typer.colors.GREEN,

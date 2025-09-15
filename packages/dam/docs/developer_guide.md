@@ -135,6 +135,7 @@ The Command pattern is used for imperative actions where the caller requests a s
 
 3.  **Dispatch the Command:**
     - From anywhere in the application that has access to a `World` object, you can dispatch the command.
+    - The `dispatch_command` method returns a `SystemExecutor` object, which you can use to get the results.
 
     *Example:*
     ```python
@@ -142,7 +143,19 @@ The Command pattern is used for imperative actions where the caller requests a s
 
     # ... get world object ...
     command = RenameAssetCommand(entity_id=123, new_name="My Cool Asset")
-    await world.dispatch_command(command)
+
+    # Dispatch the command and get the executor
+    executor = world.dispatch_command(command)
+
+    # You can "fire and forget" by simply awaiting the executor to run it
+    # (though this is less common for commands that return values)
+    # async for _ in executor:
+    #     pass
+
+    # Or, more commonly, use one of the helper methods to get the results.
+    # For example, if the handler for RenameAssetCommand returns the new name:
+    # new_name_result = await executor.get_one_value()
+    # print(f"Command returned: {new_name_result}")
     ```
 
 ---

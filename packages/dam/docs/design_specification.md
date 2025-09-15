@@ -272,8 +272,9 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 
 -   **Definition and Purpose**: Commands are requests for the system to perform a specific action. They represent an imperative instruction, such as "ingest this file" or "find similar images". A command is dispatched with the expectation that it will be handled by one or more systems.
 -   **Structure**: Commands are simple data-only classes that inherit from `dam.core.commands.BaseCommand`. They carry the data necessary to execute the action.
--   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. This is typically an `async` operation. The result is a `CommandResult` object containing the collected return values from all handlers. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
--   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as its first argument.
+    -   Commands can specify an `execution_strategy` (`SERIAL` or `PARALLEL`) to control how their handler systems are executed.
+-   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. The result is a `SystemExecutor` object. This object is an async generator that yields system events and also provides helper methods (e.g., `get_all_results()`) to consume the stream and process the results. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
+-   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as an argument.
 
 ### 3.4. Core Asset Events and Commands
 
