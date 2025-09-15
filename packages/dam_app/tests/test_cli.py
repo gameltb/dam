@@ -1,8 +1,9 @@
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dam.core.config import Settings
+from dam.core.world import World
 from pytest import CaptureFixture
 
 from dam_app.cli.assets import clear_archive_info
@@ -27,7 +28,10 @@ def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any
 async def test_clear_archive_info_command(capsys: CaptureFixture[Any]):
     """Test the clear-archive-info CLI command by calling the function directly."""
     entity_id = 123
-    mock_world = AsyncMock()
+    mock_world = MagicMock(spec=World)
+    mock_stream = AsyncMock()
+    mock_stream.get_all_results.return_value = []
+    mock_world.dispatch_command.return_value = mock_stream
 
     with patch("dam_app.cli.assets.get_world", return_value=mock_world):
         await clear_archive_info(entity_id=entity_id)

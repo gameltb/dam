@@ -26,8 +26,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
 
     # 1. Register a new file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
-    cmd_result = await world.dispatch_command(register_cmd)
-    entity_id = cmd_result.get_one_value()
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     assert isinstance(entity_id, int)
 
@@ -55,8 +54,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
         file_path=temp_asset_file.as_uri(),
         last_modified_at=mod_time,
     )
-    find_result = await world.dispatch_command(find_cmd)
-    found_entity_id = find_result.get_one_value()
+    found_entity_id = await world.dispatch_command(find_cmd).get_one_value()
 
     assert found_entity_id == entity_id
 
@@ -67,8 +65,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
     shutil.copy(temp_asset_file, duplicate_file)
 
     register_dup_cmd = RegisterLocalFileCommand(file_path=duplicate_file)
-    dup_cmd_result = await world.dispatch_command(register_dup_cmd)
-    dup_entity_id = dup_cmd_result.get_one_value()
+    dup_entity_id = await world.dispatch_command(register_dup_cmd).get_one_value()
 
     # Should be the same entity
     assert dup_entity_id == entity_id
@@ -100,8 +97,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     )
 
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
-    cmd_result1 = await world.dispatch_command(register_cmd1)
-    entity_id = cmd_result1.get_one_value()
+    entity_id = await world.dispatch_command(register_cmd1).get_one_value()
 
     async with world.db_session_maker() as session:
         fnc = await ecs_functions.get_component(session, entity_id, FilenameComponent)
@@ -127,8 +123,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
 
     # 3. Register the older file
     register_cmd2 = RegisterLocalFileCommand(file_path=earlier_file)
-    cmd_result2 = await world.dispatch_command(register_cmd2)
-    entity_id2 = cmd_result2.get_one_value()
+    entity_id2 = await world.dispatch_command(register_cmd2).get_one_value()
 
     assert entity_id2 == entity_id  # Should be the same entity due to content hash
 
@@ -150,8 +145,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
 
     # 1. Register the file for the first time
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
-    cmd_result = await world.dispatch_command(register_cmd)
-    entity_id = cmd_result.get_one_value()
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     async with world.db_session_maker() as session:
         flc = await ecs_functions.get_component(session, entity_id, FileLocationComponent)
@@ -170,7 +164,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
 
     # 3. Register the same file again
     register_again_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
-    await world.dispatch_command(register_again_cmd)
+    await world.dispatch_command(register_again_cmd).get_all_results()
 
     # 4. Verify the timestamp has been updated
     async with world.db_session_maker() as session:
@@ -189,14 +183,13 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
 
     # 1. Register a local file first
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
-    cmd_result = await world.dispatch_command(register_cmd)
-    entity_id = cmd_result.get_one_value()
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     # 2. Dispatch the store command
     from dam_fs.commands import StoreAssetsCommand
 
     store_cmd = StoreAssetsCommand(query="local_not_stored")
-    await world.dispatch_command(store_cmd)
+    await world.dispatch_command(store_cmd).get_all_results()
 
     # 3. Verify the file is in storage
     async with world.db_session_maker() as session:

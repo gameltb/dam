@@ -56,18 +56,19 @@ async def auto_set_mime_type_from_filename_system(
 
     for entity in entities_to_process:
         get_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
-        stream_result = await world.dispatch_command(get_stream_cmd)
         try:
-            with stream_result.get_first_non_none_value() as stream:
-                buffer = stream.read(4096)
-                mime_type = magic.from_buffer(buffer, mime=True)
-                if mime_type:
-                    logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
-                    await set_entity_mime_type(transaction.session, entity.id, mime_type)
-                else:
-                    logger.warning(f"Could not determine mime type for entity {entity.id}")
-        except ValueError:
-            logger.warning(f"Could not get asset stream for entity {entity.id}")
+            stream = await world.dispatch_command(get_stream_cmd).get_first_non_none_value()
+            if stream:
+                with stream:
+                    buffer = stream.read(4096)
+                    mime_type = magic.from_buffer(buffer, mime=True)
+                    if mime_type:
+                        logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
+                        await set_entity_mime_type(transaction.session, entity.id, mime_type)
+                    else:
+                        logger.warning(f"Could not determine mime type for entity {entity.id}")
+            else:
+                logger.warning(f"Could not get asset stream for entity {entity.id} (no handler returned a stream).")
         except Exception as e:
             logger.error(f"Error processing entity {entity.id}: {e}", exc_info=True)
 

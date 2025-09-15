@@ -24,8 +24,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # --- Test Regular Archive ---
     # 1. Register the regular archive file
     register_cmd_reg = RegisterLocalFileCommand(file_path=regular_archive_path)
-    cmd_result_reg = await world.dispatch_command(register_cmd_reg)
-    entity_id_reg = cmd_result_reg.get_one_value()
+    entity_id_reg = await world.dispatch_command(register_cmd_reg).get_one_value()
 
     async with world.db_session_maker() as session:
         await set_entity_mime_type(session, entity_id_reg, "application/zip")
@@ -34,7 +33,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # 2. Run the extraction command
     ingest_cmd_reg = IngestArchiveMembersCommand(entity_id=entity_id_reg)
     async with world.transaction():
-        stream = await world.dispatch_streaming_command(ingest_cmd_reg)
+        stream = world.dispatch_command(ingest_cmd_reg)
         events = [event async for event in stream]
         assert any(isinstance(event, StreamCompleted) for event in events)
 
@@ -52,8 +51,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # --- Test Protected Archive ---
     # 1. Register the protected archive file
     register_cmd_prot = RegisterLocalFileCommand(file_path=protected_archive_path)
-    cmd_result_prot = await world.dispatch_command(register_cmd_prot)
-    entity_id_prot = cmd_result_prot.get_one_value()
+    entity_id_prot = await world.dispatch_command(register_cmd_prot).get_one_value()
 
     async with world.db_session_maker() as session:
         await set_entity_mime_type(session, entity_id_prot, "application/zip")
@@ -62,7 +60,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # 2. Run the extraction command with the correct password
     ingest_cmd_prot = IngestArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
     async with world.transaction():
-        stream = await world.dispatch_streaming_command(ingest_cmd_prot)
+        stream = world.dispatch_command(ingest_cmd_prot)
         events = [event async for event in stream]
         assert any(isinstance(event, StreamCompleted) for event in events)
 
@@ -89,8 +87,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
 
     # 1. Register the archive file
     register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
-    cmd_result = await world.dispatch_command(register_cmd)
-    entity_id = cmd_result.get_one_value()
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     async with world.db_session_maker() as session:
         await set_entity_mime_type(session, entity_id, "application/zip")
@@ -99,7 +96,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     # 2. Run the extraction command for the first time
     ingest_cmd1 = IngestArchiveMembersCommand(entity_id=entity_id)
     async with world.transaction():
-        stream1 = await world.dispatch_streaming_command(ingest_cmd1)
+        stream1 = world.dispatch_command(ingest_cmd1)
         events1 = [event async for event in stream1]
         assert any(isinstance(event, StreamCompleted) for event in events1)
 
@@ -112,7 +109,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     # 4. Run the extraction command for the second time
     ingest_cmd2 = IngestArchiveMembersCommand(entity_id=entity_id)
     async with world.transaction():
-        stream2 = await world.dispatch_streaming_command(ingest_cmd2)
+        stream2 = world.dispatch_command(ingest_cmd2)
         events2 = [event async for event in stream2]
         completed_event = next((e for e in events2 if isinstance(e, StreamCompleted)), None)
         assert completed_event is not None

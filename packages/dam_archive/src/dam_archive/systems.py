@@ -21,6 +21,7 @@ from dam.core.streaming import (
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.models.core.entity import Entity
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import FindEntityByFilePropertiesCommand
@@ -115,8 +116,10 @@ async def discover_and_bind_handler(
 
                 # Dispatch command to find entity
                 find_cmd = FindEntityByFilePropertiesCommand(file_path=file_uri, last_modified_at=modified_at)
-                result = await world.dispatch_command(find_cmd)
-                entity_id = result.get_one_value()
+                try:
+                    entity_id = await world.dispatch_command(find_cmd).get_one_value()
+                except ValueError:
+                    entity_id = None
 
                 if entity_id:
                     part_entity_ids.append(entity_id)
@@ -133,7 +136,8 @@ async def discover_and_bind_handler(
                 logger.info(f"Assembling master archive for '{base_name}' with parts: {part_entity_ids}")
                 master_name = f"{base_name} (Split Archive)"
                 create_cmd = CreateMasterArchiveCommand(name=master_name, part_entity_ids=part_entity_ids)
-                await world.dispatch_command(create_cmd)
+                async for _ in world.dispatch_command(create_cmd):
+                    pass
         else:
             logger.info(f"Split archive '{base_name}' is incomplete. Skipping assembly.")
 
@@ -255,9 +259,8 @@ async def get_archive_asset_stream_handler(
         password = password_comp.password if password_comp else None
 
         archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
-        archive_stream_result = await world.dispatch_command(archive_stream_cmd)
         try:
-            archive_stream = archive_stream_result.get_first_non_none_value()
+            archive_stream = await world.dispatch_command(archive_stream_cmd).get_first_non_none_value()
         except ValueError:
             archive_stream = None
 
@@ -357,7 +360,10 @@ async def _perform_ingestion(
         # Save the correct password if it wasn't already stored
         stored_password = stored_password_comp.password if stored_password_comp else None
         if correct_password and (not stored_password or correct_password != stored_password):
-            await world.dispatch_command(SetArchivePasswordCommand(entity_id=entity_id, password=correct_password))
+            async for _ in world.dispatch_command(
+                SetArchivePasswordCommand(entity_id=entity_id, password=correct_password)
+            ):
+                pass
 
         all_members = archive.list_files()
         total_size = sum(m.size for m in all_members)
@@ -370,11 +376,17 @@ async def _perform_ingestion(
                     header = member_stream.read(4096)
                     full_stream = ChainedStream([io.BytesIO(header), member_stream])
                     get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=cast(BinaryIO, full_stream))
-                    command_result = await world.dispatch_command(get_or_create_cmd)
-                    member_entity, _ = command_result.get_one_value()
+                    member_entity: Optional[Entity] = None
+                    result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
+                    if result_tuple:
+                        member_entity, _ = result_tuple
+
+                    if not member_entity:
+                        raise ValueError("Could not get or create entity for archive member")
 
                     set_mime_cmd = SetMimeTypeFromBufferCommand(entity_id=member_entity.id, buffer=header)
-                    await world.dispatch_command(set_mime_cmd)
+                    async for _ in world.dispatch_command(set_mime_cmd):
+                        pass
 
                     member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
                     await transaction.add_component_to_entity(member_entity.id, member_comp)
@@ -435,8 +447,7 @@ async def ingest_archive_members_handler(
         try:
             for part_entity_id in part_entity_ids:
                 stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
-                stream_result = await world.dispatch_command(stream_cmd)
-                part_stream = stream_result.get_first_non_none_value()
+                part_stream = await world.dispatch_command(stream_cmd).get_first_non_none_value()
                 if part_stream:
                     part_streams.append(part_stream)
                 else:
@@ -460,9 +471,9 @@ async def ingest_archive_members_handler(
     if part_info and part_info.master_entity_id:
         logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
         redirect_cmd = IngestArchiveMembersCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
-        stream = await world.dispatch_streaming_command(redirect_cmd)
+        stream = world.dispatch_command(redirect_cmd)
         async for event in stream:
-            yield event
+            yield cast(StreamingEvent, event)
         return
 
     # Case 3: Part of a non-assembled split archive.
@@ -478,8 +489,8 @@ async def ingest_archive_members_handler(
     logger.info(f"Entity {cmd.entity_id} is a single-file archive. Ingesting.")
     try:
         archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
-        archive_stream_result = await world.dispatch_command(archive_stream_cmd)
-        archive_stream = archive_stream_result.get_first_non_none_value()
+        archive_stream = await world.dispatch_command(archive_stream_cmd).get_first_non_none_value()
+
         if archive_stream:
             async for event in _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction):
                 yield event

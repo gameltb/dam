@@ -34,13 +34,13 @@ async def psp_iso_metadata_extraction_event_handler_system(
                 continue
 
             # Get all possible filenames for the asset
-            filenames_result = await world.dispatch_command(GetAssetFilenamesCommand(entity_id=entity_id))
-            all_filenames = list(filenames_result.iter_ok_values_flat())
+            results = await world.dispatch_command(GetAssetFilenamesCommand(entity_id=entity_id)).get_all_results()
+            all_filenames = [item for sublist in results for item in sublist]
 
             is_iso = any(filename.lower().endswith(".iso") for filename in all_filenames)
 
             if is_iso:
-                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id))
+                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id)).get_all_results()
 
         except Exception as e:
             logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)
@@ -58,33 +58,34 @@ async def psp_iso_metadata_extraction_command_handler_system(
     entity_id = command.entity_id
     try:
         # Get the stream
-        stream_result = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id))
+        stream = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id)).get_first_non_none_value()
 
-        # Use get_first_non_none_value to get the first available stream.
-        # This will raise an exception if no handlers succeed, which is desired.
-        with stream_result.get_first_non_none_value() as stream:
-            sfo = process_iso_stream(stream)
+        if stream:
+            with stream:
+                sfo = process_iso_stream(stream)
 
-            if sfo and sfo.data:
-                sfo_metadata = sfo.data
-                sfo_component = PSPSFOMetadataComponent(
-                    app_ver=cast(Optional[str], sfo_metadata.get("APP_VER")),
-                    bootable=cast(Optional[int], sfo_metadata.get("BOOTABLE")),
-                    category=cast(Optional[str], sfo_metadata.get("CATEGORY")),
-                    disc_id=cast(Optional[str], sfo_metadata.get("DISC_ID")),
-                    disc_version=cast(Optional[str], sfo_metadata.get("DISC_VERSION")),
-                    parental_level=cast(Optional[int], sfo_metadata.get("PARENTAL_LEVEL")),
-                    psp_system_ver=cast(Optional[str], sfo_metadata.get("PSP_SYSTEM_VER")),
-                    title=cast(Optional[str], sfo_metadata.get("TITLE")),
-                )
-                await transaction.add_component_to_entity(entity_id, sfo_component)
+                if sfo and sfo.data:
+                    sfo_metadata = sfo.data
+                    sfo_component = PSPSFOMetadataComponent(
+                        app_ver=cast(Optional[str], sfo_metadata.get("APP_VER")),
+                        bootable=cast(Optional[int], sfo_metadata.get("BOOTABLE")),
+                        category=cast(Optional[str], sfo_metadata.get("CATEGORY")),
+                        disc_id=cast(Optional[str], sfo_metadata.get("DISC_ID")),
+                        disc_version=cast(Optional[str], sfo_metadata.get("DISC_VERSION")),
+                        parental_level=cast(Optional[int], sfo_metadata.get("PARENTAL_LEVEL")),
+                        psp_system_ver=cast(Optional[str], sfo_metadata.get("PSP_SYSTEM_VER")),
+                        title=cast(Optional[str], sfo_metadata.get("TITLE")),
+                    )
+                    await transaction.add_component_to_entity(entity_id, sfo_component)
 
-                sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
-                await transaction.add_component_to_entity(entity_id, sfo_raw_component)
+                    sfo_raw_component = PspSfoRawMetadataComponent(metadata_json=sfo_metadata)
+                    await transaction.add_component_to_entity(entity_id, sfo_raw_component)
 
-                logger.info(f"Successfully added PSPSFOMetadataComponent to entity {entity_id}.")
-            else:
-                logger.warning(f"Could not extract SFO metadata from ISO for entity {entity_id}.")
+                    logger.info(f"Successfully added PSPSFOMetadataComponent to entity {entity_id}.")
+                else:
+                    logger.warning(f"Could not extract SFO metadata from ISO for entity {entity_id}.")
+        else:
+            logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
 
     except Exception as e:
         logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)

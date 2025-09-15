@@ -68,7 +68,7 @@ async def process_archives(
                 cmd = IngestArchiveMembersCommand(entity_id=entity_id, passwords=known_passwords)
                 pbar: Optional[tqdm] = None
                 try:
-                    stream = await target_world.dispatch_streaming_command(cmd)
+                    stream = target_world.dispatch_command(cmd)
                     async for event in stream:
                         match event:
                             case StreamStarted():

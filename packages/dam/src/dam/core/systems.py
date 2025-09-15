@@ -18,12 +18,13 @@ from typing import (
     get_origin,
 )
 
-from dam.core.commands import BaseCommand, CommandResult, ResultType
+from dam.core.commands import BaseCommand, ResultType
+from dam.core.enums import ExecutionStrategy
 from dam.core.events import BaseEvent
+from dam.core.executor import SystemExecutor
 from dam.core.resources import ResourceNotFoundError
-from dam.core.result import HandlerResult
 from dam.core.stages import SystemStage
-from dam.core.streaming import StreamingEvent
+from dam.core.system_events import BaseSystemEvent, SystemResultEvent
 from dam.core.transaction import EcsTransaction
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
@@ -250,8 +251,13 @@ class WorldScheduler:
             self.logger.info(f"No systems registered for stage {stage.name} in world {self.world.name}")
             return
 
-        for system_func in systems_to_run:
-            await self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
+        generators = [
+            self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
+            for system_func in systems_to_run
+        ]
+        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        async for _ in executor:
+            pass
 
     async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction) -> None:
         event_type = type(event)
@@ -263,12 +269,17 @@ class WorldScheduler:
             )
             return
 
-        for handler_func in handlers_to_run:
-            await self._execute_system_func(handler_func, transaction, event_object=event, command_object=None)
+        generators = [
+            self._execute_system_func(handler_func, transaction, event_object=event, command_object=None)
+            for handler_func in handlers_to_run
+        ]
+        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        async for _ in executor:
+            pass
 
-    async def dispatch_command(
+    def dispatch_command(
         self, command: BaseCommand[ResultType], transaction: EcsTransaction
-    ) -> CommandResult[ResultType]:
+    ) -> SystemExecutor[ResultType]:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
@@ -277,56 +288,13 @@ class WorldScheduler:
             self.logger.info(
                 f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}"
             )
-            return CommandResult(results=[])
+            return SystemExecutor([], command.execution_strategy)
 
-        all_results: List[HandlerResult[ResultType]] = []
-        for handler_func in handlers_to_run:
-            try:
-                result_value = await self._execute_system_func(
-                    handler_func, transaction, event_object=None, command_object=command
-                )
-                # We wrap even None results from successful calls, unless the system is designed to not return anything meaningful
-                all_results.append(HandlerResult(value=result_value))
-            except Exception as e:
-                self.logger.error(
-                    f"Exception caught in command handler '{handler_func.__name__}' for command '{command_type.__name__}': {e}",
-                    exc_info=True,
-                )
-                all_results.append(HandlerResult(exception=e))
-
-        return CommandResult(results=all_results)
-
-    async def dispatch_streaming_command(
-        self, command: BaseCommand[Any], transaction: EcsTransaction
-    ) -> AsyncGenerator[StreamingEvent, None]:
-        """
-        Dispatches a command that is expected to be handled by a single system
-        that returns an AsyncGenerator.
-        """
-        command_type = type(command)
-        self.logger.info(f"Dispatching streaming command: {command_type.__name__} for world: {self.world.name}")
-        handlers_to_run = self.command_handler_registry.get(command_type, [])
-
-        if not handlers_to_run:
-            self.logger.error(f"No command handlers for streaming command {command_type.__name__}")
-            raise ValueError(f"No command handlers for streaming command {command_type.__name__}")
-
-        if len(handlers_to_run) > 1:
-            self.logger.warning(
-                f"Multiple handlers found for streaming command {command_type.__name__}. "
-                "Only the first one will be executed."
-            )
-
-        handler_func = handlers_to_run[0]
-        result = await self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
-
-        if not isinstance(result, AsyncGenerator):
-            self.logger.error(
-                f"Handler {handler_func.__name__} for command {command_type.__name__} did not return an AsyncGenerator."
-            )
-            raise TypeError(f"Handler for command {command_type.__name__} did not return an AsyncGenerator.")
-
-        return result
+        generators = [
+            self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
+            for handler_func in handlers_to_run
+        ]
+        return SystemExecutor(generators, command.execution_strategy)
 
     async def run_all_stages(self, transaction: EcsTransaction) -> None:
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
@@ -441,72 +409,72 @@ class WorldScheduler:
         event_object: Optional[BaseEvent] = None,
         command_object: Optional[BaseCommand[Any]] = None,
         **additional_kwargs: Any,
-    ) -> Any:
+    ) -> AsyncGenerator[BaseSystemEvent, None]:
         metadata = self.system_metadata.get(system_func)
         is_async_func = inspect.iscoroutinefunction(system_func)
         if metadata:
             is_async_func = metadata["is_async"]
 
+        kwargs_to_inject: Dict[str, Any] = {}
         try:
             kwargs_to_inject = await self._resolve_dependencies(
                 system_func, transaction, event_object, command_object, **additional_kwargs
             )
-        except Exception as e:
-            self.logger.error(
-                f"Error resolving dependencies for system {system_func.__name__} in world '{self.world.name}': {e}",
-                exc_info=True,
+            self.logger.debug(
+                f"Executing system: {system_func.__name__} in world '{self.world.name}' with args: {list(kwargs_to_inject.keys())}"
             )
-            raise
 
-        self.logger.debug(
-            f"Executing system: {system_func.__name__} in world '{self.world.name}' with args: {list(kwargs_to_inject.keys())}"
-        )
+            result: Any = None
+            if is_async_func:
+                result = await system_func(**kwargs_to_inject)
+            else:
+                loop = asyncio.get_running_loop()
+                result = await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
 
-        result: Any = None
-        if is_async_func:
-            result = await system_func(**kwargs_to_inject)
-        else:
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+            if inspect.isasyncgen(result):
+                async for item in result:
+                    if not isinstance(item, BaseSystemEvent):
+                        self.logger.warning(
+                            f"System {system_func.__name__} yielded a non-event item of type {type(item)}. "
+                            "This may cause issues for consumers expecting BaseSystemEvent subclasses."
+                        )
+                    yield item
+            else:
+                yield SystemResultEvent(result)
 
-        if metadata and metadata.get("system_type") == "stage_system":
-            if metadata.get("params"):
-                for param_name, param_meta in metadata["params"].items():
-                    if param_meta.get("identity") == "MarkedEntityList" and metadata.get("auto_remove_marker", True):
-                        marker_type_to_remove = param_meta["marker_component_type"]
-                        entities_processed = kwargs_to_inject.get(param_name, [])
-                        if entities_processed and marker_type_to_remove:
-                            entity_ids_processed = [entity.id for entity in entities_processed]
-                            if entity_ids_processed:
-                                from sqlalchemy import delete as sql_delete
+        finally:
+            # This code runs after the generator is exhausted by the consumer.
+            if metadata and metadata.get("system_type") == "stage_system":
+                if metadata.get("params"):
+                    for param_name, param_meta in metadata["params"].items():
+                        if param_meta.get("identity") == "MarkedEntityList" and metadata.get(
+                            "auto_remove_marker", True
+                        ):
+                            marker_type_to_remove = param_meta["marker_component_type"]
+                            entities_processed = kwargs_to_inject.get(param_name, [])
+                            if entities_processed and marker_type_to_remove:
+                                entity_ids_processed = [entity.id for entity in entities_processed]
+                                if entity_ids_processed:
+                                    from sqlalchemy import delete as sql_delete
 
-                                self.logger.debug(
-                                    f"Scheduler for world '{self.world.name}': Bulk removing {marker_type_to_remove.__name__} from "
-                                    f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
-                                )
-                                stmt = sql_delete(marker_type_to_remove).where(
-                                    marker_type_to_remove.entity_id.in_(entity_ids_processed)
-                                )
-                                await transaction.session.execute(stmt)
-                                if metadata.get("system_type") == "stage_system":
-                                    await transaction.session.flush()
-        return result
+                                    self.logger.debug(
+                                        f"Scheduler for world '{self.world.name}': Bulk removing {marker_type_to_remove.__name__} from "
+                                        f"{len(entity_ids_processed)} entities after system {system_func.__name__}."
+                                    )
+                                    stmt = sql_delete(marker_type_to_remove).where(
+                                        marker_type_to_remove.entity_id.in_(entity_ids_processed)
+                                    )
+                                    await transaction.session.execute(stmt)
+                                    if metadata.get("system_type") == "stage_system":
+                                        await transaction.session.flush()
 
-    async def execute_one_time_system(
+    def execute_one_time_system(
         self, system_func: Callable[..., Any], transaction: EcsTransaction, **kwargs: Any
-    ) -> Any:
+    ) -> SystemExecutor[Any]:
         self.logger.info(
             f"Executing one-time system: {system_func.__name__} in world '{self.world.name}' with provided kwargs: {kwargs}"
         )
-        try:
-            result = await self._execute_system_func(
-                system_func, transaction, event_object=None, command_object=None, **kwargs
-            )
-            return result
-        except Exception as e:
-            self.logger.error(
-                f"Error during execution of one-time system {system_func.__name__} in world '{self.world.name}': {e}. "
-                "Session rollback should be handled by the caller.",
-                exc_info=True,
-            )
-            raise
+        generator = self._execute_system_func(
+            system_func, transaction, event_object=None, command_object=None, **kwargs
+        )
+        return SystemExecutor([generator], ExecutionStrategy.SERIAL)
