@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from dam.models.core import BaseComponent, Entity
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
+from sqlalchemy.dialects.postgresql.json import JSONB 
 
 
 class WebSourceComponent(BaseComponent):
@@ -81,7 +82,7 @@ class WebSourceComponent(BaseComponent):
     # For SQLite, this might default to TEXT and require manual JSON parsing.
     # Using sqlalchemy.types.JSON for broader compatibility including SQLite.
     raw_metadata_dump: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON, nullable=True, comment="Dump of raw metadata from the web source, for extensibility.", default=None
+        JSONB, nullable=True, comment="Dump of raw metadata from the web source, for extensibility.", default=None
     )
 
     # Consider adding a 'downloaded_at' timestamp if the file is fetched later.

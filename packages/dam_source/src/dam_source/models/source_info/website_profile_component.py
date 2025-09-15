@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 from dam.models.core import BaseComponent
 from sqlalchemy import JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql.json import JSONB 
 
 
 class WebsiteProfileComponent(BaseComponent):
@@ -36,7 +37,7 @@ class WebsiteProfileComponent(BaseComponent):
         String(2048), comment="Primary API endpoint for the website, if applicable.", default=None
     )
     parser_rules: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON,  # Using standard JSON for compatibility (e.g., SQLite)
+        JSONB,
         nullable=True,
         comment="JSON field to store site-specific parsing/scraping hints or configurations.",
         default=None,  # For dataclass __init__

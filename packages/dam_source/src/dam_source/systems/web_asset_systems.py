@@ -64,7 +64,7 @@ async def handle_ingest_web_asset_command(
     await transaction.flush()
     logger.info(f"Creating new Asset Entity ID {asset_entity.id} for web asset from URL: {cmd.source_url}")
 
-    # 3. Create OriginalSourceInfoComponent for the Asset Entity
+    # 3. Create WebSourceComponent for the Asset Entity
     original_filename = cmd.metadata_payload.get("asset_title") if cmd.metadata_payload else None
     if not original_filename:
         try:
@@ -72,12 +72,6 @@ async def handle_ingest_web_asset_command(
         except Exception:
             original_filename = f"web_asset_{asset_entity.id}"
 
-    osi_comp = OriginalSourceInfoComponent(
-        source_type=source_types.SOURCE_TYPE_WEB_SOURCE,
-    )
-    await transaction.add_component_to_entity(asset_entity.id, osi_comp)
-
-    # 4. Create WebSourceComponent for the Asset Entity
     web_source_data: Dict[str, Any] = {
         "website_entity_id": website_entity.id if website_entity else None,
         "source_url": cmd.source_url,

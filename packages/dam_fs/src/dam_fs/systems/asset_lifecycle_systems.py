@@ -119,8 +119,6 @@ async def register_local_file_handler(
         else:
             flc = FileLocationComponent(url=file_uri, last_modified_at=current_mtime)
             await transaction.add_component_to_entity(entity.id, flc)
-            osi = OriginalSourceInfoComponent(source_type=source_types.SOURCE_TYPE_LOCAL_FILE)
-            await transaction.add_component_to_entity(entity.id, osi)
 
         # Add ContentLengthComponent if it doesn't exist
         if not await transaction.get_component(entity.id, ContentLengthComponent):

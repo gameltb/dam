@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import JSON, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql.json import JSONB 
 
 
 class PSPSFOMetadataComponent(BaseComponent):
@@ -36,7 +37,7 @@ class PspSfoRawMetadataComponent(BaseComponent):
 
     __tablename__ = "component_psp_sfo_raw_metadata"
 
-    metadata_json: Mapped[Dict[str, Any]] = mapped_column(JSON)
+    metadata_json: Mapped[Dict[str, Any]] = mapped_column(JSONB)
 
     def __repr__(self) -> str:
         return (

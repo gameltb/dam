@@ -46,8 +46,6 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
         assert flc.url == temp_asset_file.as_uri()
         assert flc.last_modified_at == mod_time
 
-        osi = await ecs_functions.get_component(session, entity_id, OriginalSourceInfoComponent)
-        assert osi is not None
 
     # 2. Find the entity by its properties
     find_cmd = FindEntityByFilePropertiesCommand(

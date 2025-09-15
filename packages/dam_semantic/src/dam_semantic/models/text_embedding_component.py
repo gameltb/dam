@@ -139,7 +139,6 @@ class OldTextEmbeddingComponent(BaseComponent):
     model_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Kept for old table structure
     source_component_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    # model_parameters: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True) # Was from a previous iteration
 
     def __repr__(self) -> str:
         return (
