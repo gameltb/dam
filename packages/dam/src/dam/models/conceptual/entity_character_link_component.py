@@ -3,11 +3,8 @@ from typing import Optional
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.base_component import BaseComponent  # Corrected import path from ..core import BaseComponent
-
-# from ..core.types import مفهوم_موجودیت_آی_دی # Assuming this is EntityId - Removed for now, will use int
-# from .character_concept_component import CharacterConceptComponent # This component links to Entity that has CharacterConceptComponent
-from ..core.entity import Entity  # For relationship typing
+from ..core.base_component import BaseComponent
+from ..core.entity import Entity
 
 
 class EntityCharacterLinkComponent(BaseComponent):

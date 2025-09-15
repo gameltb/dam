@@ -15,7 +15,7 @@ from dam.models.core.entity import Entity
 from dam.models.metadata.mime_type_component import MimeTypeComponent
 from sqlalchemy import select
 
-from dam_fs.models.filename_component import FilenameComponent
+from dam_fs.models.file_location_component import FileLocationComponent
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +33,14 @@ async def auto_set_mime_type_from_filename_system(
         stmt = (
             select(Entity)
             .where(Entity.id == command.entity_id)
-            .join(FilenameComponent, Entity.id == FilenameComponent.entity_id)
+            .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
             .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
             .where(MimeTypeComponent.id.is_(None))
         )
     else:
         stmt = (
             select(Entity)
-            .join(FilenameComponent, Entity.id == FilenameComponent.entity_id)
+            .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
             .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
             .where(MimeTypeComponent.id.is_(None))
         )
