@@ -10,7 +10,7 @@ class ArchivePasswordComponent(Component):
 
     __tablename__ = "component_archive_password"
 
-    password: Mapped[str] = mapped_column(String(1024), nullable=False)
+    password: Mapped[str] = mapped_column(String(), nullable=False)
 
     __table_args__ = (UniqueConstraint("entity_id", name="uq_password_entity"),)
 

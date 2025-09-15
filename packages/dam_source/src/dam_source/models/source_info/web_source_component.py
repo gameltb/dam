@@ -32,32 +32,32 @@ class WebSourceComponent(BaseComponent):
     )
 
     source_url: Mapped[str] = mapped_column(
-        String(2048),
+        String(),
         index=True,
         nullable=False,
         comment="URL of the asset's page or where it was found. Should be unique per (website_entity_id, gallery_id) or similar.",
     )
     original_file_url: Mapped[Optional[str]] = mapped_column(
-        String(2048), comment="Direct URL to the media file, if different from source_url.", default=None
+        String(), comment="Direct URL to the media file, if different from source_url.", default=None
     )
 
     # website_name is now part of the linked Website Entity via WebsiteProfileComponent
     # gallery_id remains to identify the specific item on the site
     gallery_id: Mapped[Optional[str]] = mapped_column(
-        String(255),
+        String(),
         index=True,
         comment="Identifier for the gallery, post, or collection on the website (e.g., submission ID).",
         default=None,
     )
 
     uploader_name: Mapped[Optional[str]] = mapped_column(
-        String(255),
+        String(),
         index=True,  # This might also become a link to a User/Artist Entity later
         comment="Username of the uploader or artist on the site.",
         default=None,
     )
     uploader_url: Mapped[Optional[str]] = mapped_column(
-        String(2048), comment="URL to the uploader's profile page.", default=None
+        String(), comment="URL to the uploader's profile page.", default=None
     )
 
     upload_date: Mapped[Optional[datetime]] = mapped_column(
@@ -65,7 +65,7 @@ class WebSourceComponent(BaseComponent):
     )
 
     asset_title: Mapped[Optional[str]] = mapped_column(
-        String(1024), comment="Title of the asset on the website.", default=None
+        String(), comment="Title of the asset on the website.", default=None
     )
     asset_description: Mapped[Optional[str]] = mapped_column(
         Text, comment="Description or caption provided for the asset.", default=None

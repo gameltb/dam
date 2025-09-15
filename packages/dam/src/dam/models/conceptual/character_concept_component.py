@@ -15,7 +15,7 @@ class CharacterConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponen
     # for now, we'll rely on concept_name for character name and
     # concept_description for their bio/details.
     # Example:
-    # species: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # species: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     # abilities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:

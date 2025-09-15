@@ -21,7 +21,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
     )
 
     # Name of the model that generated this tag link (e.g., "wd-v1-4-moat-tagger-v2")
-    source_model_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    source_model_name: Mapped[str] = mapped_column(String(), nullable=False, index=True)
 
     # Confidence score from the model for this specific tag suggestion
     confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

@@ -14,14 +14,14 @@ class PSPSFOMetadataComponent(BaseComponent):
     __tablename__ = "component_psp_sfo_metadata"
 
     # Common SFO fields
-    app_ver: Mapped[Optional[str]] = mapped_column(String(255))
+    app_ver: Mapped[Optional[str]] = mapped_column(String())
     bootable: Mapped[Optional[int]] = mapped_column(Integer)
-    category: Mapped[Optional[str]] = mapped_column(String(255))
-    disc_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
-    disc_version: Mapped[Optional[str]] = mapped_column(String(255))
+    category: Mapped[Optional[str]] = mapped_column(String())
+    disc_id: Mapped[Optional[str]] = mapped_column(String(), index=True)
+    disc_version: Mapped[Optional[str]] = mapped_column(String())
     parental_level: Mapped[Optional[int]] = mapped_column(Integer)
-    psp_system_ver: Mapped[Optional[str]] = mapped_column(String(255))
-    title: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    psp_system_ver: Mapped[Optional[str]] = mapped_column(String())
+    title: Mapped[Optional[str]] = mapped_column(String(), index=True)
 
     def __repr__(self) -> str:
         return (

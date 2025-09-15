@@ -21,7 +21,7 @@ class EntityCharacterLinkComponent(BaseComponent):
         nullable=False,
         index=True,
     )
-    role_in_asset: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    role_in_asset: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
 
     # Relationship to the Entity that represents the character concept
     # This Entity is expected to have a CharacterConceptComponent attached to it.

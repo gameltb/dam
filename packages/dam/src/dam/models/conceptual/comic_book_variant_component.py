@@ -17,21 +17,21 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
     # id, entity_id, conceptual_entity_id are inherited.
 
     language: Mapped[str | None] = mapped_column(
-        String(50), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."
+        String(), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."
     )
 
     format: Mapped[str | None] = mapped_column(
-        String(50), nullable=True, index=True, comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub')."
+        String(), nullable=True, index=True, comment="File format of this variant (e.g., 'PDF', 'CBZ', 'ePub')."
     )
 
     scan_quality: Mapped[str | None] = mapped_column(
-        String(100),
+        String(),
         nullable=True,
         comment="Description of scan quality, if applicable (e.g., '300dpi', 'WebRip', 'Archive Grade').",
     )
 
     variant_description: Mapped[str | None] = mapped_column(
-        String(1024),
+        String(),
         nullable=True,
         comment="A general description for this variant, e.g., 'Collector's Edition Scan', 'Digital Release'.",
     )

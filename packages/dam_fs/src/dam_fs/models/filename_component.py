@@ -21,7 +21,7 @@ class FilenameComponent(BaseComponent):
 
     # id, entity_id are inherited from BaseComponent
 
-    filename: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
+    filename: Mapped[Optional[str]] = mapped_column(String(), nullable=True, default=None)
     first_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     __table_args__ = (

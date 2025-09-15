@@ -28,7 +28,7 @@ class OriginalSourceInfoComponent(BaseComponent):
     # - WebSourceComponent.url (for web origins)
 
     source_type: Mapped[str] = mapped_column(
-        String(50),
+        String(),
         nullable=False,
         index=True,
         comment=(

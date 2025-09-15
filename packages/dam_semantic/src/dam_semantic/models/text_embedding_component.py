@@ -18,8 +18,8 @@ class BaseSpecificEmbeddingComponent(BaseComponent):
     embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     # Information about the source of the text that was embedded.
-    source_component_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_component_name: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    source_field_name: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
 
     def __repr_base__(self) -> str:
         # Helper for subclasses' __repr__
@@ -136,9 +136,9 @@ class OldTextEmbeddingComponent(BaseComponent):
 
     __tablename__ = "component_text_embedding"  # This table will be removed by migrations
     embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    model_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Kept for old table structure
-    source_component_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    source_field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    model_name: Mapped[str] = mapped_column(String(), nullable=False)  # Kept for old table structure
+    source_component_name: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    source_field_name: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
 
     def __repr__(self) -> str:
         return (

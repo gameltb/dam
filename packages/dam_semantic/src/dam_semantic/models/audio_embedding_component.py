@@ -14,7 +14,7 @@ class BaseSpecificAudioEmbeddingComponent(BaseComponent):
     __abstract__ = True
 
     embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    model_name: Mapped[str] = mapped_column(String(255), nullable=False)  # To identify the model used
+    model_name: Mapped[str] = mapped_column(String(), nullable=False)  # To identify the model used
     # Potentially add fields like 'segment_start_time', 'segment_duration' if embedding parts of audio
     # For now, assumes embedding of the whole audio file or a canonical segment.
 

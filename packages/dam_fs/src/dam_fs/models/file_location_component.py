@@ -16,7 +16,7 @@ class FileLocationComponent(BaseComponent):
     # id, entity_id are inherited from BaseComponent
 
     # The URL representing the file location, e.g., using file:// protocol.
-    url: Mapped[str] = mapped_column(String(4096), nullable=False, unique=True)
+    url: Mapped[str] = mapped_column(String(), nullable=False, unique=True)
     last_modified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     def __repr__(self) -> str:

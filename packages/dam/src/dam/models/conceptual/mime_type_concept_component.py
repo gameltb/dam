@@ -14,7 +14,7 @@ class MimeTypeConceptComponent(BaseConceptualInfoComponent):
     __tablename__ = "component_mime_type_concept"
 
     mime_type: Mapped[str] = mapped_column(
-        String(255),
+        String(),
         nullable=False,
         index=True,
         comment="The unique mime type string (e.g., 'image/png', 'application/pdf').",

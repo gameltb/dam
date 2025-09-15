@@ -11,4 +11,4 @@ class ArchiveMemberComponent(Component):
     __tablename__ = "component_archive_member"
 
     archive_entity_id: Mapped[int] = mapped_column(nullable=False)
-    path_in_archive: Mapped[str] = mapped_column(String(4096), nullable=False)
+    path_in_archive: Mapped[str] = mapped_column(String(), nullable=False)

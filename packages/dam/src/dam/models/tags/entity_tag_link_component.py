@@ -30,7 +30,7 @@ class EntityTagLinkComponent(BaseComponent):
     )
 
     tag_value: Mapped[str | None] = mapped_column(
-        String(1024),  # Max length for a tag value
+        String(),
         nullable=True,
         comment="Optional value for this tag application, used if the TagConcept allows values (e.g., for a 'Rating' tag, value could be '5').",
     )

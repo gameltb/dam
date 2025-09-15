@@ -68,7 +68,7 @@ Components are data-only Python classes that store specific attributes or proper
 
 ### 2.4. Field Definitions
 - Component fields should be defined using SQLAlchemy's `Mapped` type hints and `mapped_column` function.
-- Example: `original_filename: Mapped[Optional[str]] = mapped_column(String(1024))`
+- Example: `original_filename: Mapped[Optional[str]] = mapped_column(String())`
 - Specific text embedding tables do *not* store `model_name` or `model_parameters` as columns; this information is inherent in the choice of table. For audio embeddings, `model_name` is stored as a column in the base specific audio embedding component due to the initial design choice, allowing a single table to potentially store embeddings from different audio models if their features are compatible, or to clearly identify the source model if multiple specific tables are used per audio model type.
 
 ### 2.5. Semantic Embedding Components (Text)

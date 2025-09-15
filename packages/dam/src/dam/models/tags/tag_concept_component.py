@@ -23,26 +23,26 @@ class TagConceptComponent(BaseConceptualInfoComponent):
     # id, entity_id are inherited via BaseConceptualInfoComponent
 
     tag_name: Mapped[str] = mapped_column(
-        String(255),
+        String(),
         nullable=False,
         index=True,
         comment="The unique name of the tag (e.g., 'Sci-Fi', 'Needs Review', 'Artist:JohnDoe').",
     )
 
     tag_scope_detail: Mapped[str | None] = mapped_column(
-        String(1024),
+        String(),
         nullable=True,
         comment="Details for the scope, e.g., component class name if scope_type is 'COMPONENT_CLASS_REQUIRED', "
         "or an Entity ID if scope_type is 'CONCEPTUAL_ASSET_LOCAL'.",
     )
 
     tag_description: Mapped[str | None] = mapped_column(
-        String(2048), nullable=True, comment="A description of what this tag represents or how it should be used."
+        String(), nullable=True, comment="A description of what this tag represents or how it should be used."
     )
 
     # For simplicity, using strings for scope_type. An Enum could be used for stricter validation.
     tag_scope_type: Mapped[str] = mapped_column(
-        String(50),
+        String(),
         nullable=False,
         default="GLOBAL",  # Default to global scope
         index=True,

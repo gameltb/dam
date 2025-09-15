@@ -18,21 +18,21 @@ class ComicBookConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponen
     # via BaseConceptualInfoComponent.
 
     comic_title: Mapped[str] = mapped_column(
-        String(1024),
+        String(),
         nullable=False,
         index=True,
         comment="The main title of the comic book (e.g., 'The Amazing Spider-Man', 'Action Comics').",
     )
 
     series_title: Mapped[str | None] = mapped_column(
-        String(1024),
+        String(),
         nullable=True,
         index=True,
         comment="The title of the series this comic belongs to, if applicable (e.g., 'The Amazing Spider-Man', 'Action Comics'). Often same as comic_title for ongoing series.",
     )
 
     issue_number: Mapped[str | None] = mapped_column(
-        String(50),
+        String(),
         nullable=True,
         index=True,
         comment="The issue number, if applicable (e.g., '#1', '100', 'Annual #3').",

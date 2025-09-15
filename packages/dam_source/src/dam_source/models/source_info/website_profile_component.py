@@ -15,26 +15,26 @@ class WebsiteProfileComponent(BaseComponent):
     __tablename__ = "component_website_profile"
 
     name: Mapped[str] = mapped_column(
-        String(255),
+        String(),
         unique=True,
         index=True,
         nullable=False,
         comment="Unique human-readable name of the website (e.g., DeviantArt, ArtStation).",
     )
     main_url: Mapped[str] = mapped_column(
-        String(2048), unique=True, index=True, nullable=False, comment="Main homepage URL of the website."
+        String(), unique=True, index=True, nullable=False, comment="Main homepage URL of the website."
     )
 
     description: Mapped[Optional[str]] = mapped_column(
         Text, comment="Optional description of the website.", default=None
     )
     icon_url: Mapped[Optional[str]] = mapped_column(
-        String(2048), comment="URL to a favicon or logo for the website.", default=None
+        String(), comment="URL to a favicon or logo for the website.", default=None
     )
 
     # For potential API interactions or specific scraping configurations
     api_endpoint: Mapped[Optional[str]] = mapped_column(
-        String(2048), comment="Primary API endpoint for the website, if applicable.", default=None
+        String(), comment="Primary API endpoint for the website, if applicable.", default=None
     )
     parser_rules: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSONB,
