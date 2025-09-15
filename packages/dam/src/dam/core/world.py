@@ -14,7 +14,7 @@ from dam.core.executor import SystemExecutor
 from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
-from dam.core.system_events import BaseSystemEvent, SystemResultEvent
+from dam.system_events import BaseSystemEvent, SystemResultEvent
 from dam.core.systems import WorldScheduler
 from dam.core.transaction import EcsTransaction, active_transaction
 

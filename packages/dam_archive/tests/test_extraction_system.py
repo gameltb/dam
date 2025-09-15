@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from dam.core.system_events.progress import ProgressCompleted
+from dam.system_events.progress import ProgressCompleted
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_entity_mime_type

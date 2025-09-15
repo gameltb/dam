@@ -11,7 +11,7 @@ from dam.commands import (
     SetMimeTypeFromBufferCommand,
 )
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
-from dam.core.system_events.progress import (
+from dam.system_events.progress import (
     ProgressCompleted,
     ProgressError,
     ProgressStarted,

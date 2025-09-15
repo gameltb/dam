@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import typer
-from dam.core.system_events.progress import (
+from dam.system_events.progress import (
     ProgressCompleted,
     ProgressError,
     ProgressStarted,
