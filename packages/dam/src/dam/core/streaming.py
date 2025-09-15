@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from dam.core.system_events import BaseSystemEvent
+
 
 @dataclass
-class StreamingEvent:
+class StreamingEvent(BaseSystemEvent):
     """Base class for events yielded by a streaming handler."""
 
     pass

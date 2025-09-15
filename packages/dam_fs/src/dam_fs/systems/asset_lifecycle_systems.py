@@ -109,8 +109,8 @@ async def register_local_file_handler(
     # File is new or modified, proceed with hash-based entity creation/retrieval
     with open(file_path, "rb") as f:
         get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=f)
-        command_result = await world.dispatch_command(get_or_create_cmd)
-    entity, _ = command_result.get_one_value()
+        result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
+    entity, _ = result_tuple
 
     async with transaction.session.begin_nested():
         # Update FileLocationComponent
@@ -184,10 +184,8 @@ async def store_assets_handler(
 
         # Get the asset stream to store it
         asset_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
-        asset_stream_result = await world.dispatch_command(asset_stream_cmd)
-
         try:
-            asset_stream = asset_stream_result.get_first_non_none_value()
+            asset_stream = await world.dispatch_command(asset_stream_cmd).get_first_non_none_value()
         except ValueError:
             asset_stream = None
 

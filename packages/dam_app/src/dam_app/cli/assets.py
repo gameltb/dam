@@ -82,14 +82,13 @@ async def add_assets(
                 pre_check_cmd = FindEntityByFilePropertiesCommand(
                     file_path=file_path.as_uri(), last_modified_at=mod_time
                 )
-                cmd_result = await target_world.dispatch_command(pre_check_cmd)
-                existing_entity_id = cmd_result.get_one_value()
+                existing_entity_id = await target_world.dispatch_command(pre_check_cmd).get_one_value()
 
                 if existing_entity_id:
                     skipped_count += 1
                 else:
                     register_cmd = RegisterLocalFileCommand(file_path=file_path)
-                    await target_world.dispatch_command(register_cmd)
+                    await target_world.dispatch_command(register_cmd).get_all_results()
                     success_count += 1
 
             except Exception as e:
@@ -125,7 +124,7 @@ async def store_assets(
     typer.echo(f"Storing assets for query: '{query}'...")
 
     store_cmd = StoreAssetsCommand(query=query)
-    await target_world.dispatch_command(store_cmd)
+    await target_world.dispatch_command(store_cmd).get_all_results()
 
     typer.secho("Asset storage process complete.", fg=typer.colors.GREEN)
 
@@ -146,7 +145,7 @@ async def clear_archive_info(
     typer.echo(f"Clearing archive info for entity: {entity_id}...")
 
     clear_cmd = ClearArchiveComponentsCommand(entity_id=entity_id)
-    await target_world.dispatch_command(clear_cmd)
+    await target_world.dispatch_command(clear_cmd).get_all_results()
 
     typer.secho("Archive info clearing process complete.", fg=typer.colors.GREEN)
 
@@ -166,7 +165,7 @@ async def set_mime_type(
     typer.echo(f"Setting mime type for entity {entity_id} to {mime_type}...")
 
     set_cmd = SetMimeTypeCommand(entity_id=entity_id, mime_type=mime_type)
-    await target_world.dispatch_command(set_cmd)
+    await target_world.dispatch_command(set_cmd).get_all_results()
 
     typer.secho("Mime type set successfully.", fg=typer.colors.GREEN)
 
@@ -216,7 +215,7 @@ async def auto_set_mime_type(
         typer.echo("Automatically setting mime type for all entities...")
 
     set_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)
-    await target_world.dispatch_command(set_cmd)
+    await target_world.dispatch_command(set_cmd).get_all_results()
 
     typer.secho("Mime type setting process complete.", fg=typer.colors.GREEN)
 
@@ -244,7 +243,7 @@ async def discover_and_bind(
     typer.echo(f"Discovering and binding split archives in paths: {paths}...")
 
     discover_cmd = DiscoverAndBindCommand(paths=[str(p) for p in paths])
-    await target_world.dispatch_command(discover_cmd)
+    await target_world.dispatch_command(discover_cmd).get_all_results()
 
     typer.secho("Discovery and binding process complete.", fg=typer.colors.GREEN)
 
@@ -264,7 +263,7 @@ async def create_master(
     typer.echo(f"Creating master archive '{name}' with parts: {part_ids}...")
 
     create_cmd = CreateMasterArchiveCommand(name=name, part_entity_ids=part_ids)
-    await target_world.dispatch_command(create_cmd)
+    await target_world.dispatch_command(create_cmd).get_all_results()
 
     typer.secho("Master archive created successfully.", fg=typer.colors.GREEN)
 
@@ -283,6 +282,6 @@ async def unbind_master(
     typer.echo(f"Unbinding master archive with ID: {master_id}...")
 
     unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_id)
-    await target_world.dispatch_command(unbind_cmd)
+    await target_world.dispatch_command(unbind_cmd).get_all_results()
 
     typer.secho("Master archive unbound successfully.", fg=typer.colors.GREEN)

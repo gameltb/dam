@@ -34,13 +34,13 @@ async def psp_iso_metadata_extraction_event_handler_system(
                 continue
 
             # Get all possible filenames for the asset
-            filenames_result = await world.dispatch_command(GetAssetFilenamesCommand(entity_id=entity_id))
-            all_filenames = list(filenames_result.iter_ok_values_flat())
+            results = await world.dispatch_command(GetAssetFilenamesCommand(entity_id=entity_id)).get_all_results()
+            all_filenames = [item for sublist in results for item in sublist]
 
             is_iso = any(filename.lower().endswith(".iso") for filename in all_filenames)
 
             if is_iso:
-                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id))
+                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id)).get_all_results()
 
         except Exception as e:
             logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)
@@ -58,11 +58,11 @@ async def psp_iso_metadata_extraction_command_handler_system(
     entity_id = command.entity_id
     try:
         # Get the stream
-        stream_result = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id))
+        stream = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id)).get_first_non_none_value()
 
         # Use get_first_non_none_value to get the first available stream.
         # This will raise an exception if no handlers succeed, which is desired.
-        with stream_result.get_first_non_none_value() as stream:
+        with stream:
             sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:

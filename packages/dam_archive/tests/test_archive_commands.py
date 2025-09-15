@@ -36,13 +36,13 @@ async def test_discover_and_bind_workflow(
         part_file = tmp_path / f"{base_name}.part{i}.rar"
         part_file.write_text(f"content of part {i}")  # Write unique content
         register_cmd = RegisterLocalFileCommand(file_path=part_file)
-        result = await world.dispatch_command(register_cmd)
-        entity_id = result.get_one_value()
+        entity_id = await world.dispatch_command(register_cmd).get_one_value()
         entity_ids.append(entity_id)
 
     # 2. Action: Run the discovery and binding command
     discover_cmd = DiscoverAndBindCommand(paths=[str(tmp_path)])
-    await world.dispatch_command(discover_cmd)
+    async for _ in world.dispatch_command(discover_cmd):
+        pass
     await asyncio.sleep(0.1)
 
     # 3. Assertions
@@ -92,7 +92,8 @@ async def test_manual_create_and_unbind_workflow(
 
     # 2. Action: Create the master entity manually
     create_cmd = CreateMasterArchiveCommand(name="manual_master", part_entity_ids=entity_ids)
-    await world.dispatch_command(create_cmd)
+    async for _ in world.dispatch_command(create_cmd):
+        pass
     await asyncio.sleep(0.1)
 
     # 3. Assertions for creation
@@ -113,7 +114,8 @@ async def test_manual_create_and_unbind_workflow(
 
     # 4. Action: Unbind the archive
     unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_entity_id)
-    await world.dispatch_command(unbind_cmd)
+    async for _ in world.dispatch_command(unbind_cmd):
+        pass
     await asyncio.sleep(0.1)
 
     # 5. Assertions for unbinding

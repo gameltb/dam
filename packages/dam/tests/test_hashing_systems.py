@@ -31,7 +31,7 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
         stream=stream,
         algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
     )
-    await world.dispatch_command(command)
+    await world.dispatch_command(command).get_all_results()
 
     async with world.db_session_maker() as session:
         md5_comp = await ecs_functions.get_component(session, entity_id, ContentHashMD5Component)
@@ -46,9 +46,9 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system_captures_mismatch_error(test_world_alpha: World) -> None:
+async def test_add_hashes_from_stream_system_propagates_mismatch_error(test_world_alpha: World) -> None:
     """
-    Tests that the system returns an Err result if a hash already exists and does not match.
+    Tests that the system propagates a HashMismatchError if a hash already exists and does not match.
     """
     world = test_world_alpha
     async with world.db_session_maker() as session:
@@ -67,11 +67,5 @@ async def test_add_hashes_from_stream_system_captures_mismatch_error(test_world_
         algorithms={HashAlgorithm.MD5},
     )
 
-    result = await world.dispatch_command(command)
-
-    assert result is not None
-    assert len(result.results) == 1
-    handler_res = result.results[0]
-
-    assert handler_res.is_err()
-    assert isinstance(handler_res.exception, HashMismatchError)
+    with pytest.raises(HashMismatchError):
+        await world.dispatch_command(command).get_all_results()

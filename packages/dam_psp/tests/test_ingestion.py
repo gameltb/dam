@@ -6,8 +6,6 @@ from unittest.mock import AsyncMock
 import pycdlib
 import pytest
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
-from dam.core.commands import CommandResult
-from dam.core.result import HandlerResult
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
@@ -142,17 +140,21 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
     # Mock world
     mock_world = AsyncMock(spec=World)
 
-    async def dispatch_command_side_effect(command: Any) -> CommandResult[Any]:
+    def dispatch_command_side_effect(command: Any) -> AsyncMock:
+        mock_stream = AsyncMock()
         if isinstance(command, GetAssetFilenamesCommand):
             if command.entity_id == standalone_iso_entity_id:
-                return CommandResult(results=[HandlerResult(value=["test.iso"])])
+                mock_stream.get_all_results.return_value = [["test.iso"]]
             elif command.entity_id == archived_iso_entity_id:
-                return CommandResult(results=[HandlerResult(value=["game.iso"])])
+                mock_stream.get_all_results.return_value = [["game.iso"]]
             elif command.entity_id == non_iso_entity_id:
-                return CommandResult(results=[HandlerResult(value=["text.txt"])])
-        # For other commands, just return a default empty result.
-        # The call is tracked by the mock automatically.
-        return CommandResult(results=[])
+                mock_stream.get_all_results.return_value = [["text.txt"]]
+        elif isinstance(command, ExtractPSPMetadataCommand):
+            mock_stream.get_all_results.return_value = []
+        else:
+            mock_stream.get_all_results.return_value = []
+
+        return mock_stream
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
 
@@ -177,12 +179,13 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
 
     # 4. Execute command handler
     # Reset mock for world dispatch before command handler execution
-    mock_world.dispatch_command.side_effect = None  # Reset side effect
-
-    async def dispatch_command_side_effect_for_stream(command: Any) -> CommandResult[Any]:
+    def dispatch_command_side_effect_for_stream(command: Any) -> AsyncMock:
+        mock_stream = AsyncMock()
         if isinstance(command, GetAssetStreamCommand):
-            return CommandResult(results=[HandlerResult(value=create_dummy_iso_with_sfo())])
-        return CommandResult(results=[])  # Default empty result
+            mock_stream.get_first_non_none_value.return_value = create_dummy_iso_with_sfo()
+        else:
+            mock_stream.get_first_non_none_value.return_value = None
+        return mock_stream
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect_for_stream
 

@@ -55,7 +55,7 @@ async def get_or_create_entity_from_stream_handler(
             stream=cmd.stream,
             algorithms=all_algorithms,
         )
-        await world.dispatch_command(add_hashes_command)
+        await world.dispatch_command(add_hashes_command).get_all_results()
     else:
         # Use our new function to add all the hashes we already calculated.
         await add_hashes_to_entity(transaction, entity.id, hashes)

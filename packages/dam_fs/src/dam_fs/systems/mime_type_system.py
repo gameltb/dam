@@ -56,9 +56,9 @@ async def auto_set_mime_type_from_filename_system(
 
     for entity in entities_to_process:
         get_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
-        stream_result = await world.dispatch_command(get_stream_cmd)
         try:
-            with stream_result.get_first_non_none_value() as stream:
+            stream = await world.dispatch_command(get_stream_cmd).get_first_non_none_value()
+            with stream:
                 buffer = stream.read(4096)
                 mime_type = magic.from_buffer(buffer, mime=True)
                 if mime_type:

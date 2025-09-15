@@ -178,7 +178,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     from dam_fs.commands import RegisterLocalFileCommand
 
     add_command = RegisterLocalFileCommand(file_path=sample_image_a)
-    await test_world_alpha.dispatch_command(add_command)
+    await test_world_alpha.dispatch_command(add_command).get_all_results()
     # No add_result or exit_code to check here, assume success if no exceptions
 
     asset_id_for_test: Optional[int] = None

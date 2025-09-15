@@ -243,7 +243,7 @@ async def apply_transcode_profile(
         ingestion_command = RegisterLocalFileCommand(file_path=transcoded_filepath)
 
         # Dispatch command. The handler will ingest the file.
-        await world.dispatch_command(ingestion_command)
+        await world.dispatch_command(ingestion_command).get_all_results()
 
         # To ensure the file is processed by ingestion systems (metadata, etc.)
         # This would typically run after the event that adds NeedsMetadataExtractionComponent

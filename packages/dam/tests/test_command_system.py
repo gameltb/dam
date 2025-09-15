@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from typing import AsyncGenerator
 
 import pytest
 from _pytest.logging import LogCaptureFixture
 
 from dam.core.commands import BaseCommand
+from dam.core.system_events import BaseSystemEvent
 from dam.core.systems import system
 from dam.core.world import World
 
@@ -31,6 +33,11 @@ class ListCommand(BaseCommand[list[str]]):
 
 @dataclass
 class MismatchCommand(BaseCommand[int]):
+    pass
+
+
+@dataclass
+class StreamingCommand(BaseCommand[None]):
     pass
 
 
@@ -70,135 +77,115 @@ def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str,
     return "this is not an int"
 
 
+@dataclass
+class CustomEvent(BaseSystemEvent):
+    message: str
+
+
+@system(on_command=StreamingCommand)
+async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[BaseSystemEvent, None]:
+    yield CustomEvent(message="First")
+    yield CustomEvent(message="Second")
+
+
 # Tests
 @pytest.mark.asyncio
-async def test_register_and_dispatch_single_handler(test_world_alpha: World) -> None:
-    """
-    Tests that a single command handler can be registered and successfully
-    processes a command, returning a result.
-    """
+async def test_get_one_value_success(test_world_alpha: World) -> None:
+    """Tests CommandStream.get_one_value() for a single handler."""
     world = test_world_alpha
     world.register_system(system_func=another_handler)
-
     command = AnotherCommand(value=10)
-    result = await world.dispatch_command(command)
-
-    assert result is not None
-    assert len(result.results) == 1
-    assert result.results[0].is_ok()
-    assert result.results[0].unwrap() == 20
-    assert result.get_one_value() == 20
+    result = await world.dispatch_command(command).get_one_value()
+    assert result == 20
 
 
 @pytest.mark.asyncio
-async def test_dispatch_multiple_handlers(test_world_alpha: World) -> None:
-    """
-    Tests that multiple handlers for the same command all execute and their
-    results are collected.
-    """
+async def test_get_one_value_failure(test_world_alpha: World) -> None:
+    """Tests that CommandStream.get_one_value() fails for multiple handlers."""
     world = test_world_alpha
     world.register_system(system_func=simple_handler_one)
     world.register_system(system_func=simple_handler_two)
-
     command = SimpleCommand(data="test")
-    result = await world.dispatch_command(command)
+    with pytest.raises(ValueError, match="Expected one result, but found 2."):
+        await world.dispatch_command(command).get_one_value()
 
-    assert result is not None
-    assert len(result.results) == 2
 
-    ok_values = list(result.iter_ok_values())
-    assert len(ok_values) == 2
-    assert "Handled one: test" in ok_values
-    assert "Handled two: test" in ok_values
+@pytest.mark.asyncio
+async def test_get_all_results(test_world_alpha: World) -> None:
+    """Tests CommandStream.get_all_results() for multiple handlers."""
+    world = test_world_alpha
+    world.register_system(system_func=simple_handler_one)
+    world.register_system(system_func=simple_handler_two)
+    command = SimpleCommand(data="test")
+    results = await world.dispatch_command(command).get_all_results()
+    assert len(results) == 2
+    assert "Handled one: test" in results
+    assert "Handled two: test" in results
 
 
 @pytest.mark.asyncio
 async def test_dispatch_command_with_no_handlers(test_world_alpha: World) -> None:
-    """
-    Tests that dispatching a command with no registered handlers returns an
-    empty result and does not raise an error.
-    """
+    """Tests that dispatching a command with no handlers returns an empty result."""
     world = test_world_alpha
-    # Note: No handlers are registered for SimpleCommand in this test's world instance
-
     command = SimpleCommand(data="unhandled")
-    result = await world.dispatch_command(command)
-
-    assert result is not None
-    assert len(result.results) == 0
+    results = await world.dispatch_command(command).get_all_results()
+    assert len(results) == 0
 
 
 @pytest.mark.asyncio
-async def test_command_handler_failure_is_captured(test_world_alpha: World) -> None:
-    """
-    Tests that if a command handler raises an exception, the exception is
-    captured in a HandlerResult and does not abort the dispatch.
-    """
+async def test_command_handler_failure_propagates(test_world_alpha: World) -> None:
+    """Tests that if a handler raises an exception, it propagates."""
     world = test_world_alpha
     world.register_system(system_func=failing_handler)
-    world.register_system(system_func=simple_handler_one)  # Register another handler to ensure it runs
-
     command = FailingCommand()
-    result = await world.dispatch_command(command)
-
-    # The dispatch itself should not raise an error
-    assert result is not None
-    assert len(result.results) == 1
-
-    handler_res = result.results[0]
-    assert handler_res.is_err()
-    assert isinstance(handler_res.exception, ValueError)
-
     with pytest.raises(ValueError, match="This handler is designed to fail."):
-        handler_res.unwrap()
-
-    # Test the convenience methods
-    with pytest.raises(ValueError, match="No successful results found."):
-        result.get_first_ok_value()
-
-    with pytest.raises(ValueError, match="Expected one result, but found none."):
-        result.get_one_value()
+        await world.dispatch_command(command).get_one_value()
 
 
 @pytest.mark.asyncio
 async def test_dispatch_different_commands(test_world_alpha: World) -> None:
-    """
-    Tests that the command dispatcher correctly routes commands to their
-    specific handlers and not to handlers for other commands.
-    """
+    """Tests that the dispatcher correctly routes commands to their handlers."""
     world = test_world_alpha
     world.register_system(system_func=simple_handler_one)
     world.register_system(system_func=another_handler)
 
-    # Dispatch first command
-    cmd1 = SimpleCommand(data="dispatch one")
-    res1 = await world.dispatch_command(cmd1)
-    assert res1.get_one_value() == "Handled one: dispatch one"
+    res1 = await world.dispatch_command(SimpleCommand(data="dispatch one")).get_one_value()
+    assert res1 == "Handled one: dispatch one"
 
-    # Dispatch second command
-    cmd2 = AnotherCommand(value=5)
-    res2 = await world.dispatch_command(cmd2)
-    assert res2.get_one_value() == 10
+    res2 = await world.dispatch_command(AnotherCommand(value=5)).get_one_value()
+    assert res2 == 10
 
 
 @pytest.mark.asyncio
-async def test_iter_ok_values_flat(test_world_alpha: World) -> None:
-    """
-    Tests the iter_ok_values_flat method.
-    """
+async def test_list_return_values(test_world_alpha: World) -> None:
+    """Tests that handlers returning lists are correctly handled."""
     world = test_world_alpha
     world.register_system(system_func=list_handler_one)
     world.register_system(system_func=list_handler_two)
-
     command = ListCommand()
-    result = await world.dispatch_command(command)
+    results = await world.dispatch_command(command).get_all_results()
+    assert len(results) == 2
+    assert ["a", "b"] in results
+    assert ["c", "d"] in results
 
-    assert result is not None
-    assert len(result.results) == 2
 
-    flat_values = list(result.iter_ok_values_flat())
-    assert len(flat_values) == 4
-    assert set(flat_values) == {"a", "b", "c", "d"}
+@pytest.mark.asyncio
+async def test_unified_streaming_handler(test_world_alpha: World) -> None:
+    """
+    Tests that a handler that is an AsyncGenerator works with the unified
+    dispatch_command function.
+    """
+    world = test_world_alpha
+    world.register_system(system_func=streaming_handler)
+
+    command = StreamingCommand()
+    results = [item async for item in world.dispatch_command(command)]
+
+    assert len(results) == 2
+    assert isinstance(results[0], CustomEvent)
+    assert results[0].message == "First"
+    assert isinstance(results[1], CustomEvent)
+    assert results[1].message == "Second"
 
 
 @pytest.mark.asyncio
