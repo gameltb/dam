@@ -1,15 +1,16 @@
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Type, TypeVar
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Type, TypeVar, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from dam.core.command_stream import CommandStream
 from dam.core.commands import BaseCommand, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
+from dam.core.enums import ExecutionStrategy
 from dam.core.events import BaseEvent
+from dam.core.executor import SystemExecutor
 from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
@@ -171,24 +172,32 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
 
-    def dispatch_command(self, command: BaseCommand[ResultType]) -> CommandStream:
+    def dispatch_command(self, command: BaseCommand[ResultType]) -> SystemExecutor[ResultType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
 
-        async def _generator() -> AsyncGenerator[BaseSystemEvent, None]:
+        async def _transaction_wrapper() -> AsyncGenerator[BaseSystemEvent, None]:
+            """
+            A generator that wraps the command execution within a transaction,
+            ensuring commit/rollback logic is correctly applied after the
+            command's event stream is fully consumed.
+            """
             transaction = active_transaction.get()
             if transaction:
-                self.logger.debug(f"Joining existing transaction for command '{type(command).__name__}'.")
-                async for item in self.scheduler.dispatch_command(command, transaction):
-                    yield item
+                # Already in a transaction, so just execute and yield.
+                executor = self.scheduler.dispatch_command(command, transaction)
+                async for event in executor:
+                    yield event
                 return
 
+            # Not in a transaction, so create a new one.
             self.logger.debug(f"Creating new transaction for top-level command '{type(command).__name__}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)
             token = active_transaction.set(new_transaction)
             try:
-                async for item in self.scheduler.dispatch_command(command, new_transaction):
-                    yield item
+                executor = self.scheduler.dispatch_command(command, new_transaction)
+                async for event in executor:
+                    yield event
                 await db_session.commit()
             except Exception:
                 self.logger.exception(f"Exception in top-level command '{type(command).__name__}', rolling back.")
@@ -199,7 +208,9 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for command '{type(command).__name__}'.")
 
-        return CommandStream(_generator())
+        # The returned executor runs the wrapper, which in turn runs the actual command executor.
+        # This ensures the lazy execution happens inside the transaction.
+        return SystemExecutor([_transaction_wrapper()], ExecutionStrategy.SERIAL)
 
     async def execute_one_time_system(self, system_func: Callable[..., Any], **kwargs: Any) -> Any:
         """
@@ -212,12 +223,13 @@ class World:
         )
 
         async def _run_and_get_result(transaction: EcsTransaction) -> Any:
-            gen = self.scheduler.execute_one_time_system(system_func, transaction, **kwargs)
-            final_result = None
-            async for event in gen:
+            executor = self.scheduler.execute_one_time_system(system_func, transaction, **kwargs)
+            event: BaseSystemEvent
+            async for event in executor:
                 if isinstance(event, SystemResultEvent):
-                    final_result = event.result  # type: ignore
-            return final_result  # type: ignore
+                    typed_event = cast(SystemResultEvent[Any], event)
+                    return typed_event.result
+            return None
 
         transaction = active_transaction.get()
         if transaction:

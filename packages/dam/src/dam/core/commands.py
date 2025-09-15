@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Generic, Iterator, List, Set, Tuple, TypeVar
 
+from dam.core.enums import ExecutionStrategy
 from dam.core.result import HandlerResult
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm
@@ -77,7 +78,7 @@ class CommandResult(Generic[ResultType]):
 class BaseCommand(Generic[ResultType]):
     """Base class for all commands, which are requests that expect a response."""
 
-    pass
+    execution_strategy: ExecutionStrategy = field(kw_only=True, default=ExecutionStrategy.SERIAL)
 
 
 @dataclass

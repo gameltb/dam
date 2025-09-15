@@ -19,7 +19,9 @@ from typing import (
 )
 
 from dam.core.commands import BaseCommand, ResultType
+from dam.core.enums import ExecutionStrategy
 from dam.core.events import BaseEvent
+from dam.core.executor import SystemExecutor
 from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_events import BaseSystemEvent, SystemResultEvent
@@ -249,9 +251,13 @@ class WorldScheduler:
             self.logger.info(f"No systems registered for stage {stage.name} in world {self.world.name}")
             return
 
-        for system_func in systems_to_run:
-            async for _ in self._execute_system_func(system_func, transaction, event_object=None, command_object=None):
-                pass
+        generators = [
+            self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
+            for system_func in systems_to_run
+        ]
+        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        async for _ in executor:
+            pass
 
     async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction) -> None:
         event_type = type(event)
@@ -263,15 +269,17 @@ class WorldScheduler:
             )
             return
 
-        for handler_func in handlers_to_run:
-            async for _ in self._execute_system_func(
-                handler_func, transaction, event_object=event, command_object=None
-            ):
-                pass
+        generators = [
+            self._execute_system_func(handler_func, transaction, event_object=event, command_object=None)
+            for handler_func in handlers_to_run
+        ]
+        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        async for _ in executor:
+            pass
 
-    async def dispatch_command(
+    def dispatch_command(
         self, command: BaseCommand[ResultType], transaction: EcsTransaction
-    ) -> AsyncGenerator[BaseSystemEvent, None]:
+    ) -> SystemExecutor[ResultType]:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
@@ -280,14 +288,13 @@ class WorldScheduler:
             self.logger.info(
                 f"No command handlers registered for command type {command_type.__name__} in world {self.world.name}"
             )
-            return
-            yield
+            return SystemExecutor([], command.execution_strategy)
 
-        for handler_func in handlers_to_run:
-            async for item in self._execute_system_func(
-                handler_func, transaction, event_object=None, command_object=command
-            ):
-                yield item
+        generators = [
+            self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
+            for handler_func in handlers_to_run
+        ]
+        return SystemExecutor(generators, command.execution_strategy)
 
     async def run_all_stages(self, transaction: EcsTransaction) -> None:
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
@@ -461,14 +468,13 @@ class WorldScheduler:
                                     if metadata.get("system_type") == "stage_system":
                                         await transaction.session.flush()
 
-    async def execute_one_time_system(
+    def execute_one_time_system(
         self, system_func: Callable[..., Any], transaction: EcsTransaction, **kwargs: Any
-    ) -> AsyncGenerator[BaseSystemEvent, None]:
+    ) -> SystemExecutor[Any]:
         self.logger.info(
             f"Executing one-time system: {system_func.__name__} in world '{self.world.name}' with provided kwargs: {kwargs}"
         )
-        # It now returns the generator directly. The caller is responsible for consuming it.
-        async for item in self._execute_system_func(
+        generator = self._execute_system_func(
             system_func, transaction, event_object=None, command_object=None, **kwargs
-        ):
-            yield item
+        )
+        return SystemExecutor([generator], ExecutionStrategy.SERIAL)
