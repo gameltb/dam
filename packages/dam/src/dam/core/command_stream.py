@@ -68,3 +68,16 @@ class CommandStream:
             if res is not None:
                 return res
         raise ValueError("No non-None results found.")
+
+    async def get_all_results_flat(self) -> List[Any]:
+        """
+        Consumes the stream, gets all results, and flattens any that are lists.
+        """
+        await self._consume_all()
+        flat_list = []
+        for item in self._results:
+            if isinstance(item, list):
+                flat_list.extend(item)  # type: ignore
+            else:
+                flat_list.append(item)  # type: ignore
+        return flat_list  # type: ignore

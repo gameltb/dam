@@ -100,6 +100,18 @@ async def test_get_one_value_success(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_all_results_flat(test_world_alpha: World) -> None:
+    """Tests the get_all_results_flat method."""
+    world = test_world_alpha
+    world.register_system(system_func=list_handler_one)
+    world.register_system(system_func=list_handler_two)
+    command = ListCommand()
+    results = await world.dispatch_command(command).get_all_results_flat()
+    assert len(results) == 4
+    assert set(results) == {"a", "b", "c", "d"}
+
+
+@pytest.mark.asyncio
 async def test_get_one_value_failure(test_world_alpha: World) -> None:
     """Tests that CommandStream.get_one_value() fails for multiple handlers."""
     world = test_world_alpha
