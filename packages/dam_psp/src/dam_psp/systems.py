@@ -7,7 +7,7 @@ from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 
-from dam_psp.commands import ExtractPspMetadataCommand
+from dam_psp.commands import ExtractPSPMetadataCommand
 from dam_psp.psp_iso_functions import process_iso_stream
 
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
@@ -40,15 +40,15 @@ async def psp_iso_metadata_extraction_event_handler_system(
             is_iso = any(filename.lower().endswith(".iso") for filename in all_filenames)
 
             if is_iso:
-                await world.dispatch_command(ExtractPspMetadataCommand(entity_id=entity_id, depth=0)).get_all_results()
+                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id, depth=0)).get_all_results()
 
         except Exception as e:
             logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)
 
 
-@system(on_command=ExtractPspMetadataCommand)
+@system(on_command=ExtractPSPMetadataCommand)
 async def psp_iso_metadata_extraction_command_handler_system(
-    command: ExtractPspMetadataCommand,
+    command: ExtractPSPMetadataCommand,
     transaction: EcsTransaction,
     world: World,
 ) -> None:

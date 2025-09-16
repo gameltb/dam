@@ -13,7 +13,7 @@ from dam_fs.models import FilenameComponent
 from pytest_mock import MockerFixture
 
 from dam_psp import psp_iso_functions
-from dam_psp.commands import ExtractPspMetadataCommand
+from dam_psp.commands import ExtractPSPMetadataCommand
 from dam_psp.models import PSPSFOMetadataComponent
 from dam_psp.systems import (
     psp_iso_metadata_extraction_command_handler_system,
@@ -149,7 +149,7 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
                 mock_stream.get_all_results.return_value = [["game.iso"]]
             elif command.entity_id == non_iso_entity_id:
                 mock_stream.get_all_results.return_value = [["text.txt"]]
-        elif isinstance(command, ExtractPspMetadataCommand):
+        elif isinstance(command, ExtractPSPMetadataCommand):
             mock_stream.get_all_results.return_value = []
         else:
             mock_stream.get_all_results.return_value = []
@@ -167,12 +167,12 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
     await psp_iso_metadata_extraction_event_handler_system(event, mock_transaction, mock_world)
 
     # 3. Assert event handler dispatched commands correctly
-    # It should have been called 3 times for GetAssetFilenamesCommand and 2 times for ExtractPspMetadataCommand
+    # It should have been called 3 times for GetAssetFilenamesCommand and 2 times for ExtractPSPMetadataCommand
     assert mock_world.dispatch_command.call_count == 5
     dispatch_calls = mock_world.dispatch_command.call_args_list
 
-    # Check that ExtractPspMetadataCommand was dispatched for the two ISO entities
-    extract_commands = [call.args[0] for call in dispatch_calls if isinstance(call.args[0], ExtractPspMetadataCommand)]
+    # Check that ExtractPSPMetadataCommand was dispatched for the two ISO entities
+    extract_commands = [call.args[0] for call in dispatch_calls if isinstance(call.args[0], ExtractPSPMetadataCommand)]
     assert len(extract_commands) == 2
     assert extract_commands[0].entity_id == standalone_iso_entity_id
     assert extract_commands[1].entity_id == archived_iso_entity_id
@@ -220,7 +220,7 @@ async def test_psp_iso_metadata_extraction_with_stream(mocker: MockerFixture) ->
     dummy_stream = create_dummy_iso_with_sfo()
 
     # 2. Execute command handler with a stream
-    command = ExtractPspMetadataCommand(entity_id=entity_id, depth=0, stream=dummy_stream)
+    command = ExtractPSPMetadataCommand(entity_id=entity_id, depth=0, stream=dummy_stream)
     await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
 
     # 3. Assertions

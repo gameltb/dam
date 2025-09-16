@@ -18,7 +18,7 @@ from dam_fs.commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
-from dam_psp.commands import ExtractPspMetadataCommand
+from dam_psp.commands import ExtractPSPMetadataCommand
 from tqdm import tqdm
 from typing_extensions import Annotated
 
@@ -31,7 +31,7 @@ app = AsyncTyper()
 COMMAND_MAP = {
     "ExtractExifMetadataCommand": ExtractExifMetadataCommand,
     "IngestArchiveCommand": IngestArchiveCommand,
-    "ExtractPspMetadataCommand": ExtractPspMetadataCommand,
+    "ExtractPSPMetadataCommand": ExtractPSPMetadataCommand,
 }
 
 

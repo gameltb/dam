@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 from . import psp_iso_functions
-from .commands import ExtractPspMetadataCommand
+from .commands import ExtractPSPMetadataCommand
 from .systems import (
     psp_iso_metadata_extraction_command_handler_system,
     psp_iso_metadata_extraction_event_handler_system,
@@ -32,7 +32,7 @@ class PspPlugin(Plugin):
         )
         world.register_system(
             psp_iso_metadata_extraction_command_handler_system,
-            command_type=ExtractPspMetadataCommand,
+            command_type=ExtractPSPMetadataCommand,
         )
 
 
