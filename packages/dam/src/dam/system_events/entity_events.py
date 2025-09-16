@@ -14,3 +14,4 @@ class NewEntityCreatedEvent(BaseSystemEvent):
     entity_id: int
     depth: int
     file_stream: Optional[BinaryIO] = None
+    filename: Optional[str] = None

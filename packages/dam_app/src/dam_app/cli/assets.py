@@ -56,7 +56,7 @@ async def add_assets(
         typer.Option(
             "--process",
             "-p",
-            help="Specify a command to run for a given MIME type, e.g., 'image/jpeg:ExtractMetadataCommand'",
+            help="Specify a command to run for a given MIME type or file extension, e.g., 'image/jpeg:ExtractMetadataCommand' or '.zip:IngestArchiveMembersCommand'",
         ),
     ] = None,
 ):
@@ -72,44 +72,60 @@ async def add_assets(
     if process:
         for p in process:
             try:
-                mime_type, command_name = p.split(":", 1)
-                if mime_type not in process_map:
-                    process_map[mime_type] = []
-                process_map[mime_type].append(command_name)
+                key, command_name = p.split(":", 1)
+                if key not in process_map:
+                    process_map[key] = []
+                process_map[key].append(command_name)
             except ValueError:
                 typer.secho(
-                    f"Invalid format for --process option: '{p}'. Must be 'mime-type:CommandName'", fg=typer.colors.RED
+                    f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED
                 )
                 raise typer.Exit(code=1)
 
-    async def _process_entity(entity_id: int, depth: int, pbar: tqdm[Any]):
+    async def _process_entity(entity_id: int, depth: int, pbar: tqdm[Any], filename: Optional[str] = None):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
             tqdm.write(f"Skipping entity {entity_id} at depth {depth}, limit reached.")
             return
 
-        # 1. Set and get MIME type
-        await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
+        # 1. Get MIME type and filename
+        mime_type_str: Optional[str] = None
+        entity_filename: Optional[str] = filename
+
         async with target_world.db_session_maker() as session:
+            # Auto-set and get MIME type
+            await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
             mime_type_component = await dam_ecs_functions.get_component(session, entity_id, ContentMimeTypeComponent)
+            if mime_type_component and mime_type_component.mime_type_concept:
+                mime_type_str = mime_type_component.mime_type_concept.mime_type
 
-        if not mime_type_component or not mime_type_component.mime_type_concept:
-            tqdm.write(f"Could not determine MIME type for entity {entity_id}.")
-            return
+            # Get filename if not provided
+            if not entity_filename:
+                from dam_fs.models import FilenameComponent
 
-        mime_type_str = mime_type_component.mime_type_concept.mime_type
-        pbar.set_postfix_str(f"Processing {entity_id} ({mime_type_str})")
+                fn_comp = await dam_ecs_functions.get_component(session, entity_id, FilenameComponent)
+                if fn_comp:
+                    entity_filename = fn_comp.filename
 
-        # 2. Check if there is a command for this MIME type
-        if mime_type_str not in process_map:
+        pbar.set_postfix_str(f"Processing {entity_id} ({entity_filename or 'No Filename'})")
+
+        # 2. Collect commands based on MIME type and file extension
+        commands_to_run: List[str] = []
+        if mime_type_str and mime_type_str in process_map:
+            commands_to_run.extend(process_map[mime_type_str])
+
+        if entity_filename:
+            ext = Path(entity_filename).suffix
+            if ext and ext in process_map:
+                commands_to_run.extend(process_map[ext])
+
+        if not commands_to_run:
             return
 
         # 3. Dispatch commands and handle recursion
-        for command_name in process_map[mime_type_str]:
+        for command_name in set(commands_to_run):  # Use set to avoid duplicate commands
             if command_name in COMMAND_MAP:
                 command_class = COMMAND_MAP[command_name]
-
-                # All commands in COMMAND_MAP are expected to accept 'depth'.
                 processing_cmd = command_class(entity_id=entity_id, depth=depth)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
@@ -117,8 +133,10 @@ async def add_assets(
 
                 async for event in stream:
                     if isinstance(event, NewEntityCreatedEvent):
-                        tqdm.write(f"  -> New entity {event.entity_id} created from {entity_id} at depth {event.depth}")
-                        await _process_entity(event.entity_id, event.depth, pbar)
+                        tqdm.write(
+                            f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id} at depth {event.depth}"
+                        )
+                        await _process_entity(event.entity_id, event.depth, pbar, filename=event.filename)
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 
@@ -163,7 +181,7 @@ async def add_assets(
                     if entity_id:
                         success_count += 1
                         if process_map:
-                            await _process_entity(entity_id, 0, pbar)
+                            await _process_entity(entity_id, 0, pbar, filename=file_path.name)
 
             except Exception as e:
                 error_count += 1

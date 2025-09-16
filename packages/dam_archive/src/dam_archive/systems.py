@@ -416,6 +416,7 @@ async def _perform_ingestion(
                         entity_id=member_entity.id,
                         depth=cmd.depth + 1,
                         file_stream=event_file_stream,
+                        filename=member_file.name,
                     )
 
                     member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
