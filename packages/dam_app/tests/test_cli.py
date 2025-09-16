@@ -199,11 +199,17 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     image_mime_component = ContentMimeTypeComponent(mime_type_concept_id=3)
     image_mime_component.mime_type_concept = image_mime_concept
 
+    from dam_fs.models import FilenameComponent
+
     async def get_component_side_effect(session: Any, entity_id: int, component_type: Any):
-        if entity_id == 1:
-            return archive_mime_component
-        elif entity_id == 2:
-            return image_mime_component
+        if component_type == ContentMimeTypeComponent:
+            if entity_id == 1:
+                return archive_mime_component
+            elif entity_id == 2:
+                return image_mime_component
+        elif component_type == FilenameComponent:
+            if entity_id == 1:
+                return FilenameComponent(filename="test_archive.zip")
         return None
 
     # 2. Create a temporary file
@@ -236,3 +242,80 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     assert isinstance(extract_cmd, ExtractMetadataCommand)
     assert extract_cmd.entity_id == 2
     assert extract_cmd.depth == 1
+
+
+@pytest.mark.asyncio
+async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+    """Test the add_assets command with the --process option based on file extension."""
+    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
+    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+    from dam_archive.commands import IngestArchiveMembersCommand
+    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
+    from dam_fs.models import FilenameComponent
+
+    from dam_app.cli.assets import add_assets
+
+    # 1. Setup
+    mock_world = MagicMock(spec=World)
+    mock_session = AsyncMock()
+    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+
+    # Create a side effect function for dispatch_command
+    def dispatch_command_side_effect(command: BaseCommand[Any]):
+        mock_stream = AsyncMock()
+        mock_stream.get_all_results.return_value = []
+        if isinstance(command, FindEntityByFilePropertiesCommand):
+            mock_stream.get_one_value.return_value = None
+        elif isinstance(command, RegisterLocalFileCommand):
+            mock_stream.get_one_value.return_value = 1
+        else:
+            # For AutoSetMimeTypeCommand and IngestArchiveMembersCommand
+            async def event_generator_empty(self: AsyncMock):
+                if False:
+                    yield
+
+            mock_stream.__aiter__ = event_generator_empty
+
+        return mock_stream
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect
+
+    # Mock get_component
+    mock_mime_type_concept = MimeTypeConceptComponent(
+        concept_name="application/octet-stream", concept_description=None, mime_type="application/octet-stream"
+    )
+    mock_mime_type_component = ContentMimeTypeComponent(mime_type_concept_id=1)
+    mock_mime_type_component.mime_type_concept = mock_mime_type_concept
+
+    async def get_component_side_effect_ext(session: Any, entity_id: int, component_type: Any):
+        if component_type == ContentMimeTypeComponent:
+            return mock_mime_type_component
+        elif component_type == FilenameComponent:
+            return FilenameComponent(filename="test_archive.zip")
+        return None
+
+    # 2. Create a temporary file
+    test_file = tmp_path / "test_archive.zip"
+    test_file.write_text("dummy content")
+
+    with (
+        patch("dam_app.cli.assets.get_world", return_value=mock_world),
+        patch("dam_app.cli.assets.dam_ecs_functions.get_component", side_effect=get_component_side_effect_ext),
+    ):
+        # 3. Call add_assets with an extension-based process rule
+        await add_assets(
+            paths=[test_file],
+            recursive=False,
+            process=[".zip:IngestArchiveMembersCommand"],
+        )
+
+    # 4. Assertions
+    # Verify that IngestArchiveMembersCommand was dispatched
+    ingest_cmd_found = False
+    for call in mock_world.dispatch_command.call_args_list:
+        if isinstance(call.args[0], IngestArchiveMembersCommand):
+            ingest_cmd_found = True
+            assert call.args[0].entity_id == 1
+            break
+
+    assert ingest_cmd_found, "IngestArchiveMembersCommand was not dispatched"

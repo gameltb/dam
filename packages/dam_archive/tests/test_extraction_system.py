@@ -18,6 +18,47 @@ from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 @pytest.mark.serial
 @pytest.mark.asyncio
+async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World, tmp_path: Path) -> None:
+    """
+    Tests the ingestion logic with memory constraints and verifies the filename event field.
+    """
+    world = test_world_alpha
+
+    # 1. Create a test archive with a single file
+    file_content = b"a" * (1024 * 1024)  # 1 MB
+    file_name_in_archive = "large_file.txt"
+    archive_path = tmp_path / "large_archive.zip"
+    import zipfile
+
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        zf.writestr(file_name_in_archive, file_content)
+
+    # 2. Register the archive
+    register_cmd = RegisterLocalFileCommand(file_path=archive_path)
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    async with world.db_session_maker() as session:
+        await set_content_mime_type(session, entity_id, "application/zip")
+        await session.commit()
+
+    # 3. Test Case: Memory limit is not reached
+    mock_memory = MagicMock()
+    mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
+
+    with patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory):
+        ingest_cmd = IngestArchiveMembersCommand(entity_id=entity_id, depth=0)
+        async with world.transaction():
+            stream = world.dispatch_command(ingest_cmd)
+            events = [event async for event in stream]
+
+            # Verify NewEntityCreatedEvent
+            new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
+            assert new_entity_event is not None
+            assert new_entity_event.file_stream is not None
+            assert new_entity_event.filename == file_name_in_archive
+
+
+@pytest.mark.serial
+@pytest.mark.asyncio
 async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Path) -> None:
     """
     Tests the ingestion logic with memory constraints.
