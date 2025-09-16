@@ -206,3 +206,30 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
     assert len(archived_iso_calls) == 2
     assert isinstance(archived_iso_calls[0].args[1], PSPSFOMetadataComponent)
     assert archived_iso_calls[0].args[1].title == "Test Game"
+
+
+@pytest.mark.asyncio
+async def test_psp_iso_metadata_extraction_with_stream(mocker: MockerFixture) -> None:
+    """
+    Tests the psp_iso_metadata_extraction_system with a stream provided directly in the command.
+    """
+    # 1. Setup
+    entity_id = 1
+    mock_transaction = AsyncMock()
+    mock_world = AsyncMock(spec=World)
+    dummy_stream = create_dummy_iso_with_sfo()
+
+    # 2. Execute command handler with a stream
+    command = ExtractPspMetadataCommand(entity_id=entity_id, depth=0, stream=dummy_stream)
+    await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
+
+    # 3. Assertions
+    # World dispatch should not be called to get the stream
+    mock_world.dispatch_command.assert_not_called()
+
+    # Assert that components were added
+    assert mock_transaction.add_component_to_entity.call_count == 2
+    sfo_component_call = mock_transaction.add_component_to_entity.call_args_list[0]
+    assert sfo_component_call.args[0] == entity_id
+    assert isinstance(sfo_component_call.args[1], PSPSFOMetadataComponent)
+    assert sfo_component_call.args[1].title == "Test Game"
