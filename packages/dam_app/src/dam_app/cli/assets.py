@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import typer
 from dam.commands.asset_commands import (
@@ -17,7 +17,6 @@ from dam.system_events.progress import (
     ProgressError,
     ProgressStarted,
     ProgressUpdate,
-    SystemProgressEvent,
 )
 from dam_archive.commands import IngestArchiveCommand
 from dam_fs.commands import (
