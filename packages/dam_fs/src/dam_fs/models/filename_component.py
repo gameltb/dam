@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
-from pydantic import field_validator
 from sqlalchemy import DateTime, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,12 +27,6 @@ class FilenameComponent(BaseComponent):
         # An entity should only have one FilenameComponent.
         UniqueConstraint("entity_id", name="uq_filename_entity_id"),
     )
-
-    @field_validator("first_seen_at")
-    def truncate_microseconds(cls, v: Optional[datetime]) -> Optional[datetime]:
-        if isinstance(v, datetime):
-            return v.replace(microsecond=0)
-        return v
 
     def __repr__(self) -> str:
         return (

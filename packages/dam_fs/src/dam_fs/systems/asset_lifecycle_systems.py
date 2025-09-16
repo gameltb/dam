@@ -86,9 +86,7 @@ async def register_local_file_handler(
 
     try:
         file_stat = file_path.stat()
-        current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc).replace(
-            microsecond=0
-        )
+        current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc)
         current_size = file_stat.st_size
     except FileNotFoundError:
         logger.warning(f"File not found during registration: {file_path}")
