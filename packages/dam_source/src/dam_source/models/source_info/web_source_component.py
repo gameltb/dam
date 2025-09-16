@@ -3,9 +3,9 @@ from typing import Any, Dict, Optional
 
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
 from dam.models.core import BaseComponent, Entity
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text  # Added ForeignKey, Integer
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relationship
-from sqlalchemy.dialects.postgresql.json import JSONB 
 
 
 class WebSourceComponent(BaseComponent):

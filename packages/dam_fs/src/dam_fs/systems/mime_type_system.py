@@ -10,9 +10,9 @@ from dam.commands.asset_commands import (
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
-from dam.functions.mime_type_functions import set_entity_mime_type
+from dam.functions.mime_type_functions import set_content_mime_type
 from dam.models.core.entity import Entity
-from dam.models.metadata.mime_type_component import MimeTypeComponent
+from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from sqlalchemy import select
 
 from dam_fs.models.file_location_component import FileLocationComponent
@@ -34,15 +34,15 @@ async def auto_set_mime_type_from_filename_system(
             select(Entity)
             .where(Entity.id == command.entity_id)
             .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
-            .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
-            .where(MimeTypeComponent.id.is_(None))
+            .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
+            .where(ContentMimeTypeComponent.id.is_(None))
         )
     else:
         stmt = (
             select(Entity)
             .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
-            .outerjoin(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
-            .where(MimeTypeComponent.id.is_(None))
+            .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
+            .where(ContentMimeTypeComponent.id.is_(None))
         )
 
     result = await transaction.session.execute(stmt)
@@ -64,7 +64,7 @@ async def auto_set_mime_type_from_filename_system(
                     mime_type = magic.from_buffer(buffer, mime=True)
                     if mime_type:
                         logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
-                        await set_entity_mime_type(transaction.session, entity.id, mime_type)
+                        await set_content_mime_type(transaction.session, entity.id, mime_type)
                     else:
                         logger.warning(f"Could not determine mime type for entity {entity.id}")
             else:
@@ -81,13 +81,13 @@ async def set_mime_type_from_buffer_system(
     """
     Sets the mime type for an entity from a buffer, if it doesn't have one.
     """
-    existing_mime_type = await transaction.get_component(command.entity_id, MimeTypeComponent)
+    existing_mime_type = await transaction.get_component(command.entity_id, ContentMimeTypeComponent)
     if existing_mime_type:
         return
 
     mime_type = magic.from_buffer(command.buffer, mime=True)
     if mime_type:
         logger.info(f"Setting mime type for entity {command.entity_id} to {mime_type}")
-        await set_entity_mime_type(transaction.session, command.entity_id, mime_type)
+        await set_content_mime_type(transaction.session, command.entity_id, mime_type)
     else:
         logger.warning(f"Could not determine mime type from buffer for entity {command.entity_id}")

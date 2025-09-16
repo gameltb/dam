@@ -24,10 +24,10 @@ from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
-from dam.system_events import BaseSystemEvent, SystemResultEvent
 from dam.core.transaction import EcsTransaction
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
+from dam.system_events import BaseSystemEvent, SystemResultEvent
 
 if TYPE_CHECKING:
     from dam.core.world import World

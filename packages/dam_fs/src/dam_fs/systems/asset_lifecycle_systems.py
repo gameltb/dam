@@ -13,10 +13,6 @@ from dam.functions import ecs_functions
 from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
-from dam_source.models.source_info import source_types
-from dam_source.models.source_info.original_source_info_component import (
-    OriginalSourceInfoComponent,
-)
 from sqlalchemy import select
 
 from ..commands import (

@@ -1,14 +1,15 @@
 from typing import List, Optional
 
 import typer
+from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
+from dam.models.core import Entity
+from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events.progress import (
     ProgressCompleted,
     ProgressError,
     ProgressStarted,
     ProgressUpdate,
 )
-from dam.models.core import Entity
-from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam_archive.commands import IngestArchiveMembersCommand
 from dam_archive.exceptions import PasswordRequiredError
 from dam_archive.models import ArchiveInfoComponent
@@ -50,9 +51,13 @@ async def process_archives(
     async with target_world.db_session_maker() as session:
         stmt = (
             select(Entity.id)
-            .join(MimeTypeComponent, Entity.id == MimeTypeComponent.entity_id)
+            .join(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
+            .join(
+                MimeTypeConceptComponent,
+                ContentMimeTypeComponent.mime_type_concept_id == MimeTypeConceptComponent.id,
+            )
             .outerjoin(ArchiveInfoComponent, Entity.id == ArchiveInfoComponent.entity_id)
-            .where(MimeTypeComponent.value.in_(MIME_TYPE_HANDLERS.keys()))
+            .where(MimeTypeConceptComponent.mime_type.in_(MIME_TYPE_HANDLERS.keys()))
             .where(ArchiveInfoComponent.id.is_(None))
         )
         result = await session.execute(stmt)

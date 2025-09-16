@@ -4,8 +4,8 @@ This module defines the ExiftoolMetadataComponent for storing raw EXIF data.
 
 from typing import Any
 
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql.json import JSONB 
 
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.component_mixins import UniqueComponentMixin
