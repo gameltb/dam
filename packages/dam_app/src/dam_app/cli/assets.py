@@ -12,26 +12,26 @@ from dam.commands.asset_commands import (
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events import NewEntityCreatedEvent
-from dam_archive.commands import IngestArchiveMembersCommand
+from dam_archive.commands import IngestArchiveCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
-from dam_psp.commands import ExtractPSPMetadataCommand
+from dam_psp.commands import ExtractPspMetadataCommand
 from tqdm import tqdm
 from typing_extensions import Annotated
 
-from dam_app.commands import ExtractMetadataCommand
+from dam_app.commands import ExtractExifMetadataCommand
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
 
 app = AsyncTyper()
 
 COMMAND_MAP = {
-    "ExtractMetadataCommand": ExtractMetadataCommand,
-    "IngestArchiveMembersCommand": IngestArchiveMembersCommand,
-    "ExtractPSPMetadataCommand": ExtractPSPMetadataCommand,
+    "ExtractExifMetadataCommand": ExtractExifMetadataCommand,
+    "IngestArchiveCommand": IngestArchiveCommand,
+    "ExtractPspMetadataCommand": ExtractPspMetadataCommand,
 }
 
 
@@ -56,7 +56,7 @@ async def add_assets(
         typer.Option(
             "--process",
             "-p",
-            help="Specify a command to run for a given MIME type or file extension, e.g., 'image/jpeg:ExtractMetadataCommand' or '.zip:IngestArchiveMembersCommand'",
+            help="Specify a command to run for a given MIME type or file extension, e.g., 'image/jpeg:ExtractExifMetadataCommand' or '.zip:IngestArchiveCommand'",
         ),
     ] = None,
 ):
@@ -82,7 +82,13 @@ async def add_assets(
                 )
                 raise typer.Exit(code=1)
 
-    async def _process_entity(entity_id: int, depth: int, pbar: tqdm[Any], filename: Optional[str] = None):
+    async def _process_entity(
+        entity_id: int,
+        depth: int,
+        pbar: tqdm[Any],
+        filename: Optional[str] = None,
+        stream_from_event: Optional[Any] = None,
+    ):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
             tqdm.write(f"Skipping entity {entity_id} at depth {depth}, limit reached.")
@@ -126,7 +132,7 @@ async def add_assets(
         for command_name in set(commands_to_run):  # Use set to avoid duplicate commands
             if command_name in COMMAND_MAP:
                 command_class = COMMAND_MAP[command_name]
-                processing_cmd = command_class(entity_id=entity_id, depth=depth)
+                processing_cmd = command_class(entity_id=entity_id, depth=depth, stream=stream_from_event)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
                 stream = target_world.dispatch_command(processing_cmd)
@@ -136,7 +142,13 @@ async def add_assets(
                         tqdm.write(
                             f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id} at depth {event.depth}"
                         )
-                        await _process_entity(event.entity_id, event.depth, pbar, filename=event.filename)
+                        await _process_entity(
+                            event.entity_id,
+                            event.depth,
+                            pbar,
+                            filename=event.filename,
+                            stream_from_event=event.file_stream,
+                        )
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 

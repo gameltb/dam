@@ -10,7 +10,7 @@ from dam.system_events.progress import (
     ProgressStarted,
     ProgressUpdate,
 )
-from dam_archive.commands import IngestArchiveMembersCommand
+from dam_archive.commands import IngestArchiveCommand
 from rich.progress import Progress
 from typing_extensions import Annotated
 
@@ -100,7 +100,7 @@ async def ingest_archive(
             task = progress.add_task(f"[cyan]Ingesting archive {entity_id}...", total=None)
 
             if mime_type and mime_type.startswith("application/"):
-                cmd = IngestArchiveMembersCommand(entity_id=entity_id, depth=0, passwords=known_passwords)
+                cmd = IngestArchiveCommand(entity_id=entity_id, depth=0, passwords=known_passwords)
                 async for event in target_world.dispatch_command(cmd):
                     if isinstance(event, ProgressStarted):
                         progress.update(task, total=100, completed=0)

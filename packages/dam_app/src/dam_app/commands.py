@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import BinaryIO, Optional
 
 from dam.core.commands import BaseCommand
 from dam.models.core.entity import Entity
@@ -12,10 +13,11 @@ class AutoTagEntityCommand(BaseCommand[None]):
 
 
 @dataclass
-class ExtractMetadataCommand(BaseCommand[None]):
+class ExtractExifMetadataCommand(BaseCommand[None]):
     """
     A command to trigger metadata extraction for an entity.
     """
 
     entity_id: int
     depth: int
+    stream: Optional[BinaryIO] = None
