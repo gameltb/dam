@@ -6,7 +6,7 @@ from .commands import (
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
     DiscoverAndBindCommand,
-    IngestArchiveMembersCommand,
+    IngestArchiveCommand,
     SetArchivePasswordCommand,
     UnbindSplitArchiveCommand,
 )
@@ -38,5 +38,5 @@ class ArchivePlugin(Plugin):
         world.register_system(get_archive_asset_stream_handler, command_type=GetAssetStreamCommand)
         world.register_system(set_archive_password_handler, command_type=SetArchivePasswordCommand)
         world.register_system(get_archive_asset_filenames_handler, command_type=GetAssetFilenamesCommand)
-        world.register_system(ingest_archive_members_handler, command_type=IngestArchiveMembersCommand)
+        world.register_system(ingest_archive_members_handler, command_type=IngestArchiveCommand)
         world.register_system(clear_archive_components_handler, command_type=ClearArchiveComponentsCommand)

@@ -35,7 +35,7 @@ from .commands import (
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
     DiscoverAndBindCommand,
-    IngestArchiveMembersCommand,
+    IngestArchiveCommand,
     SetArchivePasswordCommand,
     UnbindSplitArchiveCommand,
 )
@@ -307,7 +307,7 @@ async def get_archive_asset_filenames_handler(
 async def _perform_ingestion(
     entity_id: int,
     archive_stream: BinaryIO,
-    cmd: IngestArchiveMembersCommand,
+    cmd: IngestArchiveCommand,
     world: Annotated[World, "Resource"],
     transaction: EcsTransaction,
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
@@ -443,9 +443,9 @@ async def _perform_ingestion(
             archive.close()
 
 
-@system(on_command=IngestArchiveMembersCommand)
+@system(on_command=IngestArchiveCommand)
 async def ingest_archive_members_handler(
-    cmd: IngestArchiveMembersCommand,
+    cmd: IngestArchiveCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
@@ -501,7 +501,7 @@ async def ingest_archive_members_handler(
     part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
     if part_info and part_info.master_entity_id:
         logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
-        redirect_cmd = IngestArchiveMembersCommand(
+        redirect_cmd = IngestArchiveCommand(
             entity_id=part_info.master_entity_id, depth=cmd.depth, passwords=cmd.passwords
         )
         stream = world.dispatch_command(redirect_cmd)
