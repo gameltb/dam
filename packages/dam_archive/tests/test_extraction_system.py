@@ -31,7 +31,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command
-    ingest_cmd_reg = IngestArchiveMembersCommand(entity_id=entity_id_reg)
+    ingest_cmd_reg = IngestArchiveMembersCommand(entity_id=entity_id_reg, depth=0)
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_reg)
         events = [event async for event in stream]
@@ -58,7 +58,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command with the correct password
-    ingest_cmd_prot = IngestArchiveMembersCommand(entity_id=entity_id_prot, passwords=["password"])
+    ingest_cmd_prot = IngestArchiveMembersCommand(entity_id=entity_id_prot, depth=0, passwords=["password"])
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_prot)
         events = [event async for event in stream]
@@ -94,7 +94,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
         await session.commit()
 
     # 2. Run the extraction command for the first time
-    ingest_cmd1 = IngestArchiveMembersCommand(entity_id=entity_id)
+    ingest_cmd1 = IngestArchiveMembersCommand(entity_id=entity_id, depth=0)
     async with world.transaction():
         stream1 = world.dispatch_command(ingest_cmd1)
         events1 = [event async for event in stream1]
@@ -107,7 +107,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
         assert info1.file_count == 2
 
     # 4. Run the extraction command for the second time
-    ingest_cmd2 = IngestArchiveMembersCommand(entity_id=entity_id)
+    ingest_cmd2 = IngestArchiveMembersCommand(entity_id=entity_id, depth=0)
     async with world.transaction():
         stream2 = world.dispatch_command(ingest_cmd2)
         events2 = [event async for event in stream2]

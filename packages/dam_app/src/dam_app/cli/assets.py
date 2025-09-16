@@ -9,12 +9,14 @@ from dam.commands.asset_commands import (
 )
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+from dam.system_events import NewEntityCreatedEvent
 from dam_archive.commands import IngestArchiveMembersCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
+from dam_psp.commands import ExtractPSPMetadataCommand
 from tqdm import tqdm
 from typing_extensions import Annotated
 
@@ -27,6 +29,7 @@ app = AsyncTyper()
 COMMAND_MAP = {
     "ExtractMetadataCommand": ExtractMetadataCommand,
     "IngestArchiveMembersCommand": IngestArchiveMembersCommand,
+    "ExtractPSPMetadataCommand": ExtractPSPMetadataCommand,
 }
 
 
@@ -77,6 +80,50 @@ async def add_assets(
                 )
                 raise typer.Exit(code=1)
 
+    async def _process_entity(entity_id: int, depth: int, pbar: tqdm):
+        """Inner function to handle processing of a single entity."""
+        if depth >= 10:
+            tqdm.write(f"Skipping entity {entity_id} at depth {depth}, limit reached.")
+            return
+
+        # 1. Set and get MIME type
+        await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
+        async with target_world.db_session_maker() as session:
+            mime_type_component = await dam_ecs_functions.get_component(session, entity_id, ContentMimeTypeComponent)
+
+        if not mime_type_component or not mime_type_component.mime_type_concept:
+            tqdm.write(f"Could not determine MIME type for entity {entity_id}.")
+            return
+
+        mime_type_str = mime_type_component.mime_type_concept.mime_type
+        pbar.set_postfix_str(f"Processing {entity_id} ({mime_type_str})")
+
+        # 2. Check if there is a command for this MIME type
+        if mime_type_str not in process_map:
+            return
+
+        # 3. Dispatch commands and handle recursion
+        for command_name in process_map[mime_type_str]:
+            if command_name in COMMAND_MAP:
+                command_class = COMMAND_MAP[command_name]
+
+                # Check if command needs depth
+                if "depth" in command_class.__annotations__:
+                    processing_cmd = command_class(entity_id=entity_id, depth=depth)
+                else:
+                    processing_cmd = command_class(entity_id=entity_id)
+
+                tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
+                stream = target_world.dispatch_command(processing_cmd)
+
+                async for event in stream:
+                    if isinstance(event, NewEntityCreatedEvent):
+                        tqdm.write(f"  -> New entity {event.entity_id} created from {entity_id} at depth {event.depth}")
+                        await _process_entity(event.entity_id, event.depth, pbar)
+            else:
+                tqdm.write(f"Warning: Command '{command_name}' not found.")
+
+    # Main execution starts here
     typer.echo("Starting asset registration process...")
 
     files_to_process: List[Path] = []
@@ -92,7 +139,6 @@ async def add_assets(
         return
 
     typer.echo(f"Found {len(files_to_process)} file(s) to process.")
-
     success_count = 0
     skipped_count = 0
     error_count = 0
@@ -115,27 +161,10 @@ async def add_assets(
                     register_cmd = RegisterLocalFileCommand(file_path=file_path)
                     entity_id = await target_world.dispatch_command(register_cmd).get_one_value()
 
-                    if entity_id and process_map:
-                        await target_world.dispatch_command(
-                            AutoSetMimeTypeCommand(entity_id=entity_id)
-                        ).get_all_results()
-                        async with target_world.db_session_maker() as session:
-                            mime_type_component = await dam_ecs_functions.get_component(
-                                session, entity_id, ContentMimeTypeComponent
-                            )
-
-                        if mime_type_component and mime_type_component.mime_type_concept.mime_type in process_map:
-                            mime_type_str = mime_type_component.mime_type_concept.mime_type
-                            for command_name in process_map[mime_type_str]:
-                                if command_name in COMMAND_MAP:
-                                    command_class = COMMAND_MAP[command_name]
-                                    processing_cmd = command_class(entity_id=entity_id)
-                                    await target_world.dispatch_command(processing_cmd).get_all_results()
-                                    tqdm.write(f"Processed {file_path.name} with {command_name}")
-                                else:
-                                    tqdm.write(f"Warning: Command '{command_name}' not found.")
-
-                    success_count += 1
+                    if entity_id:
+                        success_count += 1
+                        if process_map:
+                            await _process_entity(entity_id, 0, pbar)
 
             except Exception as e:
                 error_count += 1

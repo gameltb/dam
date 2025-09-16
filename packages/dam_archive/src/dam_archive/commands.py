@@ -50,6 +50,7 @@ class IngestArchiveMembersCommand(BaseCommand[None]):
     """
 
     entity_id: int
+    depth: int
     passwords: Optional[List[str]] = None
 
 

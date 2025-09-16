@@ -18,3 +18,4 @@ class ExtractMetadataCommand(BaseCommand[None]):
     """
 
     entity_id: int
+    depth: int

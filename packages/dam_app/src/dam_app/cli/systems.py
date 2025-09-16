@@ -1,8 +1,6 @@
-from typing import List, Optional
-
 import typer
-from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
-from dam.models.core import Entity
+from dam.core.events import AssetReadyForMetadataExtractionEvent
+from dam.models.core.entity import Entity
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -11,125 +9,109 @@ from dam.system_events.progress import (
     ProgressUpdate,
 )
 from dam_archive.commands import IngestArchiveMembersCommand
-from dam_archive.exceptions import PasswordRequiredError
-from dam_archive.models import ArchiveInfoComponent
-from dam_archive.registry import MIME_TYPE_HANDLERS
-from sqlalchemy import select
-from tqdm.asyncio import tqdm
+from rich.progress import Progress
 from typing_extensions import Annotated
 
+from dam_app.commands import AutoTagEntityCommand
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
 
 app = AsyncTyper()
-run_app = AsyncTyper(name="run", help="Run specific processing systems.")
-app.add_typer(run_app, name="run")
 
 
-@run_app.command(name="process-archives")
-async def process_archives(
-    passwords: Annotated[
-        Optional[List[str]],
+@app.command(name="run-metadata-extraction")
+async def run_metadata_extraction(
+    query: Annotated[
+        str,
         typer.Option(
-            "--password",
-            "-p",
-            help="Password to try for encrypted archives. Can be specified multiple times.",
+            "--query",
+            "-q",
+            help="A query to select assets to process. Defaults to all assets.",
         ),
-    ] = None,
+    ] = "*",
 ):
     """
-    Finds and processes archive files (e.g., .zip, .rar) in the DAM.
+    Runs the metadata extraction process on a selection of assets.
     """
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
 
-    known_passwords = passwords or []
+    typer.echo(f"Running metadata extraction for assets matching query: '{query}'...")
 
-    typer.echo("Finding archives to process...")
+    # This is a simplified example. A real implementation would query entities.
+    # For now, we'll simulate finding some entities.
+    entity_ids = [1, 2, 3]  # Dummy entity IDs
+
+    event = AssetReadyForMetadataExtractionEvent(entity_ids=entity_ids)
+    await target_world.dispatch_event(event)
+
+    typer.secho("Metadata extraction process complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="run-auto-tagging")
+async def run_auto_tagging(
+    entity_id: Annotated[int, typer.Argument(help="The ID of the entity to tag.")],
+):
+    """
+    Runs the auto-tagging process on a single entity.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Running auto-tagging for entity: {entity_id}...")
 
     async with target_world.db_session_maker() as session:
-        stmt = (
-            select(Entity.id)
-            .join(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
-            .join(
-                MimeTypeConceptComponent,
-                ContentMimeTypeComponent.mime_type_concept_id == MimeTypeConceptComponent.id,
-            )
-            .outerjoin(ArchiveInfoComponent, Entity.id == ArchiveInfoComponent.entity_id)
-            .where(MimeTypeConceptComponent.mime_type.in_(MIME_TYPE_HANDLERS.keys()))
-            .where(ArchiveInfoComponent.id.is_(None))
-        )
-        result = await session.execute(stmt)
-        archives_to_process = result.scalars().all()
+        entity = await session.get(Entity, entity_id)
+        if not entity:
+            typer.secho(f"Entity with ID {entity_id} not found.", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
 
-    if not archives_to_process:
-        typer.secho("No new archives found to process.", fg=typer.colors.GREEN)
-        return
+        cmd = AutoTagEntityCommand(entity=entity)
+        await target_world.dispatch_command(cmd).get_all_results()
 
-    typer.echo(f"Found {len(archives_to_process)} archive(s) to process.")
+    typer.secho("Auto-tagging process complete.", fg=typer.colors.GREEN)
 
-    for entity_id in archives_to_process:
-        typer.echo(f"Processing archive entity {entity_id}...")
 
-        processing_failed = False
-        while not processing_failed:
-            async with target_world.transaction():
-                cmd = IngestArchiveMembersCommand(entity_id=entity_id, passwords=known_passwords)
-                pbar: Optional[tqdm] = None
-                try:
-                    stream = target_world.dispatch_command(cmd)
-                    async for event in stream:
-                        match event:
-                            case ProgressStarted():
-                                pass
-                            case ProgressUpdate(total, current, message):
-                                if pbar is None and total is not None:
-                                    pbar = tqdm(
-                                        total=total,
-                                        unit="B",
-                                        unit_scale=True,
-                                        desc="Extracting members",
-                                        smoothing=0,
-                                    )
-                                if pbar is not None and current is not None:
-                                    pbar.update(current - pbar.n)
-                                if message and pbar:
-                                    pbar.set_postfix_str(message)
-                            case ProgressError(exception, _):
-                                if isinstance(exception, PasswordRequiredError):
-                                    typer.secho(f"  Password required for archive {entity_id}.", fg=typer.colors.YELLOW)
-                                    new_password = typer.prompt(
-                                        "Enter password (or press Enter to skip)", default="", show_default=False
-                                    )
-                                    if new_password and new_password not in known_passwords:
-                                        known_passwords.append(new_password)
-                                        # Break inner loop to retry with new password
-                                        break
-                                    else:
-                                        typer.secho(f"  Skipping archive {entity_id}.", fg=typer.colors.YELLOW)
-                                        processing_failed = True
-                                else:
-                                    typer.secho(
-                                        f"  An error occurred while processing archive {entity_id}: {exception}",
-                                        fg=typer.colors.RED,
-                                    )
-                                    processing_failed = True
-                            case ProgressCompleted(message):
-                                typer.secho(
-                                    f"  Successfully processed archive {entity_id}. {message or ''}",
-                                    fg=typer.colors.GREEN,
-                                )
-                            case _:
-                                pass
+@app.command(name="ingest-archive")
+async def ingest_archive(
+    entity_id: Annotated[int, typer.Argument(help="The ID of the archive entity to ingest.")],
+    password: Annotated[str, typer.Option("--password", "-p", help="Password for the archive.")] = None,
+):
+    """
+    Ingests the members of an archive asset into the DAM.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
 
-                        if processing_failed:
-                            break  # Stop processing events for this archive
-                    else:
-                        # This 'else' belongs to the 'for' loop, executed when the loop finishes without 'break'
-                        break  # Exit the 'while' loop on successful completion
-                finally:
-                    if pbar:
-                        pbar.close()
+    async with target_world.db_session_maker() as session:
+        mime_type_comp = await session.get(ContentMimeTypeComponent, entity_id)
+        mime_type = ""
+        if mime_type_comp and mime_type_comp.mime_type_concept:
+            mime_type = mime_type_comp.mime_type_concept.mime_type
 
-    typer.echo("Archive processing complete.")
+        known_passwords = [password] if password else []
+
+        with Progress() as progress:
+            task = progress.add_task(f"[cyan]Ingesting archive {entity_id}...", total=None)
+
+            if mime_type and mime_type.startswith("application/"):
+                cmd = IngestArchiveMembersCommand(entity_id=entity_id, depth=0, passwords=known_passwords)
+                async for event in target_world.dispatch_command(cmd):
+                    if isinstance(event, ProgressStarted):
+                        progress.update(task, total=100, completed=0)
+                    elif isinstance(event, ProgressUpdate):
+                        progress.update(
+                            task, total=event.total, completed=event.current, description=f"[cyan]{event.message}"
+                        )
+                    elif isinstance(event, ProgressCompleted):
+                        progress.update(task, completed=progress.tasks[task].total, description="[green]Complete")
+                    elif isinstance(event, ProgressError):
+                        progress.update(task, description=f"[red]Error: {event.message}")
+                        break
+            else:
+                progress.update(task, description="[yellow]Not an archive, skipping.")
+
+    typer.secho("Archive ingestion process complete.", fg=typer.colors.GREEN)

@@ -133,4 +133,93 @@ async def test_add_assets_with_process_option(capsys: CaptureFixture[Any], tmp_p
     assert extract_cmd.entity_id == 1
 
     captured = capsys.readouterr()
-    assert "Processed test_image.jpg with ExtractMetadataCommand" in captured.out
+    assert "Running ExtractMetadataCommand on entity 1 at depth 0" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+    """Test the add_assets command with the --process option for recursive processing."""
+    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
+    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+    from dam.system_events import NewEntityCreatedEvent
+    from dam_archive.commands import IngestArchiveMembersCommand
+    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
+
+    from dam_app.cli.assets import add_assets
+    from dam_app.commands import ExtractMetadataCommand
+
+    # 1. Setup
+    mock_world = MagicMock(spec=World)
+    mock_session = AsyncMock()
+    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+
+    # Create a side effect function for dispatch_command
+    async def dispatch_command_side_effect(command: BaseCommand[Any]):
+        mock_stream = AsyncMock()
+
+        async def event_generator():
+            if isinstance(command, IngestArchiveMembersCommand):
+                yield NewEntityCreatedEvent(entity_id=2, depth=1, file_stream=None)
+
+        if isinstance(command, FindEntityByFilePropertiesCommand):
+            mock_stream.get_one_value.return_value = None
+        elif isinstance(command, RegisterLocalFileCommand):
+            mock_stream.get_one_value.return_value = 1
+        else:
+            mock_stream.get_one_value.return_value = None
+            mock_stream.__aiter__.return_value = event_generator()
+
+        return mock_stream
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect
+
+    # Mock get_component to return different MIME types
+    archive_mime_concept = MimeTypeConceptComponent(
+        concept_name="application/zip", concept_description=None, mime_type="application/zip"
+    )
+    archive_mime_component = ContentMimeTypeComponent(mime_type_concept_id=2)
+    archive_mime_component.mime_type_concept = archive_mime_concept
+
+    image_mime_concept = MimeTypeConceptComponent(
+        concept_name="image/jpeg", concept_description=None, mime_type="image/jpeg"
+    )
+    image_mime_component = ContentMimeTypeComponent(mime_type_concept_id=3)
+    image_mime_component.mime_type_concept = image_mime_concept
+
+    async def get_component_side_effect(session: Any, entity_id: int, component_type: Any):
+        if entity_id == 1:
+            return archive_mime_component
+        elif entity_id == 2:
+            return image_mime_component
+        return None
+
+    # 2. Create a temporary file
+    test_file = tmp_path / "test_archive.zip"
+    test_file.write_text("dummy content")
+
+    # 3. Call add_assets
+    with (
+        patch("dam_app.cli.assets.get_world", return_value=mock_world),
+        patch("dam_app.cli.assets.dam_ecs_functions.get_component") as mock_get_component,
+    ):
+        mock_get_component.side_effect = get_component_side_effect
+        await add_assets(
+            paths=[test_file],
+            recursive=False,
+            process=[
+                "application/zip:IngestArchiveMembersCommand",
+                "image/jpeg:ExtractMetadataCommand",
+            ],
+        )
+
+    # 4. Assertions
+    assert mock_world.dispatch_command.call_count == 6
+    ingest_cmd = mock_world.dispatch_command.call_args_list[3].args[0]
+    assert isinstance(ingest_cmd, IngestArchiveMembersCommand)
+    assert ingest_cmd.entity_id == 1
+    assert ingest_cmd.depth == 0
+
+    extract_cmd = mock_world.dispatch_command.call_args_list[5].args[0]
+    assert isinstance(extract_cmd, ExtractMetadataCommand)
+    assert extract_cmd.entity_id == 2
+    assert extract_cmd.depth == 1
