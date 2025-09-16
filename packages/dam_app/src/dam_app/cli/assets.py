@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import typer
 from dam.commands.asset_commands import (
@@ -12,6 +12,13 @@ from dam.commands.asset_commands import (
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events import NewEntityCreatedEvent
+from dam.system_events.progress import (
+    ProgressCompleted,
+    ProgressError,
+    ProgressStarted,
+    ProgressUpdate,
+    SystemProgressEvent,
+)
 from dam_archive.commands import IngestArchiveCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
@@ -137,6 +144,8 @@ async def add_assets(
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
                 stream = target_world.dispatch_command(processing_cmd)
 
+                sub_pbar: Optional[tqdm[Any]] = None
+
                 async for event in stream:
                     if isinstance(event, NewEntityCreatedEvent):
                         tqdm.write(
@@ -149,6 +158,28 @@ async def add_assets(
                             filename=event.filename,
                             stream_from_event=event.file_stream,
                         )
+                    elif isinstance(event, ProgressStarted):
+                        sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
+                    elif isinstance(event, ProgressUpdate):
+                        if sub_pbar:
+                            if event.total is not None and sub_pbar.total != event.total:
+                                sub_pbar.total = event.total
+                            if event.current is not None:
+                                sub_pbar.update(event.current - sub_pbar.n)
+                            if event.message:
+                                sub_pbar.set_description(f"  {command_name}: {event.message}")
+                    elif isinstance(event, ProgressCompleted):
+                        if sub_pbar:
+                            # Make sure the bar is full
+                            if sub_pbar.total and sub_pbar.n < sub_pbar.total:
+                                sub_pbar.update(sub_pbar.total - sub_pbar.n)
+                            sub_pbar.close()
+                        if event.message:
+                            tqdm.write(f"  -> Completed: {event.message}")
+                    elif isinstance(event, ProgressError):
+                        if sub_pbar:
+                            sub_pbar.close()
+                        tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 

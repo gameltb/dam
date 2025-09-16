@@ -114,7 +114,6 @@ async def discover_and_bind_handler(
             for path, mtime in sorted_parts_meta:
                 file_uri = Path(path).as_uri()
                 modified_at = datetime.fromtimestamp(mtime, tz=timezone.utc)
-                modified_at = modified_at.replace(microsecond=0)  # Truncate to second
 
                 # Dispatch command to find entity
                 find_cmd = FindEntityByFilePropertiesCommand(file_path=file_uri, last_modified_at=modified_at)
