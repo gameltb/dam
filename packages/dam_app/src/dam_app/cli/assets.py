@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 from dam.commands.asset_commands import (
@@ -80,7 +82,7 @@ async def add_assets(
                 )
                 raise typer.Exit(code=1)
 
-    async def _process_entity(entity_id: int, depth: int, pbar: tqdm):
+    async def _process_entity(entity_id: int, depth: int, pbar: tqdm[Any]):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
             tqdm.write(f"Skipping entity {entity_id} at depth {depth}, limit reached.")
@@ -107,11 +109,8 @@ async def add_assets(
             if command_name in COMMAND_MAP:
                 command_class = COMMAND_MAP[command_name]
 
-                # Check if command needs depth
-                if "depth" in command_class.__annotations__:
-                    processing_cmd = command_class(entity_id=entity_id, depth=depth)
-                else:
-                    processing_cmd = command_class(entity_id=entity_id)
+                # All commands in COMMAND_MAP are expected to accept 'depth'.
+                processing_cmd = command_class(entity_id=entity_id, depth=depth)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
                 stream = target_world.dispatch_command(processing_cmd)

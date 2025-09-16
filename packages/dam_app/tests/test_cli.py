@@ -154,20 +154,33 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    async def dispatch_command_side_effect(command: BaseCommand[Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any]):
         mock_stream = AsyncMock()
 
-        async def event_generator():
-            if isinstance(command, IngestArchiveMembersCommand):
+        if isinstance(command, IngestArchiveMembersCommand):
+
+            async def event_generator(self: AsyncMock):
                 yield NewEntityCreatedEvent(entity_id=2, depth=1, file_stream=None)
 
-        if isinstance(command, FindEntityByFilePropertiesCommand):
+            mock_stream.__aiter__ = event_generator
+            mock_stream.get_one_value.return_value = None
+
+        elif isinstance(command, ExtractMetadataCommand):
+
+            async def event_generator_empty(self: AsyncMock):
+                if False:
+                    yield
+
+            mock_stream.__aiter__ = event_generator_empty
+            mock_stream.get_one_value.return_value = None
+
+        elif isinstance(command, FindEntityByFilePropertiesCommand):
             mock_stream.get_one_value.return_value = None
         elif isinstance(command, RegisterLocalFileCommand):
             mock_stream.get_one_value.return_value = 1
         else:
-            mock_stream.get_one_value.return_value = None
-            mock_stream.__aiter__.return_value = event_generator()
+            # For AutoSetMimeTypeCommand
+            mock_stream.get_all_results.return_value = []
 
         return mock_stream
 

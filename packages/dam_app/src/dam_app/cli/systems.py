@@ -1,5 +1,7 @@
+from typing import Optional
+
 import typer
-from dam.core.events import AssetReadyForMetadataExtractionEvent
+from dam.events.asset_events import AssetReadyForMetadataExtractionEvent
 from dam.models.core.entity import Entity
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events.progress import (
@@ -77,7 +79,7 @@ async def run_auto_tagging(
 @app.command(name="ingest-archive")
 async def ingest_archive(
     entity_id: Annotated[int, typer.Argument(help="The ID of the archive entity to ingest.")],
-    password: Annotated[str, typer.Option("--password", "-p", help="Password for the archive.")] = None,
+    password: Annotated[Optional[str], typer.Option("--password", "-p", help="Password for the archive.")] = None,
 ):
     """
     Ingests the members of an archive asset into the DAM.
