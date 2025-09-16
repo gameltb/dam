@@ -19,9 +19,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
     Tests the full flow of registering a new file and then finding it by its properties.
     """
     world = test_world_alpha
-    mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc).replace(
-        microsecond=0
-    )
+    mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
 
     # 1. Register a new file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
@@ -88,9 +86,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     recent_file = tmp_path / "test_file.txt"
     recent_file.write_text("same content")
     recent_file.touch()  # Update mtime to now
-    recent_mod_time = datetime.datetime.fromtimestamp(recent_file.stat().st_mtime, tz=datetime.timezone.utc).replace(
-        microsecond=0
-    )
+    recent_mod_time = datetime.datetime.fromtimestamp(recent_file.stat().st_mtime, tz=datetime.timezone.utc)
 
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
     entity_id = await world.dispatch_command(register_cmd1).get_one_value()
@@ -99,7 +95,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
         fnc = await ecs_functions.get_component(session, entity_id, FilenameComponent)
         assert fnc is not None
         assert fnc.first_seen_at is not None
-        assert fnc.first_seen_at.replace(microsecond=0) == recent_mod_time
+        assert fnc.first_seen_at == recent_mod_time
 
     # 2. Create another file with the same name and content but an earlier timestamp
     time.sleep(1)
@@ -113,9 +109,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     import os
 
     os.utime(earlier_file, (earlier_mtime_val, earlier_mtime_val))
-    earlier_mod_time = datetime.datetime.fromtimestamp(earlier_mtime_val, tz=datetime.timezone.utc).replace(
-        microsecond=0
-    )
+    earlier_mod_time = datetime.datetime.fromtimestamp(earlier_mtime_val, tz=datetime.timezone.utc)
 
     # 3. Register the older file
     register_cmd2 = RegisterLocalFileCommand(file_path=earlier_file)
@@ -152,9 +146,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
     # 2. Modify the file
     time.sleep(1)  # Ensure mtime changes
     temp_asset_file.touch()
-    new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc).replace(
-        microsecond=0
-    )
+    new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
 
     assert new_mod_time > original_mtime
 

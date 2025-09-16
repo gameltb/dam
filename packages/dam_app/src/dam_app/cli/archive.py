@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import mimetypes
+import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import typer
 from dam_archive.commands import (
@@ -8,6 +12,7 @@ from dam_archive.commands import (
     DiscoverAndBindCommand,
     UnbindSplitArchiveCommand,
 )
+from dam_archive.main import open_archive
 from typing_extensions import Annotated
 
 from dam_app.state import get_world
@@ -105,3 +110,90 @@ async def unbind_master(
     await target_world.dispatch_command(unbind_cmd).get_all_results()
 
     typer.secho("Master archive unbound successfully.", fg=typer.colors.GREEN)
+
+
+@app.command(name="benchmark")
+async def benchmark_archive(
+    file_path: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            help="Path to the archive file.",
+            exists=True,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    passwords: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            "--password",
+            "-p",
+            help="Password to use for the archive. Can be specified multiple times.",
+        ),
+    ] = None,
+):
+    """
+    Benchmarks the performance of iterating through an archive file.
+    """
+    typer.echo(f"Benchmarking archive: {file_path}")
+
+    start_time = time.monotonic()
+    total_files = 0
+    total_size = 0
+
+    passwords_to_try: List[Optional[str]] = [None]
+    if passwords:
+        passwords_to_try.extend(passwords)
+
+    archive = None
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        typer.secho(f"Could not determine mime type for file: {file_path}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    try:
+        with open(file_path, "rb") as f:
+            for pwd in passwords_to_try:
+                try:
+                    f.seek(0)
+                    archive = open_archive(f, mime_type, pwd)
+                    if archive:
+                        typer.echo(f"Successfully opened archive with password: {'yes' if pwd else 'no'}")
+                        break
+                except Exception:
+                    continue
+
+            if not archive:
+                typer.secho(f"Could not open archive. It might be password protected or the format is not supported.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            for member in archive.iter_files():
+                with member as member_stream:
+                    # Read the whole stream to simulate processing
+                    member_stream.read()
+                    total_files += 1
+                    total_size += member.size
+
+    except Exception as e:
+        typer.secho(f"An error occurred: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+    end_time = time.monotonic()
+    elapsed_time = end_time - start_time
+
+    if elapsed_time == 0:
+        elapsed_time = 1e-9 # Avoid division by zero
+
+    total_size_mb = total_size / (1024 * 1024)
+    files_per_second = total_files / elapsed_time
+    mb_per_second = total_size_mb / elapsed_time
+
+    typer.echo("\n--- Benchmark Results ---")
+    typer.echo(f"Total files: {total_files}")
+    typer.echo(f"Total size: {total_size_mb:.2f} MB")
+    typer.echo(f"Elapsed time: {elapsed_time:.2f} seconds")
+    typer.echo(f"Files per second: {files_per_second:.2f}")
+    typer.echo(f"Processing speed: {mb_per_second:.2f} MB/s")
