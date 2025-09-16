@@ -14,7 +14,7 @@ from ..exceptions import InvalidPasswordError
 
 logger = logging.getLogger(__name__)
 
-QUEUE_MAX_SIZE = 100
+QUEUE_MAX_SIZE = 10
 
 
 class SevenZipArchiveFile(ArchiveFile):
@@ -171,16 +171,39 @@ class SevenZipArchiveFile(ArchiveFile):
 
 
 class QueueWriter(Py7zIO):
-    """A file-like object that writes to a queue."""
+    """A file-like object that writes to a queue with buffering."""
 
     def __init__(self, queue: "Queue[Union[bytes, Exception, None]]"):
         self.queue = queue
         self._size = 0
+        self._buffer: List[bytes] = []
+        self._buffer_size = 0
+        self.BUFFER_LIMIT = 100 * 1024 * 1024  # 100MB
+
+    def _flush_buffer(self):
+        if not self._buffer:
+            return
+
+        # In Python, joining an empty list of bytes with a non-empty separator
+        # results in an empty bytes object. However, if the list is truly empty
+        # (no chunks were ever added), we should not put an empty bytes object
+        # into the queue unless we intend to signal something specific by it.
+        # Here, we ensure we only join and put if there's content.
+        if self._buffer_size > 0:
+            self.queue.put(b"".join(self._buffer))
+
+        self._buffer = []
+        self._buffer_size = 0
 
     def write(self, s: Union[bytes, bytearray]) -> int:
         chunk = bytes(s)
-        self.queue.put(chunk)
+        self._buffer.append(chunk)
+        self._buffer_size += len(chunk)
         self._size += len(chunk)
+
+        if self._buffer_size > self.BUFFER_LIMIT:
+            self._flush_buffer()
+
         return len(chunk)
 
     def read(self, size: Optional[int] = None) -> bytes:
@@ -192,7 +215,7 @@ class QueueWriter(Py7zIO):
         raise OSError(f"seek not supported (offset={offset}, whence={whence})")
 
     def flush(self) -> None:
-        pass
+        self._flush_buffer()
 
     def size(self) -> int:
         return self._size
@@ -201,6 +224,7 @@ class QueueWriter(Py7zIO):
         return True
 
     def close(self) -> None:
+        self._flush_buffer()
         self.queue.put(None)
 
 
