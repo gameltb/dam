@@ -27,6 +27,7 @@ dependencies = [
     "patool",
     "zstandard",
     "rarfile",
+    "psutil",
 ]
 
 [tool.ruff]

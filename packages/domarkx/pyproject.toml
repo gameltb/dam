@@ -26,6 +26,7 @@ dependencies = [
     "rich",
     "typer",
     "pyyaml",
+    "docker~=7.1.0",
 ]
 
 [project.optional-dependencies]

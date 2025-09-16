@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Annotated, AsyncGenerator, BinaryIO, Dict, List, Optional, Tuple, Union, cast
 
+import psutil
 from dam.commands import (
     GetAssetFilenamesCommand,
     GetAssetStreamCommand,
@@ -377,9 +378,24 @@ async def _perform_ingestion(
         for member_file in archive.iter_files():
             try:
                 with member_file as member_stream:
-                    header = member_stream.read(4096)
-                    full_stream = ChainedStream([io.BytesIO(header), member_stream])
-                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=cast(BinaryIO, full_stream))
+                    # New memory-constrained logic based on user feedback
+                    available_memory = psutil.virtual_memory().available
+                    memory_limit = int(available_memory * 0.5)
+
+                    # Read up to the memory limit
+                    in_memory_buffer = io.BytesIO(member_stream.read(memory_limit))
+
+                    # Check if the stream is fully read
+                    is_eof = not member_stream.read(1)
+                    in_memory_buffer.seek(0)  # Rewind for next operations
+
+                    # Prepare the stream for GetOrCreateEntityFromStreamCommand
+                    if is_eof:
+                        stream_for_command = in_memory_buffer
+                    else:
+                        stream_for_command = ChainedStream([in_memory_buffer, member_stream])
+
+                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=cast(BinaryIO, stream_for_command))
                     member_entity: Optional[Entity] = None
                     result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
                     if result_tuple:
@@ -388,10 +404,18 @@ async def _perform_ingestion(
                     if not member_entity:
                         raise ValueError("Could not get or create entity for archive member")
 
+                    # Prepare file_stream for NewEntityCreatedEvent
+                    event_file_stream: Optional[BinaryIO] = None
+                    if is_eof:
+                        in_memory_buffer.seek(0)
+                        event_file_stream = in_memory_buffer
+                    else:
+                        in_memory_buffer.close()  # Free memory if not passing it on
+
                     yield NewEntityCreatedEvent(
                         entity_id=member_entity.id,
                         depth=cmd.depth + 1,
-                        file_stream=None,  # The stream is already consumed
+                        file_stream=event_file_stream,
                     )
 
                     member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
