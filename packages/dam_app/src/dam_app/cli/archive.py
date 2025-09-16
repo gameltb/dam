@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import mimetypes
 import time
 from pathlib import Path
 from typing import List, Optional
 
+import magic
 import typer
 from dam_archive.commands import (
     ClearArchiveComponentsCommand,
@@ -148,9 +148,10 @@ async def benchmark_archive(
 
     archive = None
 
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type:
-        typer.secho(f"Could not determine mime type for file: {file_path}", fg=typer.colors.RED)
+    try:
+        mime_type = magic.from_file(str(file_path), mime=True)  # type: ignore
+    except Exception as e:
+        typer.secho(f"Could not determine mime type for file: {file_path}. Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     try:
@@ -166,7 +167,10 @@ async def benchmark_archive(
                     continue
 
             if not archive:
-                typer.secho(f"Could not open archive. It might be password protected or the format is not supported.", fg=typer.colors.RED)
+                typer.secho(
+                    "Could not open archive. It might be password protected or the format is not supported.",
+                    fg=typer.colors.RED,
+                )
                 raise typer.Exit(code=1)
 
             for member in archive.iter_files():
@@ -180,12 +184,11 @@ async def benchmark_archive(
         typer.secho(f"An error occurred: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-
     end_time = time.monotonic()
     elapsed_time = end_time - start_time
 
     if elapsed_time == 0:
-        elapsed_time = 1e-9 # Avoid division by zero
+        elapsed_time = 1e-9  # Avoid division by zero
 
     total_size_mb = total_size / (1024 * 1024)
     files_per_second = total_files / elapsed_time
