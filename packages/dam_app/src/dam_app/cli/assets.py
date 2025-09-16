@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import typer
 from dam.commands.asset_commands import (
@@ -8,12 +8,8 @@ from dam.commands.asset_commands import (
     SetMimeTypeCommand,
 )
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam_archive.commands import (
-    ClearArchiveComponentsCommand,
-    CreateMasterArchiveCommand,
-    DiscoverAndBindCommand,
-    UnbindSplitArchiveCommand,
-)
+from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+from dam_archive.commands import IngestArchiveMembersCommand
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -22,10 +18,16 @@ from dam_fs.commands import (
 from tqdm import tqdm
 from typing_extensions import Annotated
 
+from dam_app.commands import ExtractMetadataCommand
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
 
 app = AsyncTyper()
+
+COMMAND_MAP = {
+    "ExtractMetadataCommand": ExtractMetadataCommand,
+    "IngestArchiveMembersCommand": IngestArchiveMembersCommand,
+}
 
 
 @app.command(name="add")
@@ -44,6 +46,14 @@ async def add_assets(
         bool,
         typer.Option("-r", "--recursive", help="Process directory recursively."),
     ] = False,
+    process: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            "--process",
+            "-p",
+            help="Specify a command to run for a given MIME type, e.g., 'image/jpeg:ExtractMetadataCommand'",
+        ),
+    ] = None,
 ):
     """
     Registers one or more local assets with the DAM.
@@ -51,6 +61,21 @@ async def add_assets(
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
+
+    # Parse process option
+    process_map: Dict[str, List[str]] = {}
+    if process:
+        for p in process:
+            try:
+                mime_type, command_name = p.split(":", 1)
+                if mime_type not in process_map:
+                    process_map[mime_type] = []
+                process_map[mime_type].append(command_name)
+            except ValueError:
+                typer.secho(
+                    f"Invalid format for --process option: '{p}'. Must be 'mime-type:CommandName'", fg=typer.colors.RED
+                )
+                raise typer.Exit(code=1)
 
     typer.echo("Starting asset registration process...")
 
@@ -88,7 +113,28 @@ async def add_assets(
                     skipped_count += 1
                 else:
                     register_cmd = RegisterLocalFileCommand(file_path=file_path)
-                    await target_world.dispatch_command(register_cmd).get_all_results()
+                    entity_id = await target_world.dispatch_command(register_cmd).get_one_value()
+
+                    if entity_id and process_map:
+                        await target_world.dispatch_command(
+                            AutoSetMimeTypeCommand(entity_id=entity_id)
+                        ).get_all_results()
+                        async with target_world.db_session_maker() as session:
+                            mime_type_component = await dam_ecs_functions.get_component(
+                                session, entity_id, ContentMimeTypeComponent
+                            )
+
+                        if mime_type_component and mime_type_component.mime_type_concept.mime_type in process_map:
+                            mime_type_str = mime_type_component.mime_type_concept.mime_type
+                            for command_name in process_map[mime_type_str]:
+                                if command_name in COMMAND_MAP:
+                                    command_class = COMMAND_MAP[command_name]
+                                    processing_cmd = command_class(entity_id=entity_id)
+                                    await target_world.dispatch_command(processing_cmd).get_all_results()
+                                    tqdm.write(f"Processed {file_path.name} with {command_name}")
+                                else:
+                                    tqdm.write(f"Warning: Command '{command_name}' not found.")
+
                     success_count += 1
 
             except Exception as e:
@@ -127,27 +173,6 @@ async def store_assets(
     await target_world.dispatch_command(store_cmd).get_all_results()
 
     typer.secho("Asset storage process complete.", fg=typer.colors.GREEN)
-
-
-@app.command(name="clear-archive-info")
-async def clear_archive_info(
-    entity_id: Annotated[int, typer.Argument(..., help="The ID of the archive entity to clear.")],
-):
-    """
-    Removes archive-related components from an entity and its members.
-
-    This is useful when you want to re-process an archive from scratch.
-    """
-    target_world = get_world()
-    if not target_world:
-        raise typer.Exit(code=1)
-
-    typer.echo(f"Clearing archive info for entity: {entity_id}...")
-
-    clear_cmd = ClearArchiveComponentsCommand(entity_id=entity_id)
-    await target_world.dispatch_command(clear_cmd).get_all_results()
-
-    typer.secho("Archive info clearing process complete.", fg=typer.colors.GREEN)
 
 
 @app.command(name="set-mime-type")
@@ -218,70 +243,3 @@ async def auto_set_mime_type(
     await target_world.dispatch_command(set_cmd).get_all_results()
 
     typer.secho("Mime type setting process complete.", fg=typer.colors.GREEN)
-
-
-@app.command(name="discover-and-bind")
-async def discover_and_bind(
-    paths: Annotated[
-        List[Path],
-        typer.Argument(
-            ...,
-            help="Path to the asset file or directory to scan.",
-            exists=True,
-            readable=True,
-            resolve_path=True,
-        ),
-    ],
-):
-    """
-    Scans paths for split archive parts, tags them, and binds complete sets.
-    """
-    target_world = get_world()
-    if not target_world:
-        raise typer.Exit(code=1)
-
-    typer.echo(f"Discovering and binding split archives in paths: {paths}...")
-
-    discover_cmd = DiscoverAndBindCommand(paths=[str(p) for p in paths])
-    await target_world.dispatch_command(discover_cmd).get_all_results()
-
-    typer.secho("Discovery and binding process complete.", fg=typer.colors.GREEN)
-
-
-@app.command(name="create-master")
-async def create_master(
-    name: Annotated[str, typer.Option("--name", "-n", help="The name for the master archive entity.")],
-    part_ids: Annotated[List[int], typer.Argument(..., help="An ordered list of entity IDs for the parts.")],
-):
-    """
-    Manually creates a master entity for a split archive from a list of parts.
-    """
-    target_world = get_world()
-    if not target_world:
-        raise typer.Exit(code=1)
-
-    typer.echo(f"Creating master archive '{name}' with parts: {part_ids}...")
-
-    create_cmd = CreateMasterArchiveCommand(name=name, part_entity_ids=part_ids)
-    await target_world.dispatch_command(create_cmd).get_all_results()
-
-    typer.secho("Master archive created successfully.", fg=typer.colors.GREEN)
-
-
-@app.command(name="unbind-master")
-async def unbind_master(
-    master_id: Annotated[int, typer.Argument(..., help="The entity ID of the master archive to unbind.")],
-):
-    """
-    Unbinds a split archive, removing the master entity's manifest and part info.
-    """
-    target_world = get_world()
-    if not target_world:
-        raise typer.Exit(code=1)
-
-    typer.echo(f"Unbinding master archive with ID: {master_id}...")
-
-    unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_id)
-    await target_world.dispatch_command(unbind_cmd).get_all_results()
-
-    typer.secho("Master archive unbound successfully.", fg=typer.colors.GREEN)
