@@ -455,6 +455,15 @@ async def ingest_archive_members_handler(
     """
     logger.info(f"Ingestion command received for entity {cmd.entity_id}")
 
+    # If a stream is provided in the command, use it directly.
+    if cmd.stream:
+        logger.info(f"Processing archive for entity {cmd.entity_id} from provided stream.")
+        async for event in _perform_ingestion(cmd.entity_id, cmd.stream, cmd, world, transaction):
+            yield event
+        return
+
+    # --- Fallback to fetching stream from storage ---
+
     info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
     if info_comp:
         logger.info(f"Entity {cmd.entity_id} has already been processed. Skipping ingestion.")

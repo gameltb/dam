@@ -57,8 +57,10 @@ async def psp_iso_metadata_extraction_command_handler_system(
     """
     entity_id = command.entity_id
     try:
-        # Get the stream
-        stream = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id)).get_first_non_none_value()
+        stream = command.stream
+        # If no stream is provided in the command, fetch it from storage.
+        if not stream:
+            stream = await world.dispatch_command(GetAssetStreamCommand(entity_id=entity_id)).get_first_non_none_value()
 
         if stream:
             with stream:

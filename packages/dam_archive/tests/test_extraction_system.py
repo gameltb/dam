@@ -18,6 +18,46 @@ from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 @pytest.mark.serial
 @pytest.mark.asyncio
+async def test_ingest_archive_with_stream(test_world_alpha: World, tmp_path: Path) -> None:
+    """
+    Tests that the IngestArchiveCommand can be called with a stream directly.
+    """
+    world = test_world_alpha
+
+    # 1. Create an in-memory archive
+    file_content = b"a" * 1024
+    file_name_in_archive = "test_file.txt"
+    archive_stream = io.BytesIO()
+    import zipfile
+
+    with zipfile.ZipFile(archive_stream, "w") as zf:
+        zf.writestr(file_name_in_archive, file_content)
+    archive_stream.seek(0)
+
+    # 2. Register a dummy entity for the archive
+    # In a real scenario, this entity would already exist.
+    async with world.db_session_maker() as session:
+        entity = await ecs_functions.create_entity(session)
+        await set_content_mime_type(session, entity.id, "application/zip")
+        await session.commit()
+        entity_id = entity.id
+
+    # 3. Run the extraction command with the stream
+    ingest_cmd = IngestArchiveCommand(entity_id=entity_id, depth=0, stream=archive_stream)
+    async with world.transaction():
+        stream = world.dispatch_command(ingest_cmd)
+        events = [event async for event in stream]
+        assert any(isinstance(event, ProgressCompleted) for event in events)
+
+    # 4. Verify the results
+    async with world.db_session_maker() as session:
+        info = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
+        assert info is not None
+        assert info.file_count == 1
+
+
+@pytest.mark.serial
+@pytest.mark.asyncio
 async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World, tmp_path: Path) -> None:
     """
     Tests the ingestion logic with memory constraints and verifies the filename event field.
