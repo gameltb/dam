@@ -2,7 +2,9 @@ import logging
 from typing import Annotated
 
 from dam.core.systems import system
+from dam.core.transaction import EcsTransaction
 from dam.core.world import World
+from dam.functions.mime_type_functions import set_content_mime_type
 from dam_fs.events import FileStored
 
 logger = logging.getLogger(__name__)
@@ -12,10 +14,11 @@ logger = logging.getLogger(__name__)
 async def asset_dispatcher_system(
     event: FileStored,
     world: Annotated[World, "Resource"],
+    transaction: EcsTransaction,
 ):
     """
-    Listens for when a file has been stored and dispatches it to the
-    appropriate processing pipeline based on its MIME type.
+    Listens for when a file has been stored, stores its mime type, and dispatches it
+    to the appropriate processing pipeline based on its MIME type.
     """
     import magic
 
@@ -24,6 +27,9 @@ async def asset_dispatcher_system(
     try:
         mime_type = magic.from_file(str(event.file_path), mime=True)  # type: ignore
         logger.info(f"Detected MIME type '{mime_type}' for entity {event.entity.id}.")
+
+        # Store the mime type using the new refactored function
+        await set_content_mime_type(transaction.session, event.entity.id, mime_type)
 
         if mime_type.startswith("image/"):
             from dam_media_image.events import ImageAssetDetected

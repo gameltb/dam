@@ -11,6 +11,12 @@ from dam.commands import (
     SetMimeTypeFromBufferCommand,
 )
 from dam.core.commands import GetOrCreateEntityFromStreamCommand
+from dam.core.systems import system
+from dam.core.transaction import EcsTransaction
+from dam.core.world import World
+from dam.functions.mime_type_functions import get_content_mime_type
+from dam.models.core.entity import Entity
+from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events.progress import (
     ProgressCompleted,
     ProgressError,
@@ -18,11 +24,6 @@ from dam.system_events.progress import (
     ProgressUpdate,
     SystemProgressEvent,
 )
-from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
-from dam.core.world import World
-from dam.models.core.entity import Entity
-from dam.models.metadata.mime_type_component import MimeTypeComponent
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import FindEntityByFilePropertiesCommand
 from dam_fs.models import FilenameComponent
@@ -164,9 +165,12 @@ async def create_master_archive_handler(
     # 2. Copy mime type from first part
     if cmd.part_entity_ids:
         first_part_id = cmd.part_entity_ids[0]
-        mime_type_comp = await transaction.get_component(first_part_id, MimeTypeComponent)
-        if mime_type_comp:
-            await transaction.add_component_to_entity(master_entity.id, MimeTypeComponent(value=mime_type_comp.value))
+        content_mime_comp = await transaction.get_component(first_part_id, ContentMimeTypeComponent)
+        if content_mime_comp:
+            await transaction.add_component_to_entity(
+                master_entity.id,
+                ContentMimeTypeComponent(mime_type_concept_id=content_mime_comp.mime_type_concept_id),
+            )
 
     # 3. Update all part components to link to the new master
     for part_id in cmd.part_entity_ids:
@@ -268,13 +272,13 @@ async def get_archive_asset_stream_handler(
             logger.warning(f"Could not get stream for parent archive {target_entity_id}")
             continue
 
-        mime_type_comp = await transaction.get_component(target_entity_id, MimeTypeComponent)
-        if not mime_type_comp:
+        mime_type = await get_content_mime_type(transaction.session, target_entity_id)
+        if not mime_type:
             logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
             continue
 
         try:
-            archive = open_archive(archive_stream, mime_type_comp.value, password)
+            archive = open_archive(archive_stream, mime_type, password)
             if archive:
                 return archive.open_file(path_in_archive)
         except Exception as e:
@@ -312,8 +316,8 @@ async def _perform_ingestion(
     """
     yield ProgressStarted()
 
-    mime_type_comp = await transaction.get_component(entity_id, MimeTypeComponent)
-    if not mime_type_comp:
+    mime_type = await get_content_mime_type(transaction.session, entity_id)
+    if not mime_type:
         yield ProgressError(message=f"Could not get mime type for archive entity {entity_id}", exception=ValueError())
         return
 
@@ -333,7 +337,7 @@ async def _perform_ingestion(
         temp_archive = None
         try:
             archive_stream.seek(0)
-            temp_archive = open_archive(archive_stream, mime_type_comp.value, pwd)
+            temp_archive = open_archive(archive_stream, mime_type, pwd)
             if temp_archive:
                 correct_password = pwd
                 archive = temp_archive

@@ -7,7 +7,6 @@ import pytest
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.metadata.content_length_component import ContentLengthComponent
-from dam_source.models.source_info import OriginalSourceInfoComponent
 
 from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 from dam_fs.models import FileLocationComponent, FilenameComponent
@@ -45,7 +44,6 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
         assert flc is not None
         assert flc.url == temp_asset_file.as_uri()
         assert flc.last_modified_at == mod_time
-
 
     # 2. Find the entity by its properties
     find_cmd = FindEntityByFilePropertiesCommand(

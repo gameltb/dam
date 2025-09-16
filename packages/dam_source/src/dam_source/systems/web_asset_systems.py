@@ -5,8 +5,6 @@ from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.core.entity import Entity
 
-from dam_source.models.source_info import source_types
-from dam_source.models.source_info.original_source_info_component import OriginalSourceInfoComponent
 from dam_source.models.source_info.web_source_component import WebSourceComponent
 from dam_source.models.source_info.website_profile_component import WebsiteProfileComponent
 

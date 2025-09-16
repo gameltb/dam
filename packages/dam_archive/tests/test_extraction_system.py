@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
-from dam.system_events.progress import ProgressCompleted
 from dam.core.world import World
 from dam.functions import ecs_functions
-from dam.functions.mime_type_functions import set_entity_mime_type
+from dam.functions.mime_type_functions import set_content_mime_type
+from dam.system_events.progress import ProgressCompleted
 from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
@@ -27,7 +27,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     entity_id_reg = await world.dispatch_command(register_cmd_reg).get_one_value()
 
     async with world.db_session_maker() as session:
-        await set_entity_mime_type(session, entity_id_reg, "application/zip")
+        await set_content_mime_type(session, entity_id_reg, "application/zip")
         await session.commit()
 
     # 2. Run the extraction command
@@ -54,7 +54,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     entity_id_prot = await world.dispatch_command(register_cmd_prot).get_one_value()
 
     async with world.db_session_maker() as session:
-        await set_entity_mime_type(session, entity_id_prot, "application/zip")
+        await set_content_mime_type(session, entity_id_prot, "application/zip")
         await session.commit()
 
     # 2. Run the extraction command with the correct password
@@ -90,7 +90,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     async with world.db_session_maker() as session:
-        await set_entity_mime_type(session, entity_id, "application/zip")
+        await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
     # 2. Run the extraction command for the first time
