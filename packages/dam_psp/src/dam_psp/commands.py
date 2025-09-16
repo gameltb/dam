@@ -10,3 +10,4 @@ class ExtractPSPMetadataCommand(BaseCommand[None]):
     """
 
     entity_id: int
+    depth: int

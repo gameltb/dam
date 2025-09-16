@@ -1,21 +1,4 @@
-from typing import Generic, TypeVar
+from .base import BaseSystemEvent, SystemResultEvent
+from .entity_events import NewEntityCreatedEvent
 
-T = TypeVar("T")
-
-
-class BaseSystemEvent:
-    """A base class for all events yielded by systems."""
-
-    pass
-
-
-class SystemResultEvent(BaseSystemEvent, Generic[T]):
-    """
-    An event that wraps the final return value of a non-generator system.
-    """
-
-    def __init__(self, result: T):
-        self.result = result
-
-    def __repr__(self) -> str:
-        return f"SystemResultEvent(result={self.result!r})"
+__all__ = ["BaseSystemEvent", "SystemResultEvent", "NewEntityCreatedEvent"]
