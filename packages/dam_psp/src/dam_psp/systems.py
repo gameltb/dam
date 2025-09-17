@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, cast
 
-from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.commands import GetAssetFilenamesCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World

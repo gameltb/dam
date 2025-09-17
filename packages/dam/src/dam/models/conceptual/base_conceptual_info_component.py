@@ -41,6 +41,4 @@ class UniqueBaseConceptualInfoComponent(UniqueComponent):
     concept_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(entity_id={self.entity_id}, concept_name='{self.concept_name}')"
-        )
+        return f"{self.__class__.__name__}(entity_id={self.entity_id}, concept_name='{self.concept_name}')"

@@ -13,7 +13,10 @@ from dam.models.conceptual import (  # Keep conceptual imports that are still re
     ComicBookConceptComponent,
     UniqueBaseVariantInfoComponent,
 )
-from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
+from dam.models.core.base_component import (
+    REGISTERED_COMPONENT_TYPES,
+    Component,
+)
 from dam.models.core.entity import Entity
 
 # Updated imports for tag components
@@ -215,7 +218,7 @@ async def _is_scope_valid(
             )
             return False
 
-        required_class: Optional[Type[BaseComponent]] = None
+        required_class: Optional[Type[Component]] = None
         for comp_class in REGISTERED_COMPONENT_TYPES:
             if comp_class.__name__ == scope_detail:
                 required_class = comp_class

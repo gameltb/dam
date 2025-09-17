@@ -35,14 +35,14 @@ async def auto_set_mime_type_from_filename_system(
             .where(Entity.id == command.entity_id)
             .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
             .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
-            .where(ContentMimeTypeComponent.id.is_(None))
+            .where(ContentMimeTypeComponent.entity_id.is_(None))
         )
     else:
         stmt = (
             select(Entity)
             .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
             .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
-            .where(ContentMimeTypeComponent.id.is_(None))
+            .where(ContentMimeTypeComponent.entity_id.is_(None))
         )
 
     result = await transaction.session.execute(stmt)

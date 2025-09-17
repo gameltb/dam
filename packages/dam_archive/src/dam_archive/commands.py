@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import BinaryIO, List, Optional
+from typing import List, Optional
 
 from dam.core.commands import AnalysisCommand, BaseCommand
 

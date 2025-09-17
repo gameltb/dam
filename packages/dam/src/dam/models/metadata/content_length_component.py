@@ -18,6 +18,4 @@ class ContentLengthComponent(UniqueComponent):
     file_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, default=None)
 
     def __repr__(self) -> str:
-        return (
-            f"ContentLengthComponent(entity_id={self.entity_id}, file_size_bytes={self.file_size_bytes})"
-        )
+        return f"ContentLengthComponent(entity_id={self.entity_id}, file_size_bytes={self.file_size_bytes})"

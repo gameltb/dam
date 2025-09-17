@@ -80,4 +80,6 @@ class UniqueBaseVariantInfoComponent(UniqueComponent):
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
+        return (
+            f"{self.__class__.__name__}(entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
+        )

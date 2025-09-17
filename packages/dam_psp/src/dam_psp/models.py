@@ -24,10 +24,7 @@ class PSPSFOMetadataComponent(UniqueComponent):
     title: Mapped[Optional[str]] = mapped_column(String(), index=True)
 
     def __repr__(self) -> str:
-        return (
-            f"PSPSFOMetadataComponent(entity_id={self.entity_id}, "
-            f"title='{self.title}', disc_id='{self.disc_id}')"
-        )
+        return f"PSPSFOMetadataComponent(entity_id={self.entity_id}, title='{self.title}', disc_id='{self.disc_id}')"
 
 
 class PspSfoRawMetadataComponent(UniqueComponent):

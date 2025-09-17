@@ -65,7 +65,9 @@ class AnalysisCommand(EntityCommand[ResultType]):
 
         from dam.commands.asset_commands import GetAssetStreamCommand
 
-        stream = await world.dispatch_command(GetAssetStreamCommand(entity_id=self.entity_id)).get_first_non_none_value()
+        stream = await world.dispatch_command(
+            GetAssetStreamCommand(entity_id=self.entity_id)
+        ).get_first_non_none_value()
         if not stream:
             raise ValueError(f"Could not get asset stream for entity {self.entity_id}")
         return stream

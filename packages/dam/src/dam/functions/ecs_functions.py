@@ -8,8 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type 
 from dam.models.core.base_component import (
     REGISTERED_COMPONENT_TYPES,
     Component,
-    BaseComponent,
-    UniqueComponent,
 )
 from dam.models.core.entity import Entity
 
