@@ -3,17 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, BinaryIO, Generic, Set, Tuple, TypeVar
 
-from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, AsyncGenerator, BinaryIO, Generic, Set, Tuple, TypeVar
-
 from dam.core.enums import ExecutionStrategy
 from dam.models.core.entity import Entity
-from dam.system_events.progress import (
-    ProgressCompleted,
-    ProgressError,
-    ProgressStarted,
-    ProgressUpdate,
-)
 from dam.utils.hash_utils import HashAlgorithm
 
 if TYPE_CHECKING:
@@ -56,14 +47,6 @@ class EntityCommand(BaseCommand[ResultType]):
     entity_id: int
 
 
-class _ProgressReporter:
-    def __init__(self, world: "World"):
-        self._world = world
-
-    async def update(self, current: int | None = None, total: int | None = None, message: str | None = None):
-        await self._world.dispatch_event(ProgressUpdate(current=current, total=total, message=message))
-
-
 @dataclass
 class AnalysisCommand(EntityCommand[ResultType]):
     """Base class for commands that analyze an entity's data."""
@@ -86,19 +69,6 @@ class AnalysisCommand(EntityCommand[ResultType]):
         if not stream:
             raise ValueError(f"Could not get asset stream for entity {self.entity_id}")
         return stream
-
-    @asynccontextmanager
-    async def progress_reporter(self, world: "World") -> AsyncGenerator[_ProgressReporter, None]:
-        """A context manager to automatically handle progress reporting."""
-        reporter = _ProgressReporter(world)
-        try:
-            await world.dispatch_event(ProgressStarted())
-            yield reporter
-        except Exception as e:
-            await world.dispatch_event(ProgressError(exception=e))
-            raise
-        else:
-            await world.dispatch_event(ProgressCompleted())
 
 
 __all__ = [
