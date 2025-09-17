@@ -14,13 +14,16 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
 
 ### 2.2. Components
 -   **Definition**: Components are data-only objects that describe a specific aspect or property of an entity. Each component type defines a specific piece of data.
--   **Implementation**:
-    -   Components inherit from `dam.models.base_component.BaseComponent`.
+-   **Implementation**: All components inherit from a common `dam.models.core.base_component.Component` base class. This ensures they can be discovered by the framework. There are two main types of components:
+    -   **Standard Components**: Inherit from `dam.models.core.base_component.BaseComponent`. An entity can have **multiple** instances of these components. They have their own `id` primary key.
+    -   **Unique Components**: Inherit from `dam.models.core.base_component.UniqueComponent`. An entity can only have **one** instance of these components. They use the `entity_id` as their primary key to enforce this uniqueness at the database level.
     - Dataclass behavior is inherited from `dam.models.core.base_class.Base`.
     - Components are located in the various `dam_media_*` packages.
 
-### 2.3. BaseComponent
--   Provides common fields: `id`, `entity_id` (FK to `entities.id`), and an `entity` relationship.
+### 2.3. Component Base Classes
+-   **`Component`**: The abstract root of all components.
+-   **`BaseComponent`**: Provides common fields for standard (non-unique) components: an auto-incrementing `id` primary key, and the `entity_id` foreign key.
+-   **`UniqueComponent`**: Provides the `entity_id` as a primary key for unique components.
 
 ### 2.4. Systems
 -   **Definition**: Systems encapsulate the logic that operates on entities. They can be triggered in several ways:
@@ -83,54 +86,60 @@ The Command pattern is used for imperative actions where the caller requests a s
 
 1.  **Define the Command:**
     - In the appropriate package, create a `commands.py` file if it doesn't exist.
-    - Define a new dataclass that inherits from `dam.core.commands.BaseCommand`.
-    - Add fields to the dataclass to carry the necessary data for the operation.
+    - Define a new dataclass that inherits from an appropriate base command in `dam.core.commands`. For tasks that analyze a single entity, `AnalysisCommand` is a good choice as it provides common fields and helpers.
+    - Add any additional fields the command needs.
 
     *Example (`packages/my_plugin/commands.py`):*
     ```python
     from dataclasses import dataclass
-    from dam.core.commands import BaseCommand
+    from dam.core.commands import AnalysisCommand
 
     @dataclass
-    class RenameAssetCommand(BaseCommand):
-        entity_id: int
-        new_name: str
+    class ExtractDominantColorCommand(AnalysisCommand[None]):
+        """A command to extract the dominant color from an image asset."""
+        # entity_id, depth, and stream are inherited from AnalysisCommand
+        pass # No extra fields needed for this simple command
     ```
 
 2.  **Create the Command Handler System:**
     - In the package's `systems/` module, create a new function to handle the command.
-    - Decorate the function with `@system(on_command=YourCommandClass)`.
-    - The function must be `async` and its first argument should be the command object.
-    - Use functions to perform the business logic.
+    - Decorate it with `@system(on_command=YourCommandClass)`.
+    - Use the command's helper methods and the `EcsTransaction` object to implement the logic.
 
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python
     from dam.core.systems import system
     from dam.core.transaction import EcsTransaction
-    from my_plugin.commands import RenameAssetCommand
-    from my_plugin.models import NameComponent # Assuming a component that stores the name
+    from dam.core.world import World
+    from my_plugin.commands import ExtractDominantColorCommand
+    from my_plugin.models import DominantColorComponent # A UniqueComponent
 
-    @system(on_command=RenameAssetCommand)
-    async def handle_rename_asset_command(
-        cmd: RenameAssetCommand,
+    @system(on_command=ExtractDominantColorCommand)
+    async def handle_extract_dominant_color_command(
+        cmd: ExtractDominantColorCommand,
         transaction: EcsTransaction,
+        world: World, # Inject the world to use command helpers
     ):
-        print(f"Handling command to rename entity {cmd.entity_id} to '{cmd.new_name}'")
+        print(f"Handling command to extract color from entity {cmd.entity_id}")
 
-        # Use the transaction object to interact with the database
-        name_component = await transaction.get_component(cmd.entity_id, NameComponent)
+        # Use the command's helper to get a file stream
+        try:
+            image_stream = await cmd.get_stream(world)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return
 
-        if name_component:
-            name_component.name = cmd.new_name
-            # The transaction object automatically handles registering the change
-            # because the component is still managed by the underlying session.
-            print(f"Name for entity {cmd.entity_id} changed in transaction.")
-        else:
-            # Or create a new component
-            new_name_component = NameComponent(name=cmd.new_name)
-            await transaction.add_component_to_entity(cmd.entity_id, new_name_component)
-            print(f"New name for entity {cmd.entity_id} added in transaction.")
+        # ... process the stream to find the dominant color (e.g., '#FF0000') ...
+        dominant_color_hex = "#FF0000" # Placeholder
 
+        # Create the component instance
+        color_component = DominantColorComponent(hex_color=dominant_color_hex)
+
+        # Use the transaction's helper to add or update the component.
+        # Since DominantColorComponent is a UniqueComponent, this will correctly
+        # add it if it's new, or update it if it already exists.
+        await transaction.add_or_update_component(cmd.entity_id, color_component)
+        print(f"Dominant color for entity {cmd.entity_id} set to {dominant_color_hex}")
     ```
 
 3.  **Dispatch the Command:**
@@ -139,10 +148,10 @@ The Command pattern is used for imperative actions where the caller requests a s
 
     *Example:*
     ```python
-    from my_plugin.commands import RenameAssetCommand
+    from my_plugin.commands import ExtractDominantColorCommand
 
     # ... get world object ...
-    command = RenameAssetCommand(entity_id=123, new_name="My Cool Asset")
+    command = ExtractDominantColorCommand(entity_id=123)
 
     # Dispatch the command and get the executor
     executor = world.dispatch_command(command)

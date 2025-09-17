@@ -63,8 +63,11 @@ Components are data-only Python classes that store specific attributes or proper
     - Component class names also reflect this specificity, e.g., `TextEmbeddingAllMiniLML6V2Dim384Component`.
 
 ### 2.3. Inheritance
-- Most components inherit from `dam.models.core.base_component.BaseComponent`.
-- Specific embedding components (e.g., `TextEmbeddingAllMiniLML6V2Dim384Component`) inherit from `dam.models.semantic.text_embedding_component.BaseSpecificEmbeddingComponent`, which itself inherits from `BaseComponent`. `BaseSpecificEmbeddingComponent` is an abstract base class and includes common fields for embeddings like `embedding_vector`, `source_component_name`, and `source_field_name`.
+All components inherit from a common abstract base class, `dam.models.core.base_component.Component`. This ensures that all components can be discovered and handled by the core ECS functions. From there, the hierarchy splits based on the component's relationship with its entity:
+
+- **`BaseComponent`**: For components that can have **multiple instances** per entity. This is the most common type of component. It has its own auto-incrementing `id` primary key, in addition to the `entity_id` foreign key.
+- **`UniqueComponent`**: For components that must have a **one-to-one relationship** with an entity. This base class enforces uniqueness at the database level by using the `entity_id` as its primary key. This is a more efficient and robust way to handle unique components than the previous `UniqueComponentMixin`.
+- **Specialized Base Classes**: More specific, abstract base classes can be created for families of components. For example, `BaseSpecificEmbeddingComponent` inherits from `BaseComponent` and provides common fields for embedding vectors. Similarly, a unique version could be created that inherits from `UniqueComponent`.
 
 ### 2.4. Field Definitions
 - Component fields should be defined using SQLAlchemy's `Mapped` type hints and `mapped_column` function.
@@ -271,7 +274,10 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 ### 3.3. Commands
 
 -   **Definition and Purpose**: Commands are requests for the system to perform a specific action. They represent an imperative instruction, such as "ingest this file" or "find similar images". A command is dispatched with the expectation that it will be handled by one or more systems.
--   **Structure**: Commands are simple data-only classes that inherit from `dam.core.commands.BaseCommand`. They carry the data necessary to execute the action.
+-   **Structure**: Commands are simple data-only classes that inherit from a hierarchy of base classes in `dam.core.commands`. They carry the data necessary to execute the action.
+    -   `BaseCommand`: The root of all commands.
+    -   `EntityCommand`: A base class for commands that operate on a single entity, identified by `entity_id`.
+    -   `AnalysisCommand`: A specialized `EntityCommand` for analysis tasks. It includes common fields like `depth` (for recursion control) and `stream` (for direct data access). It also provides helper methods like `get_stream()` to simplify system logic.
     -   Commands can specify an `execution_strategy` (`SERIAL` or `PARALLEL`) to control how their handler systems are executed.
 -   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. The result is a `SystemExecutor` object. This object is an async generator that yields system events and also provides helper methods (e.g., `get_all_results()`) to consume the stream and process the results. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
 -   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as an argument.
@@ -323,13 +329,25 @@ A core principle of the framework is to ensure data consistency through atomic t
 -   **The `EcsTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
     -   **Purpose**: The `dam.core.transaction.EcsTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
     -   **Lifecycle**: An `EcsTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and functions that are part of that transaction chain.
-    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `EcsTransaction` object and use its methods:
-        -   `await transaction.add_component_to_entity(...)`
-        -   `await transaction.create_entity()`
+    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `EcsTransaction` object and use its methods. The `EcsTransaction` object provides several helper methods to abstract common database operations:
+        -   `await transaction.add_component_to_entity(...)`: Adds a component instance to an entity. Best for non-unique components.
+        -   `await transaction.add_or_update_component(...)`: A convenient helper that adds or updates a component. It checks if the component is a `UniqueComponent` and, if so, will update an existing instance instead of causing an error. This is the preferred method for managing unique components.
+        -   `await transaction.create_entity()`: Creates a new entity.
         -   If an ID is needed immediately for a subsequent operation within the same transaction, `await transaction.flush()` can be called.
     -   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` method is called automatically by the `World` object at the end of the transaction. Systems and functions should **never** call commit or rollback themselves.
 
 This approach ensures that system logic remains focused on orchestration, while the framework guarantees atomicity and provides a safe, domain-specific API for database interactions.
+
+### 3.7. Progress Reporting Events
+
+For long-running commands, especially those involving I/O or significant computation, it is crucial to provide feedback to the caller. The system uses a family of events for this purpose, defined in `dam.system_events.progress`. These events are not dispatched to the world's main event bus but are instead `yield`ed by the system function and consumed by the command dispatcher (`SystemExecutor`).
+
+-   **`ProgressStarted`**: Yielded once at the beginning of a process.
+-   **`ProgressUpdate`**: Yielded one or more times to report incremental progress. It can contain `total` and `current` values (e.g., for bytes processed) and a `message`.
+-   **`ProgressCompleted`**: Yielded once at the end of a successful process.
+-   **`ProgressError`**: Yielded if an error occurs. It contains the `exception` and an optional `message`.
+
+A system that reports progress will have a return type annotation like `AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]`, indicating it yields a stream of progress and other system events.
 
 ## 4. Testing Guidelines
 

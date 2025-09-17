@@ -1,5 +1,11 @@
-from .base_conceptual_info_component import BaseConceptualInfoComponent
-from .base_variant_info_component import BaseVariantInfoComponent
+from .base_conceptual_info_component import (
+    BaseConceptualInfoComponent,
+    UniqueBaseConceptualInfoComponent,
+)
+from .base_variant_info_component import (
+    BaseVariantInfoComponent,
+    UniqueBaseVariantInfoComponent,
+)
 from .character_concept_component import CharacterConceptComponent
 from .comic_book_concept_component import ComicBookConceptComponent
 from .comic_book_variant_component import ComicBookVariantComponent
@@ -9,7 +15,9 @@ from .page_link import PageLink
 
 __all__ = [
     "BaseConceptualInfoComponent",
+    "UniqueBaseConceptualInfoComponent",
     "BaseVariantInfoComponent",
+    "UniqueBaseVariantInfoComponent",
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
     "PageLink",

@@ -128,14 +128,9 @@ async def extract_metadata_command_handler(
         exiftool_data = await _extract_metadata_with_exiftool_async(filepath_to_process)
 
         if exiftool_data:
-            if not await transaction.get_component(entity_id, ExiftoolMetadataComponent):
-                exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
-                await transaction.add_component_to_entity(entity_id, exif_comp)
-                logger.info(f"Added ExiftoolMetadataComponent for Entity ID {entity_id}")
-            else:
-                logger.info(
-                    f"ExiftoolMetadataComponent already exists for Entity ID {entity_id}, not adding duplicate."
-                )
+            exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)
+            await transaction.add_or_update_component(entity_id, exif_comp)
+            logger.info(f"Added or updated ExiftoolMetadataComponent for Entity ID {entity_id}")
         else:
             logger.info(f"No metadata extracted by Exiftool for {filepath_to_process} (Entity ID {entity_id})")
 

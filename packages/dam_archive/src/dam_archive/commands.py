@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import BinaryIO, List, Optional
+from typing import List, Optional
 
-from dam.core.commands import BaseCommand
+from dam.core.commands import AnalysisCommand, BaseCommand
 
 
 @dataclass
@@ -43,16 +43,13 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 
 
 @dataclass
-class IngestArchiveCommand(BaseCommand[None]):
+class IngestArchiveCommand(AnalysisCommand[None]):
     """
     A command to ingest members from an archive asset into the ECS world.
     This command returns a stream of events.
     """
 
-    entity_id: int
-    depth: int
     passwords: Optional[List[str]] = None
-    stream: Optional[BinaryIO] = None
 
 
 @dataclass

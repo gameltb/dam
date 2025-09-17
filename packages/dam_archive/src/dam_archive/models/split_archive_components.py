@@ -1,12 +1,11 @@
 from typing import Optional
 
-from dam.models.core import BaseComponent as Component
-from dam.models.core.component_mixins import UniqueComponentMixin
+from dam.models.core import UniqueComponent as Component
 from sqlalchemy import BigInteger, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class SplitArchivePartInfoComponent(UniqueComponentMixin, Component):
+class SplitArchivePartInfoComponent(Component):
     """
     Component to tag a file as a part of a split archive.
     """
@@ -23,7 +22,7 @@ class SplitArchivePartInfoComponent(UniqueComponentMixin, Component):
     )
 
 
-class SplitArchiveManifestComponent(UniqueComponentMixin, Component):
+class SplitArchiveManifestComponent(Component):
     """
     Component to hold the manifest of a complete split archive.
     This is typically attached to a master virtual entity.

@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import BinaryIO, Generic, Set, Tuple, TypeVar
+from typing import TYPE_CHECKING, BinaryIO, Generic, Set, Tuple, TypeVar
 
 from dam.core.enums import ExecutionStrategy
 from dam.models.core.entity import Entity
 from dam.utils.hash_utils import HashAlgorithm
+
+if TYPE_CHECKING:
+    from dam.core.world import World
+
 
 ResultType = TypeVar("ResultType")
 
@@ -34,4 +40,43 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
     stream: BinaryIO
 
 
-__all__ = ["BaseCommand", "AddHashesFromStreamCommand", "GetOrCreateEntityFromStreamCommand"]
+@dataclass
+class EntityCommand(BaseCommand[ResultType]):
+    """Base class for commands that operate on a single entity."""
+
+    entity_id: int
+
+
+@dataclass
+class AnalysisCommand(EntityCommand[ResultType]):
+    """Base class for commands that analyze an entity's data."""
+
+    depth: int = 0
+    stream: BinaryIO | None = None
+
+    async def get_stream(self, world: "World") -> BinaryIO:
+        """
+        Gets a readable, seekable binary stream for the command's entity.
+        If a stream was provided in the command, it is returned.
+        Otherwise, a new GetAssetStreamCommand is dispatched to fetch the stream.
+        """
+        if self.stream:
+            return self.stream
+
+        from dam.commands.asset_commands import GetAssetStreamCommand
+
+        stream = await world.dispatch_command(
+            GetAssetStreamCommand(entity_id=self.entity_id)
+        ).get_first_non_none_value()
+        if not stream:
+            raise ValueError(f"Could not get asset stream for entity {self.entity_id}")
+        return stream
+
+
+__all__ = [
+    "BaseCommand",
+    "AddHashesFromStreamCommand",
+    "GetOrCreateEntityFromStreamCommand",
+    "EntityCommand",
+    "AnalysisCommand",
+]

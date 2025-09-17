@@ -1,11 +1,10 @@
 from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.component_mixins import UniqueComponentMixin
-from .base_variant_info_component import BaseVariantInfoComponent
+from .base_variant_info_component import UniqueBaseVariantInfoComponent
 
 
-class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
+class ComicBookVariantComponent(UniqueBaseVariantInfoComponent):
     """
     Represents a specific variant of a Comic Book Concept.
     This component is attached to a File Entity and links it to a
@@ -14,7 +13,7 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
 
     __tablename__ = "component_comic_book_variant"
 
-    # id, entity_id, conceptual_entity_id are inherited.
+    # entity_id, conceptual_entity_id are inherited.
 
     language: Mapped[str | None] = mapped_column(
         String(), nullable=True, index=True, comment="Language of this comic book variant (e.g., 'en', 'jp')."
@@ -44,7 +43,7 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
         comment="Indicates if this is the primary or preferred variant for the comic book concept.",
     )
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
+    __table_args__ = (
         UniqueConstraint(
             "conceptual_entity_id",
             "language",
@@ -56,7 +55,7 @@ class ComicBookVariantComponent(UniqueComponentMixin, BaseVariantInfoComponent):
 
     def __repr__(self) -> str:
         return (
-            f"ComicBookVariantComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"ComicBookVariantComponent(entity_id={self.entity_id}, "
             f"conceptual_entity_id={self.conceptual_entity_id}, "
             f"lang='{self.language}', format='{self.format}', primary={self.is_primary_variant})"
         )

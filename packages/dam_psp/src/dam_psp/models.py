@@ -1,12 +1,12 @@
 from typing import Any, Dict, Optional
 
-from dam.models.core.base_component import BaseComponent
+from dam.models.core.base_component import UniqueComponent
 from sqlalchemy import Integer, String
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class PSPSFOMetadataComponent(BaseComponent):
+class PSPSFOMetadataComponent(UniqueComponent):
     """
     Stores metadata from a PSP ISO's PARAM.SFO file.
     """
@@ -24,13 +24,10 @@ class PSPSFOMetadataComponent(BaseComponent):
     title: Mapped[Optional[str]] = mapped_column(String(), index=True)
 
     def __repr__(self) -> str:
-        return (
-            f"PSPSFOMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"title='{self.title}', disc_id='{self.disc_id}')"
-        )
+        return f"PSPSFOMetadataComponent(entity_id={self.entity_id}, title='{self.title}', disc_id='{self.disc_id}')"
 
 
-class PspSfoRawMetadataComponent(BaseComponent):
+class PspSfoRawMetadataComponent(UniqueComponent):
     """
     Stores raw metadata from a PSP ISO's PARAM.SFO file as a JSON object.
     """
@@ -41,6 +38,6 @@ class PspSfoRawMetadataComponent(BaseComponent):
 
     def __repr__(self) -> str:
         return (
-            f"PspSfoRawMetadataComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"PspSfoRawMetadataComponent(entity_id={self.entity_id}, "
             f"metadata_json_keys='{list(self.metadata_json.keys())}')"
         )

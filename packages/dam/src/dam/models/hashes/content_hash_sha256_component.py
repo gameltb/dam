@@ -5,11 +5,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent
-from ..core.component_mixins import UniqueComponentMixin
+from ..core.base_component import UniqueComponent
 
 
-class ContentHashSHA256Component(UniqueComponentMixin, BaseComponent):
+class ContentHashSHA256Component(UniqueComponent):
     """
     Stores SHA256 content-based hashes (32 bytes) for an entity.
     """
@@ -19,7 +18,7 @@ class ContentHashSHA256Component(UniqueComponentMixin, BaseComponent):
     # SHA256 hash is 32 bytes (256 bits)
     hash_value: Mapped[bytes] = mapped_column(LargeBinary(32), index=True, nullable=False)
 
-    __table_args__ = UniqueComponentMixin.__table_args__ + (  # type: ignore
+    __table_args__ = (
         UniqueConstraint(
             "hash_value", name="uq_sha256_hash_value"
         ),  # Hash values themselves are unique across all components
@@ -28,4 +27,4 @@ class ContentHashSHA256Component(UniqueComponentMixin, BaseComponent):
 
     def __repr__(self) -> str:
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
-        return f"ContentHashSHA256Component(id={self.id}, entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"
+        return f"ContentHashSHA256Component(entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

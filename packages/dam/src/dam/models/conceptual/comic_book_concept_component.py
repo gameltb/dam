@@ -1,11 +1,10 @@
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.component_mixins import UniqueComponentMixin
-from .base_conceptual_info_component import BaseConceptualInfoComponent
+from .base_conceptual_info_component import UniqueBaseConceptualInfoComponent
 
 
-class ComicBookConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponent):
+class ComicBookConceptComponent(UniqueBaseConceptualInfoComponent):
     """
     Represents the concept of a specific comic book issue or work.
     This component is attached to an Entity that acts as the central identifier
@@ -14,8 +13,8 @@ class ComicBookConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponen
 
     __tablename__ = "component_comic_book_concept"
 
-    # id, entity_id are inherited from BaseComponent
-    # via BaseConceptualInfoComponent.
+    # entity_id is inherited from UniqueComponent
+    # via UniqueBaseConceptualInfoComponent.
 
     comic_title: Mapped[str] = mapped_column(
         String(),
@@ -53,6 +52,6 @@ class ComicBookConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponen
 
     def __repr__(self) -> str:
         return (
-            f"ComicBookConceptComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"ComicBookConceptComponent(entity_id={self.entity_id}, "
             f"comic_title='{self.comic_title}', issue='{self.issue_number}', year={self.publication_year})"
         )
