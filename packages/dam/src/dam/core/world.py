@@ -172,9 +172,7 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
 
-    def dispatch_command(
-        self, command: BaseCommand[ResultType, EventType]
-    ) -> SystemExecutor[ResultType, EventType]:
+    def dispatch_command(self, command: BaseCommand[ResultType, EventType]) -> SystemExecutor[ResultType, EventType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
 
         async def _transaction_wrapper() -> AsyncGenerator[EventType, None]:

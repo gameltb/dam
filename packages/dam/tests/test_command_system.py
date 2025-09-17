@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 import pytest
 from _pytest.logging import LogCaptureFixture
@@ -46,6 +46,11 @@ class StreamingCommand(BaseCommand[None, CustomEvent]):
     pass
 
 
+@dataclass
+class LegacyCommand(BaseCommand[str, BaseSystemEvent]):
+    pass
+
+
 # Define some test systems (command handlers)
 @system(on_command=SimpleCommand)
 def simple_handler_one(cmd: SimpleCommand) -> str:
@@ -86,6 +91,11 @@ def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str,
 async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[CustomEvent, None]:
     yield CustomEvent(message="First")
     yield CustomEvent(message="Second")
+
+
+@system(on_command=LegacyCommand)
+def legacy_handler(cmd: Annotated[LegacyCommand, "Command"]) -> str:
+    return "Handled legacy command"
 
 
 # Tests
@@ -216,3 +226,13 @@ async def test_return_type_mismatch_warning(test_world_alpha: World, caplog: Log
     assert "Handler 'mismatch_handler'" in caplog.text
     assert "expects '<class 'int'>'" in caplog.text
     assert "annotated to return '<class 'str'>'" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_string_identity_backward_compatibility(test_world_alpha: World) -> None:
+    """Tests that string-based identities for command injection still work."""
+    world = test_world_alpha
+    world.register_system(system_func=legacy_handler)
+    command = LegacyCommand()
+    result = await world.dispatch_command(command).get_one_value()
+    assert result == "Handled legacy command"
