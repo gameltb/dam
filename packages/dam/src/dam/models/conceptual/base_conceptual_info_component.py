@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.base_component import BaseComponent
+from ..core.base_component import BaseComponent, UniqueComponent
 
 
 class BaseConceptualInfoComponent(BaseComponent):
@@ -27,4 +27,20 @@ class BaseConceptualInfoComponent(BaseComponent):
         # but subclasses might call super().__repr__()
         return (
             f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, concept_name='{self.concept_name}')"
+        )
+
+
+class UniqueBaseConceptualInfoComponent(UniqueComponent):
+    """
+    Abstract base class for unique components that define a 'Conceptual Asset'.
+    """
+
+    __abstract__ = True
+
+    concept_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    concept_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(entity_id={self.entity_id}, concept_name='{self.concept_name}')"
         )

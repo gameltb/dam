@@ -4,15 +4,19 @@ from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type hints
 
-# Corrected imports for BaseComponent and Entity
-from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
-from dam.models.core.component_mixins import UniqueComponentMixin
+# Corrected imports for Component and Entity
+from dam.models.core.base_component import (
+    REGISTERED_COMPONENT_TYPES,
+    Component,
+    BaseComponent,
+    UniqueComponent,
+)
 from dam.models.core.entity import Entity
 
 # No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
 
 # Define a generic type variable for component types
-T = TypeVar("T", bound=BaseComponent)
+T = TypeVar("T", bound=Component)
 
 
 # Note: All functions in this module require a `session: Session` argument.
@@ -55,7 +59,7 @@ async def add_component_to_entity(
     Args:
         session: The SQLAlchemy session for the target world.
         entity_id: The ID of the entity to add the component to.
-        component_instance: An instance of a class inheriting from BaseComponent.
+        component_instance: An instance of a class inheriting from Component.
         flush: Whether to flush the session after adding. Defaults to True.
 
     Returns:
@@ -67,15 +71,9 @@ async def add_component_to_entity(
     if not entity:
         raise ValueError(f"Entity with ID {entity_id} not found in the provided session.")
 
-    component_type = type(component_instance)
-    # Check if the component is a subclass of UniqueComponentMixin
-    if issubclass(component_type, UniqueComponentMixin):
-        # If it is unique, check if one already exists for this entity
-        existing_component = await get_component(session, entity_id, component_type)
-        if existing_component:
-            raise ValueError(
-                f"Cannot add another instance of unique component '{component_type.__name__}' to entity {entity_id}."
-            )
+    # The check for unique components is now handled by the database's primary key constraint
+    # on UniqueComponent subclasses. Attempting to add a duplicate will raise an IntegrityError
+    # upon flushing the session, which is the expected behavior.
 
     component_instance.entity_id = entity.id
     component_instance.entity = entity  # Link in ORM
@@ -109,12 +107,12 @@ async def get_components(session: AsyncSession, entity_id: int, component_type: 
     return list(result.scalars().all())
 
 
-async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[BaseComponent]:
+async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[Component]:
     """
     Retrieves all component instances associated with a given entity_id,
     checking against all REGISTERED_COMPONENT_TYPES.
     """
-    all_components: List[BaseComponent] = []
+    all_components: List[Component] = []
     if not await get_entity(session, entity_id):  # Check if entity exists
         logger.warning(f"Entity with ID {entity_id} not found when trying to get all its components.")
         return []  # Or raise an error, depending on desired behavior
@@ -152,7 +150,7 @@ async def get_all_components_for_entity_as_dict(
     return component_dict
 
 
-async def remove_component(session: AsyncSession, component: BaseComponent, flush: bool = False) -> None:  # Made async
+async def remove_component(session: AsyncSession, component: Component, flush: bool = False) -> None:  # Made async
     """
     Deletes a specific component instance from the database via the given session.
     The caller is responsible for committing the session.
@@ -164,8 +162,8 @@ async def remove_component(session: AsyncSession, component: BaseComponent, flus
     Raises:
         ValueError: If the component is invalid.
     """
-    if not isinstance(component, BaseComponent):
-        raise ValueError("Invalid component instance for removal. Must be a session-managed BaseComponent with an ID.")
+    if not isinstance(component, Component):
+        raise ValueError("Invalid component instance for removal. Must be a session-managed Component with an ID.")
     # No need to check `if component not in session` if it's fetched via the same session.
     # If it could be from another session, then `session.merge(component)` might be needed before delete.
     # For simplicity, assume it's from the current session or attached.
@@ -221,7 +219,7 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
 
 
 async def find_entities_with_components(  # Made async
-    session: AsyncSession, required_component_types: List[Type[BaseComponent]]
+    session: AsyncSession, required_component_types: List[Type[Component]]
 ) -> List[Entity]:
     """
     Finds entities that have ALL of the specified component types.
@@ -232,8 +230,8 @@ async def find_entities_with_components(  # Made async
 
     stmt = select(Entity)
     for comp_type in required_component_types:
-        if not issubclass(comp_type, BaseComponent):
-            raise TypeError(f"Type {comp_type} is not a BaseComponent subclass.")
+        if not issubclass(comp_type, Component):
+            raise TypeError(f"Type {comp_type} is not a Component subclass.")
         # Use aliasing if the same component type could be required multiple times with different criteria
         # (not applicable here, but good practice if extending for attribute checks on each).
         # For now, a simple join is fine. If a component could appear multiple times for an entity
@@ -291,8 +289,8 @@ async def get_components_by_value(  # Made async
     """
     Retrieves components of a specific type for an entity that match all given attribute values.
     """
-    if not issubclass(component_type, BaseComponent):
-        raise TypeError(f"Type {component_type} is not a BaseComponent subclass.")
+    if not issubclass(component_type, Component):
+        raise TypeError(f"Type {component_type} is not a Component subclass.")
 
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     for attr_name, value in attributes_values.items():
@@ -315,7 +313,7 @@ async def find_entity_by_content_hash(
     """
     from dam.models import ContentHashMD5Component, ContentHashSHA256Component
 
-    component_to_query: Type[BaseComponent]
+    component_to_query: Type[Component]
     if hash_type.lower() == "sha256":
         component_to_query = ContentHashSHA256Component
     elif hash_type.lower() == "md5":
@@ -364,8 +362,8 @@ async def find_entities_by_component_attribute_value(  # Made async
     Finds entities that have a component of `component_type`
     where `component_type.attribute_name == value`.
     """
-    if not issubclass(component_type, BaseComponent):
-        raise TypeError(f"Type {component_type} is not a BaseComponent subclass.")
+    if not issubclass(component_type, Component):
+        raise TypeError(f"Type {component_type} is not a Component subclass.")
     if not hasattr(component_type, attribute_name):
         raise AttributeError(f"Component {component_type.__name__} has no attribute '{attribute_name}'.")
 

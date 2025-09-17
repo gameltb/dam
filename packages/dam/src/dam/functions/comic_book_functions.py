@@ -242,7 +242,7 @@ async def unlink_comic_variant(session: AsyncSession, file_entity_id: int) -> bo
     await session.delete(cb_variant_comp)  # Await
     logger.info(
         f"Unlinked File Entity ID {file_entity_id} from ComicBookConcept ID {cb_variant_comp.conceptual_entity_id} "
-        f"by deleting ComicBookVariantComponent ID {cb_variant_comp.id}."
+        f"by deleting ComicBookVariantComponent for entity {cb_variant_comp.entity_id}."
     )
     return True
 

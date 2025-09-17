@@ -88,7 +88,7 @@ async def test_link_comic_variant_to_concept(db_session: AsyncSession) -> None:
 
     retrieved_variant_comp = await ecs_service.get_component(db_session, file_entity.id, ComicBookVariantComponent)
     assert retrieved_variant_comp is not None
-    assert retrieved_variant_comp.id == variant_comp.id
+    assert retrieved_variant_comp.entity_id == variant_comp.entity_id
 
 
 @pytest.mark.asyncio
@@ -277,8 +277,8 @@ async def test_set_primary_comic_variant(db_session: AsyncSession) -> None:
     await db_session.commit()  # Commit changes from set_primary
 
     # Refresh components directly from session to check their state
-    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.id)
-    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.id)
+    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.entity_id)
+    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)
     assert refreshed_vc1 is not None and refreshed_vc1.is_primary_variant is True
     assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is False
 
@@ -288,15 +288,15 @@ async def test_set_primary_comic_variant(db_session: AsyncSession) -> None:
     assert await cbs.set_primary_comic_variant(db_session, v2_id, concept_id) is True
     await db_session.commit()  # Commit changes
 
-    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.id)  # Re-get after potential change
-    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.id)  # Re-get
+    refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.entity_id)  # Re-get after potential change
+    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)  # Re-get
     assert refreshed_vc1 is not None and refreshed_vc1.is_primary_variant is False
     assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
 
     # Setting already primary variant should return True and do nothing
     assert await cbs.set_primary_comic_variant(db_session, v2_id, concept_id) is True
     await db_session.commit()
-    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.id)
+    refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)
     assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
 
     # Error cases

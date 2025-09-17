@@ -11,6 +11,7 @@ from dam.models.conceptual import (  # Keep conceptual imports that are still re
     BaseConceptualInfoComponent,
     BaseVariantInfoComponent,
     ComicBookConceptComponent,
+    UniqueBaseVariantInfoComponent,
 )
 from dam.models.core.base_component import REGISTERED_COMPONENT_TYPES, BaseComponent
 from dam.models.core.entity import Entity
@@ -277,7 +278,11 @@ async def _is_scope_valid(
             is_valid_variant = False
             for comp_type_check in REGISTERED_COMPONENT_TYPES:
                 is_class = inspect.isclass(comp_type_check)
-                is_variant_subclass = issubclass(comp_type_check, BaseVariantInfoComponent) if is_class else False
+                is_variant_subclass = (
+                    issubclass(comp_type_check, (BaseVariantInfoComponent, UniqueBaseVariantInfoComponent))
+                    if is_class
+                    else False
+                )
                 # Correctly check if the class itself is concrete (not inheriting __abstract__ from parent)
                 is_actually_concrete = not comp_type_check.__dict__.get("__abstract__", False) if is_class else False
 

@@ -1,8 +1,7 @@
-from ..core.component_mixins import UniqueComponentMixin
-from .base_conceptual_info_component import BaseConceptualInfoComponent
+from .base_conceptual_info_component import UniqueBaseConceptualInfoComponent
 
 
-class CharacterConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponent):
+class CharacterConceptComponent(UniqueBaseConceptualInfoComponent):
     """
     Defines a character as a conceptual entity.
     """
@@ -20,6 +19,6 @@ class CharacterConceptComponent(UniqueComponentMixin, BaseConceptualInfoComponen
 
     def __repr__(self) -> str:
         return (
-            f"CharacterConceptComponent(id={self.id}, entity_id={self.entity_id}, "
+            f"CharacterConceptComponent(entity_id={self.entity_id}, "
             f"name='{self.concept_name}', description='{self.concept_description[:50] if self.concept_description else ''}...')"
         )

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship  # Added declared_attr
 
-from ..core.base_component import BaseComponent
+from ..core.base_component import BaseComponent, UniqueComponent
 
 if TYPE_CHECKING:
     from dam.models.core.entity import Entity
@@ -51,3 +51,33 @@ class BaseVariantInfoComponent(BaseComponent):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
+
+
+class UniqueBaseVariantInfoComponent(UniqueComponent):
+    """
+    Abstract base class for unique components that link a concrete File Entity
+    to a Conceptual Asset Entity.
+    """
+
+    __abstract__ = True
+
+    conceptual_entity_id: Mapped[int] = mapped_column(
+        ForeignKey("entities.id"),
+        nullable=False,
+        index=True,
+        init=False,
+        comment="The ID of the Entity that represents the Conceptual Asset this variant belongs to.",
+    )
+
+    @declared_attr
+    def conceptual_asset(cls) -> Mapped["Entity"]:
+        """Relationship to the parent (owning) Conceptual Asset Entity."""
+        return relationship(
+            "Entity",
+            foreign_keys=[cls.conceptual_entity_id],  # type: ignore
+            repr=False,
+            init=False,
+        )
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
