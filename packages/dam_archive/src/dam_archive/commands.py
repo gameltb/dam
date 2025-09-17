@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from dam.core.commands import AnalysisCommand, BaseCommand
+from dam.system_events import BaseSystemEvent
 
 
 @dataclass
-class UnbindSplitArchiveCommand(BaseCommand[None]):
+class UnbindSplitArchiveCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to unbind a split archive by deleting its manifest and part info.
     """
@@ -14,7 +15,7 @@ class UnbindSplitArchiveCommand(BaseCommand[None]):
 
 
 @dataclass
-class CreateMasterArchiveCommand(BaseCommand[None]):
+class CreateMasterArchiveCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to manually create a master entity for a split archive.
     """
@@ -24,7 +25,7 @@ class CreateMasterArchiveCommand(BaseCommand[None]):
 
 
 @dataclass
-class DiscoverAndBindCommand(BaseCommand[None]):
+class DiscoverAndBindCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to discover and bind split archives from a list of paths.
     """
@@ -33,7 +34,7 @@ class DiscoverAndBindCommand(BaseCommand[None]):
 
 
 @dataclass
-class SetArchivePasswordCommand(BaseCommand[None]):
+class SetArchivePasswordCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to set the password for an archive.
     """
@@ -43,7 +44,7 @@ class SetArchivePasswordCommand(BaseCommand[None]):
 
 
 @dataclass
-class IngestArchiveCommand(AnalysisCommand[None]):
+class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
     """
     A command to ingest members from an archive asset into the ECS world.
     This command returns a stream of events.
@@ -53,7 +54,7 @@ class IngestArchiveCommand(AnalysisCommand[None]):
 
 
 @dataclass
-class TagArchivePartCommand(BaseCommand[None]):
+class TagArchivePartCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to tag a file as a potential split archive part.
     """
@@ -62,7 +63,7 @@ class TagArchivePartCommand(BaseCommand[None]):
 
 
 @dataclass
-class ClearArchiveComponentsCommand(BaseCommand[None]):
+class ClearArchiveComponentsCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to clear archive-related components from an entity.
     """

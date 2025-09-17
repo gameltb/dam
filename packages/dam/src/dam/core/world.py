@@ -4,7 +4,7 @@ from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Type, Ty
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from dam.core.commands import BaseCommand, ResultType
+from dam.core.commands import BaseCommand, EventType, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
 from dam.core.database import DatabaseManager
@@ -90,7 +90,7 @@ class World:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand[Any]]] = None,
+        command_type: Optional[Type[BaseCommand[Any, Any]]] = None,
         **kwargs: Any,
     ) -> None:
         num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
@@ -172,10 +172,10 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
 
-    def dispatch_command(self, command: BaseCommand[ResultType]) -> SystemExecutor[ResultType]:
+    def dispatch_command(self, command: BaseCommand[ResultType, EventType]) -> SystemExecutor[ResultType, EventType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
 
-        async def _transaction_wrapper() -> AsyncGenerator[BaseSystemEvent, None]:
+        async def _transaction_wrapper() -> AsyncGenerator[EventType, None]:
             """
             A generator that wraps the command execution within a transaction,
             ensuring commit/rollback logic is correctly applied after the

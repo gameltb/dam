@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 import pytest
 from _pytest.logging import LogCaptureFixture
@@ -12,32 +12,42 @@ from dam.system_events import BaseSystemEvent
 
 # Define some test commands
 @dataclass
-class SimpleCommand(BaseCommand[str]):
+class SimpleCommand(BaseCommand[str, BaseSystemEvent]):
     data: str
 
 
 @dataclass
-class AnotherCommand(BaseCommand[int]):
+class AnotherCommand(BaseCommand[int, BaseSystemEvent]):
     value: int
 
 
 @dataclass
-class FailingCommand(BaseCommand[None]):
+class FailingCommand(BaseCommand[None, BaseSystemEvent]):
     pass
 
 
 @dataclass
-class ListCommand(BaseCommand[list[str]]):
+class ListCommand(BaseCommand[list[str], BaseSystemEvent]):
     pass
 
 
 @dataclass
-class MismatchCommand(BaseCommand[int]):
+class MismatchCommand(BaseCommand[int, BaseSystemEvent]):
     pass
 
 
 @dataclass
-class StreamingCommand(BaseCommand[None]):
+class CustomEvent(BaseSystemEvent):
+    message: str
+
+
+@dataclass
+class StreamingCommand(BaseCommand[None, CustomEvent]):
+    pass
+
+
+@dataclass
+class LegacyCommand(BaseCommand[str, BaseSystemEvent]):
     pass
 
 
@@ -77,15 +87,15 @@ def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str,
     return "this is not an int"
 
 
-@dataclass
-class CustomEvent(BaseSystemEvent):
-    message: str
-
-
 @system(on_command=StreamingCommand)
-async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[BaseSystemEvent, None]:
+async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[CustomEvent, None]:
     yield CustomEvent(message="First")
     yield CustomEvent(message="Second")
+
+
+@system(on_command=LegacyCommand)
+def legacy_handler(cmd: Annotated[LegacyCommand, "Command"]) -> str:
+    return "Handled legacy command"
 
 
 # Tests
@@ -216,3 +226,13 @@ async def test_return_type_mismatch_warning(test_world_alpha: World, caplog: Log
     assert "Handler 'mismatch_handler'" in caplog.text
     assert "expects '<class 'int'>'" in caplog.text
     assert "annotated to return '<class 'str'>'" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_string_identity_backward_compatibility(test_world_alpha: World) -> None:
+    """Tests that string-based identities for command injection still work."""
+    world = test_world_alpha
+    world.register_system(system_func=legacy_handler)
+    command = LegacyCommand()
+    result = await world.dispatch_command(command).get_one_value()
+    assert result == "Handled legacy command"

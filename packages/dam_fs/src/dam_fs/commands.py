@@ -4,10 +4,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from dam.core.commands import BaseCommand
+from dam.system_events import BaseSystemEvent
 
 
 @dataclass
-class AddFilePropertiesCommand(BaseCommand[None]):
+class AddFilePropertiesCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to add file properties to an entity.
     """
@@ -19,7 +20,7 @@ class AddFilePropertiesCommand(BaseCommand[None]):
 
 
 @dataclass
-class IngestReferenceCommand(BaseCommand[None]):
+class IngestReferenceCommand(BaseCommand[None, BaseSystemEvent]):
     """Command to ingest a file by reference (without copying)."""
 
     filepath_on_disk: Path
@@ -28,7 +29,7 @@ class IngestReferenceCommand(BaseCommand[None]):
 
 
 @dataclass
-class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]]]):
+class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]], BaseSystemEvent]):
     """
     Command to find an entity by its content hash.
     The result is a dictionary with entity details or None, set on the future.
@@ -40,7 +41,7 @@ class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]]]):
 
 
 @dataclass
-class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int]]):
+class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int], BaseSystemEvent]):
     """
     Command to find an entity by its file properties (path and modification time).
     The result is the entity ID or None.
@@ -51,7 +52,7 @@ class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int]]):
 
 
 @dataclass
-class RegisterLocalFileCommand(BaseCommand[int]):
+class RegisterLocalFileCommand(BaseCommand[int, BaseSystemEvent]):
     """
     Command to register a local file, creating an entity if needed.
     Returns the entity ID.
@@ -61,7 +62,7 @@ class RegisterLocalFileCommand(BaseCommand[int]):
 
 
 @dataclass
-class StoreAssetsCommand(BaseCommand[None]):
+class StoreAssetsCommand(BaseCommand[None, BaseSystemEvent]):
     """
     Command to store assets based on a query.
     """

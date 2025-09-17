@@ -68,7 +68,7 @@ async def test_add_assets_with_process_option(capsys: CaptureFixture[Any], tmp_p
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
@@ -160,7 +160,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_file_stream = io.BytesIO(mock_file_content)
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
         mock_stream = AsyncMock()
 
         if isinstance(command, IngestArchiveCommand):
@@ -266,7 +266,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):

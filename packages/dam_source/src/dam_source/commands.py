@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from dam.core.commands import BaseCommand
+from dam.system_events import BaseSystemEvent
 
 
 @dataclass
-class IngestWebAssetCommand(BaseCommand[None]):
+class IngestWebAssetCommand(BaseCommand[None, BaseSystemEvent]):
     """A command to ingest a new asset from a web source."""
 
     world_name: str
