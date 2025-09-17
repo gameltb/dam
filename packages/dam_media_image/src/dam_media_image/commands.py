@@ -3,10 +3,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dam.core.commands import BaseCommand
+from dam.system_events import BaseSystemEvent
 
 
 @dataclass
-class FindSimilarImagesCommand(BaseCommand[Optional[List[Dict[str, Any]]]]):
+class FindSimilarImagesCommand(BaseCommand[Optional[List[Dict[str, Any]]], BaseSystemEvent]):
     """A command to find similar images based on perceptual hashes."""
 
     image_path: Path

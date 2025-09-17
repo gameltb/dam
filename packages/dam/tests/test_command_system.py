@@ -12,32 +12,37 @@ from dam.system_events import BaseSystemEvent
 
 # Define some test commands
 @dataclass
-class SimpleCommand(BaseCommand[str]):
+class SimpleCommand(BaseCommand[str, BaseSystemEvent]):
     data: str
 
 
 @dataclass
-class AnotherCommand(BaseCommand[int]):
+class AnotherCommand(BaseCommand[int, BaseSystemEvent]):
     value: int
 
 
 @dataclass
-class FailingCommand(BaseCommand[None]):
+class FailingCommand(BaseCommand[None, BaseSystemEvent]):
     pass
 
 
 @dataclass
-class ListCommand(BaseCommand[list[str]]):
+class ListCommand(BaseCommand[list[str], BaseSystemEvent]):
     pass
 
 
 @dataclass
-class MismatchCommand(BaseCommand[int]):
+class MismatchCommand(BaseCommand[int, BaseSystemEvent]):
     pass
 
 
 @dataclass
-class StreamingCommand(BaseCommand[None]):
+class CustomEvent(BaseSystemEvent):
+    message: str
+
+
+@dataclass
+class StreamingCommand(BaseCommand[None, CustomEvent]):
     pass
 
 
@@ -77,13 +82,8 @@ def mismatch_handler(cmd: MismatchCommand) -> str:  # Intentionally returns str,
     return "this is not an int"
 
 
-@dataclass
-class CustomEvent(BaseSystemEvent):
-    message: str
-
-
 @system(on_command=StreamingCommand)
-async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[BaseSystemEvent, None]:
+async def streaming_handler(cmd: StreamingCommand) -> AsyncGenerator[CustomEvent, None]:
     yield CustomEvent(message="First")
     yield CustomEvent(message="Second")
 

@@ -1,14 +1,16 @@
 # pyright: basic
 import asyncio
-from typing import Any, AsyncGenerator, Generic, List, Optional, TypeVar
+from typing import Any, AsyncGenerator, Generic, List, Optional, Self, TypeVar, overload
 
 from dam.core.enums import ExecutionStrategy
 from dam.system_events import BaseSystemEvent, SystemResultEvent
 
 ResultType = TypeVar("ResultType")
+EventType = TypeVar("EventType", bound=BaseSystemEvent)
+ItemType = TypeVar("ItemType")
 
 
-class SystemExecutor(Generic[ResultType]):
+class SystemExecutor(Generic[ResultType, EventType]):
     """
     Executes a collection of system generators according to a specified strategy
     and provides methods to consume the resulting event stream.
@@ -16,15 +18,15 @@ class SystemExecutor(Generic[ResultType]):
 
     def __init__(
         self,
-        generators: List[AsyncGenerator[BaseSystemEvent, None]],
+        generators: List[AsyncGenerator[EventType, None]],
         strategy: ExecutionStrategy,
     ):
         self._generators = generators
         self._strategy = strategy
         self._results: Optional[List[ResultType]] = None
-        self._iterator: Optional[AsyncGenerator[BaseSystemEvent, None]] = None
+        self._iterator: Optional[AsyncGenerator[EventType, None]] = None
 
-    def __aiter__(self) -> AsyncGenerator[BaseSystemEvent, None]:
+    def __aiter__(self) -> AsyncGenerator[EventType, None]:
         # To prevent re-running the generators, we create the iterator once and reuse it.
         if self._iterator is None:
             if self._strategy == ExecutionStrategy.SERIAL:
@@ -35,17 +37,17 @@ class SystemExecutor(Generic[ResultType]):
                 raise ValueError(f"Unknown execution strategy: {self._strategy}")
         return self._iterator
 
-    async def _run_serial(self) -> AsyncGenerator[BaseSystemEvent, None]:
+    async def _run_serial(self) -> AsyncGenerator[EventType, None]:
         """Executes generators one by one."""
         for gen in self._generators:
             async for event in gen:
                 yield event
 
-    async def _run_parallel(self) -> AsyncGenerator[BaseSystemEvent, None]:
+    async def _run_parallel(self) -> AsyncGenerator[EventType, None]:
         """Executes generators concurrently, yielding events as they become available."""
-        q: asyncio.Queue = asyncio.Queue()
+        q: asyncio.Queue[EventType | Exception] = asyncio.Queue()
 
-        async def drain(gen: AsyncGenerator[BaseSystemEvent, None]):
+        async def drain(gen: AsyncGenerator[EventType, None]) -> None:
             """Drains a generator's items into a queue."""
             try:
                 async for item in gen:
@@ -123,15 +125,22 @@ class SystemExecutor(Generic[ResultType]):
         await self._populate_results_if_needed()
         return None
 
-    async def get_all_results_flat(self) -> List[Any]:
+    @overload
+    async def get_all_results_flat(self: "SystemExecutor[Optional[List[ItemType]], EventType]") -> List[ItemType]: ...
+
+    @overload
+    async def get_all_results_flat(self: Self) -> List[ResultType]: ...
+
+    async def get_all_results_flat(self: Self) -> List[Any]:
         """
         Consumes the stream, gets all results, and flattens any that are lists.
+        If a result is None, it is ignored.
         """
         results = await self.get_all_results()
-        flat_list = []
+        flat_list: List[Any] = []
         for item in results:
             if isinstance(item, list):
                 flat_list.extend(item)
-            else:
+            elif item is not None:
                 flat_list.append(item)
         return flat_list

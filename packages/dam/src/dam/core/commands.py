@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, BinaryIO, Generic, Set, Tuple, TypeVar
 
 from dam.core.enums import ExecutionStrategy
 from dam.models.core.entity import Entity
+from dam.system_events import BaseSystemEvent
 from dam.utils.hash_utils import HashAlgorithm
 
 if TYPE_CHECKING:
@@ -12,17 +13,18 @@ if TYPE_CHECKING:
 
 
 ResultType = TypeVar("ResultType")
+EventType = TypeVar("EventType", bound=BaseSystemEvent)
 
 
 @dataclass
-class BaseCommand(Generic[ResultType]):
+class BaseCommand(Generic[ResultType, EventType]):
     """Base class for all commands, which are requests that expect a response."""
 
     execution_strategy: ExecutionStrategy = field(kw_only=True, default=ExecutionStrategy.SERIAL)
 
 
 @dataclass
-class AddHashesFromStreamCommand(BaseCommand[None]):
+class AddHashesFromStreamCommand(BaseCommand[None, BaseSystemEvent]):
     """Command to calculate and add multiple hash components to an entity from a stream."""
 
     entity_id: int
@@ -31,7 +33,7 @@ class AddHashesFromStreamCommand(BaseCommand[None]):
 
 
 @dataclass
-class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
+class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes], BaseSystemEvent]):
     """
     A command to get or create an entity from a stream.
     Returns a tuple of the entity and the calculated sha256 hash.
@@ -41,14 +43,14 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes]]):
 
 
 @dataclass
-class EntityCommand(BaseCommand[ResultType]):
+class EntityCommand(BaseCommand[ResultType, EventType]):
     """Base class for commands that operate on a single entity."""
 
     entity_id: int
 
 
 @dataclass
-class AnalysisCommand(EntityCommand[ResultType]):
+class AnalysisCommand(EntityCommand[ResultType, EventType]):
     """Base class for commands that analyze an entity's data."""
 
     depth: int = 0

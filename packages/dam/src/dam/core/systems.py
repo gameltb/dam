@@ -14,11 +14,12 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    cast,
     get_args,
     get_origin,
 )
 
-from dam.core.commands import BaseCommand, ResultType
+from dam.core.commands import BaseCommand, EventType, ResultType
 from dam.core.enums import ExecutionStrategy
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
@@ -48,7 +49,7 @@ def _parse_system_params(func: Callable[..., Any]) -> dict[str, Any]:
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
         event_specific_type: Optional[Type[BaseEvent]] = None
-        command_specific_type: Optional[Type[BaseCommand[Any]]] = None
+        command_specific_type: Optional[Type[BaseCommand[Any, Any]]] = None
 
         if get_origin(original_param_type) is Annotated:
             annotated_args = get_args(original_param_type)
@@ -127,7 +128,7 @@ def system(
     func: Optional[Callable[..., Any]] = None,
     *,
     on_stage: Optional[SystemStage] = None,
-    on_command: Optional[Type[BaseCommand[Any]]] = None,
+    on_command: Optional[Type[BaseCommand[Any, Any]]] = None,
     on_event: Optional[Type[BaseEvent]] = None,
     **kwargs: Any,
 ) -> Callable[..., Any]:
@@ -164,7 +165,7 @@ class WorldScheduler:
         self.resource_manager = world.resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
         self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
-        self.command_handler_registry: Dict[Type[BaseCommand[Any]], List[Callable[..., Any]]] = defaultdict(list)
+        self.command_handler_registry: Dict[Type[BaseCommand[Any, Any]], List[Callable[..., Any]]] = defaultdict(list)
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
@@ -173,7 +174,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand[Any]]] = None,
+        command_type: Optional[Type[BaseCommand[Any, Any]]] = None,
         **kwargs: Any,
     ) -> None:
         metadata = self.system_metadata.get(system_func)
@@ -255,7 +256,7 @@ class WorldScheduler:
             self._execute_system_func(system_func, transaction, event_object=None, command_object=None)
             for system_func in systems_to_run
         ]
-        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        executor: SystemExecutor[Any, BaseSystemEvent] = SystemExecutor(generators, ExecutionStrategy.SERIAL)
         async for _ in executor:
             pass
 
@@ -273,13 +274,13 @@ class WorldScheduler:
             self._execute_system_func(handler_func, transaction, event_object=event, command_object=None)
             for handler_func in handlers_to_run
         ]
-        executor: SystemExecutor = SystemExecutor(generators, ExecutionStrategy.SERIAL)
+        executor: SystemExecutor[Any, BaseSystemEvent] = SystemExecutor(generators, ExecutionStrategy.SERIAL)
         async for _ in executor:
             pass
 
     def dispatch_command(
-        self, command: BaseCommand[ResultType], transaction: EcsTransaction
-    ) -> SystemExecutor[ResultType]:
+        self, command: BaseCommand[ResultType, EventType], transaction: EcsTransaction
+    ) -> SystemExecutor[ResultType, EventType]:
         command_type = type(command)
         self.logger.info(f"Dispatching command: {command_type.__name__} for world: {self.world.name}")
         handlers_to_run = self.command_handler_registry.get(command_type, [])
@@ -294,7 +295,7 @@ class WorldScheduler:
             self._execute_system_func(handler_func, transaction, event_object=None, command_object=command)
             for handler_func in handlers_to_run
         ]
-        return SystemExecutor(generators, command.execution_strategy)
+        return SystemExecutor(cast(List[AsyncGenerator[EventType, None]], generators), command.execution_strategy)
 
     async def run_all_stages(self, transaction: EcsTransaction) -> None:
         self.logger.info(f"Attempting to run all stages for world: {self.world.name}")
@@ -309,7 +310,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand[Any]] = None,
+        command_object: Optional[BaseCommand[Any, Any]] = None,
         **additional_kwargs: Any,
     ) -> Dict[str, Any]:
         metadata = self.system_metadata.get(system_func)
@@ -407,7 +408,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand[Any]] = None,
+        command_object: Optional[BaseCommand[Any, Any]] = None,
         **additional_kwargs: Any,
     ) -> AsyncGenerator[BaseSystemEvent, None]:
         metadata = self.system_metadata.get(system_func)
@@ -470,7 +471,7 @@ class WorldScheduler:
 
     def execute_one_time_system(
         self, system_func: Callable[..., Any], transaction: EcsTransaction, **kwargs: Any
-    ) -> SystemExecutor[Any]:
+    ) -> SystemExecutor[Any, BaseSystemEvent]:
         self.logger.info(
             f"Executing one-time system: {system_func.__name__} in world '{self.world.name}' with provided kwargs: {kwargs}"
         )

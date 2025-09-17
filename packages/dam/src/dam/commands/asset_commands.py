@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from typing import Any, BinaryIO
 
 from dam.core.commands import BaseCommand
+from dam.system_events import BaseSystemEvent
 
 
 @dataclass
-class GetAssetStreamCommand(BaseCommand[BinaryIO]):
+class GetAssetStreamCommand(BaseCommand[BinaryIO, BaseSystemEvent]):
     """
     A command to get a readable and seekable binary stream for an asset.
 
@@ -19,7 +20,7 @@ class GetAssetStreamCommand(BaseCommand[BinaryIO]):
 
 
 @dataclass
-class AutoSetMimeTypeCommand(BaseCommand[None]):
+class AutoSetMimeTypeCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to automatically set the mime type for an asset or all assets.
     """
@@ -28,7 +29,7 @@ class AutoSetMimeTypeCommand(BaseCommand[None]):
 
 
 @dataclass
-class SetMimeTypeCommand(BaseCommand[None]):
+class SetMimeTypeCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to set the mime type for an asset.
     """
@@ -38,7 +39,7 @@ class SetMimeTypeCommand(BaseCommand[None]):
 
 
 @dataclass
-class SetMimeTypeFromBufferCommand(BaseCommand[None]):
+class SetMimeTypeFromBufferCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to set the mime type for an asset from a buffer.
     """
@@ -48,7 +49,7 @@ class SetMimeTypeFromBufferCommand(BaseCommand[None]):
 
 
 @dataclass
-class GetMimeTypeCommand(BaseCommand[str | None]):
+class GetMimeTypeCommand(BaseCommand[str | None, BaseSystemEvent]):
     """
     A command to get the mime type for an asset.
     """
@@ -57,7 +58,7 @@ class GetMimeTypeCommand(BaseCommand[str | None]):
 
 
 @dataclass
-class GetAssetMetadataCommand(BaseCommand[dict[str, Any]]):
+class GetAssetMetadataCommand(BaseCommand[dict[str, Any], BaseSystemEvent]):
     """
     A command to get the metadata for an asset.
     """
@@ -66,7 +67,7 @@ class GetAssetMetadataCommand(BaseCommand[dict[str, Any]]):
 
 
 @dataclass
-class UpdateAssetMetadataCommand(BaseCommand[None]):
+class UpdateAssetMetadataCommand(BaseCommand[None, BaseSystemEvent]):
     """
     A command to update the metadata for an asset.
     """
@@ -76,7 +77,7 @@ class UpdateAssetMetadataCommand(BaseCommand[None]):
 
 
 @dataclass
-class GetAssetFilenamesCommand(BaseCommand[list[str]]):
+class GetAssetFilenamesCommand(BaseCommand[list[str], BaseSystemEvent]):
     """
     A command to get all available filenames for an asset.
     Handlers for this command should return a list of strings,
