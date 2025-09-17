@@ -434,7 +434,7 @@ async def _perform_ingestion(
                 return
 
         info_comp = ArchiveInfoComponent(file_count=len(all_members))
-        await transaction.add_component_to_entity(entity_id, info_comp)
+        await transaction.add_or_update_component(entity_id, info_comp)
         logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
         yield ProgressCompleted()
     finally:
@@ -529,22 +529,12 @@ async def ingest_archive_members_handler(
     # Case 4: Regular, single-file archive.
     logger.info(f"Entity {cmd.entity_id} is a single-file archive. Ingesting.")
     try:
-        archive_stream_cmd = GetAssetStreamCommand(entity_id=cmd.entity_id)
-        archive_stream = await world.dispatch_command(archive_stream_cmd).get_first_non_none_value()
-
-        if archive_stream:
-            async for event in _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction):
-                yield event
-            return
-        else:
-            err_msg = f"Could not get stream for single-file archive {cmd.entity_id}"
-            logger.error(err_msg)
-            yield ProgressError(message=err_msg, exception=FileNotFoundError(err_msg))
-            return
+        archive_stream = await cmd.get_stream(world)
+        async for event in _perform_ingestion(cmd.entity_id, archive_stream, cmd, world, transaction):
+            yield event
     except (ValueError, FileNotFoundError) as e:
         logger.error(f"Could not get stream for single-file archive {cmd.entity_id}: {e}")
         yield ProgressError(message=str(e), exception=e)
-        return
 
 
 @system(on_command=ClearArchiveComponentsCommand)

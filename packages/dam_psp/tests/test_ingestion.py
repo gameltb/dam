@@ -135,7 +135,7 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
         return None
 
     mock_transaction.get_component.side_effect = get_component_side_effect
-    mock_transaction.add_component_to_entity = AsyncMock()
+    mock_transaction.add_or_update_component = AsyncMock()
 
     # Mock world
     mock_world = AsyncMock(spec=World)
@@ -194,9 +194,9 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
         await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
 
     # 5. Assert command handler added components correctly
-    assert mock_transaction.add_component_to_entity.call_count == 4  # 2 for SFO, 2 for Raw SFO
+    assert mock_transaction.add_or_update_component.call_count == 4  # 2 for SFO, 2 for Raw SFO
 
-    call_args_list = mock_transaction.add_component_to_entity.call_args_list
+    call_args_list = mock_transaction.add_or_update_component.call_args_list
     standalone_iso_calls = [c for c in call_args_list if c.args[0] == standalone_iso_entity_id]
     assert len(standalone_iso_calls) == 2
     assert isinstance(standalone_iso_calls[0].args[1], PSPSFOMetadataComponent)
@@ -228,8 +228,8 @@ async def test_psp_iso_metadata_extraction_with_stream(mocker: MockerFixture) ->
     mock_world.dispatch_command.assert_not_called()
 
     # Assert that components were added
-    assert mock_transaction.add_component_to_entity.call_count == 2
-    sfo_component_call = mock_transaction.add_component_to_entity.call_args_list[0]
+    assert mock_transaction.add_or_update_component.call_count == 2
+    sfo_component_call = mock_transaction.add_or_update_component.call_args_list[0]
     assert sfo_component_call.args[0] == entity_id
     assert isinstance(sfo_component_call.args[1], PSPSFOMetadataComponent)
     assert sfo_component_call.args[1].title == "Test Game"
