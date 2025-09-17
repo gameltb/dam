@@ -1,4 +1,5 @@
 import io
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -53,7 +54,11 @@ async def test_ingest_archive_with_stream(test_world_alpha: World, tmp_path: Pat
     async with world.db_session_maker() as session:
         info = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
         assert info is not None
-        assert info.file_count == 1
+        members = await session.execute(
+            select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
+        )
+        for member in members.scalars().all():
+            assert isinstance(member.modified_at, datetime)
 
 
 @pytest.mark.serial
@@ -208,12 +213,15 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     async with world.db_session_maker() as session:
         info_reg = await ecs_functions.get_component(session, entity_id_reg, ArchiveInfoComponent)
         assert info_reg is not None
-        assert info_reg.file_count == 2
+        assert info_reg.comment == "regular archive comment"
 
         members_reg = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_reg)
         )
-        assert len(members_reg.scalars().all()) == 2
+        members_reg_all = members_reg.scalars().all()
+        assert len(members_reg_all) == 2
+        for member in members_reg_all:
+            assert isinstance(member.modified_at, datetime)
 
     # --- Test Protected Archive ---
     # 1. Register the protected archive file
@@ -235,12 +243,15 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     async with world.db_session_maker() as session:
         info_prot = await ecs_functions.get_component(session, entity_id_prot, ArchiveInfoComponent)
         assert info_prot is not None
-        assert info_prot.file_count == 2
+        assert info_prot.comment == "protected archive comment"
 
         members_prot = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_prot)
         )
-        assert len(members_prot.scalars().all()) == 2
+        members_prot_all = members_prot.scalars().all()
+        assert len(members_prot_all) == 2
+        for member in members_prot_all:
+            assert isinstance(member.modified_at, datetime)
 
 
 @pytest.mark.serial
@@ -271,7 +282,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     async with world.db_session_maker() as session:
         info1 = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
         assert info1 is not None
-        assert info1.file_count == 2
+        assert info1.comment == "regular archive comment"
 
     # 4. Run the extraction command for the second time
     ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id, depth=0)

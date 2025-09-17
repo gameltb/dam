@@ -370,6 +370,7 @@ async def _perform_ingestion(
                 pass
 
         all_members = archive.list_files()
+        member_mod_times = {m.name: m.modified_at for m in all_members}
         total_size = sum(m.size for m in all_members)
         processed_size = 0
         yield ProgressUpdate(total=total_size, current=processed_size, message="Starting ingestion.")
@@ -418,7 +419,11 @@ async def _perform_ingestion(
                         filename=member_file.name,
                     )
 
-                    member_comp = ArchiveMemberComponent(archive_entity_id=entity_id, path_in_archive=member_file.name)
+                    member_comp = ArchiveMemberComponent(
+                        archive_entity_id=entity_id,
+                        path_in_archive=member_file.name,
+                        modified_at=member_mod_times.get(member_file.name),
+                    )
                     await transaction.add_component_to_entity(member_entity.id, member_comp)
 
                 processed_size += member_file.size
@@ -433,7 +438,7 @@ async def _perform_ingestion(
                 # Decide whether to continue or not. For now, we stop.
                 return
 
-        info_comp = ArchiveInfoComponent(file_count=len(all_members))
+        info_comp = ArchiveInfoComponent(comment=archive.comment)
         await transaction.add_or_update_component(entity_id, info_comp)
         logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
         yield ProgressCompleted()

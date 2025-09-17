@@ -17,12 +17,14 @@ async def test_clear_archive_components_handler():
     """
     archive_entity_id = 1
     member_entity_ids = [10, 11, 12]
-    mock_info_component = ArchiveInfoComponent(file_count=len(member_entity_ids))
+    mock_info_component = ArchiveInfoComponent(comment=None)
 
     # Create mock member components
     member_components: List[ArchiveMemberComponent] = []
     for eid in member_entity_ids:
-        comp = ArchiveMemberComponent(archive_entity_id=archive_entity_id, path_in_archive=f"file_{eid}.txt")
+        comp = ArchiveMemberComponent(
+            archive_entity_id=archive_entity_id, path_in_archive=f"file_{eid}.txt", modified_at=None
+        )
         # Manually set entity_id for the test, as it's not part of the constructor
         comp.entity_id = eid
         member_components.append(comp)

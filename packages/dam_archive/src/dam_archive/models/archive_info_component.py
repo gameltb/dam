@@ -1,5 +1,7 @@
+from typing import Optional
+
 from dam.models.core import UniqueComponent as Component
-from sqlalchemy import Integer
+from sqlalchemy import Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -11,7 +13,7 @@ class ArchiveInfoComponent(Component):
 
     __tablename__ = "component_archive_info"
 
-    file_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
-        return f"ArchiveInfoComponent(entity_id={self.entity_id}, file_count={self.file_count})"
+        return f"ArchiveInfoComponent(entity_id={self.entity_id}, comment={self.comment})"

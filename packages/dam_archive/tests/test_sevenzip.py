@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 
 import py7zr
@@ -24,6 +25,8 @@ def test_open_7z_archive(dummy_7z_file: Path) -> None:
             files = archive.list_files()
             file_names = [f.name for f in files]
             assert "file1.txt" in file_names
+            for f in files:
+                assert isinstance(f.modified_at, datetime.datetime)
     finally:
         if archive:
             archive.close()

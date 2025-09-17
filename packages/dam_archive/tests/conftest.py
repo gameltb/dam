@@ -30,6 +30,7 @@ def test_archives(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]
     with zipfile.ZipFile(regular_zip_path, "w") as zf:
         for file in content_dir.iterdir():
             zf.write(file, arcname=file.name)
+        zf.comment = b"regular archive comment"
 
     # Create protected zip
     protected_zip_path = tmp_dir / "protected.zip"
@@ -37,6 +38,7 @@ def test_archives(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]
         zf.writestr("file1.txt", "file one", compress_type=zipfile.ZIP_DEFLATED)
         zf.writestr("file2.txt", "file two", compress_type=zipfile.ZIP_DEFLATED)
         zf.setpassword(b"password")
+        zf.comment = b"protected archive comment"
 
     return regular_zip_path, protected_zip_path
 

@@ -17,7 +17,7 @@ async def test_get_archive_asset_filenames_handler_with_filename() -> None:
 
     mock_transaction = AsyncMock()
     mock_transaction.get_components.return_value = [
-        ArchiveMemberComponent(archive_entity_id=99, path_in_archive=path_in_archive)
+        ArchiveMemberComponent(archive_entity_id=99, path_in_archive=path_in_archive, modified_at=None)
     ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
@@ -54,7 +54,9 @@ async def test_get_archive_asset_filenames_handler_no_filename() -> None:
     entity_id = 1
 
     mock_transaction = AsyncMock()
-    mock_transaction.get_components.return_value = [ArchiveMemberComponent(archive_entity_id=99, path_in_archive="")]
+    mock_transaction.get_components.return_value = [
+        ArchiveMemberComponent(archive_entity_id=99, path_in_archive="", modified_at=None)
+    ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)
 
