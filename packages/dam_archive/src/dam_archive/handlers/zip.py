@@ -1,4 +1,5 @@
 import zipfile
+from datetime import datetime
 from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Union, cast
 
 from ..base import ArchiveFile, ArchiveHandler, ArchiveMemberInfo
@@ -131,7 +132,8 @@ class ZipArchiveHandler(ArchiveHandler):
                 original_name = f.filename
                 decoded_name: str = self._decode_zip_filename(f)
                 self.filename_map[decoded_name] = original_name
-                self.members.append(ArchiveMemberInfo(name=decoded_name, size=f.file_size))
+                modified_at = datetime(*f.date_time)
+                self.members.append(ArchiveMemberInfo(name=decoded_name, size=f.file_size, modified_at=modified_at))
 
             if self.password:
                 if not self.zip_file.infolist():
@@ -198,3 +200,7 @@ class ZipArchiveHandler(ArchiveHandler):
             if f.filename == original_name:
                 return ZipArchiveFile(self.zip_file, f, file_name, self.password)
         raise IOError(f"File not found in zip: {file_name}")
+
+    @property
+    def comment(self) -> Optional[str]:
+        return self.zip_file.comment.decode("utf-8", "replace") if self.zip_file.comment else None

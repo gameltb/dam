@@ -150,7 +150,17 @@ class RarArchiveHandler(ArchiveHandler):
                 pass
 
     def list_files(self) -> List[ArchiveMemberInfo]:
-        return [ArchiveMemberInfo(name=f.filename, size=f.file_size) for f in self.rar_file.infolist() if not f.isdir()]  # type: ignore
+        files: List[ArchiveMemberInfo] = []
+        for f in self.rar_file.infolist():  # type: ignore
+            if not f.isdir():
+                files.append(
+                    ArchiveMemberInfo(
+                        name=f.filename,
+                        size=f.file_size,
+                        modified_at=f.mtime,
+                    )
+                )
+        return files
 
     def iter_files(self) -> Iterator[ArchiveFile]:
         """Iterate over all files in the archive."""
@@ -164,3 +174,7 @@ class RarArchiveHandler(ArchiveHandler):
             if f.filename == file_name:  # type: ignore
                 return RarArchiveFile(self.rar_file, f)  # type: ignore
         raise IOError(f"File not found in rar: {file_name}")
+
+    @property
+    def comment(self) -> Optional[str]:
+        return self.rar_file.comment.decode("utf-8", "replace") if self.rar_file.comment else None  # type: ignore

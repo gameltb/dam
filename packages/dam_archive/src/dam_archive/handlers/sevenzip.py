@@ -275,9 +275,15 @@ class SevenZipArchiveHandler(ArchiveHandler):
 
         try:
             with self._open_7z_file() as archive:
-                for member in archive.list():  # type: ignore
-                    if not member.is_directory:
-                        self.members.append(ArchiveMemberInfo(name=member.filename, size=member.uncompressed))  # type: ignore
+                for member in archive.list():
+                    if not member.is_directory:  # type: ignore
+                        self.members.append(
+                            ArchiveMemberInfo(
+                                name=member.filename,  # type: ignore
+                                size=member.uncompressed,  # type: ignore
+                                modified_at=member.creationtime,  # type: ignore
+                            )
+                        )
                 if self.password and self.members:
                     with self._open_7z_file() as test_archive:
                         test_archive.testzip()

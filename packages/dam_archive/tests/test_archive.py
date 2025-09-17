@@ -1,3 +1,4 @@
+import datetime
 import subprocess
 import zipfile
 from pathlib import Path
@@ -14,6 +15,7 @@ def dummy_zip_file(tmp_path: Path) -> Path:
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr("file1.txt", b"content1")
         zf.writestr("dir/file2.txt", b"content2")
+        zf.comment = b"test comment"
     return zip_path
 
 
@@ -21,10 +23,14 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
     with open(dummy_zip_file, "rb") as f:
         archive = open_archive(f, "application/zip")
         assert archive is not None
+        assert archive.comment == "test comment"
         files = archive.list_files()
         file_names = [f.name for f in files]
         assert "file1.txt" in file_names
         assert "dir/file2.txt" in file_names
+
+        for f in files:
+            assert isinstance(f.modified_at, datetime.datetime)
 
         with archive.open_file("file1.txt") as f_in_zip:
             assert f_in_zip.read() == b"content1"

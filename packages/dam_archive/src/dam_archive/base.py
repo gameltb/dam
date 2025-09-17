@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from typing import BinaryIO, Iterator, List, Optional, Union
 
 
@@ -11,6 +12,7 @@ class ArchiveMemberInfo:
 
     name: str
     size: int
+    modified_at: Optional[datetime]
 
 
 class ArchiveFile(BinaryIO, ABC):
@@ -35,6 +37,11 @@ class ArchiveHandler(ABC):
     """
     Abstract base class for archive handlers.
     """
+
+    @property
+    def comment(self) -> Optional[str]:
+        """The comment of the archive, if any."""
+        return None
 
     @abstractmethod
     def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
