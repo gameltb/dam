@@ -129,6 +129,9 @@ class SystemExecutor(Generic[ResultType, EventType]):
     async def get_all_results_flat(self: "SystemExecutor[Optional[List[ItemType]], EventType]") -> List[ItemType]: ...
 
     @overload
+    async def get_all_results_flat(self: "SystemExecutor[List[ItemType], EventType]") -> List[ItemType]: ...
+
+    @overload
     async def get_all_results_flat(self: Self) -> List[ResultType]: ...
 
     async def get_all_results_flat(self: Self) -> List[Any]:
