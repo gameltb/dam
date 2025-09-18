@@ -151,7 +151,7 @@ class RarArchiveHandler(ArchiveHandler):
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         files: List[ArchiveMemberInfo] = []
-        for f in self.rar_file.infolist():
+        for f in self.rar_file.infolist():  # type: ignore
             if not f.isdir():  # type: ignore
                 files.append(
                     ArchiveMemberInfo(
@@ -177,9 +177,9 @@ class RarArchiveHandler(ArchiveHandler):
 
     @property
     def comment(self) -> Optional[str]:
-        if not self.rar_file.comment:
+        if not self.rar_file.comment:  # type: ignore
             return None
         try:
-            return self.rar_file.comment.decode("utf-8")
+            return self.rar_file.comment.decode("utf-8")  # type: ignore
         except UnicodeDecodeError as e:
             raise UnicodeDecodeError(e.encoding, e.object, e.start, e.end, "Failed to decode rar comment") from e

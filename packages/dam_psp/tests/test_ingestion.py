@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pycdlib
 import pytest
-from dam.commands import GetAssetFilenamesCommand
+from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 from dam_archive.models import ArchiveMemberComponent
@@ -116,23 +116,25 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
         if entity_id == standalone_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
+            if component_type == ArchiveMemberComponent:
+                return None
             if component_type == FilenameComponent:
                 return FilenameComponent(filename="test.iso", first_seen_at=datetime.now(timezone.utc))
+        elif entity_id == archived_iso_entity_id:
+            if component_type == PSPSFOMetadataComponent:
+                return None
+            if component_type == ArchiveMemberComponent:
+                return ArchiveMemberComponent(archive_entity_id=99, path_in_archive="game.iso", modified_at=None)
         elif entity_id == non_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
+                return None
+            if component_type == ArchiveMemberComponent:
                 return None
             if component_type == FilenameComponent:
                 return FilenameComponent(filename="text.txt", first_seen_at=datetime.now(timezone.utc))
         return None
 
-    async def get_components_side_effect(entity_id: int, component_type: Any) -> list[Any]:
-        if entity_id == archived_iso_entity_id:
-            if component_type == ArchiveMemberComponent:
-                return [ArchiveMemberComponent(archive_entity_id=99, path_in_archive="game.iso", modified_at=None)]
-        return []
-
     mock_transaction.get_component.side_effect = get_component_side_effect
-    mock_transaction.get_components.side_effect = get_components_side_effect
     mock_transaction.add_or_update_component = AsyncMock()
 
     # Mock world
@@ -142,11 +144,11 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
         mock_stream = AsyncMock()
         if isinstance(command, GetAssetFilenamesCommand):
             if command.entity_id == standalone_iso_entity_id:
-                mock_stream.get_all_results.return_value = [["test.iso"]]
+                mock_stream.get_all_results_flat.return_value = ["test.iso"]
             elif command.entity_id == archived_iso_entity_id:
-                mock_stream.get_all_results.return_value = [["game.iso"]]
+                mock_stream.get_all_results_flat.return_value = ["game.iso"]
             elif command.entity_id == non_iso_entity_id:
-                mock_stream.get_all_results.return_value = [["text.txt"]]
+                mock_stream.get_all_results_flat.return_value = ["text.txt"]
         elif isinstance(command, ExtractPSPMetadataCommand):
             mock_stream.get_all_results.return_value = []
         else:
@@ -166,12 +168,44 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
 
     # 3. Assert event handler dispatched commands correctly
     # It should have been called 3 times for GetAssetFilenamesCommand and 2 times for ExtractPSPMetadataCommand
-    assert mock_world.dispatch_command.call_count == 3
+    assert mock_world.dispatch_command.call_count == 5
     dispatch_calls = mock_world.dispatch_command.call_args_list
 
     # Check that ExtractPSPMetadataCommand was dispatched for the two ISO entities
     extract_commands = [call.args[0] for call in dispatch_calls if isinstance(call.args[0], ExtractPSPMetadataCommand)]
-    assert len(extract_commands) == 0
+    assert len(extract_commands) == 2
+    assert extract_commands[0].entity_id == standalone_iso_entity_id
+    assert extract_commands[1].entity_id == archived_iso_entity_id
+
+    # 4. Execute command handler
+    # Reset mock for world dispatch before command handler execution
+    def dispatch_command_side_effect_for_stream(command: Any) -> AsyncMock:
+        mock_stream = AsyncMock()
+        if isinstance(command, GetAssetStreamCommand):
+            mock_stream.get_first_non_none_value.return_value = create_dummy_iso_with_sfo()
+        else:
+            mock_stream.get_first_non_none_value.return_value = None
+        return mock_stream
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect_for_stream
+
+    # Call command handler for each dispatched command
+    for command in extract_commands:
+        await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
+
+    # 5. Assert command handler added components correctly
+    assert mock_transaction.add_or_update_component.call_count == 4  # 2 for SFO, 2 for Raw SFO
+
+    call_args_list = mock_transaction.add_or_update_component.call_args_list
+    standalone_iso_calls = [c for c in call_args_list if c.args[0] == standalone_iso_entity_id]
+    assert len(standalone_iso_calls) == 2
+    assert isinstance(standalone_iso_calls[0].args[1], PSPSFOMetadataComponent)
+    assert standalone_iso_calls[0].args[1].title == "Test Game"
+
+    archived_iso_calls = [c for c in call_args_list if c.args[0] == archived_iso_entity_id]
+    assert len(archived_iso_calls) == 2
+    assert isinstance(archived_iso_calls[0].args[1], PSPSFOMetadataComponent)
+    assert archived_iso_calls[0].args[1].title == "Test Game"
 
 
 @pytest.mark.asyncio
