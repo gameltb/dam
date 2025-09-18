@@ -77,16 +77,43 @@ async def add_assets(
     process_map: Dict[str, List[str]] = {}
     if process:
         for p in process:
-            try:
-                key, command_name = p.split(":", 1)
-                if key not in process_map:
-                    process_map[key] = []
-                process_map[key].append(command_name)
-            except ValueError:
-                typer.secho(
-                    f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED
-                )
-                raise typer.Exit(code=1)
+            if ":" in p:
+                # Handle traditional 'key:Command' format
+                try:
+                    key, command_name = p.split(":", 1)
+                    if key not in process_map:
+                        process_map[key] = []
+                    process_map[key].append(command_name)
+                except ValueError:
+                    # This should not happen due to the ':' check, but for safety:
+                    typer.secho(
+                        f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'",
+                        fg=typer.colors.RED,
+                    )
+                    raise typer.Exit(code=1)
+            else:
+                # Handle new 'CommandName' format
+                command_name = p
+                command_class = COMMAND_MAP.get(command_name)
+                if not command_class:
+                    typer.secho(f"Unknown command '{command_name}' specified.", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+
+                if not hasattr(command_class, "get_supported_types"):
+                    typer.secho(
+                        f"Command '{command_name}' does not support automatic type resolution.", fg=typer.colors.YELLOW
+                    )
+                    continue
+
+                supported_types = command_class.get_supported_types()
+                for mime_type in supported_types.get("mimetypes", []):
+                    if mime_type not in process_map:
+                        process_map[mime_type] = []
+                    process_map[mime_type].append(command_name)
+                for extension in supported_types.get("extensions", []):
+                    if extension not in process_map:
+                        process_map[extension] = []
+                    process_map[extension].append(command_name)
 
     async def _process_entity(
         entity_id: int,
@@ -121,12 +148,11 @@ async def add_assets(
 
         pbar.set_postfix_str(f"Processing {entity_id} ({entity_filename or 'No Filename'})")
 
-        # 2. Collect commands based on MIME type and file extension
+        # 2. Collect commands based on MIME type and file extension (MIME type has priority)
         commands_to_run: List[str] = []
         if mime_type_str and mime_type_str in process_map:
             commands_to_run.extend(process_map[mime_type_str])
-
-        if entity_filename:
+        elif entity_filename:
             ext = Path(entity_filename).suffix.lower()
             if ext and ext in process_map:
                 commands_to_run.extend(process_map[ext])

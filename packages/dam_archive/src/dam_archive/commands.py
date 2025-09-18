@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from dam.core.commands import AnalysisCommand, BaseCommand
 from dam.system_events import BaseSystemEvent
@@ -51,6 +51,20 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
     """
 
     passwords: Optional[List[str]] = None
+
+    @classmethod
+    def get_supported_types(cls) -> Dict[str, List[str]]:
+        """
+        Returns a dictionary of supported MIME types and file extensions for archives.
+        """
+        return {
+            "mimetypes": [
+                "application/zip",
+                "application/vnd.rar",
+                "application/x-7z-compressed",
+            ],
+            "extensions": [".zip", ".rar", ".7z"],
+        }
 
 
 @dataclass

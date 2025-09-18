@@ -153,9 +153,9 @@ class RarArchiveHandler(ArchiveHandler):
         files: List[ArchiveMemberInfo] = []
         for f in self.rar_file.infolist():  # type: ignore
             if not f.isdir():  # type: ignore
-                mtime = f.mtime # type: ignore
+                mtime = f.mtime  # type: ignore
                 if mtime is None:
-                    mtime = rarfile.to_datetime(f.date_time)# type: ignore
+                    mtime = rarfile.to_datetime(f.date_time)  # type: ignore
                 files.append(
                     ArchiveMemberInfo(
                         name=f.filename,  # type: ignore

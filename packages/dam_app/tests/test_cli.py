@@ -52,91 +52,6 @@ async def test_clear_archive_info_command(capsys: CaptureFixture[Any]):
 
 
 @pytest.mark.asyncio
-async def test_add_assets_with_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
-    """Test the add_assets command with the --process option."""
-    from dam.commands.asset_commands import AutoSetMimeTypeCommand
-    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
-    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
-    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-
-    from dam_app.cli.assets import add_assets
-    from dam_app.commands import ExtractExifMetadataCommand
-
-    # 1. Setup
-    mock_world = MagicMock(spec=World)
-    mock_session = AsyncMock()
-    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
-
-    # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
-        mock_stream = AsyncMock()
-        mock_stream.get_all_results.return_value = []
-        if isinstance(command, FindEntityByFilePropertiesCommand):
-            mock_stream.get_one_value.return_value = None  # File does not exist
-        elif isinstance(command, RegisterLocalFileCommand):
-            mock_stream.get_one_value.return_value = 1  # Return new entity ID
-        else:
-            mock_stream.get_one_value.return_value = None
-        return mock_stream
-
-    mock_world.dispatch_command.side_effect = dispatch_command_side_effect
-
-    # Mock get_component to return a ContentMimeTypeComponent
-    mock_mime_type_concept = MimeTypeConceptComponent(
-        concept_name="image/jpeg", concept_description=None, mime_type="image/jpeg"
-    )
-    mock_mime_type_component = ContentMimeTypeComponent(mime_type_concept_id=1)
-    mock_mime_type_component.mime_type_concept = mock_mime_type_concept
-
-    # 2. Create a temporary file
-    test_file = tmp_path / "test_image.jpg"
-    test_file.write_text("dummy content")
-
-    # We need to patch the ecs_functions.get_component, not a method on the world
-    with (
-        patch("dam_app.cli.assets.get_world", return_value=mock_world),
-        patch(
-            "dam_app.cli.assets.dam_ecs_functions.get_component", return_value=mock_mime_type_component
-        ) as mock_get_component,
-    ):
-        # 3. Call add_assets
-        await add_assets(
-            paths=[test_file],
-            recursive=False,
-            process=["image/jpeg:ExtractExifMetadataCommand"],
-        )
-
-    # 4. Assertions
-    # Verify that the correct commands were dispatched
-    assert mock_world.dispatch_command.call_count == 4
-
-    # Call 1: FindEntityByFilePropertiesCommand
-    find_cmd = mock_world.dispatch_command.call_args_list[0][0][0]
-    assert isinstance(find_cmd, FindEntityByFilePropertiesCommand)
-
-    # Call 2: RegisterLocalFileCommand
-    register_cmd = mock_world.dispatch_command.call_args_list[1][0][0]
-    assert isinstance(register_cmd, RegisterLocalFileCommand)
-    assert register_cmd.file_path == test_file
-
-    # Call 3: AutoSetMimeTypeCommand
-    auto_set_mime_cmd = mock_world.dispatch_command.call_args_list[2][0][0]
-    assert isinstance(auto_set_mime_cmd, AutoSetMimeTypeCommand)
-    assert auto_set_mime_cmd.entity_id == 1
-
-    # Assert that get_component was called correctly
-    mock_get_component.assert_called_once_with(mock_session, 1, ContentMimeTypeComponent)
-
-    # Call 4: ExtractExifMetadataCommand
-    extract_cmd = mock_world.dispatch_command.call_args_list[3][0][0]
-    assert isinstance(extract_cmd, ExtractExifMetadataCommand)
-    assert extract_cmd.entity_id == 1
-
-    captured = capsys.readouterr()
-    assert "Running ExtractExifMetadataCommand on entity 1 at depth 0" in captured.out
-
-
-@pytest.mark.asyncio
 async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option for recursive processing."""
     import io
@@ -324,3 +239,104 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
             break
 
     assert ingest_cmd_found, "IngestArchiveCommand was not dispatched"
+
+
+@pytest.mark.asyncio
+async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+    """Test the add_assets command with the --process option using only the command name."""
+    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
+    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+    from dam_archive.commands import IngestArchiveCommand
+    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
+    from dam_fs.models import FilenameComponent
+
+    from dam_app.cli.assets import add_assets
+    from dam_app.commands import ExtractExifMetadataCommand
+
+    # 1. Setup
+    # Reset cache before test to ensure dynamic logic is tested
+    ExtractExifMetadataCommand._cached_extensions = None  # type: ignore [protected-access]
+
+    mock_world = MagicMock(spec=World)
+    mock_session = AsyncMock()
+    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+
+    # Create a side effect function for dispatch_command
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
+        mock_stream = AsyncMock()
+        mock_stream.get_all_results.return_value = []
+        if isinstance(command, FindEntityByFilePropertiesCommand):
+            mock_stream.get_one_value.return_value = None  # File does not exist
+        elif isinstance(command, RegisterLocalFileCommand):
+            # Return a unique entity ID based on the file path
+            if "jpg" in str(command.file_path).lower():
+                mock_stream.get_one_value.return_value = 1
+            elif "zip" in str(command.file_path):
+                mock_stream.get_one_value.return_value = 2
+        else:
+            # For other commands like AutoSetMimeType, Ingest, Extract
+            async def event_generator_empty(self: AsyncMock):
+                if False:
+                    yield
+
+            mock_stream.__aiter__ = event_generator_empty
+        return mock_stream
+
+    mock_world.dispatch_command.side_effect = dispatch_command_side_effect
+
+    # Mock get_component to return different MIME types and filenames
+    zip_mime_concept = MimeTypeConceptComponent(
+        concept_name="application/zip", concept_description=None, mime_type="application/zip"
+    )
+    zip_mime_component = ContentMimeTypeComponent(mime_type_concept_id=2)
+    zip_mime_component.mime_type_concept = zip_mime_concept
+
+    async def get_component_side_effect(session: Any, entity_id: int, component_type: Any):
+        if component_type == ContentMimeTypeComponent:
+            if entity_id == 1:
+                return None  # Simulate no mime type found, forcing extension check
+            elif entity_id == 2:
+                return zip_mime_component
+        elif component_type == FilenameComponent:
+            if entity_id == 1:
+                return FilenameComponent(filename="test_image.JPG")  # Uppercase
+            elif entity_id == 2:
+                return FilenameComponent(filename="test_archive.zip")
+        return None
+
+    # 2. Create temporary files
+    image_file = tmp_path / "test_image.JPG"  # Test case-insensitivity
+    image_file.write_text("dummy image")
+    archive_file = tmp_path / "test_archive.zip"
+    archive_file.write_text("dummy archive")
+
+    # Mock the subprocess call to exiftool
+    mock_subprocess_result = MagicMock()
+    mock_subprocess_result.stdout = "Recognized file extensions:\nJPG ZIP"
+    with (
+        patch("dam_app.cli.assets.get_world", return_value=mock_world),
+        patch("dam_app.cli.assets.dam_ecs_functions.get_component", side_effect=get_component_side_effect),
+        patch("dam_app.commands.subprocess.run", return_value=mock_subprocess_result),
+        patch("dam_app.commands.shutil.which", return_value="/fake/path/to/exiftool"),
+    ):
+        # 3. Call add_assets with command name-based process rules
+        await add_assets(
+            paths=[image_file, archive_file],
+            recursive=False,
+            process=["ExtractExifMetadataCommand", "IngestArchiveCommand"],
+        )
+
+    # 4. Assertions
+    extract_cmd_found = False
+    ingest_cmd_found = False
+    for call in mock_world.dispatch_command.call_args_list:
+        cmd = call.args[0]
+        if isinstance(cmd, ExtractExifMetadataCommand):
+            extract_cmd_found = True
+            assert cmd.entity_id == 1  # Should be called on the image entity
+        elif isinstance(cmd, IngestArchiveCommand):
+            ingest_cmd_found = True
+            assert cmd.entity_id == 2  # Should be called on the archive entity
+
+    assert extract_cmd_found, "ExtractExifMetadataCommand was not dispatched for the JPG file"
+    assert ingest_cmd_found, "IngestArchiveCommand was not dispatched for the ZIP file"
