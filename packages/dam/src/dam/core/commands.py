@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, BinaryIO, Generic, Set, Tuple, TypeVar
+from typing import TYPE_CHECKING, BinaryIO, Dict, Generic, List, Set, Tuple, TypeVar
 
 from dam.core.enums import ExecutionStrategy
 from dam.models.core.entity import Entity
@@ -55,6 +55,14 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
 
     depth: int = 0
     stream: BinaryIO | None = None
+
+    @classmethod
+    def get_supported_types(cls) -> Dict[str, List[str]]:
+        """
+        Returns a dictionary of supported MIME types and file extensions.
+        Example: {"mimetypes": ["image/jpeg"], "extensions": [".jpg", ".jpeg"]}
+        """
+        return {"mimetypes": [], "extensions": []}
 
     async def get_stream(self, world: "World") -> BinaryIO:
         """
