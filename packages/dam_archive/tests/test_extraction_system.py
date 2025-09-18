@@ -44,7 +44,7 @@ async def test_ingest_archive_with_stream(test_world_alpha: World, tmp_path: Pat
         entity_id = entity.id
 
     # 3. Run the extraction command with the stream
-    ingest_cmd = IngestArchiveCommand(entity_id=entity_id, depth=0, stream=archive_stream)
+    ingest_cmd = IngestArchiveCommand(entity_id=entity_id, stream=archive_stream)
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd)
         events = [event async for event in stream]
@@ -90,7 +90,7 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
     mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
 
     with patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory):
-        ingest_cmd = IngestArchiveCommand(entity_id=entity_id, depth=0)
+        ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
         async with world.transaction():
             stream = world.dispatch_command(ingest_cmd)
             events = [event async for event in stream]
@@ -133,7 +133,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
         patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory),
         patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
     ):
-        ingest_cmd_limit = IngestArchiveCommand(entity_id=entity_id, depth=0)
+        ingest_cmd_limit = IngestArchiveCommand(entity_id=entity_id)
         async with world.transaction():
             stream = world.dispatch_command(ingest_cmd_limit)
             events = [event async for event in stream]
@@ -166,7 +166,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
         patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory),
         patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
     ):
-        ingest_cmd_no_limit = IngestArchiveCommand(entity_id=entity_id, depth=0)
+        ingest_cmd_no_limit = IngestArchiveCommand(entity_id=entity_id)
         async with world.transaction():
             stream = world.dispatch_command(ingest_cmd_no_limit)
             events = [event async for event in stream]
@@ -203,7 +203,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command
-    ingest_cmd_reg = IngestArchiveCommand(entity_id=entity_id_reg, depth=0)
+    ingest_cmd_reg = IngestArchiveCommand(entity_id=entity_id_reg)
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_reg)
         events = [event async for event in stream]
@@ -233,7 +233,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command with the correct password
-    ingest_cmd_prot = IngestArchiveCommand(entity_id=entity_id_prot, depth=0, passwords=["password"])
+    ingest_cmd_prot = IngestArchiveCommand(entity_id=entity_id_prot, passwords=["password"])
     async with world.transaction():
         stream = world.dispatch_command(ingest_cmd_prot)
         events = [event async for event in stream]
@@ -272,7 +272,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
         await session.commit()
 
     # 2. Run the extraction command for the first time
-    ingest_cmd1 = IngestArchiveCommand(entity_id=entity_id, depth=0)
+    ingest_cmd1 = IngestArchiveCommand(entity_id=entity_id)
     async with world.transaction():
         stream1 = world.dispatch_command(ingest_cmd1)
         events1 = [event async for event in stream1]
@@ -285,7 +285,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
         assert info1.comment == "regular archive comment"
 
     # 4. Run the extraction command for the second time
-    ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id, depth=0)
+    ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id)
     async with world.transaction():
         stream2 = world.dispatch_command(ingest_cmd2)
         events2 = [event async for event in stream2]

@@ -164,7 +164,7 @@ async def add_assets(
         for command_name in set(commands_to_run):  # Use set to avoid duplicate commands
             if command_name in COMMAND_MAP:
                 command_class = COMMAND_MAP[command_name]
-                processing_cmd = command_class(entity_id=entity_id, depth=depth, stream=stream_from_event)
+                processing_cmd = command_class(entity_id=entity_id, stream=stream_from_event)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
                 stream = target_world.dispatch_command(processing_cmd)
@@ -174,11 +174,11 @@ async def add_assets(
                 async for event in stream:
                     if isinstance(event, NewEntityCreatedEvent):
                         tqdm.write(
-                            f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id} at depth {event.depth}"
+                            f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}"
                         )
                         await _process_entity(
                             event.entity_id,
-                            event.depth,
+                            depth + 1,
                             pbar,
                             filename=event.filename,
                             stream_from_event=event.file_stream,
@@ -205,6 +205,16 @@ async def add_assets(
                         if sub_pbar:
                             sub_pbar.close()
                         tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
+
+                # After a command has potentially used the stream, reset or invalidate it for the next command.
+                if stream_from_event:
+                    if stream_from_event.seekable():
+                        stream_from_event.seek(0)
+                    else:
+                        # If the stream is not seekable (e.g., a network stream),
+                        # it cannot be reused. Set to None to force the next command
+                        # to fetch a fresh stream if it needs one.
+                        stream_from_event = None
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 

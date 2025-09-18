@@ -220,7 +220,7 @@ async def test_psp_iso_metadata_extraction_with_stream(mocker: MockerFixture) ->
     dummy_stream = create_dummy_iso_with_sfo()
 
     # 2. Execute command handler with a stream
-    command = ExtractPSPMetadataCommand(entity_id=entity_id, depth=0, stream=dummy_stream)
+    command = ExtractPSPMetadataCommand(entity_id=entity_id, stream=dummy_stream)
     await psp_iso_metadata_extraction_command_handler_system(command, mock_transaction, mock_world)
 
     # 3. Assertions
