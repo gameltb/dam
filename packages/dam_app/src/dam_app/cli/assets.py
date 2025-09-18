@@ -127,7 +127,7 @@ async def add_assets(
             commands_to_run.extend(process_map[mime_type_str])
 
         if entity_filename:
-            ext = Path(entity_filename).suffix
+            ext = Path(entity_filename).suffix.lower()
             if ext and ext in process_map:
                 commands_to_run.extend(process_map[ext])
 

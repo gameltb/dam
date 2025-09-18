@@ -208,7 +208,7 @@ class ZipArchiveHandler(ArchiveHandler):
             try:
                 return comment.decode("gbk")
             except UnicodeDecodeError:
-                return comment.decode("cp437", "replace")
+                return comment.decode("cp437")
 
     @property
     def comment(self) -> Optional[str]:
