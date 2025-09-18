@@ -201,6 +201,17 @@ class ZipArchiveHandler(ArchiveHandler):
                 return ZipArchiveFile(self.zip_file, f, file_name, self.password)
         raise IOError(f"File not found in zip: {file_name}")
 
+    def _decode_comment(self, comment: bytes) -> str:
+        try:
+            return comment.decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                return comment.decode("gbk")
+            except UnicodeDecodeError:
+                return comment.decode("cp437", "replace")
+
     @property
     def comment(self) -> Optional[str]:
-        return self.zip_file.comment.decode("utf-8", "replace") if self.zip_file.comment else None
+        if not self.zip_file.comment:
+            return None
+        return self._decode_comment(self.zip_file.comment)

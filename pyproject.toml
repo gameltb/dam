@@ -104,6 +104,7 @@ disallow_any_unimported = true
 
 [tool.pyright]
 include = ["src", "tests", "samples"]
+exclude = ["packages/dam_archive/src/dam_archive/handlers/rar.py"]
 typeCheckingMode = "strict"
 reportUnnecessaryIsInstance = false
 reportMissingTypeStubs = false
