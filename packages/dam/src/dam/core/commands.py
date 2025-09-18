@@ -53,7 +53,6 @@ class EntityCommand(BaseCommand[ResultType, EventType]):
 class AnalysisCommand(EntityCommand[ResultType, EventType]):
     """Base class for commands that analyze an entity's data."""
 
-    depth: int = 0
     stream: BinaryIO | None = None
 
     @classmethod

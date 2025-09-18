@@ -81,7 +81,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
         if isinstance(command, IngestArchiveCommand):
 
             async def event_generator(self: AsyncMock):
-                yield NewEntityCreatedEvent(entity_id=2, depth=1, file_stream=mock_file_stream, filename="new_file.jpg")
+                yield NewEntityCreatedEvent(entity_id=2, file_stream=mock_file_stream, filename="new_file.jpg")
 
             mock_stream.__aiter__ = event_generator
         elif isinstance(command, ExtractExifMetadataCommand):

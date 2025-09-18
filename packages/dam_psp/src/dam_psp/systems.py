@@ -41,7 +41,7 @@ async def psp_iso_metadata_extraction_event_handler_system(
             is_iso = any(filename.lower().endswith(".iso") for filename in all_filenames)
 
             if is_iso:
-                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id, depth=0)).get_all_results()
+                await world.dispatch_command(ExtractPSPMetadataCommand(entity_id=entity_id)).get_all_results()
 
         except Exception as e:
             logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)

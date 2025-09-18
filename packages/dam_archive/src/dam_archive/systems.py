@@ -414,7 +414,6 @@ async def _perform_ingestion(
 
                     yield NewEntityCreatedEvent(
                         entity_id=member_entity.id,
-                        depth=cmd.depth + 1,
                         file_stream=event_file_stream,
                         filename=member_file.name,
                     )
@@ -514,9 +513,7 @@ async def ingest_archive_members_handler(
     part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
     if part_info and part_info.master_entity_id:
         logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
-        redirect_cmd = IngestArchiveCommand(
-            entity_id=part_info.master_entity_id, depth=cmd.depth, passwords=cmd.passwords
-        )
+        redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
         stream = world.dispatch_command(redirect_cmd)
         async for event in stream:
             yield cast(SystemProgressEvent, event)
