@@ -1,5 +1,5 @@
+from .analysis_commands import AutoSetMimeTypeCommand
 from .asset_commands import (
-    AutoSetMimeTypeCommand,
     GetAssetFilenamesCommand,
     GetAssetMetadataCommand,
     GetAssetStreamCommand,
