@@ -8,7 +8,6 @@ using tools like the Hachoir library and exiftool.
 """
 
 import asyncio
-import io
 import json
 import logging
 import os
@@ -44,6 +43,7 @@ class ExifTool:
             "-a",
             "-s",
             "-e",
+            "-b",
             "-x",
             "FILE:File*",
             "-x",
@@ -141,14 +141,11 @@ class ExifTool:
                 fifo_path = Path(temp_dir) / "exiftool_fifo"
                 os.mkfifo(fifo_path)
 
-                writer_future = loop.run_in_executor(self.executor, self._write_stream_to_fifo, current_stream, fifo_path)
+                writer_future = loop.run_in_executor(
+                    self.executor, self._write_stream_to_fifo, current_stream, fifo_path
+                )
 
                 command_parts = self.exiftool_args.copy()
-
-                if filepath:
-                    ext = self._sanitize_extension(filepath.suffix.lstrip("."))
-                    if ext:
-                        command_parts.extend(["-ext", ext])
 
                 command_parts.append(str(fifo_path))
 
