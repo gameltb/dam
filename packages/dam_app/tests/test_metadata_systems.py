@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dam.core.ecs import Entity  # type: ignore
 from dam.core.transaction import EcsTransaction
+from dam.models import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 
