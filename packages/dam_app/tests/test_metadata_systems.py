@@ -2,7 +2,6 @@ import io
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,6 +11,7 @@ from dam_fs.models.file_location_component import FileLocationComponent
 
 from dam_app.commands import ExtractExifMetadataCommand
 from dam_app.systems.metadata_systems import (
+    ExifTool,
     exiftool_instance,
     extract_metadata_command_handler,
 )
@@ -87,40 +87,86 @@ async def test_extract_metadata_from_stream(mock_transaction: MagicMock, mock_wo
 
 
 @pytest.mark.asyncio
-async def test_exiftool_process_reuse(mock_transaction: MagicMock, mock_world_config: MagicMock):
+@patch("dam_app.systems.metadata_systems.shutil.which", return_value="/usr/bin/exiftool")
+@patch("asyncio.create_subprocess_exec")
+async def test_exiftool_process_reuse(mock_exec: AsyncMock, mock_which: MagicMock):
     """
     Tests that the same exiftool process is reused for multiple calls.
     """
+    # Setup mock process
+    mock_process = AsyncMock()
+    mock_process.returncode = None
+    mock_process.stdin.drain = AsyncMock()
+    mock_process.stdout.readuntil = AsyncMock(return_value=b'[{ "FileType": "TXT" }]{ready}\n')
+    mock_exec.return_value = mock_process
+
+    exiftool = ExifTool()
+
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_file = Path(temp_dir) / "test.txt"
         temp_file.write_text("This is a test file.")
 
-        file_location = FileLocationComponent(url=temp_file.as_uri(), last_modified_at=datetime.now())
-        mock_transaction.get_components.return_value = [file_location]
+        await exiftool.get_metadata(filepath=temp_file)
+        await exiftool.get_metadata(filepath=temp_file)
 
-        entity_id = 1
-        command = ExtractExifMetadataCommand(entity_id=entity_id)
+        mock_exec.assert_called_once()
+        assert mock_process.stdin.write.call_count == 2
 
-        with (
-            patch.object(exiftool_instance, "start", new_callable=AsyncMock) as mock_start,
-            patch.object(exiftool_instance, "stop", new_callable=AsyncMock) as mock_stop,
-            patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata,
-        ):
+    await exiftool.stop()
 
-            async def side_effect(*args: Any, **kwargs: Any):
-                # Simulate the check inside get_metadata
-                if mock_start.call_count == 0:
-                    await mock_start()
-                return {"FileType": "TXT"}
 
-            mock_get_metadata.side_effect = side_effect
+@pytest.mark.asyncio
+@patch("dam_app.systems.metadata_systems.shutil.which", return_value="/usr/bin/exiftool")
+@patch("asyncio.create_subprocess_exec")
+async def test_extract_metadata_with_extension(mock_exec: AsyncMock, mock_which: MagicMock):
+    """
+    Tests that the file extension is correctly extracted and passed to exiftool.
+    """
+    mock_process = AsyncMock()
+    mock_process.returncode = None
+    mock_process.stdin.drain = AsyncMock()
+    mock_process.stdout.readuntil = AsyncMock(return_value=b'[{ "FileType": "JPG" }]{ready}\n')
+    mock_exec.return_value = mock_process
 
-            await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
-            await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
+    exiftool = ExifTool()
 
-            mock_start.assert_called_once()
-            mock_stop.assert_not_called()
-            assert mock_get_metadata.call_count == 2
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file = Path(temp_dir) / "test.jpg"
+        temp_file.write_text("This is a test file.")
 
-            await exiftool_instance.stop()
-            mock_stop.assert_called_once()
+        await exiftool.get_metadata(filepath=temp_file)
+
+        written_command = mock_process.stdin.write.call_args[0][0]
+        assert b"-ext\njpg" in written_command
+
+    await exiftool.stop()
+
+
+@pytest.mark.asyncio
+@patch("dam_app.systems.metadata_systems.shutil.which", return_value="/usr/bin/exiftool")
+@patch("asyncio.create_subprocess_exec")
+async def test_extract_metadata_removes_sourcefile(mock_exec: AsyncMock, mock_which: MagicMock):
+    """
+    Tests that the SourceFile field is removed from the exiftool output.
+    """
+    mock_process = AsyncMock()
+    mock_process.returncode = None
+    mock_process.stdin.drain = AsyncMock()
+    mock_process.stdout.readuntil = AsyncMock(
+        return_value=b'[{ "SourceFile": "test.jpg", "FileType": "JPG" }]{ready}\n'
+    )
+    mock_exec.return_value = mock_process
+
+    exiftool = ExifTool()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file = Path(temp_dir) / "test.jpg"
+        temp_file.write_text("This is a test file.")
+
+        metadata = await exiftool.get_metadata(filepath=temp_file)
+
+        assert metadata is not None
+        assert "SourceFile" not in metadata
+        assert metadata["FileType"] == "JPG"
+
+    await exiftool.stop()
