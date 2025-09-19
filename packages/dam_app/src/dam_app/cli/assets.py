@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import typer
-from dam.commands.asset_commands import (
+from dam.commands import (
     AutoSetMimeTypeCommand,
     SetMimeTypeCommand,
 )

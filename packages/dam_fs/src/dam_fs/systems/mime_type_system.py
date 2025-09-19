@@ -2,22 +2,21 @@ import logging
 from typing import Annotated
 
 import magic
-from dam.commands.asset_commands import (
-    AutoSetMimeTypeCommand,
-    GetAssetStreamCommand,
-    SetMimeTypeFromBufferCommand,
-)
+from dam.commands.analysis_commands import AutoSetMimeTypeCommand
+from dam.commands.asset_commands import GetAssetFilenamesCommand, SetMimeTypeFromBufferCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
 from dam.functions.mime_type_functions import set_content_mime_type
-from dam.models.core.entity import Entity
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
-from sqlalchemy import select
-
-from dam_fs.models.file_location_component import FileLocationComponent
 
 logger = logging.getLogger(__name__)
+
+EXTENSION_TO_MIMETYPE = {
+    ".zip": "application/zip",
+    ".rar": "application/vnd.rar",
+    ".7z": "application/x-7z-compressed",
+}
 
 
 @system(on_command=AutoSetMimeTypeCommand)
@@ -29,48 +28,40 @@ async def auto_set_mime_type_from_filename_system(
     """
     Automatically sets the mime type for entities by reading the file content.
     """
-    if command.entity_id:
-        stmt = (
-            select(Entity)
-            .where(Entity.id == command.entity_id)
-            .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
-            .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
-            .where(ContentMimeTypeComponent.entity_id.is_(None))
-        )
-    else:
-        stmt = (
-            select(Entity)
-            .join(FileLocationComponent, Entity.id == FileLocationComponent.entity_id)
-            .outerjoin(ContentMimeTypeComponent, Entity.id == ContentMimeTypeComponent.entity_id)
-            .where(ContentMimeTypeComponent.entity_id.is_(None))
-        )
+    entity_id = command.entity_id
 
-    result = await transaction.session.execute(stmt)
-    entities_to_process = result.scalars().all()
-
-    if not entities_to_process:
-        logger.info("No entities found needing mime type detection.")
+    # Check if mime type is already set
+    existing_mime_type = await transaction.get_component(entity_id, ContentMimeTypeComponent)
+    if existing_mime_type:
         return
 
-    logger.info(f"Found {len(entities_to_process)} entities for mime type detection.")
+    try:
+        with await command.get_stream(world) as stream:
+            buffer = stream.read(4096)
+            mime_type = magic.from_buffer(buffer, mime=True)
 
-    for entity in entities_to_process:
-        get_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
-        try:
-            stream = await world.dispatch_command(get_stream_cmd).get_first_non_none_value()
-            if stream:
-                with stream:
-                    buffer = stream.read(4096)
-                    mime_type = magic.from_buffer(buffer, mime=True)
-                    if mime_type:
-                        logger.info(f"Setting mime type for entity {entity.id} to {mime_type}")
-                        await set_content_mime_type(transaction.session, entity.id, mime_type)
-                    else:
-                        logger.warning(f"Could not determine mime type for entity {entity.id}")
+            if mime_type == "application/octet-stream":
+                # Fallback to file extension
+                filenames = await world.dispatch_command(
+                    GetAssetFilenamesCommand(entity_id=entity_id)
+                ).get_first_non_none_value()
+                if filenames:
+                    for filename in filenames:
+                        for ext, mt in EXTENSION_TO_MIMETYPE.items():
+                            if filename.endswith(ext):
+                                mime_type = mt
+                                break
+                        if mime_type != "application/octet-stream":
+                            break
+
+            if mime_type:
+                logger.info(f"Setting mime type for entity {entity_id} to {mime_type}")
+                await set_content_mime_type(transaction.session, entity_id, mime_type)
             else:
-                logger.warning(f"Could not get asset stream for entity {entity.id} (no handler returned a stream).")
-        except Exception as e:
-            logger.error(f"Error processing entity {entity.id}: {e}", exc_info=True)
+                logger.warning(f"Could not determine mime type for entity {entity_id}")
+
+    except Exception as e:
+        logger.error(f"Error processing entity {entity_id}: {e}", exc_info=True)
 
 
 @system(on_command=SetMimeTypeFromBufferCommand)
