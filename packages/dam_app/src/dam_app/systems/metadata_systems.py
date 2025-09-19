@@ -8,7 +8,6 @@ using tools like the Hachoir library and exiftool.
 """
 
 import asyncio
-import io
 import json
 import logging
 import os
@@ -17,7 +16,7 @@ import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, BinaryIO, Dict, Optional
 
 from dam.core.config import WorldConfig
 from dam.core.systems import system
@@ -38,6 +37,22 @@ class ExifTool:
         self.executable = executable
         self.process: asyncio.subprocess.Process | None = None
         self.executor = ThreadPoolExecutor(max_workers=1)
+        self.exiftool_args = [
+            "-json",
+            "-G0",
+            "-a",
+            "-s",
+            "-e",
+            "-b",
+            "-x",
+            "FILE:File*",
+            "-x",
+            "FILE:Directory",
+            "-x",
+            "File:MIMEType",
+            "-x",
+            "ExifTool:all",
+        ]
 
     async def start(self):
         """Starts the persistent exiftool process."""
@@ -71,7 +86,11 @@ class ExifTool:
             logger.info("ExifTool process stopped.")
         self.executor.shutdown(wait=False)
 
-    def _write_stream_to_fifo(self, stream: io.BytesIO, fifo_path: Path):
+    def _sanitize_extension(self, extension: str) -> str:
+        """Removes potentially unsafe characters from a file extension."""
+        return "".join(char for char in extension if char.isalnum())
+
+    def _write_stream_to_fifo(self, stream: BinaryIO, fifo_path: Path):
         """Writes the content of a stream to a FIFO."""
         try:
             with open(fifo_path, "wb") as fifo:
@@ -86,7 +105,7 @@ class ExifTool:
     async def get_metadata(
         self,
         filepath: Optional[Path] = None,
-        stream: Optional[io.BytesIO] = None,
+        stream: Optional[BinaryIO] = None,
     ) -> Dict[str, Any] | None:
         """
         Extracts metadata from a file or stream using the persistent exiftool process.
@@ -101,40 +120,63 @@ class ExifTool:
 
         loop = asyncio.get_running_loop()
 
+        current_stream = None
+        close_stream = False
         if stream:
+            current_stream = stream
+        elif filepath:
+            try:
+                current_stream = open(filepath, "rb")
+                close_stream = True
+            except FileNotFoundError:
+                logger.error(f"File not found at {filepath}")
+                return None
+
+        if not current_stream:
+            logger.error("Either filepath or stream must be provided to get_metadata.")
+            return None
+
+        try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 fifo_path = Path(temp_dir) / "exiftool_fifo"
                 os.mkfifo(fifo_path)
 
-                writer_future = loop.run_in_executor(self.executor, self._write_stream_to_fifo, stream, fifo_path)
+                writer_future = loop.run_in_executor(
+                    self.executor, self._write_stream_to_fifo, current_stream, fifo_path
+                )
 
-                self.process.stdin.write(b"-json\n-G\n" + str(fifo_path).encode() + b"\n-execute\n")
+                command_parts = self.exiftool_args.copy()
+
+                command_parts.append(str(fifo_path))
+
+                command_bytes = b"\n".join(part.encode() for part in command_parts) + b"\n-execute\n"
+
+                self.process.stdin.write(command_bytes)
                 await self.process.stdin.drain()
                 await writer_future
 
-        elif filepath:
-            self.process.stdin.write(b"-json\n-G\n" + str(filepath).encode() + b"\n-execute\n")
-            await self.process.stdin.drain()
-        else:
-            logger.error("Either filepath or stream must be provided to get_metadata.")
-            return None
+            output_bytes = await self.process.stdout.readuntil(b"{ready}\n")
+            output_str = output_bytes.decode("utf-8", errors="ignore").strip()
+            json_str = output_str.rsplit("{ready}", 1)[0].strip()
 
-        output_bytes = await self.process.stdout.readuntil(b"{ready}\n")
-        output_str = output_bytes.decode("utf-8", errors="ignore").strip()
-        json_str = output_str.rsplit("{ready}", 1)[0].strip()
+            if not json_str:
+                return None
 
-        if not json_str:
-            return None
-
-        try:
-            data = json.loads(json_str)
-            if isinstance(data, list) and len(data) > 0:
-                return data[0]
-            logger.warning(f"Exiftool output was not a list with one element: {json_str[:200]}")
-            return None
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON from exiftool: {e}. Output: {json_str[:200]}")
-            return None
+            try:
+                data = json.loads(json_str)
+                if isinstance(data, list) and len(data) > 0:
+                    metadata = data[0]
+                    if "SourceFile" in metadata:
+                        del metadata["SourceFile"]
+                    return metadata
+                logger.warning(f"Exiftool output was not a list with one element: {json_str[:200]}")
+                return None
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON from exiftool: {e}. Output: {json_str[:200]}")
+                return None
+        finally:
+            if close_stream and current_stream:
+                current_stream.close()
 
 
 exiftool_instance = ExifTool()
@@ -153,7 +195,7 @@ async def extract_metadata_command_handler(
 
     if cmd.stream:
         logger.debug(f"Using provided stream for entity {entity_id}.")
-        exiftool_data = await exiftool_instance.get_metadata(stream=cmd.stream)  # type: ignore
+        exiftool_data = await exiftool_instance.get_metadata(stream=cmd.stream)
     else:
         logger.debug(f"No stream provided for entity {entity_id}, finding file on disk.")
         all_locations = await transaction.get_components(entity_id, FileLocationComponent)

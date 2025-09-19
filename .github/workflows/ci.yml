@@ -55,6 +55,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ffmpeg
 
+    - name: Install exiftool
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libimage-exiftool-perl
+
     - name: Create virtual environment and install dependencies
       run: |
         uv sync --all-extras
