@@ -2,11 +2,11 @@ import io
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dam.core.transaction import EcsTransaction
-from dam.models import Entity
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 
@@ -45,7 +45,7 @@ async def test_extract_metadata_from_file(mock_transaction: MagicMock, mock_worl
         file_location = FileLocationComponent(url=temp_file.as_uri(), last_modified_at=datetime.now())
         mock_transaction.get_components.return_value = [file_location]
 
-        entity_id = Entity(1)
+        entity_id = 1
         command = ExtractExifMetadataCommand(entity_id=entity_id)
 
         with patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata:
@@ -57,6 +57,7 @@ async def test_extract_metadata_from_file(mock_transaction: MagicMock, mock_worl
             assert mock_transaction.add_or_update_component.call_args is not None
             added_component = mock_transaction.add_or_update_component.call_args[0][1]
             assert isinstance(added_component, ExiftoolMetadataComponent)
+            assert added_component.raw_exif_json is not None
             assert added_component.raw_exif_json["FileType"] == "TXT"
 
 
@@ -69,7 +70,7 @@ async def test_extract_metadata_from_stream(mock_transaction: MagicMock, mock_wo
     stream_content = b"This is a test stream."
     stream = io.BytesIO(stream_content)
 
-    entity_id = Entity(1)
+    entity_id = 1
     command = ExtractExifMetadataCommand(entity_id=entity_id, stream=stream)
 
     with patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata:
@@ -81,6 +82,7 @@ async def test_extract_metadata_from_stream(mock_transaction: MagicMock, mock_wo
         assert mock_transaction.add_or_update_component.call_args is not None
         added_component = mock_transaction.add_or_update_component.call_args[0][1]
         assert isinstance(added_component, ExiftoolMetadataComponent)
+        assert added_component.raw_exif_json is not None
         assert added_component.raw_exif_json["FileType"] == "STREAM"
 
 
@@ -96,7 +98,7 @@ async def test_exiftool_process_reuse(mock_transaction: MagicMock, mock_world_co
         file_location = FileLocationComponent(url=temp_file.as_uri(), last_modified_at=datetime.now())
         mock_transaction.get_components.return_value = [file_location]
 
-        entity_id = Entity(1)
+        entity_id = 1
         command = ExtractExifMetadataCommand(entity_id=entity_id)
 
         with (
@@ -104,14 +106,21 @@ async def test_exiftool_process_reuse(mock_transaction: MagicMock, mock_world_co
             patch.object(exiftool_instance, "stop", new_callable=AsyncMock) as mock_stop,
             patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata,
         ):
-            mock_get_metadata.return_value = {"FileType": "TXT"}
+
+            async def side_effect(*args: Any, **kwargs: Any):
+                # Simulate the check inside get_metadata
+                if mock_start.call_count == 0:
+                    await mock_start()
+                return {"FileType": "TXT"}
+
+            mock_get_metadata.side_effect = side_effect
 
             await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
             await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
 
-            mock_start.assert_called()
+            mock_start.assert_called_once()
             mock_stop.assert_not_called()
             assert mock_get_metadata.call_count == 2
 
-        await exiftool_instance.stop()
-        mock_stop.assert_called_once()
+            await exiftool_instance.stop()
+            mock_stop.assert_called_once()
