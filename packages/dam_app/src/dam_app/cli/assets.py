@@ -178,11 +178,7 @@ async def add_assets(
 
                 # If we are processing a child entity (depth > 0), run its commands in a nested transaction.
                 use_nested = depth > 0
-                try:
-                    stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
-                except Exception as e:
-                    tqdm.write(f"  -> ERROR dispatching command {command_name} for entity {entity_id}. Error: {e}")
-                    continue
+                stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
 
                 sub_pbar: Optional[tqdm[Any]] = None
 
@@ -191,21 +187,13 @@ async def add_assets(
                         tqdm.write(
                             f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}"
                         )
-                        try:
-                            await _process_entity(
-                                event.entity_id,
-                                depth + 1,
-                                pbar,
-                                filename=event.filename,
-                                stream_from_event=event.file_stream,
-                            )
-                        except Exception as e:
-                            # This catch is for exceptions that might happen outside of a dispatched command
-                            # within _process_entity itself. The nested transaction rollback is handled
-                            # within the World class. We just log it here.
-                            tqdm.write(
-                                f"  -> ERROR processing child entity {event.entity_id}. This part of the process was rolled back. Error: {e}"
-                            )
+                        await _process_entity(
+                            event.entity_id,
+                            depth + 1,
+                            pbar,
+                            filename=event.filename,
+                            stream_from_event=event.file_stream,
+                        )
                     elif isinstance(event, ProgressStarted):
                         sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
                     elif isinstance(event, ProgressUpdate):
