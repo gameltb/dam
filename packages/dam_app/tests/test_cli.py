@@ -75,7 +75,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_file_stream = io.BytesIO(mock_file_content)
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
         mock_stream = AsyncMock()
 
         if isinstance(command, IngestArchiveCommand):
@@ -122,6 +122,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
             paths=[test_file],
             recursive=False,
             process=["application/zip:IngestArchiveCommand", "image/jpeg:ExtractExifMetadataCommand"],
+            stop_on_error=False,
         )
 
     # 4. Assertions
@@ -151,8 +152,6 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option based on file extension."""
     from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
-    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 
@@ -164,7 +163,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
@@ -197,6 +196,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
             paths=[test_file],
             recursive=False,
             process=[".zip:IngestArchiveCommand"],
+            stop_on_error=False,
         )
 
     # 4. Assertions
@@ -215,8 +215,6 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option using only the command name."""
     from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
-    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
     from dam.system_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
@@ -233,7 +231,7 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any]):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
@@ -284,6 +282,7 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
             paths=[image_file, archive_file],
             recursive=False,
             process=["ExtractExifMetadataCommand", "IngestArchiveCommand"],
+            stop_on_error=False,
         )
 
     # 4. Assertions
@@ -304,3 +303,127 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
 
     assert len(ingest_calls) == 1
     assert ingest_calls[0].entity_id == 2
+
+
+@pytest.mark.asyncio
+async def test_add_assets_continues_on_error_with_flag(
+    test_world_alpha: World,
+    tmp_path: Path,
+    capsys: CaptureFixture[Any],
+):
+    """
+    Tests that with the --no-stop-on-error flag, if a child entity
+    (from an archive) fails processing, only the transaction for that
+    child is rolled back, and the parent entity is still created.
+    """
+    import datetime
+    import io
+    from unittest.mock import patch
+
+    from dam.core.transaction import EcsTransaction
+    from dam.functions import ecs_functions
+    from dam.functions.mime_type_functions import set_content_mime_type
+    from dam.system_events import NewEntityCreatedEvent
+    from dam_fs.models.file_location_component import FileLocationComponent
+
+    from dam_app.cli.assets import add_assets
+
+    # 1. Setup
+    archive_file = tmp_path / "test_archive.zip"
+    archive_file.write_text("dummy archive content")
+    mod_time = datetime.datetime.fromtimestamp(archive_file.stat().st_mtime, tz=datetime.timezone.utc)
+    parent_entity_id = -1
+    child_entity_id = -1
+
+    async with test_world_alpha.db_session_maker() as session:
+        parent_entity = await ecs_functions.create_entity(session)
+        await ecs_functions.add_component_to_entity(
+            session,
+            parent_entity.id,
+            FileLocationComponent(url=archive_file.as_uri(), last_modified_at=mod_time),
+        )
+        await set_content_mime_type(session, parent_entity.id, "application/zip")
+        await session.commit()
+        parent_entity_id = parent_entity.id
+
+    # 2. Mock systems
+    async def mocked_ingest_system(cmd, transaction: EcsTransaction, **kwargs):
+        nonlocal child_entity_id
+        child_entity = await transaction.create_entity()
+        child_entity_id = child_entity.id
+        yield NewEntityCreatedEvent(
+            entity_id=child_entity.id,
+            file_stream=io.BytesIO(b"child content"),
+            filename="child.jpg",
+        )
+
+    async def failing_metadata_system(*args, **kwargs):
+        raise Exception("Simulated processing error")
+
+    async def mocked_find_entity_handler(cmd, transaction, **kwargs):
+        # Only return the parent entity ID for the specific file we're testing
+        if cmd.file_path == archive_file.as_uri():
+            return parent_entity_id
+        return None
+
+    with patch("dam_archive.systems.ingest_archive_members_handler", new=mocked_ingest_system), patch(
+        "dam_app.systems.metadata_systems.extract_metadata_command_handler", new=failing_metadata_system
+    ), patch("dam_app.cli.assets.get_world", return_value=test_world_alpha), patch(
+        "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler", new=mocked_find_entity_handler
+    ):
+
+        # 3. Run command with --no-stop-on-error
+        await add_assets(
+            paths=[archive_file],
+            recursive=False,
+            process=["application/zip:IngestArchiveCommand", "image/jpeg:ExtractExifMetadataCommand"],
+            stop_on_error=False,
+        )
+
+    # 4. Assertions
+    async with test_world_alpha.db_session_maker() as session:
+        retrieved_parent = await ecs_functions.get_entity(session, parent_entity_id)
+        assert retrieved_parent is not None
+
+        # The child entity should NOT exist, as its transaction should have been rolled back.
+        if child_entity_id != -1:
+            child_entity = await ecs_functions.get_entity(session, child_entity_id)
+            assert child_entity is None
+        else:
+            # This case can happen if the ingest system is not called, which would be a test setup error.
+            pytest.fail("Child entity ID was not set, indicating the ingest system was not called.")
+
+    captured = capsys.readouterr()
+    assert f"ERROR processing child entity {child_entity_id}" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_add_assets_stops_on_error_by_default(
+    test_world_alpha: World,
+    tmp_path: Path,
+):
+    """
+    Tests that the add_assets command stops processing and raises an
+    exception by default when an error occurs.
+    """
+    from unittest.mock import patch
+    import pytest
+    from dam_app.cli.assets import add_assets
+
+    # 1. Setup: Create a dummy file
+    test_file = tmp_path / "test.jpg"
+    test_file.write_text("dummy content")
+
+    # 2. Mock the handler for FindEntityByFilePropertiesCommand to raise an error
+    async def failing_find_handler(*args, **kwargs):
+        raise Exception("Simulated processing error")
+
+    with patch(
+        "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler", new=failing_find_handler
+    ), patch("dam_app.cli.assets.get_world", return_value=test_world_alpha):
+        # 3. Assert that calling add_assets raises an exception
+        with pytest.raises(Exception, match="Simulated processing error"):
+            await add_assets(
+                paths=[test_file],
+                # stop_on_error defaults to True
+            )

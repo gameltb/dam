@@ -66,6 +66,10 @@ async def add_assets(
             help="Specify a command to run for a given MIME type or file extension, e.g., 'image/jpeg:ExtractExifMetadataCommand' or '.zip:IngestArchiveCommand'",
         ),
     ] = None,
+    stop_on_error: Annotated[
+        bool,
+        typer.Option("--stop-on-error/--no-stop-on-error", help="Stop processing if an error occurs."),
+    ] = True,
 ):
     """
     Registers one or more local assets with the DAM.
@@ -166,7 +170,16 @@ async def add_assets(
                 processing_cmd = command_class(entity_id=entity_id, stream=stream_from_event)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
-                stream = target_world.dispatch_command(processing_cmd)
+
+                # If we are processing a child entity (depth > 0), run its commands in a nested transaction.
+                use_nested = depth > 0
+                try:
+                    stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
+                except Exception as e:
+                    tqdm.write(
+                        f"  -> ERROR dispatching command {command_name} for entity {entity_id}. Error: {e}"
+                    )
+                    continue
 
                 sub_pbar: Optional[tqdm[Any]] = None
 
@@ -175,13 +188,21 @@ async def add_assets(
                         tqdm.write(
                             f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}"
                         )
-                        await _process_entity(
-                            event.entity_id,
-                            depth + 1,
-                            pbar,
-                            filename=event.filename,
-                            stream_from_event=event.file_stream,
-                        )
+                        try:
+                            await _process_entity(
+                                event.entity_id,
+                                depth + 1,
+                                pbar,
+                                filename=event.filename,
+                                stream_from_event=event.file_stream,
+                            )
+                        except Exception as e:
+                            # This catch is for exceptions that might happen outside of a dispatched command
+                            # within _process_entity itself. The nested transaction rollback is handled
+                            # within the World class. We just log it here.
+                            tqdm.write(
+                                f"  -> ERROR processing child entity {event.entity_id}. This part of the process was rolled back. Error: {e}"
+                            )
                     elif isinstance(event, ProgressStarted):
                         sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
                     elif isinstance(event, ProgressUpdate):
@@ -266,7 +287,8 @@ async def add_assets(
             except Exception as e:
                 error_count += 1
                 tqdm.write(f"Error processing file {file_path.name}: {e}")
-                raise # for now
+                if stop_on_error:
+                    raise
             pbar.update(file_path.stat().st_size)
 
     typer.echo("\n--- Summary ---")
