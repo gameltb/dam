@@ -60,9 +60,6 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
         """
         return {
             "mimetypes": [
-                "application/zip",
-                "application/vnd.rar",
-                "application/x-7z-compressed",
             ],
             "extensions": [".zip", ".rar", ".7z"],
         }

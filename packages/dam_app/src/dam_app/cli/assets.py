@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, BinaryIO, Dict, List, Optional
 
 import typer
 from dam.commands import (
@@ -120,7 +120,7 @@ async def add_assets(
         depth: int,
         pbar: tqdm[Any],
         filename: Optional[str] = None,
-        stream_from_event: Optional[Any] = None,
+        stream_from_event: Optional[BinaryIO] = None,
     ):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
@@ -208,8 +208,9 @@ async def add_assets(
 
                 # After a command has potentially used the stream, reset or invalidate it for the next command.
                 if stream_from_event:
-                    if stream_from_event.seekable():
-                        stream_from_event.seek(0)
+                    if not stream_from_event.closed:
+                        if stream_from_event.seekable():
+                            stream_from_event.seek(0)
                     else:
                         # If the stream is not seekable (e.g., a network stream),
                         # it cannot be reused. Set to None to force the next command
@@ -242,6 +243,7 @@ async def add_assets(
 
     with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets", smoothing=0.0) as pbar:
         for file_path in files_to_process:
+            tqdm.write(f"Process ({file_path})")
             pbar.set_postfix_str(file_path.name)
             try:
                 mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
@@ -252,18 +254,20 @@ async def add_assets(
 
                 if existing_entity_id:
                     skipped_count += 1
+                    entity_id = existing_entity_id
                 else:
                     register_cmd = RegisterLocalFileCommand(file_path=file_path)
                     entity_id = await target_world.dispatch_command(register_cmd).get_one_value()
 
-                    if entity_id:
-                        success_count += 1
-                        if process_map:
-                            await _process_entity(entity_id, 0, pbar, filename=file_path.name)
+                if entity_id:
+                    success_count += 1
+                    if process_map:
+                        await _process_entity(entity_id, 0, pbar, filename=file_path.name)
 
             except Exception as e:
                 error_count += 1
                 tqdm.write(f"Error processing file {file_path.name}: {e}")
+                raise # for now
             pbar.update(file_path.stat().st_size)
 
     typer.echo("\n--- Summary ---")

@@ -99,6 +99,9 @@ class ExifTool:
                     if not chunk:
                         break
                     fifo.write(chunk)
+        except BrokenPipeError as e:
+            # ExifTool may close fifo early
+            pass
         except Exception as e:
             logger.error(f"Error writing to FIFO: {e}", exc_info=True)
 
