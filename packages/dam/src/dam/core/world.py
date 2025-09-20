@@ -172,7 +172,9 @@ class World:
                 active_transaction.reset(token)
                 self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
 
-    def dispatch_command(self, command: BaseCommand[ResultType, EventType]) -> SystemExecutor[ResultType, EventType]:
+    def dispatch_command(
+        self, command: BaseCommand[ResultType, EventType], *, use_nested_transaction: bool = False
+    ) -> SystemExecutor[ResultType, EventType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
 
         async def _transaction_wrapper() -> AsyncGenerator[EventType, None]:
@@ -182,14 +184,33 @@ class World:
             command's event stream is fully consumed.
             """
             transaction = active_transaction.get()
+
+            # Case 1: We are in a transaction and want to create a nested one (savepoint).
+            if transaction and use_nested_transaction:
+                self.logger.debug(f"Creating nested transaction for command '{type(command).__name__}'.")
+                try:
+                    async with transaction.session.begin_nested():
+                        executor = self.scheduler.dispatch_command(command, transaction)
+                        async for event in executor:
+                            yield event
+                    # The context manager commits the savepoint if no exception occurs
+                except Exception:
+                    self.logger.exception(
+                        f"Exception in nested command '{type(command).__name__}', rolling back savepoint."
+                    )
+                    # The context manager rolls back the savepoint on exception.
+                    raise  # Re-raise the exception to the caller
+                return
+
+            # Case 2: We are already in a transaction and just want to join it.
             if transaction:
-                # Already in a transaction, so just execute and yield.
+                self.logger.debug(f"Joining existing transaction for command '{type(command).__name__}'.")
                 executor = self.scheduler.dispatch_command(command, transaction)
                 async for event in executor:
                     yield event
                 return
 
-            # Not in a transaction, so create a new one.
+            # Case 3: We are not in a transaction, so create a new top-level one.
             self.logger.debug(f"Creating new transaction for top-level command '{type(command).__name__}'.")
             db_session = self.get_db_session()
             new_transaction = EcsTransaction(db_session)

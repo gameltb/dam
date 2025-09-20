@@ -5,7 +5,10 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
-from dam.systems.mime_type_system import set_mime_type_system
+from dam.systems.mime_type_system import (
+    get_mime_type_system,
+    set_mime_type_system,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,4 +49,5 @@ class CorePlugin(Plugin):
         world.register_system(add_hashes_from_stream_system)
         world.register_system(get_or_create_entity_from_stream_handler)
         world.register_system(set_mime_type_system)
+        world.register_system(get_mime_type_system)
         logger.info(f"Core system registration complete for world: {world.name}")

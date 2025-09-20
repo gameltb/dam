@@ -26,6 +26,8 @@ from dam_fs.commands import (
     StoreAssetsCommand,
 )
 from dam_psp.commands import ExtractPSPMetadataCommand
+from rich.console import Console
+from rich.traceback import Traceback
 from tqdm import tqdm
 from typing_extensions import Annotated
 
@@ -66,6 +68,10 @@ async def add_assets(
             help="Specify a command to run for a given MIME type or file extension, e.g., 'image/jpeg:ExtractExifMetadataCommand' or '.zip:IngestArchiveCommand'",
         ),
     ] = None,
+    stop_on_error: Annotated[
+        bool,
+        typer.Option("--stop-on-error/--no-stop-on-error", help="Stop processing if an error occurs."),
+    ] = True,
 ):
     """
     Registers one or more local assets with the DAM.
@@ -132,10 +138,13 @@ async def add_assets(
         entity_filename: Optional[str] = filename
 
         # Auto-set and get MIME type
-        await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
-        mime_type_str = await target_world.dispatch_command(
-            GetMimeTypeCommand(entity_id=entity_id)
-        ).get_one_value()
+        if stream_from_event and stream_from_event.seekable():
+            await target_world.dispatch_command(
+                AutoSetMimeTypeCommand(entity_id=entity_id, stream=stream_from_event)
+            ).get_all_results()
+        else:
+            await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
+        mime_type_str = await target_world.dispatch_command(GetMimeTypeCommand(entity_id=entity_id)).get_one_value()
 
         # Get filename if not provided
         if not entity_filename:
@@ -166,7 +175,10 @@ async def add_assets(
                 processing_cmd = command_class(entity_id=entity_id, stream=stream_from_event)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
-                stream = target_world.dispatch_command(processing_cmd)
+
+                # If we are processing a child entity (depth > 0), run its commands in a nested transaction.
+                use_nested = depth > 0
+                stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
 
                 sub_pbar: Optional[tqdm[Any]] = None
 
@@ -263,10 +275,13 @@ async def add_assets(
                     if process_map:
                         await _process_entity(entity_id, 0, pbar, filename=file_path.name)
 
-            except Exception as e:
+            except Exception:
                 error_count += 1
-                tqdm.write(f"Error processing file {file_path.name}: {e}")
-                raise # for now
+                console = Console()
+                tqdm.write(f"Error processing file {file_path.name}")
+                console.print(Traceback())
+                if stop_on_error:
+                    raise
             pbar.update(file_path.stat().st_size)
 
     typer.echo("\n--- Summary ---")
