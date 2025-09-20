@@ -7,10 +7,11 @@ from typing import Any, BinaryIO, Dict, List, Optional
 import typer
 from dam.commands import (
     AutoSetMimeTypeCommand,
+    GetAssetFilenamesCommand,
+    GetMimeTypeCommand,
     SetMimeTypeCommand,
 )
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -128,23 +129,21 @@ async def add_assets(
             return
 
         # 1. Get MIME type and filename
-        mime_type_str: Optional[str] = None
         entity_filename: Optional[str] = filename
 
-        async with target_world.db_session_maker() as session:
-            # Auto-set and get MIME type
-            await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
-            mime_type_component = await dam_ecs_functions.get_component(session, entity_id, ContentMimeTypeComponent)
-            if mime_type_component and mime_type_component.mime_type_concept:
-                mime_type_str = mime_type_component.mime_type_concept.mime_type
+        # Auto-set and get MIME type
+        await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
+        mime_type_str = await target_world.dispatch_command(
+            GetMimeTypeCommand(entity_id=entity_id)
+        ).get_one_value()
 
-            # Get filename if not provided
-            if not entity_filename:
-                from dam_fs.models import FilenameComponent
-
-                fn_comp = await dam_ecs_functions.get_component(session, entity_id, FilenameComponent)
-                if fn_comp:
-                    entity_filename = fn_comp.filename
+        # Get filename if not provided
+        if not entity_filename:
+            filenames = await target_world.dispatch_command(
+                GetAssetFilenamesCommand(entity_id=entity_id)
+            ).get_one_value()
+            if filenames:
+                entity_filename = filenames[0]
 
         pbar.set_postfix_str(f"Processing {entity_id} ({entity_filename or 'No Filename'})")
 

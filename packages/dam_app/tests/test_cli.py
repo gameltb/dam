@@ -56,12 +56,12 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     """Test the add_assets command with the --process option for recursive processing."""
     import io
 
+    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
     from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
     from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
     from dam.system_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-    from dam_fs.models import FilenameComponent
 
     from dam_app.cli.assets import add_assets
     from dam_app.commands import ExtractExifMetadataCommand
@@ -95,6 +95,16 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
             mock_stream.get_one_value.return_value = None
         elif isinstance(command, RegisterLocalFileCommand):
             mock_stream.get_one_value.return_value = 1
+        elif isinstance(command, GetMimeTypeCommand):
+            if command.entity_id == 1:
+                mock_stream.get_one_value.return_value = "application/zip"
+            elif command.entity_id == 2:
+                mock_stream.get_one_value.return_value = "image/jpeg"
+        elif isinstance(command, GetAssetFilenamesCommand):
+            if command.entity_id == 1:
+                mock_stream.get_one_value.return_value = ["test_archive.zip"]
+            elif command.entity_id == 2:
+                mock_stream.get_one_value.return_value = ["new_file.jpg"]
         else:
             mock_stream.get_all_results.return_value = []
 
@@ -102,39 +112,12 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
 
-    # Mock get_component to return different MIME types
-    archive_mime_concept = MimeTypeConceptComponent(
-        concept_name="application/zip", concept_description=None, mime_type="application/zip"
-    )
-    archive_mime_component = ContentMimeTypeComponent(mime_type_concept_id=2)
-    archive_mime_component.mime_type_concept = archive_mime_concept
-
-    image_mime_concept = MimeTypeConceptComponent(
-        concept_name="image/jpeg", concept_description=None, mime_type="image/jpeg"
-    )
-    image_mime_component = ContentMimeTypeComponent(mime_type_concept_id=3)
-    image_mime_component.mime_type_concept = image_mime_concept
-
-    async def get_component_side_effect(session: Any, entity_id: int, component_type: Any):
-        if component_type == ContentMimeTypeComponent:
-            if entity_id == 1:
-                return archive_mime_component
-            elif entity_id == 2:
-                return image_mime_component
-        elif component_type == FilenameComponent:
-            if entity_id == 1:
-                return FilenameComponent(filename="test_archive.zip")
-        return None
-
     # 2. Create a temporary file
     test_file = tmp_path / "test_archive.zip"
     test_file.write_text("dummy content")
 
     # 3. Call add_assets
-    with (
-        patch("dam_app.cli.assets.get_world", return_value=mock_world),
-        patch("dam_app.cli.assets.dam_ecs_functions.get_component", side_effect=get_component_side_effect),
-    ):
+    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
         await add_assets(
             paths=[test_file],
             recursive=False,
@@ -142,7 +125,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
         )
 
     # 4. Assertions
-    assert mock_world.dispatch_command.call_count == 6
+    assert mock_world.dispatch_command.call_count == 8
 
     # Find the IngestArchiveCommand and ExtractExifMetadataCommand calls
     ingest_cmd = None
@@ -167,11 +150,11 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 @pytest.mark.asyncio
 async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option based on file extension."""
+    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
     from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
     from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-    from dam_fs.models import FilenameComponent
 
     from dam_app.cli.assets import add_assets
 
@@ -188,6 +171,10 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
             mock_stream.get_one_value.return_value = None
         elif isinstance(command, RegisterLocalFileCommand):
             mock_stream.get_one_value.return_value = 1
+        elif isinstance(command, GetMimeTypeCommand):
+            mock_stream.get_one_value.return_value = "application/octet-stream"
+        elif isinstance(command, GetAssetFilenamesCommand):
+            mock_stream.get_one_value.return_value = ["test_archive.zip"]
         else:
             # For AutoSetMimeTypeCommand and IngestArchiveCommand
             async def event_generator_empty(self: AsyncMock):
@@ -200,28 +187,11 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
 
-    # Mock get_component
-    mock_mime_type_concept = MimeTypeConceptComponent(
-        concept_name="application/octet-stream", concept_description=None, mime_type="application/octet-stream"
-    )
-    mock_mime_type_component = ContentMimeTypeComponent(mime_type_concept_id=1)
-    mock_mime_type_component.mime_type_concept = mock_mime_type_concept
-
-    async def get_component_side_effect_ext(session: Any, entity_id: int, component_type: Any):
-        if component_type == ContentMimeTypeComponent:
-            return mock_mime_type_component
-        elif component_type == FilenameComponent:
-            return FilenameComponent(filename="test_archive.zip")
-        return None
-
     # 2. Create a temporary file
     test_file = tmp_path / "test_archive.zip"
     test_file.write_text("dummy content")
 
-    with (
-        patch("dam_app.cli.assets.get_world", return_value=mock_world),
-        patch("dam_app.cli.assets.dam_ecs_functions.get_component", side_effect=get_component_side_effect_ext),
-    ):
+    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
         # 3. Call add_assets with an extension-based process rule
         await add_assets(
             paths=[test_file],
@@ -244,11 +214,12 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 @pytest.mark.asyncio
 async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option using only the command name."""
+    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
     from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
     from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+    from dam.system_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-    from dam_fs.models import FilenameComponent
 
     from dam_app.cli.assets import add_assets
     from dam_app.commands import ExtractExifMetadataCommand
@@ -273,6 +244,16 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
                 mock_stream.get_one_value.return_value = 1
             elif "zip" in str(command.file_path):
                 mock_stream.get_one_value.return_value = 2
+        elif isinstance(command, GetMimeTypeCommand):
+            if command.entity_id == 1:
+                mock_stream.get_one_value.return_value = None
+            elif command.entity_id == 2:
+                mock_stream.get_one_value.return_value = "application/zip"
+        elif isinstance(command, GetAssetFilenamesCommand):
+            if command.entity_id == 1:
+                mock_stream.get_one_value.return_value = ["test_image.JPG"]
+            elif command.entity_id == 2:
+                mock_stream.get_one_value.return_value = ["test_archive.zip"]
         else:
             # For other commands like AutoSetMimeType, Ingest, Extract
             async def event_generator_empty(self: AsyncMock):
@@ -283,26 +264,6 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
         return mock_stream
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect
-
-    # Mock get_component to return different MIME types and filenames
-    zip_mime_concept = MimeTypeConceptComponent(
-        concept_name="application/zip", concept_description=None, mime_type="application/zip"
-    )
-    zip_mime_component = ContentMimeTypeComponent(mime_type_concept_id=2)
-    zip_mime_component.mime_type_concept = zip_mime_concept
-
-    async def get_component_side_effect(session: Any, entity_id: int, component_type: Any):
-        if component_type == ContentMimeTypeComponent:
-            if entity_id == 1:
-                return None  # Simulate no mime type found, forcing extension check
-            elif entity_id == 2:
-                return zip_mime_component
-        elif component_type == FilenameComponent:
-            if entity_id == 1:
-                return FilenameComponent(filename="test_image.JPG")  # Uppercase
-            elif entity_id == 2:
-                return FilenameComponent(filename="test_archive.zip")
-        return None
 
     # 2. Create temporary files
     image_file = tmp_path / "test_image.JPG"  # Test case-insensitivity
@@ -315,7 +276,6 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     mock_subprocess_result.stdout = "Recognized file extensions:\nJPG ZIP"
     with (
         patch("dam_app.cli.assets.get_world", return_value=mock_world),
-        patch("dam_app.cli.assets.dam_ecs_functions.get_component", side_effect=get_component_side_effect),
         patch("dam_app.commands.subprocess.run", return_value=mock_subprocess_result),
         patch("dam_app.commands.shutil.which", return_value="/fake/path/to/exiftool"),
     ):
@@ -327,16 +287,20 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
         )
 
     # 4. Assertions
-    extract_cmd_found = False
-    ingest_cmd_found = False
-    for call in mock_world.dispatch_command.call_args_list:
-        cmd = call.args[0]
-        if isinstance(cmd, ExtractExifMetadataCommand):
-            extract_cmd_found = True
-            assert cmd.entity_id == 1  # Should be called on the image entity
-        elif isinstance(cmd, IngestArchiveCommand):
-            ingest_cmd_found = True
-            assert cmd.entity_id == 2  # Should be called on the archive entity
+    extract_calls = [
+        call.args[0]
+        for call in mock_world.dispatch_command.call_args_list
+        if isinstance(call.args[0], ExtractExifMetadataCommand)
+    ]
+    ingest_calls = [
+        call.args[0]
+        for call in mock_world.dispatch_command.call_args_list
+        if isinstance(call.args[0], IngestArchiveCommand)
+    ]
 
-    assert extract_cmd_found, "ExtractExifMetadataCommand was not dispatched for the JPG file"
-    assert ingest_cmd_found, "IngestArchiveCommand was not dispatched for the ZIP file"
+    assert len(extract_calls) == 2
+    assert any(c.entity_id == 1 for c in extract_calls)
+    assert any(c.entity_id == 2 for c in extract_calls)
+
+    assert len(ingest_calls) == 1
+    assert ingest_calls[0].entity_id == 2
