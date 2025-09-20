@@ -1,8 +1,19 @@
 from dataclasses import dataclass
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Tuple
 
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
+from dam.models.core.entity import Entity
 from dam.system_events import BaseSystemEvent
+
+
+@dataclass
+class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes], BaseSystemEvent]):
+    """
+    A command to get or create an entity from a stream.
+    Returns a tuple of the entity and the calculated sha256 hash.
+    """
+
+    stream: BinaryIO
 
 
 @dataclass

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, cast
 
-from dam.core.commands import AddHashesFromStreamCommand
+from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.models.hashes import (

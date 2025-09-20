@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
 from dam.models.core.entity import Entity
 from dam.system_events import BaseSystemEvent
 

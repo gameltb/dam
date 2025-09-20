@@ -30,7 +30,7 @@ First, we define the commands we need for our workflow.
 # in packages/dam_app/src/dam_app/commands.py
 from dataclasses import dataclass
 from pathlib import Path
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
 
 @dataclass
 class IngestFileCommand(BaseCommand):

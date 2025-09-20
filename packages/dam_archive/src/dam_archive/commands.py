@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from dam.core.commands import AnalysisCommand, BaseCommand
+from dam.commands.analysis_commands import AnalysisCommand
+from dam.commands.core import BaseCommand
 from dam.system_events import BaseSystemEvent
 
 
