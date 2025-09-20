@@ -10,7 +10,7 @@ from dam.commands import (
     GetAssetFilenamesCommand,
     GetAssetStreamCommand,
 )
-from dam.core.commands import GetOrCreateEntityFromStreamCommand
+from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World

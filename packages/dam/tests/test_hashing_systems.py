@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 
-from dam.core.commands import AddHashesFromStreamCommand
+from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes import (

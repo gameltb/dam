@@ -363,7 +363,11 @@ async def auto_set_mime_type(
     else:
         typer.echo("Automatically setting mime type for all entities...")
 
-    set_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)
-    await target_world.dispatch_command(set_cmd).get_all_results()
+    if entity_id:
+        set_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)
+        await target_world.dispatch_command(set_cmd).get_all_results()
+    else:
+        # TODO: Implement processing for all entities
+        typer.secho("Processing all entities is not yet implemented.", fg=typer.colors.YELLOW)
 
     typer.secho("Mime type setting process complete.", fg=typer.colors.GREEN)

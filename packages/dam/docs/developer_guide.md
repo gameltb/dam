@@ -92,7 +92,7 @@ The Command pattern is used for imperative actions where the caller requests a s
     *Example (`packages/my_plugin/commands.py`):*
     ```python
     from dataclasses import dataclass
-    from dam.core.commands import AnalysisCommand
+    from dam.commands.analysis_commands import AnalysisCommand
 
     @dataclass
     class ExtractDominantColorCommand(AnalysisCommand[None]):

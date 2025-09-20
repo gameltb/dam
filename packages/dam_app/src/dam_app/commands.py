@@ -4,7 +4,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import ClassVar, Dict, List, Optional
 
-from dam.core.commands import AnalysisCommand, BaseCommand
+from dam.commands.analysis_commands import AnalysisCommand
+from dam.commands.core import BaseCommand
 from dam.models.core.entity import Entity
 from dam.system_events import BaseSystemEvent
 

@@ -3,7 +3,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
 from dam.core.config import Settings
 from dam.core.world import World
 from pytest import CaptureFixture

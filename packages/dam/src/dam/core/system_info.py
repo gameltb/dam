@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Type
 
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
 from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.stages import SystemStage

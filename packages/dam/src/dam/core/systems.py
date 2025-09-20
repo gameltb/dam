@@ -19,8 +19,8 @@ from typing import (
     get_origin,
 )
 
-from dam.core.commands import BaseCommand, EventType, ResultType
-from dam.core.enums import ExecutionStrategy, SystemType
+from dam.commands.core import BaseCommand, EventType, ResultType
+from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.markers import CommandMarker, EventMarker, MarkedEntityList, ResourceMarker
@@ -28,6 +28,7 @@ from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_info import SystemMetadata, SystemParameterInfo
 from dam.core.transaction import EcsTransaction
+from dam.enums import ExecutionStrategy
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
 from dam.system_events import BaseSystemEvent, SystemResultEvent

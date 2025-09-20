@@ -1,7 +1,8 @@
 import logging
 from typing import Annotated
 
-from dam.core.commands import AddHashesFromStreamCommand, GetOrCreateEntityFromStreamCommand
+from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
+from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World

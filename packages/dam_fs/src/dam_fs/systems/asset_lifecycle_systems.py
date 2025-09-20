@@ -4,7 +4,7 @@ import logging
 from typing import Annotated, Any, Dict, List, Optional
 
 from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
-from dam.core.commands import GetOrCreateEntityFromStreamCommand
+from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
 from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction

@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from dam.core.commands import BaseCommand
+from dam.commands.core import BaseCommand
 from dam.system_events import BaseSystemEvent
 
 
