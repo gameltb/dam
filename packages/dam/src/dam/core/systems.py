@@ -241,6 +241,9 @@ class WorldScheduler:
     ) -> SystemExecutor[ResultType, EventType]:
         handlers_to_run = self.command_handler_registry.get(type(command), [])
         if not handlers_to_run:
+            self.logger.warning(
+                f"No system registered for command {type(command).__name__} in world '{self.world.name}'."
+            )
             return SystemExecutor([], command.execution_strategy)
         generators = [self._execute_system_func(h, transaction, command_object=command) for h in handlers_to_run]
         return SystemExecutor(cast(List[AsyncGenerator[EventType, None]], generators), command.execution_strategy)
