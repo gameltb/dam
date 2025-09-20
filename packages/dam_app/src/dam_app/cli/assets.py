@@ -137,9 +137,7 @@ async def add_assets(
 
         # Auto-set and get MIME type
         await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
-        mime_type_str = await target_world.dispatch_command(
-            GetMimeTypeCommand(entity_id=entity_id)
-        ).get_one_value()
+        mime_type_str = await target_world.dispatch_command(GetMimeTypeCommand(entity_id=entity_id)).get_one_value()
 
         # Get filename if not provided
         if not entity_filename:
@@ -176,9 +174,7 @@ async def add_assets(
                 try:
                     stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
                 except Exception as e:
-                    tqdm.write(
-                        f"  -> ERROR dispatching command {command_name} for entity {entity_id}. Error: {e}"
-                    )
+                    tqdm.write(f"  -> ERROR dispatching command {command_name} for entity {entity_id}. Error: {e}")
                     continue
 
                 sub_pbar: Optional[tqdm[Any]] = None

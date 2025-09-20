@@ -195,7 +195,9 @@ class World:
                             yield event
                     # The context manager commits the savepoint if no exception occurs
                 except Exception:
-                    self.logger.exception(f"Exception in nested command '{type(command).__name__}', rolling back savepoint.")
+                    self.logger.exception(
+                        f"Exception in nested command '{type(command).__name__}', rolling back savepoint."
+                    )
                     # The context manager rolls back the savepoint on exception.
                     raise  # Re-raise the exception to the caller
                 return

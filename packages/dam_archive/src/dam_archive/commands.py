@@ -59,8 +59,7 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
         Returns a dictionary of supported MIME types and file extensions for archives.
         """
         return {
-            "mimetypes": [
-            ],
+            "mimetypes": [],
             "extensions": [".zip", ".rar", ".7z"],
         }
 

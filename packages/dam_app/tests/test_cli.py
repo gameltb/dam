@@ -57,8 +57,6 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     import io
 
     from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-    from dam.models.conceptual.mime_type_concept_component import MimeTypeConceptComponent
-    from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
     from dam.system_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
@@ -75,7 +73,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_file_stream = io.BytesIO(mock_file_content)
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
         mock_stream = AsyncMock()
 
         if isinstance(command, IngestArchiveCommand):
@@ -163,7 +161,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
@@ -215,7 +213,6 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option using only the command name."""
     from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-    from dam.system_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 
@@ -231,7 +228,7 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs):
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
         mock_stream = AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
@@ -347,7 +344,7 @@ async def test_add_assets_continues_on_error_with_flag(
         parent_entity_id = parent_entity.id
 
     # 2. Mock systems
-    async def mocked_ingest_system(cmd, transaction: EcsTransaction, **kwargs):
+    async def mocked_ingest_system(cmd: Any, transaction: EcsTransaction, **kwargs: Any):
         nonlocal child_entity_id
         child_entity = await transaction.create_entity()
         child_entity_id = child_entity.id
@@ -357,21 +354,24 @@ async def test_add_assets_continues_on_error_with_flag(
             filename="child.jpg",
         )
 
-    async def failing_metadata_system(*args, **kwargs):
+    async def failing_metadata_system(*args: Any, **kwargs: Any):
         raise Exception("Simulated processing error")
 
-    async def mocked_find_entity_handler(cmd, transaction, **kwargs):
+    async def mocked_find_entity_handler(cmd: Any, transaction: Any, **kwargs: Any):
         # Only return the parent entity ID for the specific file we're testing
         if cmd.file_path == archive_file.as_uri():
             return parent_entity_id
         return None
 
-    with patch("dam_archive.systems.ingest_archive_members_handler", new=mocked_ingest_system), patch(
-        "dam_app.systems.metadata_systems.extract_metadata_command_handler", new=failing_metadata_system
-    ), patch("dam_app.cli.assets.get_world", return_value=test_world_alpha), patch(
-        "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler", new=mocked_find_entity_handler
+    with (
+        patch("dam_archive.systems.ingest_archive_members_handler", new=mocked_ingest_system),
+        patch("dam_app.systems.metadata_systems.extract_metadata_command_handler", new=failing_metadata_system),
+        patch("dam_app.cli.assets.get_world", return_value=test_world_alpha),
+        patch(
+            "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler",
+            new=mocked_find_entity_handler,
+        ),
     ):
-
         # 3. Run command with --no-stop-on-error
         await add_assets(
             paths=[archive_file],
@@ -407,7 +407,9 @@ async def test_add_assets_stops_on_error_by_default(
     exception by default when an error occurs.
     """
     from unittest.mock import patch
+
     import pytest
+
     from dam_app.cli.assets import add_assets
 
     # 1. Setup: Create a dummy file
@@ -415,12 +417,15 @@ async def test_add_assets_stops_on_error_by_default(
     test_file.write_text("dummy content")
 
     # 2. Mock the handler for FindEntityByFilePropertiesCommand to raise an error
-    async def failing_find_handler(*args, **kwargs):
+    async def failing_find_handler(*args: Any, **kwargs: Any):
         raise Exception("Simulated processing error")
 
-    with patch(
-        "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler", new=failing_find_handler
-    ), patch("dam_app.cli.assets.get_world", return_value=test_world_alpha):
+    with (
+        patch(
+            "dam_fs.systems.asset_lifecycle_systems.find_entity_by_file_properties_handler", new=failing_find_handler
+        ),
+        patch("dam_app.cli.assets.get_world", return_value=test_world_alpha),
+    ):
         # 3. Assert that calling add_assets raises an exception
         with pytest.raises(Exception, match="Simulated processing error"):
             await add_assets(
