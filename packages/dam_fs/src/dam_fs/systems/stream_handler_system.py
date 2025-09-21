@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from typing import Annotated, BinaryIO, Optional
+from typing import Annotated, Optional
 
-from dam.commands import GetAssetStreamCommand
+from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
+from dam.core.types import StreamProvider
 from dam.core.world import World
 
 from dam_fs.utils.url_utils import get_local_path_for_url
@@ -19,7 +20,7 @@ async def get_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: EcsTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[BinaryIO]:
+) -> Optional[StreamProvider]:
     """
     Handles getting a stream for a standalone asset. This is the default handler.
     It assumes that the archive handler has already run and returned None.
@@ -38,7 +39,7 @@ async def get_asset_stream_handler(
             if potential_path:
                 is_file = await asyncio.to_thread(potential_path.is_file)
             if potential_path and is_file:
-                return await asyncio.to_thread(open, potential_path, "rb")
+                return lambda: open(potential_path, "rb")
         except (ValueError, FileNotFoundError) as e:
             logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {cmd.entity_id}: {e}")
             continue
