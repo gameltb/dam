@@ -2,7 +2,7 @@ from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 
 from dam_archive.commands import ClearArchiveComponentsCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
@@ -30,7 +30,7 @@ async def test_clear_archive_components_handler():
         member_components.append(comp)
 
     # Mock the transaction and its session
-    mock_transaction = AsyncMock(spec=EcsTransaction)
+    mock_transaction = AsyncMock(spec=WorldTransaction)
     mock_session = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = member_components

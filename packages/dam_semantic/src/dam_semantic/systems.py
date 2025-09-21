@@ -3,7 +3,7 @@ from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 from dam.core.stages import SystemStage
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam_media_audio.commands import AudioSearchCommand
 from dam_media_audio.functions import audio_functions
 from dam_sire.resource import SireResource
@@ -22,7 +22,7 @@ TEXT_SOURCES_FOR_EMBEDDING: Dict[str, List[str]] = {
 
 @system(stage=SystemStage.POST_PROCESSING)
 async def generate_embeddings_system(
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ) -> None:
     logger.info("SemanticEmbeddingSystem: Starting embedding generation pass.")
@@ -31,7 +31,7 @@ async def generate_embeddings_system(
 @system(on_command=SemanticSearchCommand)
 async def handle_semantic_search_command(
     cmd: SemanticSearchCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ) -> Optional[List[Tuple[Any, float, Any]]]:
     model_to_use = cmd.model_name if cmd.model_name else semantic_functions.DEFAULT_MODEL_NAME
@@ -53,7 +53,7 @@ async def handle_semantic_search_command(
 @system(on_command=AudioSearchCommand)
 async def handle_audio_search_command(
     cmd: AudioSearchCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ) -> Optional[List[Tuple[Any, float, Any]]]:
     model_to_use = cmd.model_name if cmd.model_name else audio_functions.DEFAULT_AUDIO_MODEL_NAME

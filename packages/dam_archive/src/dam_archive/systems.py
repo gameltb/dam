@@ -12,7 +12,7 @@ from dam.commands.asset_commands import (
     GetOrCreateEntityFromStreamCommand,
 )
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.types import StreamProvider
 from dam.core.world import World
 from dam.functions.mime_type_functions import get_content_mime_type
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=DiscoverAndBindCommand)
 async def discover_and_bind_handler(
     cmd: DiscoverAndBindCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ):
     """
@@ -147,7 +147,7 @@ async def discover_and_bind_handler(
 @system(on_command=CreateMasterArchiveCommand)
 async def create_master_archive_handler(
     cmd: CreateMasterArchiveCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ):
     """
     Handles the manual creation of a master entity for a split archive.
@@ -201,7 +201,7 @@ async def create_master_archive_handler(
 @system(on_command=UnbindSplitArchiveCommand)
 async def unbind_split_archive_handler(
     cmd: UnbindSplitArchiveCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ):
     """
     Handles unbinding a split archive.
@@ -231,7 +231,7 @@ async def unbind_split_archive_handler(
 @system(on_command=SetArchivePasswordCommand)
 async def set_archive_password_handler(
     cmd: SetArchivePasswordCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> None:
     """
     Handles setting the password for an archive.
@@ -247,7 +247,7 @@ async def set_archive_password_handler(
 @system(on_command=GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> Optional[StreamProvider]:
     """
@@ -307,7 +307,7 @@ async def get_archive_asset_stream_handler(
 @system(on_command=GetAssetFilenamesCommand)
 async def get_archive_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> Optional[List[str]]:
     """
     Handles getting filenames for assets that are members of an archive.
@@ -323,7 +323,7 @@ async def _perform_ingestion(
     archive_stream_provider: StreamProvider,
     cmd: IngestArchiveCommand,
     world: Annotated[World, "Resource"],
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
     """
     The core extraction logic, once an archive stream provider is prepared.
@@ -484,7 +484,7 @@ async def _perform_ingestion(
 @system(on_command=IngestArchiveCommand)
 async def ingest_archive_members_handler(
     cmd: IngestArchiveCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
     """
@@ -578,7 +578,7 @@ async def ingest_archive_members_handler(
 @system(on_command=ClearArchiveComponentsCommand)
 async def clear_archive_components_handler(
     cmd: ClearArchiveComponentsCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> None:
     """
     Handles clearing archive-related components from an entity and its members.

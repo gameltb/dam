@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=FindSimilarImagesCommand)
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> Optional[List[Dict[str, Any]]]:
     logger.info(f"System handling FindSimilarImagesCommand for image: {cmd.image_path} (Req ID: {cmd.request_id})")
 
@@ -179,7 +179,7 @@ async def handle_find_similar_images_command(
 @system(on_event=ImageAssetDetected)
 async def process_image_metadata_system(
     event: ImageAssetDetected,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: World,
 ) -> None:
     """

@@ -3,7 +3,7 @@ from typing import Optional, cast
 
 from dam.commands.asset_commands import GetAssetFilenamesCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @system(on_event=AssetReadyForMetadataExtractionEvent)
 async def psp_iso_metadata_extraction_event_handler_system(
     event: AssetReadyForMetadataExtractionEvent,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: World,
 ) -> None:
     """
@@ -50,7 +50,7 @@ async def psp_iso_metadata_extraction_event_handler_system(
 @system(on_command=ExtractPSPMetadataCommand)
 async def psp_iso_metadata_extraction_command_handler_system(
     command: ExtractPSPMetadataCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: World,
 ) -> None:
     """

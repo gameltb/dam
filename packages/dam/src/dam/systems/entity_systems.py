@@ -4,7 +4,7 @@ from typing import Annotated
 from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=GetOrCreateEntityFromStreamCommand)
 async def get_or_create_entity_from_stream_handler(
     cmd: GetOrCreateEntityFromStreamCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> tuple[Entity, bytes]:
     """

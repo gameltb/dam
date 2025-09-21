@@ -3,7 +3,7 @@ from typing import Any, Dict, cast
 
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.models.hashes import (
     ContentHashBLAKE3Component,
     ContentHashCRC32Component,
@@ -39,7 +39,7 @@ class HashMismatchError(Exception):
 
 
 async def add_hash_component(
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     entity_id: int,
     algorithm: HashAlgorithm,
     hash_value: bytes,
@@ -68,7 +68,7 @@ async def add_hash_component(
 
 
 async def add_hashes_to_entity(
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     entity_id: int,
     hashes: Dict[HashAlgorithm, Any],
 ) -> None:
@@ -91,7 +91,7 @@ async def add_hashes_to_entity(
 
 
 @system(on_command=AddHashesFromStreamCommand)
-async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: EcsTransaction) -> None:
+async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: WorldTransaction) -> None:
     """
     Handles the command to calculate and add multiple hash components to an entity from a stream.
     """

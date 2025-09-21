@@ -249,7 +249,7 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 
 ### 3.2. Systems
 
--   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to function modules or the `EcsTransaction` object.
+-   **Definition and Purpose**: Systems contain the application's control flow and orchestration logic. They operate on groups of Entities based on the Components they possess, or react to specific Events or Commands. They decide *what* to do and *when*, but delegate the *how* to function modules or the `WorldTransaction` object.
 -   **Structure**: Implemented as asynchronous Python functions (`async def`) decorated with `@dam.core.systems.system`. This single decorator can be used in the following ways:
     *   `@system(on_stage=SystemStage.SOME_STAGE)` for stage-based execution.
     *   `@system(on_event=EventType)` for event-driven execution.
@@ -259,11 +259,10 @@ This section outlines the roles and interactions of Functions, Systems, Commands
     *   Systems declare their dependencies using type hints in their parameters. The `WorldScheduler` injects these dependencies.
     *   Common injectable types for Systems include:
         *   The `Event` or `Command` object that triggered the system.
-        *   `EcsTransaction`: The primary mechanism for database interaction. Systems should inject this to perform ECS operations like adding/getting components.
+        *   `WorldTransaction`: The primary mechanism for database interaction. Systems should inject this to perform ECS operations like adding/getting components.
         *   `World`: The `World` instance itself can be injected to access world-level information or methods.
         *   `WorldConfig`: The configuration object for the current world.
         *   Any other resource added to the world's `ResourceManager`, which are injected by their type hint.
-        *   `WorldSession`: `Annotated[AsyncSession, "WorldSession"]` - **[DEPRECATED]** Direct access to the session is discouraged. Use `EcsTransaction` instead. This is maintained for backward compatibility during the transition.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the functions they call.
 -   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `World` object manages the transaction boundary (see Section 3.6).
 -   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems and specifying how they are triggered (stage, event, or command).
@@ -320,16 +319,16 @@ It is important to distinguish between Events and Commands to maintain a clean a
     *   World-specific resources are typically instantiated once per `World` and added to that world's `ResourceManager`.
 -   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to functions if needed.
 
-### 3.6. Transaction Management and the `EcsTransaction` Object
+### 3.6. Transaction Management and the `WorldTransaction` Object
 
 A core principle of the framework is to ensure data consistency through atomic transactions, especially when a single action (like a command) triggers a chain of subsequent events and commands.
 
 -   **Transaction Boundary**: The transaction is managed by the `World` object. A database transaction begins when a "top-level" command or event is dispatched via `world.dispatch_command()` or `world.dispatch_event()`. The transaction is committed only after the initial operation and *all* subsequent operations it triggers have completed successfully. If any handler in the chain fails, the entire transaction is rolled back.
 
--   **The `EcsTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
-    -   **Purpose**: The `dam.core.transaction.EcsTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
-    -   **Lifecycle**: An `EcsTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and functions that are part of that transaction chain.
-    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `EcsTransaction` object and use its methods. The `EcsTransaction` object provides several helper methods to abstract common database operations:
+-   **The `WorldTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
+    -   **Purpose**: The `dam.core.transaction.WorldTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
+    -   **Lifecycle**: An `WorldTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and functions that are part of that transaction chain.
+    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `WorldTransaction` object and use its methods. The `WorldTransaction` object provides several helper methods to abstract common database operations:
         -   `await transaction.add_component_to_entity(...)`: Adds a component instance to an entity. Best for non-unique components.
         -   `await transaction.add_or_update_component(...)`: A convenient helper that adds or updates a component. It checks if the component is a `UniqueComponent` and, if so, will update an existing instance instead of causing an error. This is the preferred method for managing unique components.
         -   `await transaction.create_entity()`: Creates a new entity.

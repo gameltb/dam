@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from dam.core.config import WorldConfig
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core.entity import Entity
@@ -112,7 +112,7 @@ async def get_mime_type_async(filepath: Path) -> str:
     return await asyncio.to_thread(get_mime_type, filepath)
 
 
-async def create_entity_with_file(transaction: EcsTransaction, world_config: WorldConfig, file_path: str) -> Entity:
+async def create_entity_with_file(transaction: WorldTransaction, world_config: WorldConfig, file_path: str) -> Entity:
     """
     Creates an entity for a given file path, with file-related components.
     Note: This is a simplified helper and does not perform content-based deduplication.
@@ -147,7 +147,7 @@ async def create_entity_with_file(transaction: EcsTransaction, world_config: Wor
     return entity
 
 
-async def get_file_path_by_id(world: World, transaction: EcsTransaction, file_id: int) -> Optional[Path]:
+async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_id: int) -> Optional[Path]:
     """
     Resolves a file_id (which is the ID of a FilenameComponent) to a local, accessible file path.
     TODO: This function is fragile as it assumes file_id is a component ID. Refactor to use entity_id.
@@ -161,7 +161,7 @@ async def get_file_path_by_id(world: World, transaction: EcsTransaction, file_id
 
 
 async def get_file_path_for_entity(
-    world: World, transaction: EcsTransaction, entity_id: int, variant_name: Optional[str] = "original"
+    world: World, transaction: WorldTransaction, entity_id: int, variant_name: Optional[str] = "original"
 ) -> Optional[Path]:
     """
     Retrieves the full file path for a given entity.

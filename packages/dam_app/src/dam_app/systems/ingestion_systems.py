@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions.mime_type_functions import set_content_mime_type
 from dam_fs.events import FileStored
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 async def asset_dispatcher_system(
     event: FileStored,
     world: Annotated[World, "Resource"],
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ):
     """
     Listens for when a file has been stored, stores its mime type, and dispatches it

@@ -104,12 +104,12 @@ The Command pattern is used for imperative actions where the caller requests a s
 2.  **Create the Command Handler System:**
     - In the package's `systems/` module, create a new function to handle the command.
     - Decorate it with `@system(on_command=YourCommandClass)`.
-    - Use the command's helper methods and the `EcsTransaction` object to implement the logic.
+    - Use the command's helper methods and the `WorldTransaction` object to implement the logic.
 
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python
     from dam.core.systems import system
-    from dam.core.transaction import EcsTransaction
+    from dam.core.transaction import WorldTransaction
     from dam.core.world import World
     from my_plugin.commands import ExtractDominantColorCommand
     from my_plugin.models import DominantColorComponent # A UniqueComponent
@@ -117,7 +117,7 @@ The Command pattern is used for imperative actions where the caller requests a s
     @system(on_command=ExtractDominantColorCommand)
     async def handle_extract_dominant_color_command(
         cmd: ExtractDominantColorCommand,
-        transaction: EcsTransaction,
+        transaction: WorldTransaction,
         world: World, # Inject the world to use command helpers
     ):
         print(f"Handling command to extract color from entity {cmd.entity_id}")

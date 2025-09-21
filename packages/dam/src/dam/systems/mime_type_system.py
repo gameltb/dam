@@ -3,7 +3,7 @@ from typing import Optional
 
 from dam.commands.asset_commands import GetMimeTypeCommand, SetMimeTypeCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.functions.mime_type_functions import (
     get_content_mime_type,
     set_content_mime_type,
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @system(on_command=SetMimeTypeCommand)
-async def set_mime_type_system(cmd: SetMimeTypeCommand, transaction: EcsTransaction):
+async def set_mime_type_system(cmd: SetMimeTypeCommand, transaction: WorldTransaction):
     """
     Handles the command to set the mime type for an entity.
     """
@@ -22,7 +22,7 @@ async def set_mime_type_system(cmd: SetMimeTypeCommand, transaction: EcsTransact
 
 
 @system(on_command=GetMimeTypeCommand)
-async def get_mime_type_system(cmd: GetMimeTypeCommand, transaction: EcsTransaction) -> Optional[str]:
+async def get_mime_type_system(cmd: GetMimeTypeCommand, transaction: WorldTransaction) -> Optional[str]:
     """
     Handles the command to get the mime type for an entity.
     """

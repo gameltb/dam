@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.models.core.entity import Entity
 
 from dam_source.models.source_info.web_source_component import WebSourceComponent
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=IngestWebAssetCommand)
 async def handle_ingest_web_asset_command(
     cmd: IngestWebAssetCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> None:
     """
     Handles the command to ingest an asset from a web source.

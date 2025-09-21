@@ -4,7 +4,7 @@ import logging
 import subprocess
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=ExtractAudioMetadataCommand)
 async def add_audio_components_system(
     cmd: ExtractAudioMetadataCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> None:
     logger.info("Running add_audio_components_system with ffprobe")
 

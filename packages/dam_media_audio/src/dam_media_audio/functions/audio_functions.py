@@ -3,7 +3,7 @@ import logging
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.models.core.entity import Entity
 from dam_semantic.models.audio_embedding_component import (
     AUDIO_EMBEDDING_MODEL_REGISTRY,
@@ -61,7 +61,7 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) 
 
 
 async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported]
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     sire_resource: "SireResource",
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
@@ -73,7 +73,7 @@ async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported
 
 
 async def find_similar_entities_by_audio_embedding(  # type: ignore[no-any-unimported]
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     sire_resource: "SireResource",
     query_audio_path: str,
     model_name: str,

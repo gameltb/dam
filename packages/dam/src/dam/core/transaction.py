@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=Component)
 
 
-class EcsTransaction:
+class WorldTransaction:
     """
     A wrapper around the SQLAlchemy session and ECS functions that provides
     a controlled, transactional interface for systems.
@@ -87,5 +87,5 @@ class EcsTransaction:
         )
 
 
-# Context variable to hold the current EcsTransaction instance for a given async context.
-active_transaction: ContextVar[Optional["EcsTransaction"]] = ContextVar("active_transaction", default=None)
+# Context variable to hold the current WorldTransaction instance for a given async context.
+active_transaction: ContextVar[Optional["WorldTransaction"]] = ContextVar("active_transaction", default=None)

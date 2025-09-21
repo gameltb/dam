@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam_sire.resource import SireResource
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=AutoTagEntityCommand)
 async def auto_tag_entity_command_handler(
     cmd: AutoTagEntityCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
     sire_resource: SireResource,
 ):

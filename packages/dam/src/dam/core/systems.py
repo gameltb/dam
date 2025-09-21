@@ -26,7 +26,7 @@ from dam.core.markers import CommandMarker, EventMarker, MarkedEntityList, Resou
 from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_info import SystemMetadata, SystemParameterInfo
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.enums import ExecutionStrategy
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
@@ -224,7 +224,7 @@ class WorldScheduler:
         elif metadata.system_type == SystemType.EVENT and metadata.listens_for_event_type:
             self.event_handler_registry[metadata.listens_for_event_type].append(system_func)
 
-    async def execute_stage(self, stage: SystemStage, transaction: EcsTransaction) -> None:
+    async def execute_stage(self, stage: SystemStage, transaction: WorldTransaction) -> None:
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
             return
@@ -233,7 +233,7 @@ class WorldScheduler:
         async for _ in executor:
             pass
 
-    async def dispatch_event(self, event: BaseEvent, transaction: EcsTransaction) -> None:
+    async def dispatch_event(self, event: BaseEvent, transaction: WorldTransaction) -> None:
         handlers_to_run = self.event_handler_registry.get(type(event), [])
         if not handlers_to_run:
             return
@@ -243,7 +243,7 @@ class WorldScheduler:
             pass
 
     def dispatch_command(
-        self, command: "BaseCommand[ResultType, EventType]", transaction: EcsTransaction
+        self, command: "BaseCommand[ResultType, EventType]", transaction: WorldTransaction
     ) -> "SystemExecutor[ResultType, EventType]":
         handlers_to_run = self.command_handler_registry.get(type(command), [])
         if not handlers_to_run:
@@ -257,7 +257,7 @@ class WorldScheduler:
     async def _resolve_dependencies(
         self,
         system_func: Callable[..., Any],
-        transaction: EcsTransaction,
+        transaction: WorldTransaction,
         event_object: Optional[BaseEvent] = None,
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
@@ -278,7 +278,7 @@ class WorldScheduler:
             identity = param_meta.identity
             param_type_hint = param_meta.type_hint
 
-            if param_type_hint is EcsTransaction:
+            if param_type_hint is WorldTransaction:
                 kwargs_to_inject[param_name] = transaction
             elif identity is ResourceMarker:
                 kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
@@ -310,7 +310,7 @@ class WorldScheduler:
     async def _execute_system_func(
         self,
         system_func: Callable[..., Any],
-        transaction: EcsTransaction,
+        transaction: WorldTransaction,
         event_object: Optional[BaseEvent] = None,
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
@@ -345,7 +345,7 @@ class WorldScheduler:
             yield SystemResultEvent(result)
 
     def execute_one_time_system(
-        self, system_func: Callable[..., Any], transaction: EcsTransaction, **kwargs: Any
+        self, system_func: Callable[..., Any], transaction: WorldTransaction, **kwargs: Any
     ) -> SystemExecutor[Any, BaseSystemEvent]:
         generator = self._execute_system_func(system_func, transaction, **kwargs)
         return SystemExecutor([generator], ExecutionStrategy.SERIAL)

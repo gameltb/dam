@@ -5,7 +5,7 @@ import magic
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
 from dam.commands.asset_commands import GetAssetFilenamesCommand, SetMimeTypeFromBufferCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions.mime_type_functions import set_content_mime_type
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
@@ -22,7 +22,7 @@ EXTENSION_TO_MIMETYPE = {
 @system(on_command=AutoSetMimeTypeCommand)
 async def auto_set_mime_type_from_filename_system(
     command: AutoSetMimeTypeCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ):
     """
@@ -70,7 +70,7 @@ async def auto_set_mime_type_from_filename_system(
 @system(on_command=SetMimeTypeFromBufferCommand)
 async def set_mime_type_from_buffer_system(
     command: SetMimeTypeFromBufferCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ):
     """
     Sets the mime type for an entity from a buffer, if it doesn't have one.

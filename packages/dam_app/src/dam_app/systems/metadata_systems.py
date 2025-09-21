@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional
 
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
@@ -188,7 +188,7 @@ exiftool_instance = ExifTool()
 @system(on_command=ExtractExifMetadataCommand)
 async def extract_metadata_command_handler(
     cmd: ExtractExifMetadataCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: World,
 ):
     entity_id = cmd.entity_id

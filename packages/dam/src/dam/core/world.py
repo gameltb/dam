@@ -14,7 +14,7 @@ from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
-from dam.core.transaction import EcsTransaction, active_transaction
+from dam.core.transaction import WorldTransaction, active_transaction
 from dam.enums import ExecutionStrategy
 from dam.system_events.base import SystemResultEvent
 
@@ -184,7 +184,7 @@ class World:
             return None
 
     @asynccontextmanager
-    async def _managed_transaction(self, nested: bool = False) -> AsyncGenerator[EcsTransaction, None]:
+    async def _managed_transaction(self, nested: bool = False) -> AsyncGenerator[WorldTransaction, None]:
         """
         An internal helper to provide a transaction context.
         It joins an existing transaction, creates a new top-level one,
@@ -209,7 +209,7 @@ class World:
 
         self.logger.debug("Creating new top-level transaction for managed operation.")
         db_session = self.get_db_session()
-        new_transaction = EcsTransaction(db_session)
+        new_transaction = WorldTransaction(db_session)
         token = active_transaction.set(new_transaction)
         try:
             yield new_transaction

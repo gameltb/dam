@@ -10,7 +10,7 @@ from dam.commands.asset_commands import (
 )
 from dam.core.config import WorldConfig
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core import Entity
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=AddFilePropertiesCommand)
 async def add_file_properties_handler(
     cmd: AddFilePropertiesCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> None:
     logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
 
@@ -51,7 +51,7 @@ async def add_file_properties_handler(
 @system(on_command=FindEntityByHashCommand)
 async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world_config: WorldConfig,
 ) -> Optional[Dict[str, Any]]:
     logger.info(
@@ -70,7 +70,7 @@ async def handle_find_entity_by_hash_command(
 @system(on_command=GetAssetFilenamesCommand)
 async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> Optional[List[str]]:
     fncs = await transaction.get_components(cmd.entity_id, FilenameComponent)
     if fncs:
@@ -81,7 +81,7 @@ async def get_fs_asset_filenames_handler(
 @system(on_command=RegisterLocalFileCommand)
 async def register_local_file_handler(
     cmd: RegisterLocalFileCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> Optional[int]:
     file_path = cmd.file_path
@@ -137,7 +137,7 @@ async def register_local_file_handler(
 @system(on_command=FindEntityByFilePropertiesCommand)
 async def find_entity_by_file_properties_handler(
     cmd: FindEntityByFilePropertiesCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
 ) -> Optional[int]:
     stmt = (
         select(FileLocationComponent.entity_id)
@@ -152,7 +152,7 @@ async def find_entity_by_file_properties_handler(
 @system(on_command=StoreAssetsCommand)
 async def store_assets_handler(
     cmd: StoreAssetsCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> None:
     """

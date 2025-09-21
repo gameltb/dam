@@ -4,7 +4,7 @@ from typing import Annotated, Optional
 
 from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.systems import system
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.core.types import StreamProvider
 from dam.core.world import World
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @system(on_command=GetAssetStreamCommand)
 async def get_asset_stream_handler(
     cmd: GetAssetStreamCommand,
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> Optional[StreamProvider]:
     """

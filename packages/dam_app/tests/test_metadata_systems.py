@@ -6,7 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 
@@ -20,8 +20,8 @@ from dam_app.systems.metadata_systems import (
 
 @pytest.fixture
 def mock_transaction() -> MagicMock:
-    """Fixture for a mocked EcsTransaction."""
-    transaction = MagicMock(spec=EcsTransaction)
+    """Fixture for a mocked WorldTransaction."""
+    transaction = MagicMock(spec=WorldTransaction)
     transaction.get_components = AsyncMock(return_value=[])
     transaction.add_or_update_component = AsyncMock()
     return transaction

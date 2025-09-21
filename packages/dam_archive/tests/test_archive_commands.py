@@ -76,11 +76,11 @@ async def test_manual_create_and_unbind_workflow(
     async with world.db_session_maker() as session:
         from datetime import datetime, timezone
 
-        from dam.core.transaction import EcsTransaction
+        from dam.core.transaction import WorldTransaction
         from dam.models.metadata.content_length_component import ContentLengthComponent
         from dam_fs.models import FilenameComponent
 
-        transaction = EcsTransaction(session)
+        transaction = WorldTransaction(session)
         for i in range(1, 3):
             entity = await transaction.create_entity()
             entity_ids.append(entity.id)

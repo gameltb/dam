@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
-from dam.core.transaction import EcsTransaction
+from dam.core.transaction import WorldTransaction
 from dam.models.core.entity import Entity
 
 # Import necessary tag components and functions to fetch tags
@@ -63,7 +63,7 @@ class BatchTextItem(TypedDict):
 
 
 async def update_text_embeddings_for_entity(
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     entity_id: int,
     text_fields_map: Dict[str, Any],
     sire_resource: "SireResource",
@@ -79,7 +79,7 @@ async def update_text_embeddings_for_entity(
 
 
 async def find_similar_entities_by_text_embedding(
-    transaction: EcsTransaction,
+    transaction: WorldTransaction,
     query_text: str,
     sire_resource: "SireResource",
     model_name: str,
