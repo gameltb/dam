@@ -1,5 +1,5 @@
-from dam.commands import (
-    AutoSetMimeTypeCommand,
+from dam.commands.analysis_commands import AutoSetMimeTypeCommand
+from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
     GetAssetStreamCommand,
     SetMimeTypeFromBufferCommand,

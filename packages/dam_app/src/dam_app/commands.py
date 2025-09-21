@@ -7,7 +7,7 @@ from typing import ClassVar, Dict, List, Optional
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.commands.core import BaseCommand
 from dam.models.core.entity import Entity
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass

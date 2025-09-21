@@ -123,14 +123,13 @@ The Command pattern is used for imperative actions where the caller requests a s
         print(f"Handling command to extract color from entity {cmd.entity_id}")
 
         # Use the command's helper to get a file stream
-        try:
-            image_stream = await cmd.get_stream(world)
-        except ValueError as e:
-            print(f"Error: {e}")
-            return
+        async with cmd.open_stream(world) as stream:
+            if not stream:
+                print(f"Could not get asset stream for entity {cmd.entity_id}")
+                return
 
-        # ... process the stream to find the dominant color (e.g., '#FF0000') ...
-        dominant_color_hex = "#FF0000" # Placeholder
+            # ... process the stream to find the dominant color (e.g., '#FF0000') ...
+            dominant_color_hex = "#FF0000"  # Placeholder
 
         # Create the component instance
         color_component = DominantColorComponent(hex_color=dominant_color_hex)

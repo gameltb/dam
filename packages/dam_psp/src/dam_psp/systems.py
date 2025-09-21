@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, cast
 
-from dam.commands import GetAssetFilenamesCommand
+from dam.commands.asset_commands import GetAssetFilenamesCommand
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
 from dam.core.world import World
@@ -58,12 +58,11 @@ async def psp_iso_metadata_extraction_command_handler_system(
     """
     entity_id = command.entity_id
     try:
-        stream = await command.get_stream(world)
-        if not stream:
-            logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
-            return
+        async with command.open_stream(world) as stream:
+            if not stream:
+                logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
+                return
 
-        with stream:
             sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:

@@ -19,7 +19,6 @@ from typing import (
     get_origin,
 )
 
-from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
@@ -31,9 +30,10 @@ from dam.core.transaction import EcsTransaction
 from dam.enums import ExecutionStrategy
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
-from dam.system_events import BaseSystemEvent, SystemResultEvent
+from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
 if TYPE_CHECKING:
+    from dam.commands.core import BaseCommand, EventType, ResultType
     from dam.core.world import World
 
 
@@ -44,6 +44,8 @@ T = TypeVar("T")
 
 
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, SystemParameterInfo]:
+    from dam.commands.core import BaseCommand
+
     sig = inspect.signature(func)
     param_info: Dict[str, SystemParameterInfo] = {}
     for name, param in sig.parameters.items():
@@ -52,7 +54,7 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, SystemParameterI
         actual_type = original_param_type
         marker_component_type: Optional[Type[BaseComponent]] = None
         event_specific_type: Optional[Type[BaseEvent]] = None
-        command_specific_type: Optional[Type[BaseCommand[Any, Any]]] = None
+        command_specific_type: Optional[Type["BaseCommand[Any, Any]"]] = None
         is_annotated = get_origin(original_param_type) is Annotated
 
         if is_annotated:
@@ -116,7 +118,7 @@ def system(
     func: Optional[Callable[..., Any]] = None,
     *,
     on_stage: Optional[SystemStage] = None,
-    on_command: Optional[Type[BaseCommand[Any, Any]]] = None,
+    on_command: Optional[Type["BaseCommand[Any, Any]"]] = None,
     on_event: Optional[Type[BaseEvent]] = None,
     **kwargs: Any,
 ) -> Callable[..., Any]:
@@ -149,6 +151,8 @@ def system(
 
 class WorldScheduler:
     def __init__(self, world: "World") -> None:
+        from dam.commands.core import BaseCommand
+
         self.world = world
         self.resource_manager = world.resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
@@ -162,9 +166,11 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         stage: Optional[SystemStage] = None,
         event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand[Any, Any]]] = None,
+        command_type: Optional[Type["BaseCommand[Any, Any]"]] = None,
         **kwargs: Any,
     ) -> None:
+        from dam.commands.core import BaseCommand
+
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             return
@@ -237,8 +243,8 @@ class WorldScheduler:
             pass
 
     def dispatch_command(
-        self, command: BaseCommand[ResultType, EventType], transaction: EcsTransaction
-    ) -> SystemExecutor[ResultType, EventType]:
+        self, command: "BaseCommand[ResultType, EventType]", transaction: EcsTransaction
+    ) -> "SystemExecutor[ResultType, EventType]":
         handlers_to_run = self.command_handler_registry.get(type(command), [])
         if not handlers_to_run:
             self.logger.warning(
@@ -246,16 +252,18 @@ class WorldScheduler:
             )
             return SystemExecutor([], command.execution_strategy)
         generators = [self._execute_system_func(h, transaction, command_object=command) for h in handlers_to_run]
-        return SystemExecutor(cast(List[AsyncGenerator[EventType, None]], generators), command.execution_strategy)
+        return SystemExecutor(cast(List[AsyncGenerator["EventType", None]], generators), command.execution_strategy)
 
     async def _resolve_dependencies(
         self,
         system_func: Callable[..., Any],
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand[Any, Any]] = None,
+        command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
     ) -> Dict[str, Any]:
+        from dam.commands.core import BaseCommand
+
         metadata = self.system_metadata[system_func]
         kwargs_to_inject: Dict[str, Any] = {}
 
@@ -304,7 +312,7 @@ class WorldScheduler:
         system_func: Callable[..., Any],
         transaction: EcsTransaction,
         event_object: Optional[BaseEvent] = None,
-        command_object: Optional[BaseCommand[Any, Any]] = None,
+        command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
     ) -> AsyncGenerator[BaseSystemEvent, None]:
         metadata = self.system_metadata.get(system_func)

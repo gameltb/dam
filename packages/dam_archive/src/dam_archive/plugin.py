@@ -1,4 +1,7 @@
-from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
+from dam.commands.asset_commands import (
+    GetAssetFilenamesCommand,
+    GetAssetStreamCommand,
+)
 from dam.core.plugin import Plugin
 from dam.core.world import World
 

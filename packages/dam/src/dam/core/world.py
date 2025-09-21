@@ -16,7 +16,7 @@ from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
 from dam.core.transaction import EcsTransaction, active_transaction
 from dam.enums import ExecutionStrategy
-from dam.system_events import BaseSystemEvent, SystemResultEvent
+from dam.system_events.base import SystemResultEvent
 
 logger = logging.getLogger(__name__)
 
@@ -114,63 +114,37 @@ class World:
 
     async def execute_stage(self, stage: SystemStage) -> None:
         self.logger.info(f"Executing stage '{stage.name}' for World '{self.name}'.")
+        try:
+            async with self._managed_transaction() as transaction:
+                await self.scheduler.execute_stage(stage, transaction)
+        except Exception as e:
+            # Avoid wrapping exceptions that are already specific
+            from dam.core.exceptions import StageExecutionError
 
-        transaction = active_transaction.get()
-        if transaction:
-            self.logger.debug(f"Joining existing transaction for stage '{stage.name}'.")
-            await self.scheduler.execute_stage(stage, transaction)
-        else:
-            self.logger.debug(f"Creating new transaction for top-level stage '{stage.name}'.")
-            db_session = self.get_db_session()
-            new_transaction = EcsTransaction(db_session)
-            token = active_transaction.set(new_transaction)
-            try:
-                await self.scheduler.execute_stage(stage, new_transaction)
-                await db_session.commit()
-            except Exception as e:
-                self.logger.exception(f"Exception in top-level stage '{stage.name}', rolling back.")
-                await db_session.rollback()
-                from dam.core.exceptions import StageExecutionError
-
-                raise StageExecutionError(
-                    message=f"Top-level stage '{stage.name}' failed.",
-                    stage_name=stage.name,
-                    original_exception=e,
-                ) from e
-            finally:
-                await db_session.close()
-                active_transaction.reset(token)
-                self.logger.debug(f"Transaction closed for stage '{stage.name}'.")
+            if isinstance(e, StageExecutionError):
+                raise
+            # Wrap generic exceptions for better context
+            raise StageExecutionError(
+                message=f"Top-level stage '{stage.name}' failed.",
+                stage_name=stage.name,
+                original_exception=e,
+            ) from e
 
     async def dispatch_event(self, event: BaseEvent) -> None:
         self.logger.info(f"Dispatching event '{type(event).__name__}' for World '{self.name}'.")
+        try:
+            async with self._managed_transaction() as transaction:
+                await self.scheduler.dispatch_event(event, transaction)
+        except Exception as e:
+            from dam.core.exceptions import EventHandlingError
 
-        transaction = active_transaction.get()
-        if transaction:
-            self.logger.debug(f"Joining existing transaction for event '{type(event).__name__}'.")
-            await self.scheduler.dispatch_event(event, transaction)
-        else:
-            self.logger.debug(f"Creating new transaction for top-level event '{type(event).__name__}'.")
-            db_session = self.get_db_session()
-            new_transaction = EcsTransaction(db_session)
-            token = active_transaction.set(new_transaction)
-            try:
-                await self.scheduler.dispatch_event(event, new_transaction)
-                await db_session.commit()
-            except Exception as e:
-                self.logger.exception(f"Exception in top-level event '{type(event).__name__}', rolling back.")
-                await db_session.rollback()
-                from dam.core.exceptions import EventHandlingError
-
-                raise EventHandlingError(
-                    message=f"Top-level event '{type(event).__name__}' failed.",
-                    event_type=type(event).__name__,
-                    original_exception=e,
-                ) from e
-            finally:
-                await db_session.close()
-                active_transaction.reset(token)
-                self.logger.debug(f"Transaction closed for event '{type(event).__name__}'.")
+            if isinstance(e, EventHandlingError):
+                raise
+            raise EventHandlingError(
+                message=f"Top-level event '{type(event).__name__}' failed.",
+                event_type=type(event).__name__,
+                original_exception=e,
+            ) from e
 
     def dispatch_command(
         self, command: BaseCommand[ResultType, EventType], *, use_nested_transaction: bool = False
@@ -183,51 +157,10 @@ class World:
             ensuring commit/rollback logic is correctly applied after the
             command's event stream is fully consumed.
             """
-            transaction = active_transaction.get()
-
-            # Case 1: We are in a transaction and want to create a nested one (savepoint).
-            if transaction and use_nested_transaction:
-                self.logger.debug(f"Creating nested transaction for command '{type(command).__name__}'.")
-                try:
-                    async with transaction.session.begin_nested():
-                        executor = self.scheduler.dispatch_command(command, transaction)
-                        async for event in executor:
-                            yield event
-                    # The context manager commits the savepoint if no exception occurs
-                except Exception:
-                    self.logger.exception(
-                        f"Exception in nested command '{type(command).__name__}', rolling back savepoint."
-                    )
-                    # The context manager rolls back the savepoint on exception.
-                    raise  # Re-raise the exception to the caller
-                return
-
-            # Case 2: We are already in a transaction and just want to join it.
-            if transaction:
-                self.logger.debug(f"Joining existing transaction for command '{type(command).__name__}'.")
+            async with self._managed_transaction(nested=use_nested_transaction) as transaction:
                 executor = self.scheduler.dispatch_command(command, transaction)
                 async for event in executor:
                     yield event
-                return
-
-            # Case 3: We are not in a transaction, so create a new top-level one.
-            self.logger.debug(f"Creating new transaction for top-level command '{type(command).__name__}'.")
-            db_session = self.get_db_session()
-            new_transaction = EcsTransaction(db_session)
-            token = active_transaction.set(new_transaction)
-            try:
-                executor = self.scheduler.dispatch_command(command, new_transaction)
-                async for event in executor:
-                    yield event
-                await db_session.commit()
-            except Exception:
-                self.logger.exception(f"Exception in top-level command '{type(command).__name__}', rolling back.")
-                await db_session.rollback()
-                raise  # Re-raise the original exception
-            finally:
-                await db_session.close()
-                active_transaction.reset(token)
-                self.logger.debug(f"Transaction closed for command '{type(command).__name__}'.")
 
         # The returned executor runs the wrapper, which in turn runs the actual command executor.
         # This ensures the lazy execution happens inside the transaction.
@@ -243,47 +176,38 @@ class World:
             f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
         )
 
-        async def _run_and_get_result(transaction: EcsTransaction) -> Any:
+        async with self._managed_transaction() as transaction:
             executor = self.scheduler.execute_one_time_system(system_func, transaction, **kwargs)
-            event: BaseSystemEvent
             async for event in executor:
                 if isinstance(event, SystemResultEvent):
-                    typed_event = cast(SystemResultEvent[Any], event)
-                    return typed_event.result
+                    return cast(SystemResultEvent[Any], event).result
             return None
 
-        transaction = active_transaction.get()
-        if transaction:
-            self.logger.debug(f"Joining existing transaction for one-time system '{system_func.__name__}'.")
-            return await _run_and_get_result(transaction)
-        else:
-            self.logger.debug(f"Creating new transaction for top-level one-time system '{system_func.__name__}'.")
-            db_session = self.get_db_session()
-            new_transaction = EcsTransaction(db_session)
-            token = active_transaction.set(new_transaction)
-            try:
-                result = await _run_and_get_result(new_transaction)
-                await new_transaction.session.commit()
-                return result
-            except Exception:
-                self.logger.exception(f"Exception in top-level one-time system '{system_func.__name__}', rolling back.")
-                await new_transaction.session.rollback()
-                raise
-            finally:
-                await new_transaction.session.close()
-                active_transaction.reset(token)
-                self.logger.debug(f"Transaction closed for one-time system '{system_func.__name__}'.")
-
     @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[EcsTransaction, None]:
-        """Provides a transactional context for database operations."""
+    async def _managed_transaction(self, nested: bool = False) -> AsyncGenerator[EcsTransaction, None]:
+        """
+        An internal helper to provide a transaction context.
+        It joins an existing transaction, creates a new top-level one,
+        or creates a nested one with a savepoint.
+        """
         transaction = active_transaction.get()
+
         if transaction:
-            self.logger.debug("Joining existing transaction.")
-            yield transaction
+            if nested:
+                self.logger.debug("Creating nested transaction (savepoint).")
+                try:
+                    async with transaction.session.begin_nested():
+                        yield transaction
+                except Exception:
+                    self.logger.exception("Exception in nested transaction, rolling back savepoint.")
+                    # The context manager handles the rollback of the savepoint.
+                    raise
+            else:
+                self.logger.debug("Joining existing transaction.")
+                yield transaction
             return
 
-        self.logger.debug("Creating new top-level transaction.")
+        self.logger.debug("Creating new top-level transaction for managed operation.")
         db_session = self.get_db_session()
         new_transaction = EcsTransaction(db_session)
         token = active_transaction.set(new_transaction)
@@ -291,13 +215,13 @@ class World:
             yield new_transaction
             await db_session.commit()
         except Exception:
-            self.logger.exception("Exception in top-level transaction, rolling back.")
+            self.logger.exception("Exception in managed transaction, rolling back.")
             await db_session.rollback()
             raise
         finally:
             await db_session.close()
             active_transaction.reset(token)
-            self.logger.debug("Top-level transaction closed.")
+            self.logger.debug("Managed transaction closed.")
 
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"
