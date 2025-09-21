@@ -36,7 +36,10 @@ async def auto_set_mime_type_from_filename_system(
         return
 
     try:
-        with await command.get_stream(world) as stream:
+        async with command.open_stream(world) as stream:
+            if not stream:
+                return
+
             buffer = stream.read(4096)
             mime_type = magic.from_buffer(buffer, mime=True)
 

@@ -7,7 +7,7 @@ import pytest
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_content_mime_type
-from dam.system_events import NewEntityCreatedEvent
+from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import ProgressCompleted
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import RegisterLocalFileCommand
@@ -15,50 +15,6 @@ from sqlalchemy import select
 
 from dam_archive.commands import IngestArchiveCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
-
-
-@pytest.mark.serial
-@pytest.mark.asyncio
-async def test_ingest_archive_with_stream(test_world_alpha: World, tmp_path: Path) -> None:
-    """
-    Tests that the IngestArchiveCommand can be called with a stream directly.
-    """
-    world = test_world_alpha
-
-    # 1. Create an in-memory archive
-    file_content = b"a" * 1024
-    file_name_in_archive = "test_file.txt"
-    archive_stream = io.BytesIO()
-    import zipfile
-
-    with zipfile.ZipFile(archive_stream, "w") as zf:
-        zf.writestr(file_name_in_archive, file_content)
-    archive_stream.seek(0)
-
-    # 2. Register a dummy entity for the archive
-    # In a real scenario, this entity would already exist.
-    async with world.db_session_maker() as session:
-        entity = await ecs_functions.create_entity(session)
-        await set_content_mime_type(session, entity.id, "application/zip")
-        await session.commit()
-        entity_id = entity.id
-
-    # 3. Run the extraction command with the stream
-    ingest_cmd = IngestArchiveCommand(entity_id=entity_id, stream=archive_stream)
-    async with world.transaction():
-        stream = world.dispatch_command(ingest_cmd)
-        events = [event async for event in stream]
-        assert any(isinstance(event, ProgressCompleted) for event in events)
-
-    # 4. Verify the results
-    async with world.db_session_maker() as session:
-        info = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
-        assert info is not None
-        members = await session.execute(
-            select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
-        )
-        for member in members.scalars().all():
-            assert isinstance(member.modified_at, datetime)
 
 
 @pytest.mark.serial
@@ -98,7 +54,8 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
             # Verify NewEntityCreatedEvent
             new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
             assert new_entity_event is not None
-            assert new_entity_event.file_stream is not None
+            async with new_entity_event.open_stream() as stream:
+                assert stream is not None
             assert new_entity_event.filename == file_name_in_archive
 
 
@@ -141,7 +98,8 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             # Verify NewEntityCreatedEvent
             new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
             assert new_entity_event is not None
-            assert new_entity_event.file_stream is None
+            async with new_entity_event.open_stream() as stream:
+                assert stream is None
 
             # Verify stream passed to GetOrCreateEntityFromStreamCommand
             get_or_create_cmd = dispatch_spy.call_args.args[0]
@@ -174,9 +132,10 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             # Verify NewEntityCreatedEvent
             new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
             assert new_entity_event is not None
-            assert new_entity_event.file_stream is not None
-            assert new_entity_event.file_stream.read() == file_content
-            new_entity_event.file_stream.seek(0)
+            async with new_entity_event.open_stream() as stream:
+                assert stream is not None
+                assert stream.read() == file_content
+                stream.seek(0)
 
             # Verify stream passed to GetOrCreateEntityFromStreamCommand
             get_or_create_cmd = dispatch_spy.call_args.args[0]

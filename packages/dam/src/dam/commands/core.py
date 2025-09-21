@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
 from dam.enums import ExecutionStrategy
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 ResultType = TypeVar("ResultType")
 EventType = TypeVar("EventType", bound=BaseSystemEvent)

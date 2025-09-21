@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
 from dam.commands.core import BaseCommand
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass

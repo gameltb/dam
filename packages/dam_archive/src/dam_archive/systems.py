@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import IO, Annotated, AsyncGenerator, BinaryIO, Dict, List, Optional, Tuple, Union, cast
+from typing import Annotated, AsyncGenerator, BinaryIO, Dict, List, Optional, Tuple, Union, cast
 
 import psutil
 from dam.commands.asset_commands import (

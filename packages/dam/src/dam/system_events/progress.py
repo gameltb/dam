@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from . import BaseSystemEvent
+from .base import BaseSystemEvent
 
 
 @dataclass

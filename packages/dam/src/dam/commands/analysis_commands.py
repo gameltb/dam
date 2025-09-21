@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, AsyncIterator, BinaryIO, Dict, List, Optional
 
 from dam.commands.core import EntityCommand, EventType, ResultType
 from dam.core.types import StreamProvider
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 if TYPE_CHECKING:
     from dam.core.world import World

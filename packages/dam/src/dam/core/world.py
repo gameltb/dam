@@ -16,7 +16,7 @@ from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
 from dam.core.transaction import EcsTransaction, active_transaction
 from dam.enums import ExecutionStrategy
-from dam.system_events import BaseSystemEvent, SystemResultEvent
+from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
 logger = logging.getLogger(__name__)
 

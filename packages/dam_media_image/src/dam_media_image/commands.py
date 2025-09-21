@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dam.commands.core import BaseCommand
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass

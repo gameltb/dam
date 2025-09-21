@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import BinaryIO, Set
 
 from dam.commands.core import BaseCommand
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 from dam.utils.hash_utils import HashAlgorithm
 
 

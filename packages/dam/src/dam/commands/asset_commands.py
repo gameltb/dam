@@ -4,7 +4,7 @@ from typing import Any, BinaryIO, Optional, Tuple
 from dam.commands.core import BaseCommand
 from dam.core.types import StreamProvider
 from dam.models.core.entity import Entity
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass
