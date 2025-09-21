@@ -2,6 +2,7 @@ import io
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -33,11 +34,17 @@ def mock_world_config() -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_file(mock_transaction: MagicMock, mock_world_config: MagicMock):
+async def test_extract_metadata_from_file(mock_transaction: MagicMock):
     """
     Tests that metadata extraction from a file uses a persistent exiftool process
     and correctly extracts metadata.
     """
+    mock_world = MagicMock()
+    mock_dispatch_result = AsyncMock()
+    mock_dispatch_result.get_first_non_none_value.return_value = (
+        None  # No stream provider, forcing file-based extraction
+    )
+    mock_world.dispatch_command.return_value = mock_dispatch_result
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_file = Path(temp_dir) / "test.txt"
         temp_file.write_text("This is a test file.")
@@ -52,7 +59,7 @@ async def test_extract_metadata_from_file(mock_transaction: MagicMock, mock_worl
         with patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata:
             mock_get_metadata.return_value = {"FileType": "TXT"}
 
-            await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
+            await extract_metadata_command_handler(command, mock_transaction, mock_world)
 
             mock_get_metadata.assert_called_once_with(filepath=temp_file)
             assert mock_transaction.add_or_update_component.call_args is not None
@@ -63,23 +70,37 @@ async def test_extract_metadata_from_file(mock_transaction: MagicMock, mock_worl
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_stream(mock_transaction: MagicMock, mock_world_config: MagicMock):
+async def test_extract_metadata_from_stream(mock_transaction: MagicMock):
     """
     Tests that metadata extraction from a stream uses a persistent exiftool process
     and correctly extracts metadata without creating a temporary file.
     """
     stream_content = b"This is a test stream."
-    stream = io.BytesIO(stream_content)
+    read_content = None
+
+    async def side_effect(stream: io.BytesIO, **kwargs: Any):
+        nonlocal read_content
+        read_content = stream.read()
+        return {"FileType": "STREAM"}
+
+    def stream_provider():
+        return io.BytesIO(stream_content)
 
     entity_id = 1
-    command = ExtractExifMetadataCommand(entity_id=entity_id, stream=stream)
+    command = ExtractExifMetadataCommand(entity_id=entity_id, stream_provider=stream_provider)
+
+    # Mock the world object needed by open_stream
+    mock_world = MagicMock()
 
     with patch.object(exiftool_instance, "get_metadata", new_callable=AsyncMock) as mock_get_metadata:
-        mock_get_metadata.return_value = {"FileType": "STREAM"}
+        mock_get_metadata.side_effect = side_effect
 
-        await extract_metadata_command_handler(command, mock_transaction, mock_world_config)
+        await extract_metadata_command_handler(command, mock_transaction, mock_world)
 
-        mock_get_metadata.assert_called_once_with(stream=stream)
+        # Verify that get_metadata was called with a stream
+        assert mock_get_metadata.call_count == 1
+        assert read_content == stream_content
+
         assert mock_transaction.add_or_update_component.call_args is not None
         added_component = mock_transaction.add_or_update_component.call_args[0][1]
         assert isinstance(added_component, ExiftoolMetadataComponent)

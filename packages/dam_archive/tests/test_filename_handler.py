@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from dam.commands import GetAssetFilenamesCommand
+from dam.commands.asset_commands import GetAssetFilenamesCommand
 
 from dam_archive.models import ArchiveMemberComponent
 from dam_archive.systems import get_archive_asset_filenames_handler

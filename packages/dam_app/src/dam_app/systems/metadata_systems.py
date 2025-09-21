@@ -18,9 +18,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional
 
-from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
+from dam.core.world import World
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
@@ -189,41 +189,42 @@ exiftool_instance = ExifTool()
 async def extract_metadata_command_handler(
     cmd: ExtractExifMetadataCommand,
     transaction: EcsTransaction,
-    world_config: WorldConfig,
+    world: World,
 ):
     entity_id = cmd.entity_id
     logger.debug(f"Processing entity ID {entity_id} for metadata extraction.")
 
     exiftool_data = None
 
-    if cmd.stream:
-        logger.debug(f"Using provided stream for entity {entity_id}.")
-        exiftool_data = await exiftool_instance.get_metadata(stream=cmd.stream)
-    else:
-        logger.debug(f"No stream provided for entity {entity_id}, finding file on disk.")
-        all_locations = await transaction.get_components(entity_id, FileLocationComponent)
-        if not all_locations:
-            logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}. Cannot extract metadata.")
-            return
+    async with cmd.open_stream(world) as stream:
+        if stream:
+            logger.debug(f"Using provided stream for entity {entity_id}.")
+            exiftool_data = await exiftool_instance.get_metadata(stream=stream)
+        else:
+            logger.debug(f"No stream provided for entity {entity_id}, finding file on disk.")
+            all_locations = await transaction.get_components(entity_id, FileLocationComponent)
+            if not all_locations:
+                logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}. Cannot extract metadata.")
+                return
 
-        filepath_to_process = None
-        for loc in all_locations:
-            try:
-                potential_path = get_local_path_for_url(loc.url)
-                if potential_path and await asyncio.to_thread(potential_path.is_file):
-                    filepath_to_process = potential_path
-                    break
-            except (ValueError, FileNotFoundError) as e:
-                logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
-                continue
+            filepath_to_process = None
+            for loc in all_locations:
+                try:
+                    potential_path = get_local_path_for_url(loc.url)
+                    if potential_path and await asyncio.to_thread(potential_path.is_file):
+                        filepath_to_process = potential_path
+                        break
+                except (ValueError, FileNotFoundError) as e:
+                    logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
+                    continue
 
-        if not filepath_to_process:
-            logger.error(
-                f"Filepath for Entity ID {entity_id} does not exist or could not be determined. Cannot extract metadata."
-            )
-            return
+            if not filepath_to_process:
+                logger.error(
+                    f"Filepath for Entity ID {entity_id} does not exist or could not be determined. Cannot extract metadata."
+                )
+                return
 
-        exiftool_data = await exiftool_instance.get_metadata(filepath=filepath_to_process)
+            exiftool_data = await exiftool_instance.get_metadata(filepath=filepath_to_process)
 
     if exiftool_data:
         exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)

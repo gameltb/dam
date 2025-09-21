@@ -7,7 +7,7 @@ from _pytest.logging import LogCaptureFixture
 from dam.commands.core import BaseCommand
 from dam.core.systems import system
 from dam.core.world import World
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 # Define some test commands

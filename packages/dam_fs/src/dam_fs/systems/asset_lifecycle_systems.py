@@ -3,8 +3,11 @@ import datetime
 import logging
 from typing import Annotated, Any, Dict, List, Optional
 
-from dam.commands import GetAssetFilenamesCommand, GetAssetStreamCommand
-from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
+from dam.commands.asset_commands import (
+    GetAssetFilenamesCommand,
+    GetAssetStreamCommand,
+    GetOrCreateEntityFromStreamCommand,
+)
 from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import EcsTransaction
@@ -177,19 +180,20 @@ async def store_assets_handler(
         # Get the asset stream to store it
         asset_stream_cmd = GetAssetStreamCommand(entity_id=entity.id)
         try:
-            asset_stream = await world.dispatch_command(asset_stream_cmd).get_first_non_none_value()
+            stream_provider = await world.dispatch_command(asset_stream_cmd).get_first_non_none_value()
         except ValueError:
-            asset_stream = None
+            stream_provider = None
 
-        if asset_stream:
+        if stream_provider:
+            stream = stream_provider()
             try:
-                content = asset_stream.read()
+                content = stream.read()
                 storage_resource.store_file(content)
                 stored_count += 1
                 logger.info(f"Stored entity {entity.id} (hash: {content_hash})")
             except Exception as e:
                 logger.error(f"Failed to store entity {entity.id}: {e}", exc_info=True)
             finally:
-                asset_stream.close()
+                stream.close()
 
     logger.info(f"Successfully stored {stored_count} new assets.")

@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
-from dam.commands import (
-    AutoSetMimeTypeCommand,
+from dam.commands.analysis_commands import AutoSetMimeTypeCommand
+from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
     GetMimeTypeCommand,
     SetMimeTypeCommand,
 )
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam.system_events import NewEntityCreatedEvent
+from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
     ProgressError,
@@ -127,7 +127,7 @@ async def add_assets(
         depth: int,
         pbar: tqdm[Any],
         filename: Optional[str] = None,
-        stream_from_event: Optional[BinaryIO] = None,
+        stream_provider_from_event: Optional[Any] = None,
     ):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
@@ -138,12 +138,9 @@ async def add_assets(
         entity_filename: Optional[str] = filename
 
         # Auto-set and get MIME type
-        if stream_from_event and stream_from_event.seekable():
-            await target_world.dispatch_command(
-                AutoSetMimeTypeCommand(entity_id=entity_id, stream=stream_from_event)
-            ).get_all_results()
-        else:
-            await target_world.dispatch_command(AutoSetMimeTypeCommand(entity_id=entity_id)).get_all_results()
+        await target_world.dispatch_command(
+            AutoSetMimeTypeCommand(entity_id=entity_id, stream_provider=stream_provider_from_event)
+        ).get_all_results()
         mime_type_str = await target_world.dispatch_command(GetMimeTypeCommand(entity_id=entity_id)).get_one_value()
 
         # Get filename if not provided
@@ -169,10 +166,11 @@ async def add_assets(
             return
 
         # 3. Dispatch commands and handle recursion
+        current_stream_provider = stream_provider_from_event
         for command_name in set(commands_to_run):  # Use set to avoid duplicate commands
             if command_name in COMMAND_MAP:
                 command_class = COMMAND_MAP[command_name]
-                processing_cmd = command_class(entity_id=entity_id, stream=stream_from_event)
+                processing_cmd = command_class(entity_id=entity_id, stream_provider=current_stream_provider)
 
                 tqdm.write(f"Running {command_name} on entity {entity_id} at depth {depth}")
 
@@ -192,7 +190,7 @@ async def add_assets(
                             depth + 1,
                             pbar,
                             filename=event.filename,
-                            stream_from_event=event.file_stream,
+                            stream_provider_from_event=event.stream_provider,
                         )
                     elif isinstance(event, ProgressStarted):
                         sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
@@ -217,16 +215,9 @@ async def add_assets(
                             sub_pbar.close()
                         tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
 
-                # After a command has potentially used the stream, reset or invalidate it for the next command.
-                if stream_from_event:
-                    if not stream_from_event.closed:
-                        if stream_from_event.seekable():
-                            stream_from_event.seek(0)
-                    else:
-                        # If the stream is not seekable (e.g., a network stream),
-                        # it cannot be reused. Set to None to force the next command
-                        # to fetch a fresh stream if it needs one.
-                        stream_from_event = None
+                # The stream provider is single-use for non-seekable streams.
+                # Set to None to force the next command to fetch a new one.
+                current_stream_provider = None
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 

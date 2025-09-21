@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import pytest
-from dam.commands import GetAssetFilenamesCommand
+from dam.commands.asset_commands import GetAssetFilenamesCommand
 
 from dam_fs.models import FilenameComponent
 from dam_fs.systems.asset_lifecycle_systems import get_fs_asset_filenames_handler

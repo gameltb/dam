@@ -56,8 +56,8 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     """Test the add_assets command with the --process option for recursive processing."""
     import io
 
-    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-    from dam.system_events import NewEntityCreatedEvent
+    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
+    from dam.system_events.entity_events import NewEntityCreatedEvent
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 
@@ -70,7 +70,9 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
 
     mock_file_content = b"This is the content of the new file."
-    mock_file_stream = io.BytesIO(mock_file_content)
+
+    def mock_stream_provider():
+        return io.BytesIO(mock_file_content)
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
@@ -79,7 +81,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
         if isinstance(command, IngestArchiveCommand):
 
             async def event_generator(self: AsyncMock):
-                yield NewEntityCreatedEvent(entity_id=2, file_stream=mock_file_stream, filename="new_file.jpg")
+                yield NewEntityCreatedEvent(entity_id=2, stream_provider=mock_stream_provider, filename="new_file.jpg")
 
             mock_stream.__aiter__ = event_generator
         elif isinstance(command, ExtractExifMetadataCommand):
@@ -138,18 +140,19 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
     assert ingest_cmd is not None
     assert ingest_cmd.entity_id == 1
-    assert ingest_cmd.stream is None  # Stream is not passed for the initial command
+    assert ingest_cmd.stream_provider is None  # Stream is not passed for the initial command
 
     assert extract_cmd is not None
     assert extract_cmd.entity_id == 2
-    assert extract_cmd.stream is not None
-    assert extract_cmd.stream.read() == mock_file_content
+    assert extract_cmd.stream_provider is not None
+    provided_stream = extract_cmd.stream_provider()
+    assert provided_stream.read() == mock_file_content
 
 
 @pytest.mark.asyncio
 async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option based on file extension."""
-    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
+    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 
@@ -212,7 +215,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 @pytest.mark.asyncio
 async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option using only the command name."""
-    from dam.commands import GetAssetFilenamesCommand, GetMimeTypeCommand
+    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
     from dam_archive.commands import IngestArchiveCommand
     from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 

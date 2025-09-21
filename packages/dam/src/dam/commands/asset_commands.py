@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, BinaryIO, Tuple
+from typing import Any, BinaryIO, Optional, Tuple
 
 from dam.commands.core import BaseCommand
+from dam.core.types import StreamProvider
 from dam.models.core.entity import Entity
-from dam.system_events import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass
@@ -17,14 +18,14 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes], BaseS
 
 
 @dataclass
-class GetAssetStreamCommand(BaseCommand[BinaryIO, BaseSystemEvent]):
+class GetAssetStreamCommand(BaseCommand[Optional[StreamProvider], BaseSystemEvent]):
     """
-    A command to get a readable and seekable binary stream for an asset.
+    A command to get a provider for a binary stream for an asset's content.
 
-    The returned stream is a file-like object opened in binary mode (`typing.BinaryIO`).
-    It is the responsibility of the command handler to provide a stream that can be
-    read from and, if possible, seeked. The caller is responsible for closing the
-    stream after use.
+    The command's result is a `StreamProvider`, which is a callable that returns a
+    fresh, readable `BinaryIO` stream positioned at the beginning. It is the
+    caller's responsibility to call the provider and properly close the resulting
+    stream, preferably using a `with` statement.
     """
 
     entity_id: int

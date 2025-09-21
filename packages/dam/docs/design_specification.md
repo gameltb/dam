@@ -277,7 +277,7 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 -   **Structure**: Commands are simple data-only classes that inherit from a hierarchy of base classes in `dam.core.commands`. They carry the data necessary to execute the action.
     -   `BaseCommand`: The root of all commands.
     -   `EntityCommand`: A base class for commands that operate on a single entity, identified by `entity_id`.
-    -   `AnalysisCommand`: A specialized `EntityCommand` for analysis tasks. It includes common fields like `depth` (for recursion control) and `stream` (for direct data access). It also provides helper methods like `get_stream()` to simplify system logic.
+    -   `AnalysisCommand`: A specialized `EntityCommand` for analysis tasks. It includes a `stream_provider` field for direct data access and provides an `open_stream(world)` async context manager to simplify system logic.
     -   Commands can specify an `execution_strategy` (`SERIAL` or `PARALLEL`) to control how their handler systems are executed.
 -   **Dispatching**: Commands are sent to the world using `world.dispatch_command(my_command)`. The result is a `SystemExecutor` object. This object is an async generator that yields system events and also provides helper methods (e.g., `get_all_results()`) to consume the stream and process the results. If a command is dispatched from within an existing transaction (i.e., from another command or event handler), it will participate in that same transaction.
 -   **Handling**: Systems that handle commands are decorated with `@system(on_command=MyCommand)`. The system function receives the command object as an argument.

@@ -1,5 +1,5 @@
 import io
-from typing import IO, Any, Iterable, List, Optional
+from typing import IO, Any, Iterable, List, Optional, Sequence
 
 
 class ChainedStream(io.IOBase):
@@ -8,9 +8,9 @@ class ChainedStream(io.IOBase):
     This class is read-only.
     """
 
-    def __init__(self, streams: List[IO[bytes]]):
+    def __init__(self, streams: Sequence[IO[bytes]]):
         super().__init__()
-        self.streams = streams
+        self.streams = list(streams)
         self.stream_index = 0
         self._pos = 0
 
