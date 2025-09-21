@@ -7,11 +7,15 @@ This document provides specific instructions for working on the `dam` package, w
 The `dam` package is organized as follows:
 
 *   `src/dam/`: The main source code directory.
+    *   `commands/`: Contains the command definitions for the ECS system.
     *   `core/`: Contains the fundamental ECS framework, including the `World`, `Plugin`, and `System` concepts.
-    *   `models/`: Defines the data components. These are organized by their functional area (e.g., `conceptual`, `hashes`, `metadata`).
+    *   `events/`: Contains the event definitions for the ECS system.
     *   `functions/`: Contains the business logic for interacting with the ECS world and its components.
+    *   `models/`: Defines the data components. These are organized by their functional area (e.g., `conceptual`, `hashes`, `metadata`).
+    *   `plugins/`: Contains the core plugin for the DAM system.
+    *   `system_events/`: Contains system-level event definitions.
     *   `systems/`: Contains the ECS systems that operate on entities.
-    *   `resources/`: Defines shared resources that can be accessed by systems.
+    *   `utils/`: Contains utility functions.
 
 ### Development Guidelines
 
