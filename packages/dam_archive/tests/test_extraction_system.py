@@ -37,7 +37,9 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
     # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
@@ -77,7 +79,9 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
     # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
@@ -104,7 +108,8 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             assert isinstance(get_or_create_cmd.stream, ChainedStream)
 
     # 4. Clean up components for next run
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         info = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
         if info:
             await session.delete(info)
@@ -154,7 +159,9 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     register_cmd_reg = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id_reg = await world.dispatch_command(register_cmd_reg).get_one_value()
 
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        session = transaction.session
         await set_content_mime_type(session, entity_id_reg, "application/zip")
         await session.commit()
 
@@ -165,7 +172,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     assert any(isinstance(event, ProgressCompleted) for event in events)
 
     # 3. Verify the results for the regular archive
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         info_reg = await ecs_functions.get_component(session, entity_id_reg, ArchiveInfoComponent)
         assert info_reg is not None
         assert info_reg.comment == "regular archive comment"
@@ -183,7 +191,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     register_cmd_prot = RegisterLocalFileCommand(file_path=protected_archive_path)
     entity_id_prot = await world.dispatch_command(register_cmd_prot).get_one_value()
 
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         await set_content_mime_type(session, entity_id_prot, "application/zip")
         await session.commit()
 
@@ -194,7 +203,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     assert any(isinstance(event, ProgressCompleted) for event in events)
 
     # 3. Verify the results for the protected archive
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         info_prot = await ecs_functions.get_component(session, entity_id_prot, ArchiveInfoComponent)
         assert info_prot is not None
         assert info_prot.comment == "protected archive comment"
@@ -221,7 +231,9 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
@@ -232,7 +244,8 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     assert any(isinstance(event, ProgressCompleted) for event in events1)
 
     # 3. Verify that it was processed
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         info1 = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
         assert info1 is not None
         assert info1.comment == "regular archive comment"
@@ -247,7 +260,8 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
 
     # 5. Verify that it was skipped (no new components were created)
     # We can't easily check the logs here, so we will check that the number of members is still the same.
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         members = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
         )
