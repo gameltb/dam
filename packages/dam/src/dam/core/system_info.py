@@ -35,6 +35,6 @@ class SystemMetadata:
     params: Dict[str, SystemParameterInfo]
     is_async: bool
     system_type: SystemType
-    stage: Optional[SystemStage]
-    handles_command_type: Optional[Type[BaseCommand[Any, Any]]]
-    listens_for_event_type: Optional[Type[BaseEvent]]
+    stage: Optional[SystemStage] = None
+    handles_command_type: Optional[Type[BaseCommand[Any, Any]]] = None
+    listens_for_event_type: Optional[Type[BaseEvent]] = None

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
-from dam.core.database import DatabaseManager
+from dam.core.contexts import ContextProvider
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.plugin import Plugin
@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 # Type variable for generic resource types
 T = TypeVar("T")
+
+
+from dam.core.markers import MarkedEntityList
+from dam.core.providers import MarkedEntityListProvider
+from dam.core.transaction_manager import TransactionManager
 
 
 class World:
@@ -45,25 +50,13 @@ class World:
 
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
+        self.transaction_manager: TransactionManager = TransactionManager(world_config)
         self._registered_plugin_types: set[Type[Plugin]] = set()
+        self.context_providers: Dict[Type[Any], ContextProvider] = {}
         self.add_resource(self)
+        self.register_context_provider(WorldTransaction, self.transaction_manager)
+        self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
-
-    @property
-    def db_session_maker(self) -> async_sessionmaker[AsyncSession]:
-        """Returns the SQLAlchemy sessionmaker for this world's database."""
-        db_mngr = self.get_resource(DatabaseManager)
-        return db_mngr.session_local  # Expose the sessionmaker instance
-
-    def get_db_session(self) -> AsyncSession:  # Changed to AsyncSession
-        db_mngr = self.get_resource(DatabaseManager)
-        # get_db_session in DBManager returns result of session_local(), which is AsyncSession for async engine
-        return db_mngr.get_db_session()
-
-    async def create_db_and_tables(self) -> None:
-        self.logger.info(f"Requesting creation of DB tables for World '{self.name}'.")
-        db_mngr = self.get_resource(DatabaseManager)
-        await db_mngr.create_db_and_tables()
 
     def add_resource(self, instance: Any, resource_type: Optional[Type[Any]] = None) -> None:
         self.resource_manager.add_resource(instance, resource_type)
@@ -74,6 +67,12 @@ class World:
 
     def has_resource(self, resource_type: Type[Any]) -> bool:
         return self.resource_manager.has_resource(resource_type)
+
+    def register_context_provider(self, type_hint: Type[Any], provider: ContextProvider) -> None:
+        """Registers a context provider for a given type hint."""
+        if type_hint in self.context_providers:
+            self.logger.warning(f"Overwriting context provider for type {type_hint}.")
+        self.context_providers[type_hint] = provider
 
     def add_plugin(self, plugin: Plugin) -> "World":
         plugin_type = type(plugin)
@@ -114,57 +113,17 @@ class World:
 
     async def execute_stage(self, stage: SystemStage) -> None:
         self.logger.info(f"Executing stage '{stage.name}' for World '{self.name}'.")
-        try:
-            async with self._managed_transaction() as transaction:
-                await self.scheduler.execute_stage(stage, transaction)
-        except Exception as e:
-            # Avoid wrapping exceptions that are already specific
-            from dam.core.exceptions import StageExecutionError
-
-            if isinstance(e, StageExecutionError):
-                raise
-            # Wrap generic exceptions for better context
-            raise StageExecutionError(
-                message=f"Top-level stage '{stage.name}' failed.",
-                stage_name=stage.name,
-                original_exception=e,
-            ) from e
+        await self.scheduler.execute_stage(stage)
 
     async def dispatch_event(self, event: BaseEvent) -> None:
         self.logger.info(f"Dispatching event '{type(event).__name__}' for World '{self.name}'.")
-        try:
-            async with self._managed_transaction() as transaction:
-                await self.scheduler.dispatch_event(event, transaction)
-        except Exception as e:
-            from dam.core.exceptions import EventHandlingError
-
-            if isinstance(e, EventHandlingError):
-                raise
-            raise EventHandlingError(
-                message=f"Top-level event '{type(event).__name__}' failed.",
-                event_type=type(event).__name__,
-                original_exception=e,
-            ) from e
+        await self.scheduler.dispatch_event(event)
 
     def dispatch_command(
-        self, command: BaseCommand[ResultType, EventType], *, use_nested_transaction: bool = False
+        self, command: BaseCommand[ResultType, EventType], **kwargs: Any
     ) -> SystemExecutor[ResultType, EventType]:
         self.logger.info(f"Dispatching command '{type(command).__name__}' for World '{self.name}'.")
-
-        async def _transaction_wrapper() -> AsyncGenerator[EventType, None]:
-            """
-            A generator that wraps the command execution within a transaction,
-            ensuring commit/rollback logic is correctly applied after the
-            command's event stream is fully consumed.
-            """
-            async with self._managed_transaction(nested=use_nested_transaction) as transaction:
-                executor = self.scheduler.dispatch_command(command, transaction)
-                async for event in executor:
-                    yield event
-
-        # The returned executor runs the wrapper, which in turn runs the actual command executor.
-        # This ensures the lazy execution happens inside the transaction.
-        return SystemExecutor([_transaction_wrapper()], ExecutionStrategy.SERIAL)
+        return self.scheduler.dispatch_command(command, **kwargs)
 
     async def execute_one_time_system(self, system_func: Callable[..., Any], **kwargs: Any) -> Any:
         """
@@ -176,52 +135,11 @@ class World:
             f"Executing one-time system '{system_func.__name__}' for World '{self.name}' with kwargs: {kwargs}."
         )
 
-        async with self._managed_transaction() as transaction:
-            executor = self.scheduler.execute_one_time_system(system_func, transaction, **kwargs)
-            async for event in executor:
-                if isinstance(event, SystemResultEvent):
-                    return cast(SystemResultEvent[Any], event).result
-            return None
-
-    @asynccontextmanager
-    async def _managed_transaction(self, nested: bool = False) -> AsyncGenerator[WorldTransaction, None]:
-        """
-        An internal helper to provide a transaction context.
-        It joins an existing transaction, creates a new top-level one,
-        or creates a nested one with a savepoint.
-        """
-        transaction = active_transaction.get()
-
-        if transaction:
-            if nested:
-                self.logger.debug("Creating nested transaction (savepoint).")
-                try:
-                    async with transaction.session.begin_nested():
-                        yield transaction
-                except Exception:
-                    self.logger.exception("Exception in nested transaction, rolling back savepoint.")
-                    # The context manager handles the rollback of the savepoint.
-                    raise
-            else:
-                self.logger.debug("Joining existing transaction.")
-                yield transaction
-            return
-
-        self.logger.debug("Creating new top-level transaction for managed operation.")
-        db_session = self.get_db_session()
-        new_transaction = WorldTransaction(db_session)
-        token = active_transaction.set(new_transaction)
-        try:
-            yield new_transaction
-            await db_session.commit()
-        except Exception:
-            self.logger.exception("Exception in managed transaction, rolling back.")
-            await db_session.rollback()
-            raise
-        finally:
-            await db_session.close()
-            active_transaction.reset(token)
-            self.logger.debug("Managed transaction closed.")
+        executor = self.scheduler.execute_one_time_system(system_func, **kwargs)
+        async for event in executor:
+            if isinstance(event, SystemResultEvent):
+                return cast(SystemResultEvent[Any], event).result
+        return None
 
     def __repr__(self) -> str:
         return f"<World name='{self.name}' config='{self.config!r}'>"

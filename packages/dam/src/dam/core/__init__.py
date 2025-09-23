@@ -7,6 +7,7 @@ from .exceptions import EventHandlingError, StageExecutionError  # ResourceNotFo
 from .resources import ResourceManager, ResourceNotFoundError  # Import ResourceNotFoundError from here
 from .stages import SystemStage
 from .systems import WorldScheduler, system  # SYSTEM_METADATA might be too internal
+from .transaction_manager import TransactionManager
 from .world import (
     World,
     clear_world_registry,
@@ -35,6 +36,7 @@ __all__ = [
     "ResourceNotFoundError",
     # Resources
     "ResourceManager",
+    "TransactionManager",
     # Stages
     "SystemStage",
     # Systems Decorators & Scheduler

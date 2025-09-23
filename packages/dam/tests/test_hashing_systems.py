@@ -13,15 +13,20 @@ from dam.systems.hashing_systems import HashMismatchError
 from dam.utils.hash_utils import HashAlgorithm
 
 
+from dam.core.transaction import WorldTransaction
+
+
 @pytest.mark.asyncio
 async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
     """
     Tests that the add_hashes_from_stream_system correctly adds hash components.
     """
     world = test_world_alpha
-    async with world.db_session_maker() as session:
-        entity = await ecs_functions.create_entity(session)
-        await session.commit()
+
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        entity = await ecs_functions.create_entity(transaction.session)
+        await transaction.session.commit()
         entity_id = entity.id
 
     data = b"hello world"
@@ -33,30 +38,40 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
     )
     await world.dispatch_command(command).get_all_results()
 
-    async with world.db_session_maker() as session:
-        md5_comp = await ecs_functions.get_component(session, entity_id, ContentHashMD5Component)
+    async with tm() as transaction:
+        md5_comp = await ecs_functions.get_component(
+            transaction.session, entity_id, ContentHashMD5Component
+        )
         assert md5_comp is not None
         import hashlib
 
         assert md5_comp.hash_value == hashlib.md5(data).digest()
 
-        sha256_comp = await ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
+        sha256_comp = await ecs_functions.get_component(
+            transaction.session, entity_id, ContentHashSHA256Component
+        )
         assert sha256_comp is not None
         assert sha256_comp.hash_value == hashlib.sha256(data).digest()
 
 
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system_propagates_mismatch_error(test_world_alpha: World) -> None:
+async def test_add_hashes_from_stream_system_propagates_mismatch_error(
+    test_world_alpha: World,
+) -> None:
     """
     Tests that the system propagates a HashMismatchError if a hash already exists and does not match.
     """
     world = test_world_alpha
-    async with world.db_session_maker() as session:
-        entity = await ecs_functions.create_entity(session)
+
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        entity = await ecs_functions.create_entity(transaction.session)
         # Add a component with a wrong hash.
         wrong_hash_comp = ContentHashMD5Component(hash_value=b"a" * 16)
-        await ecs_functions.add_component_to_entity(session, entity.id, wrong_hash_comp)
-        await session.commit()
+        await ecs_functions.add_component_to_entity(
+            transaction.session, entity.id, wrong_hash_comp
+        )
+        await transaction.session.commit()
         entity_id = entity.id
 
     data = b"hello world"
