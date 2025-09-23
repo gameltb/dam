@@ -3,6 +3,7 @@ import asyncio
 import inspect
 import logging
 from collections import defaultdict
+from contextlib import AbstractAsyncContextManager
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -23,13 +24,10 @@ from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.markers import CommandMarker, EventMarker, MarkedEntityList, ResourceMarker
-from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_info import SystemMetadata, SystemParameterInfo
-from dam.core.transaction import WorldTransaction
 from dam.enums import ExecutionStrategy
 from dam.models.core.base_component import BaseComponent
-from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
 if TYPE_CHECKING:
@@ -270,6 +268,9 @@ class WorldScheduler:
                 params=_parse_system_params(system_func),
                 is_async=inspect.iscoroutinefunction(system_func),
                 system_type=SystemType.VANILLA,
+                stage=None,
+                handles_command_type=None,
+                listens_for_event_type=None,
             )
 
         async with AsyncExitStack() as stack:
@@ -285,7 +286,9 @@ class WorldScheduler:
                         break
             if command_object:
                 for name, param in metadata.params.items():
-                    if param.identity is CommandMarker and isinstance(command_object, param.command_type_hint or object):
+                    if param.identity is CommandMarker and isinstance(
+                        command_object, param.command_type_hint or object
+                    ):
                         resolved_params_by_name[name] = command_object
                         resolved_deps_by_type[param.type_hint] = command_object
                         break
@@ -293,8 +296,9 @@ class WorldScheduler:
             for key, value in additional_kwargs.items():
                 resolved_deps_by_type[type(value)] = value
 
-
-            unresolved_params = {name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name}
+            unresolved_params = {
+                name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name
+            }
 
             for _ in range(len(unresolved_params) + 1):
                 if not unresolved_params:
@@ -316,10 +320,13 @@ class WorldScheduler:
                         can_resolve = True
 
                         for p_name, p_param in provider_sig.parameters.items():
-                            if p_name == 'self' or p_param.kind in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL):
+                            if p_name == "self" or p_param.kind in (
+                                inspect.Parameter.VAR_KEYWORD,
+                                inspect.Parameter.VAR_POSITIONAL,
+                            ):
                                 continue
 
-                            if param.identity is MarkedEntityList and p_name == 'marker_component_type':
+                            if param.identity is MarkedEntityList and p_name == "marker_component_type":
                                 provider_kwargs[p_name] = param.marker_component_type
                                 continue
 
@@ -331,7 +338,7 @@ class WorldScheduler:
                                 break
 
                         if can_resolve:
-                            context = provider(**provider_kwargs)
+                            context = cast(AbstractAsyncContextManager, provider(**provider_kwargs))
                             resolved_value = await stack.enter_async_context(context)
                             newly_resolved_params[name] = resolved_value
                             resolved_deps_by_type[param.type_hint] = resolved_value
@@ -346,7 +353,9 @@ class WorldScheduler:
 
                 if not newly_resolved_params and still_unresolved_params:
                     unresolved_names = ", ".join(still_unresolved_params.keys())
-                    raise RuntimeError(f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}")
+                    raise RuntimeError(
+                        f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}"
+                    )
 
                 resolved_params_by_name.update(newly_resolved_params)
                 unresolved_params = still_unresolved_params

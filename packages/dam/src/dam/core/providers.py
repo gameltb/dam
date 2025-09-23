@@ -1,7 +1,7 @@
 # pyright: basic
 
-from typing import List, Type, AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator, List, Type
 
 from dam.core.contexts import ContextProvider
 from dam.core.transaction import WorldTransaction
@@ -15,7 +15,7 @@ class MarkedEntityListProvider(ContextProvider[List[Entity]]):
     """
 
     @asynccontextmanager
-    async def __call__(
+    async def __call__(  # type: ignore
         self,
         marker_component_type: Type[BaseComponent],
         transaction: WorldTransaction,
@@ -26,9 +26,7 @@ class MarkedEntityListProvider(ContextProvider[List[Entity]]):
         from sqlalchemy import exists as sql_exists
         from sqlalchemy import select as sql_select
 
-        stmt = sql_select(Entity).where(
-            sql_exists().where(marker_component_type.entity_id == Entity.id)
-        )
+        stmt = sql_select(Entity).where(sql_exists().where(marker_component_type.entity_id == Entity.id))
         result = await transaction.session.execute(stmt)
         entities_to_process = list(result.scalars().all())
         yield entities_to_process

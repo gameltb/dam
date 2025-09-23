@@ -1,8 +1,5 @@
 import logging
-from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Type, TypeVar, cast
-
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.core.config import Settings, WorldConfig
@@ -10,23 +7,20 @@ from dam.core.config import settings as global_app_settings
 from dam.core.contexts import ContextProvider
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
+from dam.core.markers import MarkedEntityList
 from dam.core.plugin import Plugin
+from dam.core.providers import MarkedEntityListProvider
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
-from dam.core.transaction import WorldTransaction, active_transaction
-from dam.enums import ExecutionStrategy
+from dam.core.transaction import WorldTransaction
+from dam.core.transaction_manager import TransactionManager
 from dam.system_events.base import SystemResultEvent
 
 logger = logging.getLogger(__name__)
 
 # Type variable for generic resource types
 T = TypeVar("T")
-
-
-from dam.core.markers import MarkedEntityList
-from dam.core.providers import MarkedEntityListProvider
-from dam.core.transaction_manager import TransactionManager
 
 
 class World:
@@ -52,7 +46,7 @@ class World:
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
         self.transaction_manager: TransactionManager = TransactionManager(world_config)
         self._registered_plugin_types: set[Type[Plugin]] = set()
-        self.context_providers: Dict[Type[Any], ContextProvider] = {}
+        self.context_providers: Dict[Type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
         self.register_context_provider(WorldTransaction, self.transaction_manager)
         self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
@@ -68,7 +62,7 @@ class World:
     def has_resource(self, resource_type: Type[Any]) -> bool:
         return self.resource_manager.has_resource(resource_type)
 
-    def register_context_provider(self, type_hint: Type[Any], provider: ContextProvider) -> None:
+    def register_context_provider(self, type_hint: Type[Any], provider: ContextProvider[Any]) -> None:
         """Registers a context provider for a given type hint."""
         if type_hint in self.context_providers:
             self.logger.warning(f"Overwriting context provider for type {type_hint}.")

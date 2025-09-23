@@ -1,11 +1,12 @@
 from __future__ import annotations
-from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, TYPE_CHECKING
 
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, AsyncGenerator
+
+from dam.core.config import WorldConfig
+from dam.core.contexts import ContextProvider
 from dam.core.database import DatabaseManager
 from dam.core.transaction import WorldTransaction, active_transaction
-from dam.core.contexts import ContextProvider
-from dam.core.config import WorldConfig
 
 if TYPE_CHECKING:
     pass
@@ -19,7 +20,7 @@ class TransactionManager(ContextProvider[WorldTransaction]):
         await self.db_manager.create_db_and_tables()
 
     @asynccontextmanager
-    async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:
+    async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:  # type: ignore
         transaction = active_transaction.get()
 
         if transaction:
