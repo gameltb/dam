@@ -3,11 +3,10 @@
 from typing import List, Type, AsyncGenerator
 from contextlib import asynccontextmanager
 
+from dam.core.contexts import ContextProvider
 from dam.core.transaction import WorldTransaction
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
-
-from dam.core.contexts import ContextProvider
 
 
 class MarkedEntityListProvider(ContextProvider[List[Entity]]):

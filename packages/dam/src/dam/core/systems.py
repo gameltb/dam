@@ -32,11 +32,9 @@ from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
-from contextlib import AsyncExitStack
 if TYPE_CHECKING:
     from dam.commands.core import BaseCommand, EventType, ResultType
     from dam.core.world import World
-    from dam.core.contexts import ContextProvider
 
 
 SYSTEM_METADATA: Dict[Callable[..., Any], SystemMetadata] = {}
@@ -275,89 +273,90 @@ class WorldScheduler:
             )
 
         async with AsyncExitStack() as stack:
-            resolved_deps: Dict[str, Any] = {}
+            resolved_params_by_name: Dict[str, Any] = {}
+            resolved_deps_by_type: Dict[Type, Any] = {}
 
-            # Pre-populate with special objects
+            # Pre-populate with special objects that don't have providers
             if event_object:
                 for name, param in metadata.params.items():
                     if param.identity is EventMarker and isinstance(event_object, param.event_type_hint or BaseEvent):
-                        resolved_deps[name] = event_object
+                        resolved_params_by_name[name] = event_object
+                        resolved_deps_by_type[param.type_hint] = event_object
                         break
             if command_object:
                 for name, param in metadata.params.items():
                     if param.identity is CommandMarker and isinstance(command_object, param.command_type_hint or object):
-                        resolved_deps[name] = command_object
+                        resolved_params_by_name[name] = command_object
+                        resolved_deps_by_type[param.type_hint] = command_object
                         break
-            resolved_deps.update(additional_kwargs)
+            resolved_params_by_name.update(additional_kwargs)
+            for key, value in additional_kwargs.items():
+                resolved_deps_by_type[type(value)] = value
 
-            unresolved_params = {name: meta for name, meta in metadata.params.items() if name not in resolved_deps}
 
-            # Iteratively resolve dependencies
-            for i in range(len(unresolved_params) + 1):
+            unresolved_params = {name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name}
+
+            for _ in range(len(unresolved_params) + 1):
                 if not unresolved_params:
                     break
 
-                newly_resolved: Dict[str, Any] = {}
-                remaining_params: Dict[str, SystemParameterInfo] = {}
+                newly_resolved_params: Dict[str, Any] = {}
+                still_unresolved_params: Dict[str, SystemParameterInfo] = {}
 
                 for name, param in unresolved_params.items():
-                    provider = None
-                    provider_kwargs = {}
-
-                    # Determine the provider key and static args
                     provider_key = param.type_hint
                     if param.identity is MarkedEntityList:
                         provider_key = MarkedEntityList
-                        provider_kwargs['marker_component_type'] = param.marker_component_type
 
-                    if provider_key in self.world.context_providers:
-                        provider = self.world.context_providers[provider_key]
-                    elif self.resource_manager.has_resource(param.type_hint):
-                        newly_resolved[name] = self.resource_manager.get_resource(param.type_hint)
-                        continue
+                    provider = self.world.context_providers.get(provider_key)
 
                     if provider:
-                        # Check if provider dependencies are met
                         provider_sig = inspect.signature(provider.__call__)
-                        can_resolve_provider = True
+                        provider_kwargs = {}
+                        can_resolve = True
+
                         for p_name, p_param in provider_sig.parameters.items():
-                            if p_name == 'self' or p_param.kind == inspect.Parameter.VAR_KEYWORD:
-                                continue
-                            if p_name in provider_kwargs:
+                            if p_name == 'self' or p_param.kind in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL):
                                 continue
 
-                            # Find a resolved dependency to satisfy this provider parameter
-                            found_dep = False
-                            for dep_name, dep_value in resolved_deps.items():
-                                if isinstance(dep_value, p_param.annotation):
-                                    provider_kwargs[p_name] = dep_value
-                                    found_dep = True
-                                    break
-                            if not found_dep:
-                                can_resolve_provider = False
+                            if param.identity is MarkedEntityList and p_name == 'marker_component_type':
+                                provider_kwargs[p_name] = param.marker_component_type
+                                continue
+
+                            p_dep_type = p_param.annotation
+                            if p_dep_type in resolved_deps_by_type:
+                                provider_kwargs[p_name] = resolved_deps_by_type[p_dep_type]
+                            else:
+                                can_resolve = False
                                 break
 
-                        if can_resolve_provider:
+                        if can_resolve:
                             context = provider(**provider_kwargs)
-                            newly_resolved[name] = await stack.enter_async_context(context)
+                            resolved_value = await stack.enter_async_context(context)
+                            newly_resolved_params[name] = resolved_value
+                            resolved_deps_by_type[param.type_hint] = resolved_value
                         else:
-                            remaining_params[name] = param
+                            still_unresolved_params[name] = param
+                    elif self.resource_manager.has_resource(param.type_hint):
+                        resolved_value = self.resource_manager.get_resource(param.type_hint)
+                        newly_resolved_params[name] = resolved_value
+                        resolved_deps_by_type[param.type_hint] = resolved_value
                     else:
-                        remaining_params[name] = param
+                        still_unresolved_params[name] = param
 
-                if not newly_resolved and i > 0:
-                    unresolved_names = ", ".join(remaining_params.keys())
+                if not newly_resolved_params and still_unresolved_params:
+                    unresolved_names = ", ".join(still_unresolved_params.keys())
                     raise RuntimeError(f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}")
 
-                resolved_deps.update(newly_resolved)
-                unresolved_params = remaining_params
+                resolved_params_by_name.update(newly_resolved_params)
+                unresolved_params = still_unresolved_params
 
             result: Any
             if metadata.is_async:
-                result = await system_func(**resolved_deps)
+                result = await system_func(**resolved_params_by_name)
             else:
                 loop = asyncio.get_running_loop()
-                result = await loop.run_in_executor(None, lambda: system_func(**resolved_deps))
+                result = await loop.run_in_executor(None, lambda: system_func(**resolved_params_by_name))
 
             if inspect.isasyncgen(result):
                 async for item in result:

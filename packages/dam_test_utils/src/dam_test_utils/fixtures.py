@@ -132,7 +132,7 @@ async def _setup_world(
 
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
-    await world.transaction_manager.create_db_and_tables()
+    await world.create_db_and_tables()
 
     if plugins:
         for plugin in plugins:
@@ -142,8 +142,8 @@ async def _setup_world(
 
 
 async def _teardown_world_async(world: World) -> None:
-    if world and world.transaction_manager:
-        db_mngr = world.transaction_manager.db_manager
+    if world and world.has_resource(DatabaseManager):
+        db_mngr = world.get_resource(DatabaseManager)
         if db_mngr and db_mngr.engine:
             async with db_mngr.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.drop_all)
