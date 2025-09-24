@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, cast
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.core.config import Settings, WorldConfig
 from dam.core.config import settings as global_app_settings
@@ -51,6 +53,11 @@ class World:
         self.register_context_provider(WorldTransaction, self.transaction_manager)
         self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
+
+    @property
+    def db_session_maker(self) -> "async_sessionmaker[AsyncSession]":
+        """Returns the database session maker for this world."""
+        return self.transaction_manager.db_manager.get_session_maker()
 
     def add_resource(self, instance: Any, resource_type: Optional[Type[Any]] = None) -> None:
         self.resource_manager.add_resource(instance, resource_type)

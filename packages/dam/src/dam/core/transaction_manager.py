@@ -24,9 +24,8 @@ class TransactionManager(ContextProvider[WorldTransaction]):
         transaction = active_transaction.get()
 
         if transaction:
-            # If we're already in a transaction, create a nested one (savepoint).
-            async with transaction.session.begin_nested():
-                yield transaction
+            # If we're already in a transaction, join it.
+            yield transaction
             return
 
         # If there's no active transaction, create a new top-level one.

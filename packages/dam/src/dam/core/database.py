@@ -90,6 +90,12 @@ class DatabaseManager:
             )
         return self._session_local()
 
+    def get_session_maker(self) -> async_sessionmaker[AsyncSession]:
+        """Returns the session maker for this world."""
+        if self._session_local is None:
+            raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized.")
+        return self._session_local
+
     async def create_db_and_tables(self) -> None:
         """
         Creates all database tables for this world using its async engine.

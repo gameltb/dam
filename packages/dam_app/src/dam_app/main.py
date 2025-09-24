@@ -55,7 +55,7 @@ async def setup_db(ctx: typer.Context):
         raise typer.Exit(code=1)
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
     try:
-        await target_world.create_db_and_tables()
+        await target_world.transaction_manager.create_db_and_tables()
         typer.secho("Database setup complete.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during database setup: {e}", fg=typer.colors.RED)
