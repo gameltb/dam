@@ -98,8 +98,8 @@ async def create_evaluation_run_concept(
     if session:
         return await _create(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _create(new_session)
+        async with world.transaction_manager() as tx:
+            return await _create(tx.session)
 
 
 async def get_evaluation_run_by_name_or_id(
@@ -128,8 +128,8 @@ async def get_evaluation_run_by_name_or_id(
     if session:
         return await _get(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _get(new_session)
+        async with world.transaction_manager() as tx:
+            return await _get(tx.session)
 
 
 async def evaluate_transcode_output(event: Any, world: World, session: Any) -> None:
@@ -155,7 +155,8 @@ async def execute_evaluation_run(
         c. Creates an EvaluationResultComponent for the transcoded asset.
     Returns a list of created EvaluationResultComponent instances.
     """
-    async with world.db_session_maker() as session:
+    async with world.transaction_manager() as tx:
+        session = tx.session
         try:
             _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
                 world, evaluation_run_id_or_name, session=session
@@ -374,5 +375,5 @@ async def get_evaluation_results(
     if session:
         return await _get(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _get(new_session)
+        async with world.transaction_manager() as tx:
+            return await _get(tx.session)
