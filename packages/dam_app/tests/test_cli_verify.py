@@ -6,10 +6,9 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from dam.core.world import World
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
+from dam.core.world import World
 from dam_archive.commands import IngestArchiveCommand
-from dam_archive.plugin import ArchivePlugin
 from dam_fs.commands import RegisterLocalFileCommand
 
 from dam_app.cli.verify import verify_assets

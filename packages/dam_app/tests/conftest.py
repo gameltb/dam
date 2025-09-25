@@ -1,8 +1,9 @@
 import pytest
 from dam.core.world import World
-from dam_fs.plugin import FsPlugin
-from dam_app.plugin import AppPlugin
 from dam_archive.plugin import ArchivePlugin
+from dam_fs.plugin import FsPlugin
+
+from dam_app.plugin import AppPlugin
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 

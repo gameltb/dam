@@ -90,7 +90,9 @@ async def verify_assets(
                         process_map[key] = []
                     process_map[key].append(command_name)
                 except ValueError:
-                    typer.secho(f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED)
+                    typer.secho(
+                        f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED
+                    )
                     raise typer.Exit(code=1)
             else:
                 command_name = p
@@ -136,12 +138,21 @@ async def verify_assets(
             stored_hash_orm = await dam_ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
             if not stored_hash_orm or not stored_hash_orm.hash_value:
                 typer.secho(f"SKIP: No hash found in DAM for {display_path}", fg=typer.colors.YELLOW)
-                results.append({"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": "SKIPPED (No Hash)"})
+                results.append(
+                    {
+                        "file_path": display_path,
+                        "calculated_hash": "N/A",
+                        "dam_hash": "N/A",
+                        "status": "SKIPPED (No Hash)",
+                    }
+                )
                 skipped_count += 1
                 return
 
             dam_hash = stored_hash_orm.hash_value.hex()
-            proc = await asyncio.create_subprocess_shell(f"sha256sum '{file_path.as_posix()}'", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_shell(
+                f"sha256sum '{file_path.as_posix()}'", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
             stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
                 raise RuntimeError(f"Hash calculation failed for {display_path}: {stderr.decode()}")
@@ -155,25 +166,28 @@ async def verify_assets(
                 status = "FAILED"
                 failed_count += 1
                 typer.secho(f"FAIL: {display_path}", fg=typer.colors.RED)
-            results.append({"file_path": display_path, "calculated_hash": calculated_hash, "dam_hash": dam_hash, "status": status})
+            results.append(
+                {"file_path": display_path, "calculated_hash": calculated_hash, "dam_hash": dam_hash, "status": status}
+            )
         except Exception:
             error_count += 1
             console = Console()
             tqdm.write(f"Error verifying file {display_path}")
             console.print(Traceback())
-            results.append({"file_path": display_path, "calculated_hash": "ERROR", "dam_hash": "ERROR", "status": "ERROR"})
+            results.append(
+                {"file_path": display_path, "calculated_hash": "ERROR", "dam_hash": "ERROR", "status": "ERROR"}
+            )
             if stop_on_error:
                 raise
 
     async def _verify_archive_contents(session: AsyncSession, archive_entity_id: int, archive_path: Path):
-        nonlocal skipped_count
+        nonlocal failed_count
         child_stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == archive_entity_id)
         child_results = await session.execute(child_stmt)
         child_members = child_results.scalars().all()
 
-        if not child_members:
-            tqdm.write(f"No child entities found for archive {archive_path.name}")
-            return
+        dam_members_map = {member.path_in_archive: member for member in child_members}
+        dam_members_found: set[str] = set()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -189,21 +203,43 @@ async def verify_assets(
                 tqdm.write(f"Unsupported archive type for verification: {ext}")
                 return
 
-            proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_shell(
+                cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
             _, stderr = await proc.communicate()
             if proc.returncode != 0:
                 tqdm.write(f"Failed to extract archive {archive_path.name}: {stderr.decode()}")
                 return
 
             extracted_files = {p.relative_to(tmp_path).as_posix(): p for p in tmp_path.glob("**/*") if p.is_file()}
-            for member in child_members:
-                display_path = f"{archive_path.name}/{member.path_in_archive}"
-                if member.path_in_archive in extracted_files:
-                    await _verify_file(session, member.entity_id, extracted_files[member.path_in_archive], display_path)
+
+            # Iterate over files in the archive
+            for path_in_archive, file_path in extracted_files.items():
+                display_path = f"{archive_path.name}/{path_in_archive}"
+                member = dam_members_map.get(path_in_archive)
+
+                if member:
+                    await _verify_file(session, member.entity_id, file_path, display_path)
+                    dam_members_found.add(path_in_archive)
                 else:
-                    typer.secho(f"SKIP: File {member.path_in_archive} from archive not found in extracted files.", fg=typer.colors.YELLOW)
-                    results.append({"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": "SKIPPED (Not Extracted)"})
-                    skipped_count += 1
+                    # File exists in archive but not in DAM
+                    status = "FAILED (Not in DAM)"
+                    failed_count += 1
+                    typer.secho(f"FAIL: {display_path} (Not in DAM)", fg=typer.colors.RED)
+                    results.append(
+                        {"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": status}
+                    )
+
+            # Check for files in DAM but not in archive
+            for member in child_members:
+                if member.path_in_archive not in dam_members_found:
+                    display_path = f"{archive_path.name}/{member.path_in_archive}"
+                    status = "FAILED (Not in Archive)"
+                    failed_count += 1
+                    typer.secho(f"FAIL: {display_path} (Not in Archive)", fg=typer.colors.RED)
+                    results.append(
+                        {"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": status}
+                    )
 
     async def _process_entity(session: AsyncSession, entity_id: int, file_path: Path):
         await _verify_file(session, entity_id, file_path, file_path.name)
@@ -220,13 +256,22 @@ async def verify_assets(
             for file_path in files_to_process:
                 pbar.set_postfix_str(file_path.name)
                 try:
-                    stmt = select(FileLocationComponent.entity_id).where(FileLocationComponent.url == file_path.as_uri())
+                    stmt = select(FileLocationComponent.entity_id).where(
+                        FileLocationComponent.url == file_path.as_uri()
+                    )
                     result = await session.execute(stmt)
                     entity_id = result.scalar_one_or_none()
 
                     if not entity_id:
                         typer.secho(f"SKIP: Asset not found in DAM for {file_path.name}", fg=typer.colors.YELLOW)
-                        results.append({"file_path": file_path.as_posix(), "calculated_hash": "N/A", "dam_hash": "N/A", "status": "SKIPPED (Not Found)"})
+                        results.append(
+                            {
+                                "file_path": file_path.as_posix(),
+                                "calculated_hash": "N/A",
+                                "dam_hash": "N/A",
+                                "status": "SKIPPED (Not Found)",
+                            }
+                        )
                         skipped_count += 1
                         continue
 
@@ -237,7 +282,14 @@ async def verify_assets(
                     console = Console()
                     tqdm.write(f"Error processing file {file_path.name}")
                     console.print(Traceback())
-                    results.append({"file_path": file_path.as_posix(), "calculated_hash": "ERROR", "dam_hash": "ERROR", "status": "ERROR"})
+                    results.append(
+                        {
+                            "file_path": file_path.as_posix(),
+                            "calculated_hash": "ERROR",
+                            "dam_hash": "ERROR",
+                            "status": "ERROR",
+                        }
+                    )
                     if stop_on_error:
                         raise
                 finally:
