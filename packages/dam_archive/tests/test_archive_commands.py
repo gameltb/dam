@@ -46,7 +46,9 @@ async def test_discover_and_bind_workflow(
     await asyncio.sleep(0.1)
 
     # 3. Assertions
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
+        session = transaction.session
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         manifests = manifest_query.scalars().all()
         assert len(manifests) == 1
@@ -73,14 +75,13 @@ async def test_manual_create_and_unbind_workflow(
     entity_ids: List[int] = []
 
     # 1. Setup: Manually create part entities
-    async with world.db_session_maker() as session:
+    tm = world.transaction_manager
+    async with tm() as transaction:
         from datetime import datetime, timezone
 
-        from dam.core.transaction import WorldTransaction
         from dam.models.metadata.content_length_component import ContentLengthComponent
         from dam_fs.models import FilenameComponent
 
-        transaction = WorldTransaction(session)
         for i in range(1, 3):
             entity = await transaction.create_entity()
             entity_ids.append(entity.id)
@@ -88,7 +89,7 @@ async def test_manual_create_and_unbind_workflow(
                 entity.id, FilenameComponent(filename=f"manual.part{i}.rar", first_seen_at=datetime.now(timezone.utc))
             )
             await transaction.add_component_to_entity(entity.id, ContentLengthComponent(file_size_bytes=100))
-        await session.commit()
+        await transaction.session.commit()
 
     # 2. Action: Create the master entity manually
     create_cmd = CreateMasterArchiveCommand(name="manual_master", part_entity_ids=entity_ids)
@@ -98,7 +99,8 @@ async def test_manual_create_and_unbind_workflow(
 
     # 3. Assertions for creation
     master_entity_id = -1
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         manifests = manifest_query.scalars().all()
         assert len(manifests) == 1
@@ -119,7 +121,8 @@ async def test_manual_create_and_unbind_workflow(
     await asyncio.sleep(0.1)
 
     # 5. Assertions for unbinding
-    async with world.db_session_maker() as session:
+    async with tm() as transaction:
+        session = transaction.session
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         assert len(manifest_query.scalars().all()) == 0
         part_info_query = await session.execute(select(SplitArchivePartInfoComponent))

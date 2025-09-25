@@ -40,7 +40,8 @@ async def create_transcode_profile(
     """
     Creates a new transcoding profile as a conceptual asset.
     """
-    async with world.db_session_maker() as session:
+    async with world.transaction_manager() as tx:
+        session = tx.session
         # Check if profile with this name already exists
         stmt_existing = select(TranscodeProfileComponent).where(TranscodeProfileComponent.profile_name == profile_name)
         existing_profile = (await session.execute(stmt_existing)).scalars().first()
@@ -136,8 +137,8 @@ async def get_transcode_profile_by_name_or_id(
     if session:
         return await _get(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _get(new_session)
+        async with world.transaction_manager() as tx:
+            return await _get(tx.session)
 
 
 async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: AsyncSession) -> Path:
@@ -178,7 +179,8 @@ async def apply_transcode_profile(
     Applies a transcoding profile to a source asset, creates a new asset for the
     transcoded file, and links them.
     """
-    async with world.db_session_maker() as session:
+    async with world.transaction_manager() as tx:
+        session = tx.session
         # 1. Get Transcode Profile
         _profile_entity, profile_component = await get_transcode_profile_by_name_or_id(
             world, profile_entity_id, session=session
@@ -331,8 +333,8 @@ async def get_transcoded_variants_for_original(
     if session:
         return await _get(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _get(new_session)
+        async with world.transaction_manager() as tx:
+            return await _get(tx.session)
 
 
 async def get_assets_using_profile(
@@ -355,5 +357,5 @@ async def get_assets_using_profile(
     if session:
         return await _get(session)
     else:
-        async with world.db_session_maker() as new_session:
-            return await _get(new_session)
+        async with world.transaction_manager() as tx:
+            return await _get(tx.session)

@@ -66,8 +66,11 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
     # 1. Setup
     mock_world = MagicMock(spec=World)
+    mock_world.transaction_manager = AsyncMock()
     mock_session = AsyncMock()
-    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+    mock_tx = AsyncMock()
+    mock_tx.session = mock_session
+    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
 
     mock_file_content = b"This is the content of the new file."
 
@@ -160,8 +163,11 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 
     # 1. Setup
     mock_world = MagicMock(spec=World)
+    mock_world.transaction_manager = AsyncMock()
     mock_session = AsyncMock()
-    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+    mock_tx = AsyncMock()
+    mock_tx.session = mock_session
+    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
@@ -227,8 +233,11 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     ExtractExifMetadataCommand._cached_extensions = None  # type: ignore [protected-access]
 
     mock_world = MagicMock(spec=World)
+    mock_world.transaction_manager = AsyncMock()
     mock_session = AsyncMock()
-    mock_world.db_session_maker.return_value.__aenter__.return_value = mock_session
+    mock_tx = AsyncMock()
+    mock_tx.session = mock_session
+    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):

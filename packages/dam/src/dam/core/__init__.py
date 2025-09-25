@@ -1,12 +1,14 @@
 # Core exports for the DAM system
 
 from .config import Settings, WorldConfig, settings
-from .database import Base, DatabaseManager  # Removed get_async_engine, etc.
-from .events import BaseEvent  # Add specific events if they are broadly used, or import from events module directly
-from .exceptions import EventHandlingError, StageExecutionError  # ResourceNotFoundError comes from .resources
-from .resources import ResourceManager, ResourceNotFoundError  # Import ResourceNotFoundError from here
+from .contexts import ContextProvider
+from .database import Base, DatabaseManager
+from .events import BaseEvent
+from .exceptions import EventHandlingError, StageExecutionError
+from .resources import ResourceManager, ResourceNotFoundError
 from .stages import SystemStage
-from .systems import WorldScheduler, system  # SYSTEM_METADATA might be too internal
+from .systems import WorldScheduler, system
+from .transaction_manager import TransactionManager
 from .world import (
     World,
     clear_world_registry,
@@ -23,10 +25,12 @@ __all__ = [
     # Config
     "Settings",
     "WorldConfig",
-    "settings",  # Global settings instance
+    "settings",
+    # Contexts
+    "ContextProvider",
     # Database
     "DatabaseManager",
-    "Base",  # SQLAlchemy declarative base
+    "Base",
     # Events
     "BaseEvent",
     # Exceptions
@@ -37,9 +41,11 @@ __all__ = [
     "ResourceManager",
     # Stages
     "SystemStage",
-    # Systems Decorators & Scheduler
-    "WorldScheduler",  # Class for managing system execution per world
-    "system",  # Decorator for stage-based systems
+    # Systems
+    "WorldScheduler",
+    "system",
+    # Transaction
+    "TransactionManager",
     # World
     "World",
     "get_world",

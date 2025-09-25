@@ -3,6 +3,7 @@ import asyncio
 import inspect
 import logging
 from collections import defaultdict
+from contextlib import AbstractAsyncContextManager
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -23,13 +24,10 @@ from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.markers import CommandMarker, EventMarker, MarkedEntityList, ResourceMarker
-from dam.core.resources import ResourceNotFoundError
 from dam.core.stages import SystemStage
 from dam.core.system_info import SystemMetadata, SystemParameterInfo
-from dam.core.transaction import WorldTransaction
 from dam.enums import ExecutionStrategy
 from dam.models.core.base_component import BaseComponent
-from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
 if TYPE_CHECKING:
@@ -224,26 +222,26 @@ class WorldScheduler:
         elif metadata.system_type == SystemType.EVENT and metadata.listens_for_event_type:
             self.event_handler_registry[metadata.listens_for_event_type].append(system_func)
 
-    async def execute_stage(self, stage: SystemStage, transaction: WorldTransaction) -> None:
+    async def execute_stage(self, stage: SystemStage) -> None:
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
             return
-        generators = [self._execute_system_func(s, transaction) for s in systems_to_run]
+        generators = [self._execute_system_func(s) for s in systems_to_run]
         executor = SystemExecutor[Any, BaseSystemEvent](generators, ExecutionStrategy.SERIAL)
         async for _ in executor:
             pass
 
-    async def dispatch_event(self, event: BaseEvent, transaction: WorldTransaction) -> None:
+    async def dispatch_event(self, event: BaseEvent) -> None:
         handlers_to_run = self.event_handler_registry.get(type(event), [])
         if not handlers_to_run:
             return
-        generators = [self._execute_system_func(h, transaction, event_object=event) for h in handlers_to_run]
+        generators = [self._execute_system_func(h, event_object=event) for h in handlers_to_run]
         executor = SystemExecutor[Any, BaseSystemEvent](generators, ExecutionStrategy.SERIAL)
         async for _ in executor:
             pass
 
     def dispatch_command(
-        self, command: "BaseCommand[ResultType, EventType]", transaction: WorldTransaction
+        self, command: "BaseCommand[ResultType, EventType]", **kwargs: Any
     ) -> "SystemExecutor[ResultType, EventType]":
         handlers_to_run = self.command_handler_registry.get(type(command), [])
         if not handlers_to_run:
@@ -251,70 +249,18 @@ class WorldScheduler:
                 f"No system registered for command {type(command).__name__} in world '{self.world.name}'."
             )
             return SystemExecutor([], command.execution_strategy)
-        generators = [self._execute_system_func(h, transaction, command_object=command) for h in handlers_to_run]
+        generators = [self._execute_system_func(h, command_object=command, **kwargs) for h in handlers_to_run]
         return SystemExecutor(cast(List[AsyncGenerator["EventType", None]], generators), command.execution_strategy)
-
-    async def _resolve_dependencies(
-        self,
-        system_func: Callable[..., Any],
-        transaction: WorldTransaction,
-        event_object: Optional[BaseEvent] = None,
-        command_object: Optional["BaseCommand[Any, Any]"] = None,
-        **additional_kwargs: Any,
-    ) -> Dict[str, Any]:
-        from dam.commands.core import BaseCommand
-
-        metadata = self.system_metadata[system_func]
-        kwargs_to_inject: Dict[str, Any] = {}
-
-        for param_name, value in additional_kwargs.items():
-            if param_name in metadata.params:
-                kwargs_to_inject[param_name] = value
-
-        for param_name, param_meta in metadata.params.items():
-            if param_name in kwargs_to_inject:
-                continue
-
-            identity = param_meta.identity
-            param_type_hint = param_meta.type_hint
-
-            if param_type_hint is WorldTransaction:
-                kwargs_to_inject[param_name] = transaction
-            elif identity is ResourceMarker:
-                kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
-            elif identity is MarkedEntityList:
-                marker_type = param_meta.marker_component_type
-                if not marker_type or not issubclass(marker_type, BaseComponent):
-                    msg = f"System {system_func.__name__} has MarkedEntityList parameter '{param_name}' with invalid or missing marker component type in world '{self.world.name}'."
-                    raise ValueError(msg)
-                from sqlalchemy import exists as sql_exists
-                from sqlalchemy import select as sql_select
-
-                stmt = sql_select(Entity).where(sql_exists().where(marker_type.entity_id == Entity.id))
-                result = await transaction.session.execute(stmt)
-                entities_to_process = result.scalars().all()
-                kwargs_to_inject[param_name] = entities_to_process
-            elif identity is EventMarker:
-                if event_object and isinstance(event_object, param_meta.event_type_hint or BaseEvent):
-                    kwargs_to_inject[param_name] = event_object
-            elif identity is CommandMarker:
-                if command_object and isinstance(command_object, param_meta.command_type_hint or BaseCommand):
-                    kwargs_to_inject[param_name] = command_object
-            else:
-                try:
-                    kwargs_to_inject[param_name] = self.resource_manager.get_resource(param_type_hint)
-                except ResourceNotFoundError:
-                    pass
-        return kwargs_to_inject
 
     async def _execute_system_func(
         self,
         system_func: Callable[..., Any],
-        transaction: WorldTransaction,
         event_object: Optional[BaseEvent] = None,
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
     ) -> AsyncGenerator[BaseSystemEvent, None]:
+        from contextlib import AsyncExitStack
+
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             metadata = SystemMetadata(
@@ -327,25 +273,108 @@ class WorldScheduler:
                 listens_for_event_type=None,
             )
 
-        kwargs_to_inject = await self._resolve_dependencies(
-            system_func, transaction, event_object, command_object, **additional_kwargs
-        )
+        async with AsyncExitStack() as stack:
+            resolved_params_by_name: Dict[str, Any] = {}
+            resolved_deps_by_type: Dict[Type, Any] = {}
 
-        result: Any = None
-        if metadata.is_async:
-            result = await system_func(**kwargs_to_inject)
-        else:
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, lambda: system_func(**kwargs_to_inject))
+            # Pre-populate with special objects that don't have providers
+            if event_object:
+                for name, param in metadata.params.items():
+                    if param.identity is EventMarker and isinstance(event_object, param.event_type_hint or BaseEvent):
+                        resolved_params_by_name[name] = event_object
+                        resolved_deps_by_type[param.type_hint] = event_object
+                        break
+            if command_object:
+                for name, param in metadata.params.items():
+                    if param.identity is CommandMarker and isinstance(
+                        command_object, param.command_type_hint or object
+                    ):
+                        resolved_params_by_name[name] = command_object
+                        resolved_deps_by_type[param.type_hint] = command_object
+                        break
+            resolved_params_by_name.update(additional_kwargs)
+            for key, value in additional_kwargs.items():
+                resolved_deps_by_type[type(value)] = value
 
-        if inspect.isasyncgen(result):
-            async for item in result:
-                yield item
-        else:
-            yield SystemResultEvent(result)
+            unresolved_params = {
+                name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name
+            }
+
+            for _ in range(len(unresolved_params) + 1):
+                if not unresolved_params:
+                    break
+
+                newly_resolved_params: Dict[str, Any] = {}
+                still_unresolved_params: Dict[str, SystemParameterInfo] = {}
+
+                for name, param in unresolved_params.items():
+                    provider_key = param.type_hint
+                    if param.identity is MarkedEntityList:
+                        provider_key = MarkedEntityList
+
+                    provider = self.world.context_providers.get(provider_key)
+
+                    if provider:
+                        provider_sig = inspect.signature(provider.__call__)
+                        provider_kwargs = {}
+                        can_resolve = True
+
+                        for p_name, p_param in provider_sig.parameters.items():
+                            if p_name == "self" or p_param.kind in (
+                                inspect.Parameter.VAR_KEYWORD,
+                                inspect.Parameter.VAR_POSITIONAL,
+                            ):
+                                continue
+
+                            if param.identity is MarkedEntityList and p_name == "marker_component_type":
+                                provider_kwargs[p_name] = param.marker_component_type
+                                continue
+
+                            p_dep_type = p_param.annotation
+                            if p_dep_type in resolved_deps_by_type:
+                                provider_kwargs[p_name] = resolved_deps_by_type[p_dep_type]
+                            else:
+                                can_resolve = False
+                                break
+
+                        if can_resolve:
+                            context = cast(AbstractAsyncContextManager, provider(**provider_kwargs))
+                            resolved_value = await stack.enter_async_context(context)
+                            newly_resolved_params[name] = resolved_value
+                            resolved_deps_by_type[param.type_hint] = resolved_value
+                        else:
+                            still_unresolved_params[name] = param
+                    elif self.resource_manager.has_resource(param.type_hint):
+                        resolved_value = self.resource_manager.get_resource(param.type_hint)
+                        newly_resolved_params[name] = resolved_value
+                        resolved_deps_by_type[param.type_hint] = resolved_value
+                    else:
+                        still_unresolved_params[name] = param
+
+                if not newly_resolved_params and still_unresolved_params:
+                    unresolved_names = ", ".join(still_unresolved_params.keys())
+                    raise RuntimeError(
+                        f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}"
+                    )
+
+                resolved_params_by_name.update(newly_resolved_params)
+                unresolved_params = still_unresolved_params
+
+            result: Any
+            if metadata.is_async:
+                result = await system_func(**resolved_params_by_name)
+            else:
+                loop = asyncio.get_running_loop()
+                result = await loop.run_in_executor(None, lambda: system_func(**resolved_params_by_name))
+
+            if inspect.isasyncgen(result):
+                async for item in result:
+                    yield item
+            else:
+                yield SystemResultEvent(result=result)
 
     def execute_one_time_system(
-        self, system_func: Callable[..., Any], transaction: WorldTransaction, **kwargs: Any
+        self, system_func: Callable[..., Any], **kwargs: Any
     ) -> SystemExecutor[Any, BaseSystemEvent]:
-        generator = self._execute_system_func(system_func, transaction, **kwargs)
+        generator = self._execute_system_func(system_func, **kwargs)
         return SystemExecutor([generator], ExecutionStrategy.SERIAL)

@@ -339,7 +339,8 @@ async def show_entity(
     if not target_world:
         raise typer.Exit(code=1)
 
-    async with target_world.db_session_maker() as session:
+    async with target_world.transaction_manager() as tx:
+        session = tx.session
         components_dict = await dam_ecs_functions.get_all_components_for_entity_as_dict(session, entity_id)
         if not components_dict:
             typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)

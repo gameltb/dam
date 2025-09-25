@@ -117,12 +117,13 @@ The Command pattern is used for imperative actions where the caller requests a s
     @system(on_command=ExtractDominantColorCommand)
     async def handle_extract_dominant_color_command(
         cmd: ExtractDominantColorCommand,
-        transaction: WorldTransaction,
-        world: World, # Inject the world to use command helpers
+        transaction: WorldTransaction, # Injected by the DI system
+        world: World, # Needed for command helpers like open_stream
     ):
         print(f"Handling command to extract color from entity {cmd.entity_id}")
 
-        # Use the command's helper to get a file stream
+        # Use the command's helper to get a file stream.
+        # This helper needs the 'world' to dispatch other commands if necessary.
         async with cmd.open_stream(world) as stream:
             if not stream:
                 print(f"Could not get asset stream for entity {cmd.entity_id}")
@@ -134,10 +135,10 @@ The Command pattern is used for imperative actions where the caller requests a s
         # Create the component instance
         color_component = DominantColorComponent(hex_color=dominant_color_hex)
 
-        # Use the transaction's helper to add or update the component.
+        # The WorldTransaction object gives access to the session and other helpers.
         # Since DominantColorComponent is a UniqueComponent, this will correctly
         # add it if it's new, or update it if it already exists.
-        await transaction.add_or_update_component(cmd.entity_id, color_component)
+        await transaction.add_component_to_entity(cmd.entity_id, color_component)
         print(f"Dominant color for entity {cmd.entity_id} set to {dominant_color_hex}")
     ```
 

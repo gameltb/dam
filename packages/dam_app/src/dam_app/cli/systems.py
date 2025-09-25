@@ -64,7 +64,8 @@ async def run_auto_tagging(
 
     typer.echo(f"Running auto-tagging for entity: {entity_id}...")
 
-    async with target_world.db_session_maker() as session:
+    async with target_world.transaction_manager() as tx:
+        session = tx.session
         entity = await session.get(Entity, entity_id)
         if not entity:
             typer.secho(f"Entity with ID {entity_id} not found.", fg=typer.colors.RED)
@@ -88,7 +89,8 @@ async def ingest_archive(
     if not target_world:
         raise typer.Exit(code=1)
 
-    async with target_world.db_session_maker() as session:
+    async with target_world.transaction_manager() as tx:
+        session = tx.session
         mime_type_comp = await session.get(ContentMimeTypeComponent, entity_id)
         mime_type = ""
         if mime_type_comp and mime_type_comp.mime_type_concept:

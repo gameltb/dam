@@ -256,15 +256,15 @@ This section outlines the roles and interactions of Functions, Systems, Commands
     *   `@system(on_command=CommandType)` for command-driven execution.
     *   `@system` (with no arguments) to simply mark a function as a system without scheduling it.
 -   **Dependency Injection**:
-    *   Systems declare their dependencies using type hints in their parameters. The `WorldScheduler` injects these dependencies.
+    *   Systems declare their dependencies using type hints in their parameters. The `WorldScheduler`'s dependency injection system automatically resolves and injects these dependencies.
     *   Common injectable types for Systems include:
         *   The `Event` or `Command` object that triggered the system.
-        *   `WorldTransaction`: The primary mechanism for database interaction. Systems should inject this to perform ECS operations like adding/getting components.
-        *   `World`: The `World` instance itself can be injected to access world-level information or methods.
+        *   `WorldTransaction`: Injected automatically to provide a transactional session for all database operations.
+        *   `World`: The `World` instance itself can be injected to access world-level information or methods (e.g., for command helpers that need to dispatch other commands).
         *   `WorldConfig`: The configuration object for the current world.
         *   Any other resource added to the world's `ResourceManager`, which are injected by their type hint.
     *   Systems are responsible for acquiring necessary resources (e.g., the global `ModelExecutionManager` instance) and passing them as arguments to the functions they call.
--   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. The `World` object manages the transaction boundary (see Section 3.6).
+-   **Execution**: Managed by the `WorldScheduler` based on stages, events, or dispatched commands. Transaction boundaries are handled automatically by the dependency injection system (see Section 3.6).
 -   **Registration**: Systems are registered with a `World` by plugins. Each plugin is responsible for registering its own systems and specifying how they are triggered (stage, event, or command).
 -   **Characteristics**:
     *   Should be stateless. All necessary data comes from injected dependencies or queried entities.
@@ -319,23 +319,33 @@ It is important to distinguish between Events and Commands to maintain a clean a
     *   World-specific resources are typically instantiated once per `World` and added to that world's `ResourceManager`.
 -   **Access**: Accessed via dependency injection into Systems (using `Annotated[MyResourceType, "Resource"]`). Systems then pass these resources to functions if needed.
 
-### 3.6. Transaction Management and the `WorldTransaction` Object
+### 3.6. Transaction Management and Dependency Injection
 
-A core principle of the framework is to ensure data consistency through atomic transactions, especially when a single action (like a command) triggers a chain of subsequent events and commands.
+A core principle of the framework is to ensure data consistency through atomic transactions. The system uses a powerful dependency injection (DI) mechanism to manage this automatically.
 
--   **Transaction Boundary**: The transaction is managed by the `World` object. A database transaction begins when a "top-level" command or event is dispatched via `world.dispatch_command()` or `world.dispatch_event()`. The transaction is committed only after the initial operation and *all* subsequent operations it triggers have completed successfully. If any handler in the chain fails, the entire transaction is rolled back.
+-   **Transaction Provider**: The `dam.core.transaction_manager.TransactionManager` is a `ContextProvider` responsible for creating and managing database transactions. It ensures that operations are wrapped in a transaction, which is committed on success and rolled back on failure. It also handles nested transactions (savepoints) automatically.
 
--   **The `WorldTransaction` Object**: To facilitate this and to provide a controlled interface to the database, the framework uses a dedicated transaction object.
-    -   **Purpose**: The `dam.core.transaction.WorldTransaction` class acts as a single point of contact for all ECS-related database operations within a transaction. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components (e.g., `add_component`, `get_entity`).
-    -   **Lifecycle**: An `WorldTransaction` instance is created by the `World` at the beginning of a top-level transaction. This same instance is then passed down to all systems and functions that are part of that transaction chain.
-    -   **Usage in Systems**: Systems should not interact with the database session directly. Instead, they should inject the `WorldTransaction` object and use its methods. The `WorldTransaction` object provides several helper methods to abstract common database operations:
-        -   `await transaction.add_component_to_entity(...)`: Adds a component instance to an entity. Best for non-unique components.
-        -   `await transaction.add_or_update_component(...)`: A convenient helper that adds or updates a component. It checks if the component is a `UniqueComponent` and, if so, will update an existing instance instead of causing an error. This is the preferred method for managing unique components.
-        -   `await transaction.create_entity()`: Creates a new entity.
-        -   If an ID is needed immediately for a subsequent operation within the same transaction, `await transaction.flush()` can be called.
-    -   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` method is called automatically by the `World` object at the end of the transaction. Systems and functions should **never** call commit or rollback themselves.
+-   **The `WorldTransaction` Object**: The `dam.core.transaction.WorldTransaction` class acts as a single point of contact for all ECS-related database operations. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components.
 
-This approach ensures that system logic remains focused on orchestration, while the framework guarantees atomicity and provides a safe, domain-specific API for database interactions.
+-   **Usage in Systems (Dependency Injection)**: Systems no longer need to be aware of how transactions are managed. They simply declare their need for a transaction by adding a parameter with a `WorldTransaction` type hint to their function signature. The DI system will automatically provide it.
+
+    *Example:*
+    ```python
+    from dam.core.systems import system
+    from dam.core.transaction import WorldTransaction
+    from my_plugin.commands import MyCommand
+
+    @system(on_command=MyCommand)
+    async def my_system(cmd: MyCommand, transaction: WorldTransaction):
+        # The 'transaction' object is automatically provided by the DI system.
+        # Use it to perform database operations.
+        new_entity = await transaction.create_entity()
+        await transaction.add_component_to_entity(new_entity.id, SomeComponent())
+    ```
+
+-   **Commit/Rollback**: The underlying session's `commit()` or `rollback()` is handled automatically by the `TransactionManager`'s context manager at the end of the top-level operation (e.g., when the command handler finishes). Systems and functions should **never** call commit or rollback themselves.
+
+This approach ensures that system logic remains focused on orchestration, while the framework guarantees atomicity and provides a safe, domain-specific API for database interactions through dependency injection.
 
 ### 3.7. Progress Reporting Events
 
