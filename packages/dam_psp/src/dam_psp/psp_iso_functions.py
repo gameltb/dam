@@ -44,7 +44,7 @@ class SFO:
             k_end = self.data_table_start
         else:
             k_end = self.key_table_start + self.idx_table[idx + 1].key_offset
-        key = raw_sfo[k_start:k_end].decode("utf-8", errors="ignore").rstrip("\x00")
+        key = raw_sfo[k_start:k_end].decode("utf-8").rstrip("\x00")
 
         d_start = self.data_table_start + entry.data_offset
         d_end = d_start + entry.data_len
@@ -54,7 +54,7 @@ class SFO:
         if entry.data_fmt == SFODataFormat.INT32:
             data = int.from_bytes(raw_data_bytes, "little")
         else:
-            data = raw_data_bytes.decode("utf-8", errors="ignore").rstrip("\x00")
+            data = raw_data_bytes.decode("utf-8").split("\x00")[0]
 
         self.data[key] = data
 
