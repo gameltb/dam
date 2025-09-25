@@ -3,6 +3,7 @@ from io import BytesIO
 import pytest
 
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes import (
@@ -19,7 +20,7 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
     Tests that the add_hashes_from_stream_system correctly adds hash components.
     """
     world = test_world_alpha
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         entity = await ecs_functions.create_entity(transaction.session)
         await transaction.session.commit()
@@ -54,7 +55,7 @@ async def test_add_hashes_from_stream_system_propagates_mismatch_error(
     Tests that the system propagates a HashMismatchError if a hash already exists and does not match.
     """
     world = test_world_alpha
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         entity = await ecs_functions.create_entity(transaction.session)
         # Add a component with a wrong hash.

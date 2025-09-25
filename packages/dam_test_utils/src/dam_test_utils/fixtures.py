@@ -22,6 +22,7 @@ import torch
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
+from dam.core.transaction import WorldTransaction
 from dam.core.world import (
     World,
     clear_world_registry,
@@ -132,7 +133,11 @@ async def _setup_world(
 
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
-    await world.transaction_manager.create_db_and_tables()
+    from dam.core.transaction_manager import TransactionManager
+
+    transaction_manager = world.get_context(WorldTransaction)
+    assert isinstance(transaction_manager, TransactionManager)
+    await transaction_manager.create_db_and_tables()
 
     if plugins:
         for plugin in plugins:
@@ -142,8 +147,12 @@ async def _setup_world(
 
 
 async def _teardown_world_async(world: World) -> None:
-    if world and world.transaction_manager:
-        db_mngr = world.transaction_manager.db_manager
+    if world and world.has_context(WorldTransaction):
+        from dam.core.transaction_manager import TransactionManager
+
+        transaction_manager = world.get_context(WorldTransaction)
+        assert isinstance(transaction_manager, TransactionManager)
+        db_mngr = transaction_manager.db_manager
         if db_mngr and db_mngr.engine:
             async with db_mngr.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.drop_all)

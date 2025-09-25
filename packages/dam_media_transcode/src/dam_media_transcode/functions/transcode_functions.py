@@ -5,6 +5,7 @@ from typing import Optional, Tuple, cast
 
 from dam.core.config import settings
 from dam.core.stages import SystemStage
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import (
     ecs_functions,
@@ -40,7 +41,7 @@ async def create_transcode_profile(
     """
     Creates a new transcoding profile as a conceptual asset.
     """
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         # Check if profile with this name already exists
         stmt_existing = select(TranscodeProfileComponent).where(TranscodeProfileComponent.profile_name == profile_name)
@@ -137,7 +138,7 @@ async def get_transcode_profile_by_name_or_id(
     if session:
         return await _get(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _get(tx.session)
 
 
@@ -179,7 +180,7 @@ async def apply_transcode_profile(
     Applies a transcoding profile to a source asset, creates a new asset for the
     transcoded file, and links them.
     """
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         # 1. Get Transcode Profile
         _profile_entity, profile_component = await get_transcode_profile_by_name_or_id(
@@ -333,7 +334,7 @@ async def get_transcoded_variants_for_original(
     if session:
         return await _get(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _get(tx.session)
 
 
@@ -357,5 +358,5 @@ async def get_assets_using_profile(
     if session:
         return await _get(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _get(tx.session)

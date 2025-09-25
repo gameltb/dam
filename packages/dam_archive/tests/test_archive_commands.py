@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, List
 
 import pytest
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
@@ -46,7 +47,7 @@ async def test_discover_and_bind_workflow(
     await asyncio.sleep(0.1)
 
     # 3. Assertions
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
@@ -75,7 +76,7 @@ async def test_manual_create_and_unbind_workflow(
     entity_ids: List[int] = []
 
     # 1. Setup: Manually create part entities
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         from datetime import datetime, timezone
 

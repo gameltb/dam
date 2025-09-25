@@ -1,6 +1,7 @@
 from typing import Optional
 
 import typer
+from dam.core.transaction import WorldTransaction
 from dam.events.asset_events import AssetReadyForMetadataExtractionEvent
 from dam.models.core.entity import Entity
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
@@ -64,7 +65,7 @@ async def run_auto_tagging(
 
     typer.echo(f"Running auto-tagging for entity: {entity_id}...")
 
-    async with target_world.transaction_manager() as tx:
+    async with target_world.get_context(WorldTransaction)() as tx:
         session = tx.session
         entity = await session.get(Entity, entity_id)
         if not entity:
@@ -89,7 +90,7 @@ async def ingest_archive(
     if not target_world:
         raise typer.Exit(code=1)
 
-    async with target_world.transaction_manager() as tx:
+    async with target_world.get_context(WorldTransaction)() as tx:
         session = tx.session
         mime_type_comp = await session.get(ContentMimeTypeComponent, entity_id)
         mime_type = ""

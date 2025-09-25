@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from dam.commands.core import BaseCommand
 from dam.core.config import Settings
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from pytest import CaptureFixture
 
@@ -66,11 +67,11 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
     # 1. Setup
     mock_world = MagicMock(spec=World)
-    mock_world.transaction_manager = AsyncMock()
+    mock_world.get_context.return_value = AsyncMock()
     mock_session = AsyncMock()
-    mock_tx = AsyncMock()
+    mock_tx = AsyncMock(spec=WorldTransaction)
     mock_tx.session = mock_session
-    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
+    mock_world.get_context.return_value.return_value.__aenter__.return_value = mock_tx
 
     mock_file_content = b"This is the content of the new file."
 
@@ -163,11 +164,11 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 
     # 1. Setup
     mock_world = MagicMock(spec=World)
-    mock_world.transaction_manager = AsyncMock()
+    mock_world.get_context.return_value = AsyncMock()
     mock_session = AsyncMock()
-    mock_tx = AsyncMock()
+    mock_tx = AsyncMock(spec=WorldTransaction)
     mock_tx.session = mock_session
-    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
+    mock_world.get_context.return_value.return_value.__aenter__.return_value = mock_tx
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
@@ -233,11 +234,11 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     ExtractExifMetadataCommand._cached_extensions = None  # type: ignore [protected-access]
 
     mock_world = MagicMock(spec=World)
-    mock_world.transaction_manager = AsyncMock()
+    mock_world.get_context.return_value = AsyncMock()
     mock_session = AsyncMock()
-    mock_tx = AsyncMock()
+    mock_tx = AsyncMock(spec=WorldTransaction)
     mock_tx.session = mock_session
-    mock_world.transaction_manager.return_value.__aenter__.return_value = mock_tx
+    mock_world.get_context.return_value.return_value.__aenter__.return_value = mock_tx
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
