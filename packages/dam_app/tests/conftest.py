@@ -1,8 +1,8 @@
 import pytest
 from dam.core.world import World
 from dam_fs.plugin import FsPlugin
-
-from dam_app import AppPlugin
+from dam_app.plugin import AppPlugin
+from dam_archive.plugin import ArchivePlugin
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 
@@ -11,3 +11,4 @@ pytest_plugins = ["dam_test_utils.fixtures"]
 def setup_world_with_plugins(test_world_alpha: World):
     test_world_alpha.add_plugin(FsPlugin())
     test_world_alpha.add_plugin(AppPlugin())
+    test_world_alpha.add_plugin(ArchivePlugin())
