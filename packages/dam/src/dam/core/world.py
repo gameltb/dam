@@ -44,11 +44,11 @@ class World:
 
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
-        self.transaction_manager: TransactionManager = TransactionManager(world_config)
+        self._transaction_manager: TransactionManager = TransactionManager(world_config)
         self._registered_plugin_types: set[Type[Plugin]] = set()
         self.context_providers: Dict[Type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
-        self.register_context_provider(WorldTransaction, self.transaction_manager)
+        self.register_context_provider(WorldTransaction, self._transaction_manager)
         self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
 
@@ -67,6 +67,17 @@ class World:
         if type_hint in self.context_providers:
             self.logger.warning(f"Overwriting context provider for type {type_hint}.")
         self.context_providers[type_hint] = provider
+
+    def get_context(self, context_type: Type[T]) -> ContextProvider[T]:
+        """Gets a context provider for a given type hint."""
+        provider = self.context_providers.get(context_type)
+        if provider is None:
+            raise KeyError(f"No context provider registered for type {context_type}")
+        return provider
+
+    def has_context(self, context_type: Type[Any]) -> bool:
+        """Checks if a context provider is registered for a given type hint."""
+        return context_type in self.context_providers
 
     def add_plugin(self, plugin: Plugin) -> "World":
         plugin_type = type(plugin)

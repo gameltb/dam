@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from dam.core.exceptions import EntityNotFoundError
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions, tag_functions
 from dam.models.core.entity import Entity
@@ -98,7 +99,7 @@ async def create_evaluation_run_concept(
     if session:
         return await _create(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _create(tx.session)
 
 
@@ -128,7 +129,7 @@ async def get_evaluation_run_by_name_or_id(
     if session:
         return await _get(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _get(tx.session)
 
 
@@ -155,7 +156,7 @@ async def execute_evaluation_run(
         c. Creates an EvaluationResultComponent for the transcoded asset.
     Returns a list of created EvaluationResultComponent instances.
     """
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         try:
             _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
@@ -375,5 +376,5 @@ async def get_evaluation_results(
     if session:
         return await _get(session)
     else:
-        async with world.transaction_manager() as tx:
+        async with world.get_context(WorldTransaction)() as tx:
             return await _get(tx.session)

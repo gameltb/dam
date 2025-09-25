@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import pytest
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.metadata.content_length_component import ContentLengthComponent
@@ -28,7 +29,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
     assert isinstance(entity_id, int)
 
     # Verify components for the new entity
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         fnc = await ecs_functions.get_component(session, entity_id, FilenameComponent)
         assert fnc is not None
@@ -66,7 +67,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
     assert dup_entity_id == entity_id
 
     # Verify there are now two FileLocationComponents
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         flcs_after_dup = await ecs_functions.get_components(session, entity_id, FileLocationComponent)
         assert len(flcs_after_dup) == 2
@@ -93,7 +94,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
     entity_id = await world.dispatch_command(register_cmd1).get_one_value()
 
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         fnc = await ecs_functions.get_component(session, entity_id, FilenameComponent)
         assert fnc is not None
@@ -121,7 +122,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     assert entity_id2 == entity_id  # Should be the same entity due to content hash
 
     # 4. Verify that first_seen_at has been updated to the earlier time
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         fnc_after = await ecs_functions.get_component(session, entity_id, FilenameComponent)
         assert fnc_after is not None
@@ -141,7 +142,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         flc = await ecs_functions.get_component(session, entity_id, FileLocationComponent)
         assert flc is not None
@@ -160,7 +161,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
     await world.dispatch_command(register_again_cmd).get_all_results()
 
     # 4. Verify the timestamp has been updated
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         flc_after = await ecs_functions.get_component(session, entity_id, FileLocationComponent)
         assert flc_after is not None
@@ -186,7 +187,7 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
     await world.dispatch_command(store_cmd).get_all_results()
 
     # 3. Verify the file is in storage
-    async with world.transaction_manager() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         from dam.models.hashes import ContentHashSHA256Component
 

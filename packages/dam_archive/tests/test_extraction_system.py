@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_content_mime_type
@@ -37,7 +38,7 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
     # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")
@@ -79,7 +80,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
     # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")
@@ -159,7 +160,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     register_cmd_reg = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id_reg = await world.dispatch_command(register_cmd_reg).get_one_value()
 
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
         await set_content_mime_type(session, entity_id_reg, "application/zip")
@@ -231,7 +232,7 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
     register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
-    tm = world.transaction_manager
+    tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
         await set_content_mime_type(session, entity_id, "application/zip")

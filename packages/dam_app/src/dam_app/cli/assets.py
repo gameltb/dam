@@ -11,6 +11,7 @@ from dam.commands.asset_commands import (
     GetMimeTypeCommand,
     SetMimeTypeCommand,
 )
+from dam.core.transaction import WorldTransaction
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
@@ -339,7 +340,7 @@ async def show_entity(
     if not target_world:
         raise typer.Exit(code=1)
 
-    async with target_world.transaction_manager() as tx:
+    async with target_world.get_context(WorldTransaction)() as tx:
         session = tx.session
         components_dict = await dam_ecs_functions.get_all_components_for_entity_as_dict(session, entity_id)
         if not components_dict:
