@@ -180,4 +180,10 @@ class RarArchiveHandler(ArchiveHandler):
 
     @property
     def comment(self) -> Optional[str]:
-        return self.rar_file.comment  # type: ignore
+        comment = self.rar_file.comment
+        if comment and "\x00" in comment:
+            try:
+                return comment.encode("raw_unicode_escape").decode("utf-16-le")
+            except Exception:
+                return comment
+        return comment  # type: ignore
