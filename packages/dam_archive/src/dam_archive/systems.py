@@ -454,7 +454,7 @@ async def _process_archive(
                         if not member_entity_id:
                             raise ValueError(f"Could not get or create entity for archive member '{member_file.name}'")
 
-                        # Add ArchiveMemberComponent for new members
+                        # Add ArchiveMemberComponent for new members first to avoid race conditions.
                         member_comp = ArchiveMemberComponent(
                             archive_entity_id=entity_id,
                             path_in_archive=member_file.name,
