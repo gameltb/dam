@@ -32,11 +32,17 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
         for f in files:
             assert isinstance(f.modified_at, datetime.datetime)
 
-        with archive.open_file("file1.txt") as f_in_zip:
+        member_info, f_in_zip = archive.open_file("file1.txt")
+        with f_in_zip:
             assert f_in_zip.read() == b"content1"
+        assert member_info.name == "file1.txt"
+        assert member_info.size == 8
 
-        with archive.open_file("dir/file2.txt") as f_in_zip:
+        member_info, f_in_zip = archive.open_file("dir/file2.txt")
+        with f_in_zip:
             assert f_in_zip.read() == b"content2"
+        assert member_info.name == "dir/file2.txt"
+        assert member_info.size == 8
 
 
 @pytest.fixture
@@ -64,8 +70,10 @@ def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> N
     with open(protected_zip_file, "rb") as f:
         archive = open_archive(f, "application/zip", password="password")
         assert archive is not None
-        with archive.open_file("file1.txt") as f_in_zip:
+        member_info, f_in_zip = archive.open_file("file1.txt")
+        with f_in_zip:
             assert f_in_zip.read() == b"content1"
+        assert member_info.name == "file1.txt"
 
 
 def test_open_protected_zip_with_incorrect_password(protected_zip_file: Path) -> None:

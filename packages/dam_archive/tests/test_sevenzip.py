@@ -46,8 +46,10 @@ def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> Non
         with open(protected_7z_file, "rb") as f:
             archive = open_archive(f, "application/x-7z-compressed", password="password")
             assert archive is not None
-            with archive.open_file("file1.txt") as f_in_zip:
+            member_info, f_in_zip = archive.open_file("file1.txt")
+            with f_in_zip:
                 assert f_in_zip.read() == b"content1"
+            assert member_info.name == "file1.txt"
     finally:
         if archive:
             archive.close()
@@ -80,8 +82,10 @@ def test_open_nested_7z_file(nested_7z_file: Path) -> None:
             assert archive is not None
             files = archive.list_files()
             assert "folder/nested_file.txt" in [m.name for m in files]
-            with archive.open_file("folder/nested_file.txt") as f_in_zip:
+            member_info, f_in_zip = archive.open_file("folder/nested_file.txt")
+            with f_in_zip:
                 assert f_in_zip.read() == b"content_nested"
+            assert member_info.name == "folder/nested_file.txt"
     finally:
         if archive:
             archive.close()
@@ -97,11 +101,11 @@ def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
             files = list(archive.iter_files())
             assert len(files) == 1
 
-            member_file = files[0]
-            assert member_file.name == "file1.txt"
-            assert member_file.size == 8
+            member_info, member_stream = files[0]
+            assert member_info.name == "file1.txt"
+            assert member_info.size == 8
 
-            with member_file as f_in_zip:
+            with member_stream as f_in_zip:
                 assert f_in_zip.read() == b"content1"
     finally:
         if archive:

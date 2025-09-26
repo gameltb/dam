@@ -286,8 +286,8 @@ async def get_archive_asset_stream_handler(
                 archive = open_archive(archive_stream, mime_type, password)
                 if archive:
                     # The returned stream will be closed by the consumer.
-                    # The archive object itself will be closed when the member stream is closed.
-                    return archive.open_file(path_in_archive)
+                    _, member_stream = archive.open_file(path_in_archive)
+                    return member_stream
                 else:
                     raise IOError(f"Could not open archive for entity {target_entity_id}")
             except Exception as e:
@@ -405,7 +405,7 @@ async def _process_archive(
         processed_size = 0
         member_mod_times = {m.name: m.modified_at for m in all_members}
 
-        for member_file in archive.iter_files():
+        for member_info, member_file in archive.iter_files():
             try:
                 with member_file as member_stream:
                     # --- Memory-constrained stream handling ---
@@ -439,9 +439,9 @@ async def _process_archive(
                     # --- Entity handling (Create vs. Re-issue) ---
                     member_entity_id: Optional[int] = None
                     if is_reingestion:
-                        member_entity_id = member_map.get(member_file.name)
+                        member_entity_id = member_map.get(member_info.name)
                         if not member_entity_id:
-                            logger.warning(f"Could not find existing entity for member '{member_file.name}'. Skipping.")
+                            logger.warning(f"Could not find existing entity for member '{member_info.name}'. Skipping.")
                             continue
                     else:
                         # Initial ingestion: Get or create entity from stream
@@ -452,13 +452,13 @@ async def _process_archive(
                             member_entity_id = member_entity.id
 
                         if not member_entity_id:
-                            raise ValueError(f"Could not get or create entity for archive member '{member_file.name}'")
+                            raise ValueError(f"Could not get or create entity for archive member '{member_info.name}'")
 
                         # Add ArchiveMemberComponent for new members first to avoid race conditions.
                         member_comp = ArchiveMemberComponent(
                             archive_entity_id=entity_id,
-                            path_in_archive=member_file.name,
-                            modified_at=member_mod_times.get(member_file.name),
+                            path_in_archive=member_info.name,
+                            modified_at=member_mod_times.get(member_info.name),
                         )
                         await transaction.add_component_to_entity(member_entity_id, member_comp)
 
@@ -467,23 +467,23 @@ async def _process_archive(
                         yield NewEntityCreatedEvent(
                             entity_id=member_entity_id,
                             stream_provider=event_stream_provider,
-                            filename=member_file.name,
+                            filename=member_info.name,
                         )
 
                 # --- Progress Update ---
                 if is_reingestion:
                     processed_items += 1
                     yield ProgressUpdate(
-                        total=total_items, current=processed_items, message=f"Re-issued event for '{member_file.name}'."
+                        total=total_items, current=processed_items, message=f"Re-issued event for '{member_info.name}'."
                     )
                 else:
-                    processed_size += member_file.size
+                    processed_size += member_info.size
                     yield ProgressUpdate(
-                        total=total_size, current=processed_size, message=f"Processed '{member_file.name}'."
+                        total=total_size, current=processed_size, message=f"Processed '{member_info.name}'."
                     )
 
             except Exception as e:
-                logger.error(f"Failed to process member '{member_file.name}' from archive {entity_id}: {e}")
+                logger.error(f"Failed to process member '{member_info.name}' from archive {entity_id}: {e}")
                 # Don't abort the whole process for one bad file
                 continue
 
