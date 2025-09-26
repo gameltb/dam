@@ -12,9 +12,11 @@ import json
 import logging
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from ctypes import CDLL, c_int
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional
 
@@ -64,11 +66,33 @@ class ExifTool:
             raise FileNotFoundError(f"{self.executable} not found in PATH.")
 
         command = [exiftool_path, "-stay_open", "True", "-@", "-"]
+
+        # See https://github.com/sindresorhus/exiftool-vendored.js/blob/main/lib/process.mjs#L18
+        # On Linux, set the PDEATHSIG flag to ensure the exiftool process is killed
+        # if the parent process dies.
+        preexec_fn = None
+        if hasattr(os, "setsid"):
+
+            def set_pdeathsig():
+                try:
+                    # prctl(PR_SET_PDEATHSIG, SIGHUP)
+                    # See http://man7.org/linux/man-pages/man2/prctl.2.html
+                    # If the parent process dies, the child process will receive
+                    # the SIGHUP signal and terminate.
+                    libc = CDLL("libc.so.6")
+                    PR_SET_PDEATHSIG = 1
+                    libc.prctl(c_int(PR_SET_PDEATHSIG), c_int(signal.SIGHUP))
+                except (AttributeError, OSError) as e:
+                    logger.warning(f"Failed to set PDEATHSIG: {e}")
+
+            preexec_fn = set_pdeathsig
+
         self.process = await asyncio.create_subprocess_exec(
             *command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            preexec_fn=preexec_fn,
         )
         logger.info("ExifTool process started.")
 
@@ -158,7 +182,17 @@ class ExifTool:
                 await self.process.stdin.drain()
                 await writer_future
 
-            output_bytes = await self.process.stdout.readuntil(b"{ready}\n")
+            # Read from stdout until the ready signal is received.
+            # This is done to avoid LimitOverrunError for large JSON outputs.
+            buffer = bytearray()
+            separator = b"{ready}\n"
+            while not buffer.endswith(separator):
+                chunk = await self.process.stdout.read(4096)
+                if not chunk:
+                    break  # End of stream
+                buffer.extend(chunk)
+
+            output_bytes = bytes(buffer)
             output_str = output_bytes.decode("utf-8", errors="ignore").strip()
             json_str = output_str.rsplit("{ready}", 1)[0].strip()
 
