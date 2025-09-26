@@ -143,7 +143,6 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             # Verify stream passed to GetOrCreateEntityFromStreamCommand
             get_or_create_cmd = dispatch_spy.call_args.args[0]
             assert isinstance(get_or_create_cmd.stream, io.BytesIO)
-            # We must seek the stream back to the beginning because the command consumes it.
             get_or_create_cmd.stream.seek(0)
             assert get_or_create_cmd.stream.read() == file_content
 

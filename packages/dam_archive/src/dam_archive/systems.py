@@ -413,18 +413,28 @@ async def _process_archive(
                     memory_limit = int(available_memory * 0.5)
                     in_memory_buffer = io.BytesIO(member_stream.read(memory_limit))
                     is_eof = not member_stream.read(1)
-                    in_memory_buffer.seek(0)
 
                     event_stream_provider: Optional[StreamProvider] = None
-                    if is_eof:
-                        buffer_content = in_memory_buffer.read()
-                        in_memory_buffer.seek(0)
+                    stream_for_command: BinaryIO
 
+                    if is_eof:
+                        # Read the entire content into an immutable bytes object once.
+                        in_memory_buffer.seek(0)
+                        buffer_content = in_memory_buffer.read()
+
+                        # Create a new stream for the command from the bytes object.
+                        stream_for_command = io.BytesIO(buffer_content)
+
+                        # Create a provider that generates new streams from the bytes object for the event.
                         def event_provider(content: bytes = buffer_content) -> BinaryIO:
                             return io.BytesIO(content)
 
                         event_stream_provider = event_provider
-                    # else: If not eof, we can't create a re-readable provider. The buffer will be used in the chained stream.
+                    else:
+                        # For large files, we can't provide a re-readable event stream.
+                        # The command gets a chained stream which consumes the buffer and the rest of the file stream.
+                        in_memory_buffer.seek(0)
+                        stream_for_command = cast(BinaryIO, ChainedStream([in_memory_buffer, member_stream]))
 
                     # --- Entity handling (Create vs. Re-issue) ---
                     member_entity_id: Optional[int] = None
@@ -435,18 +445,6 @@ async def _process_archive(
                             continue
                     else:
                         # Initial ingestion: Get or create entity from stream
-                        stream_for_command: BinaryIO
-                        # We need to create a new BytesIO buffer for the command, as the test inspects the stream
-                        # after it has been consumed by the command handler.
-                        in_memory_buffer.seek(0)
-                        cmd_buffer = io.BytesIO(in_memory_buffer.read())
-
-                        if is_eof:
-                            stream_for_command = cmd_buffer
-                        else:
-                            # The ChainedStream will own the cmd_buffer and the rest of the member_stream.
-                            stream_for_command = cast(BinaryIO, ChainedStream([cmd_buffer, member_stream]))
-
                         get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
                         member_entity_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
                         if member_entity_tuple:
