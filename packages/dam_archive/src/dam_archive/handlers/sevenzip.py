@@ -1,16 +1,17 @@
+import datetime
 import logging
 import lzma
 import threading
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import py7zr
-from py7zr.exceptions import PasswordRequired
+from py7zr.exceptions import PasswordRequired, UnsupportedCompressionMethodError
 from py7zr.io import Py7zIO, WriterFactory
 
 from ..base import ArchiveHandler, ArchiveMemberInfo
-from ..exceptions import InvalidPasswordError
+from ..exceptions import InvalidPasswordError, UnsupportedArchiveError
 
 logger = logging.getLogger(__name__)
 
@@ -267,29 +268,33 @@ class SevenZipArchiveHandler(ArchiveHandler):
         try:
             with self._open_7z_file() as archive:
                 for member in archive.list():
-                    if not member.is_directory:  # type: ignore
+                    if not member.is_directory:
                         self.members.append(
                             ArchiveMemberInfo(
-                                name=member.filename,  # type: ignore
-                                size=member.uncompressed,  # type: ignore
-                                modified_at=member.creationtime,  # type: ignore
+                                name=cast(str, member.filename),
+                                size=cast(int, member.uncompressed),
+                                modified_at=cast(datetime.datetime, member.creationtime),
                             )
                         )
-                if self.password and self.members:
+                if self.members:
+                    # testzip() will raise UnsupportedCompressionMethodError if any file
+                    # uses an unsupported filter.
                     with self._open_7z_file() as test_archive:
                         test_archive.testzip()
-                    if hasattr(self.file, "seek"):
-                        self.file.seek(0)  # type: ignore
 
+        except UnsupportedCompressionMethodError as e:
+            raise UnsupportedArchiveError(f"Unsupported 7z archive: {e}") from e
         except (lzma.LZMAError, py7zr.Bad7zFile, PasswordRequired) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
+        finally:
+            if isinstance(self.file, IO):
+                self.file.seek(0)
 
     def _open_7z_file(self) -> py7zr.SevenZipFile:
         if isinstance(self.file, str):
             return py7zr.SevenZipFile(self.file, "r", password=self.password)
         else:
-            if hasattr(self.file, "seek"):
-                self.file.seek(0)
+            self.file.seek(0)
             return py7zr.SevenZipFile(self.file, "r", password=self.password)
 
     def _start_producer(

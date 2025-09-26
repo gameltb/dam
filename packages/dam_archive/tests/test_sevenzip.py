@@ -4,7 +4,8 @@ from pathlib import Path
 import py7zr
 import pytest
 
-from dam_archive.exceptions import InvalidPasswordError
+from dam_archive.exceptions import InvalidPasswordError, UnsupportedArchiveError
+from dam_archive.handlers.sevenzip import SevenZipArchiveHandler
 from dam_archive.main import open_archive
 
 
@@ -30,6 +31,17 @@ def test_open_7z_archive(dummy_7z_file: Path) -> None:
     finally:
         if archive:
             archive.close()
+
+
+def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
+    """
+    Tests that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives.
+    """
+    with pytest.raises(UnsupportedArchiveError):
+        # We test SevenZipArchiveHandler directly, as open_archive would fall back to the CLI handler.
+        with open(bcj2_7z_archive, "rb") as f:
+            handler = SevenZipArchiveHandler(f)
+            handler.close()
 
 
 @pytest.fixture
