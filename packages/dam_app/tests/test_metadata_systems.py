@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+import subprocess
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -172,5 +173,44 @@ async def test_extract_metadata_removes_sourcefile():
 
         assert metadata is not None
         assert "SourceFile" not in metadata
+
+    await exiftool.stop()
+
+
+@pytest.mark.asyncio
+async def test_extract_metadata_with_large_json_output():
+    """
+    Tests that metadata extraction can handle large JSON output from exiftool
+    without raising a LimitOverrunError.
+    """
+    exiftool = ExifTool()
+    await exiftool.start()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        image_path = temp_dir_path / "test_image.jpg"
+        # A minimal valid JPEG file content
+        image_path.write_bytes(
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x02\x01\x01\x01\x01\x01\x02\x01\x01\x01\x02\x02\x02\x02\x02\x04\x03\x02\x02\x02\x02\x05\x04\x04\x03\x04\x06\x05\x06\x06\x06\x05\x06\x06\x06\x07\t\x08\x07\x07\x08\t\x07\x06\x06\x08\x0b\t\n\n\n\n\n\n\x0c\x0b\x0c\x0b\x0b\x0c\x0b\x0b\x0b\x0b\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xd2\xeb\xbf\xff\xd9"
+        )
+
+        large_comment = 'A' * 100000
+        comment_file_path = temp_dir_path / "large_comment.txt"
+        comment_file_path.write_text(large_comment)
+
+        large_meta_image_path = temp_dir_path / "test_image_large_meta.jpg"
+        # We use -m to ignore minor errors about the size of the comment
+        subprocess.run(
+            ["exiftool", "-m", f"-UserComment<={comment_file_path}", str(image_path), "-o", str(large_meta_image_path)],
+            check=True,
+            capture_output=True,
+        )
+
+        metadata = await exiftool.get_metadata(filepath=large_meta_image_path)
+
+        assert metadata is not None
+        assert "EXIF:UserComment" in metadata
+        assert len(metadata["EXIF:UserComment"]) == 100000
+        assert metadata["EXIF:UserComment"] == large_comment
 
     await exiftool.stop()
