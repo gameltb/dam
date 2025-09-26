@@ -1,51 +1,87 @@
+import subprocess
 import zipfile
 from pathlib import Path
-from typing import AsyncGenerator
 
 import pytest
-import pytest_asyncio
-from dam.core.config import Settings
-from dam.core.world import World
+from dam.core import World
 from dam_fs.plugin import FsPlugin
-from dam_test_utils.fixtures import _setup_world, _teardown_world_async  # type: ignore
+from pytest import TempPathFactory
 
 from dam_archive.plugin import ArchivePlugin
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 
 
-@pytest.fixture(scope="session")
-def test_archives(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
-    """
-    Creates regular zip and password-protected 7z files for testing.
-    """
-    tmp_dir = tmp_path_factory.mktemp("archives")
-    content_dir = tmp_dir / "content"
-    content_dir.mkdir()
-    (content_dir / "file1.txt").write_text("file one")
-    (content_dir / "file2.txt").write_text("file two")
+@pytest.fixture(scope="function", autouse=True)
+def setup_world_with_plugins(test_world_alpha: World):
+    """Automatically sets up the test world with necessary plugins."""
+    test_world_alpha.add_plugin(FsPlugin())
+    test_world_alpha.add_plugin(ArchivePlugin())
 
-    # Create regular zip
-    regular_zip_path = tmp_dir / "regular.zip"
-    with zipfile.ZipFile(regular_zip_path, "w") as zf:
-        for file in content_dir.iterdir():
-            zf.write(file, arcname=file.name)
+
+@pytest.fixture(scope="session")
+def test_7z_content(tmp_path_factory: TempPathFactory) -> Path:
+    """Creates a directory with content for 7z archives."""
+    content_dir = tmp_path_factory.mktemp("test_7z_content")
+    (content_dir / "file.txt").write_text("This is a test file for 7z archives.\n")
+
+    # Create a dummy file for BCJ2 filter testing
+    (content_dir / "hello_x86").write_bytes(b"dummy executable content for bcj2 test")
+
+    return content_dir
+
+
+@pytest.fixture(scope="session")
+def regular_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+    """Creates a regular 7z archive."""
+    archive_path = tmp_path_factory.mktemp("archives") / "regular_archive.7z"
+    subprocess.run(
+        ["7z", "a", str(archive_path), "file.txt"],
+        cwd=test_7z_content,
+        check=True,
+    )
+    return archive_path
+
+
+@pytest.fixture(scope="session")
+def protected_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+    """Creates a password-protected 7z archive."""
+    archive_path = tmp_path_factory.mktemp("archives") / "protected_archive.7z"
+    subprocess.run(
+        ["7z", "a", "-ppassword", str(archive_path), "file.txt"],
+        cwd=test_7z_content,
+        check=True,
+    )
+    return archive_path
+
+
+@pytest.fixture(scope="session")
+def bcj2_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+    """Creates a BCJ2-filtered 7z archive."""
+    archive_path = tmp_path_factory.mktemp("archives") / "bcj2_archive.7z"
+    subprocess.run(
+        ["7z", "a", "-m0=BCJ2", "-m1=LZMA", str(archive_path), "hello_x86"],
+        cwd=test_7z_content,
+        check=True,
+    )
+    return archive_path
+
+
+@pytest.fixture
+def test_archives(tmp_path: Path) -> tuple[Path, Path]:
+    # Regular archive
+    regular_archive_path = tmp_path / "regular.zip"
+    with zipfile.ZipFile(regular_archive_path, "w") as zf:
+        zf.writestr("file1.txt", "file one")
+        zf.writestr("file2.txt", "file two")
         zf.comment = b"regular archive comment"
 
-    # Create protected zip
-    protected_zip_path = tmp_dir / "protected.zip"
-    with zipfile.ZipFile(protected_zip_path, "w") as zf:
-        zf.writestr("file1.txt", "file one", compress_type=zipfile.ZIP_DEFLATED)
-        zf.writestr("file2.txt", "file two", compress_type=zipfile.ZIP_DEFLATED)
+    # Protected archive
+    protected_archive_path = tmp_path / "protected.zip"
+    with zipfile.ZipFile(protected_archive_path, "w") as zf:
         zf.setpassword(b"password")
+        zf.writestr("file1.txt", "file one")
+        zf.writestr("file2.txt", "file two")
         zf.comment = b"protected archive comment"
 
-    return regular_zip_path, protected_zip_path
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
-    plugins = [FsPlugin(), ArchivePlugin()]
-    world = await _setup_world("test_world_alpha", settings_override, plugins=plugins)
-    yield world
-    await _teardown_world_async(world)
+    return regular_archive_path, protected_archive_path

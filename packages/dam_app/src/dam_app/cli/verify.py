@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import datetime
+import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -126,6 +127,17 @@ async def verify_assets(
 
     typer.echo(f"Found {len(files_to_process)} file(s) to process.")
 
+    def _get_sha256(file_path: Path) -> str:
+        """Helper function to calculate SHA256 hash."""
+        sha256 = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            while True:
+                data = f.read(65536)  # Read in 64k chunks
+                if not data:
+                    break
+                sha256.update(data)
+        return sha256.hexdigest()
+
     results: List[Dict[str, Any]] = []
     success_count = 0
     failed_count = 0
@@ -150,14 +162,7 @@ async def verify_assets(
                 return
 
             dam_hash = stored_hash_orm.hash_value.hex()
-            proc = await asyncio.create_subprocess_shell(
-                f"sha256sum '{file_path.as_posix()}'", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                raise RuntimeError(f"Hash calculation failed for {display_path}: {stderr.decode()}")
-
-            calculated_hash = stdout.decode().split()[0]
+            calculated_hash = _get_sha256(file_path)
             if calculated_hash == dam_hash:
                 status = "VERIFIED"
                 success_count += 1

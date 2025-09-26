@@ -25,8 +25,10 @@ def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
         files = archive.list_files()
         assert "测试.txt" in [m.name for m in files]
 
-        with archive.open_file("测试.txt") as f_in_zip:
+        member_info, f_in_zip = archive.open_file("测试.txt")
+        with f_in_zip:
             assert f_in_zip.read() == b"content"
+        assert member_info.name == "测试.txt"
 
 
 @pytest.fixture
@@ -66,9 +68,9 @@ def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
         files = list(archive.iter_files())
         assert len(files) == 1
 
-        member_file = files[0]
-        assert member_file.name == "测试.txt"
-        assert member_file.size == 7  # "content" is 7 bytes
+        member_info, member_stream = files[0]
+        assert member_info.name == "测试.txt"
+        assert member_info.size == 7  # "content" is 7 bytes
 
-        with member_file as f_in_zip:
+        with member_stream as f_in_zip:
             assert f_in_zip.read() == b"content"

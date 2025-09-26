@@ -173,12 +173,12 @@ async def benchmark_archive(
                 )
                 raise typer.Exit(code=1)
 
-            for member in archive.iter_files():
-                with member as member_stream:
+            for member_info, member_stream in archive.iter_files():
+                with member_stream:
                     # Read the whole stream to simulate processing
                     member_stream.read()
                     total_files += 1
-                    total_size += member.size
+                    total_size += member_info.size
 
     except Exception as e:
         typer.secho(f"An error occurred: {e}", fg=typer.colors.RED)

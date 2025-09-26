@@ -24,14 +24,19 @@ def test_open_rar_archive(dummy_rar_file: Path) -> None:
     archive = open_archive(str(dummy_rar_file), dummy_rar_file.name)
     assert archive is not None
     files = archive.list_files()
-    assert "file1.txt" in files
-    assert "dir/file2.txt" in files
+    file_names = [f.name for f in files]
+    assert "file1.txt" in file_names
+    assert "dir/file2.txt" in file_names
 
-    with archive.open_file("file1.txt") as f:
+    member_info, f = archive.open_file("file1.txt")
+    with f:
         assert f.read() == b"content1"
+    assert member_info.name == "file1.txt"
 
-    with archive.open_file("dir/file2.txt") as f:
+    member_info, f = archive.open_file("dir/file2.txt")
+    with f:
         assert f.read() == b"content2"
+    assert member_info.name == "dir/file2.txt"
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
@@ -48,8 +53,10 @@ def protected_rar_file(tmp_path: Path) -> Path:
 def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
     archive = open_archive(str(protected_rar_file), protected_rar_file.name, password="password")
     assert archive is not None
-    with archive.open_file("file1.txt") as f:
+    member_info, f = archive.open_file("file1.txt")
+    with f:
         assert f.read() == b"content1"
+    assert member_info.name == "file1.txt"
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
@@ -60,5 +67,10 @@ def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
 
     files = list(archive.iter_files())
     assert len(files) == 2  # Assuming dummy rar has 2 files
+    for member_info, f in files:
+        with f:
+            assert f.read()
+        assert member_info.name
+        assert member_info.size >= 0
 
     # Further assertions would go here if the test could be run
