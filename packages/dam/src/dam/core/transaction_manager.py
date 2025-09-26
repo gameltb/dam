@@ -20,12 +20,16 @@ class TransactionManager(ContextProvider[WorldTransaction]):
         await self.db_manager.create_db_and_tables()
 
     @asynccontextmanager
-    async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:  # type: ignore
+    async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:
         transaction = active_transaction.get()
+        use_nested_transaction = kwargs.get("use_nested_transaction",False)
 
         if transaction:
-            # If we're already in a transaction, join it.
-            yield transaction
+            if use_nested_transaction:
+                async with transaction.session.begin_nested():
+                    yield transaction
+            else:
+                yield transaction
             return
 
         # If there's no active transaction, create a new top-level one.

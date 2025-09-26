@@ -177,48 +177,45 @@ async def add_assets(
 
                 # If we are processing a child entity (depth > 0), run its commands in a nested transaction.
                 use_nested = depth > 0
-                stream = target_world.dispatch_command(processing_cmd, use_nested_transaction=use_nested)
+                async with target_world.get_context(WorldTransaction)(use_nested_transaction=use_nested):
+                    stream = target_world.dispatch_command(processing_cmd)
 
-                sub_pbar: Optional[tqdm[Any]] = None
+                    sub_pbar: Optional[tqdm[Any]] = None
 
-                async for event in stream:
-                    if isinstance(event, NewEntityCreatedEvent):
-                        tqdm.write(
-                            f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}"
-                        )
-                        await _process_entity(
-                            event.entity_id,
-                            depth + 1,
-                            pbar,
-                            filename=event.filename,
-                            stream_provider_from_event=event.stream_provider,
-                        )
-                    elif isinstance(event, ProgressStarted):
-                        sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
-                    elif isinstance(event, ProgressUpdate):
-                        if sub_pbar:
-                            if event.total is not None and sub_pbar.total != event.total:
-                                sub_pbar.total = event.total
-                            if event.current is not None:
-                                sub_pbar.update(event.current - sub_pbar.n)
+                    async for event in stream:
+                        if isinstance(event, NewEntityCreatedEvent):
+                            tqdm.write(
+                                f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}"
+                            )
+                            await _process_entity(
+                                event.entity_id,
+                                depth + 1,
+                                pbar,
+                                filename=event.filename,
+                                stream_provider_from_event=event.stream_provider,
+                            )
+                        elif isinstance(event, ProgressStarted):
+                            sub_pbar = tqdm(total=0, desc=f"  {command_name}", unit="B", unit_scale=True, leave=False)
+                        elif isinstance(event, ProgressUpdate):
+                            if sub_pbar:
+                                if event.total is not None and sub_pbar.total != event.total:
+                                    sub_pbar.total = event.total
+                                if event.current is not None:
+                                    sub_pbar.update(event.current - sub_pbar.n)
+                                if event.message:
+                                    sub_pbar.set_description(f"  {command_name}: {event.message}")
+                        elif isinstance(event, ProgressCompleted):
+                            if sub_pbar:
+                                # Make sure the bar is full
+                                if sub_pbar.total and sub_pbar.n < sub_pbar.total:
+                                    sub_pbar.update(sub_pbar.total - sub_pbar.n)
+                                sub_pbar.close()
                             if event.message:
-                                sub_pbar.set_description(f"  {command_name}: {event.message}")
-                    elif isinstance(event, ProgressCompleted):
-                        if sub_pbar:
-                            # Make sure the bar is full
-                            if sub_pbar.total and sub_pbar.n < sub_pbar.total:
-                                sub_pbar.update(sub_pbar.total - sub_pbar.n)
-                            sub_pbar.close()
-                        if event.message:
-                            tqdm.write(f"  -> Completed: {event.message}")
-                    elif isinstance(event, ProgressError):
-                        if sub_pbar:
-                            sub_pbar.close()
-                        tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
-
-                # The stream provider is single-use for non-seekable streams.
-                # Set to None to force the next command to fetch a new one.
-                current_stream_provider = None
+                                tqdm.write(f"  -> Completed: {event.message}")
+                        elif isinstance(event, ProgressError):
+                            if sub_pbar:
+                                sub_pbar.close()
+                            tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
             else:
                 tqdm.write(f"Warning: Command '{command_name}' not found.")
 
