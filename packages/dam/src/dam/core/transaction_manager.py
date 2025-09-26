@@ -22,7 +22,7 @@ class TransactionManager(ContextProvider[WorldTransaction]):
     @asynccontextmanager
     async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:
         transaction = active_transaction.get()
-        use_nested_transaction = kwargs.get("use_nested_transaction",False)
+        use_nested_transaction = kwargs.get("use_nested_transaction", False)
 
         if transaction:
             if use_nested_transaction:

@@ -16,7 +16,6 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import StreamProvider
 from dam.core.world import World
 from dam.functions.mime_type_functions import get_content_mime_type
-from dam.models.core.entity import Entity
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
@@ -386,6 +385,7 @@ async def _process_archive(
         all_members = archive.list_files()
         total_items = len(all_members)
         processed_items = 0
+        total_size = 0
 
         member_map: Dict[str, int] = {}
         if is_reingestion:
@@ -561,7 +561,9 @@ async def ingest_archive_members_handler(
         # Case 2: Part of an already assembled split archive.
         part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
         if not manifest_comp and part_info and part_info.master_entity_id:
-            logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
+            logger.info(
+                f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}."
+            )
             redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
             async for event in world.dispatch_command(redirect_cmd):
                 yield cast(SystemProgressEvent, event)
