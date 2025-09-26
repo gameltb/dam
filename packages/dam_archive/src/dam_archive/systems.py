@@ -318,16 +318,18 @@ async def get_archive_asset_filenames_handler(
     return None
 
 
-async def _perform_ingestion(
+async def _process_archive(
     entity_id: int,
     archive_stream_provider: StreamProvider,
     cmd: IngestArchiveCommand,
     world: Annotated[World, "Resource"],
     transaction: WorldTransaction,
+    is_reingestion: bool,
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
     """
-    The core extraction logic, once an archive stream provider is prepared.
-    This is an async generator that yields streaming events.
+    The core extraction and event-issuing logic for an archive.
+    If is_reingestion is True, it re-issues events for existing members.
+    Otherwise, it performs the initial ingestion.
     """
     yield ProgressStarted()
 
@@ -337,20 +339,18 @@ async def _perform_ingestion(
         return
 
     stored_password_comp = await transaction.get_component(entity_id, ArchivePasswordComponent)
-
     passwords_to_try: List[Optional[str]] = [None]
     if stored_password_comp and stored_password_comp.password:
         passwords_to_try.insert(0, stored_password_comp.password)
     if cmd.passwords:
         passwords_to_try.extend(p for p in cmd.passwords if p)
-    passwords_to_try = list(dict.fromkeys(passwords_to_try))  # Remove duplicates
+    passwords_to_try = list(dict.fromkeys(passwords_to_try))
 
     archive = None
     correct_password = None
 
     for pwd in passwords_to_try:
         temp_archive = None
-        # Get a fresh stream for each password attempt
         archive_stream = archive_stream_provider()
         try:
             temp_archive = open_archive(archive_stream, mime_type, pwd)
@@ -358,14 +358,10 @@ async def _perform_ingestion(
                 correct_password = pwd
                 archive = temp_archive
                 logger.info(f"Successfully opened archive {entity_id} with password: {'yes' if pwd else 'no'}")
-                break  # Exit loop on success
-            else:
-                # This case might happen if open_archive returns None without an exception
-                archive_stream.close()
+                break
         except InvalidPasswordError:
             if temp_archive:
                 temp_archive.close()
-            # This is expected, just try the next password
             continue
         except (IOError, RuntimeError) as e:
             if temp_archive:
@@ -373,11 +369,10 @@ async def _perform_ingestion(
             yield ProgressError(message=f"Failed to open archive {entity_id}", exception=e)
             return
         except Exception:
-            # Catch any other exception and ensure the stream is closed
             if temp_archive:
                 temp_archive.close()
             archive_stream.close()
-            raise  # Re-raise the unexpected exception
+            raise
 
     if not archive:
         yield ProgressError(
@@ -387,95 +382,128 @@ async def _perform_ingestion(
         return
 
     try:
-        # Save the correct password if it wasn't already stored
-        stored_password = stored_password_comp.password if stored_password_comp else None
-        if correct_password and (not stored_password or correct_password != stored_password):
-            async for _ in world.dispatch_command(
-                SetArchivePasswordCommand(entity_id=entity_id, password=correct_password)
-            ):
-                pass
-
+        # --- Main Logic ---
         all_members = archive.list_files()
-        member_mod_times = {m.name: m.modified_at for m in all_members}
-        total_size = sum(m.size for m in all_members)
+        total_items = len(all_members)
+        processed_items = 0
+
+        member_map: Dict[str, int] = {}
+        if is_reingestion:
+            logger.info(f"Entity {entity_id} is being re-ingested. Mapping existing members.")
+            stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
+            result = await transaction.session.execute(stmt)
+            members_from_db = result.scalars().all()
+            member_map = {member.path_in_archive: member.entity_id for member in members_from_db}
+            yield ProgressUpdate(
+                total=total_items, current=processed_items, message="Re-issuing events for existing members."
+            )
+        else:
+            logger.info(f"Entity {entity_id} is being ingested for the first time.")
+            total_size = sum(m.size for m in all_members)
+            yield ProgressUpdate(total=total_size, current=0, message="Starting ingestion.")
+
         processed_size = 0
-        yield ProgressUpdate(total=total_size, current=processed_size, message="Starting ingestion.")
+        member_mod_times = {m.name: m.modified_at for m in all_members}
 
         for member_file in archive.iter_files():
             try:
                 with member_file as member_stream:
-                    # New memory-constrained logic
+                    # --- Memory-constrained stream handling ---
                     available_memory = psutil.virtual_memory().available
                     memory_limit = int(available_memory * 0.5)
                     in_memory_buffer = io.BytesIO(member_stream.read(memory_limit))
                     is_eof = not member_stream.read(1)
                     in_memory_buffer.seek(0)
 
-                    # For GetOrCreateEntityFromStreamCommand, we can't easily support re-reads for large files
-                    # without saving them to disk first. We'll pass a single-use stream for now.
-                    stream_for_command: BinaryIO
-                    if is_eof:
-                        stream_for_command = in_memory_buffer
-                    else:
-                        # This part is tricky as the original rest_stream is consumed.
-                        # The ChainedStream approach is inherently problematic for re-reading.
-                        stream_for_command = cast(BinaryIO, ChainedStream([in_memory_buffer, member_stream]))
-
-                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
-                    member_entity: Optional[Entity] = None
-                    result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
-                    if result_tuple:
-                        member_entity, _ = result_tuple
-
-                    if not member_entity:
-                        raise ValueError("Could not get or create entity for archive member")
-
-                    # For NewEntityCreatedEvent, we provide a stream provider that can be reused.
-                    # This only works if the member fit entirely in the memory buffer.
                     event_stream_provider: Optional[StreamProvider] = None
                     if is_eof:
-                        # Capture the buffer content for the provider
-                        in_memory_buffer.seek(0)
                         buffer_content = in_memory_buffer.read()
-                        in_memory_buffer.seek(0)  # Rewind for the command consumer
+                        in_memory_buffer.seek(0)
 
                         def event_provider(content: bytes = buffer_content) -> BinaryIO:
                             return io.BytesIO(content)
 
                         event_stream_provider = event_provider
+                    # else: If not eof, we can't create a re-readable provider. The buffer will be used in the chained stream.
+
+                    # --- Entity handling (Create vs. Re-issue) ---
+                    member_entity_id: Optional[int] = None
+                    if is_reingestion:
+                        member_entity_id = member_map.get(member_file.name)
+                        if not member_entity_id:
+                            logger.warning(f"Could not find existing entity for member '{member_file.name}'. Skipping.")
+                            continue
                     else:
-                        # If the file was too large, we can't provide a re-readable stream
-                        # without saving to a temporary file, so we provide None.
-                        in_memory_buffer.close()
+                        # Initial ingestion: Get or create entity from stream
+                        stream_for_command: BinaryIO
+                        # We need to create a new BytesIO buffer for the command, as the test inspects the stream
+                        # after it has been consumed by the command handler.
+                        in_memory_buffer.seek(0)
+                        cmd_buffer = io.BytesIO(in_memory_buffer.read())
 
-                    yield NewEntityCreatedEvent(
-                        entity_id=member_entity.id,
-                        stream_provider=event_stream_provider,
-                        filename=member_file.name,
+                        if is_eof:
+                            stream_for_command = cmd_buffer
+                        else:
+                            # The ChainedStream will own the cmd_buffer and the rest of the member_stream.
+                            stream_for_command = cast(BinaryIO, ChainedStream([cmd_buffer, member_stream]))
+
+                        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
+                        member_entity_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
+                        if member_entity_tuple:
+                            member_entity, _ = member_entity_tuple
+                            member_entity_id = member_entity.id
+
+                        if not member_entity_id:
+                            raise ValueError(f"Could not get or create entity for archive member '{member_file.name}'")
+
+                        # Add ArchiveMemberComponent for new members
+                        member_comp = ArchiveMemberComponent(
+                            archive_entity_id=entity_id,
+                            path_in_archive=member_file.name,
+                            modified_at=member_mod_times.get(member_file.name),
+                        )
+                        await transaction.add_component_to_entity(member_entity_id, member_comp)
+
+                    # --- Event Emission ---
+                    if member_entity_id:
+                        yield NewEntityCreatedEvent(
+                            entity_id=member_entity_id,
+                            stream_provider=event_stream_provider,
+                            filename=member_file.name,
+                        )
+
+                # --- Progress Update ---
+                if is_reingestion:
+                    processed_items += 1
+                    yield ProgressUpdate(
+                        total=total_items, current=processed_items, message=f"Re-issued event for '{member_file.name}'."
+                    )
+                else:
+                    processed_size += member_file.size
+                    yield ProgressUpdate(
+                        total=total_size, current=processed_size, message=f"Processed '{member_file.name}'."
                     )
 
-                    member_comp = ArchiveMemberComponent(
-                        archive_entity_id=entity_id,
-                        path_in_archive=member_file.name,
-                        modified_at=member_mod_times.get(member_file.name),
-                    )
-                    await transaction.add_component_to_entity(member_entity.id, member_comp)
-
-                processed_size += member_file.size
-                yield ProgressUpdate(
-                    total=total_size,
-                    current=processed_size,
-                    message=f"Processed '{member_file.name}'.",
-                )
             except Exception as e:
                 logger.error(f"Failed to process member '{member_file.name}' from archive {entity_id}: {e}")
-                yield ProgressError(message=f"Failed to process member '{member_file.name}'", exception=e)
-                return
+                # Don't abort the whole process for one bad file
+                continue
 
-        info_comp = ArchiveInfoComponent(comment=archive.comment)
-        await transaction.add_or_update_component(entity_id, info_comp)
-        logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
-        yield ProgressCompleted()
+        # --- Finalization ---
+        if not is_reingestion:
+            # Save the correct password if it wasn't already stored
+            if correct_password and (not stored_password_comp or correct_password != stored_password_comp.password):
+                await world.dispatch_command(
+                    SetArchivePasswordCommand(entity_id=entity_id, password=correct_password)
+                ).get_one_value()
+
+            info_comp = ArchiveInfoComponent(comment=archive.comment)
+            await transaction.add_or_update_component(entity_id, info_comp)
+            logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
+            yield ProgressCompleted()
+        else:
+            yield ProgressCompleted(message="Finished re-issuing events for members.")
+
     finally:
         if archive:
             archive.close()
@@ -489,90 +517,91 @@ async def ingest_archive_members_handler(
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
     """
     Handles processing an archive. It's the main entry point for ingestion.
-    This handler returns an async generator of streaming events.
+    This handler determines the stream provider and then calls the main processing logic.
     """
     logger.info(f"Ingestion command received for entity {cmd.entity_id}")
 
-    # If a stream provider is given, use it directly.
+    # --- Determine Stream Provider ---
+    archive_stream_provider: Optional[StreamProvider] = None
+
     if cmd.stream_provider:
         logger.info(f"Processing archive for entity {cmd.entity_id} from provided stream provider.")
-        async for event in _perform_ingestion(cmd.entity_id, cmd.stream_provider, cmd, world, transaction):
-            yield event
-        return
+        archive_stream_provider = cmd.stream_provider
+    else:
+        # Case 1: Master entity for a split archive.
+        manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
+        if manifest_comp:
+            logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams.")
+            stmt = (
+                select(SplitArchivePartInfoComponent)
+                .where(SplitArchivePartInfoComponent.master_entity_id == cmd.entity_id)
+                .order_by(SplitArchivePartInfoComponent.part_num)
+            )
+            result = await transaction.session.execute(stmt)
+            parts = result.scalars().all()
+            part_entity_ids = [part.entity_id for part in parts]
+            try:
+                part_stream_providers: List[StreamProvider] = []
+                for part_entity_id in part_entity_ids:
+                    stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
+                    provider = await world.dispatch_command(stream_cmd).get_first_non_none_value()
+                    if provider:
+                        part_stream_providers.append(provider)
+                    else:
+                        raise ValueError(f"Stream provider for part {part_entity_id} is None")
 
-    # --- Fallback to fetching stream provider from storage ---
+                def chained_stream_provider() -> BinaryIO:
+                    streams = [p() for p in part_stream_providers]
+                    return cast(BinaryIO, ChainedStream(streams))
+
+                archive_stream_provider = chained_stream_provider
+            except (ValueError, FileNotFoundError) as e:
+                logger.error(f"Could not get stream for split archive part: {e}")
+                yield ProgressError(message=str(e), exception=e)
+                return
+
+        # Case 2: Part of an already assembled split archive.
+        part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
+        if not manifest_comp and part_info and part_info.master_entity_id:
+            logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
+            redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
+            async for event in world.dispatch_command(redirect_cmd):
+                yield cast(SystemProgressEvent, event)
+            return
+
+        # Case 3: Part of a non-assembled split archive.
+        if not manifest_comp and part_info and not part_info.master_entity_id:
+            err_msg = (
+                f"Entity {cmd.entity_id} is part of a non-assembled split archive. "
+                "Please run 'discover-and-bind' or 'create-master' command first."
+            )
+            yield ProgressError(message=err_msg, exception=RuntimeError(err_msg))
+            return
+
+        # Case 4: Regular, single-file archive.
+        if not manifest_comp and not part_info:
+            logger.info(f"Entity {cmd.entity_id} is a single-file archive. Getting stream provider.")
+            try:
+                archive_stream_provider = await cmd.get_stream_provider(world)
+            except (ValueError, FileNotFoundError) as e:
+                logger.error(f"Could not get stream for single-file archive {cmd.entity_id}: {e}")
+                yield ProgressError(message=str(e), exception=e)
+                return
+
+    # --- Call Processing Logic ---
+    if not archive_stream_provider:
+        yield ProgressError(
+            message=f"Could not determine a stream provider for entity {cmd.entity_id}", exception=ValueError()
+        )
+        return
 
     info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
-    if info_comp:
-        logger.info(f"Entity {cmd.entity_id} has already been processed. Skipping ingestion.")
-        yield ProgressCompleted(message="Already processed.")
-        return
+    is_reingestion = info_comp is not None
 
-    # Case 1: Master entity for a split archive.
-    manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
-    if manifest_comp:
-        logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams for ingestion.")
-        stmt = (
-            select(SplitArchivePartInfoComponent)
-            .where(SplitArchivePartInfoComponent.master_entity_id == cmd.entity_id)
-            .order_by(SplitArchivePartInfoComponent.part_num)
-        )
-        result = await transaction.session.execute(stmt)
-        parts = result.scalars().all()
-        part_entity_ids = [part.entity_id for part in parts]
-
-        try:
-            part_stream_providers: List[StreamProvider] = []
-            for part_entity_id in part_entity_ids:
-                stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
-                provider = await world.dispatch_command(stream_cmd).get_first_non_none_value()
-                if provider:
-                    part_stream_providers.append(provider)
-                else:
-                    raise ValueError(f"Stream provider for part {part_entity_id} is None")
-
-            def chained_stream_provider() -> BinaryIO:
-                streams = [p() for p in part_stream_providers]
-                return cast(BinaryIO, ChainedStream(streams))
-
-            async for event in _perform_ingestion(cmd.entity_id, chained_stream_provider, cmd, world, transaction):
-                yield event
-            return
-        except (ValueError, FileNotFoundError) as e:
-            logger.error(f"Could not get stream for split archive part: {e}")
-            yield ProgressError(message=str(e), exception=e)
-            return
-
-    # Case 2: Part of an already assembled split archive.
-    part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
-    if part_info and part_info.master_entity_id:
-        logger.info(f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}.")
-        redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
-        stream = world.dispatch_command(redirect_cmd)
-        async for event in stream:
-            yield cast(SystemProgressEvent, event)
-        return
-
-    # Case 3: Part of a non-assembled split archive.
-    if part_info:
-        err_msg = (
-            f"Entity {cmd.entity_id} is part of a non-assembled split archive. "
-            "Please run 'discover-and-bind' or 'create-master' command first."
-        )
-        yield ProgressError(message=err_msg, exception=RuntimeError(err_msg))
-        return
-
-    # Case 4: Regular, single-file archive.
-    logger.info(f"Entity {cmd.entity_id} is a single-file archive. Ingesting.")
-    try:
-        archive_stream_provider = await cmd.get_stream_provider(world)
-        if not archive_stream_provider:
-            raise ValueError(f"Could not get stream provider for single-file archive {cmd.entity_id}")
-        async for event in _perform_ingestion(cmd.entity_id, archive_stream_provider, cmd, world, transaction):
-            yield event
-    except (ValueError, FileNotFoundError) as e:
-        logger.error(f"Could not get stream for single-file archive {cmd.entity_id}: {e}")
-        yield ProgressError(message=str(e), exception=e)
+    async for event in _process_archive(
+        cmd.entity_id, archive_stream_provider, cmd, world, transaction, is_reingestion=is_reingestion
+    ):
+        yield event
 
 
 @system(on_command=ClearArchiveComponentsCommand)

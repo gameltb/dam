@@ -143,6 +143,8 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             # Verify stream passed to GetOrCreateEntityFromStreamCommand
             get_or_create_cmd = dispatch_spy.call_args.args[0]
             assert isinstance(get_or_create_cmd.stream, io.BytesIO)
+            # We must seek the stream back to the beginning because the command consumes it.
+            get_or_create_cmd.stream.seek(0)
             assert get_or_create_cmd.stream.read() == file_content
 
 
@@ -221,9 +223,10 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_skip_already_extracted(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
+async def test_reingest_already_extracted_archive(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
     """
-    Tests that the IngestArchiveCommand skips archives that have already been processed.
+    Tests that the IngestArchiveCommand re-issues events for archives that have already been processed,
+    using the refactored _process_archive function.
     """
     world = test_world_alpha
     regular_archive_path, _ = test_archives
@@ -238,32 +241,53 @@ async def test_skip_already_extracted(test_world_alpha: World, test_archives: tu
         await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
-    # 2. Run the extraction command for the first time
+    # 2. Run the extraction command for the first time to populate the data
     ingest_cmd1 = IngestArchiveCommand(entity_id=entity_id)
     stream1 = world.dispatch_command(ingest_cmd1)
     events1 = [event async for event in stream1]
     assert any(isinstance(event, ProgressCompleted) for event in events1)
+    new_entity_events1 = [e for e in events1 if isinstance(e, NewEntityCreatedEvent)]
+    assert len(new_entity_events1) == 2
 
-    # 3. Verify that it was processed
+    # 3. Verify that it was processed correctly the first time
     async with tm() as transaction:
         session = transaction.session
         info1 = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
         assert info1 is not None
         assert info1.comment == "regular archive comment"
 
-    # 4. Run the extraction command for the second time
-    ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id)
-    stream2 = world.dispatch_command(ingest_cmd2)
-    events2 = [event async for event in stream2]
-    completed_event = next((e for e in events2 if isinstance(e, ProgressCompleted)), None)
-    assert completed_event is not None
-    assert completed_event.message == "Already processed."
-
-    # 5. Verify that it was skipped (no new components were created)
-    # We can't easily check the logs here, so we will check that the number of members is still the same.
-    async with tm() as transaction:
-        session = transaction.session
         members = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
         )
         assert len(members.scalars().all()) == 2
+
+    # 4. Run the extraction command for the second time (re-ingestion)
+    ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id)
+    stream2 = world.dispatch_command(ingest_cmd2)
+    events2 = [event async for event in stream2]
+
+    # 5. Verify that the correct events were issued for re-ingestion
+    completed_event = next((e for e in events2 if isinstance(e, ProgressCompleted)), None)
+    assert completed_event is not None
+    assert completed_event.message == "Finished re-issuing events for members."
+
+    new_entity_events2 = [e for e in events2 if isinstance(e, NewEntityCreatedEvent)]
+    assert len(new_entity_events2) == 2
+
+    # Verify the contents of the re-issued events
+    filenames_in_archive = {"file1.txt", "file2.txt"}
+    event_filenames = {e.filename for e in new_entity_events2}
+    assert event_filenames == filenames_in_archive
+
+    # Check that the entity IDs are the same as the first ingestion
+    original_entity_ids = {e.entity_id for e in new_entity_events1}
+    reingested_entity_ids = {e.entity_id for e in new_entity_events2}
+    assert original_entity_ids == reingested_entity_ids
+
+    # Check that the stream provider is not None and provides content
+    for event in new_entity_events2:
+        assert event.stream_provider is not None
+        async with event.open_stream() as stream:
+            assert stream is not None
+            content = stream.read()
+            assert content in (b"file one", b"file two")
