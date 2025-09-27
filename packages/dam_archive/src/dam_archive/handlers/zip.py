@@ -1,8 +1,8 @@
 import zipfile
 from datetime import datetime
-from typing import IO, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import BinaryIO, Dict, Iterator, List, Optional, Tuple, cast
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import InvalidPasswordError
 
 
@@ -11,13 +11,14 @@ class ZipArchiveHandler(ArchiveHandler):
     An archive handler for zip files.
     """
 
-    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
-        self.file = file
-        self.password = password
+    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+        super().__init__(stream_provider, password)
         self.members: List[ArchiveMemberInfo] = []
         self.filename_map: Dict[str, str] = {}
+        self._stream: Optional[BinaryIO] = None
         try:
-            self.zip_file = zipfile.ZipFile(self.file, "r")
+            self._stream = self._stream_provider()
+            self.zip_file = zipfile.ZipFile(self._stream, "r")
 
             for f in self.zip_file.infolist():
                 if f.is_dir():
@@ -69,11 +70,12 @@ class ZipArchiveHandler(ArchiveHandler):
             self.zip_file.close()
         except Exception:
             pass
-        if isinstance(self.file, IO):
+        if self._stream:
             try:
-                self.file.close()
+                self._stream.close()
             except Exception:
                 pass
+        self._stream = None
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
