@@ -1,5 +1,6 @@
 import logging
 import re
+import shutil
 import subprocess
 import tempfile
 from datetime import datetime
@@ -40,14 +41,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".7z") as temp_file:
                 self.file_path = temp_file.name
                 self._temp_file_path = self.file_path
-                if isinstance(self.file, IO):
-                    while True:
-                        chunk = self.file.read(8192)
-                        if not chunk:
-                            break
-                        temp_file.write(chunk)
-                else:
-                    raise ArchiveError("Input file object does not have a read method.")
+                shutil.copyfileobj(self.file, temp_file)
 
         if self.password:
             self._validate_password()
