@@ -273,105 +273,117 @@ class WorldScheduler:
                 listens_for_event_type=None,
             )
 
-        async with AsyncExitStack() as stack:
-            resolved_params_by_name: Dict[str, Any] = {}
-            resolved_deps_by_type: Dict[Type, Any] = {}
+        gexit_raised = False
+        try:
+            async with AsyncExitStack() as stack:
+                resolved_params_by_name: Dict[str, Any] = {}
+                resolved_deps_by_type: Dict[Type, Any] = {}
 
-            # Pre-populate with special objects that don't have providers
-            if event_object:
-                for name, param in metadata.params.items():
-                    if param.identity is EventMarker and isinstance(event_object, param.event_type_hint or BaseEvent):
-                        resolved_params_by_name[name] = event_object
-                        resolved_deps_by_type[param.type_hint] = event_object
+                # Pre-populate with special objects that don't have providers
+                if event_object:
+                    for name, param in metadata.params.items():
+                        if param.identity is EventMarker and isinstance(
+                            event_object, param.event_type_hint or BaseEvent
+                        ):
+                            resolved_params_by_name[name] = event_object
+                            resolved_deps_by_type[param.type_hint] = event_object
+                            break
+                if command_object:
+                    for name, param in metadata.params.items():
+                        if param.identity is CommandMarker and isinstance(
+                            command_object, param.command_type_hint or object
+                        ):
+                            resolved_params_by_name[name] = command_object
+                            resolved_deps_by_type[param.type_hint] = command_object
+                            break
+                resolved_params_by_name.update(additional_kwargs)
+                for key, value in additional_kwargs.items():
+                    resolved_deps_by_type[type(value)] = value
+
+                unresolved_params = {
+                    name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name
+                }
+
+                for _ in range(len(unresolved_params) + 1):
+                    if not unresolved_params:
                         break
-            if command_object:
-                for name, param in metadata.params.items():
-                    if param.identity is CommandMarker and isinstance(
-                        command_object, param.command_type_hint or object
-                    ):
-                        resolved_params_by_name[name] = command_object
-                        resolved_deps_by_type[param.type_hint] = command_object
-                        break
-            resolved_params_by_name.update(additional_kwargs)
-            for key, value in additional_kwargs.items():
-                resolved_deps_by_type[type(value)] = value
 
-            unresolved_params = {
-                name: meta for name, meta in metadata.params.items() if name not in resolved_params_by_name
-            }
+                    newly_resolved_params: Dict[str, Any] = {}
+                    still_unresolved_params: Dict[str, SystemParameterInfo] = {}
 
-            for _ in range(len(unresolved_params) + 1):
-                if not unresolved_params:
-                    break
+                    for name, param in unresolved_params.items():
+                        provider_key = param.type_hint
+                        if param.identity is MarkedEntityList:
+                            provider_key = MarkedEntityList
 
-                newly_resolved_params: Dict[str, Any] = {}
-                still_unresolved_params: Dict[str, SystemParameterInfo] = {}
+                        provider = self.world.context_providers.get(provider_key)
 
-                for name, param in unresolved_params.items():
-                    provider_key = param.type_hint
-                    if param.identity is MarkedEntityList:
-                        provider_key = MarkedEntityList
+                        if provider:
+                            provider_sig = inspect.signature(provider.__call__)
+                            provider_kwargs = {}
+                            can_resolve = True
 
-                    provider = self.world.context_providers.get(provider_key)
+                            for p_name, p_param in provider_sig.parameters.items():
+                                if p_name == "self" or p_param.kind in (
+                                    inspect.Parameter.VAR_KEYWORD,
+                                    inspect.Parameter.VAR_POSITIONAL,
+                                ):
+                                    continue
 
-                    if provider:
-                        provider_sig = inspect.signature(provider.__call__)
-                        provider_kwargs = {}
-                        can_resolve = True
+                                if param.identity is MarkedEntityList and p_name == "marker_component_type":
+                                    provider_kwargs[p_name] = param.marker_component_type
+                                    continue
 
-                        for p_name, p_param in provider_sig.parameters.items():
-                            if p_name == "self" or p_param.kind in (
-                                inspect.Parameter.VAR_KEYWORD,
-                                inspect.Parameter.VAR_POSITIONAL,
-                            ):
-                                continue
+                                p_dep_type = p_param.annotation
+                                if p_dep_type in resolved_deps_by_type:
+                                    provider_kwargs[p_name] = resolved_deps_by_type[p_dep_type]
+                                else:
+                                    can_resolve = False
+                                    break
 
-                            if param.identity is MarkedEntityList and p_name == "marker_component_type":
-                                provider_kwargs[p_name] = param.marker_component_type
-                                continue
-
-                            p_dep_type = p_param.annotation
-                            if p_dep_type in resolved_deps_by_type:
-                                provider_kwargs[p_name] = resolved_deps_by_type[p_dep_type]
+                            if can_resolve:
+                                context = cast(AbstractAsyncContextManager, provider(**provider_kwargs))
+                                resolved_value = await stack.enter_async_context(context)
+                                newly_resolved_params[name] = resolved_value
+                                resolved_deps_by_type[param.type_hint] = resolved_value
                             else:
-                                can_resolve = False
-                                break
-
-                        if can_resolve:
-                            context = cast(AbstractAsyncContextManager, provider(**provider_kwargs))
-                            resolved_value = await stack.enter_async_context(context)
+                                still_unresolved_params[name] = param
+                        elif self.resource_manager.has_resource(param.type_hint):
+                            resolved_value = self.resource_manager.get_resource(param.type_hint)
                             newly_resolved_params[name] = resolved_value
                             resolved_deps_by_type[param.type_hint] = resolved_value
                         else:
                             still_unresolved_params[name] = param
-                    elif self.resource_manager.has_resource(param.type_hint):
-                        resolved_value = self.resource_manager.get_resource(param.type_hint)
-                        newly_resolved_params[name] = resolved_value
-                        resolved_deps_by_type[param.type_hint] = resolved_value
+
+                    if not newly_resolved_params and still_unresolved_params:
+                        unresolved_names = ", ".join(still_unresolved_params.keys())
+                        raise RuntimeError(
+                            f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}"
+                        )
+
+                    resolved_params_by_name.update(newly_resolved_params)
+                    unresolved_params = still_unresolved_params
+
+                result: Any
+                if metadata.is_async:
+                    result = await system_func(**resolved_params_by_name)
+                else:
+                    loop = asyncio.get_running_loop()
+                    result = await loop.run_in_executor(None, lambda: system_func(**resolved_params_by_name))
+
+                try:
+                    if inspect.isasyncgen(result):
+                        async for item in result:
+                            yield item
                     else:
-                        still_unresolved_params[name] = param
-
-                if not newly_resolved_params and still_unresolved_params:
-                    unresolved_names = ", ".join(still_unresolved_params.keys())
-                    raise RuntimeError(
-                        f"Could not resolve dependencies for system '{system_func.__name__}': {unresolved_names}"
-                    )
-
-                resolved_params_by_name.update(newly_resolved_params)
-                unresolved_params = still_unresolved_params
-
-            result: Any
-            if metadata.is_async:
-                result = await system_func(**resolved_params_by_name)
-            else:
-                loop = asyncio.get_running_loop()
-                result = await loop.run_in_executor(None, lambda: system_func(**resolved_params_by_name))
-
-            if inspect.isasyncgen(result):
-                async for item in result:
-                    yield item
-            else:
-                yield SystemResultEvent(result=result)
+                        yield SystemResultEvent(result=result)
+                except GeneratorExit:
+                    gexit_raised = True
+                    # Do not re-raise here. This allows the AsyncExitStack to exit cleanly.
+                    # The GeneratorExit will be re-raised in the finally block.
+        finally:
+            if gexit_raised:
+                raise GeneratorExit()
 
     def execute_one_time_system(
         self, system_func: Callable[..., Any], **kwargs: Any
