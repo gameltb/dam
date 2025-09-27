@@ -10,7 +10,7 @@ MIME_TYPE_HANDLERS: Dict[str, List[Type[ArchiveHandler]]] = {
     "application/zip": [ZipArchiveHandler],
     "application/vnd.rar": [RarArchiveHandler],
     "application/x-7z-compressed": [
-        SevenZipCliArchiveHandler,
         SevenZipArchiveHandler,
+        SevenZipCliArchiveHandler,
     ],
 }

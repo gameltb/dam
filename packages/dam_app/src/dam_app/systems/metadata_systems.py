@@ -54,6 +54,8 @@ class ExifTool:
             "File:MIMEType",
             "-x",
             "ExifTool:all",
+            "-x",
+            "Torrent:Pieces",
         ]
 
     async def start(self):
