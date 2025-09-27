@@ -1,7 +1,29 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import BinaryIO, Iterator, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable, Iterator, List, Optional, Tuple, Union
+
+StreamProvider = Callable[[], BinaryIO]
+
+
+def to_stream_provider(
+    file_or_path: Union[str, BinaryIO],
+) -> StreamProvider:
+    if isinstance(file_or_path, str):
+        return lambda: open(file_or_path, "rb")
+    else:
+        # If the stream is seekable, we can reuse it.
+        if file_or_path.seekable():
+
+            def seekable_stream_provider() -> BinaryIO:
+                file_or_path.seek(0)
+                return file_or_path
+
+            return seekable_stream_provider
+        else:
+            # If the stream is not seekable, we cannot create a reliable
+            # stream provider from it.
+            raise ValueError("Cannot create a stream provider from a non-seekable stream.")
 
 
 @dataclass
@@ -20,21 +42,21 @@ class ArchiveHandler(ABC):
     Abstract base class for archive handlers.
     """
 
-    @property
-    def comment(self) -> Optional[str]:
-        """The comment of the archive, if any."""
-        return None
-
-    @abstractmethod
-    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
+    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
         """
         Initializes the archive handler.
 
         Args:
-            file: The path to the archive file or a file-like object.
+            stream_provider: A function that returns a new stream to the archive.
             password: The password for the archive, if any.
         """
-        pass
+        self._stream_provider = stream_provider
+        self.password = password
+
+    @property
+    def comment(self) -> Optional[str]:
+        """The comment of the archive, if any."""
+        return None
 
     @abstractmethod
     def list_files(self) -> List[ArchiveMemberInfo]:

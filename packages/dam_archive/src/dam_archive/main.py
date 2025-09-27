@@ -1,7 +1,7 @@
 import logging
-from typing import IO, BinaryIO, Optional, Union
+from typing import BinaryIO, Optional, Union
 
-from .base import ArchiveHandler
+from .base import ArchiveHandler, StreamProvider, to_stream_provider
 from .exceptions import ArchiveError, PasswordRequiredError
 from .registry import MIME_TYPE_HANDLERS
 
@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 def open_archive(
-    file_obj: Union[str, BinaryIO], mime_type: str, password: Optional[str] = None
+    file_or_path_or_provider: Union[str, BinaryIO, StreamProvider], mime_type: str, password: Optional[str] = None
 ) -> Optional[ArchiveHandler]:
     """
     Open an archive file with the appropriate handler.
 
     Args:
-        file_obj: The file-like object or path to the archive.
+        file_or_path_or_provider: The file-like object, path to the archive, or a stream provider.
         mime_type: The mime type of the archive, used to determine the handler.
         password: The password for the archive, if any.
 
@@ -26,9 +26,18 @@ def open_archive(
     if not handler_classes:
         return None
 
+    stream_provider: StreamProvider
+    if callable(file_or_path_or_provider):
+        stream_provider = file_or_path_or_provider
+    else:
+        try:
+            stream_provider = to_stream_provider(file_or_path_or_provider)
+        except ValueError:
+            return None
+
     for handler_class in handler_classes:
         try:
-            return handler_class(file_obj, password=password)
+            return handler_class(stream_provider, password=password)
         except PasswordRequiredError:
             # Password errors should not be caught and suppressed, as they
             # indicate a fundamental issue that cannot be resolved by trying
@@ -36,11 +45,7 @@ def open_archive(
             raise
         except ArchiveError as e:
             logger.warning(f"Handler {handler_class.__name__} failed: {e}")
-            if isinstance(file_obj, IO):
-                file_obj.seek(0)
         except Exception:
             logger.exception(f"An unexpected error occurred with handler {handler_class.__name__}")
-            if isinstance(file_obj, IO):
-                file_obj.seek(0)
 
     return None

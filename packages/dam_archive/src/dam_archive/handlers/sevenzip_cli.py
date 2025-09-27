@@ -5,9 +5,9 @@ import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import IO, BinaryIO, Iterator, List, Optional, Tuple, Union
+from typing import BinaryIO, Iterator, List, Optional, Tuple
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import ArchiveError, InvalidPasswordError
 
 logger = logging.getLogger(__name__)
@@ -28,20 +28,22 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         r"(.+)"  # Name
     )
 
-    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
-        self.file = file
-        self.password = password
+    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+        super().__init__(stream_provider, password)
         self.members: List[ArchiveMemberInfo] = []
         self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         self._temp_file_path: Optional[str] = None
+        self._stream: Optional[BinaryIO] = None
 
-        if isinstance(self.file, str):
-            self.file_path = self.file
+        # The 7z CLI tool requires a file path, so we must write the stream to a temporary file.
+        self._stream = self._stream_provider()
+        if hasattr(self._stream, "name") and Path(self._stream.name).exists():
+            self.file_path = self._stream.name
         else:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".7z") as temp_file:
                 self.file_path = temp_file.name
                 self._temp_file_path = self.file_path
-                shutil.copyfileobj(self.file, temp_file)
+                shutil.copyfileobj(self._stream, temp_file)
 
         if self.password:
             self._validate_password()
@@ -179,9 +181,9 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 self._temp_file_path = None
             except OSError as e:
                 logger.warning(f"Could not delete temporary file '{self._temp_file_path}': {e}")
-
-        if isinstance(self.file, IO):
+        if self._stream:
             try:
-                self.file.close()
+                self._stream.close()
             except Exception:
                 pass
+        self._stream = None

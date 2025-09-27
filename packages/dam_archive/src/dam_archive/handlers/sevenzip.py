@@ -4,13 +4,13 @@ import lzma
 import threading
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import IO, BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import py7zr
 from py7zr.exceptions import PasswordRequired, UnsupportedCompressionMethodError
 from py7zr.io import Py7zIO, WriterFactory
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import InvalidPasswordError, UnsupportedArchiveError
 
 logger = logging.getLogger(__name__)
@@ -259,11 +259,11 @@ class SevenZipArchiveHandler(ArchiveHandler):
     An archive handler for 7z files that supports true streaming extraction.
     """
 
-    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
-        self.file = file
-        self.password = password
+    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+        super().__init__(stream_provider, password)
         self.members: List[ArchiveMemberInfo] = []
         self._threads: List[threading.Thread] = []
+        self._stream: Optional[BinaryIO] = None
 
         try:
             with self._open_7z_file() as archive:
@@ -286,16 +286,10 @@ class SevenZipArchiveHandler(ArchiveHandler):
             raise UnsupportedArchiveError(f"Unsupported 7z archive: {e}") from e
         except (lzma.LZMAError, py7zr.Bad7zFile, PasswordRequired) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
-        finally:
-            if isinstance(self.file, IO):
-                self.file.seek(0)
 
     def _open_7z_file(self) -> py7zr.SevenZipFile:
-        if isinstance(self.file, str):
-            return py7zr.SevenZipFile(self.file, "r", password=self.password)
-        else:
-            self.file.seek(0)
-            return py7zr.SevenZipFile(self.file, "r", password=self.password)
+        self._stream = self._stream_provider()
+        return py7zr.SevenZipFile(self._stream, "r", password=self.password)
 
     def _start_producer(
         self, targets: Optional[List[str]] = None
@@ -363,11 +357,12 @@ class SevenZipArchiveHandler(ArchiveHandler):
     def close(self) -> None:
         for t in self._threads:
             t.join()
-        if isinstance(self.file, IO):
+        if self._stream:
             try:
-                self.file.close()
+                self._stream.close()
             except Exception:
                 pass
+        self._stream = None
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members

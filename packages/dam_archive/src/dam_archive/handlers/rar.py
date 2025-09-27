@@ -1,8 +1,8 @@
-from typing import IO, BinaryIO, Iterator, List, Optional, Tuple, Union
+from typing import BinaryIO, Iterator, List, Optional, Tuple
 
 import rarfile
 
-from ..base import ArchiveHandler, ArchiveMemberInfo
+from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import InvalidPasswordError
 
 
@@ -11,17 +11,13 @@ class RarArchiveHandler(ArchiveHandler):
     An archive handler for rar files.
     """
 
-    def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
-        self.file = file
-        self.password = password
+    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+        super().__init__(stream_provider, password)
+        self._stream: Optional[BinaryIO] = None
 
         try:
-            if isinstance(self.file, str):
-                self.rar_file = rarfile.RarFile(self.file, "r")
-            else:
-                if hasattr(self.file, "seek"):
-                    self.file.seek(0)
-                self.rar_file = rarfile.RarFile(self.file, "r")
+            self._stream = self._stream_provider()
+            self.rar_file = rarfile.RarFile(self._stream, "r")
 
             if password:
                 self.rar_file.setpassword(password)  # type: ignore
@@ -40,11 +36,12 @@ class RarArchiveHandler(ArchiveHandler):
             self.rar_file.close()
         except Exception:
             pass
-        if isinstance(self.file, IO):
+        if self._stream:
             try:
-                self.file.close()
+                self._stream.close()
             except Exception:
                 pass
+        self._stream = None
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         files: List[ArchiveMemberInfo] = []
