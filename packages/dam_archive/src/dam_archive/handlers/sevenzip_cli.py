@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import IO, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union
+from typing import IO, BinaryIO, Iterator, List, Optional, Tuple, Union
 
 from ..base import ArchiveHandler, ArchiveMemberInfo
 from ..exceptions import ArchiveError, InvalidPasswordError
@@ -18,6 +18,14 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
     This handler is intended to support archives with filters that py7zr does not,
     such as BCJ2.
     """
+
+    FILE_LIST_RE = re.compile(
+        r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"  # Date and time
+        r"([DRHSA.]{5})\s+"  # Attributes
+        r"(\d+)\s+"  # Size
+        r"(\d*)\s+"  # Compressed size
+        r"(.+)"  # Name
+    )
 
     def __init__(self, file: Union[str, BinaryIO], password: Optional[str] = None):
         self.file = file
@@ -79,57 +87,35 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             raise ArchiveError(f"7z command failed with exit code {e.returncode}: {e.stderr}")
 
     def _list_files_and_populate_members(self) -> None:
-        args = ["l", "-slt", self.file_path]
+        args = ["l", "-ba", self.file_path]
         if self.password:
             args.append(f"-p{self.password}")
 
         result = self._run_7z(args)
-        self._parse_list_output(result.stdout)
+        self._parse_file_list(result.stdout)
 
-    def _parse_list_output(self, output: str) -> None:
-        self.members = []
-        file_sections = re.split(r"\n----------\n", output)
+    def _parse_file_list(self, output: str) -> None:
+        """Parses the output of '7z l -ba'."""
+        members: List[ArchiveMemberInfo] = []
+        for line in output.splitlines():
+            match = self.FILE_LIST_RE.match(line)
+            if match:
+                modified_at_str, attrs, size_str, _, name = match.groups()
+                if "D" in attrs:  # Skip directories
+                    continue
 
-        for section in file_sections:
-            if not section.strip() or "Path =" not in section:
-                continue
-
-            info: Dict[str, str] = {}
-            lines = section.strip().split("\n")
-            for line in lines:
-                parts = line.split(" = ", 1)
-                if len(parts) == 2:
-                    info[parts[0].strip()] = parts[1].strip()
-
-            if "Attributes" in info and info["Attributes"].startswith("D"):
-                continue
-
-            if "Path" in info and "Size" in info:
                 try:
-                    name = info["Path"]
-                    size = int(info["Size"])
-                    modified_str = info.get("Modified")
-                    modified_at: Optional[datetime] = None
-                    if modified_str:
-                        try:
-                            if "." in modified_str:
-                                main_part, frac_part = modified_str.split(".", 1)
-                                modified_str = f"{main_part}.{frac_part[:6]}"
-                                modified_at = datetime.strptime(modified_str, "%Y-%m-%d %H:%M:%S.%f")
-                            else:
-                                modified_at = datetime.strptime(modified_str, "%Y-%m-%d %H:%M:%S")
-                        except ValueError:
-                            logger.warning(f"Could not parse modified time '{modified_str}' for file '{name}'")
+                    modified_at = datetime.strptime(modified_at_str, "%Y-%m-%d %H:%M:%S")
+                    size = int(size_str) if size_str else 0
 
-                    self.members.append(
-                        ArchiveMemberInfo(
-                            name=name,
-                            size=size,
-                            modified_at=modified_at,
-                        )
-                    )
-                except (ValueError, KeyError) as e:
-                    logger.warning(f"Skipping section due to parsing error: {e}\nSection: {section}")
+                    # Normalize path separators to forward slashes
+                    name = name.replace("\\", "/")
+
+                    members.append(ArchiveMemberInfo(name=name, size=size, modified_at=modified_at))
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Could not parse file list line: {line} ({e})")
+
+        self.members = members
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
@@ -144,6 +130,19 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             args.append(f"-p{self.password}")
 
         self._run_7z(args)
+
+        # Verify that the extracted files match the members list
+        extracted_files = {
+            str(p.relative_to(extract_path)).replace("\\", "/") for p in Path(extract_path).rglob("*") if p.is_file()
+        }
+        member_files = {member.name for member in self.members}
+
+        if extracted_files != member_files:
+            logger.warning(
+                "Mismatch between archive members and extracted files.\n"
+                f"Members not found on disk: {sorted(list(member_files - extracted_files))}\n"
+                f"Files on disk not in members: {sorted(list(extracted_files - member_files))}"
+            )
 
         for member in self.members:
             file_path = Path(extract_path) / member.name
