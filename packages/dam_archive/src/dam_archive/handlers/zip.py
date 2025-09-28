@@ -67,8 +67,7 @@ class ZipArchiveHandler(ArchiveHandler):
                 with handler.zip_file.open(handler.zip_file.infolist()[0], pwd=password.encode()) as f:
                     f.read(1)
         except Exception as e:
-            if handler._stream_cm_exit:
-                await handler._stream_cm_exit(type(e), e, e.__traceback__)
+            await handler._stream_cm_exit(type(e), e, e.__traceback__)
 
             if isinstance(e, RuntimeError):
                 raise InvalidPasswordError("Invalid password for zip file.") from e

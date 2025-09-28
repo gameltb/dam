@@ -159,7 +159,7 @@ async def benchmark_archive(
             for pwd in passwords_to_try:
                 try:
                     f.seek(0)
-                    archive = open_archive(f, mime_type, pwd)
+                    archive = await open_archive(f, mime_type, pwd)
                     if archive:
                         typer.echo(f"Successfully opened archive with password: {'yes' if pwd else 'no'}")
                         break

@@ -56,8 +56,7 @@ class RarArchiveHandler(ArchiveHandler):
                 handler.rar_file.infolist()[0].filename  # type: ignore
 
         except Exception as e:
-            if handler._stream_cm_exit:
-                await handler._stream_cm_exit(type(e), e, e.__traceback__)
+            await handler._stream_cm_exit(type(e), e, e.__traceback__)
 
             if isinstance(e, rarfile.RarWrongPassword):  # type: ignore
                 raise InvalidPasswordError("Invalid password for rar file.") from e

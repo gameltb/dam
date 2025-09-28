@@ -16,11 +16,12 @@ def utf8_encoded_zip_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
     # This test checks the happy path where the filename is UTF-8 encoded
     # and the UTF-8 flag is set in the zip file.
     with open(utf8_encoded_zip_file, "rb") as f:
-        archive = open_archive(f, "application/zip")
+        archive = await open_archive(f, "application/zip")
         assert archive is not None
         files = archive.list_files()
         assert "测试.txt" in [m.name for m in files]
@@ -48,21 +49,23 @@ def cp437_encoded_zip_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> None:
     # This test checks the fallback path where the filename is not UTF-8.
     # My code attempts to decode with cp437, then utf-8, then gbk.
     # In this case, the filename is valid cp437.
     with open(cp437_encoded_zip_file, "rb") as f:
-        archive = open_archive(f, "application/zip")
+        archive = await open_archive(f, "application/zip")
         assert archive is not None
         files = archive.list_files()
         assert "tést.txt" in [m.name for m in files]
 
 
-def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
     # This test checks the iter_files method.
     with open(utf8_encoded_zip_file, "rb") as f:
-        archive = open_archive(f, "application/zip")
+        archive = await open_archive(f, "application/zip")
         assert archive is not None
 
         files = list(archive.iter_files())

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from dam.commands.core import BaseCommand
 from dam.core.config import Settings
+from dam.core.types import CallableStreamProvider
 from dam.core.world import World
 from pytest import CaptureFixture
 
@@ -77,8 +78,10 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
     mock_file_content = b"This is the content of the new file."
 
-    def mock_stream_provider():
+    def mock_stream_factory():
         return io.BytesIO(mock_file_content)
+
+    mock_stream_provider = CallableStreamProvider(mock_stream_factory)
 
     # Create a side effect function for dispatch_command
     def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
@@ -151,8 +154,8 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     assert extract_cmd is not None
     assert extract_cmd.entity_id == 2
     assert extract_cmd.stream_provider is not None
-    provided_stream = extract_cmd.stream_provider()
-    assert provided_stream.read() == mock_file_content
+    async with extract_cmd.stream_provider.get_stream() as provided_stream:
+        assert provided_stream.read() == mock_file_content
 
 
 @pytest.mark.asyncio
