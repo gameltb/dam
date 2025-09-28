@@ -20,9 +20,10 @@ def dummy_zip_file(tmp_path: Path) -> Path:
     return zip_path
 
 
-def test_open_zip_archive(dummy_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_zip_archive(dummy_zip_file: Path) -> None:
     with open(dummy_zip_file, "rb") as f:
-        archive = open_archive(f, "application/zip")
+        archive = await open_archive(f, "application/zip")
         assert archive is not None
         assert archive.comment == "test comment"
         files = archive.list_files()
@@ -30,8 +31,8 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
         assert "file1.txt" in file_names
         assert "dir/file2.txt" in file_names
 
-        for f in files:
-            assert isinstance(f.modified_at, datetime.datetime)
+        for f_info in files:
+            assert isinstance(f_info.modified_at, datetime.datetime)
 
         member_info, f_in_zip = archive.open_file("file1.txt")
         with f_in_zip:
@@ -44,6 +45,7 @@ def test_open_zip_archive(dummy_zip_file: Path) -> None:
             assert f_in_zip.read() == b"content2"
         assert member_info.name == "dir/file2.txt"
         assert member_info.size == 8
+        await archive.close()
 
 
 @pytest.fixture
@@ -67,25 +69,29 @@ def protected_zip_file(tmp_path: Path) -> Path:
     return zip_path
 
 
-def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> None:
     with open(protected_zip_file, "rb") as f:
-        archive = open_archive(f, "application/zip", password="password")
+        archive = await open_archive(f, "application/zip", password="password")
         assert archive is not None
         member_info, f_in_zip = archive.open_file("file1.txt")
         with f_in_zip:
             assert f_in_zip.read() == b"content1"
         assert member_info.name == "file1.txt"
+        await archive.close()
 
 
-def test_open_protected_zip_with_incorrect_password(protected_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_protected_zip_with_incorrect_password(protected_zip_file: Path) -> None:
     with open(protected_zip_file, "rb") as f:
         with pytest.raises(InvalidPasswordError):
-            open_archive(f, "application/zip", password="wrong_password")
+            await open_archive(f, "application/zip", password="wrong_password")
 
 
-def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> None:
     stream_provider = to_stream_provider(str(dummy_zip_file))
-    archive = open_archive(stream_provider, "application/zip")
+    archive = await open_archive(stream_provider, "application/zip")
     assert archive is not None
     assert archive.comment == "test comment"
     files = archive.list_files()
@@ -93,8 +99,8 @@ def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> None:
     assert "file1.txt" in file_names
     assert "dir/file2.txt" in file_names
 
-    for f in files:
-        assert isinstance(f.modified_at, datetime.datetime)
+    for f_info in files:
+        assert isinstance(f_info.modified_at, datetime.datetime)
 
     member_info, f_in_zip = archive.open_file("file1.txt")
     with f_in_zip:
@@ -107,3 +113,4 @@ def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> None:
         assert f_in_zip.read() == b"content2"
     assert member_info.name == "dir/file2.txt"
     assert member_info.size == 8
+    await archive.close()

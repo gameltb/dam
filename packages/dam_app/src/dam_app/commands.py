@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Dict, List, Optional
 
 from dam.commands.analysis_commands import AnalysisCommand
-from dam.commands.core import BaseCommand
+from dam.commands.core import BaseCommand, EntityCommand
 from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent
 
@@ -15,6 +15,20 @@ class AutoTagEntityCommand(BaseCommand[None, BaseSystemEvent]):
     """A command to trigger auto-tagging for an entity."""
 
     entity: Entity
+
+
+@dataclass
+class CheckExifMetadataCommand(EntityCommand[bool, BaseSystemEvent]):
+    """A command to check if EXIF metadata has been extracted for an entity."""
+
+    pass
+
+
+@dataclass
+class RemoveExifMetadataCommand(EntityCommand[None, BaseSystemEvent]):
+    """A command to remove the extracted EXIF metadata from an entity."""
+
+    pass
 
 
 @dataclass

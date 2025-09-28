@@ -1,6 +1,19 @@
+from __future__ import annotations
+
 import zipfile
 from datetime import datetime
-from typing import BinaryIO, Dict, Iterator, List, Optional, Tuple, cast
+from types import TracebackType
+from typing import (
+    Awaitable,
+    BinaryIO,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    cast,
+)
 
 from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import InvalidPasswordError
@@ -16,30 +29,54 @@ class ZipArchiveHandler(ArchiveHandler):
         self.members: List[ArchiveMemberInfo] = []
         self.filename_map: Dict[str, str] = {}
         self._stream: Optional[BinaryIO] = None
-        try:
-            self._stream = self._stream_provider()
-            self.zip_file = zipfile.ZipFile(self._stream, "r")
+        self.zip_file: Optional[zipfile.ZipFile] = None
+        self._stream_cm_exit: Optional[
+            Callable[
+                [
+                    Optional[type[BaseException]],
+                    Optional[BaseException],
+                    Optional[TracebackType],
+                ],
+                Awaitable[Optional[bool]],
+            ]
+        ] = None
 
-            for f in self.zip_file.infolist():
+    @classmethod
+    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> ZipArchiveHandler:
+        handler = cls(stream_provider, password)
+        stream_cm = stream_provider.get_stream()
+        handler._stream = await stream_cm.__aenter__()
+        handler._stream_cm_exit = stream_cm.__aexit__
+
+        try:
+            handler.zip_file = zipfile.ZipFile(handler._stream, "r")  # type: ignore
+
+            for f in handler.zip_file.infolist():
                 if f.is_dir():
                     continue
 
                 original_name = f.filename
-                decoded_name: str = self._decode_zip_filename(f)
-                self.filename_map[decoded_name] = original_name
+                decoded_name: str = handler._decode_zip_filename(f)
+                handler.filename_map[decoded_name] = original_name
                 modified_at = datetime(*f.date_time)
-                self.members.append(ArchiveMemberInfo(name=decoded_name, size=f.file_size, modified_at=modified_at))
+                handler.members.append(ArchiveMemberInfo(name=decoded_name, size=f.file_size, modified_at=modified_at))
 
-            if self.password:
-                if not self.zip_file.infolist():
-                    return  # No files to check
-                # Try to open the first file to check password
-                with self.zip_file.open(self.zip_file.infolist()[0], pwd=self.password.encode()) as f:
+            if password:
+                if len(handler.zip_file.infolist()) == 0:
+                    return handler
+                with handler.zip_file.open(handler.zip_file.infolist()[0], pwd=password.encode()) as f:
                     f.read(1)
-        except RuntimeError:
-            raise InvalidPasswordError("Invalid password for zip file.")
-        except zipfile.BadZipFile as e:
-            raise InvalidPasswordError(f"Invalid password for zip file: {e}") from e
+        except Exception as e:
+            await handler._stream_cm_exit(type(e), e, e.__traceback__)
+
+            if isinstance(e, RuntimeError):
+                raise InvalidPasswordError("Invalid password for zip file.") from e
+            elif isinstance(e, zipfile.BadZipFile):
+                raise InvalidPasswordError(f"Invalid password for zip file: {e}") from e
+            else:
+                raise
+
+        return handler
 
     def _decode_zip_filename(self, info: zipfile.ZipInfo) -> str:
         filename = info.filename
@@ -65,23 +102,27 @@ class ZipArchiveHandler(ArchiveHandler):
                 return filename
         return filename
 
-    def close(self) -> None:
-        try:
-            self.zip_file.close()
-        except Exception:
-            pass
-        if self._stream:
+    async def close(self) -> None:
+        if self.zip_file:
             try:
-                self._stream.close()
+                self.zip_file.close()
             except Exception:
                 pass
+
+        if self._stream_cm_exit:
+            await self._stream_cm_exit(None, None, None)
+
         self._stream = None
+        self._stream_cm_exit = None
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members
 
     def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
         """Iterate over all files in the archive."""
+        if not self.zip_file:
+            return
+
         for f in self.zip_file.infolist():
             if f.is_dir():
                 continue
@@ -96,6 +137,9 @@ class ZipArchiveHandler(ArchiveHandler):
                 raise IOError(f"Failed to open file in zip: {e}") from e
 
     def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+        if not self.zip_file:
+            raise IOError(f"File not found in zip: {file_name}")
+
         original_name = self.filename_map.get(file_name)
         if not original_name:
             raise IOError(f"File not found in zip: {file_name}")
@@ -122,6 +166,6 @@ class ZipArchiveHandler(ArchiveHandler):
 
     @property
     def comment(self) -> Optional[str]:
-        if not self.zip_file.comment:
+        if not self.zip_file or not self.zip_file.comment:
             return None
         return self._decode_comment(self.zip_file.comment)

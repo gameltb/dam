@@ -1,25 +1,34 @@
+from __future__ import annotations
+
+import io
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import BinaryIO, Callable, Iterator, List, Optional, Tuple, Union
+from pathlib import Path
+from typing import BinaryIO, Iterator, List, Optional, Tuple, Union
 
-StreamProvider = Callable[[], BinaryIO]
+from dam.core.types import CallableStreamProvider, FileStreamProvider, StreamProvider
 
 
 def to_stream_provider(
-    file_or_path: Union[str, BinaryIO],
+    file_or_path: Union[str, BinaryIO, Path],
 ) -> StreamProvider:
     if isinstance(file_or_path, str):
-        return lambda: open(file_or_path, "rb")
+        return FileStreamProvider(Path(file_or_path))
+    if isinstance(file_or_path, Path):
+        return FileStreamProvider(file_or_path)
     else:
-        # If the stream is seekable, we can reuse it.
+        # If the stream is seekable, we can read it into memory and use it.
         if file_or_path.seekable():
+            file_or_path.seek(0)
+            # Read the content into an immutable bytes object.
+            content = file_or_path.read()
 
-            def seekable_stream_provider() -> BinaryIO:
-                file_or_path.seek(0)
-                return file_or_path
+            def bytes_stream_provider() -> BinaryIO:
+                # Create a new stream from the bytes object each time.
+                return io.BytesIO(content)
 
-            return seekable_stream_provider
+            return CallableStreamProvider(bytes_stream_provider)
         else:
             # If the stream is not seekable, we cannot create a reliable
             # stream provider from it.
@@ -47,11 +56,19 @@ class ArchiveHandler(ABC):
         Initializes the archive handler.
 
         Args:
-            stream_provider: A function that returns a new stream to the archive.
+            stream_provider: A StreamProvider instance for the archive.
             password: The password for the archive, if any.
         """
         self._stream_provider = stream_provider
         self.password = password
+
+    @classmethod
+    @abstractmethod
+    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> ArchiveHandler:
+        """
+        Asynchronously creates and initializes an archive handler.
+        """
+        ...
 
     @property
     def comment(self) -> Optional[str]:
@@ -61,7 +78,7 @@ class ArchiveHandler(ABC):
     @abstractmethod
     def list_files(self) -> List[ArchiveMemberInfo]:
         """List all file names and sizes in the archive."""
-        pass
+        ...
 
     @abstractmethod
     def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
@@ -76,18 +93,17 @@ class ArchiveHandler(ABC):
         to stream data from the archive rather than performing random-access reads,
         which can be inefficient, especially for solid archives.
         """
-        pass
+        ...
 
     @abstractmethod
     def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
         """Open a specific file from the archive and return a file-like object."""
-
-        pass
+        ...
 
     @abstractmethod
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Closes the archive file and releases any resources.
         This should be called when the handler is no longer needed.
         """
-        pass
+        ...

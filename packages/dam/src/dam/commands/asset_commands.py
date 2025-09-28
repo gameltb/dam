@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Optional, Tuple
 
-from dam.commands.core import BaseCommand
+from dam.commands.core import BaseCommand, EntityCommand
 from dam.core.types import StreamProvider
 from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent
@@ -32,13 +32,30 @@ class GetAssetStreamCommand(BaseCommand[Optional[StreamProvider], BaseSystemEven
 
 
 @dataclass
-class SetMimeTypeCommand(BaseCommand[None, BaseSystemEvent]):
+class SetMimeTypeCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to set the mime type for an asset.
     """
 
-    entity_id: int
     mime_type: str
+
+
+@dataclass
+class CheckContentMimeTypeCommand(EntityCommand[bool, BaseSystemEvent]):
+    """
+    A command to check if an entity has a content mime type.
+    """
+
+    pass
+
+
+@dataclass
+class RemoveContentMimeTypeCommand(EntityCommand[None, BaseSystemEvent]):
+    """
+    A command to remove the content mime type from an entity.
+    """
+
+    pass
 
 
 @dataclass
@@ -52,39 +69,38 @@ class SetMimeTypeFromBufferCommand(BaseCommand[None, BaseSystemEvent]):
 
 
 @dataclass
-class GetMimeTypeCommand(BaseCommand[str | None, BaseSystemEvent]):
+class GetMimeTypeCommand(EntityCommand[str | None, BaseSystemEvent]):
     """
     A command to get the mime type for an asset.
     """
 
-    entity_id: int
+    pass
 
 
 @dataclass
-class GetAssetMetadataCommand(BaseCommand[dict[str, Any], BaseSystemEvent]):
+class GetAssetMetadataCommand(EntityCommand[dict[str, Any], BaseSystemEvent]):
     """
     A command to get the metadata for an asset.
     """
 
-    entity_id: int
+    pass
 
 
 @dataclass
-class UpdateAssetMetadataCommand(BaseCommand[None, BaseSystemEvent]):
+class UpdateAssetMetadataCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to update the metadata for an asset.
     """
 
-    entity_id: int
     metadata: dict[str, Any]
 
 
 @dataclass
-class GetAssetFilenamesCommand(BaseCommand[list[str], BaseSystemEvent]):
+class GetAssetFilenamesCommand(EntityCommand[list[str], BaseSystemEvent]):
     """
     A command to get all available filenames for an asset.
     Handlers for this command should return a list of strings,
     each representing a known filename for the asset.
     """
 
-    entity_id: int
+    pass

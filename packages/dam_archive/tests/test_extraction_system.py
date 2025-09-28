@@ -56,7 +56,8 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
         # Verify NewEntityCreatedEvent
         new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
         assert new_entity_event is not None
-        async with new_entity_event.open_stream() as stream:
+        assert new_entity_event.stream_provider is not None
+        async with new_entity_event.stream_provider.get_stream() as stream:
             assert stream is not None
         assert new_entity_event.filename == file_name_in_archive
 
@@ -101,12 +102,11 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
         # Verify NewEntityCreatedEvent
         new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
         assert new_entity_event is not None
-        async with new_entity_event.open_stream() as stream:
-            assert stream is None
+        assert new_entity_event.stream_provider is None
 
-            # Verify stream passed to GetOrCreateEntityFromStreamCommand
-            get_or_create_cmd = dispatch_spy.call_args.args[0]
-            assert isinstance(get_or_create_cmd.stream, ChainedStream)
+        # Verify stream passed to GetOrCreateEntityFromStreamCommand
+        get_or_create_cmd = dispatch_spy.call_args.args[0]
+        assert isinstance(get_or_create_cmd.stream, ChainedStream)
 
     # 4. Clean up components for next run
     async with tm() as transaction:
@@ -135,16 +135,17 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
         # Verify NewEntityCreatedEvent
         new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
         assert new_entity_event is not None
-        async with new_entity_event.open_stream() as stream:
+        assert new_entity_event.stream_provider is not None
+        async with new_entity_event.stream_provider.get_stream() as stream:
             assert stream is not None
             assert stream.read() == file_content
             stream.seek(0)
 
-            # Verify stream passed to GetOrCreateEntityFromStreamCommand
-            get_or_create_cmd = dispatch_spy.call_args.args[0]
-            assert isinstance(get_or_create_cmd.stream, io.BytesIO)
-            get_or_create_cmd.stream.seek(0)
-            assert get_or_create_cmd.stream.read() == file_content
+        # Verify stream passed to GetOrCreateEntityFromStreamCommand
+        get_or_create_cmd = dispatch_spy.call_args.args[0]
+        assert isinstance(get_or_create_cmd.stream, io.BytesIO)
+        get_or_create_cmd.stream.seek(0)
+        assert get_or_create_cmd.stream.read() == file_content
 
 
 @pytest.mark.serial
@@ -286,7 +287,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     # Check that the stream provider is not None and provides content
     for event in new_entity_events2:
         assert event.stream_provider is not None
-        async with event.open_stream() as stream:
+        async with event.stream_provider.get_stream() as stream:
             assert stream is not None
             content = stream.read()
             assert content in (b"file one", b"file two")

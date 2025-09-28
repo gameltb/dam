@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dam.core.transaction import WorldTransaction
+from dam.core.types import CallableStreamProvider
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 
@@ -84,11 +85,13 @@ async def test_extract_metadata_from_stream(mock_transaction: MagicMock):
         read_content = stream.read()
         return {"FileType": "STREAM"}
 
-    def stream_provider():
+    def stream_provider_func():
         return io.BytesIO(stream_content)
 
     entity_id = 1
-    command = ExtractExifMetadataCommand(entity_id=entity_id, stream_provider=stream_provider)
+    command = ExtractExifMetadataCommand(
+        entity_id=entity_id, stream_provider=CallableStreamProvider(stream_provider_func)
+    )
 
     # Mock the world object needed by open_stream
     mock_world = MagicMock()

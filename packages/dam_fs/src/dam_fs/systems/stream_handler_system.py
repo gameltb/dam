@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
-from dam.core.types import StreamProvider
+from dam.core.types import FileStreamProvider, StreamProvider
 from dam.core.world import World
 
 from dam_fs.utils.url_utils import get_local_path_for_url
@@ -39,7 +39,7 @@ async def get_asset_stream_handler(
             if potential_path:
                 is_file = await asyncio.to_thread(potential_path.is_file)
             if potential_path and is_file:
-                return lambda: open(potential_path, "rb")
+                return FileStreamProvider(potential_path)
         except (ValueError, FileNotFoundError) as e:
             logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {cmd.entity_id}: {e}")
             continue

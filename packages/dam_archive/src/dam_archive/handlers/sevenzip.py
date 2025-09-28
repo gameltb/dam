@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import datetime
 import logging
 import lzma
@@ -263,33 +266,33 @@ class SevenZipArchiveHandler(ArchiveHandler):
         super().__init__(stream_provider, password)
         self.members: List[ArchiveMemberInfo] = []
         self._threads: List[threading.Thread] = []
-        self._stream: Optional[BinaryIO] = None
 
+    @classmethod
+    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> SevenZipArchiveHandler:
+        handler = cls(stream_provider, password)
         try:
-            with self._open_7z_file() as archive:
-                for member in archive.list():
-                    if not member.is_directory:
-                        self.members.append(
-                            ArchiveMemberInfo(
-                                name=cast(str, member.filename),
-                                size=cast(int, member.uncompressed),
-                                modified_at=cast(datetime.datetime, member.creationtime),
+            async with stream_provider.get_stream() as stream:
+                with py7zr.SevenZipFile(stream, "r", password=password) as archive:
+                    for member in archive.list():
+                        if not member.is_directory:
+                            handler.members.append(
+                                ArchiveMemberInfo(
+                                    name=cast(str, member.filename),
+                                    size=cast(int, member.uncompressed),
+                                    modified_at=cast(datetime.datetime, member.creationtime),
+                                )
                             )
-                        )
-                if self.members:
-                    # testzip() will raise UnsupportedCompressionMethodError if any file
-                    # uses an unsupported filter.
-                    with self._open_7z_file() as test_archive:
-                        test_archive.testzip()
+                    if handler.members:
+                        # testzip() will raise UnsupportedCompressionMethodError if any file
+                        # uses an unsupported filter.
+                        archive.testzip()
 
         except UnsupportedCompressionMethodError as e:
             raise UnsupportedArchiveError(f"Unsupported 7z archive: {e}") from e
         except (lzma.LZMAError, py7zr.Bad7zFile, PasswordRequired) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
 
-    def _open_7z_file(self) -> py7zr.SevenZipFile:
-        self._stream = self._stream_provider()
-        return py7zr.SevenZipFile(self._stream, "r", password=self.password)
+        return handler
 
     def _start_producer(
         self, targets: Optional[List[str]] = None
@@ -297,21 +300,31 @@ class SevenZipArchiveHandler(ArchiveHandler):
         results_queue: "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]" = Queue()
         members_map = {PurePosixPath(m.name).as_posix(): m for m in self.members}
 
-        def producer() -> None:
-            factory = StreamingFactory(members_map, results_queue)
-            try:
-                with self._open_7z_file() as archive:
-                    if targets:
-                        archive.extract(targets=targets, factory=factory)
-                    else:
-                        archive.extractall(factory=factory)
-            except Exception as e:
-                results_queue.put(e)
-            finally:
-                factory.close_last_writer()
-                results_queue.put(None)
+        def producer_thread_target():
+            # py7zr is blocking, so we need a separate thread.
+            # And because get_stream is async, we need an event loop in this new thread.
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-        thread = threading.Thread(target=producer)
+            async def async_producer():
+                factory = StreamingFactory(members_map, results_queue)
+                try:
+                    async with self._stream_provider.get_stream() as stream:
+                        with py7zr.SevenZipFile(stream, "r", password=self.password) as archive:
+                            if targets:
+                                archive.extract(targets=targets, factory=factory)
+                            else:
+                                archive.extractall(factory=factory)
+                except Exception as e:
+                    results_queue.put(e)
+                finally:
+                    factory.close_last_writer()
+                    results_queue.put(None)
+
+            loop.run_until_complete(async_producer())
+            loop.close()
+
+        thread = threading.Thread(target=producer_thread_target)
         thread.start()
         self._threads.append(thread)
         return results_queue
@@ -354,15 +367,9 @@ class SevenZipArchiveHandler(ArchiveHandler):
                 temp_file = _SevenZipStreamReader(data_queue)
                 temp_file.close()
 
-    def close(self) -> None:
+    async def close(self) -> None:
         for t in self._threads:
             t.join()
-        if self._stream:
-            try:
-                self._stream.close()
-            except Exception:
-                pass
-        self._stream = None
 
     def list_files(self) -> List[ArchiveMemberInfo]:
         return self.members

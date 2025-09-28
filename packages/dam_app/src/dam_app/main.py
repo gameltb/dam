@@ -25,7 +25,7 @@ app = AsyncTyper(
 )
 
 app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
-app.add_typer(archive.app, name="archive", help="Commands for managing archive assets.")
+app.add_typer(archive.app, name="archive", help="Commands for managing archives.")
 app.add_typer(systems.app, name="systems", help="Commands for running systems.")
 app.add_typer(verify.app, name="verify", help="Commands for verifying asset integrity.")
 

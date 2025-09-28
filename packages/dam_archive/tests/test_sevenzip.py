@@ -18,23 +18,25 @@ def dummy_7z_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def test_open_7z_archive(dummy_7z_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_7z_archive(dummy_7z_file: Path) -> None:
     archive = None
     try:
         with open(dummy_7z_file, "rb") as f:
-            archive = open_archive(f, "application/x-7z-compressed")
+            archive = await open_archive(f, "application/x-7z-compressed")
             assert archive is not None
             files = archive.list_files()
             file_names = [f.name for f in files]
             assert "file1.txt" in file_names
-            for f in files:
-                assert isinstance(f.modified_at, datetime.datetime)
+            for f_info in files:
+                assert isinstance(f_info.modified_at, datetime.datetime)
     finally:
         if archive:
-            archive.close()
+            await archive.close()
 
 
-def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
+@pytest.mark.asyncio
+async def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
     """
     Tests that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives.
     """
@@ -42,7 +44,7 @@ def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
     with open(bcj2_7z_archive, "rb") as f:
         stream_provider = to_stream_provider(f)
         with pytest.raises(UnsupportedArchiveError):
-            SevenZipArchiveHandler(stream_provider)
+            await SevenZipArchiveHandler.create(stream_provider)
 
 
 @pytest.fixture
@@ -53,11 +55,12 @@ def protected_7z_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> None:
     archive = None
     try:
         with open(protected_7z_file, "rb") as f:
-            archive = open_archive(f, "application/x-7z-compressed", password="password")
+            archive = await open_archive(f, "application/x-7z-compressed", password="password")
             assert archive is not None
             member_info, f_in_zip = archive.open_file("file1.txt")
             with f_in_zip:
@@ -65,18 +68,19 @@ def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> Non
             assert member_info.name == "file1.txt"
     finally:
         if archive:
-            archive.close()
+            await archive.close()
 
 
-def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path) -> None:
     archive = None
     try:
         with open(protected_7z_file, "rb") as f:
             with pytest.raises(InvalidPasswordError):
-                archive = open_archive(f, "application/x-7z-compressed", password="wrong_password")
+                archive = await open_archive(f, "application/x-7z-compressed", password="wrong_password")
     finally:
         if archive:
-            archive.close()
+            await archive.close()
 
 
 @pytest.fixture
@@ -87,11 +91,12 @@ def nested_7z_file(tmp_path: Path) -> Path:
     return file_path
 
 
-def test_open_nested_7z_file(nested_7z_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_open_nested_7z_file(nested_7z_file: Path) -> None:
     archive = None
     try:
         with open(nested_7z_file, "rb") as f:
-            archive = open_archive(f, "application/x-7z-compressed")
+            archive = await open_archive(f, "application/x-7z-compressed")
             assert archive is not None
             files = archive.list_files()
             assert "folder/nested_file.txt" in [m.name for m in files]
@@ -101,14 +106,15 @@ def test_open_nested_7z_file(nested_7z_file: Path) -> None:
             assert member_info.name == "folder/nested_file.txt"
     finally:
         if archive:
-            archive.close()
+            await archive.close()
 
 
-def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
     archive = None
     try:
         with open(dummy_7z_file, "rb") as f:
-            archive = open_archive(f, "application/x-7z-compressed")
+            archive = await open_archive(f, "application/x-7z-compressed")
             assert archive is not None
 
             files = list(archive.iter_files())
@@ -122,4 +128,4 @@ def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
                 assert f_in_zip.read() == b"content1"
     finally:
         if archive:
-            archive.close()
+            await archive.close()

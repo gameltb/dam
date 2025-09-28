@@ -7,12 +7,43 @@ from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 
-from dam_psp.commands import ExtractPSPMetadataCommand
+from dam_psp.commands import (
+    CheckPSPMetadataCommand,
+    ExtractPSPMetadataCommand,
+    RemovePSPMetadataCommand,
+)
 from dam_psp.psp_iso_functions import process_iso_stream
 
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=CheckPSPMetadataCommand)
+async def check_psp_metadata_handler(
+    cmd: CheckPSPMetadataCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the PSPSFOMetadataComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, PSPSFOMetadataComponent)
+    return component is not None
+
+
+@system(on_command=RemovePSPMetadataCommand)
+async def remove_psp_metadata_handler(
+    cmd: RemovePSPMetadataCommand,
+    transaction: WorldTransaction,
+):
+    """Removes the PSP metadata components from the entity."""
+    sfo_comp = await transaction.get_component(cmd.entity_id, PSPSFOMetadataComponent)
+    if sfo_comp:
+        await transaction.remove_component(sfo_comp)
+
+    sfo_raw_comp = await transaction.get_component(cmd.entity_id, PspSfoRawMetadataComponent)
+    if sfo_raw_comp:
+        await transaction.remove_component(sfo_raw_comp)
+
+    logger.info(f"Removed PSP metadata components from entity {cmd.entity_id}")
 
 
 @system(on_event=AssetReadyForMetadataExtractionEvent)
@@ -58,11 +89,12 @@ async def psp_iso_metadata_extraction_command_handler_system(
     """
     entity_id = command.entity_id
     try:
-        async with command.open_stream(world) as stream:
-            if not stream:
-                logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
-                return
+        provider = await command.get_stream_provider(world)
+        if not provider:
+            logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
+            return
 
+        async with provider.get_stream() as stream:
             sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:
@@ -85,6 +117,5 @@ async def psp_iso_metadata_extraction_command_handler_system(
                 logger.info(f"Successfully added or updated PSPSFOMetadataComponent for entity {entity_id}.")
             else:
                 logger.warning(f"Could not extract SFO metadata from ISO for entity {entity_id}.")
-
     except Exception as e:
         logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)

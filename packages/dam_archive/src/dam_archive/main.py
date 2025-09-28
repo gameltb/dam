@@ -1,15 +1,20 @@
 import logging
+from pathlib import Path
 from typing import BinaryIO, Optional, Union
 
-from .base import ArchiveHandler, StreamProvider, to_stream_provider
+from dam.core.types import StreamProvider
+
+from .base import ArchiveHandler, to_stream_provider
 from .exceptions import ArchiveError, PasswordRequiredError
 from .registry import MIME_TYPE_HANDLERS
 
 logger = logging.getLogger(__name__)
 
 
-def open_archive(
-    file_or_path_or_provider: Union[str, BinaryIO, StreamProvider], mime_type: str, password: Optional[str] = None
+async def open_archive(
+    file_or_path_or_provider: Union[str, Path, BinaryIO, StreamProvider],
+    mime_type: str,
+    password: Optional[str] = None,
 ) -> Optional[ArchiveHandler]:
     """
     Open an archive file with the appropriate handler.
@@ -27,7 +32,7 @@ def open_archive(
         return None
 
     stream_provider: StreamProvider
-    if callable(file_or_path_or_provider):
+    if isinstance(file_or_path_or_provider, StreamProvider):
         stream_provider = file_or_path_or_provider
     else:
         try:
@@ -37,7 +42,7 @@ def open_archive(
 
     for handler_class in handler_classes:
         try:
-            return handler_class(stream_provider, password=password)
+            return await handler_class.create(stream_provider, password=password)
         except PasswordRequiredError:
             # Password errors should not be caught and suppressed, as they
             # indicate a fundamental issue that cannot be resolved by trying

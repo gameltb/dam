@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from dam.commands.analysis_commands import AnalysisCommand
-from dam.commands.core import BaseCommand
+from dam.commands.core import BaseCommand, EntityCommand
 from dam.system_events.base import BaseSystemEvent
 
 
@@ -35,13 +35,30 @@ class DiscoverAndBindCommand(BaseCommand[None, BaseSystemEvent]):
 
 
 @dataclass
-class SetArchivePasswordCommand(BaseCommand[None, BaseSystemEvent]):
+class SetArchivePasswordCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to set the password for an archive.
     """
 
-    entity_id: int
     password: str
+
+
+@dataclass
+class CheckArchivePasswordCommand(EntityCommand[bool, BaseSystemEvent]):
+    """
+    A command to check if an archive has a password set.
+    """
+
+    pass
+
+
+@dataclass
+class RemoveArchivePasswordCommand(EntityCommand[None, BaseSystemEvent]):
+    """
+    A command to remove the password from an archive.
+    """
+
+    pass
 
 
 @dataclass
@@ -74,9 +91,16 @@ class TagArchivePartCommand(BaseCommand[None, BaseSystemEvent]):
 
 
 @dataclass
-class ClearArchiveComponentsCommand(BaseCommand[None, BaseSystemEvent]):
+class CheckArchiveCommand(EntityCommand[bool, BaseSystemEvent]):
+    """A command to check if an entity has been processed as an archive."""
+
+    pass
+
+
+@dataclass
+class ClearArchiveComponentsCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to clear archive-related components from an entity.
     """
 
-    entity_id: int
+    pass

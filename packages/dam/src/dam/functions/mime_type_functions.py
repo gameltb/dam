@@ -103,6 +103,16 @@ async def set_content_mime_type(
     return content_mime_comp
 
 
+async def remove_content_mime_type(session: AsyncSession, entity_id: int) -> None:
+    """
+    Removes the content mime type for a given entity.
+    """
+    component = await ecs_functions.get_component(session, entity_id, ContentMimeTypeComponent)
+    if component:
+        await ecs_functions.remove_component(session, component)
+        logger.info(f"Removed ContentMimeTypeComponent from entity {entity_id}.")
+
+
 async def get_content_mime_type(session: AsyncSession, entity_id: int) -> Optional[str]:
     """
     Gets the mime type for a given entity's content.

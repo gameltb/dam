@@ -27,9 +27,35 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
-from ..commands import ExtractExifMetadataCommand
+from ..commands import (
+    CheckExifMetadataCommand,
+    ExtractExifMetadataCommand,
+    RemoveExifMetadataCommand,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=CheckExifMetadataCommand)
+async def check_exif_metadata_handler(
+    cmd: CheckExifMetadataCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the ExiftoolMetadataComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, ExiftoolMetadataComponent)
+    return component is not None
+
+
+@system(on_command=RemoveExifMetadataCommand)
+async def remove_exif_metadata_handler(
+    cmd: RemoveExifMetadataCommand,
+    transaction: WorldTransaction,
+):
+    """Removes the ExiftoolMetadataComponent from the entity."""
+    component = await transaction.get_component(cmd.entity_id, ExiftoolMetadataComponent)
+    if component:
+        await transaction.remove_component(component)
+        logger.info(f"Removed ExiftoolMetadataComponent from entity {cmd.entity_id}")
 
 
 class ExifTool:
@@ -232,35 +258,36 @@ async def extract_metadata_command_handler(
 
     exiftool_data = None
 
-    async with cmd.open_stream(world) as stream:
-        if stream:
+    provider = await cmd.get_stream_provider(world)
+    if provider:
+        async with provider.get_stream() as stream:
             logger.debug(f"Using provided stream for entity {entity_id}.")
             exiftool_data = await exiftool_instance.get_metadata(stream=stream)
-        else:
-            logger.debug(f"No stream provided for entity {entity_id}, finding file on disk.")
-            all_locations = await transaction.get_components(entity_id, FileLocationComponent)
-            if not all_locations:
-                logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}. Cannot extract metadata.")
-                return
+    else:
+        logger.debug(f"No stream provider for entity {entity_id}, finding file on disk.")
+        all_locations = await transaction.get_components(entity_id, FileLocationComponent)
+        if not all_locations:
+            logger.warning(f"No FileLocationComponent found for Entity ID {entity_id}. Cannot extract metadata.")
+            return
 
-            filepath_to_process = None
-            for loc in all_locations:
-                try:
-                    potential_path = get_local_path_for_url(loc.url)
-                    if potential_path and await asyncio.to_thread(potential_path.is_file):
-                        filepath_to_process = potential_path
-                        break
-                except (ValueError, FileNotFoundError) as e:
-                    logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
-                    continue
+        filepath_to_process = None
+        for loc in all_locations:
+            try:
+                potential_path = get_local_path_for_url(loc.url)
+                if potential_path and await asyncio.to_thread(potential_path.is_file):
+                    filepath_to_process = potential_path
+                    break
+            except (ValueError, FileNotFoundError) as e:
+                logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {entity_id}: {e}")
+                continue
 
-            if not filepath_to_process:
-                logger.error(
-                    f"Filepath for Entity ID {entity_id} does not exist or could not be determined. Cannot extract metadata."
-                )
-                return
+        if not filepath_to_process:
+            logger.error(
+                f"Filepath for Entity ID {entity_id} does not exist or could not be determined. Cannot extract metadata."
+            )
+            return
 
-            exiftool_data = await exiftool_instance.get_metadata(filepath=filepath_to_process)
+        exiftool_data = await exiftool_instance.get_metadata(filepath=filepath_to_process)
 
     if exiftool_data:
         exif_comp = ExiftoolMetadataComponent(raw_exif_json=exiftool_data)

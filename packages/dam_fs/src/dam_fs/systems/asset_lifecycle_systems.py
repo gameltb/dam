@@ -185,15 +185,13 @@ async def store_assets_handler(
             stream_provider = None
 
         if stream_provider:
-            stream = stream_provider()
             try:
-                content = stream.read()
-                storage_resource.store_file(content)
-                stored_count += 1
-                logger.info(f"Stored entity {entity.id} (hash: {content_hash})")
+                async with stream_provider.get_stream() as stream:
+                    content = stream.read()
+                    storage_resource.store_file(content)
+                    stored_count += 1
+                    logger.info(f"Stored entity {entity.id} (hash: {content_hash})")
             except Exception as e:
                 logger.error(f"Failed to store entity {entity.id}: {e}", exc_info=True)
-            finally:
-                stream.close()
 
     logger.info(f"Successfully stored {stored_count} new assets.")
