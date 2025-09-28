@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -28,26 +31,46 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         r"(.+)"  # Name
     )
 
-    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+    def __init__(
+        self,
+        stream_provider: StreamProvider,
+        password: Optional[str],
+        file_path: str,
+        temp_file_path: Optional[str],
+    ):
         super().__init__(stream_provider, password)
+        self.file_path = file_path
         self.members: List[ArchiveMemberInfo] = []
         self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = None
-        self._temp_file_path: Optional[str] = None
-        self._stream: Optional[BinaryIO] = None
-
-        # The 7z CLI tool requires a file path, so we must write the stream to a temporary file.
-        self._stream = self._stream_provider()
-        if hasattr(self._stream, "name") and Path(self._stream.name).exists():
-            self.file_path = self._stream.name
-        else:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".7z") as temp_file:
-                self.file_path = temp_file.name
-                self._temp_file_path = self.file_path
-                shutil.copyfileobj(self._stream, temp_file)
+        self._temp_file_path = temp_file_path
 
         if self.password:
             self._validate_password()
         self._list_files_and_populate_members()
+
+    @classmethod
+    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> SevenZipCliArchiveHandler:
+        temp_file_path: Optional[str] = None
+        path: Optional[Path] = stream_provider.get_path()
+
+        if path is None:
+            # The 7z CLI tool requires a file path, so we must write the stream to a temporary file.
+            fd, temp_path_str = tempfile.mkstemp(suffix=".7z")
+            temp_file_path = temp_path_str
+            file_path = Path(temp_path_str)
+
+            try:
+                async with stream_provider.get_stream() as stream:
+                    with os.fdopen(fd, "wb") as temp_file:
+                        shutil.copyfileobj(stream, temp_file)
+            except Exception:
+                # Ensure cleanup if something goes wrong during stream copying
+                os.unlink(temp_path_str)
+                raise
+        else:
+            file_path = path
+
+        return cls(stream_provider, password, str(file_path), temp_file_path)
 
     def _validate_password(self):
         args = ["t", self.file_path]
@@ -171,7 +194,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
         return member_info, process.stdout  # pyright: ignore[reportReturnType]
 
-    def close(self) -> None:
+    async def close(self) -> None:
         if self._temp_dir:
             self._temp_dir.cleanup()
             self._temp_dir = None
@@ -181,9 +204,3 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 self._temp_file_path = None
             except OSError as e:
                 logger.warning(f"Could not delete temporary file '{self._temp_file_path}': {e}")
-        if self._stream:
-            try:
-                self._stream.close()
-            except Exception:
-                pass
-        self._stream = None

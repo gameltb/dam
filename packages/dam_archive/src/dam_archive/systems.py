@@ -1,10 +1,22 @@
 import io
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from types import TracebackType
-from typing import Annotated, AsyncGenerator, BinaryIO, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import (
+    Annotated,
+    AsyncContextManager,
+    AsyncGenerator,
+    AsyncIterator,
+    BinaryIO,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import psutil
 from dam.commands.asset_commands import (
@@ -14,7 +26,7 @@ from dam.commands.asset_commands import (
 )
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
-from dam.core.types import StreamProvider
+from dam.core.types import CallableStreamProvider, StreamProvider
 from dam.core.world import World
 from dam.functions.mime_type_functions import get_content_mime_type
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
@@ -32,7 +44,6 @@ from dam_fs.models import FilenameComponent
 from sqlalchemy import select
 
 from . import split_detector
-from .base import ArchiveHandler
 from .commands import (
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
@@ -245,35 +256,6 @@ async def set_archive_password_handler(
         await transaction.add_component_to_entity(cmd.entity_id, password_comp)
 
 
-class _ArchiveClosingStream:
-    """A wrapper around a stream that ensures the archive handler is closed when the stream is."""
-
-    def __init__(self, stream: BinaryIO, archive_handler: "ArchiveHandler"):
-        self._stream = stream
-        self._archive_handler = archive_handler
-
-    def __getattr__(self, name: str):
-        # Proxy all other attributes to the wrapped stream.
-        return getattr(self._stream, name)
-
-    def close(self) -> None:
-        try:
-            self._stream.close()
-        finally:
-            self._archive_handler.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.close()
-
-
 @system(on_command=GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
@@ -310,16 +292,27 @@ async def get_archive_asset_stream_handler(
             logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
             continue
 
-        def provider() -> BinaryIO:
-            """A closure that opens the archive and returns a stream to a member file."""
-            archive = open_archive(archive_stream_provider, mime_type, password)
-            if archive:
-                _, member_stream = archive.open_file(path_in_archive)
-                return cast(BinaryIO, _ArchiveClosingStream(member_stream, archive))
-            else:
-                raise IOError(f"Could not open archive for entity {target_entity_id}")
+        class ArchiveMemberStreamProvider(StreamProvider):
+            @asynccontextmanager
+            async def get_stream(self) -> AsyncIterator[BinaryIO]:
+                archive = await open_archive(archive_stream_provider, mime_type, password)
+                if not archive:
+                    raise IOError(f"Could not open archive for entity {target_entity_id}")
 
-        return provider
+                member_stream = None
+                try:
+                    _, member_stream = archive.open_file(path_in_archive)
+                    yield member_stream
+                finally:
+                    # Ensure the member stream is closed if it's not done by the consumer
+                    if member_stream:
+                        try:
+                            member_stream.close()
+                        except Exception:
+                            pass
+                    await archive.close()
+
+        return ArchiveMemberStreamProvider()
 
     return None
 
@@ -372,7 +365,7 @@ async def _process_archive(
     for pwd in passwords_to_try:
         temp_archive = None
         try:
-            temp_archive = open_archive(archive_stream_provider, mime_type, pwd)
+            temp_archive = await open_archive(archive_stream_provider, mime_type, pwd)
             if temp_archive:
                 correct_password = pwd
                 archive = temp_archive
@@ -380,16 +373,16 @@ async def _process_archive(
                 break
         except InvalidPasswordError:
             if temp_archive:
-                temp_archive.close()
+                await temp_archive.close()
             continue
         except (IOError, RuntimeError) as e:
             if temp_archive:
-                temp_archive.close()
+                await temp_archive.close()
             yield ProgressError(message=f"Failed to open archive {entity_id}", exception=e)
             return
         except Exception:
             if temp_archive:
-                temp_archive.close()
+                await temp_archive.close()
             raise
 
     if not archive:
@@ -448,7 +441,7 @@ async def _process_archive(
                         def event_provider(content: bytes = buffer_content) -> BinaryIO:
                             return io.BytesIO(content)
 
-                        event_stream_provider = event_provider
+                        event_stream_provider = CallableStreamProvider(event_provider)
                     else:
                         # For large files, we can't provide a re-readable event stream.
                         # The command gets a chained stream which consumes the buffer and the rest of the file stream.
@@ -523,7 +516,7 @@ async def _process_archive(
 
     finally:
         if archive:
-            archive.close()
+            await archive.close()
 
 
 @system(on_command=IngestArchiveCommand)
@@ -549,6 +542,27 @@ async def ingest_archive_members_handler(
         manifest_comp = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
         if manifest_comp:
             logger.info(f"Entity {cmd.entity_id} is a split archive master. Chaining part streams.")
+
+            class ChainedStreamProvider(StreamProvider):
+                def __init__(self, providers: List[StreamProvider]):
+                    self._providers = providers
+
+                @asynccontextmanager
+                async def get_stream(self) -> AsyncIterator[BinaryIO]:
+                    streams: List[BinaryIO] = []
+                    context_managers: List[AsyncContextManager[BinaryIO]] = []
+                    try:
+                        for p in self._providers:
+                            cm = p.get_stream()
+                            streams.append(await cm.__aenter__())
+                            context_managers.append(cm)
+
+                        chained_stream = cast(BinaryIO, ChainedStream(streams))
+                        yield chained_stream
+                    finally:
+                        for cm in reversed(context_managers):
+                            await cm.__aexit__(None, None, None)
+
             stmt = (
                 select(SplitArchivePartInfoComponent)
                 .where(SplitArchivePartInfoComponent.master_entity_id == cmd.entity_id)
@@ -567,11 +581,7 @@ async def ingest_archive_members_handler(
                     else:
                         raise ValueError(f"Stream provider for part {part_entity_id} is None")
 
-                def chained_stream_provider() -> BinaryIO:
-                    streams = [p() for p in part_stream_providers]
-                    return cast(BinaryIO, ChainedStream(streams))
-
-                archive_stream_provider = chained_stream_provider
+                archive_stream_provider = ChainedStreamProvider(part_stream_providers)
             except (ValueError, FileNotFoundError) as e:
                 logger.error(f"Could not get stream for split archive part: {e}")
                 yield ProgressError(message=str(e), exception=e)

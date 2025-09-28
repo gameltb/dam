@@ -58,11 +58,12 @@ async def psp_iso_metadata_extraction_command_handler_system(
     """
     entity_id = command.entity_id
     try:
-        async with command.open_stream(world) as stream:
-            if not stream:
-                logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
-                return
+        provider = await command.get_stream_provider(world)
+        if not provider:
+            logger.warning(f"Could not get asset stream for PSP ISO for entity {entity_id}.")
+            return
 
+        async with provider.get_stream() as stream:
             sfo = process_iso_stream(stream)
 
             if sfo and sfo.data:
@@ -85,6 +86,5 @@ async def psp_iso_metadata_extraction_command_handler_system(
                 logger.info(f"Successfully added or updated PSPSFOMetadataComponent for entity {entity_id}.")
             else:
                 logger.warning(f"Could not extract SFO metadata from ISO for entity {entity_id}.")
-
     except Exception as e:
         logger.error(f"Failed during PSP ISO metadata processing for entity {entity_id}: {e}", exc_info=True)

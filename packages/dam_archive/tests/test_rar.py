@@ -20,8 +20,9 @@ def dummy_rar_file(tmp_path: Path) -> Path:
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
-def test_open_rar_archive(dummy_rar_file: Path) -> None:
-    archive = open_archive(str(dummy_rar_file), dummy_rar_file.name)
+@pytest.mark.asyncio
+async def test_open_rar_archive(dummy_rar_file: Path) -> None:
+    archive = await open_archive(str(dummy_rar_file), "application/vnd.rar")
     assert archive is not None
     files = archive.list_files()
     file_names = [f.name for f in files]
@@ -37,6 +38,7 @@ def test_open_rar_archive(dummy_rar_file: Path) -> None:
     with f:
         assert f.read() == b"content2"
     assert member_info.name == "dir/file2.txt"
+    await archive.close()
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
@@ -50,19 +52,22 @@ def protected_rar_file(tmp_path: Path) -> Path:
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
-def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
-    archive = open_archive(str(protected_rar_file), protected_rar_file.name, password="password")
+@pytest.mark.asyncio
+async def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
+    archive = await open_archive(str(protected_rar_file), "application/vnd.rar", password="password")
     assert archive is not None
     member_info, f = archive.open_file("file1.txt")
     with f:
         assert f.read() == b"content1"
     assert member_info.name == "file1.txt"
+    await archive.close()
 
 
 @pytest.mark.skip(reason="Cannot create .rar files programmatically.")
-def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
+@pytest.mark.asyncio
+async def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
     # This test checks the iter_files method for rar archives.
-    archive = open_archive(str(dummy_rar_file), dummy_rar_file.name)
+    archive = await open_archive(str(dummy_rar_file), "application/vnd.rar")
     assert archive is not None
 
     files = list(archive.iter_files())
@@ -74,3 +79,4 @@ def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
         assert member_info.size >= 0
 
     # Further assertions would go here if the test could be run
+    await archive.close()

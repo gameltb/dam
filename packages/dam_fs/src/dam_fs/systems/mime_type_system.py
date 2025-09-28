@@ -36,10 +36,11 @@ async def auto_set_mime_type_from_filename_system(
         return
 
     try:
-        async with command.open_stream(world) as stream:
-            if not stream:
-                return
+        provider = await command.get_stream_provider(world)
+        if not provider:
+            return
 
+        async with provider.get_stream() as stream:
             buffer = stream.read(4096)
             mime_type = magic.from_buffer(buffer, mime=True)
 
@@ -62,7 +63,6 @@ async def auto_set_mime_type_from_filename_system(
                 await set_content_mime_type(transaction.session, entity_id, mime_type)
             else:
                 logger.warning(f"Could not determine mime type for entity {entity_id}")
-
     except Exception as e:
         logger.error(f"Error processing entity {entity_id}: {e}", exc_info=True)
 

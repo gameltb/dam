@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, AsyncIterator, BinaryIO, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from dam.commands.core import EntityCommand, EventType, ResultType
 from dam.core.types import StreamProvider
@@ -41,28 +40,6 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
             GetAssetStreamCommand(entity_id=self.entity_id)
         ).get_first_non_none_value()
         return provider
-
-    @asynccontextmanager
-    async def open_stream(self, world: "World") -> AsyncIterator[Optional[BinaryIO]]:
-        """
-        An async context manager that provides a fresh, readable binary stream for the entity.
-        It fetches a stream provider if one is not already available.
-        Usage:
-            async with cmd.open_stream(world) as stream:
-                if stream:
-                    # do work
-        """
-        provider = await self.get_stream_provider(world)
-
-        if not provider:
-            yield None
-            return
-
-        stream = provider()
-        try:
-            yield stream
-        finally:
-            stream.close()
 
 
 @dataclass
