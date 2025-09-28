@@ -45,10 +45,13 @@ from sqlalchemy import select
 
 from . import split_detector
 from .commands import (
+    CheckArchiveCommand,
+    CheckArchivePasswordCommand,
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
     DiscoverAndBindCommand,
     IngestArchiveCommand,
+    RemoveArchivePasswordCommand,
     SetArchivePasswordCommand,
     UnbindSplitArchiveCommand,
 )
@@ -63,6 +66,16 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=CheckArchiveCommand)
+async def check_archive_handler(
+    cmd: CheckArchiveCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the ArchiveInfoComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
+    return component is not None
 
 
 @system(on_command=DiscoverAndBindCommand)
@@ -238,6 +251,28 @@ async def unbind_split_archive_handler(
     await transaction.remove_component(manifest)
 
     logger.info(f"Successfully unbound archive for master entity {cmd.master_entity_id}.")
+
+
+@system(on_command=CheckArchivePasswordCommand)
+async def check_archive_password_handler(
+    cmd: CheckArchivePasswordCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the ArchivePasswordComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
+    return component is not None
+
+
+@system(on_command=RemoveArchivePasswordCommand)
+async def remove_archive_password_handler(
+    cmd: RemoveArchivePasswordCommand,
+    transaction: WorldTransaction,
+):
+    """Removes the ArchivePasswordComponent from the entity."""
+    component = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
+    if component:
+        await transaction.remove_component(component)
+        logger.info(f"Removed ArchivePasswordComponent from entity {cmd.entity_id}")
 
 
 @system(on_command=SetArchivePasswordCommand)

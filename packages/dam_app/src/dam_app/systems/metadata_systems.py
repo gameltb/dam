@@ -27,9 +27,35 @@ from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComp
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
-from ..commands import ExtractExifMetadataCommand
+from ..commands import (
+    CheckExifMetadataCommand,
+    ExtractExifMetadataCommand,
+    RemoveExifMetadataCommand,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=CheckExifMetadataCommand)
+async def check_exif_metadata_handler(
+    cmd: CheckExifMetadataCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the ExiftoolMetadataComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, ExiftoolMetadataComponent)
+    return component is not None
+
+
+@system(on_command=RemoveExifMetadataCommand)
+async def remove_exif_metadata_handler(
+    cmd: RemoveExifMetadataCommand,
+    transaction: WorldTransaction,
+):
+    """Removes the ExiftoolMetadataComponent from the entity."""
+    component = await transaction.get_component(cmd.entity_id, ExiftoolMetadataComponent)
+    if component:
+        await transaction.remove_component(component)
+        logger.info(f"Removed ExiftoolMetadataComponent from entity {cmd.entity_id}")
 
 
 class ExifTool:

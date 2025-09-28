@@ -8,6 +8,7 @@ from dam.core.contexts import ContextProvider
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.markers import MarkedEntityList
+from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
 from dam.core.providers import MarkedEntityListProvider
 from dam.core.resources import ResourceManager
@@ -46,11 +47,27 @@ class World:
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
         self._transaction_manager: TransactionManager = TransactionManager(world_config)
         self._registered_plugin_types: set[Type[Plugin]] = set()
+        self.asset_operations: Dict[str, AssetOperation] = {}
         self.context_providers: Dict[Type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
         self.register_context_provider(WorldTransaction, self._transaction_manager)
         self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
         self.logger.info(f"Minimal World '{self.name}' instance created. Base resources to be populated externally.")
+
+    def register_asset_operation(self, operation: AssetOperation) -> None:
+        """Registers an asset operation with the world."""
+        if operation.name in self.asset_operations:
+            self.logger.warning(f"Overwriting asset operation for name {operation.name}.")
+        self.asset_operations[operation.name] = operation
+        self.logger.info(f"Asset operation '{operation.name}' registered in world '{self.name}'.")
+
+    def get_asset_operation(self, name: str) -> Optional[AssetOperation]:
+        """Retrieves a registered asset operation by its name."""
+        return self.asset_operations.get(name)
+
+    def get_all_asset_operations(self) -> List[AssetOperation]:
+        """Returns a list of all registered asset operations."""
+        return list(self.asset_operations.values())
 
     def add_resource(self, instance: Any, resource_type: Optional[Type[Any]] = None) -> None:
         self.resource_manager.add_resource(instance, resource_type)

@@ -7,12 +7,43 @@ from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.events import AssetReadyForMetadataExtractionEvent
 
-from dam_psp.commands import ExtractPSPMetadataCommand
+from dam_psp.commands import (
+    CheckPSPMetadataCommand,
+    ExtractPSPMetadataCommand,
+    RemovePSPMetadataCommand,
+)
 from dam_psp.psp_iso_functions import process_iso_stream
 
 from .models import PSPSFOMetadataComponent, PspSfoRawMetadataComponent
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=CheckPSPMetadataCommand)
+async def check_psp_metadata_handler(
+    cmd: CheckPSPMetadataCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """Checks if the PSPSFOMetadataComponent exists for the entity."""
+    component = await transaction.get_component(cmd.entity_id, PSPSFOMetadataComponent)
+    return component is not None
+
+
+@system(on_command=RemovePSPMetadataCommand)
+async def remove_psp_metadata_handler(
+    cmd: RemovePSPMetadataCommand,
+    transaction: WorldTransaction,
+):
+    """Removes the PSP metadata components from the entity."""
+    sfo_comp = await transaction.get_component(cmd.entity_id, PSPSFOMetadataComponent)
+    if sfo_comp:
+        await transaction.remove_component(sfo_comp)
+
+    sfo_raw_comp = await transaction.get_component(cmd.entity_id, PspSfoRawMetadataComponent)
+    if sfo_raw_comp:
+        await transaction.remove_component(sfo_raw_comp)
+
+    logger.info(f"Removed PSP metadata components from entity {cmd.entity_id}")
 
 
 @system(on_event=AssetReadyForMetadataExtractionEvent)
