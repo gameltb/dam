@@ -7,12 +7,14 @@ from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass
-class UnbindSplitArchiveCommand(BaseCommand[None, BaseSystemEvent]):
+class UnbindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to unbind a split archive by deleting its manifest and part info.
+    When given the entity_id of a master archive, it unbinds it.
+    When given the entity_id of a part, it finds the master and unbinds it.
     """
 
-    master_entity_id: int
+    pass
 
 
 @dataclass
@@ -28,10 +30,32 @@ class CreateMasterArchiveCommand(BaseCommand[None, BaseSystemEvent]):
 @dataclass
 class DiscoverAndBindCommand(BaseCommand[None, BaseSystemEvent]):
     """
+    DEPRECATED: This command is deprecated and will be removed in a future version.
+    Use the 'BindSplitArchiveOperation' instead.
+
     A command to discover and bind split archives from a list of paths.
     """
 
     paths: List[str]
+
+
+@dataclass
+class BindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
+    """
+    A command that attempts to discover and bind a split archive group
+    starting from the given entity.
+    """
+
+    pass
+
+
+@dataclass
+class CheckSplitArchiveBindingCommand(EntityCommand[bool, BaseSystemEvent]):
+    """
+    A command to check if an entity is part of a fully bound split archive.
+    """
+
+    pass
 
 
 @dataclass

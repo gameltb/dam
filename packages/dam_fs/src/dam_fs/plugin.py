@@ -4,6 +4,7 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     SetMimeTypeFromBufferCommand,
 )
+from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
@@ -24,6 +25,7 @@ from .systems.asset_lifecycle_systems import (
     register_local_file_handler,
     store_assets_handler,
 )
+from .systems.discovery_system import discover_fs_path_siblings_handler
 from .systems.mime_type_system import (
     auto_set_mime_type_from_filename_system,
     set_mime_type_from_buffer_system,
@@ -68,4 +70,8 @@ class FsPlugin(Plugin):
         world.register_system(
             set_mime_type_from_buffer_system,
             command_type=SetMimeTypeFromBufferCommand,
+        )
+        world.register_system(
+            discover_fs_path_siblings_handler,
+            command_type=DiscoverPathSiblingsCommand,
         )
