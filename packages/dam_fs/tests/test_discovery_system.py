@@ -40,7 +40,8 @@ async def test_discover_fs_path_siblings(
     # 2. Action: Run discovery on the first entity
     discover_cmd = DiscoverPathSiblingsCommand(entity_id=entity_id_1)
     try:
-        discovered_siblings = await world.dispatch_command(discover_cmd).get_first_non_none_value()
+        # Use get_one_value() as it correctly handles the test runner's lifecycle
+        discovered_siblings = await world.dispatch_command(discover_cmd).get_one_value()
     except ValueError:
         discovered_siblings = None
 
