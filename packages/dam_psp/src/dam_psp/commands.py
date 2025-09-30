@@ -35,3 +35,34 @@ class ExtractPSPMetadataCommand(AnalysisCommand[None, BaseSystemEvent]):
             "mimetypes": ["application/x-iso9660-image"],
             "extensions": [".iso"],
         }
+
+
+@dataclass
+class CheckCsoIngestionCommand(EntityCommand[bool, BaseSystemEvent]):
+    """A command to check if a CSO file has been ingested."""
+
+    pass
+
+
+@dataclass
+class ClearCsoIngestionCommand(EntityCommand[None, BaseSystemEvent]):
+    """A command to clear the ingestion data from a CSO file."""
+
+    pass
+
+
+@dataclass
+class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
+    """
+    A command to ingest a CSO file, decompress it, and create a virtual ISO entity.
+    """
+
+    @classmethod
+    def get_supported_types(cls) -> Dict[str, List[str]]:
+        """
+        Returns a dictionary of supported MIME types and file extensions for CSO files.
+        """
+        return {
+            "mimetypes": ["application/x-ciso"],
+            "extensions": [".cso"],
+        }

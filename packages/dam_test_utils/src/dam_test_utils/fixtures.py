@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import (
     Any,
     AsyncGenerator,
-    Callable,
     Dict,
     Generator,
     List,
@@ -76,8 +75,8 @@ async def test_db() -> AsyncGenerator[str, None]:
         await conn.close()
 
 
-@pytest.fixture(scope="function")
-def test_worlds_config_data_factory(test_db: str) -> Callable[[], Dict[str, Dict[str, str]]]:
+@pytest_asyncio.fixture(scope="function")
+async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> AsyncGenerator[Settings, None]:
     def _factory() -> Dict[str, Dict[str, str]]:
         return {
             "test_world_alpha": {"DATABASE_URL": test_db},
@@ -88,14 +87,7 @@ def test_worlds_config_data_factory(test_db: str) -> Callable[[], Dict[str, Dict
             "test_world_gamma_del_split": {"DATABASE_URL": test_db},
         }
 
-    return _factory
-
-
-@pytest.fixture(scope="function")
-def settings_override(
-    test_worlds_config_data_factory: Callable[[], Dict[str, Dict[str, str]]], monkeypatch: Any, tmp_path: Path
-) -> Generator[Settings, None, None]:
-    raw_world_configs = test_worlds_config_data_factory()
+    raw_world_configs = _factory()
     updated_test_worlds_config: Dict[str, Any] = {}
 
     for world_name, config_template in raw_world_configs.items():

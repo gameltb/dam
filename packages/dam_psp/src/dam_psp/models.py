@@ -41,3 +41,28 @@ class PspSfoRawMetadataComponent(UniqueComponent):
             f"PspSfoRawMetadataComponent(entity_id={self.entity_id}, "
             f"metadata_json_keys='{list(self.metadata_json.keys())}')"
         )
+
+
+class CsoParentIsoComponent(UniqueComponent):
+    """
+    Links a virtual ISO entity back to the original CSO file entity from which it was derived.
+    """
+
+    __tablename__ = "component_cso_parent_iso"
+
+    cso_entity_id: Mapped[int] = mapped_column(Integer, index=True, unique=True)
+
+    def __repr__(self) -> str:
+        return f"CsoParentIsoComponent(entity_id={self.entity_id}, cso_entity_id={self.cso_entity_id})"
+
+
+class IngestedCsoComponent(UniqueComponent):
+    """
+    A marker component indicating that a CSO file has been successfully ingested
+    and a corresponding virtual ISO entity has been created.
+    """
+
+    __tablename__ = "component_ingested_cso"
+
+    def __repr__(self) -> str:
+        return f"IngestedCsoComponent(entity_id={self.entity_id})"
