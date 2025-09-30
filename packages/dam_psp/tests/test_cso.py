@@ -145,7 +145,7 @@ async def test_ingest_cso_handler_system(mocker: MockerFixture, cso_test_files: 
     # 1. Setup
     cso_entity_id = 1
     virtual_iso_entity_id = 2
-    iso_path, cso_path = cso_test_files
+    _, cso_path = cso_test_files
 
     mock_transaction = AsyncMock()
     mock_transaction.add_or_update_component = AsyncMock()
