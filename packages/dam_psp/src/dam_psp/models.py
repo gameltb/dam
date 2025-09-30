@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
-from dam.models.core.base_component import UniqueComponent
-from sqlalchemy import Integer, String
+from dam.models.core.base_component import BaseComponent, UniqueComponent
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,14 +43,20 @@ class PspSfoRawMetadataComponent(UniqueComponent):
         )
 
 
-class CsoParentIsoComponent(UniqueComponent):
+class CsoParentIsoComponent(BaseComponent):
     """
     Links a virtual ISO entity back to the original CSO file entity from which it was derived.
     """
 
     __tablename__ = "component_cso_parent_iso"
 
-    cso_entity_id: Mapped[int] = mapped_column(Integer, index=True, unique=True)
+    cso_entity_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("entities.id"),
+        index=True,
+        unique=True,
+        nullable=False,
+    )
 
     def __repr__(self) -> str:
         return f"CsoParentIsoComponent(entity_id={self.entity_id}, cso_entity_id={self.cso_entity_id})"
