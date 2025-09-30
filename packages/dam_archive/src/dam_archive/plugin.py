@@ -2,12 +2,15 @@ from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
     GetAssetStreamCommand,
 )
+from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .commands import (
+    BindSplitArchiveCommand,
     CheckArchiveCommand,
     CheckArchivePasswordCommand,
+    CheckSplitArchiveBindingCommand,
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
     DiscoverAndBindCommand,
@@ -16,13 +19,20 @@ from .commands import (
     SetArchivePasswordCommand,
     UnbindSplitArchiveCommand,
 )
-from .operations import ingest_archive_operation, set_archive_password_operation
+from .operations import (
+    bind_split_archive_operation,
+    ingest_archive_operation,
+    set_archive_password_operation,
+)
 from .systems import (
+    bind_split_archive_handler,
     check_archive_handler,
     check_archive_password_handler,
+    check_split_archive_binding_handler,
     clear_archive_components_handler,
     create_master_archive_handler,
     discover_and_bind_handler,
+    discover_archive_path_siblings_handler,
     get_archive_asset_filenames_handler,
     get_archive_asset_stream_handler,
     ingest_archive_members_handler,
@@ -54,6 +64,14 @@ class ArchivePlugin(Plugin):
         world.register_system(check_archive_password_handler, command_type=CheckArchivePasswordCommand)
         world.register_system(remove_archive_password_handler, command_type=RemoveArchivePasswordCommand)
 
+        # New binding systems
+        world.register_system(bind_split_archive_handler, command_type=BindSplitArchiveCommand)
+        world.register_system(check_split_archive_binding_handler, command_type=CheckSplitArchiveBindingCommand)
+
+        # Discovery system
+        world.register_system(discover_archive_path_siblings_handler, command_type=DiscoverPathSiblingsCommand)
+
         # Register Asset Operations
         world.register_asset_operation(ingest_archive_operation)
         world.register_asset_operation(set_archive_password_operation)
+        world.register_asset_operation(bind_split_archive_operation)

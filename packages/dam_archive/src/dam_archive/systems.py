@@ -24,6 +24,7 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
+from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -45,8 +46,10 @@ from sqlalchemy import select
 
 from . import split_detector
 from .commands import (
+    BindSplitArchiveCommand,
     CheckArchiveCommand,
     CheckArchivePasswordCommand,
+    CheckSplitArchiveBindingCommand,
     ClearArchiveComponentsCommand,
     CreateMasterArchiveCommand,
     DiscoverAndBindCommand,
@@ -66,6 +69,47 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@system(on_command=DiscoverPathSiblingsCommand)
+async def discover_archive_path_siblings_handler(
+    cmd: DiscoverPathSiblingsCommand,
+    transaction: WorldTransaction,
+) -> Optional[List[PathSibling]]:
+    """
+    Handles discovering path-based sibling entities for an entity that is a member of an archive.
+    """
+    logger.debug(f"discover_archive_path_siblings_handler running for entity {cmd.entity_id}")
+
+    # 1. Get the ArchiveMemberComponent for the starting entity
+    member_comp = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
+    if not member_comp or not member_comp.path_in_archive:
+        logger.debug(f"Entity {cmd.entity_id} is not an archive member. Skipping archive discovery.")
+        return None
+
+    # 2. Determine the parent archive and the directory within it
+    parent_archive_id = member_comp.archive_entity_id
+    internal_dir = os.path.dirname(member_comp.path_in_archive)
+
+    # 3. Find all members of the same parent archive first.
+    stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == parent_archive_id)
+    result = await transaction.session.execute(stmt)
+    all_members = result.scalars().all()
+
+    # 4. Filter them by directory and create PathSibling objects
+    siblings = [
+        PathSibling(entity_id=m.entity_id, path=m.path_in_archive)
+        for m in all_members
+        if m.path_in_archive and os.path.dirname(m.path_in_archive) == internal_dir
+    ]
+
+    if siblings:
+        logger.info(
+            f"Found {len(siblings)} archive siblings for entity {cmd.entity_id} in archive {parent_archive_id}:{internal_dir}."
+        )
+        return siblings
+
+    return None
 
 
 @system(on_command=CheckArchiveCommand)
@@ -223,24 +267,131 @@ async def create_master_archive_handler(
     logger.info(f"Successfully created master entity {master_entity.id} for archive '{cmd.name}'.")
 
 
+@system(on_command=BindSplitArchiveCommand)
+async def bind_split_archive_handler(
+    cmd: BindSplitArchiveCommand,
+    world: Annotated[World, "Resource"],
+    transaction: WorldTransaction,
+):
+    """
+    Handles discovering and binding a split archive from a starting entity.
+    This is the "consumer" of the generic sibling discovery.
+    """
+    logger.info(f"Attempting to bind split archive starting from entity {cmd.entity_id}")
+
+    # 1. Discover sibling entities
+    discover_cmd = DiscoverPathSiblingsCommand(entity_id=cmd.entity_id)
+    try:
+        siblings = await world.dispatch_command(discover_cmd).get_first_non_none_value()
+    except ValueError:
+        siblings = None
+
+    if not siblings:
+        logger.info(f"No siblings found for entity {cmd.entity_id}. Cannot bind split archive.")
+        return
+
+    # 2. Use the split_detector to find and validate a complete group from the siblings
+    parts_by_basename: Dict[str, Dict[int, int]] = {}  # {base_name: {part_num: entity_id}}
+    for sibling in siblings:
+        split_info = split_detector.detect(os.path.basename(sibling.path))
+        if split_info:
+            parts_by_basename.setdefault(split_info.base_name, {})[split_info.part_num] = sibling.entity_id
+
+    # 3. Process the groups to find a complete one
+    for base_name, parts_by_num in parts_by_basename.items():
+        if not parts_by_num:
+            continue
+
+        max_part_num = max(parts_by_num.keys())
+        is_complete = all(i in range(1, max_part_num + 1) for i in parts_by_num)
+
+        if is_complete:
+            logger.info(f"Found complete split archive '{base_name}' with {max_part_num} parts.")
+
+            # Check if a master archive already exists for this group
+            master_name = f"{base_name} (Split Archive)"
+            stmt = select(FilenameComponent).where(FilenameComponent.filename == master_name)
+            result = await transaction.session.execute(stmt)
+            if result.scalar_one_or_none():
+                logger.warning(f"A master archive named '{master_name}' already exists. Skipping creation.")
+                continue
+
+            # 4. Dispatch command to create the master entity
+            part_entity_ids = [parts_by_num[i] for i in range(1, max_part_num + 1)]
+            create_cmd = CreateMasterArchiveCommand(
+                name=master_name,
+                part_entity_ids=part_entity_ids,
+            )
+            async for _ in world.dispatch_command(create_cmd):
+                pass
+
+            # We only bind the first complete group we find
+            return
+
+
+@system(on_command=CheckSplitArchiveBindingCommand)
+async def check_split_archive_binding_handler(
+    cmd: CheckSplitArchiveBindingCommand,
+    transaction: WorldTransaction,
+) -> bool:
+    """
+    Checks if an entity is part of a fully bound split archive.
+    """
+    # Case 1: The entity is the master archive itself.
+    manifest = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
+    if manifest:
+        return True
+
+    # Case 2: The entity is a part of an archive.
+    part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
+    if part_info and part_info.master_entity_id:
+        # Check if the master it points to is still valid.
+        master_manifest = await transaction.get_component(part_info.master_entity_id, SplitArchiveManifestComponent)
+        if master_manifest:
+            return True
+
+    return False
+
+
 @system(on_command=UnbindSplitArchiveCommand)
 async def unbind_split_archive_handler(
     cmd: UnbindSplitArchiveCommand,
     transaction: WorldTransaction,
 ):
     """
-    Handles unbinding a split archive.
+    Handles unbinding a split archive, starting from either a master or a part.
     """
-    logger.info(f"Unbinding split archive master entity {cmd.master_entity_id}.")
+    master_entity_id: Optional[int] = None
 
-    manifest = await transaction.get_component(cmd.master_entity_id, SplitArchiveManifestComponent)
-    if not manifest:
-        logger.warning(f"No split archive manifest found for entity {cmd.master_entity_id}. Nothing to unbind.")
+    # Determine the master entity ID
+    # Case 1: The command is run on the master entity itself.
+    manifest = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
+    if manifest:
+        master_entity_id = cmd.entity_id
+    # Case 2: The command is run on a part entity.
+    else:
+        part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
+        if part_info and part_info.master_entity_id:
+            master_entity_id = part_info.master_entity_id
+
+    if not master_entity_id:
+        logger.warning(f"Entity {cmd.entity_id} is not a split archive master or part. Nothing to unbind.")
         return
 
-    # Delete part info from all parts
+    logger.info(f"Unbinding split archive master entity {master_entity_id}.")
+
+    # Get the manifest component of the actual master
+    master_manifest = await transaction.get_component(master_entity_id, SplitArchiveManifestComponent)
+    if not master_manifest:
+        # This case could happen if the master was deleted but the part component remained.
+        logger.error(
+            f"Could not find a split archive manifest for master entity {master_entity_id}, though part {cmd.entity_id} referenced it."
+        )
+        return
+
+    # Delete part info from all parts associated with the master
     stmt = select(SplitArchivePartInfoComponent).where(
-        SplitArchivePartInfoComponent.master_entity_id == cmd.master_entity_id
+        SplitArchivePartInfoComponent.master_entity_id == master_entity_id
     )
     result = await transaction.session.execute(stmt)
     parts_to_unbind = result.scalars().all()
@@ -248,9 +399,9 @@ async def unbind_split_archive_handler(
         await transaction.remove_component(part_info)
 
     # Delete the manifest from the master
-    await transaction.remove_component(manifest)
+    await transaction.remove_component(master_manifest)
 
-    logger.info(f"Successfully unbound archive for master entity {cmd.master_entity_id}.")
+    logger.info(f"Successfully unbound archive for master entity {master_entity_id}.")
 
 
 @system(on_command=CheckArchivePasswordCommand)

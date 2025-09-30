@@ -9,8 +9,8 @@ from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
 from dam_archive.commands import (
+    BindSplitArchiveCommand,
     CreateMasterArchiveCommand,
-    DiscoverAndBindCommand,
     UnbindSplitArchiveCommand,
 )
 from dam_archive.models import (
@@ -21,28 +21,29 @@ from dam_archive.models import (
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_discover_and_bind_workflow(
+async def test_bind_split_archive_command_workflow(
     test_world_alpha: Annotated[World, "Resource"],
     tmp_path: Path,
 ):
     """
-    Tests that the DiscoverAndBindCommand correctly finds, tags, and assembles a split archive.
+    Tests that the BindSplitArchiveCommand correctly finds and assembles a split archive
+    when triggered from a single part entity.
     """
     world = test_world_alpha
-    base_name = "test_discover"
+    base_name = "test_bind_command"
     entity_ids: List[int] = []
 
     # 1. Setup: Register local files to create entities with all necessary components
     for i in range(1, 3):
         part_file = tmp_path / f"{base_name}.part{i}.rar"
-        part_file.write_text(f"content of part {i}")  # Write unique content
+        part_file.write_text(f"content of part {i}")
         register_cmd = RegisterLocalFileCommand(file_path=part_file)
         entity_id = await world.dispatch_command(register_cmd).get_one_value()
         entity_ids.append(entity_id)
 
-    # 2. Action: Run the discovery and binding command
-    discover_cmd = DiscoverAndBindCommand(paths=[str(tmp_path)])
-    async for _ in world.dispatch_command(discover_cmd):
+    # 2. Action: Run the binding command on the first part
+    bind_cmd = BindSplitArchiveCommand(entity_id=entity_ids[0])
+    async for _ in world.dispatch_command(bind_cmd):
         pass
     await asyncio.sleep(0.1)
 
@@ -62,6 +63,80 @@ async def test_discover_and_bind_workflow(
         )
         parts = part_info_query.scalars().all()
         assert [part.entity_id for part in parts] == entity_ids
+
+
+@pytest.mark.serial
+@pytest.mark.asyncio
+async def test_bind_split_archive_operation_workflow(
+    test_world_alpha: Annotated[World, "Resource"],
+    tmp_path: Path,
+):
+    """
+    Tests the full lifecycle of the 'archive.bind-split-archive' AssetOperation:
+    add, check, and remove.
+    """
+    world = test_world_alpha
+    base_name = "test_operation"
+    entity_ids: List[int] = []
+    tm = world.get_context(WorldTransaction)
+
+    # 1. Setup: Register part files as entities
+    for i in range(1, 3):
+        part_file = tmp_path / f"{base_name}.part{i}.rar"
+        part_file.write_text(f"content of part {i}")
+        register_cmd = RegisterLocalFileCommand(file_path=part_file)
+        entity_id = await world.dispatch_command(register_cmd).get_one_value()
+        entity_ids.append(entity_id)
+
+    # 2. Get the AssetOperation
+    operation = world.get_asset_operation("archive.bind-split-archive")
+    assert operation is not None
+    assert operation.add_command_class is not None
+    assert operation.check_command_class is not None
+    assert operation.remove_command_class is not None
+
+    # 3. Action (Add): Bind the archive using the operation's command
+    bind_cmd = operation.add_command_class(entity_id=entity_ids[0])
+    async for _ in world.dispatch_command(bind_cmd):
+        pass
+    await asyncio.sleep(0.1)
+
+    # 4. Assertion (Check): Verify binding is complete
+    master_entity_id = -1
+    async with tm() as transaction:
+        manifest_query = await transaction.session.execute(select(SplitArchiveManifestComponent))
+        manifests = manifest_query.scalars().all()
+        assert len(manifests) == 1
+        master_entity_id = manifests[0].entity_id
+
+    # Check from a part
+    check_cmd_part = operation.check_command_class(entity_id=entity_ids[1])
+    is_bound_part = await world.dispatch_command(check_cmd_part).get_one_value()
+    assert is_bound_part is True
+
+    # Check from the master
+    check_cmd_master = operation.check_command_class(entity_id=master_entity_id)
+    is_bound_master = await world.dispatch_command(check_cmd_master).get_one_value()
+    assert is_bound_master is True
+
+    # 5. Action (Remove): Unbind the archive starting from a part
+    unbind_cmd = operation.remove_command_class(entity_id=entity_ids[0])
+    async for _ in world.dispatch_command(unbind_cmd):
+        pass
+    await asyncio.sleep(0.1)
+
+    # 6. Assertion (Final Check): Verify it's unbound
+    is_bound_part_after = await world.dispatch_command(check_cmd_part).get_one_value()
+    assert is_bound_part_after is False
+
+    is_bound_master_after = await world.dispatch_command(check_cmd_master).get_one_value()
+    assert is_bound_master_after is False
+
+    async with tm() as transaction:
+        manifest_query = await transaction.session.execute(select(SplitArchiveManifestComponent))
+        assert len(manifest_query.scalars().all()) == 0
+        part_info_query = await transaction.session.execute(select(SplitArchivePartInfoComponent))
+        assert len(part_info_query.scalars().all()) == 0
 
 
 @pytest.mark.serial
@@ -115,8 +190,8 @@ async def test_manual_create_and_unbind_workflow(
         parts = part_info_query.scalars().all()
         assert [part.entity_id for part in parts] == entity_ids
 
-    # 4. Action: Unbind the archive
-    unbind_cmd = UnbindSplitArchiveCommand(master_entity_id=master_entity_id)
+    # 4. Action: Unbind the archive from the master
+    unbind_cmd = UnbindSplitArchiveCommand(entity_id=master_entity_id)
     async for _ in world.dispatch_command(unbind_cmd):
         pass
     await asyncio.sleep(0.1)
@@ -127,5 +202,4 @@ async def test_manual_create_and_unbind_workflow(
         manifest_query = await session.execute(select(SplitArchiveManifestComponent))
         assert len(manifest_query.scalars().all()) == 0
         part_info_query = await session.execute(select(SplitArchivePartInfoComponent))
-        # The part info components should be deleted after unbinding
         assert len(part_info_query.scalars().all()) == 0

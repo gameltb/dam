@@ -50,15 +50,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-uv-${{ matrix.python-version }}-
 
-    - name: Install ffmpeg
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg
-
-    - name: Install exiftool
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libimage-exiftool-perl
+        sudo apt-get install -y ffmpeg libimage-exiftool-perl unrar
 
     - name: Create virtual environment and install dependencies
       run: |

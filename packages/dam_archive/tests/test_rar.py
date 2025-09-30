@@ -1,25 +1,32 @@
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from dam_archive.main import open_archive
 
-# Note: These tests are skipped because there is no reliable way to create .rar files programmatically in Python.
-# The `rarfile` library can only read .rar files, not create them.
-# To run these tests, you would need to add pre-existing .rar files to the test assets.
 
-
-@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 @pytest.fixture
 def dummy_rar_file(tmp_path: Path) -> Path:
-    # This is a placeholder and will not work.
+    """Creates a dummy rar file with a couple of files in it."""
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    (src_dir / "file1.txt").write_text("content1")
+    (src_dir / "dir").mkdir()
+    (src_dir / "dir" / "file2.txt").write_text("content2")
+
     rar_path = tmp_path / "test.rar"
-    with open(rar_path, "wb") as f:
-        f.write(b"dummy content")
+
+    # Use the rar command line tool to create the archive.
+    subprocess.run(
+        ["rar", "a", str(rar_path), "file1.txt", "dir/file2.txt"],
+        cwd=src_dir,
+        check=True,
+        capture_output=True,
+    )
     return rar_path
 
 
-@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 @pytest.mark.asyncio
 async def test_open_rar_archive(dummy_rar_file: Path) -> None:
     archive = await open_archive(str(dummy_rar_file), "application/vnd.rar")
@@ -41,17 +48,25 @@ async def test_open_rar_archive(dummy_rar_file: Path) -> None:
     await archive.close()
 
 
-@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 @pytest.fixture
 def protected_rar_file(tmp_path: Path) -> Path:
-    # This is a placeholder and will not work.
+    """Creates a dummy password-protected rar file."""
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    (src_dir / "file1.txt").write_text("content1")
+
     rar_path = tmp_path / "protected.rar"
-    with open(rar_path, "wb") as f:
-        f.write(b"dummy content")
+
+    # Use the rar command line tool to create the archive.
+    subprocess.run(
+        ["rar", "a", "-ppassword", str(rar_path), "file1.txt"],
+        cwd=src_dir,
+        check=True,
+        capture_output=True,
+    )
     return rar_path
 
 
-@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 @pytest.mark.asyncio
 async def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
     archive = await open_archive(str(protected_rar_file), "application/vnd.rar", password="password")
@@ -63,7 +78,6 @@ async def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
     await archive.close()
 
 
-@pytest.mark.skip(reason="Cannot create .rar files programmatically.")
 @pytest.mark.asyncio
 async def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
     # This test checks the iter_files method for rar archives.
@@ -71,12 +85,11 @@ async def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
     assert archive is not None
 
     files = list(archive.iter_files())
-    assert len(files) == 2  # Assuming dummy rar has 2 files
+    assert len(files) == 2
     for member_info, f in files:
         with f:
             assert f.read()
         assert member_info.name
         assert member_info.size >= 0
 
-    # Further assertions would go here if the test could be run
     await archive.close()
