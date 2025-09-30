@@ -117,7 +117,7 @@ class RarArchiveHandler(ArchiveHandler):
             )
             try:
                 yield member_info, self.rar_file.open(f)  # type: ignore
-            except rarfile.WrongPassword as e:  # type: ignore
+            except rarfile.RarWrongPassword as e:
                 raise InvalidPasswordError(f"Invalid password for file '{f.filename}' in rar archive.") from e  # type: ignore
             except KeyError as e:
                 raise IOError(f"File not found in rar: {f.filename}") from e  # type: ignore
@@ -138,7 +138,7 @@ class RarArchiveHandler(ArchiveHandler):
                 )
                 try:
                     return member_info, self.rar_file.open(f)  # type: ignore
-                except rarfile.WrongPassword as e:  # type: ignore
+                except rarfile.RarWrongPassword as e:
                     raise InvalidPasswordError(f"Invalid password for file '{f.filename}' in rar archive.") from e  # type: ignore
                 except KeyError as e:
                     raise IOError(f"File not found in rar: {f.filename}") from e  # type: ignore

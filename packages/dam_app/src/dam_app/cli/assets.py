@@ -25,6 +25,7 @@ from dam_fs.commands import (
     StoreAssetsCommand,
 )
 from rich.console import Console
+from rich.table import Table
 from rich.traceback import Traceback
 from tqdm import tqdm
 from typing_extensions import Annotated
@@ -448,3 +449,34 @@ async def check_data(
             typer.secho(f"An unexpected error occurred while checking entity {entity_id}: {e}", fg=typer.colors.RED)
 
     typer.secho("Check complete.", fg=typer.colors.GREEN)
+
+
+@app.command(name="list-processes")
+async def list_processes():
+    """
+    Lists all available asset processing operations.
+    """
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    operations = target_world.get_all_asset_operations()
+
+    if not operations:
+        typer.secho("No asset processing operations found.", fg=typer.colors.YELLOW)
+        return
+
+    table = Table(title="Available Asset Processes",show_lines=True)
+    table.add_column("Process Name", style="cyan", no_wrap=True)
+    table.add_column("Description", style="magenta")
+    table.add_column("Supported MIME Types", style="green")
+    table.add_column("Supported Extensions", style="blue")
+
+    for op in sorted(operations, key=lambda x: x.name):
+        supported_types = op.get_supported_types()
+        mimetypes = ", ".join(supported_types.get("mimetypes", []))
+        extensions = ", ".join(supported_types.get("extensions", []))
+        table.add_row(op.name, op.description, mimetypes, extensions)
+
+    console = Console()
+    console.print(table)
