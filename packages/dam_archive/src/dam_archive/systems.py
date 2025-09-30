@@ -24,6 +24,7 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
+from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -38,7 +39,6 @@ from dam.system_events.progress import (
     ProgressUpdate,
     SystemProgressEvent,
 )
-from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import FindEntityByFilePropertiesCommand
 from dam_fs.models import FilenameComponent
@@ -92,10 +92,7 @@ async def discover_archive_path_siblings_handler(
     internal_dir = os.path.dirname(member_comp.path_in_archive)
 
     # 3. Find all members of the same parent archive first.
-    stmt = (
-        select(ArchiveMemberComponent)
-        .where(ArchiveMemberComponent.archive_entity_id == parent_archive_id)
-    )
+    stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == parent_archive_id)
     result = await transaction.session.execute(stmt)
     all_members = result.scalars().all()
 
@@ -107,7 +104,9 @@ async def discover_archive_path_siblings_handler(
     ]
 
     if siblings:
-        logger.info(f"Found {len(siblings)} archive siblings for entity {cmd.entity_id} in archive {parent_archive_id}:{internal_dir}.")
+        logger.info(
+            f"Found {len(siblings)} archive siblings for entity {cmd.entity_id} in archive {parent_archive_id}:{internal_dir}."
+        )
         return siblings
 
     return None
@@ -391,7 +390,9 @@ async def unbind_split_archive_handler(
         return
 
     # Delete part info from all parts associated with the master
-    stmt = select(SplitArchivePartInfoComponent).where(SplitArchivePartInfoComponent.master_entity_id == master_entity_id)
+    stmt = select(SplitArchivePartInfoComponent).where(
+        SplitArchivePartInfoComponent.master_entity_id == master_entity_id
+    )
     result = await transaction.session.execute(stmt)
     parts_to_unbind = result.scalars().all()
     for part_info in parts_to_unbind:

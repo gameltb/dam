@@ -13,7 +13,7 @@ from dam.core.world import (
 )
 from typing_extensions import Annotated
 
-from dam_app.cli import archive, assets, systems, verify
+from dam_app.cli import assets, systems, verify
 from dam_app.state import get_world, global_state
 from dam_app.utils.async_typer import AsyncTyper
 
@@ -25,7 +25,6 @@ app = AsyncTyper(
 )
 
 app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
-app.add_typer(archive.app, name="archive", help="Commands for managing archives.")
 app.add_typer(systems.app, name="systems", help="Commands for running systems.")
 app.add_typer(verify.app, name="verify", help="Commands for verifying asset integrity.")
 

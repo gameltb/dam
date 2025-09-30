@@ -47,21 +47,21 @@ async def discover_fs_path_siblings_handler(
         return None
 
     # 3. Find all candidate entities in or below the directory
-    stmt = (
-        select(FileLocationComponent.entity_id, FileLocationComponent.url)
-        .where(FileLocationComponent.url.like(f"{directory_uri_prefix}%"))
-    )
+    stmt = select(FileLocationComponent).where(FileLocationComponent.url.like(f"{directory_uri_prefix}%"))
     result = await transaction.session.execute(stmt)
-    all_candidates = result.all()
+    all_candidates = result.scalars().all()
 
     # 4. Filter to include only direct children of the directory
-    siblings = []
-    for entity_id, url in all_candidates:
+    siblings: List[PathSibling] = []
+    for component in all_candidates:
+        if not component.url:
+            continue
         try:
-            candidate_path = Path(unquote(urlparse(url).path)).resolve()
+            parsed_url = urlparse(component.url)
+            candidate_path = Path(unquote(parsed_url.path)).resolve()
             # Check if the candidate's parent directory is the same as the target directory
             if candidate_path.parent == directory_path:
-                siblings.append(PathSibling(entity_id=entity_id, path=str(candidate_path)))
+                siblings.append(PathSibling(entity_id=component.entity_id, path=str(candidate_path)))
         except Exception:
             # Ignore candidates with malformed URLs or paths
             continue
