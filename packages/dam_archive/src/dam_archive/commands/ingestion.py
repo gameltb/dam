@@ -13,7 +13,7 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
     This command returns a stream of events.
     """
 
-    passwords: Optional[List[str]] = None
+    password: Optional[str] = None
 
     @classmethod
     def get_supported_types(cls) -> Dict[str, List[str]]:

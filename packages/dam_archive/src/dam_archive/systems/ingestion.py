@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import (
     Annotated,
+    Any,
     AsyncContextManager,
     AsyncGenerator,
     AsyncIterator,
@@ -19,6 +20,7 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
+from dam.core.requests import InformationRequest, PasswordRequest
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -119,7 +121,12 @@ async def get_archive_asset_stream_handler(
 
         # Get the provider for the parent archive stream
         archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
-        archive_stream_provider = await world.dispatch_command(archive_stream_cmd).get_first_non_none_value()
+        all_providers = await world.dispatch_command(archive_stream_cmd).get_all_results()
+        valid_providers = [p for p in all_providers if p is not None]
+        if not valid_providers:
+            logger.warning(f"Could not get stream provider for parent archive {target_entity_id}")
+            continue
+        archive_stream_provider = valid_providers[0]
 
         if not archive_stream_provider:
             logger.warning(f"Could not get stream provider for parent archive {target_entity_id}")
@@ -170,62 +177,80 @@ async def get_archive_asset_filenames_handler(
 
 
 async def _process_archive(
-    entity_id: int,
-    archive_stream_provider: StreamProvider,
     cmd: IngestArchiveCommand,
+    archive_stream_provider: StreamProvider,
     world: Annotated[World, "Resource"],
     transaction: WorldTransaction,
-) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
+) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any]:
     """
     The core extraction and event-issuing logic for an archive.
-    It performs the initial ingestion.
+    It performs the initial ingestion and handles encrypted archives by yielding PasswordRequests.
     """
     yield ProgressStarted()
+    entity_id = cmd.entity_id
 
     mime_type = await get_content_mime_type(transaction.session, entity_id)
     if not mime_type:
         yield ProgressError(message=f"Could not get mime type for archive entity {entity_id}", exception=ValueError())
         return
 
-    stored_password_comp = await transaction.get_component(entity_id, ArchivePasswordComponent)
-    passwords_to_try: List[Optional[str]] = [None]
-    if stored_password_comp and stored_password_comp.password:
-        passwords_to_try.insert(0, stored_password_comp.password)
-    if cmd.passwords:
-        passwords_to_try.extend(p for p in cmd.passwords if p)
-    passwords_to_try = list(dict.fromkeys(passwords_to_try))
-
-    archive = None
-    correct_password = None
-
-    for pwd in passwords_to_try:
-        temp_archive = None
+    async def _try_open_archive(password: Optional[str]):
         try:
-            temp_archive = await open_archive(archive_stream_provider, mime_type, pwd)
-            if temp_archive:
-                correct_password = pwd
-                archive = temp_archive
-                logger.info(f"Successfully opened archive {entity_id} with password: {'yes' if pwd else 'no'}")
-                break
+            return await open_archive(archive_stream_provider, mime_type, password)
         except InvalidPasswordError:
-            if temp_archive:
-                await temp_archive.close()
-            continue
+            return None
         except (IOError, RuntimeError) as e:
-            if temp_archive:
-                await temp_archive.close()
-            yield ProgressError(message=f"Failed to open archive {entity_id}", exception=e)
-            return
+            return ProgressError(message=f"Failed to open archive {entity_id}", exception=e)
         except Exception:
-            if temp_archive:
-                await temp_archive.close()
             raise
 
+    # --- Password Resolution ---
+    archive = None
+    correct_password = None
+    stored_password_comp = await transaction.get_component(entity_id, ArchivePasswordComponent)
+
+    # 1. Try passwords in a specific, non-interactive order.
+    passwords_to_try = [cmd.password, stored_password_comp.password if stored_password_comp else None, None]
+    # Create a list of unique passwords to try, preserving order. `None` is a valid entry.
+    unique_passwords = list(dict.fromkeys(passwords_to_try))
+
+    for pwd in unique_passwords:
+        opened_archive = await _try_open_archive(pwd)
+        if isinstance(opened_archive, ProgressError):
+            yield opened_archive
+            return
+        if opened_archive:
+            archive, correct_password = opened_archive, pwd
+            logger.info(f"Successfully opened archive {entity_id} with password: {'yes' if pwd else 'no'}")
+            break
+
+    # 2. If still not open, enter the interactive loop.
     if not archive:
-        yield ProgressError(
-            message=f"A password is required or the provided passwords are wrong for archive entity {entity_id}",
-            exception=PasswordRequiredError(),
-        )
+        is_first_request = True
+        while True:
+            message = "Invalid password." if not is_first_request else f"Password required for archive {entity_id}."
+            new_password = yield PasswordRequest(message=message)
+            is_first_request = False
+
+            if new_password is None:
+                yield ProgressError(
+                    message=f"Password not provided for archive entity {entity_id}",
+                    exception=PasswordRequiredError(),
+                )
+                return
+
+            opened_archive = await _try_open_archive(new_password)
+            if isinstance(opened_archive, ProgressError):
+                yield opened_archive
+                return
+            if opened_archive:
+                archive, correct_password = opened_archive, new_password
+                logger.info(f"Successfully opened archive {entity_id} with provided password.")
+                break
+            else:
+                logger.info(f"Invalid password provided for archive {entity_id}.")
+
+    if not archive:
         return
 
     try:
@@ -330,7 +355,7 @@ async def ingest_archive_members_handler(
     cmd: IngestArchiveCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
+) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any]:
     """
     Handles processing an archive. It's the main entry point for ingestion.
     This handler determines the stream provider and then calls the main processing logic.
@@ -381,9 +406,10 @@ async def ingest_archive_members_handler(
                 part_stream_providers: List[StreamProvider] = []
                 for part_entity_id in part_entity_ids:
                     stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
-                    provider = await world.dispatch_command(stream_cmd).get_first_non_none_value()
-                    if provider:
-                        part_stream_providers.append(provider)
+                    all_providers = await world.dispatch_command(stream_cmd).get_all_results()
+                    valid_providers = [p for p in all_providers if p is not None]
+                    if valid_providers:
+                        part_stream_providers.append(valid_providers[0])
                     else:
                         raise ValueError(f"Stream provider for part {part_entity_id} is None")
 
@@ -399,9 +425,19 @@ async def ingest_archive_members_handler(
             logger.info(
                 f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}."
             )
-            redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, passwords=cmd.passwords)
-            async for event in world.dispatch_command(redirect_cmd):
-                yield cast(SystemProgressEvent, event)
+            redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, password=cmd.password)
+            # We need to manually handle the generator and its potential requests.
+            value_to_send: Any = None
+            redirect_gen = cast(
+                AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any],
+                world.dispatch_command(redirect_cmd),
+            )
+            try:
+                while True:
+                    event = await redirect_gen.asend(value_to_send)
+                    value_to_send = yield event
+            except StopAsyncIteration:
+                pass
             return
 
         # Case 3: Part of a non-assembled split archive.
@@ -430,8 +466,16 @@ async def ingest_archive_members_handler(
         )
         return
 
-    async for event in _process_archive(cmd.entity_id, archive_stream_provider, cmd, world, transaction):
-        yield event
+    # The `_process_archive` generator can now make requests, so we need to
+    # yield its events and pipe back any values sent to this generator.
+    value_to_send = None
+    process_gen = _process_archive(cmd, archive_stream_provider, world, transaction)
+    try:
+        while True:
+            event = await process_gen.asend(value_to_send)
+            value_to_send = yield event
+    except StopAsyncIteration:
+        pass
 
 
 @system(on_command=ClearArchiveComponentsCommand)
