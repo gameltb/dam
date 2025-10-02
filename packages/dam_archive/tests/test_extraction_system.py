@@ -201,7 +201,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         await session.commit()
 
     # 2. Run the extraction command with the correct password
-    ingest_cmd_prot = IngestArchiveCommand(entity_id=entity_id_prot, passwords=["password"])
+    ingest_cmd_prot = IngestArchiveCommand(entity_id=entity_id_prot, password="password")
     stream = world.dispatch_command(ingest_cmd_prot)
     events = [event async for event in stream]
     assert any(isinstance(event, ProgressCompleted) for event in events)

@@ -186,9 +186,9 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
     def dispatch_command_side_effect_for_stream(command: Any) -> AsyncMock:
         mock_stream = AsyncMock()
         if isinstance(command, GetAssetStreamCommand):
-            mock_stream.get_first_non_none_value.return_value = CallableStreamProvider(create_dummy_iso_with_sfo)
+            mock_stream.get_all_results.return_value = [CallableStreamProvider(create_dummy_iso_with_sfo)]
         else:
-            mock_stream.get_first_non_none_value.return_value = None
+            mock_stream.get_all_results.return_value = []
         return mock_stream
 
     mock_world.dispatch_command.side_effect = dispatch_command_side_effect_for_stream
