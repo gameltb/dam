@@ -163,21 +163,36 @@ async def add_assets(
         for operation_name in set(commands_to_run):  # Use set to avoid duplicate commands
             operation = target_world.get_asset_operation(operation_name)
             if operation:
-                # First, check if the data already exists, if a check command is available.
+                # Determine action: add, reprocess, or skip.
+                action = "add"
+                already_exists = False
                 if operation.check_command_class:
                     check_cmd = operation.check_command_class(entity_id=entity_id)
                     async with target_world.get_context(WorldTransaction)():
                         already_exists = await target_world.dispatch_command(check_cmd).get_one_value()
-                    if already_exists:
-                        tqdm.write(
-                            f"Skipping operation '{operation_name}' for entity {entity_id}: data already exists."
-                        )
-                        continue
 
-                command_class = operation.add_command_class
-                processing_cmd = command_class(entity_id=entity_id, stream_provider=current_stream_provider)  # type: ignore [call-arg]
+                if already_exists:
+                    action = "reprocess" if operation.reprocess_derived_command_class else "skip"
 
-                tqdm.write(f"Running {operation_name} on entity {entity_id} at depth {depth}")
+                # Prepare and log the command to be executed
+                processing_cmd = None
+                if action == "add":
+                    tqdm.write(f"Running {operation_name} on entity {entity_id} at depth {depth}")
+                    command_class = operation.add_command_class
+                    processing_cmd = command_class(entity_id=entity_id, stream_provider=current_stream_provider)  # type: ignore [call-arg]
+                elif action == "reprocess":
+                    tqdm.write(
+                        f"Data for '{operation_name}' exists, reprocessing derived for entity {entity_id} at depth {depth}"
+                    )
+                    command_class = operation.reprocess_derived_command_class
+                    # Reprocessing commands typically don't need a stream provider as they work on existing data
+                    processing_cmd = command_class(entity_id=entity_id)  # type: ignore [call-arg]
+                elif action == "skip":
+                    tqdm.write(f"Skipping operation '{operation_name}' for entity {entity_id}: data already exists.")
+                    continue
+
+                if not processing_cmd:
+                    continue  # Should not be reached, but as a safeguard.
 
                 # If we are processing a child entity (depth > 0), run its commands in a nested transaction.
                 use_nested = depth > 0

@@ -4,6 +4,7 @@ from .ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
     IngestArchiveCommand,
+    ReissueArchiveMemberEventsCommand,
     TagArchivePartCommand,
 )
 from .password import (
@@ -22,6 +23,7 @@ __all__ = [
     "CheckArchiveCommand",
     "ClearArchiveComponentsCommand",
     "IngestArchiveCommand",
+    "ReissueArchiveMemberEventsCommand",
     "TagArchivePartCommand",
     "CheckArchivePasswordCommand",
     "RemoveArchivePasswordCommand",

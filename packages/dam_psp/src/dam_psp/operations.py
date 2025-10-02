@@ -6,6 +6,7 @@ from .commands import (
     ClearCsoIngestionCommand,
     ExtractPSPMetadataCommand,
     IngestCsoCommand,
+    ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
 
@@ -17,10 +18,11 @@ extract_psp_metadata_operation = AssetOperation(
     remove_command_class=RemovePSPMetadataCommand,
 )
 
-ingest_cso_operation = AssetOperation(
-    name="ingest-cso",
-    description="Ingests a CSO file, creating a virtual ISO entity.",
+decompress_cso_operation = AssetOperation(
+    name="cso.decompress",
+    description="Decompresses a CSO file into a virtual ISO.",
     add_command_class=IngestCsoCommand,
     check_command_class=CheckCsoIngestionCommand,
+    reprocess_derived_command_class=ReissueVirtualIsoEventCommand,
     remove_command_class=ClearCsoIngestionCommand,
 )

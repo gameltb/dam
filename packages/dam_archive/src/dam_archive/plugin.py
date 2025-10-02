@@ -10,6 +10,7 @@ from .commands.ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
     IngestArchiveCommand,
+    ReissueArchiveMemberEventsCommand,
 )
 from .commands.password import (
     CheckArchivePasswordCommand,
@@ -34,6 +35,7 @@ from .systems.ingestion import (
     get_archive_asset_filenames_handler,
     get_archive_asset_stream_handler,
     ingest_archive_members_handler,
+    reissue_archive_member_events_handler,
 )
 from .systems.password import (
     check_archive_password_handler,
@@ -68,6 +70,7 @@ class ArchivePlugin(Plugin):
         world.register_system(check_archive_handler, command_type=CheckArchiveCommand)
         world.register_system(check_archive_password_handler, command_type=CheckArchivePasswordCommand)
         world.register_system(remove_archive_password_handler, command_type=RemoveArchivePasswordCommand)
+        world.register_system(reissue_archive_member_events_handler, command_type=ReissueArchiveMemberEventsCommand)
 
         # New binding systems
         world.register_system(bind_split_archive_handler, command_type=BindSplitArchiveCommand)

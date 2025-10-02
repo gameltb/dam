@@ -49,3 +49,12 @@ class ClearArchiveComponentsCommand(EntityCommand[None, BaseSystemEvent]):
     """
 
     pass
+
+
+@dataclass
+class ReissueArchiveMemberEventsCommand(EntityCommand[None, BaseSystemEvent]):
+    """
+    A command to re-issue NewEntityCreatedEvent events for all members of an existing archive.
+    """
+
+    pass
