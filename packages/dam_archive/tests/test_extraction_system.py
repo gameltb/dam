@@ -48,7 +48,7 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
     mock_memory = MagicMock()
     mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
 
-    with patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory):
+    with patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory):
         ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
         stream = world.dispatch_command(ingest_cmd)
         events = [event async for event in stream]
@@ -92,7 +92,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
     mock_memory.available = 512 * 1024  # 512 KB, less than the file size
 
     with (
-        patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory),
+        patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory),
         patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
     ):
         ingest_cmd_limit = IngestArchiveCommand(entity_id=entity_id)
@@ -125,7 +125,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
     mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
 
     with (
-        patch("dam_archive.systems.psutil.virtual_memory", return_value=mock_memory),
+        patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory),
         patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
     ):
         ingest_cmd_no_limit = IngestArchiveCommand(entity_id=entity_id)

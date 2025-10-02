@@ -466,7 +466,7 @@ async def list_processes():
         typer.secho("No asset processing operations found.", fg=typer.colors.YELLOW)
         return
 
-    table = Table(title="Available Asset Processes",show_lines=True)
+    table = Table(title="Available Asset Processes", show_lines=True)
     table.add_column("Process Name", style="cyan", no_wrap=True)
     table.add_column("Description", style="magenta")
     table.add_column("Supported MIME Types", style="green")

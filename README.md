@@ -77,6 +77,22 @@ Alternatively, you can run all the checks with:
 To run checks on a specific package, use the `--package` flag:
 - `uv run poe test --package sire`
 
+### Running Specific Tests
+
+You can pass arguments directly to `pytest` to run specific tests. To do this, add a `--` separator after the `poe` command, followed by the `pytest` arguments.
+
+For example, to run a specific test file within the `dam_archive` package:
+
+```sh
+uv run poe test --package dam_archive -- tests/test_archive_commands.py
+```
+
+To run a specific test function within that file:
+
+```sh
+uv run poe test --package dam_archive -- tests/test_archive_commands.py::test_bind_split_archive_command_workflow
+```
+
 ## Syncing Dependencies
 
 When you pull new changes, you may need to update the dependencies. To do so, run:

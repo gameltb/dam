@@ -40,10 +40,7 @@ class PspPlugin(Plugin):
         )
         world.register_system(check_psp_metadata_handler, command_type=CheckPSPMetadataCommand)
         world.register_system(remove_psp_metadata_handler, command_type=RemovePSPMetadataCommand)
-        world.register_system(
-            ingest_cso_handler,
-            command_type=IngestCsoCommand
-        )
+        world.register_system(ingest_cso_handler, command_type=IngestCsoCommand)
         world.register_system(check_cso_ingestion_handler, command_type=CheckCsoIngestionCommand)
         world.register_system(clear_cso_ingestion_handler, command_type=ClearCsoIngestionCommand)
         world.register_system(get_virtual_iso_asset_stream_handler, command_type=GetAssetStreamCommand)

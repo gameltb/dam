@@ -6,17 +6,20 @@ from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
-from .commands import (
-    BindSplitArchiveCommand,
+from .commands.ingestion import (
     CheckArchiveCommand,
-    CheckArchivePasswordCommand,
-    CheckSplitArchiveBindingCommand,
     ClearArchiveComponentsCommand,
-    CreateMasterArchiveCommand,
-    DiscoverAndBindCommand,
     IngestArchiveCommand,
+)
+from .commands.password import (
+    CheckArchivePasswordCommand,
     RemoveArchivePasswordCommand,
     SetArchivePasswordCommand,
+)
+from .commands.split_archives import (
+    BindSplitArchiveCommand,
+    CheckSplitArchiveBindingCommand,
+    CreateMasterArchiveCommand,
     UnbindSplitArchiveCommand,
 )
 from .operations import (
@@ -24,20 +27,23 @@ from .operations import (
     ingest_archive_operation,
     set_archive_password_operation,
 )
-from .systems import (
-    bind_split_archive_handler,
+from .systems.discovery import discover_archive_path_siblings_handler
+from .systems.ingestion import (
     check_archive_handler,
-    check_archive_password_handler,
-    check_split_archive_binding_handler,
     clear_archive_components_handler,
-    create_master_archive_handler,
-    discover_and_bind_handler,
-    discover_archive_path_siblings_handler,
     get_archive_asset_filenames_handler,
     get_archive_asset_stream_handler,
     ingest_archive_members_handler,
+)
+from .systems.password import (
+    check_archive_password_handler,
     remove_archive_password_handler,
     set_archive_password_handler,
+)
+from .systems.split_archives import (
+    bind_split_archive_handler,
+    check_split_archive_binding_handler,
+    create_master_archive_handler,
     unbind_split_archive_handler,
 )
 
@@ -52,7 +58,6 @@ class ArchivePlugin(Plugin):
         Builds the archive plugin.
         """
         # Command Handlers
-        world.register_system(discover_and_bind_handler, command_type=DiscoverAndBindCommand)
         world.register_system(create_master_archive_handler, command_type=CreateMasterArchiveCommand)
         world.register_system(unbind_split_archive_handler, command_type=UnbindSplitArchiveCommand)
         world.register_system(get_archive_asset_stream_handler, command_type=GetAssetStreamCommand)
