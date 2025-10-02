@@ -55,30 +55,42 @@ import os
 
 
 def main() -> None:
-    os.environ['MYPYPATH'] = 'packages/'
+    os.environ["MYPYPATH"] = "packages/"
     pyproject_file = Path(__file__).parent / "pyproject.toml"
     projects = discover_projects(pyproject_file)
 
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+
+    # Separate script args from task args
+    task_args: List[str] = []
+    script_args: List[str]
+    if "--" in args:
+        separator_index = args.index("--")
+        script_args = args[:separator_index]
+        task_args = args[separator_index + 1 :]
+    else:
+        script_args = args
+
+    if not script_args:
         print("Please provide a task name")
         sys.exit(1)
 
+    task_name = script_args[0]
+
     package_to_run = None
-    # A simple arg parser to not add dependencies
-    if "--package" in sys.argv:
+    if "--package" in script_args:
         try:
-            package_index = sys.argv.index("--package")
-            package_to_run = sys.argv[package_index + 1]
-            # Remove the --package and its value from sys.argv so it's not passed to poe
-            sys.argv.pop(package_index)
-            sys.argv.pop(package_index)
+            package_index = script_args.index("--package")
+            package_to_run = script_args[package_index + 1]
         except (ValueError, IndexError):
             print("Error: --package flag must be followed by a package name.")
             sys.exit(1)
 
-    task_name = sys.argv[1]
-
     if task_name in ("check", "check-full", "check-ci"):
+        if task_args:
+            print(
+                f"Warning: Passing extra arguments to the '{task_name}' task is not supported. They will be ignored."
+            )
         # Map the umbrella check tasks to the sequence of poe subtasks
         tasks_to_run = {
             "check": ["fmt", "lint", "pyright", "test"],
@@ -115,12 +127,18 @@ def main() -> None:
             print(f"Package '{package_to_run}' not found in workspace.")
             sys.exit(1)
 
+    # Construct the arguments to pass to poe
+    poe_cli_args = [task_name]
+    if task_args:
+        poe_cli_args.append("--")
+        poe_cli_args.extend(task_args)
+
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
         if task_name in tasks:
             print(f"Running task {task_name} in {project}")
             app = PoeThePoet(cwd=project)
-            result = app(cli_args=sys.argv[1:])
+            result = app(cli_args=poe_cli_args)
             if result:
                 sys.exit(result)
         else:
