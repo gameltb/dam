@@ -66,3 +66,12 @@ class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
             "mimetypes": ["application/x-ciso"],
             "extensions": [".cso"],
         }
+
+
+@dataclass
+class ReissueVirtualIsoEventCommand(EntityCommand[None, BaseSystemEvent]):
+    """
+    A command to re-issue a NewEntityCreatedEvent for the virtual ISO derived from a CSO file.
+    """
+
+    pass

@@ -29,6 +29,7 @@ from dam_psp.commands import (
     ClearCsoIngestionCommand,
     ExtractPSPMetadataCommand,
     IngestCsoCommand,
+    ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
 from dam_psp.cso_support import CsoDecompressor
@@ -77,6 +78,50 @@ async def clear_cso_ingestion_handler(
             f"Removed CsoParentIsoComponent from virtual ISO entity {parent_iso_comp.entity_id} "
             f"(linked to CSO {cmd.entity_id})"
         )
+
+
+@system(on_command=ReissueVirtualIsoEventCommand)
+async def reissue_virtual_iso_event_handler(
+    cmd: ReissueVirtualIsoEventCommand,
+    transaction: WorldTransaction,
+    world: Annotated[World, "Resource"],
+) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent, None]:
+    """
+    Handles re-issuing a NewEntityCreatedEvent for the virtual ISO derived from a CSO file.
+    """
+    yield ProgressStarted()
+    stmt = select(CsoParentIsoComponent).where(CsoParentIsoComponent.cso_entity_id == cmd.entity_id)
+    result = await transaction.session.execute(stmt)
+    parent_iso_comp = result.scalar_one_or_none()
+
+    if not parent_iso_comp:
+        yield ProgressError(
+            message=f"No virtual ISO found for CSO entity {cmd.entity_id}",
+            exception=ValueError(f"No virtual ISO found for CSO entity {cmd.entity_id}"),
+        )
+        return
+
+    iso_entity_id = parent_iso_comp.entity_id
+
+    # We need to provide a stream provider for the virtual ISO.
+    # This is handled by the get_virtual_iso_asset_stream_handler.
+    stream_provider = await get_virtual_iso_asset_stream_handler(
+        GetAssetStreamCommand(entity_id=iso_entity_id), transaction, world
+    )
+
+    iso_filename = "virtual.iso"
+    cso_filenames = await world.dispatch_command(
+        GetAssetFilenamesCommand(entity_id=cmd.entity_id)
+    ).get_all_results_flat()
+    if cso_filenames:
+        iso_filename = str(Path(cso_filenames[0]).with_suffix(".iso"))
+
+    yield NewEntityCreatedEvent(
+        entity_id=iso_entity_id,
+        stream_provider=stream_provider,
+        filename=iso_filename,
+    )
+    yield ProgressCompleted(message=f"Re-issued event for virtual ISO entity {iso_entity_id}")
 
 
 @system(on_command=IngestCsoCommand)

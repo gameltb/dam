@@ -1,14 +1,19 @@
 from dam.core.operations import AssetOperation
 
-from .commands import (
-    BindSplitArchiveCommand,
+from .commands.ingestion import (
     CheckArchiveCommand,
-    CheckArchivePasswordCommand,
-    CheckSplitArchiveBindingCommand,
     ClearArchiveComponentsCommand,
     IngestArchiveCommand,
+    ReissueArchiveMemberEventsCommand,
+)
+from .commands.password import (
+    CheckArchivePasswordCommand,
     RemoveArchivePasswordCommand,
     SetArchivePasswordCommand,
+)
+from .commands.split_archives import (
+    BindSplitArchiveCommand,
+    CheckSplitArchiveBindingCommand,
     UnbindSplitArchiveCommand,
 )
 
@@ -26,6 +31,7 @@ ingest_archive_operation = AssetOperation(
     add_command_class=IngestArchiveCommand,
     check_command_class=CheckArchiveCommand,
     remove_command_class=ClearArchiveComponentsCommand,
+    reprocess_derived_command_class=ReissueArchiveMemberEventsCommand,
 )
 
 set_archive_password_operation = AssetOperation(

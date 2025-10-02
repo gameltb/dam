@@ -11,9 +11,10 @@ from .commands import (
     ClearCsoIngestionCommand,
     ExtractPSPMetadataCommand,
     IngestCsoCommand,
+    ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
-from .operations import extract_psp_metadata_operation, ingest_cso_operation
+from .operations import decompress_cso_operation, extract_psp_metadata_operation
 from .systems import (
     check_cso_ingestion_handler,
     check_psp_metadata_handler,
@@ -21,6 +22,7 @@ from .systems import (
     get_virtual_iso_asset_stream_handler,
     ingest_cso_handler,
     psp_iso_metadata_extraction_command_handler_system,
+    reissue_virtual_iso_event_handler,
     remove_psp_metadata_handler,
 )
 
@@ -44,10 +46,11 @@ class PspPlugin(Plugin):
         world.register_system(check_cso_ingestion_handler, command_type=CheckCsoIngestionCommand)
         world.register_system(clear_cso_ingestion_handler, command_type=ClearCsoIngestionCommand)
         world.register_system(get_virtual_iso_asset_stream_handler, command_type=GetAssetStreamCommand)
+        world.register_system(reissue_virtual_iso_event_handler, command_type=ReissueVirtualIsoEventCommand)
 
         # Register Asset Operations
         world.register_asset_operation(extract_psp_metadata_operation)
-        world.register_asset_operation(ingest_cso_operation)
+        world.register_asset_operation(decompress_cso_operation)
 
 
-__all__ = ["PspPlugin", "psp_iso_functions", "extract_psp_metadata_operation"]
+__all__ = ["PspPlugin", "psp_iso_functions", "extract_psp_metadata_operation", "decompress_cso_operation"]

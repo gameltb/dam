@@ -7,7 +7,6 @@ from typing import (
     AsyncGenerator,
     AsyncIterator,
     BinaryIO,
-    Dict,
     List,
     Optional,
     Union,
@@ -40,6 +39,7 @@ from ..commands.ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
     IngestArchiveCommand,
+    ReissueArchiveMemberEventsCommand,
 )
 from ..commands.password import SetArchivePasswordCommand
 from ..exceptions import InvalidPasswordError, PasswordRequiredError
@@ -65,6 +65,38 @@ async def check_archive_handler(
     return component is not None
 
 
+@system(on_command=ReissueArchiveMemberEventsCommand)
+async def reissue_archive_member_events_handler(
+    cmd: ReissueArchiveMemberEventsCommand,
+    transaction: WorldTransaction,
+) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
+    """
+    Handles re-issuing NewEntityCreatedEvent events for all members of an existing archive.
+    """
+    yield ProgressStarted()
+
+    stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == cmd.entity_id)
+    result = await transaction.session.execute(stmt)
+    members_from_db = result.scalars().all()
+
+    total_items = len(members_from_db)
+    yield ProgressUpdate(total=total_items, current=0, message="Re-issuing events for existing members.")
+
+    for i, member in enumerate(members_from_db):
+        # We don't need to provide a stream provider here.
+        # Downstream systems that need the stream can use GetAssetStreamCommand,
+        # and the get_archive_asset_stream_handler will provide it.
+        yield NewEntityCreatedEvent(
+            entity_id=member.entity_id,
+            filename=member.path_in_archive,
+        )
+        yield ProgressUpdate(
+            total=total_items, current=i + 1, message=f"Re-issued event for '{member.path_in_archive}'."
+        )
+
+    yield ProgressCompleted(message="Finished re-issuing events for members.")
+
+
 @system(on_command=GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
@@ -87,10 +119,7 @@ async def get_archive_asset_stream_handler(
 
         # Get the provider for the parent archive stream
         archive_stream_cmd = GetAssetStreamCommand(entity_id=target_entity_id)
-        try:
-            archive_stream_provider = await world.dispatch_command(archive_stream_cmd).get_one_value()
-        except ValueError:
-            archive_stream_provider = None
+        archive_stream_provider = await world.dispatch_command(archive_stream_cmd).get_first_non_none_value()
 
         if not archive_stream_provider:
             logger.warning(f"Could not get stream provider for parent archive {target_entity_id}")
@@ -146,12 +175,10 @@ async def _process_archive(
     cmd: IngestArchiveCommand,
     world: Annotated[World, "Resource"],
     transaction: WorldTransaction,
-    is_reingestion: bool,
 ) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
     """
     The core extraction and event-issuing logic for an archive.
-    If is_reingestion is True, it re-issues events for existing members.
-    Otherwise, it performs the initial ingestion.
+    It performs the initial ingestion.
     """
     yield ProgressStarted()
 
@@ -204,24 +231,9 @@ async def _process_archive(
     try:
         # --- Main Logic ---
         all_members = archive.list_files()
-        total_items = len(all_members)
-        processed_items = 0
-        total_size = 0
-
-        member_map: Dict[str, int] = {}
-        if is_reingestion:
-            logger.info(f"Entity {entity_id} is being re-ingested. Mapping existing members.")
-            stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
-            result = await transaction.session.execute(stmt)
-            members_from_db = result.scalars().all()
-            member_map = {member.path_in_archive: member.entity_id for member in members_from_db}
-            yield ProgressUpdate(
-                total=total_items, current=processed_items, message="Re-issuing events for existing members."
-            )
-        else:
-            logger.info(f"Entity {entity_id} is being ingested for the first time.")
-            total_size = sum(m.size for m in all_members)
-            yield ProgressUpdate(total=total_size, current=0, message="Starting ingestion.")
+        logger.info(f"Entity {entity_id} is being ingested for the first time.")
+        total_size = sum(m.size for m in all_members)
+        yield ProgressUpdate(total=total_size, current=0, message="Starting ingestion.")
 
         processed_size = 0
         member_mod_times = {m.name: m.modified_at for m in all_members}
@@ -258,30 +270,24 @@ async def _process_archive(
                         stream_for_command = cast(BinaryIO, ChainedStream([in_memory_buffer, member_stream]))
 
                     # --- Entity handling (Create vs. Re-issue) ---
+                    # Initial ingestion: Get or create entity from stream
                     member_entity_id: Optional[int] = None
-                    if is_reingestion:
-                        member_entity_id = member_map.get(member_info.name)
-                        if not member_entity_id:
-                            logger.warning(f"Could not find existing entity for member '{member_info.name}'. Skipping.")
-                            continue
-                    else:
-                        # Initial ingestion: Get or create entity from stream
-                        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
-                        member_entity_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
-                        if member_entity_tuple:
-                            member_entity, _ = member_entity_tuple
-                            member_entity_id = member_entity.id
+                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
+                    member_entity_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
+                    if member_entity_tuple:
+                        member_entity, _ = member_entity_tuple
+                        member_entity_id = member_entity.id
 
-                        if not member_entity_id:
-                            raise ValueError(f"Could not get or create entity for archive member '{member_info.name}'")
+                    if not member_entity_id:
+                        raise ValueError(f"Could not get or create entity for archive member '{member_info.name}'")
 
-                        # Add ArchiveMemberComponent for new members first to avoid race conditions.
-                        member_comp = ArchiveMemberComponent(
-                            archive_entity_id=entity_id,
-                            path_in_archive=member_info.name,
-                            modified_at=member_mod_times.get(member_info.name),
-                        )
-                        await transaction.add_component_to_entity(member_entity_id, member_comp)
+                    # Add ArchiveMemberComponent for new members first to avoid race conditions.
+                    member_comp = ArchiveMemberComponent(
+                        archive_entity_id=entity_id,
+                        path_in_archive=member_info.name,
+                        modified_at=member_mod_times.get(member_info.name),
+                    )
+                    await transaction.add_component_to_entity(member_entity_id, member_comp)
 
                     # --- Event Emission ---
                     if member_entity_id:
@@ -292,16 +298,10 @@ async def _process_archive(
                         )
 
                 # --- Progress Update ---
-                if is_reingestion:
-                    processed_items += 1
-                    yield ProgressUpdate(
-                        total=total_items, current=processed_items, message=f"Re-issued event for '{member_info.name}'."
-                    )
-                else:
-                    processed_size += member_info.size
-                    yield ProgressUpdate(
-                        total=total_size, current=processed_size, message=f"Processed '{member_info.name}'."
-                    )
+                processed_size += member_info.size
+                yield ProgressUpdate(
+                    total=total_size, current=processed_size, message=f"Processed '{member_info.name}'."
+                )
 
             except Exception as e:
                 logger.error(f"Failed to process member '{member_info.name}' from archive {entity_id}: {e}")
@@ -309,19 +309,16 @@ async def _process_archive(
                 continue
 
         # --- Finalization ---
-        if not is_reingestion:
-            # Save the correct password if it wasn't already stored
-            if correct_password and (not stored_password_comp or correct_password != stored_password_comp.password):
-                await world.dispatch_command(
-                    SetArchivePasswordCommand(entity_id=entity_id, password=correct_password)
-                ).get_one_value()
+        # Save the correct password if it wasn't already stored
+        if correct_password and (not stored_password_comp or correct_password != stored_password_comp.password):
+            await world.dispatch_command(
+                SetArchivePasswordCommand(entity_id=entity_id, password=correct_password)
+            ).get_one_value()
 
-            info_comp = ArchiveInfoComponent(comment=archive.comment)
-            await transaction.add_or_update_component(entity_id, info_comp)
-            logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
-            yield ProgressCompleted()
-        else:
-            yield ProgressCompleted(message="Finished re-issuing events for members.")
+        info_comp = ArchiveInfoComponent(comment=archive.comment)
+        await transaction.add_or_update_component(entity_id, info_comp)
+        logger.info(f"Finished processing archive {entity_id}, processed {len(all_members)} members.")
+        yield ProgressCompleted()
 
     finally:
         if archive:
@@ -433,12 +430,7 @@ async def ingest_archive_members_handler(
         )
         return
 
-    info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
-    is_reingestion = info_comp is not None
-
-    async for event in _process_archive(
-        cmd.entity_id, archive_stream_provider, cmd, world, transaction, is_reingestion=is_reingestion
-    ):
+    async for event in _process_archive(cmd.entity_id, archive_stream_provider, cmd, world, transaction):
         yield event
 
 

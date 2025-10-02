@@ -19,6 +19,7 @@ class AssetOperation:
     add_command_class: Type[EntityCommand[Any, Any]]
     check_command_class: Optional[Type[EntityCommand[bool, BaseSystemEvent]]] = None
     remove_command_class: Optional[Type[EntityCommand[None, BaseSystemEvent]]] = None
+    reprocess_derived_command_class: Optional[Type[EntityCommand[Any, Any]]] = None
 
     def get_supported_types(self) -> Dict[str, List[str]]:
         """

@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -14,7 +15,7 @@ from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import RegisterLocalFileCommand
 from sqlalchemy import select
 
-from dam_archive.commands import IngestArchiveCommand
+from dam_archive.commands import IngestArchiveCommand, ReissueArchiveMemberEventsCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 
@@ -261,9 +262,9 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
         )
         assert len(members.scalars().all()) == 2
 
-    # 4. Run the extraction command for the second time (re-ingestion)
-    ingest_cmd2 = IngestArchiveCommand(entity_id=entity_id)
-    stream2 = world.dispatch_command(ingest_cmd2)
+    # 4. Run the re-issue command for the second time (re-ingestion)
+    reissue_cmd = ReissueArchiveMemberEventsCommand(entity_id=entity_id)
+    stream2 = world.dispatch_command(reissue_cmd)
     events2 = [event async for event in stream2]
 
     # 5. Verify that the correct events were issued for re-ingestion
@@ -284,10 +285,21 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     reingested_entity_ids = {e.entity_id for e in new_entity_events2}
     assert original_entity_ids == reingested_entity_ids
 
-    # Check that the stream provider is not None and provides content
+    # Check that the stream provider is None but can be retrieved on demand
     for event in new_entity_events2:
-        assert event.stream_provider is not None
-        async with event.stream_provider.get_stream() as stream:
+        assert event.stream_provider is None  # The event itself doesn't carry the stream
+
+        # But we can get it via a command
+        stream_cmd = GetAssetStreamCommand(entity_id=event.entity_id)
+        # Use get_all_results and pick the first valid provider.
+        # This is because multiple handlers can provide a stream (from the archive, from CAS),
+        # and we need to consume all results to avoid deadlocks in the test runner.
+        all_providers = await world.dispatch_command(stream_cmd).get_all_results()
+        valid_providers = [p for p in all_providers if p is not None]
+        assert valid_providers
+        stream_provider = valid_providers[0]
+
+        async with stream_provider.get_stream() as stream:
             assert stream is not None
             content = stream.read()
             assert content in (b"file one", b"file two")
