@@ -211,10 +211,10 @@ async def _process_archive(
 
     # 1. Try passwords in a specific, non-interactive order.
     passwords_to_try = [cmd.password, stored_password_comp.password if stored_password_comp else None, None]
-    unique_passwords = list(dict.fromkeys(p for p in passwords_to_try if p is not None))
-    unique_passwords.append(None) # Always try with no password
+    # Create a list of unique passwords to try, preserving order. `None` is a valid entry.
+    unique_passwords = list(dict.fromkeys(passwords_to_try))
 
-    for pwd in list(dict.fromkeys(unique_passwords)):
+    for pwd in unique_passwords:
         opened_archive = await _try_open_archive(pwd)
         if isinstance(opened_archive, ProgressError):
             yield opened_archive
@@ -248,7 +248,7 @@ async def _process_archive(
                 logger.info(f"Successfully opened archive {entity_id} with provided password.")
                 break
             else:
-                 logger.info(f"Invalid password provided for archive {entity_id}.")
+                logger.info(f"Invalid password provided for archive {entity_id}.")
 
     if not archive:
         return
@@ -428,7 +428,10 @@ async def ingest_archive_members_handler(
             redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, password=cmd.password)
             # We need to manually handle the generator and its potential requests.
             value_to_send: Any = None
-            redirect_gen = world.dispatch_command(redirect_cmd)
+            redirect_gen = cast(
+                AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any],
+                world.dispatch_command(redirect_cmd),
+            )
             try:
                 while True:
                     event = await redirect_gen.asend(value_to_send)

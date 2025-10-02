@@ -36,9 +36,7 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
 
         from dam.commands.asset_commands import GetAssetStreamCommand
 
-        all_providers = await world.dispatch_command(
-            GetAssetStreamCommand(entity_id=self.entity_id)
-        ).get_all_results()
+        all_providers = await world.dispatch_command(GetAssetStreamCommand(entity_id=self.entity_id)).get_all_results()
 
         valid_providers = [p for p in all_providers if p is not None]
         if not valid_providers:

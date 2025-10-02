@@ -26,9 +26,9 @@ class SystemExecutor(Generic[ResultType, EventType]):
         self._generators = generators
         self._strategy = strategy
         self._results: Optional[List[ResultType]] = None
-        self._iterator: Optional[AsyncGenerator[EventType, Any]] = None
+        self._iterator: Optional[AsyncGenerator[EventType | InformationRequest[Any], Any]] = None
 
-    def __aiter__(self) -> AsyncGenerator[EventType, Any]:
+    def __aiter__(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
         # To prevent re-running the generators, we create the iterator once and reuse it.
         if self._iterator is None:
             if self._strategy == ExecutionStrategy.SERIAL:
@@ -39,7 +39,7 @@ class SystemExecutor(Generic[ResultType, EventType]):
                 raise ValueError(f"Unknown execution strategy: {self._strategy}")
         return self._iterator
 
-    async def _run_serial(self) -> AsyncGenerator[EventType, Any]:
+    async def _run_serial(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
         """Executes generators one by one, handling InformationRequests."""
         for gen in self._generators:
             value_to_send: Any = None
@@ -52,7 +52,7 @@ class SystemExecutor(Generic[ResultType, EventType]):
                 except StopAsyncIteration:
                     break
 
-    async def _run_parallel(self) -> AsyncGenerator[EventType, Any]:
+    async def _run_parallel(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
         """Executes generators concurrently, yielding events as they become available."""
         # A queue for events and requests from drainers to the main loop.
         q: asyncio.Queue[EventType | Exception | InformationRequest[Any]] = asyncio.Queue()
