@@ -20,7 +20,7 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
-from dam.core.requests import InformationRequest, PasswordRequest
+from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -423,21 +423,9 @@ async def ingest_archive_members_handler(
         part_info = await transaction.get_component(cmd.entity_id, SplitArchivePartInfoComponent)
         if not manifest_comp and part_info and part_info.master_entity_id:
             logger.info(
-                f"Redirecting ingestion from part {cmd.entity_id} to master entity {part_info.master_entity_id}."
+                f"Entity {cmd.entity_id} is part of an assembled split archive (master: {part_info.master_entity_id}). "
+                "Ingestion should be initiated from the master entity. Skipping ingestion for this part."
             )
-            redirect_cmd = IngestArchiveCommand(entity_id=part_info.master_entity_id, password=cmd.password)
-            # We need to manually handle the generator and its potential requests.
-            value_to_send: Any = None
-            redirect_gen = cast(
-                AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any],
-                world.dispatch_command(redirect_cmd),
-            )
-            try:
-                while True:
-                    event = await redirect_gen.asend(value_to_send)
-                    value_to_send = yield event
-            except StopAsyncIteration:
-                pass
             return
 
         # Case 3: Part of a non-assembled split archive.
