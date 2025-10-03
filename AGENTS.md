@@ -91,6 +91,7 @@ uv sync --all-extras
 
 ### Code Quality
 
+-   **`__init__.py` Re-exports**: Avoid re-exporting symbols from `__init__.py` files. This practice can obscure the actual location of a symbol, making the code harder to navigate and understand. It can also lead to circular import problems and interfere with static analysis tools. Always import symbols directly from the module where they are defined.
 -   **Type Checking**: All new or modified code must pass `mypy` and `pyright` checks without introducing new errors. When modifying existing code with type errors, you should aim to fix them as part of your changes. If a fix is not feasible, you may use `# type: ignore` with a clear explanation, but this should be a last resort.
 
 ### Assertion Guideline

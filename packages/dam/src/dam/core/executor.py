@@ -1,8 +1,9 @@
 # pyright: basic
 import asyncio
+import logging
 from typing import Any, AsyncGenerator, Generic, List, Optional, Self, TypeVar, overload
 
-from dam.core.requests import InformationRequest
+from dam.system_events.requests import InformationRequest
 from dam.enums import ExecutionStrategy
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
@@ -124,11 +125,12 @@ class SystemExecutor(Generic[ResultType, EventType]):
             self._results = []
             async for event in self:
                 if isinstance(event, InformationRequest):
-                    raise TypeError(
+                    logging.warning(
                         "SystemExecutor yielded an InformationRequest, but it was consumed by a method "
-                        "that cannot handle it (e.g., get_all_results). You must iterate over the "
-                        "executor manually to handle the request."
+                        "that cannot handle it (e.g., get_all_results). The request will be ignored. "
+                        "To handle the request, you must iterate over the executor manually."
                     )
+                    continue
                 if isinstance(event, SystemResultEvent):
                     self._results.append(event.result)
 
