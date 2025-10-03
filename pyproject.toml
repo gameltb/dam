@@ -38,7 +38,7 @@ dev = [
     "rich",
     "polars",
     "pytest_mock",
-    "poethepoet",
+    "poethepoet>=0.20.0",
     "packaging",
     "grpcio-tools~=1.70.0",
     "mypy-protobuf",
@@ -63,6 +63,7 @@ dev = [
     "diskcache",
     "redis",
     "sphinx-autobuild",
+    "deptry",
 ]
 
 [tool.ruff]
@@ -122,12 +123,16 @@ pyright = "python run_task_in_pkgs_if_exist.py pyright"
 mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
-check-full = "python run_task_in_pkgs_if_exist.py check-full"
-check = "python run_task_in_pkgs_if_exist.py check"
-check-ci = "python run_task_in_pkgs_if_exist.py check-ci"
+deptry = "python run_task_in_pkgs_if_exist.py deptry"
+check-full = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "mypy ${extra}", "deptry ${extra}", "test-cov ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
+check = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "deptry ${extra}", "test ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
+check-ci = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "deptry ${extra}", "test-cov ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
 
 [tool.pytest.ini_options]
 addopts = "-p no:serial"
 markers = [
     "serial: mark a test as serial",
 ]
+
+[tool.deptry]
+exclude = [".venv"]

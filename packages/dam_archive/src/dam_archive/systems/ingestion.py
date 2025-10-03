@@ -20,7 +20,6 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
-from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -34,6 +33,7 @@ from dam.system_events.progress import (
     ProgressUpdate,
     SystemProgressEvent,
 )
+from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.utils.stream_utils import ChainedStream
 from sqlalchemy import select
 
