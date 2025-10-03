@@ -64,3 +64,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["psycopg", "pgvector"]
