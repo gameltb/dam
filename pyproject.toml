@@ -124,9 +124,9 @@ mypy = "python run_task_in_pkgs_if_exist.py mypy"
 test = "python run_task_in_pkgs_if_exist.py test"
 test-cov = "python run_task_in_pkgs_if_exist.py test-cov"
 deptry = "python run_task_in_pkgs_if_exist.py deptry"
-check-full = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "mypy ${extra}", "deptry ${extra}", "test-cov ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
-check = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "deptry ${extra}", "test ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
-check-ci = { sequence = ["fmt ${extra}", "lint ${extra}", "pyright ${extra}", "deptry ${extra}", "test-cov ${extra}"], args=[{name="extra", multiple=true, help="Extra arguments to pass to subtasks"}] }
+check-full = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "mypy --package ${package}", "deptry --package ${package}", "test-cov --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
+check = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "deptry --package ${package}", "test --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
+check-ci = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "deptry --package ${package}", "test-cov --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
 
 [tool.pytest.ini_options]
 addopts = "-p no:serial"

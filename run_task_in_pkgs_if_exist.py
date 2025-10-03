@@ -63,15 +63,17 @@ def main() -> None:
 
     package_to_run = None
     if "--package" in args:
-        try:
-            package_index = args.index("--package")
+        package_index = args.index("--package")
+        if package_index + 1 < len(args):
             package_to_run = args[package_index + 1]
             # remove from args
             args.pop(package_index + 1)
             args.pop(package_index)
-        except (ValueError, IndexError):
-            print("Error: --package flag must be followed by a package name.")
-            sys.exit(1)
+        else: # --package is the last arg
+            args.pop(package_index)
+
+    if not package_to_run: # Handles None and ""
+        package_to_run = None
 
     # Separate script args from task args
     task_args: List[str] = []
