@@ -5,6 +5,7 @@ import pytest
 
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.transaction import WorldTransaction
+from dam.core.types import CallableStreamProvider
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes import (
@@ -29,9 +30,10 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
 
     data = b"hello world"
     stream = BytesIO(data)
+    stream_provider = CallableStreamProvider(lambda: stream)
     command = AddHashesFromStreamCommand(
         entity_id=entity_id,
-        stream=stream,
+        stream_provider=stream_provider,
         algorithms={HashAlgorithm.MD5, HashAlgorithm.SHA256},
     )
     await world.dispatch_command(command).get_all_results()
@@ -65,9 +67,10 @@ async def test_add_hashes_from_stream_system_propagates_mismatch_error(
 
     data = b"hello world"
     stream = BytesIO(data)
+    stream_provider = CallableStreamProvider(lambda: stream)
     command = AddHashesFromStreamCommand(
         entity_id=entity_id,
-        stream=stream,
+        stream_provider=stream_provider,
         algorithms={HashAlgorithm.MD5},
     )
 

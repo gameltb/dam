@@ -82,7 +82,7 @@ def transcode_media(
     # can be a security risk if these values come from untrusted user input without sanitization.
     # Here, we assume tool_name and tool_params are curated (e.g., from TranscodeProfileComponent).
 
-    print(f"Running transcoding command: {' '.join(command_parts)}")  # For logging/debugging
+    logger.info(f"Running transcoding command: {' '.join(command_parts)}")  # For logging/debugging
 
     # Check if the tool exists
     if not shutil.which(tool_name):
@@ -97,7 +97,7 @@ def transcode_media(
                 output_path.unlink()
             except OSError as unlink_e:
                 # Log this, but raise the original TranscodeError
-                print(f"Warning: Could not delete incomplete output file {output_path}: {unlink_e}")
+                logger.warning(f"Could not delete incomplete output file {output_path}: {unlink_e}")
         raise e  # Re-raise the original error
 
     if not output_path.exists() or output_path.stat().st_size == 0:
@@ -106,7 +106,7 @@ def transcode_media(
             output_path.unlink(missing_ok=True)
         raise TranscodeError(f"Transcoding command ran but output file {output_path} was not created or is empty.")
 
-    print(f"Transcoding successful. Output: {output_path}")
+    logger.info(f"Transcoding successful. Output: {output_path}")
     return output_path
 
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     if not dummy_input.exists():
         with open(dummy_input, "w") as f:
             f.write("This is a dummy input file for transcoding tests.")
-        print(f"Created dummy input: {dummy_input}")
+        logger.info(f"Created dummy input: {dummy_input}")
 
     # Test 1: FFmpeg (example - requires ffmpeg and a suitable input)
     # This specific ffmpeg command might fail if input.txt is not a valid video/image source.
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     )
 
     if shutil.which("ffmpeg"):
-        print("\n--- Testing FFmpeg ---")
+        logger.info("\n--- Testing FFmpeg ---")
         try:
             # Replacing placeholders manually for this direct test
             params_ffmpeg = ffmpeg_params_template.replace("{input}", str(dummy_input))
@@ -165,16 +165,16 @@ if __name__ == "__main__":
                 tool_name="ffmpeg",
                 tool_params=ffmpeg_params_template,  # Pass the template string
             )
-            print(f"FFmpeg test successful. Output: {dummy_output_mp4}")
+            logger.info(f"FFmpeg test successful. Output: {dummy_output_mp4}")
             if dummy_output_mp4.exists():
                 dummy_output_mp4.unlink()  # Clean up
         except TranscodeError as e:
-            print(f"FFmpeg test failed: {e}")
+            logger.error(f"FFmpeg test failed: {e}")
         except FileNotFoundError as e:
-            print(f"FFmpeg test skipped, input file missing: {e}")
+            logger.error(f"FFmpeg test skipped, input file missing: {e}")
 
     else:
-        print("ffmpeg not found, skipping FFmpeg test.")
+        logger.info("ffmpeg not found, skipping FFmpeg test.")
 
     # Test 2: cjxl (example - requires cjxl and a suitable input image)
     # cjxl typically takes an image (e.g., PNG) and outputs JXL.
@@ -183,30 +183,30 @@ if __name__ == "__main__":
     # A real test would involve creating a small PNG using Pillow, for example.
     # params_cjxl = "{input} {output} -q 90" # Example params
     if shutil.which("cjxl"):
-        print("\n--- Testing cjxl (placeholder) ---")
-        print("cjxl found, but test requires a dummy image input (e.g., PNG). Skipping detailed test.")
+        logger.info("\n--- Testing cjxl (placeholder) ---")
+        logger.info("cjxl found, but test requires a dummy image input (e.g., PNG). Skipping detailed test.")
         # try:
         #     # Create a dummy PNG if Pillow is available, or assume one exists
         #     dummy_png_input = current_dir / "dummy_input.png"
         #     if not dummy_png_input.exists():
-        #         print(f"Skipping cjxl test: {dummy_png_input} not found.")
+        #         logger.info(f"Skipping cjxl test: {dummy_png_input} not found.")
         #     else:
         #         transcode_media(dummy_png_input, dummy_output_jxl, "cjxl", params_cjxl)
-        #         print(f"cjxl test successful. Output: {dummy_output_jxl}")
+        #         logger.info(f"cjxl test successful. Output: {dummy_output_jxl}")
         #         if dummy_output_jxl.exists(): dummy_output_jxl.unlink()
         # except TranscodeError as e:
-        #     print(f"cjxl test failed: {e}")
+        #     logger.error(f"cjxl test failed: {e}")
         # except FileNotFoundError as e:
-        #     print(f"cjxl test skipped, input file missing: {e}")
+        #     logger.error(f"cjxl test skipped, input file missing: {e}")
     else:
-        print("cjxl not found, skipping cjxl test.")
+        logger.info("cjxl not found, skipping cjxl test.")
 
     # Clean up dummy input
     if dummy_input.exists():
         dummy_input.unlink()
-        print(f"Cleaned up dummy input: {dummy_input}")
+        logger.info(f"Cleaned up dummy input: {dummy_input}")
 
-    print("\nMedia utils tests finished.")
+    logger.info("\nMedia utils tests finished.")
 
 
 __all__ = ["transcode_media", "TranscodeError"]

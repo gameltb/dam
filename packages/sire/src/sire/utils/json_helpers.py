@@ -131,9 +131,9 @@ def _reconstruct_from_data(data: Any, expected_type: Type[T]) -> T:
                     dtype_name = "double"
                 # Add more mappings if necessary
             return getattr(torch, dtype_name)
-        except AttributeError:
+        except AttributeError as e:
             logger.error(f"Could not convert string '{data}' to torch.dtype.")
-            raise TypeError(f"Cannot convert '{data}' to torch.dtype")
+            raise TypeError(f"Cannot convert '{data}' to torch.dtype") from e
 
     origin = typing.get_origin(expected_type)
     if origin:

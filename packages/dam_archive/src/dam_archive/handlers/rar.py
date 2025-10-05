@@ -53,7 +53,7 @@ class RarArchiveHandler(ArchiveHandler):
                 handler.rar_file.setpassword(password)  # type: ignore
             # The check below is to trigger a password error for protected archives.
             if len(handler.rar_file.infolist()) > 0:  # type: ignore
-                handler.rar_file.infolist()[0].filename  # type: ignore
+                _ = handler.rar_file.infolist()[0].filename  # type: ignore
 
         except Exception as e:
             await handler._stream_cm_exit(type(e), e, e.__traceback__)

@@ -4,11 +4,13 @@ import asyncio
 import csv
 import datetime
 import hashlib
+import io
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import aiofiles
 import typer
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.core.transaction import WorldTransaction
@@ -90,11 +92,11 @@ async def verify_assets(
                     if key not in process_map:
                         process_map[key] = []
                     process_map[key].append(command_name)
-                except ValueError:
+                except ValueError as e:
                     typer.secho(
                         f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED
                     )
-                    raise typer.Exit(code=1)
+                    raise typer.Exit(code=1) from e
             else:
                 command_name = p
                 command_class = COMMAND_MAP.get(command_name)
@@ -127,12 +129,12 @@ async def verify_assets(
 
     typer.echo(f"Found {len(files_to_process)} file(s) to process.")
 
-    def _get_sha256(file_path: Path) -> str:
+    async def _get_sha256(file_path: Path) -> str:
         """Helper function to calculate SHA256 hash."""
         sha256 = hashlib.sha256()
-        with open(file_path, "rb") as f:
+        async with aiofiles.open(file_path, "rb") as f:
             while True:
-                data = f.read(65536)  # Read in 64k chunks
+                data = await f.read(65536)  # Read in 64k chunks
                 if not data:
                     break
                 sha256.update(data)
@@ -162,7 +164,7 @@ async def verify_assets(
                 return
 
             dam_hash = stored_hash_orm.hash_value.hex()
-            calculated_hash = _get_sha256(file_path)
+            calculated_hash = await _get_sha256(file_path)
             if calculated_hash == dam_hash:
                 status = "VERIFIED"
                 success_count += 1
@@ -302,11 +304,17 @@ async def verify_assets(
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     report_filename = f"verification_report_{timestamp}.csv"
-    with open(report_filename, "w", newline="", encoding="utf-8") as csvfile:
-        fieldnames = ["file_path", "calculated_hash", "dam_hash", "status"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(results)
+
+    # Use an in-memory text buffer (StringIO) for the synchronous csv writer
+    string_buffer = io.StringIO()
+    fieldnames = ["file_path", "calculated_hash", "dam_hash", "status"]
+    writer = csv.DictWriter(string_buffer, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(results)
+
+    # Asynchronously write the buffer's content to the actual file
+    async with aiofiles.open(report_filename, "w", newline="", encoding="utf-8") as csvfile:
+        await csvfile.write(string_buffer.getvalue())
 
     typer.echo("\n--- Verification Summary ---")
     typer.secho(f"Report generated: {report_filename}", fg=typer.colors.CYAN)

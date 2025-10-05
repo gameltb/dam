@@ -8,6 +8,7 @@ using tools like the Hachoir library and exiftool.
 """
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -20,6 +21,7 @@ from ctypes import CDLL, c_int
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional
 
+import aiofiles
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -151,7 +153,7 @@ class ExifTool:
                     if not chunk:
                         break
                     fifo.write(chunk)
-        except BrokenPipeError as e:
+        except BrokenPipeError:
             # ExifTool may close fifo early
             pass
         except Exception as e:
@@ -181,8 +183,10 @@ class ExifTool:
             current_stream = stream
         elif filepath:
             try:
-                current_stream = open(filepath, "rb")
-                close_stream = True
+                async with aiofiles.open(filepath, "rb") as f:
+                    content = await f.read()
+                current_stream = io.BytesIO(content)
+                close_stream = True  # The BytesIO stream will be closed by the `finally` block
             except FileNotFoundError:
                 logger.error(f"File not found at {filepath}")
                 return None

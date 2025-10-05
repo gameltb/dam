@@ -42,6 +42,9 @@ jupyter-executor = [
 docker-jupyter-executor = [
     "autogen-ext[docker-jupyter-executor]",
 ]
+test = [
+    "aiofiles>=23.2.1",
+]
 
 [project.scripts]
 domarkx = "domarkx.cli:main"

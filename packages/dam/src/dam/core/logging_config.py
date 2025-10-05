@@ -25,7 +25,7 @@ def setup_logging(level: int | str | None = None) -> None:
             if env_level:  # If DAM_LOG_LEVEL was set but invalid
                 # Use a basic print here, as logging might not be fully set up
                 # or to ensure this specific warning is always visible.
-                print(
+                print(  # noqa: T201
                     f"Warning: Invalid DAM_LOG_LEVEL '{env_level}'. Defaulting to {logging.getLevelName(log_level)}.",
                     file=sys.stderr,
                 )
@@ -35,7 +35,7 @@ def setup_logging(level: int | str | None = None) -> None:
             log_level = getattr(logging, log_level_name)
         else:
             log_level = DEFAULT_LOG_LEVEL
-            print(
+            print(  # noqa: T201
                 f"Warning: Invalid log level string '{level}'. Defaulting to {logging.getLevelName(log_level)}.",
                 file=sys.stderr,
             )
@@ -67,7 +67,6 @@ def setup_logging(level: int | str | None = None) -> None:
 
 if __name__ == "__main__":
     # Example usage and test
-    print("Testing logging configuration...")
     os.environ["DAM_LOG_LEVEL"] = "DEBUG"
     setup_logging()
     logger = logging.getLogger("dam.core.logging_config_test")
@@ -76,11 +75,9 @@ if __name__ == "__main__":
     logger.warning("This is a warning message.")
     logger.error("This is an error message.")
 
-    print("\nTesting with invalid level string...")
     setup_logging(level="INVALID_LEVEL_STRING")  # Should print warning to stderr
     logger.info("Info message after attempting invalid level string.")
 
-    print("\nTesting with direct level INFO...")
     # Need to clear handlers for re-configuration in this test script context
     logging.getLogger("dam").handlers.clear()
     setup_logging(level=logging.INFO)
@@ -91,7 +88,6 @@ if __name__ == "__main__":
     if "DAM_LOG_LEVEL" in os.environ:
         del os.environ["DAM_LOG_LEVEL"]
     logging.getLogger("dam").handlers.clear()
-    print("\nTesting with default log level (no env var)...")
     setup_logging()
     logger.info(
         f"Default log level test. Current level: {logging.getLevelName(logging.getLogger('dam').getEffectiveLevel())}"
@@ -100,10 +96,7 @@ if __name__ == "__main__":
 
     # Test specific string level
     logging.getLogger("dam").handlers.clear()
-    print("\nTesting with specific string level 'WARNING'...")
     setup_logging(level="WARNING")
     effective_level_name = logging.getLevelName(logging.getLogger("dam").getEffectiveLevel())
     logger.info(f"Test log at WARNING. Effective: {effective_level_name}. Info should not appear.")
     logger.warning("This warning message should be seen.")
-
-    print("\nLogging configuration test complete.")

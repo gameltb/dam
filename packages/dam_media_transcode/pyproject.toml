@@ -9,6 +9,7 @@ dependencies = [
     "dam",
     "dam_fs",
     "sqlalchemy",
+    "aiofiles",
 ]
 
 [project.optional-dependencies]
@@ -37,3 +38,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["aiofiles"]

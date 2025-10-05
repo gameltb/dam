@@ -100,7 +100,7 @@ class LibCstEditor:
             return f"Code successfully saved to '{output_path}'."
         except Exception as e:
             logging.error(f"Failed to save code to '{output_path}': {e}")
-            raise ToolError(f"Failed to save code to '{output_path}': {e}", original_exception=e)
+            raise ToolError(f"Failed to save code to '{output_path}': {e}", original_exception=e) from e
 
     def _apply_transformer(self, transformer: cst.CSTTransformer) -> None:
         """Applies a transformer and updates the module."""
@@ -144,7 +144,7 @@ class LibCstEditor:
                 logging.warning("Custom script did not result in a valid cst.Module update in 'tree' variable.")
         except Exception as e:
             logging.error(f"Error executing custom libcst script: {e}")
-            raise ToolError(f"Error executing custom libcst script: {e}", original_exception=e)
+            raise ToolError(f"Error executing custom libcst script: {e}", original_exception=e) from e
 
     def _get_node_matcher(self, internal_symbol_path: str, target_type: str) -> m.BaseMatcherNode:
         """
@@ -215,7 +215,7 @@ class LibCstEditor:
                     raise ToolError(
                         f"Invalid code content for {self.target_type}: {e}",
                         original_exception=e,
-                    )
+                    ) from e
 
             def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
                 if m.matches(original_node, self.parent_matcher):
@@ -350,14 +350,14 @@ class LibCstEditor:
                             raise ToolError(
                                 f"Invalid new code content for {self.target_type}: {e}",
                                 original_exception=e,
-                            )
+                            ) from e
                         except Exception as e:
                             logging.error(f"Error updating node for {self.target_type}: {e}")
                             # Change generic Exception to ToolError
                             raise ToolError(
                                 f"Error updating node for {self.target_type}: {e}",
                                 original_exception=e,
-                            )
+                            ) from e
                 return updated_node
 
         self._apply_transformer(UpdaterTransformer(target_matcher, new_code_content, target_type))
@@ -478,16 +478,16 @@ def _handle_list_mode_by_symbol(full_symbol: str, target_type: str | None, list_
         raise ToolError(
             f"Could not import symbol '{full_symbol}'. Ensure the module is installed and accessible: {e}",
             original_exception=e,
-        )
+        ) from e
     except AttributeError as e:
         # Changed from AttributeError to ToolError
-        raise ToolError(f"Object not found in symbol '{full_symbol}': {e}", original_exception=e)
+        raise ToolError(f"Object not found in symbol '{full_symbol}': {e}", original_exception=e) from e
     except Exception as e:
         # Changed from generic Exception to ToolError
         raise ToolError(
             f"An error occurred while querying symbol '{full_symbol}': {e}",
             original_exception=e,
-        )
+        ) from e
 
 
 def _handle_list_mode_by_path(
@@ -761,10 +761,10 @@ def _handle_diff_method_mode(target: str) -> str:
         try:
             module_and_class, method_name = target.rsplit(".", 1)
             module_name, class_name = module_and_class.rsplit(".", 1)
-        except ValueError:
+        except ValueError as e:
             raise ToolError(
                 f"Invalid target format for diff_method: '{target}'. Expected 'package.module.ClassName.method_name'."
-            )
+            ) from e
 
         # 2. Import the class
         module = importlib.import_module(module_name)
@@ -822,7 +822,7 @@ def _handle_diff_method_mode(target: str) -> str:
         return "".join(diff)
 
     except (ImportError, AttributeError, ValueError) as e:
-        raise ToolError(f"Error processing symbol '{target}': {e}", original_exception=e)
+        raise ToolError(f"Error processing symbol '{target}': {e}", original_exception=e) from e
 
 
 # Main tool function

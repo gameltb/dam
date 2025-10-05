@@ -20,16 +20,15 @@ def utf8_encoded_zip_file(tmp_path: Path) -> Path:
 async def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
     # This test checks the happy path where the filename is UTF-8 encoded
     # and the UTF-8 flag is set in the zip file.
-    with open(utf8_encoded_zip_file, "rb") as f:
-        archive = await open_archive(f, "application/zip")
-        assert archive is not None
-        files = archive.list_files()
-        assert "测试.txt" in [m.name for m in files]
+    archive = await open_archive(utf8_encoded_zip_file, "application/zip")
+    assert archive is not None
+    files = archive.list_files()
+    assert "测试.txt" in [m.name for m in files]
 
-        member_info, f_in_zip = archive.open_file("测试.txt")
-        with f_in_zip:
-            assert f_in_zip.read() == b"content"
-        assert member_info.name == "测试.txt"
+    member_info, f_in_zip = archive.open_file("测试.txt")
+    with f_in_zip:
+        assert f_in_zip.read() == b"content"
+    assert member_info.name == "测试.txt"
 
 
 @pytest.fixture
@@ -54,26 +53,24 @@ async def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> Non
     # This test checks the fallback path where the filename is not UTF-8.
     # My code attempts to decode with cp437, then utf-8, then gbk.
     # In this case, the filename is valid cp437.
-    with open(cp437_encoded_zip_file, "rb") as f:
-        archive = await open_archive(f, "application/zip")
-        assert archive is not None
-        files = archive.list_files()
-        assert "tést.txt" in [m.name for m in files]
+    archive = await open_archive(cp437_encoded_zip_file, "application/zip")
+    assert archive is not None
+    files = archive.list_files()
+    assert "tést.txt" in [m.name for m in files]
 
 
 @pytest.mark.asyncio
 async def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
     # This test checks the iter_files method.
-    with open(utf8_encoded_zip_file, "rb") as f:
-        archive = await open_archive(f, "application/zip")
-        assert archive is not None
+    archive = await open_archive(utf8_encoded_zip_file, "application/zip")
+    assert archive is not None
 
-        files = list(archive.iter_files())
-        assert len(files) == 1
+    files = list(archive.iter_files())
+    assert len(files) == 1
 
-        member_info, member_stream = files[0]
-        assert member_info.name == "测试.txt"
-        assert member_info.size == 7  # "content" is 7 bytes
+    member_info, member_stream = files[0]
+    assert member_info.name == "测试.txt"
+    assert member_info.size == 7  # "content" is 7 bytes
 
-        with member_stream as f_in_zip:
-            assert f_in_zip.read() == b"content"
+    with member_stream as f_in_zip:
+        assert f_in_zip.read() == b"content"

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import os
 import zipfile
 from pathlib import Path
 
+import aiofiles
 import pytest
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
 from dam.core.world import World
@@ -16,11 +18,11 @@ from dam_app.cli.verify import verify_assets
 from dam_app.state import global_state
 
 
-def _get_sha256(file_path: Path) -> str:
+async def _get_sha256(file_path: Path) -> str:
     h = hashlib.sha256()
-    with open(file_path, "rb") as f:
+    async with aiofiles.open(file_path, "rb") as f:
         while True:
-            data = f.read(65536)
+            data = await f.read(65536)
             if not data:
                 break
             h.update(data)
@@ -35,7 +37,7 @@ async def test_verify_single_file_ok(
     # Setup a test file
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello")
-    file_hash = _get_sha256(test_file)
+    file_hash = await _get_sha256(test_file)
 
     # Add file to DAM programmatically
     cmd = RegisterLocalFileCommand(file_path=test_file)
@@ -52,14 +54,16 @@ async def test_verify_single_file_ok(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        with open(report_files[0], "r") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-            assert len(rows) == 1
-            assert rows[0]["file_path"] == test_file.name
-            assert rows[0]["calculated_hash"] == file_hash
-            assert rows[0]["dam_hash"] == file_hash
-            assert rows[0]["status"] == "VERIFIED"
+        async with aiofiles.open(report_files[0], "r") as f:
+            content = await f.read()
+        string_io = io.StringIO(content)
+        reader = csv.DictReader(string_io)
+        rows = list(reader)
+        assert len(rows) == 1
+        assert rows[0]["file_path"] == test_file.name
+        assert rows[0]["calculated_hash"] == file_hash
+        assert rows[0]["dam_hash"] == file_hash
+        assert rows[0]["status"] == "VERIFIED"
     finally:
         for f in report_files:
             f.unlink()
@@ -80,7 +84,7 @@ async def test_verify_single_file_fail(
 
     # Modify the file
     test_file.write_text("world")
-    new_hash = _get_sha256(test_file)
+    new_hash = await _get_sha256(test_file)
 
     # Set the world for the command to use
     global_state.world_name = test_world_alpha.name
@@ -93,12 +97,14 @@ async def test_verify_single_file_fail(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        with open(report_files[0], "r") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-            assert len(rows) == 1
-            assert rows[0]["status"] == "FAILED"
-            assert rows[0]["calculated_hash"] == new_hash
+        async with aiofiles.open(report_files[0], "r") as f:
+            content = await f.read()
+        string_io = io.StringIO(content)
+        reader = csv.DictReader(string_io)
+        rows = list(reader)
+        assert len(rows) == 1
+        assert rows[0]["status"] == "FAILED"
+        assert rows[0]["calculated_hash"] == new_hash
     finally:
         for f in report_files:
             f.unlink()
@@ -142,13 +148,15 @@ async def test_verify_archive_ok(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        with open(report_files[0], "r") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-            assert len(rows) == 3
-            assert rows[0]["status"] == "VERIFIED"
-            assert rows[1]["status"] == "VERIFIED"
-            assert rows[2]["status"] == "VERIFIED"
+        async with aiofiles.open(report_files[0], "r") as f:
+            content = await f.read()
+        string_io = io.StringIO(content)
+        reader = csv.DictReader(string_io)
+        rows = list(reader)
+        assert len(rows) == 3
+        assert rows[0]["status"] == "VERIFIED"
+        assert rows[1]["status"] == "VERIFIED"
+        assert rows[2]["status"] == "VERIFIED"
     finally:
         for f in report_files:
             f.unlink()

@@ -123,6 +123,16 @@ async def reissue_virtual_iso_event_handler(
     yield ProgressCompleted(message=f"Re-issued event for virtual ISO entity {iso_entity_id}")
 
 
+class DecompressedStreamProvider(StreamProvider):
+    def __init__(self, source_provider: StreamProvider):
+        self._source_provider = source_provider
+
+    @asynccontextmanager
+    async def get_stream(self) -> AsyncIterator[BinaryIO]:
+        async with self._source_provider.get_stream() as cso_s:
+            yield io.BufferedReader(CsoDecompressor(cso_s))
+
+
 @system(on_command=IngestCsoCommand)
 async def ingest_cso_handler(
     cmd: IngestCsoCommand,
@@ -139,46 +149,35 @@ async def ingest_cso_handler(
         if not cso_stream_provider:
             raise ValueError("Could not get stream provider for CSO file.")
 
-        # 2. Create a file-like object for the decompressed stream
-        async with cso_stream_provider.get_stream() as cso_stream:
-            decompressed_stream = io.BufferedReader(CsoDecompressor(cso_stream))
+        # 2. Create a provider for the decompressed stream
+        decompressed_provider = DecompressedStreamProvider(cso_stream_provider)
 
-            # 3. Get or create the virtual ISO entity from the decompressed stream
-            get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=decompressed_stream)
-            iso_entity, created = await world.dispatch_command(get_or_create_cmd).get_one_value()
+        # 3. Get or create the virtual ISO entity from the decompressed stream
+        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream_provider=decompressed_provider)
+        iso_entity, created = await world.dispatch_command(get_or_create_cmd).get_one_value()
 
-            if not iso_entity:
-                raise ValueError("Could not get or create entity for virtual ISO.")
+        if not iso_entity:
+            raise ValueError("Could not get or create entity for virtual ISO.")
 
-            logger.info(f"Virtual ISO entity {'created' if created else 'found'}: {iso_entity.id}")
+        logger.info(f"Virtual ISO entity {'created' if created else 'found'}: {iso_entity.id}")
 
-            # 4. Link the entities together with components
-            await transaction.add_or_update_component(iso_entity.id, CsoParentIsoComponent(cso_entity_id=cmd.entity_id))
-            await transaction.add_or_update_component(cmd.entity_id, IngestedCsoComponent())
+        # 4. Link the entities together with components
+        await transaction.add_or_update_component(iso_entity.id, CsoParentIsoComponent(cso_entity_id=cmd.entity_id))
+        await transaction.add_or_update_component(cmd.entity_id, IngestedCsoComponent())
 
-            # 5. Emit a NewEntityCreatedEvent for the virtual ISO
-            #    This requires a new stream provider for the decompressed data.
-            class DecompressedStreamProvider(StreamProvider):
-                def __init__(self, source_provider: StreamProvider):
-                    self._source_provider = source_provider
+        # 5. Emit a NewEntityCreatedEvent for the virtual ISO
+        iso_filename = "virtual.iso"
+        cso_filenames = await world.dispatch_command(
+            GetAssetFilenamesCommand(entity_id=cmd.entity_id)
+        ).get_all_results_flat()
+        if cso_filenames:
+            iso_filename = str(Path(cso_filenames[0]).with_suffix(".iso"))
 
-                @asynccontextmanager
-                async def get_stream(self) -> AsyncIterator[BinaryIO]:
-                    async with self._source_provider.get_stream() as cso_s:
-                        yield io.BufferedReader(CsoDecompressor(cso_s))
-
-            iso_filename = "virtual.iso"
-            cso_filenames = await world.dispatch_command(
-                GetAssetFilenamesCommand(entity_id=cmd.entity_id)
-            ).get_all_results_flat()
-            if cso_filenames:
-                iso_filename = str(Path(cso_filenames[0]).with_suffix(".iso"))
-
-            yield NewEntityCreatedEvent(
-                entity_id=iso_entity.id,
-                stream_provider=DecompressedStreamProvider(cso_stream_provider),
-                filename=iso_filename,
-            )
+        yield NewEntityCreatedEvent(
+            entity_id=iso_entity.id,
+            stream_provider=decompressed_provider,  # Reuse the provider
+            filename=iso_filename,
+        )
 
         yield ProgressCompleted(message="CSO ingestion complete.")
 

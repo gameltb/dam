@@ -81,7 +81,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             self._run_7z(args)
         except ArchiveError as e:
             if "wrong password" in str(e).lower():
-                raise InvalidPasswordError("Invalid password for 7z archive.")
+                raise InvalidPasswordError("Invalid password for 7z archive.") from e
             raise
 
     def _run_7z(self, args: List[str], check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -95,15 +95,15 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 encoding="utf-8",
                 errors="replace",
             )
-        except FileNotFoundError:
-            raise ArchiveError("7z command not found. Please ensure it is installed and in your PATH.")
+        except FileNotFoundError as e:
+            raise ArchiveError("7z command not found. Please ensure it is installed and in your PATH.") from e
         except subprocess.CalledProcessError as e:
             stderr = e.stderr.lower()
             if "wrong password" in stderr or "data error in encrypted file" in stderr:
-                raise InvalidPasswordError("Invalid password for 7z archive.")
+                raise InvalidPasswordError("Invalid password for 7z archive.") from e
             if "can not open the file as archive" in stderr:
-                raise ArchiveError(f"File is not a valid 7z archive or is corrupted: {self.file_path}")
-            raise ArchiveError(f"7z command failed with exit code {e.returncode}: {e.stderr}")
+                raise ArchiveError(f"File is not a valid 7z archive or is corrupted: {self.file_path}") from e
+            raise ArchiveError(f"7z command failed with exit code {e.returncode}: {e.stderr}") from e
 
     def _list_files_and_populate_members(self) -> None:
         args = ["l", "-ba", self.file_path]
@@ -186,8 +186,8 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-        except FileNotFoundError:
-            raise ArchiveError("7z command not found. Please ensure it is installed and in your PATH.")
+        except FileNotFoundError as e:
+            raise ArchiveError("7z command not found. Please ensure it is installed and in your PATH.") from e
 
         if process.stdout is None:
             raise ArchiveError("Failed to open file stream from 7z.")

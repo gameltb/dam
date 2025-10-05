@@ -1,10 +1,12 @@
 import hashlib
+import io
 import os
 import struct
 import zlib
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import aiofiles
 import pytest
 from dam.core.types import CallableStreamProvider
 from dam.models.core.entity import Entity
@@ -172,11 +174,13 @@ async def test_ingest_cso_handler_system(mocker: MockerFixture, cso_test_files: 
     mock_world.dispatch_command.side_effect = dispatch_side_effect
 
     # Create the command to be tested
-    with open(cso_path, "rb") as cso_stream:
-        cmd = IngestCsoCommand(entity_id=cso_entity_id, stream_provider=CallableStreamProvider(lambda: cso_stream))
+    async with aiofiles.open(cso_path, "rb") as cso_f:
+        cso_content = await cso_f.read()
+    cso_stream = io.BytesIO(cso_content)
+    cmd = IngestCsoCommand(entity_id=cso_entity_id, stream_provider=CallableStreamProvider(lambda: cso_stream))
 
-        # 2. Execute
-        events = [event async for event in ingest_cso_handler(cmd, mock_transaction, mock_world)]
+    # 2. Execute
+    events = [event async for event in ingest_cso_handler(cmd, mock_transaction, mock_world)]
 
     # 3. Assert
     # Check that components were added correctly

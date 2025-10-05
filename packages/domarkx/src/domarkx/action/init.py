@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import subprocess
@@ -34,10 +35,10 @@ def init_project(
 
     # Add template handling
     if template_path:
-        print(f"Initializing project from template: {template_path}")
+        logging.info(f"Initializing project from template: {template_path}")
         # TODO: Implement custom template copying
     else:
-        print("Initializing project with default template.")
+        logging.info("Initializing project with default template.")
         default_template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "default")
         for item in os.listdir(default_template_path):
             s = os.path.join(default_template_path, item)
@@ -47,7 +48,7 @@ def init_project(
             else:
                 shutil.copy2(s, d)
 
-    print(f"Project initialized at: {project_path}")
+    logging.info(f"Project initialized at: {project_path}")
 
 
 def register(app: typer.Typer, settings: Settings) -> None:

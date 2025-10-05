@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import re
@@ -32,7 +33,7 @@ def do_extract_code_to_file(
 ) -> None:
     block_lines = block_inner_content.strip().split("\n")
     if not block_lines:
-        print("⚠️ Block  is empty, skipping.")
+        logging.warning("Block  is empty, skipping.")
         return
 
     first_line = block_lines[0].strip()
@@ -74,21 +75,21 @@ def do_extract_code_to_file(
 
         # Ensure there's content to write, especially after stripping the first line
         if not code_to_write.strip() and not first_line_is_code and len(block_lines) == 1:
-            print(f"⚠️ File '{filepath_extracted}' would be empty after stripping comment. Skipping.")
+            logging.warning(f"File '{filepath_extracted}' would be empty after stripping comment. Skipping.")
             return
         if not code_to_write.strip() and first_line_is_code:  # e.g. only a shebang
-            print(f"📝 Writing file '{filepath_extracted}' which might only contain the shebang/comment.")
+            logging.info(f"Writing file '{filepath_extracted}' which might only contain the shebang/comment.")
 
         try:
             with open(full_path, "w", encoding="utf-8") as f:
                 f.write(code_to_write)
-            print(f"✅ Extracted and wrote: {full_path}")
+            logging.info(f"Extracted and wrote: {full_path}")
         except IOError as e:
-            print(f"❌ Error writing file {full_path}: {e}")
+            logging.error(f"Error writing file {full_path}: {e}")
         except Exception as e:
-            print(f"❌ An unexpected error occurred while writing {full_path}: {e}")
+            logging.error(f"An unexpected error occurred while writing {full_path}: {e}")
     else:
-        print(f'❔ : No filename pattern matched for first line: "{first_line[:70]}..."')
+        logging.warning(f'No filename pattern matched for first line: "{first_line[:70]}..."')
 
 
 def extract_code_to_file(

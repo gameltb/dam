@@ -98,7 +98,7 @@ class MarkdownLLMParser:
                     self.document.global_metadata = yaml.safe_load("".join(yaml_lines))
                     i += 1
                 except yaml.YAMLError as e:
-                    raise ValueError(f"Error parsing YAML front matter: {e}")
+                    raise ValueError(f"Error parsing YAML front matter: {e}") from e
 
         # Parse document-level blocks
         i = self._parse_blocks(lines, i, self.document)

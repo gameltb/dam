@@ -75,15 +75,15 @@ def tool_read_file(
         except PermissionError as e:
             error_msg = f"No permission to read file '{file_path}': {e}"
             logging.error(error_msg)
-            raise PermissionError(error_msg)
+            raise PermissionError(error_msg) from e
         except IOError as e:
             error_msg = f"IO error occurred while reading file '{file_path}': {e}"
             logging.error(error_msg)
-            raise IOError(error_msg)
+            raise IOError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error occurred while reading file '{file_path}': {e}"
             logging.error(error_msg)
-            raise Exception(error_msg)
+            raise Exception(error_msg) from e
 
     def _read_multiple_files(file_list: List[str]) -> str:
         results: list[str] = []

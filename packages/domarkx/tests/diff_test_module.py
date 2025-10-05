@@ -15,7 +15,6 @@ class SubClass(BaseClass):
 
     def greeting(self) -> str:
         """Returns a more enthusiastic greeting."""
-        print("This is a new line")
         return "Hello from SubClass!"
 
 

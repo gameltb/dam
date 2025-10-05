@@ -322,7 +322,7 @@ async def find_entity_by_content_hash(
     # We need a broader query for components matching the hash_value across all entities.
 
     # Simpler: query component_to_query directly.
-    stmt = select(component_to_query).where(getattr(component_to_query, "hash_value") == hash_value)
+    stmt = select(component_to_query).where(component_to_query.hash_value == hash_value)
     result = await session.execute(stmt)  # Await execute
     components_found = result.scalars().all()
 

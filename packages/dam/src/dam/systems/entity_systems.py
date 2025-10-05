@@ -1,8 +1,8 @@
+import io
 import logging
 from typing import Annotated
 
 from dam.commands.asset_commands import GetOrCreateEntityFromStreamCommand
-from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -26,15 +26,15 @@ async def get_or_create_entity_from_stream_handler(
     logger.info(f"System handling GetOrCreateEntityFromStreamCommand in world {world.name}")
     all_algorithms = {HashAlgorithm.MD5, HashAlgorithm.SHA256, HashAlgorithm.CRC32, HashAlgorithm.BLAKE3}
 
-    if cmd.stream.seekable():
-        # For seekable streams, we first get SHA256 to check for existence
-        hashes = calculate_hashes_from_stream(cmd.stream, {HashAlgorithm.SHA256})
-        sha256_bytes = hashes[HashAlgorithm.SHA256]
-        cmd.stream.seek(0)  # rewind for later
-    else:
-        # For non-seekable streams, we get all hashes at once
-        hashes = calculate_hashes_from_stream(cmd.stream, all_algorithms)
-        sha256_bytes = hashes[HashAlgorithm.SHA256]
+    async with cmd.stream_provider.get_stream() as stream:
+        # Read the entire stream into memory to handle both seekable and non-seekable streams uniformly
+        # and allow for multiple hash calculations without re-reading from the source.
+        # This is a simplification; for very large files, a temporary file might be better.
+        content = stream.read()
+
+    in_memory_stream = io.BytesIO(content)
+    hashes = calculate_hashes_from_stream(in_memory_stream, all_algorithms)
+    sha256_bytes = hashes[HashAlgorithm.SHA256]
 
     existing_entity = await transaction.find_entity_by_content_hash(sha256_bytes, "sha256")  # type: ignore
     entity = None
@@ -49,17 +49,8 @@ async def get_or_create_entity_from_stream_handler(
     if not entity:
         raise Exception("Failed to create or find entity for the asset.")
 
-    if cmd.stream.seekable():
-        # Dispatch command to add all hashes, which will re-read the stream.
-        add_hashes_command = AddHashesFromStreamCommand(
-            entity_id=entity.id,
-            stream=cmd.stream,
-            algorithms=all_algorithms,
-        )
-        await world.dispatch_command(add_hashes_command).get_all_results()
-    else:
-        # Use our new function to add all the hashes we already calculated.
-        await add_hashes_to_entity(transaction, entity.id, hashes)
-        await transaction.flush()
+    # Since we have all hashes, we can add them directly.
+    await add_hashes_to_entity(transaction, entity.id, hashes)
+    await transaction.flush()
 
     return entity, sha256_bytes  # type: ignore

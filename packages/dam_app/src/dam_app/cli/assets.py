@@ -84,13 +84,13 @@ async def add_assets(
                     if key not in process_map:
                         process_map[key] = []
                     process_map[key].append(command_name)
-                except ValueError:
+                except ValueError as e:
                     # This should not happen due to the ':' check, but for safety:
                     typer.secho(
                         f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'",
                         fg=typer.colors.RED,
                     )
-                    raise typer.Exit(code=1)
+                    raise typer.Exit(code=1) from e
             else:
                 # Handle new 'CommandName' format
                 operation_name = p

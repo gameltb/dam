@@ -179,7 +179,7 @@ class BaseCommitObjectRef(Generic[T]):
             ]
             _logger.debug(f"applied_commit_stack_states : {applied_commit_stack_states}")
             common_path_len = 0
-            for applied_state, need_apply_state in zip(applied_commit_stack_states, commit_stack_states):
+            for applied_state, need_apply_state in zip(applied_commit_stack_states, commit_stack_states, strict=False):
                 if applied_state != need_apply_state:
                     break
                 else:
@@ -356,17 +356,17 @@ if __name__ in ("__main__", "<run_path>"):
 
     base.base_object_ref.do_squash()
     with s3:
-        print(s3.base_object_ref.applied_commit_ref_stack)
+        _logger.info(s3.base_object_ref.applied_commit_ref_stack)
     base.base_object_ref.stop_squash()
 
     base.base_object_ref.do_squash()
     with s2:
-        print(s2.base_object_ref.applied_commit_ref_stack)
+        _logger.info(s2.base_object_ref.applied_commit_ref_stack)
     base.base_object_ref.stop_squash()
 
     s11 = s1.clone_and_add_callable_commit(a)
 
     base.base_object_ref.do_squash()
     with s11:
-        print(s11.base_object_ref.applied_commit_ref_stack)
+        _logger.info(s11.base_object_ref.applied_commit_ref_stack)
     base.base_object_ref.stop_squash()
