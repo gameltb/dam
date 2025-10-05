@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+import mimetypes
+import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -56,9 +58,6 @@ def get_mime_type(filepath: Path) -> str:
     """
     if not filepath.is_file():
         raise FileNotFoundError(f"File not found: {filepath}")
-
-    import mimetypes
-    import subprocess
 
     mime_type = None
     try:

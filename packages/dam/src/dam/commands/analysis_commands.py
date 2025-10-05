@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 from ..core.types import StreamProvider
 from ..system_events.base import BaseSystemEvent
+from .asset_commands import GetAssetStreamCommand
 from .core import EntityCommand, EventType, ResultType
 
 if TYPE_CHECKING:
@@ -33,8 +34,6 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
         """
         if self.stream_provider:
             return self.stream_provider
-
-        from .asset_commands import GetAssetStreamCommand
 
         all_providers = await world.dispatch_command(GetAssetStreamCommand(entity_id=self.entity_id)).get_all_results()
 

@@ -223,7 +223,7 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
 
     world = World(world_config=world_cfg)
 
-    from dam.plugins.core import CorePlugin
+    from dam.plugins.core import CorePlugin  # noqa: PLC0415
 
     world.add_plugin(CorePlugin())
 

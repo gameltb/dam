@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path  # Missing import
 from typing import Optional  # For asset_sha256 type hint
 
@@ -7,6 +8,9 @@ from dam.core.world import World
 from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
+from dam.models.hashes import ContentHashSHA256Component
+from dam.models.metadata.content_length_component import ContentLengthComponent
+from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.models import FilenameComponent  # For creating dummy assets
 
 
@@ -88,10 +92,6 @@ async def test_cli_character_apply_list_find(  # Made async
     asset_filename = "asset_for_char_link_service.txt"
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
-        from datetime import datetime, timezone
-
-        from dam.models.metadata.content_length_component import ContentLengthComponent
-
         asset_entity = await ecs_service.create_entity(session)
         await ecs_service.add_component_to_entity(
             session,
@@ -192,8 +192,6 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     # The stdout assertions have been removed from it in a previous step.
 
     # 1. Add an asset via service calls to ensure it's properly ingested with hashes
-    from dam_fs.commands import RegisterLocalFileCommand
-
     add_command = RegisterLocalFileCommand(file_path=sample_image_a)
     await test_world_alpha.dispatch_command(add_command).get_all_results()
     # No add_result or exit_code to check here, assume success if no exceptions
@@ -209,8 +207,6 @@ async def test_cli_character_apply_with_identifiers(  # Made async
         assert len(entities) == 1
         asset_entity = entities[0]
         asset_id_for_test = asset_entity.id
-
-        from dam.models.hashes import ContentHashSHA256Component
 
         sha_comp = await ecs_service.get_component(session, asset_id_for_test, ContentHashSHA256Component)
         assert sha_comp is not None

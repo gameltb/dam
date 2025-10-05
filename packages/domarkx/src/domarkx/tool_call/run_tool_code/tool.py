@@ -4,6 +4,10 @@ from typing import Any, Callable
 
 from rich.console import Console
 
+from domarkx.tools.apply_diff import apply_diff_tool
+from domarkx.tools.attempt_completion import attempt_completion_tool
+from domarkx.tools.tool_factory import default_tool_factory
+
 from ...utils.no_border_rich_tracebacks import NoBorderTraceback
 
 REGISTERED_TOOLS: dict[str, Callable[..., Any]] = {}
@@ -90,11 +94,6 @@ def format_assistant_response(tool_name: str, tool_result: str) -> str:
 
 
 def register_tools() -> None:
-    from domarkx.tools.tool_factory import default_tool_factory
-
-    from ...tools.apply_diff import apply_diff_tool
-    from ...tools.attempt_completion import attempt_completion_tool
-
     register_tool("apply_diff")(apply_diff_tool)
     register_tool("attempt_completion")(attempt_completion_tool)
     register_tool("execute_command")(default_tool_factory.get_tool("tool_execute_command"))

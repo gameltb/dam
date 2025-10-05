@@ -1,5 +1,8 @@
+import json
 import logging
+from datetime import datetime
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
@@ -41,8 +44,6 @@ async def handle_ingest_web_asset_command(
         website_name = cmd.metadata_payload.get("website_name") if cmd.metadata_payload else None
         if not website_name:
             try:
-                from urllib.parse import urlparse
-
                 parsed_url = urlparse(cmd.website_identifier_url)
                 website_name = parsed_url.netloc.replace("www.", "")
             except Exception:
@@ -84,8 +85,6 @@ async def handle_ingest_web_asset_command(
         upload_date_str = cmd.metadata_payload.get("upload_date")
         if upload_date_str:
             try:
-                from datetime import datetime
-
                 web_source_data["upload_date"] = datetime.fromisoformat(upload_date_str.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Could not parse upload_date string '{upload_date_str}' for {cmd.source_url}")
@@ -96,8 +95,6 @@ async def handle_ingest_web_asset_command(
         web_source_data["raw_metadata_dump"] = cmd.metadata_payload
 
     if cmd.tags:
-        import json
-
         web_source_data["tags_json"] = json.dumps(cmd.tags)
 
     valid_web_source_fields = {

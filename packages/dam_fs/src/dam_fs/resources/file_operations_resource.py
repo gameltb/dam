@@ -1,3 +1,6 @@
+from ..functions import file_operations as ops
+
+
 class FileOperationsResource:
     """
     A resource that provides access to file system operations.
@@ -15,9 +18,6 @@ class FileOperationsResource:
         Initializes the FileOperationsResource by binding methods to the
         functions from the `dam_fs.functions.file_operations` module.
         """
-        # Import functions from the file_operations functions module
-        from ..functions import file_operations as ops
-
         # Make functions available as methods of this resource instance
         self.get_file_properties = ops.get_file_properties
         self.get_mime_type = ops.get_mime_type

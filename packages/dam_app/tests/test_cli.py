@@ -1,19 +1,31 @@
+import io
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
 from dam.commands.core import BaseCommand
 from dam.core.config import Settings
+from dam.core.operations import AssetOperation
+from dam.core.types import CallableStreamProvider
 from dam.core.world import World
+from dam.system_events.entity_events import NewEntityCreatedEvent
+from dam_archive.commands import CheckArchiveCommand, IngestArchiveCommand
+from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
 from pytest import CaptureFixture
+
+from dam_app.cli.assets import add_assets, check_data, process_entities, remove_data
+from dam_app.commands import CheckExifMetadataCommand, ExtractExifMetadataCommand
+from dam_app.main import (
+    cli_list_worlds,
+    create_and_register_all_worlds_from_settings,
+)
 
 
 @pytest.mark.serial
 def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any]):
     """Test the list-worlds command."""
-    from dam_app.main import cli_list_worlds, create_and_register_all_worlds_from_settings
-
     # Ensure worlds are registered
     create_and_register_all_worlds_from_settings(app_settings=settings_override)
 
@@ -27,20 +39,7 @@ def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any
 @pytest.mark.asyncio
 async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option for recursive processing."""
-    import io
-
-    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-
     # 1. Setup
-    from dam.core.operations import AssetOperation
-    from dam.core.types import CallableStreamProvider
-    from dam.system_events.entity_events import NewEntityCreatedEvent
-    from dam_archive.commands import CheckArchiveCommand, IngestArchiveCommand
-    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-
-    from dam_app.cli.assets import add_assets
-    from dam_app.commands import CheckExifMetadataCommand, ExtractExifMetadataCommand
-
     mock_world = MagicMock(spec=World)
 
     # Configure the mock to return specific operations
@@ -151,15 +150,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 @pytest.mark.asyncio
 async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option based on file extension."""
-    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-
     # 1. Setup
-    from dam.core.operations import AssetOperation
-    from dam_archive.commands import CheckArchiveCommand, IngestArchiveCommand
-    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-
-    from dam_app.cli.assets import add_assets
-
     mock_world = MagicMock(spec=World)
 
     # Configure the mock to return a specific operation
@@ -224,16 +215,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 @pytest.mark.asyncio
 async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
     """Test the add_assets command with the --process option using only the command name."""
-    from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
-
     # 1. Setup
-    from dam.core.operations import AssetOperation
-    from dam_archive.commands import CheckArchiveCommand, IngestArchiveCommand
-    from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-
-    from dam_app.cli.assets import add_assets
-    from dam_app.commands import CheckExifMetadataCommand, ExtractExifMetadataCommand
-
     # Reset cache before test to ensure dynamic logic is tested
     ExtractExifMetadataCommand._cached_extensions = None  # type: ignore [protected-access]
 
@@ -339,10 +321,6 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
 @pytest.mark.asyncio
 async def test_process_entities_command(capsys: CaptureFixture[Any]):
     """Test the 'process' CLI command."""
-    from dam.core.operations import AssetOperation
-
-    from dam_app.cli.assets import process_entities
-
     # 1. Setup
     mock_world = MagicMock(spec=World)
     mock_add_command = MagicMock()
@@ -380,10 +358,6 @@ async def test_process_entities_command(capsys: CaptureFixture[Any]):
 @pytest.mark.asyncio
 async def test_remove_data_command(capsys: CaptureFixture[Any]):
     """Test the 'remove-data' CLI command."""
-    from dam.core.operations import AssetOperation
-
-    from dam_app.cli.assets import remove_data
-
     # 1. Setup
     mock_world = MagicMock(spec=World)
     mock_remove_command = MagicMock()
@@ -414,10 +388,6 @@ async def test_remove_data_command(capsys: CaptureFixture[Any]):
 @pytest.mark.asyncio
 async def test_check_data_command(capsys: CaptureFixture[Any]):
     """Test the 'check-data' CLI command."""
-    from dam.core.operations import AssetOperation
-
-    from dam_app.cli.assets import check_data
-
     # 1. Setup
     mock_world = MagicMock(spec=World)
     mock_check_command = MagicMock()

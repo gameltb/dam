@@ -1,4 +1,5 @@
 import datetime
+import os
 import shutil
 import time
 from pathlib import Path
@@ -7,10 +8,16 @@ import pytest
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.models.hashes import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
 
-from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
+from dam_fs.commands import (
+    FindEntityByFilePropertiesCommand,
+    RegisterLocalFileCommand,
+    StoreAssetsCommand,
+)
 from dam_fs.models import FileLocationComponent, FilenameComponent
+from dam_fs.resources import FileStorageResource
 
 
 @pytest.mark.serial
@@ -110,8 +117,6 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     earlier_mtime_val = time.time() - 1000  # 1000 seconds in the past
 
     # Manually set older modification time
-    import os
-
     os.utime(earlier_file, (earlier_mtime_val, earlier_mtime_val))
     earlier_mod_time = datetime.datetime.fromtimestamp(earlier_mtime_val, tz=datetime.timezone.utc)
 
@@ -181,18 +186,12 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
 
     # 2. Dispatch the store command
-    from dam_fs.commands import StoreAssetsCommand
-
     store_cmd = StoreAssetsCommand(query="local_not_stored")
     await world.dispatch_command(store_cmd).get_all_results()
 
     # 3. Verify the file is in storage
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
-        from dam.models.hashes import ContentHashSHA256Component
-
-        from dam_fs.resources import FileStorageResource
-
         sha256_comp = await ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
         assert sha256_comp is not None
 

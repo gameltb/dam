@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from typing import Optional
 
@@ -42,12 +43,8 @@ def init_project(
             s = os.path.join(default_template_path, item)
             d = os.path.join(project_path, item)
             if os.path.isdir(s):
-                import shutil
-
                 shutil.copytree(s, d, False, dirs_exist_ok=True)
             else:
-                import shutil
-
                 shutil.copy2(s, d)
 
     print(f"Project initialized at: {project_path}")

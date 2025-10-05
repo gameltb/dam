@@ -1,4 +1,5 @@
 import glob
+from typing import List
 
 from typer.testing import CliRunner
 
@@ -19,7 +20,6 @@ def test_all_templates_md_conformance() -> None:
         md_files = glob.glob("**/*.md", recursive=True)
         assert md_files, "No .md files found in project"
         parser = MarkdownLLMParser()
-        from typing import List
 
         all_errors: List[str] = []
         for md_path in md_files:

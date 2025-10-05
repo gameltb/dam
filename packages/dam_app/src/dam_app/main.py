@@ -6,6 +6,7 @@ import typer
 from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
 from dam.core.transaction import WorldTransaction
+from dam.core.transaction_manager import TransactionManager
 from dam.core.world import (
     clear_world_registry,
     create_and_register_all_worlds_from_settings,
@@ -55,8 +56,6 @@ async def setup_db(ctx: typer.Context):
         raise typer.Exit(code=1)
     typer.echo(f"Setting up database for world: '{target_world.name}'...")
     try:
-        from dam.core.transaction_manager import TransactionManager
-
         transaction_manager = target_world.get_context(WorldTransaction)
         assert isinstance(transaction_manager, TransactionManager)
         await transaction_manager.create_db_and_tables()

@@ -4,6 +4,7 @@ import pytest
 import torch
 
 import sire
+from sire.core.runtime_resource_management import AutoManageHook
 
 
 # A simple model for testing
@@ -108,7 +109,6 @@ def test_automanage_hook() -> None:
         pytest.skip("CUDA not available, skipping GPU part of the test")
 
     model = SimpleModel()
-    from sire.core.runtime_resource_management import AutoManageHook
 
     hook = AutoManageHook.manage_module(model)
     hook.am.user.runtime_resource_pool = sire.get_resource_management().get_resource_pool(  # type: ignore

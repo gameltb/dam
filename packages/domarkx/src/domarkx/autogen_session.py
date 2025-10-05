@@ -9,7 +9,7 @@ from autogen_ext.models._utils.parse_r1_content import parse_r1_content
 
 from domarkx.agents.resume_funcall_assistant_agent import ResumeFunCallAssistantAgent
 from domarkx.session import Session
-from domarkx.utils.chat_doc_parser import MarkdownLLMParser, Message
+from domarkx.utils.chat_doc_parser import MarkdownLLMParser, Message, append_message
 from domarkx.utils.code_execution import execute_code_block
 from domarkx.utils.markdown_utils import CodeBlock
 
@@ -81,8 +81,6 @@ class AutoGenSession(Session):
         self.messages = messages
 
     def append_new_messages(self, new_state: dict[str, Any]) -> None:
-        from domarkx.utils.chat_doc_parser import append_message
-
         for message in new_state["llm_context"]["messages"][len(self.messages) :]:
             content = ""
             if "content" in message:

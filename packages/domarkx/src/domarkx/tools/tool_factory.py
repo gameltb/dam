@@ -11,6 +11,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import Traceback
 
+from domarkx.utils.code_execution import execute_code_block
+
 
 class ToolError(Exception):
     """Custom exception for tool-related errors."""
@@ -183,8 +185,6 @@ class ToolFactory:
         """
         Creates a tool from a string of Python code.
         """
-        from domarkx.utils.code_execution import execute_code_block
-
         local_namespace: dict[str, Any] = {}
         execute_code_block(code, global_vars=globals(), local_vars=local_namespace)
 
