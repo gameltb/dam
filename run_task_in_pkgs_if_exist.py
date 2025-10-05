@@ -1,4 +1,5 @@
 import glob
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -51,9 +52,6 @@ def extract_poe_tasks(file: Path) -> set[str]:
     return tasks
 
 
-import os
-
-
 def main() -> None:
     os.environ["MYPYPATH"] = "packages/"
     pyproject_file = Path(__file__).parent / "pyproject.toml"
@@ -69,10 +67,10 @@ def main() -> None:
             # remove from args
             args.pop(package_index + 1)
             args.pop(package_index)
-        else: # --package is the last arg
+        else:  # --package is the last arg
             args.pop(package_index)
 
-    if not package_to_run: # Handles None and ""
+    if not package_to_run:  # Handles None and ""
         package_to_run = None
 
     # Separate script args from task args
