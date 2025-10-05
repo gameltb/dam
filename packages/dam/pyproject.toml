@@ -26,11 +26,8 @@ classifiers = [
 dependencies = [
     "blake3",
     "sqlalchemy",
-    "typer",
-    "python-dotenv",
     "pydantic",
     "pydantic-settings", # For settings management
-    "psutil", # Added for system resource detection
     "psycopg[binary]", # For PostgreSQL connection using Psycopg 3
     "pgvector", # For vector support in SQLAlchemy
 ]
@@ -63,6 +60,10 @@ testpaths = ["tests"]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry]
+known_first_party = ["dam"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["psycopg", "pgvector"]

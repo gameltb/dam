@@ -24,10 +24,10 @@ classifiers = [
 dependencies = [
     "dam",
     "py7zr>=1.0.0",
-    "patool",
-    "zstandard",
     "rarfile",
     "psutil",
+    "sqlalchemy",
+    "dam-fs",
 ]
 
 [tool.ruff]
@@ -52,6 +52,7 @@ markers = [
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry]
+package_module_name_map = { "dam-fs" = "dam_fs" }

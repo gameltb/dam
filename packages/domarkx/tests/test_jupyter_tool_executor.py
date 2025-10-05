@@ -5,6 +5,7 @@ import pathlib
 from typing import Any, AsyncGenerator
 
 import pytest
+import pytest_asyncio
 from autogen_core.code_executor import CodeExecutor
 from autogen_ext.code_executors.docker_jupyter import DockerJupyterCodeExecutor
 from autogen_ext.code_executors.jupyter import JupyterCodeExecutor
@@ -18,7 +19,7 @@ def sample_tool(a: int, b: int) -> int:
     return a + b
 
 
-@pytest.fixture(params=[JupyterCodeExecutor, DockerJupyterCodeExecutor])
+@pytest_asyncio.fixture(params=[JupyterCodeExecutor, DockerJupyterCodeExecutor])
 async def code_executor(request: Any) -> AsyncGenerator[CodeExecutor, None]:
     executor_class = request.param
     try:
@@ -36,6 +37,7 @@ async def code_executor(request: Any) -> AsyncGenerator[CodeExecutor, None]:
         pytest.skip(f"Could not start {executor_class.__name__}: {e}")
 
 
+@pytest.mark.asyncio
 async def test_jupyter_tool_executor_with_different_code_executors(code_executor: CodeExecutor) -> None:
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
 
@@ -48,6 +50,7 @@ async def test_jupyter_tool_executor_with_different_code_executors(code_executor
     assert "15" in result
 
 
+@pytest.mark.asyncio
 async def test_execute_command_tool(code_executor: CodeExecutor) -> None:
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
     result = await tool_executor.execute(
@@ -56,6 +59,7 @@ async def test_execute_command_tool(code_executor: CodeExecutor) -> None:
     assert "Hello from command" in result
 
 
+@pytest.mark.asyncio
 async def test_read_and_write_file_tools(code_executor: CodeExecutor, tmp_path: pathlib.Path) -> None:
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
 

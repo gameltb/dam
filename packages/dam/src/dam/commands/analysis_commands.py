@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from dam.commands.core import EntityCommand, EventType, ResultType
-from dam.core.types import StreamProvider
-from dam.system_events.base import BaseSystemEvent
+from ..core.types import StreamProvider
+from ..system_events.base import BaseSystemEvent
+from .core import EntityCommand, EventType, ResultType
 
 if TYPE_CHECKING:
-    from dam.core.world import World
+    from ..core.world import World
 
 
 @dataclass
@@ -34,7 +34,7 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
         if self.stream_provider:
             return self.stream_provider
 
-        from dam.commands.asset_commands import GetAssetStreamCommand
+        from .asset_commands import GetAssetStreamCommand
 
         all_providers = await world.dispatch_command(GetAssetStreamCommand(entity_id=self.entity_id)).get_all_results()
 

@@ -26,6 +26,15 @@ dependencies = [
     "alembic",
     "python-magic",
     "tqdm",
+    "sqlalchemy",
+    "typer",
+    "dam_fs",
+    "dam_source",
+    "typing_extensions",
+    "rich",
+    "dam_archive",
+    "dam_sire",
+    "sire",
 ]
 
 [project.optional-dependencies]
@@ -70,6 +79,12 @@ markers = [
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "dam_media_audio",
+    "dam_media_transcode",
+    "dam_psp",
+    "dam_semantic",
+]

@@ -6,7 +6,13 @@ build-backend = "hatchling.build"
 name = "dam_media_audio"
 version = "0.1.0"
 dependencies = [
-    "dam"
+    "dam",
+    "numpy",
+    "dam_semantic",
+    "dam_sire",
+    "sire",
+    "sqlalchemy",
+    "dam_fs",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +44,4 @@ markers = [
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"

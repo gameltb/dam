@@ -16,7 +16,7 @@ class FileOperationsResource:
         functions from the `dam_fs.functions.file_operations` module.
         """
         # Import functions from the file_operations functions module
-        from dam_fs.functions import file_operations as ops
+        from ..functions import file_operations as ops
 
         # Make functions available as methods of this resource instance
         self.get_file_properties = ops.get_file_properties

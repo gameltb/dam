@@ -3,9 +3,9 @@ import asyncio
 import logging
 from typing import Any, AsyncGenerator, Generic, List, Optional, Self, TypeVar, overload
 
-from dam.system_events.requests import InformationRequest
 from dam.enums import ExecutionStrategy
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
+from dam.system_events.requests import InformationRequest
 
 ResultType = TypeVar("ResultType")
 EventType = TypeVar("EventType", bound=BaseSystemEvent)

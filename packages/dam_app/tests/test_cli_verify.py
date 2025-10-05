@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import os
 import zipfile
 from pathlib import Path
 
@@ -44,10 +45,11 @@ async def test_verify_single_file_ok(
     global_state.world_name = test_world_alpha.name
 
     # Run verification
+    os.chdir(tmp_path)
     await verify_assets(paths=[test_file], recursive=False, process=None, stop_on_error=True)
 
     # Check report
-    report_files = list(Path.cwd().glob("verification_report_*.csv"))
+    report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
         with open(report_files[0], "r") as f:
@@ -84,10 +86,11 @@ async def test_verify_single_file_fail(
     global_state.world_name = test_world_alpha.name
 
     # Run verification
+    os.chdir(tmp_path)
     await verify_assets(paths=[test_file], recursive=False, process=None, stop_on_error=True)
 
     # Check report
-    report_files = list(Path.cwd().glob("verification_report_*.csv"))
+    report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
         with open(report_files[0], "r") as f:
@@ -132,10 +135,11 @@ async def test_verify_archive_ok(
     global_state.world_name = test_world_alpha.name
 
     # Run verification
+    os.chdir(tmp_path)
     await verify_assets(paths=[zip_path], recursive=False, process=["VerifyArchiveContentsCommand"], stop_on_error=True)
 
     # Check report
-    report_files = list(Path.cwd().glob("verification_report_*.csv"))
+    report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
         with open(report_files[0], "r") as f:

@@ -8,9 +8,8 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import FileStreamProvider, StreamProvider
 from dam.core.world import World
 
-from dam_fs.utils.url_utils import get_local_path_for_url
-
 from ..models.file_location_component import FileLocationComponent
+from ..utils.url_utils import get_local_path_for_url
 
 logger = logging.getLogger(__name__)
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import BinaryIO, Set
 
-from dam.commands.core import BaseCommand
-from dam.system_events.base import BaseSystemEvent
-from dam.utils.hash_utils import HashAlgorithm
+from ..system_events.base import BaseSystemEvent
+from ..utils.hash_utils import HashAlgorithm
+from .core import BaseCommand
 
 
 @dataclass

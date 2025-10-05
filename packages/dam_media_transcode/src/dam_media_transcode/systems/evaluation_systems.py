@@ -11,11 +11,10 @@ from dam_fs.models.filename_component import FilenameComponent
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from dam_media_transcode.models.conceptual.evaluation_result_component import EvaluationResultComponent
-from dam_media_transcode.models.conceptual.evaluation_run_component import EvaluationRunComponent
-from dam_media_transcode.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-
 from ..functions import transcode_functions
+from ..models.conceptual.evaluation_result_component import EvaluationResultComponent
+from ..models.conceptual.evaluation_run_component import EvaluationRunComponent
+from ..models.conceptual.transcode_profile_component import TranscodeProfileComponent
 
 
 class EvaluationError(Exception):

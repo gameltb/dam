@@ -23,7 +23,9 @@ classifiers = [
 
 dependencies = [
     "torch",
-    "sire"
+    "sire",
+    "accelerate",
+    "diffusers",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +37,7 @@ dev = [
 ]
 
 all = [
-    "sire_pipelines[dev]",
+    "sire[dev]",
 ]
 
 [tool.ruff]
@@ -57,6 +59,4 @@ testpaths = ["tests"]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"

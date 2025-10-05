@@ -61,6 +61,20 @@ def main() -> None:
 
     args = sys.argv[1:]
 
+    package_to_run = None
+    if "--package" in args:
+        package_index = args.index("--package")
+        if package_index + 1 < len(args):
+            package_to_run = args[package_index + 1]
+            # remove from args
+            args.pop(package_index + 1)
+            args.pop(package_index)
+        else: # --package is the last arg
+            args.pop(package_index)
+
+    if not package_to_run: # Handles None and ""
+        package_to_run = None
+
     # Separate script args from task args
     task_args: List[str] = []
     script_args: List[str]
@@ -77,50 +91,6 @@ def main() -> None:
 
     task_name = script_args[0]
 
-    package_to_run = None
-    if "--package" in script_args:
-        try:
-            package_index = script_args.index("--package")
-            package_to_run = script_args[package_index + 1]
-        except (ValueError, IndexError):
-            print("Error: --package flag must be followed by a package name.")
-            sys.exit(1)
-
-    if task_name in ("check", "check-full", "check-ci"):
-        if task_args:
-            print(
-                f"Warning: Passing extra arguments to the '{task_name}' task is not supported. They will be ignored."
-            )
-        # Map the umbrella check tasks to the sequence of poe subtasks
-        tasks_to_run = {
-            "check": ["fmt", "lint", "pyright", "test"],
-            "check-full": ["fmt", "lint", "pyright", "mypy", "test"],
-            "check-ci": ["fmt", "lint", "pyright", "test-cov"],
-        }[task_name]
-
-        # If a package was specified, filter the discovered projects now so
-        # we can run the subtasks inside each project's PoeThePoet context.
-        if package_to_run:
-            projects = [p for p in projects if p.name == package_to_run]
-            if not projects:
-                print(f"Package '{package_to_run}' not found in workspace.")
-                sys.exit(1)
-
-        # Run each subtask using PoeThePoet within the target project's cwd.
-        for project in projects:
-            print(f"Running check tasks in {project}")
-            tasks = extract_poe_tasks(project / "pyproject.toml")
-            app = PoeThePoet(cwd=project)
-            for sub_task in tasks_to_run:
-                if sub_task in tasks:
-                    print(f"Running task {sub_task} in {project}")
-                    # run the subtask via the PoeThePoet app API
-                    result = app(cli_args=[sub_task])
-                    if result:
-                        # Propagate the first non-zero exit code
-                        sys.exit(result)
-        sys.exit(0)
-
     if package_to_run:
         projects = [p for p in projects if p.name == package_to_run]
         if not projects:
@@ -136,9 +106,10 @@ def main() -> None:
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
         if task_name in tasks:
-            print(f"Running task {task_name} in {project}")
+            print(f"Running task {task_name} in {project} with args {task_args}")
             app = PoeThePoet(cwd=project)
             result = app(cli_args=poe_cli_args)
+            print(f"Finished task {task_name} in {project} with exit code {result}")
             if result:
                 sys.exit(result)
         else:

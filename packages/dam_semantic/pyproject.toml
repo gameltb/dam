@@ -27,6 +27,9 @@ dependencies = [
     "dam_media_audio",
     "sentence-transformers",
     "numpy",
+    "dam_sire",
+    "sire",
+    "sqlalchemy",
 ]
 
 [tool.ruff]
@@ -48,6 +51,4 @@ testpaths = ["tests"]
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-test = "pytest -n auto"
-test-cov = "pytest -n auto --cov=src --cov-report=term-missing --cov-report=xml"
 mypy = "mypy --config-file ../../pyproject.toml src tests"

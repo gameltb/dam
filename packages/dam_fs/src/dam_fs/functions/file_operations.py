@@ -12,11 +12,10 @@ from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
 
-from dam_fs.utils.url_utils import get_local_path_for_url
-
 from ..models.file_location_component import FileLocationComponent
 from ..models.filename_component import FilenameComponent
 from ..resources.file_storage_resource import FileStorageResource
+from ..utils.url_utils import get_local_path_for_url
 
 logger = logging.getLogger(__name__)
 

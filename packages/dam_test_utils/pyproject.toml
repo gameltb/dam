@@ -28,7 +28,8 @@ dependencies = [
     "Pillow",
     "scipy",
     "torch",
-    "numpy"
+    "numpy",
+    "sqlalchemy",
 ]
 
 [tool.ruff]

@@ -9,9 +9,8 @@ from dam_fs.functions import file_operations
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils.url_utils import get_local_path_for_url
 
-from dam_media_audio.models.properties.audio_properties_component import AudioPropertiesComponent
-
 from ..commands import ExtractAudioMetadataCommand
+from ..models.properties.audio_properties_component import AudioPropertiesComponent
 
 logger = logging.getLogger(__name__)
 

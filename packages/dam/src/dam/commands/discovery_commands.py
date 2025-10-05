@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from dam.commands.core import EntityCommand
-from dam.system_events.base import BaseSystemEvent
+from ..system_events.base import BaseSystemEvent
+from .core import EntityCommand
 
 
 @dataclass

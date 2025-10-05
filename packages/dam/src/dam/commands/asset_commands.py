@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Optional, Tuple
 
-from dam.commands.core import BaseCommand, EntityCommand
-from dam.core.types import StreamProvider
-from dam.models.core.entity import Entity
-from dam.system_events.base import BaseSystemEvent
+from ..core.types import StreamProvider
+from ..models.core.entity import Entity
+from ..system_events.base import BaseSystemEvent
+from .core import BaseCommand, EntityCommand
 
 
 @dataclass
