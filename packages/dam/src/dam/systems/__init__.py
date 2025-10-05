@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Dynamically discover and import all modules in the current package
 # This avoids having to manually update a list of system modules.
 # This avoids having to manually update a list of system modules.
-for finder, name, ispkg in pkgutil.iter_modules(__path__, __name__ + "."):
+for _finder, name, _ispkg in pkgutil.iter_modules(__path__, __name__ + "."):
     try:
         importlib.import_module(name)
         logger.debug(f"Successfully imported system module: {name}")

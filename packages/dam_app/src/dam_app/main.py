@@ -62,7 +62,7 @@ async def setup_db(ctx: typer.Context):
         typer.secho("Database setup complete.", fg=typer.colors.GREEN)
     except Exception as e:
         typer.secho(f"Error during database setup: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.callback(invoke_without_command=True)
@@ -83,7 +83,7 @@ def main_callback(
         initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
     except Exception as e:
         typer.secho(f"Critical error: Could not initialize worlds: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     # Dynamically load all plugins
     plugins = {

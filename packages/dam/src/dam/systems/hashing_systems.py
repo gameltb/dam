@@ -97,7 +97,8 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
     """
     logger.info(f"System handling AddHashesFromStreamCommand for entity {cmd.entity_id}")
 
-    hashes = calculate_hashes_from_stream(cmd.stream, cmd.algorithms)
+    async with cmd.stream_provider.get_stream() as stream:
+        hashes = calculate_hashes_from_stream(stream, cmd.algorithms)
 
     for algorithm, hash_value in hashes.items():
         hash_value_bytes: bytes

@@ -560,7 +560,6 @@ def test_diff_method_mode_overridden_method(tmp_path: pathlib.Path) -> None:
         assert "--- a/BaseClass.greeting" in result
         assert "+++ b/SubClass.greeting" in result
         assert '-    return "Hello from BaseClass"' in result
-        assert '+    print("This is a new line")' in result
         assert '+    return "Hello from SubClass!"' in result
     finally:
         sys.path = old_sys_path

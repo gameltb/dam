@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import BinaryIO, Optional, Union
+from typing import Optional, Union
 
 from dam.core.types import StreamProvider
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def open_archive(
-    file_or_path_or_provider: Union[str, Path, BinaryIO, StreamProvider],
+    file_or_path_or_provider: Union[str, Path, StreamProvider],
     mime_type: str,
     password: Optional[str] = None,
 ) -> Optional[ArchiveHandler]:

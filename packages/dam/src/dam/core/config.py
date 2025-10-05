@@ -79,7 +79,7 @@ class Settings(BaseSettings):
                     raw_world_configs = json.load(f)
                 logger.info(f"Loaded world configurations from file: {config_source}")
             except (IOError, json.JSONDecodeError) as e:
-                raise ValueError(f"Error reading or parsing worlds config file {config_source}: {e}")
+                raise ValueError(f"Error reading or parsing worlds config file {config_source}: {e}") from e
         else:
             try:
                 raw_world_configs = json.loads(config_source)

@@ -1,6 +1,8 @@
+import logging
 from typing import Any, Dict, List, Optional, Type, TypeVar, cast
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 class ResourceNotFoundError(Exception):
@@ -48,7 +50,7 @@ class ResourceManager:
             # Depending on policy, could raise error, log a warning, or allow replacement.
             # For now, let's log a warning and replace.
             # Consider making this behavior configurable if needed.
-            print(f"Warning: Replacing existing resource for type {res_type.__name__}")
+            logger.warning(f"Replacing existing resource for type {res_type.__name__}")
 
         self._resources[res_type] = instance
 

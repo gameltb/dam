@@ -35,6 +35,7 @@ dependencies = [
     "dam_archive",
     "dam_sire",
     "sire",
+    "aiofiles",
 ]
 
 [project.optional-dependencies]
@@ -87,4 +88,5 @@ DEP002 = [
     "dam_media_transcode",
     "dam_psp",
     "dam_semantic",
+    "aiofiles",
 ]

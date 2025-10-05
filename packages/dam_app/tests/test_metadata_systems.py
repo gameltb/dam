@@ -1,3 +1,4 @@
+import asyncio
 import io
 import subprocess
 import tempfile
@@ -203,11 +204,32 @@ async def test_extract_metadata_with_large_json_output():
 
         large_meta_image_path = temp_dir_path / "test_image_large_meta.jpg"
         # We use -m to ignore minor errors about the size of the comment
-        subprocess.run(
-            ["exiftool", "-m", f"-UserComment<={comment_file_path}", str(image_path), "-o", str(large_meta_image_path)],
-            check=True,
-            capture_output=True,
+        process = await asyncio.create_subprocess_exec(
+            "exiftool",
+            "-m",
+            f"-UserComment<={comment_file_path}",
+            str(image_path),
+            "-o",
+            str(large_meta_image_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            assert process.returncode is not None
+            raise subprocess.CalledProcessError(
+                process.returncode,
+                [
+                    "exiftool",
+                    "-m",
+                    f"-UserComment<={comment_file_path}",
+                    str(image_path),
+                    "-o",
+                    str(large_meta_image_path),
+                ],
+                stdout,
+                stderr,
+            )
 
         metadata = await exiftool.get_metadata(filepath=large_meta_image_path)
 

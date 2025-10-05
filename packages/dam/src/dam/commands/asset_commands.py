@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, BinaryIO, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from ..core.types import StreamProvider
 from ..models.core.entity import Entity
@@ -14,7 +14,7 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes], BaseS
     Returns a tuple of the entity and the calculated sha256 hash.
     """
 
-    stream: BinaryIO
+    stream_provider: StreamProvider
 
 
 @dataclass

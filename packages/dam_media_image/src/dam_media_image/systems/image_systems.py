@@ -1,6 +1,8 @@
+import io
 import logging
 from typing import Any, Dict, List, Optional
 
+import aiofiles
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -57,8 +59,10 @@ async def handle_find_similar_images_command(
 
         source_entity_id = None
         try:
-            with open(cmd.image_path, "rb") as f:
-                hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
+            async with aiofiles.open(cmd.image_path, "rb") as f:
+                content = await f.read()
+            stream = io.BytesIO(content)
+            hashes = calculate_hashes_from_stream(stream, {HashAlgorithm.SHA256})
             source_content_hash_bytes = hashes[HashAlgorithm.SHA256]
             source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")  # type: ignore
             if source_entity:

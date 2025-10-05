@@ -99,6 +99,41 @@ async def reissue_archive_member_events_handler(
     yield ProgressCompleted(message="Finished re-issuing events for members.")
 
 
+def _create_archive_member_stream_provider(
+    archive_stream_provider: StreamProvider,
+    mime_type: str,
+    password: Optional[str],
+    target_entity_id: int,
+    path_in_archive: str,
+) -> StreamProvider:
+    class ArchiveMemberStreamProvider(StreamProvider):
+        @asynccontextmanager
+        async def get_stream(self) -> AsyncIterator[BinaryIO]:
+            archive = await open_archive(archive_stream_provider, mime_type, password)
+            if not archive:
+                raise IOError(f"Could not open archive for entity {target_entity_id}")
+
+            member_stream = None
+            try:
+                _, member_stream = archive.open_file(path_in_archive)
+                yield member_stream
+            finally:
+                # Ensure the member stream is closed if it's not done by the consumer
+                if member_stream:
+                    try:
+                        member_stream.close()
+                    except Exception:
+                        pass
+                await archive.close()
+
+    return ArchiveMemberStreamProvider()
+
+
+def _create_command_stream_provider(stream: BinaryIO) -> CallableStreamProvider:
+    """Creates a stream provider for a command from a given stream."""
+    return CallableStreamProvider(lambda: stream)
+
+
 @system(on_command=GetAssetStreamCommand)
 async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
@@ -137,27 +172,13 @@ async def get_archive_asset_stream_handler(
             logger.warning(f"Could not get mime type for parent archive {target_entity_id}")
             continue
 
-        class ArchiveMemberStreamProvider(StreamProvider):
-            @asynccontextmanager
-            async def get_stream(self) -> AsyncIterator[BinaryIO]:
-                archive = await open_archive(archive_stream_provider, mime_type, password)
-                if not archive:
-                    raise IOError(f"Could not open archive for entity {target_entity_id}")
-
-                member_stream = None
-                try:
-                    _, member_stream = archive.open_file(path_in_archive)
-                    yield member_stream
-                finally:
-                    # Ensure the member stream is closed if it's not done by the consumer
-                    if member_stream:
-                        try:
-                            member_stream.close()
-                        except Exception:
-                            pass
-                    await archive.close()
-
-        return ArchiveMemberStreamProvider()
+        return _create_archive_member_stream_provider(
+            archive_stream_provider,
+            mime_type,
+            password,
+            target_entity_id,
+            path_in_archive,
+        )
 
     return None
 
@@ -280,24 +301,23 @@ async def _process_archive(
                         in_memory_buffer.seek(0)
                         buffer_content = in_memory_buffer.read()
 
-                        # Create a new stream for the command from the bytes object.
-                        stream_for_command = io.BytesIO(buffer_content)
-
                         # Create a provider that generates new streams from the bytes object for the event.
                         def event_provider(content: bytes = buffer_content) -> BinaryIO:
                             return io.BytesIO(content)
 
                         event_stream_provider = CallableStreamProvider(event_provider)
+                        command_stream_provider = event_stream_provider
                     else:
                         # For large files, we can't provide a re-readable event stream.
                         # The command gets a chained stream which consumes the buffer and the rest of the file stream.
                         in_memory_buffer.seek(0)
                         stream_for_command = cast(BinaryIO, ChainedStream([in_memory_buffer, member_stream]))
+                        command_stream_provider = _create_command_stream_provider(stream_for_command)
 
                     # --- Entity handling (Create vs. Re-issue) ---
                     # Initial ingestion: Get or create entity from stream
                     member_entity_id: Optional[int] = None
-                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=stream_for_command)
+                    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream_provider=command_stream_provider)
                     member_entity_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
                     if member_entity_tuple:
                         member_entity, _ = member_entity_tuple

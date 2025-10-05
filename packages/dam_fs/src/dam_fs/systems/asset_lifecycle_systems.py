@@ -11,6 +11,7 @@ from dam.commands.asset_commands import (
 from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
+from dam.core.types import FileStreamProvider
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.core import Entity
@@ -104,9 +105,9 @@ async def register_local_file_handler(
         return existing_flc.entity_id
 
     # File is new or modified, proceed with hash-based entity creation/retrieval
-    with open(file_path, "rb") as f:
-        get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream=f)
-        result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
+    stream_provider = FileStreamProvider(file_path)
+    get_or_create_cmd = GetOrCreateEntityFromStreamCommand(stream_provider=stream_provider)
+    result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
     entity, _ = result_tuple
 
     async with transaction.session.begin_nested():

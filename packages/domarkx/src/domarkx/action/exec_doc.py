@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import Annotated, Any, Optional
 
+import aiofiles
 import typer
 from prompt_toolkit import PromptSession
 
@@ -21,8 +22,8 @@ async def aexec_doc(
     overwrite: bool = False,
 ) -> None:
     # Read the content from the document
-    with open(doc, "r") as f:
-        content = f.read()
+    async with aiofiles.open(doc, "r") as f:
+        content = await f.read()
 
     # Expand macros
     expander = DocExpander(base_dir=str(doc.parent))
@@ -42,8 +43,8 @@ async def aexec_doc(
         temp_filename = f"{now}_{doc.stem}.md"
         doc_to_exec = sessions_dir / temp_filename
 
-        with open(doc_to_exec, "w") as f:
-            f.write(expanded_content)
+        async with aiofiles.open(doc_to_exec, "w") as f:
+            await f.write(expanded_content)
     else:
         if not overwrite:
             # Check for timestamp with optional letters at the end of the stem
@@ -71,8 +72,8 @@ async def aexec_doc(
                 new_filename = f"{doc.stem}_{now}.md"
                 doc_to_exec = doc.with_name(new_filename)
 
-        with open(doc_to_exec, "w") as f:
-            f.write(expanded_content)
+        async with aiofiles.open(doc_to_exec, "w") as f:
+            await f.write(expanded_content)
 
     session = AutoGenSession(doc_to_exec)
     await session.setup()

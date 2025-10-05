@@ -290,7 +290,7 @@ class WorldScheduler:
                             resolved_deps_by_type[param.type_hint] = command_object
                             break
                 resolved_params_by_name.update(additional_kwargs)
-                for key, value in additional_kwargs.items():
+                for _key, value in additional_kwargs.items():
                     resolved_deps_by_type[type(value)] = value
 
                 unresolved_params = {

@@ -46,7 +46,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
         logging.info(f"Successfully read file '{path}'.")
     except IOError as e:
         logging.error(f"IO error occurred while reading file '{path}': {e}")
-        raise IOError(f"Could not read file '{path}': {e}")
+        raise IOError(f"Could not read file '{path}': {e}") from e
 
     current_lines = list(original_lines)  # Create a copy for modification
     operations: list[Operation] = []
@@ -68,8 +68,8 @@ def apply_diff_tool(path: str, diff: str) -> str:
                 raise ValueError("Invalid diff format: SEARCH block missing ':start_line:' after delimiter.")
             try:
                 start_line_num = int(line.split(":")[2].strip())
-            except (IndexError, ValueError):
-                raise ValueError("Invalid diff format: Invalid line number after ':start_line:'.")
+            except (IndexError, ValueError) as e:
+                raise ValueError("Invalid diff format: Invalid line number after ':start_line:'.") from e
 
             current_line_in_diff += 1
 
@@ -212,4 +212,4 @@ def apply_diff_tool(path: str, diff: str) -> str:
         return f"File '{path}' successfully updated with {len(operations)} diff blocks applied."
     except IOError as e:
         logging.error(f"IO error occurred while writing to file '{path}': {e}")
-        raise IOError(f"Could not write to file '{path}': {e}")
+        raise IOError(f"Could not write to file '{path}': {e}") from e

@@ -84,7 +84,7 @@ An error occurred in tool '{func.__name__}':
 {captured_logs_str}
 """.strip()
                 logging.error(f"Tool '{func.__name__}' encountered an error.")
-                raise ToolError(full_error_message, original_exception=e, captured_logs_str=captured_logs_str)
+                raise ToolError(full_error_message, original_exception=e, captured_logs_str=captured_logs_str) from e
             finally:
                 logging.getLogger().removeHandler(rich_handler)
                 logging.getLogger().propagate = True
@@ -173,7 +173,7 @@ class ToolFactory:
             @property
             def source_code(self) -> str:
                 if hasattr(self.fn, "__source_code__"):
-                    return str(getattr(self.fn, "__source_code__"))
+                    return str(self.fn.__source_code__)  # pyright: ignore[reportFunctionMemberAccess]
                 try:
                     return inspect.getsource(self.fn)
                 except TypeError:

@@ -1,7 +1,8 @@
 import asyncio
+import logging
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple, cast
+from typing import Optional, Tuple
 
 from dam.core.config import settings
 from dam.core.stages import SystemStage
@@ -12,7 +13,6 @@ from dam.functions import (
     tag_functions,
 )
 from dam.models.core.entity import Entity
-from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.utils import url_utils
@@ -22,6 +22,8 @@ from sqlalchemy.future import select
 from ..models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from ..models.conceptual.transcoded_variant_component import TranscodedVariantComponent
 from ..utils.media_utils import TranscodeError, transcode_media
+
+logger = logging.getLogger(__name__)
 
 
 class TranscodeFunctionsError(Exception):
@@ -105,7 +107,7 @@ async def create_transcode_profile(
         await session.refresh(profile_entity)
         await session.refresh(profile_component)
 
-        print(f"Transcode profile '{profile_name}' (Entity ID: {profile_entity.id}) created successfully.")
+        logger.info(f"Transcode profile '{profile_name}' (Entity ID: {profile_entity.id}) created successfully.")
         return profile_entity
 
 
@@ -216,10 +218,10 @@ async def apply_transcode_profile(
         temp_output_filepath = final_output_dir_base / temp_output_filename
 
         # 4. Execute Transcoding
-        print(
+        logger.info(
             f"Applying profile '{profile_component.profile_name}' to asset ID {source_asset_entity_id} ({source_filepath})"
         )
-        print(f"Output will be temporarily written to: {temp_output_filepath}")
+        logger.info(f"Output will be temporarily written to: {temp_output_filepath}")
 
         try:
             transcoded_filepath = await asyncio.to_thread(
@@ -242,38 +244,32 @@ async def apply_transcode_profile(
 
         # 5. Ingest the Transcoded File as a New Asset
         # This uses the existing asset ingestion event flow.
-        # The ingestion system will calculate hashes, extract metadata, and create FileLocationComponent.
         ingestion_command = RegisterLocalFileCommand(file_path=transcoded_filepath)
 
-        # Dispatch command. The handler will ingest the file.
-        await world.dispatch_command(ingestion_command).get_all_results()
+        # Dispatch command. The handler will ingest the file and return the new entity ID.
+        newly_ingested_entity_id = await world.dispatch_command(ingestion_command).get_one_value()
+
+        if not newly_ingested_entity_id:
+            raise TranscodeFunctionsError(
+                f"Failed to ingest transcoded asset at {transcoded_filepath}. "
+                "RegisterLocalFileCommand did not return an entity ID."
+            )
 
         # To ensure the file is processed by ingestion systems (metadata, etc.)
         # This would typically run after the event that adds NeedsMetadataExtractionComponent
         await world.execute_stage(SystemStage.METADATA_EXTRACTION)  # type: ignore
 
-        # Find the newly ingested asset by its hash.
-        # The ingestion system should have added ContentHashSHA256Component.
-        with open(transcoded_filepath, "rb") as f:
-            hashes = calculate_hashes_from_stream(f, {HashAlgorithm.SHA256})
-        transcoded_file_sha256_bytes = cast(bytes, hashes[HashAlgorithm.SHA256])
+        # Get the entity object from the ID
+        transcoded_asset_entity = await ecs_functions.get_entity(session, newly_ingested_entity_id)
 
-        # Query for the entity with this SHA256 hash
-        # Use ecs_functions.find_entity_by_content_hash
-        newly_ingested_entity_result = await ecs_functions.find_entity_by_content_hash(
-            session, transcoded_file_sha256_bytes, "sha256"
-        )
-
-        if not newly_ingested_entity_result:
+        if not transcoded_asset_entity:
             transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
-            # This could happen if ingestion failed silently or hash mismatch.
             raise TranscodeFunctionsError(
-                f"Failed to find newly ingested transcoded asset with SHA256 {transcoded_file_sha256_bytes.hex()}. "
-                "Ingestion might have failed or hash calculation mismatch."
+                f"Failed to find newly ingested transcoded asset with ID {newly_ingested_entity_id}. "
+                "Ingestion might have failed."
             )
 
-        transcoded_asset_entity = newly_ingested_entity_result
-        print(f"Transcoded asset ingested. New Entity ID: {transcoded_asset_entity.id}")
+        logger.info(f"Transcoded asset ingested. New Entity ID: {transcoded_asset_entity.id}")
 
         # 6. Create and Attach TranscodedVariantComponent
         transcoded_variant_comp = TranscodedVariantComponent(
@@ -292,7 +288,9 @@ async def apply_transcode_profile(
         await session.commit()
         await session.refresh(transcoded_asset_entity)  # Refresh to see all components if needed
 
-        print(f"TranscodedVariantComponent created and linked for new asset entity ID {transcoded_asset_entity.id}.")
+        logger.info(
+            f"TranscodedVariantComponent created and linked for new asset entity ID {transcoded_asset_entity.id}."
+        )
 
         # 8. Clean up the temporary transcoded file if it's different from final DAM storage path
         # The AssetFileIngestionRequested event handler should specify if the file was copied or moved.
@@ -301,9 +299,9 @@ async def apply_transcode_profile(
         if transcoded_filepath.exists():
             try:
                 transcoded_filepath.unlink()
-                print(f"Cleaned up temporary transcoded file: {transcoded_filepath}")
+                logger.info(f"Cleaned up temporary transcoded file: {transcoded_filepath}")
             except OSError as e:
-                print(f"Warning: Could not delete temporary transcoded file {transcoded_filepath}: {e}")
+                logger.warning(f"Could not delete temporary transcoded file {transcoded_filepath}: {e}")
 
         return transcoded_asset_entity
 

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import shutil
@@ -109,7 +110,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
         assert fnc.first_seen_at == recent_mod_time
 
     # 2. Create another file with the same name and content but an earlier timestamp
-    time.sleep(1)
+    await asyncio.sleep(1)
     earlier_file_dir = tmp_path / "earlier"
     earlier_file_dir.mkdir()
     earlier_file = earlier_file_dir / "test_file.txt"
@@ -155,7 +156,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
         original_mtime = flc.last_modified_at
 
     # 2. Modify the file
-    time.sleep(1)  # Ensure mtime changes
+    await asyncio.sleep(1)  # Ensure mtime changes
     temp_asset_file.touch()
     new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
 

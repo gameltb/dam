@@ -5,8 +5,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dam.commands.asset_commands import GetAssetStreamCommand
+from dam.commands.asset_commands import GetAssetStreamCommand, GetOrCreateEntityFromStreamCommand
 from dam.core.transaction import WorldTransaction
+from dam.core.types import CallableStreamProvider
 from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.functions.mime_type_functions import set_content_mime_type
@@ -106,7 +107,10 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
 
         # Verify stream passed to GetOrCreateEntityFromStreamCommand
         get_or_create_cmd = dispatch_spy.call_args.args[0]
-        assert isinstance(get_or_create_cmd.stream, ChainedStream)
+        assert isinstance(get_or_create_cmd, GetOrCreateEntityFromStreamCommand)
+        assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
+        async with get_or_create_cmd.stream_provider.get_stream() as stream:
+            assert isinstance(stream, ChainedStream)
 
     # 4. Clean up components for next run
     async with tm() as transaction:
@@ -143,9 +147,12 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
 
         # Verify stream passed to GetOrCreateEntityFromStreamCommand
         get_or_create_cmd = dispatch_spy.call_args.args[0]
-        assert isinstance(get_or_create_cmd.stream, io.BytesIO)
-        get_or_create_cmd.stream.seek(0)
-        assert get_or_create_cmd.stream.read() == file_content
+        assert isinstance(get_or_create_cmd, GetOrCreateEntityFromStreamCommand)
+        assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
+        async with get_or_create_cmd.stream_provider.get_stream() as stream:
+            assert isinstance(stream, io.BytesIO)
+            stream.seek(0)
+            assert stream.read() == file_content
 
 
 @pytest.mark.serial
