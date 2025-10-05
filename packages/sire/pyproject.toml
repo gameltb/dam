@@ -28,7 +28,10 @@ dependencies = [
     "psutil",
     "accelerate",
     "diffusers",
-    "transformers",
+    "pydantic",
+    "huggingface-hub",
+    "safetensors",
+    "numpy",
 ]
 
 [project.optional-dependencies]

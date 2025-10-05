@@ -19,9 +19,9 @@ from dam_fs.utils import url_utils
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from dam_media_transcode.models.conceptual.transcode_profile_component import TranscodeProfileComponent
-from dam_media_transcode.models.conceptual.transcoded_variant_component import TranscodedVariantComponent
-from dam_media_transcode.utils.media_utils import TranscodeError, transcode_media
+from ..models.conceptual.transcode_profile_component import TranscodeProfileComponent
+from ..models.conceptual.transcoded_variant_component import TranscodedVariantComponent
+from ..utils.media_utils import TranscodeError, transcode_media
 
 
 class TranscodeFunctionsError(Exception):

@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
     "dam",
     "pycdlib",
+    "sqlalchemy",
 ]
 
 [tool.ruff]

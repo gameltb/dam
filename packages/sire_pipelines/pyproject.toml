@@ -23,7 +23,9 @@ classifiers = [
 
 dependencies = [
     "torch",
-    "sire"
+    "sire",
+    "accelerate",
+    "diffusers",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +37,7 @@ dev = [
 ]
 
 all = [
-    "sire_pipelines[dev]",
+    "sire[dev]",
 ]
 
 [tool.ruff]

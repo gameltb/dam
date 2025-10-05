@@ -8,7 +8,9 @@ version = "0.1.0"
 dependencies = [
     "dam",
     "imagehash",
-    "Pillow"
+    "Pillow",
+    "sqlalchemy",
+    "dam_fs",
 ]
 
 [project.optional-dependencies]

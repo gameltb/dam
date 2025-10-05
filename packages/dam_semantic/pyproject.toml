@@ -27,6 +27,9 @@ dependencies = [
     "dam_media_audio",
     "sentence-transformers",
     "numpy",
+    "dam_sire",
+    "sire",
+    "sqlalchemy",
 ]
 
 [tool.ruff]

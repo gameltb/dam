@@ -23,7 +23,7 @@ from dam.system_events.progress import (
 )
 from sqlalchemy import select
 
-from dam_psp.commands import (
+from .commands import (
     CheckCsoIngestionCommand,
     CheckPSPMetadataCommand,
     ClearCsoIngestionCommand,
@@ -32,15 +32,14 @@ from dam_psp.commands import (
     ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
-from dam_psp.cso_support import CsoDecompressor
-from dam_psp.psp_iso_functions import process_iso_stream
-
+from .cso_support import CsoDecompressor
 from .models import (
     CsoParentIsoComponent,
     IngestedCsoComponent,
     PSPSFOMetadataComponent,
     PspSfoRawMetadataComponent,
 )
+from .psp_iso_functions import process_iso_stream
 
 logger = logging.getLogger(__name__)
 

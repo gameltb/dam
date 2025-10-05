@@ -6,7 +6,13 @@ build-backend = "hatchling.build"
 name = "dam_media_audio"
 version = "0.1.0"
 dependencies = [
-    "dam"
+    "dam",
+    "numpy",
+    "dam_semantic",
+    "dam_sire",
+    "sire",
+    "sqlalchemy",
+    "dam_fs",
 ]
 
 [project.optional-dependencies]

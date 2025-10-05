@@ -6,7 +6,9 @@ build-backend = "hatchling.build"
 name = "dam_media_transcode"
 version = "0.1.0"
 dependencies = [
-    "dam"
+    "dam",
+    "dam_fs",
+    "sqlalchemy",
 ]
 
 [project.optional-dependencies]

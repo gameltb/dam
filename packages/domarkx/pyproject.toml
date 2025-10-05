@@ -26,12 +26,13 @@ dependencies = [
     "rich",
     "typer",
     "pyyaml",
-    "docker~=7.1.0",
+    "pydantic",
+    "pydantic-settings",
+    "pygments",
 ]
 
 [project.optional-dependencies]
 all = [
-    "pytest",
     "typer",
     "libcst",
 ]
@@ -66,3 +67,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry]
+known_first_party = ["domarkx"]

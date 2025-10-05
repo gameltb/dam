@@ -7,6 +7,7 @@ name = "dam_source"
 version = "0.1.0"
 dependencies = [
     "dam",
+    "sqlalchemy",
 ]
 
 [project.optional-dependencies]

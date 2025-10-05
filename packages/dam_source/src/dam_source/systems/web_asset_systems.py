@@ -5,10 +5,9 @@ from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.models.core.entity import Entity
 
-from dam_source.models.source_info.web_source_component import WebSourceComponent
-from dam_source.models.source_info.website_profile_component import WebsiteProfileComponent
-
 from ..commands import IngestWebAssetCommand
+from ..models.source_info.web_source_component import WebSourceComponent
+from ..models.source_info.website_profile_component import WebsiteProfileComponent
 
 logger = logging.getLogger(__name__)
 
