@@ -3,7 +3,7 @@ import asyncio
 import inspect
 import logging
 from collections import defaultdict
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -20,6 +20,7 @@ from typing import (
     get_origin,
 )
 
+from dam.commands.core import BaseCommand
 from dam.core.enums import SystemType
 from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
@@ -31,7 +32,7 @@ from dam.models.core.base_component import BaseComponent
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 
 if TYPE_CHECKING:
-    from dam.commands.core import BaseCommand, EventType, ResultType
+    from dam.commands.core import EventType, ResultType
     from dam.core.world import World
 
 
@@ -42,8 +43,6 @@ T = TypeVar("T")
 
 
 def _parse_system_params(func: Callable[..., Any]) -> Dict[str, SystemParameterInfo]:
-    from dam.commands.core import BaseCommand
-
     sig = inspect.signature(func)
     param_info: Dict[str, SystemParameterInfo] = {}
     for name, param in sig.parameters.items():
@@ -149,8 +148,6 @@ def system(
 
 class WorldScheduler:
     def __init__(self, world: "World") -> None:
-        from dam.commands.core import BaseCommand
-
         self.world = world
         self.resource_manager = world.resource_manager
         self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
@@ -167,8 +164,6 @@ class WorldScheduler:
         command_type: Optional[Type["BaseCommand[Any, Any]"]] = None,
         **kwargs: Any,
     ) -> None:
-        from dam.commands.core import BaseCommand
-
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             return
@@ -259,8 +254,6 @@ class WorldScheduler:
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
     ) -> AsyncGenerator[BaseSystemEvent, None]:
-        from contextlib import AsyncExitStack
-
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             metadata = SystemMetadata(

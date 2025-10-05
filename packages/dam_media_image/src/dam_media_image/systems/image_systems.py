@@ -7,6 +7,8 @@ from dam.core.world import World
 from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 from dam_fs.functions import file_operations
 from dam_fs.models.filename_component import FilenameComponent
+from PIL import Image
+from sqlalchemy import select as sql_select
 
 from ..commands import FindSimilarImagesCommand
 from ..events import ImageAssetDetected
@@ -67,7 +69,6 @@ async def handle_find_similar_images_command(
             )
 
         potential_matches: list[dict[str, Any]] = []
-        from sqlalchemy import select as sql_select
 
         if input_phash_obj:
             all_phashes_stmt = sql_select(ImagePerceptualPHashComponent)
@@ -185,8 +186,6 @@ async def process_image_metadata_system(
     """
     Listens for an image asset being detected and extracts its metadata.
     """
-    from PIL import Image
-
     logger.info(f"Processing image metadata for entity {event.entity.id}")
 
     try:

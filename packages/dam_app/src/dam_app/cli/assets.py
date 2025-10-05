@@ -24,6 +24,7 @@ from dam_fs.commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
+from rich import print_json
 from rich.console import Console
 from rich.table import Table
 from rich.traceback import Traceback
@@ -342,8 +343,6 @@ async def show_entity(
         if not components_dict:
             typer.secho(f"No components found for entity {entity_id}", fg=typer.colors.YELLOW)
             return
-        from rich import print_json
-
         print_json(data=components_dict)
 
 

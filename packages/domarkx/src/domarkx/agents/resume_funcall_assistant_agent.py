@@ -4,6 +4,7 @@ from typing import (
     List,
     Sequence,
     Union,
+    cast,
 )
 
 from autogen_agentchat.agents import AssistantAgent
@@ -17,6 +18,7 @@ from autogen_core import CancellationToken, FunctionCall
 from autogen_core.models import (
     AssistantMessage,
     CreateResult,
+    RequestUsage,
 )
 from rich.console import Console
 
@@ -64,9 +66,6 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
             and all(isinstance(item, FunctionCall) for item in model_context_messages[-1].content)
         ):
             fun_model_result = model_context_messages[-1]
-            from typing import cast
-
-            from autogen_core.models import RequestUsage
 
             create_result = CreateResult(
                 finish_reason="function_calls",

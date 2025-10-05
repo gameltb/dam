@@ -22,12 +22,15 @@ from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.core.transaction import WorldTransaction
+from dam.core.transaction_manager import TransactionManager
 from dam.core.world import (
     World,
     clear_world_registry,
     create_and_register_world,
 )
 from dam.models.core.base_class import Base
+from PIL import Image
+from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _original_settings_values: Dict[str, Any] = {}
@@ -125,7 +128,6 @@ async def _setup_world(
 
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
-    from dam.core.transaction_manager import TransactionManager
 
     transaction_manager = world.get_context(WorldTransaction)
     assert isinstance(transaction_manager, TransactionManager)
@@ -140,8 +142,6 @@ async def _setup_world(
 
 async def _teardown_world_async(world: World) -> None:
     if world and world.has_context(WorldTransaction):
-        from dam.core.transaction_manager import TransactionManager
-
         transaction_manager = world.get_context(WorldTransaction)
         assert isinstance(transaction_manager, TransactionManager)
         db_mngr = transaction_manager.db_manager
@@ -236,8 +236,6 @@ def temp_asset_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def temp_image_file(tmp_path: Path) -> Path:
-    from PIL import Image
-
     file_path = tmp_path / "test_image.png"
     img = Image.new("RGB", (60, 30), color="red")
     img.save(file_path)
@@ -246,8 +244,6 @@ def temp_image_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_image_a(tmp_path: Path) -> Path:
-    from PIL import Image
-
     file_path = tmp_path / "sample_A.png"
     img = Image.new("RGB", (2, 1), color=(128, 128, 128))
     img.save(file_path)
@@ -271,9 +267,6 @@ def sample_video_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
-    import numpy as np
-    from scipy.io.wavfile import write as write_wav  # type: ignore[import]
-
     file_path = tmp_path / "sample_audio_placeholder.wav"
     samplerate = 44100
     duration = 1
@@ -287,8 +280,6 @@ def sample_audio_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_gif_file_placeholder(tmp_path: Path) -> Path:
-    from PIL import Image
-
     file_path = tmp_path / "sample_gif_placeholder.gif"
     img = Image.new("RGB", (1, 1), color=(255, 255, 255))
     img.save(file_path)
@@ -297,9 +288,6 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
-    import numpy as np
-    from scipy.io.wavfile import write as write_wav  # type: ignore[import]
-
     file_path = tmp_path / "sample.wav"
     samplerate = 48000
     duration = 1

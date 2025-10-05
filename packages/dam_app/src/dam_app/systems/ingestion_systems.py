@@ -1,11 +1,14 @@
 import logging
 from typing import Annotated
 
+import magic
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions.mime_type_functions import set_content_mime_type
+from dam_archive.commands import TagArchivePartCommand
 from dam_fs.events import FileStored
+from dam_media_image.events import ImageAssetDetected
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +23,6 @@ async def asset_dispatcher_system(
     Listens for when a file has been stored, stores its mime type, and dispatches it
     to the appropriate processing pipeline based on its MIME type.
     """
-    import magic
-
     logger.info(f"Dispatching asset for entity {event.entity.id} with file path '{event.file_path}'.")
 
     try:
@@ -32,8 +33,6 @@ async def asset_dispatcher_system(
         await set_content_mime_type(transaction.session, event.entity.id, mime_type)
 
         if mime_type.startswith("image/"):
-            from dam_media_image.events import ImageAssetDetected
-
             await world.dispatch_event(ImageAssetDetected(entity=event.entity, file_id=event.file_id))
             logger.info(f"Dispatched entity {event.entity.id} to image processing pipeline.")
 
@@ -44,8 +43,6 @@ async def asset_dispatcher_system(
             "application/x-rar-compressed",
             "application/x-7z-compressed",
         ]:
-            from dam_archive.commands import TagArchivePartCommand
-
             await world.dispatch_command(TagArchivePartCommand(entity_id=event.entity.id))
             logger.info(f"Dispatched entity {event.entity.id} to archive tagging pipeline.")
 

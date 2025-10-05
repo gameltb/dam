@@ -1,5 +1,6 @@
 import asyncio
 import pathlib
+import re
 from datetime import datetime
 from typing import Annotated, Any, Optional
 
@@ -45,8 +46,6 @@ async def aexec_doc(
             f.write(expanded_content)
     else:
         if not overwrite:
-            import re
-
             # Check for timestamp with optional letters at the end of the stem
             match = re.search(r"(_\d{8}_\d{6})([A-Z]*)$", doc.stem)
 

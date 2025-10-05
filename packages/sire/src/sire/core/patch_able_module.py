@@ -143,10 +143,8 @@ class ControlFlowPatchAbleModuleMixin(Generic[T]):
         return self.patcher_module_inst.patcher_module_map
 
     def patcher_module_init(self) -> None:
-        import torch
-
         self.patcher_module_inst = ControlFlowPatchAbleModule[T]()
-        self.patcher_module_dict = torch.nn.ModuleDict()
+        self.patcher_module_dict = nn.ModuleDict()
 
     def patcher_module_add(self, path_type: str, patch_object: ControlFlowPatchModuleMixin):
         patch_name = patch_object.get_patch_module_name()
@@ -163,9 +161,7 @@ class ControlFlowPatchAbleModuleMixin(Generic[T]):
         self.patcher_module_update()
 
     def patcher_module_update(self):
-        import torch
-
-        patcher_module_dict = torch.nn.ModuleDict()
+        patcher_module_dict = nn.ModuleDict()
 
         def add_patch_object(patch_object):
             patch_name = patch_object.get_patch_module_name()

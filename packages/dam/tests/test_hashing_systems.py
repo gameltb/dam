@@ -1,3 +1,4 @@
+import hashlib
 from io import BytesIO
 
 import pytest
@@ -38,8 +39,6 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
     async with tm() as transaction:
         md5_comp = await ecs_functions.get_component(transaction.session, entity_id, ContentHashMD5Component)
         assert md5_comp is not None
-        import hashlib
-
         assert md5_comp.hash_value == hashlib.md5(data).digest()
 
         sha256_comp = await ecs_functions.get_component(transaction.session, entity_id, ContentHashSHA256Component)

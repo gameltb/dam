@@ -1,4 +1,5 @@
 import io
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -31,7 +32,6 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
     file_content = b"a" * (1024 * 1024)  # 1 MB
     file_name_in_archive = "large_file.txt"
     archive_path = tmp_path / "large_archive.zip"
-    import zipfile
 
     with zipfile.ZipFile(archive_path, "w") as zf:
         zf.writestr(file_name_in_archive, file_content)
@@ -74,7 +74,6 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
     # 1. Create a test archive with a single file
     file_content = b"a" * (1024 * 1024)  # 1 MB
     archive_path = tmp_path / "large_archive.zip"
-    import zipfile
 
     with zipfile.ZipFile(archive_path, "w") as zf:
         zf.writestr("large_file.txt", file_content)

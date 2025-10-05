@@ -1,5 +1,6 @@
 from typing import Any, NewType, Optional, TypeVar
 
+import accelerate.hooks
 import diffusers
 import torch
 
@@ -66,8 +67,6 @@ class CommitAutoManage(CommitABC[T]):
 
     def revert(self, base_object: T) -> None:
         if self.am and isinstance(self.am.user, TorchModuleWrapper) and self.am.user.use_accelerate:
-            import accelerate.hooks
-
             if isinstance(base_object, torch.nn.Module):
                 accelerate.hooks.remove_hook_from_module(base_object, recurse=True)
                 self.am.user.use_accelerate = False

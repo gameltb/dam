@@ -10,6 +10,7 @@ from dam.models.core.base_component import (
     Component,
 )
 from dam.models.core.entity import Entity
+from dam.models.hashes import ContentHashMD5Component, ContentHashSHA256Component
 
 # No longer need to import specific components if REGISTERED_COMPONENT_TYPES is comprehensive
 
@@ -253,8 +254,6 @@ async def find_entity_id_by_hash(
     Returns the Entity ID or None if not found.
     Converts hex string hash_value to bytes before querying.
     """
-    from dam.models import ContentHashMD5Component, ContentHashSHA256Component  # Moved import here
-
     hash_bytes: bytes
     try:
         hash_bytes = bytes.fromhex(hash_value)
@@ -309,8 +308,6 @@ async def find_entity_by_content_hash(
     If multiple entities somehow have the same content hash (shouldn't happen for CAS),
     it will return the first one found.
     """
-    from dam.models import ContentHashMD5Component, ContentHashSHA256Component
-
     component_to_query: Type[Component]
     if hash_type.lower() == "sha256":
         component_to_query = ContentHashSHA256Component
