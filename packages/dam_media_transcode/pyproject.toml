@@ -9,7 +9,6 @@ dependencies = [
     "dam",
     "dam_fs",
     "sqlalchemy",
-    "aiofiles",
 ]
 
 [project.optional-dependencies]
