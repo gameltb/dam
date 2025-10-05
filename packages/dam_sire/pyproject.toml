@@ -18,9 +18,6 @@ dev = [
     "pytest-mock",
 ]
 
-all = [
-    "dam_sire[dev]",
-]
 
 [tool.ruff]
 extend = "../../pyproject.toml"
@@ -38,6 +35,3 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src"
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["dam_sire"]

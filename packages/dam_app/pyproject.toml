@@ -88,5 +88,4 @@ DEP002 = [
     "dam_media_transcode",
     "dam_psp",
     "dam_semantic",
-    "aiofiles",
 ]

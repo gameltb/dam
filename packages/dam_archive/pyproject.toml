@@ -31,9 +31,6 @@ dependencies = [
     "aiofiles>=23.2.1",
 ]
 
-[project.optional-dependencies]
-test = []
-
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist", "tests/test_assets"]
@@ -57,6 +54,3 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["aiofiles"]

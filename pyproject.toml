@@ -86,7 +86,7 @@ ignore = ["E501"]
 [tool.ruff.lint.flake8-tidy-imports]
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "unittest".msg = "Use `pytest` instead."
-"unittest.mock ".msg = "Use `pytest_mock` instead."
+"unittest.mock".msg = "Use `pytest_mock` instead."
 
 [tool.mypy]
 strict = true
@@ -136,5 +136,3 @@ markers = [
     "serial: mark a test as serial",
 ]
 
-[tool.deptry]
-exclude = [".venv"]

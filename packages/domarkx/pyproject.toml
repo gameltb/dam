@@ -29,21 +29,15 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "pygments",
+    "aiofiles>=23.2.1",
 ]
 
 [project.optional-dependencies]
-all = [
-    "typer",
-    "libcst",
-]
 jupyter-executor = [
     "autogen-ext[jupyter-executor]",
 ]
 docker-jupyter-executor = [
     "autogen-ext[docker-jupyter-executor]",
-]
-test = [
-    "aiofiles>=23.2.1",
 ]
 
 [project.scripts]
