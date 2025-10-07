@@ -1,7 +1,10 @@
+"""Tests for the markdown utilities."""
+
 from domarkx.utils.markdown_utils import find_code_blocks
 
 
 def test_find_code_blocks() -> None:
+    """Test that code blocks are correctly found in a markdown string."""
     text = """
 Some text
 ```python name=test.py
@@ -17,4 +20,5 @@ Some more text
 
 
 def test_find_macros() -> None:
+    """Test that macros are correctly found in a markdown string."""
     pass

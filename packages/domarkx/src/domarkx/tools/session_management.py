@@ -1,4 +1,6 @@
-import os
+"""Tools for managing chat sessions."""
+
+import pathlib
 import subprocess
 from datetime import datetime
 from typing import Any
@@ -31,16 +33,16 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
     The session file will be created in the sessions directory and committed to git.
 
     """
-    template_path = os.path.join(settings.project_path, "templates", f"{template_name}.md")
-    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
+    project_path = pathlib.Path(settings.project_path)
+    template_path = project_path / "templates" / f"{template_name}.md"
+    session_path = project_path / "sessions" / f"{session_name}.md"
 
-    if not os.path.exists(template_path):
+    if not template_path.exists():
         raise FileNotFoundError(f"Template not found: {template_path}")
 
-    with open(template_path) as f:
-        template_content = f.read()
+    template_content = template_path.read_text(encoding="utf-8")
 
-    expander = MacroExpander(base_dir=os.path.join(settings.project_path, "templates"))
+    expander = MacroExpander(base_dir=str(project_path / "templates"))
 
     override_parameters: dict[str, dict[str, Any]] = {}
     for key, value in parameters.items():
@@ -48,14 +50,14 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
 
     expanded_content = expander.expand(template_content, override_parameters=override_parameters)
 
-    with open(session_path, "w") as f:
-        f.write(expanded_content)
+    session_path.write_text(expanded_content, encoding="utf-8")
 
     # Add to git
-    subprocess.run(["git", "add", session_path], check=False, cwd=settings.project_path)
+    subprocess.run(["git", "add", str(session_path)], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Create session {session_name}"],
-        check=False, cwd=settings.project_path,
+        check=False,
+        cwd=settings.project_path,
     )
 
     return f"Session '{session_name}' created from template '{template_name}'."
@@ -83,19 +85,20 @@ def send_message(session_name: str, message: str) -> str:
     The message will be appended to the session file and committed to git.
 
     """
-    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
+    session_path = pathlib.Path(settings.project_path) / "sessions" / f"{session_name}.md"
 
-    if not os.path.exists(session_path):
+    if not session_path.exists():
         raise FileNotFoundError(f"Session not found: {session_path}")
 
-    with open(session_path, "a") as f:
+    with session_path.open("a", encoding="utf-8") as f:
         f.write(f"\n\n{message}")
 
     # Add to git
-    subprocess.run(["git", "add", session_path], check=False, cwd=settings.project_path)
+    subprocess.run(["git", "add", str(session_path)], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Send message to session {session_name}"],
-        check=False, cwd=settings.project_path,
+        check=False,
+        cwd=settings.project_path,
     )
 
     return f"Message sent to session '{session_name}'."
@@ -120,14 +123,12 @@ def get_messages(session_name: str) -> str:
         "...session content..."
 
     """
-    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
+    session_path = pathlib.Path(settings.project_path) / "sessions" / f"{session_name}.md"
 
-    if not os.path.exists(session_path):
+    if not session_path.exists():
         raise FileNotFoundError(f"Session not found: {session_path}")
 
-    with open(session_path) as f:
-        return f.read()
-
+    return session_path.read_text(encoding="utf-8")
 
 
 @tool_handler()
@@ -143,8 +144,8 @@ def list_sessions() -> str:
         "test_session.md\nanother_session.md"
 
     """
-    sessions_path = os.path.join(settings.project_path, "sessions")
-    sessions = [f for f in os.listdir(sessions_path) if f.endswith(".md")]
+    sessions_path = pathlib.Path(settings.project_path) / "sessions"
+    sessions = [p.name for p in sessions_path.iterdir() if p.is_file() and p.name.endswith(".md")]
     return "\n".join(sessions)
 
 
@@ -170,29 +171,31 @@ def archive_session(session_name: str, topic: str) -> str:
     The session file will be moved to the archive directory and the changes will be committed to git.
 
     """
-    session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
-    if not os.path.exists(session_path):
+    project_path = pathlib.Path(settings.project_path)
+    session_path = project_path / "sessions" / f"{session_name}.md"
+    if not session_path.exists():
         raise FileNotFoundError(f"Session not found: {session_path}")
 
     # Get creation date
-    creation_timestamp = os.path.getctime(session_path)
+    creation_timestamp = session_path.stat().st_ctime
     creation_date = datetime.fromtimestamp(creation_timestamp).strftime("%Y-%m-%d")
 
     # Create archive directory
-    archive_dir = os.path.join(settings.project_path, "archive", topic)
-    os.makedirs(archive_dir, exist_ok=True)
+    archive_dir = project_path / "archive" / topic
+    archive_dir.mkdir(parents=True, exist_ok=True)
 
     # Move and rename session file
     new_session_name = f"{creation_date}_{session_name}.md"
-    new_session_path = os.path.join(archive_dir, new_session_name)
-    os.rename(session_path, new_session_path)
+    new_session_path = archive_dir / new_session_name
+    session_path.rename(new_session_path)
 
     # Add to git
-    subprocess.run(["git", "add", new_session_path], check=False, cwd=settings.project_path)
-    subprocess.run(["git", "rm", session_path], check=False, cwd=settings.project_path)
+    subprocess.run(["git", "add", str(new_session_path)], check=False, cwd=settings.project_path)
+    subprocess.run(["git", "rm", str(session_path)], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Archive session {session_name} to {topic}"],
-        check=False, cwd=settings.project_path,
+        check=False,
+        cwd=settings.project_path,
     )
 
     return f"Session '{session_name}' archived to '{new_session_path}'."

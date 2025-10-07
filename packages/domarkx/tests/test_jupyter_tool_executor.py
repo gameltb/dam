@@ -1,3 +1,5 @@
+"""Tests for the Jupyter tool executor."""
+
 import asyncio
 import pathlib
 from collections.abc import AsyncGenerator
@@ -17,11 +19,13 @@ from domarkx.tools.tool_factory import default_tool_factory
 
 # A sample tool function to be executed remotely
 def sample_tool(a: int, b: int) -> int:
+    """Define a sample tool function for testing."""
     return a + b
 
 
 @pytest_asyncio.fixture(params=[JupyterCodeExecutor, DockerJupyterCodeExecutor])
 async def code_executor(request: Any) -> AsyncGenerator[CodeExecutor, None]:
+    """Provide a fixture to initialize and finalize code executors."""
     executor_class = request.param
     try:
         executor = executor_class()
@@ -40,6 +44,7 @@ async def code_executor(request: Any) -> AsyncGenerator[CodeExecutor, None]:
 
 @pytest.mark.asyncio
 async def test_jupyter_tool_executor_with_different_code_executors(code_executor: CodeExecutor) -> None:
+    """Test the JupyterToolExecutor with different code executors."""
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
 
     # Execute the tool
@@ -53,6 +58,7 @@ async def test_jupyter_tool_executor_with_different_code_executors(code_executor
 
 @pytest.mark.asyncio
 async def test_execute_command_tool(code_executor: CodeExecutor) -> None:
+    """Test the execute_command tool with the JupyterToolExecutor."""
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
     result = await tool_executor.execute(
         default_tool_factory.get_unwrapped_tool("tool_execute_command"), command="echo 'Hello from command'"
@@ -62,6 +68,7 @@ async def test_execute_command_tool(code_executor: CodeExecutor) -> None:
 
 @pytest.mark.asyncio
 async def test_read_and_write_file_tools(code_executor: CodeExecutor, tmp_path: pathlib.Path) -> None:
+    """Test the read_file and write_to_file tools with the JupyterToolExecutor."""
     tool_executor = JupyterToolExecutor(code_executor=code_executor)
 
     file_path = tmp_path / "test_file.txt"

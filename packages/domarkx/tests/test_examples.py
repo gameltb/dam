@@ -1,4 +1,6 @@
-import os
+"""Tests for the example documents."""
+
+import pathlib
 
 import pytest
 
@@ -6,18 +8,18 @@ from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
 
 def get_example_files() -> list[str]:
-    example_dir = os.path.join(os.path.dirname(__file__), "..", "examples")
-    if not os.path.isdir(example_dir):
+    """Get a list of all example markdown files."""
+    example_dir = pathlib.Path(__file__).parent.parent / "examples"
+    if not example_dir.is_dir():
         return []
-    return [os.path.join(example_dir, f) for f in os.listdir(example_dir) if f.endswith(".md")]
+    return [str(p) for p in example_dir.glob("*.md")]
 
 
 @pytest.mark.parametrize("filepath", get_example_files())
 def test_example_conformance(filepath: str) -> None:
     """Tests that example markdown files conform to the domarkx documentation format."""
     try:
-        with open(filepath, encoding="utf-8") as f:
-            content = f.read()
+        content = pathlib.Path(filepath).read_text(encoding="utf-8")
 
         parser = MarkdownLLMParser()
         doc = parser.parse(content)

@@ -1,4 +1,5 @@
 """The init command for domarkx."""
+
 import logging
 import pathlib
 import shutil

@@ -1,10 +1,12 @@
+"""A console rendering utility for AutoGen streams."""
+
 import asyncio
 import os
 import sys
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from inspect import iscoroutinefunction
-from typing import TypeVar, Union, cast
+from typing import TypeVar, cast
 
 from autogen_agentchat.agents import UserProxyAgent
 from autogen_agentchat.base import Response, TaskResult
@@ -36,17 +38,22 @@ def _is_output_a_tty() -> bool:
 
 SyncInputFunc = Callable[[str], str]
 AsyncInputFunc = Callable[[str, CancellationToken | None], Awaitable[str]]
-InputFuncType = Union[SyncInputFunc, AsyncInputFunc]
+InputFuncType = SyncInputFunc | AsyncInputFunc
 
 T = TypeVar("T", bound=TaskResult | Response)
 
 
 class UserInputManager:
+    """A manager for handling user input events."""
+
     def __init__(self, callback: InputFuncType):
+        """Initialize the UserInputManager."""
         self.input_events: dict[str, asyncio.Event] = {}
         self.callback = callback
 
     def get_wrapped_callback(self) -> AsyncInputFunc:
+        """Get a wrapped callback function that waits for an event before calling the original callback."""
+
         async def user_input_func_wrapper(prompt: str, cancellation_token: CancellationToken | None) -> str:
             # Lookup the event for the prompt, if it exists wait for it.
             # If it doesn't exist, create it and store it.
@@ -74,6 +81,7 @@ class UserInputManager:
         return user_input_func_wrapper
 
     def notify_event_received(self, request_id: str) -> None:
+        """Notify that an event has been received."""
         if request_id in self.input_events:
             self.input_events[request_id].set()
         else:
@@ -82,14 +90,16 @@ class UserInputManager:
 
 
 def aprint(output: str, end: str = "\n", flush: bool = False) -> Awaitable[None]:
+    """Asynchronously print to the console."""
     return asyncio.to_thread(print, output, end=end, flush=flush)
 
 
 def ainput(prompt: str) -> Awaitable[str]:
+    """Asynchronously get input from the console."""
     return asyncio.to_thread(input, prompt)
 
 
-async def Console[T: TaskResult | Response](
+async def console_render[T: TaskResult | Response](  # noqa: PLR0912, PLR0915
     stream: AsyncGenerator[BaseAgentEvent | BaseChatMessage | T, None],
     *,
     no_inline_images: bool = False,
@@ -98,9 +108,10 @@ async def Console[T: TaskResult | Response](
     exit_after_one_toolcall: bool = False,
 ) -> T | None:
     """
-    Consumes the message stream from :meth:`~autogen_agentchat.base.TaskRunner.run_stream`
-    or :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream` and renders the messages to the console.
-    Returns the last processed TaskResult or Response.
+    Consume the message stream and render the messages to the console.
+
+    This function consumes messages from a stream and renders them to the console,
+    handling different message types and providing options for outputting stats and images.
 
     .. note::
 
@@ -108,14 +119,14 @@ async def Console[T: TaskResult | Response](
         It will be improved in future releases.
 
     Args:
-        stream (AsyncGenerator[BaseAgentEvent | BaseChatMessage | TaskResult, None] | AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]): Message stream to render.
-            This can be from :meth:`~autogen_agentchat.base.TaskRunner.run_stream` or :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream`.
-        no_inline_images (bool, optional): If terminal is iTerm2 will render images inline. Use this to disable this behavior. Defaults to False.
-        output_stats (bool, optional): (Experimental) If True, will output a summary of the messages and inline token usage info. Defaults to False.
+        stream: Message stream to render.
+        no_inline_images: If terminal is iTerm2 will render images inline. Use this to disable this behavior.
+        output_stats: (Experimental) If True, will output a summary of the messages and inline token usage info.
+        user_input_manager: A manager for handling user input events.
+        exit_after_one_toolcall: If True, will exit after the first tool call.
 
     Returns:
-        last_processed: A :class:`~autogen_agentchat.base.TaskResult` if the stream is from :meth:`~autogen_agentchat.base.TaskRunner.run_stream`
-            or a :class:`~autogen_agentchat.base.Response` if the stream is from :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream`.
+        The last processed TaskResult or Response.
 
     """
     render_image_iterm = _is_running_in_iterm() and _is_output_a_tty() and not no_inline_images

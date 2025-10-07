@@ -1,4 +1,5 @@
 """Tool registration and execution for running tool calls."""
+
 import io
 import logging
 from collections.abc import Callable

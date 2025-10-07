@@ -1,3 +1,5 @@
+"""Tests for the python_code_handler tool."""
+
 import pathlib
 import sys
 
@@ -42,6 +44,7 @@ ANOTHER_CONSTANT = "hello"
 
 # --- Test _resolve_symbol_path helper function ---
 def test_resolve_symbol_path_top_level_module(tmp_path: pathlib.Path) -> None:
+    """Test that a top-level module can be resolved."""
     # Create a temporary module for testing symbol resolution
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
@@ -57,6 +60,7 @@ def test_resolve_symbol_path_top_level_module(tmp_path: pathlib.Path) -> None:
 
 
 def test_resolve_symbol_path_function_in_module(tmp_path: pathlib.Path) -> None:
+    """Test that a function in a module can be resolved."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -71,6 +75,7 @@ def test_resolve_symbol_path_function_in_module(tmp_path: pathlib.Path) -> None:
 
 
 def test_resolve_symbol_path_method_in_class(tmp_path: pathlib.Path) -> None:
+    """Test that a method in a class can be resolved."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -85,6 +90,7 @@ def test_resolve_symbol_path_method_in_class(tmp_path: pathlib.Path) -> None:
 
 
 def test_resolve_symbol_path_non_existent_symbol(tmp_path: pathlib.Path) -> None:
+    """Test that a non-existent symbol raises an error."""
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path))
     try:
@@ -97,6 +103,7 @@ def test_resolve_symbol_path_non_existent_symbol(tmp_path: pathlib.Path) -> None
 
 # --- Test List Mode ---
 def test_list_mode_path_all_names(tmp_path: pathlib.Path) -> None:
+    """Test listing all names in a file."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -110,6 +117,7 @@ def test_list_mode_path_all_names(tmp_path: pathlib.Path) -> None:
 
 
 def test_list_mode_path_specific_function_full_definition(tmp_path: pathlib.Path) -> None:
+    """Test listing the full definition of a specific function."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -124,6 +132,7 @@ def test_list_mode_path_specific_function_full_definition(tmp_path: pathlib.Path
 
 
 def test_list_mode_path_specific_class_with_docstring(tmp_path: pathlib.Path) -> None:
+    """Test listing the docstring of a specific class."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -139,6 +148,7 @@ def test_list_mode_path_specific_class_with_docstring(tmp_path: pathlib.Path) ->
 
 
 def test_list_mode_path_specific_method_full_definition(tmp_path: pathlib.Path) -> None:
+    """Test listing the full definition of a specific method."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -152,6 +162,7 @@ def test_list_mode_path_specific_method_full_definition(tmp_path: pathlib.Path) 
 
 
 def test_list_mode_path_non_existent_target(tmp_path: pathlib.Path) -> None:
+    """Test listing a non-existent target."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -162,6 +173,7 @@ def test_list_mode_path_non_existent_target(tmp_path: pathlib.Path) -> None:
 
 
 def test_list_mode_path_directory_scan(tmp_path: pathlib.Path) -> None:
+    """Test listing all definitions in a directory."""
     # Create example_module.py
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
@@ -196,6 +208,7 @@ def test_list_mode_path_directory_scan(tmp_path: pathlib.Path) -> None:
 
 
 def test_list_mode_symbol_function_with_docstring(tmp_path: pathlib.Path) -> None:
+    """Test listing the docstring of a specific function by symbol."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -214,6 +227,7 @@ def test_list_mode_symbol_function_with_docstring(tmp_path: pathlib.Path) -> Non
 
 
 def test_list_mode_symbol_class_full_definition(tmp_path: pathlib.Path) -> None:
+    """Test listing the full definition of a specific class by symbol."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -231,6 +245,7 @@ def test_list_mode_symbol_class_full_definition(tmp_path: pathlib.Path) -> None:
 
 
 def test_list_mode_symbol_non_existent() -> None:
+    """Test listing a non-existent symbol."""
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", target="non_existent_module.SomeClass")
     assert "Could not resolve file path for symbol 'non_existent_module.SomeClass'" in str(
@@ -240,6 +255,7 @@ def test_list_mode_symbol_non_existent() -> None:
 
 # --- Test Modify Mode ---
 def test_modify_mode_create_function(tmp_path: pathlib.Path) -> None:
+    """Test creating a function in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -262,6 +278,7 @@ def test_modify_mode_create_function(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_update_function(tmp_path: pathlib.Path) -> None:
+    """Test updating a function in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -287,6 +304,7 @@ def test_modify_mode_update_function(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_delete_function(tmp_path: pathlib.Path) -> None:
+    """Test deleting a function in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -303,6 +321,7 @@ def test_modify_mode_delete_function(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_create_method_in_class(tmp_path: pathlib.Path) -> None:
+    """Test creating a method in a class in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -322,6 +341,7 @@ def test_modify_mode_create_method_in_class(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_update_assignment(tmp_path: pathlib.Path) -> None:
+    """Test updating an assignment in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -339,6 +359,7 @@ def test_modify_mode_update_assignment(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_delete_assignment(tmp_path: pathlib.Path) -> None:
+    """Test deleting an assignment in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -354,6 +375,7 @@ def test_modify_mode_delete_assignment(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_mode_custom_script_update_docstring(tmp_path: pathlib.Path) -> None:
+    """Test updating a docstring with a custom script in modify mode."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
@@ -435,18 +457,21 @@ if not transformer.updated:
 
 # --- Error Handling Tests ---
 def test_invalid_mode() -> None:
+    """Test that an invalid mode raises an error."""
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="invalid_mode", target="anything")
     assert "Invalid mode: 'invalid_mode'." in str(excinfo.value.original_exception)
 
 
 def test_missing_target() -> None:
+    """Test that a missing target raises an error."""
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", target=None)
     assert "Parameter 'target' must be of type string." in str(excinfo.value.original_exception)
 
 
 def test_list_path_non_existent_file(tmp_path: pathlib.Path) -> None:
+    """Test that a non-existent file path raises an error."""
     non_existent_path = tmp_path / "non_existent.py"
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="list", path=str(non_existent_path), target="")
@@ -455,6 +480,7 @@ def test_list_path_non_existent_file(tmp_path: pathlib.Path) -> None:
 
 
 def test_list_path_syntax_error_file(tmp_path: pathlib.Path) -> None:
+    """Test that a file with a syntax error is handled gracefully."""
     syntax_error_module_path = tmp_path / "syntax_error_module.py"
     syntax_error_module_path.write_text("def incomplete_function(\n    return 1\n")
 
@@ -464,10 +490,11 @@ def test_list_path_syntax_error_file(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_non_existent_target(tmp_path: pathlib.Path) -> None:
+    """Test that modifying a non-existent target raises an error."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    with pytest.raises(ToolError, match="Operation failed: Target node not found."):
+    with pytest.raises(ToolError, match=r"Operation failed: Target node not found\."):
         python_code_handler(
             mode="modify",
             path=str(example_module_path),
@@ -478,10 +505,11 @@ def test_modify_non_existent_target(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_invalid_target_type(tmp_path: pathlib.Path) -> None:
+    """Test that modifying with an invalid target type raises an error."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    with pytest.raises(ToolError, match="Invalid or missing 'target_type'. Must be one of"):
+    with pytest.raises(ToolError, match=r"Invalid or missing 'target_type'\. Must be one of"):
         python_code_handler(
             mode="modify",
             path=str(example_module_path),
@@ -493,10 +521,11 @@ def test_modify_invalid_target_type(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_missing_code_content_for_create(tmp_path: pathlib.Path) -> None:
+    """Test that creating with missing code content raises an error."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    with pytest.raises(ToolError, match="create_code operation requires 'code_content'."):
+    with pytest.raises(ToolError, match=r"create_code operation requires 'code_content'\."):
         python_code_handler(
             mode="modify",
             path=str(example_module_path),
@@ -508,10 +537,11 @@ def test_modify_missing_code_content_for_create(tmp_path: pathlib.Path) -> None:
 
 
 def test_modify_missing_code_content_for_update(tmp_path: pathlib.Path) -> None:
+    """Test that updating with missing code content raises an error."""
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
 
-    with pytest.raises(ToolError, match="update_code operation requires 'code_content'."):
+    with pytest.raises(ToolError, match=r"update_code operation requires 'code_content'\."):
         python_code_handler(
             mode="modify",
             path=str(example_module_path),
@@ -524,6 +554,7 @@ def test_modify_missing_code_content_for_update(tmp_path: pathlib.Path) -> None:
 
 # Test when path is provided but it's a directory and no target_type is specified
 def test_list_mode_path_directory_no_target_type(tmp_path: pathlib.Path) -> None:
+    """Test listing a directory with no target type."""
     # Create example_module.py
     example_module_path = tmp_path / "example_module.py"
     example_module_path.write_text(ORIGINAL_EXAMPLE_MODULE_CONTENT)
@@ -547,6 +578,7 @@ def test_list_mode_path_directory_no_target_type(tmp_path: pathlib.Path) -> None
 
 # --- Test Diff Method Mode ---
 def test_diff_method_mode_overridden_method(tmp_path: pathlib.Path) -> None:
+    """Test diffing an overridden method."""
     # This test requires the diff_test_module to be in the python path
     # We can add the tests directory to sys.path
     old_sys_path = sys.path[:]
@@ -566,6 +598,7 @@ def test_diff_method_mode_overridden_method(tmp_path: pathlib.Path) -> None:
 
 
 def test_diff_method_mode_not_overridden(tmp_path: pathlib.Path) -> None:
+    """Test diffing a method that is not overridden."""
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path.parent))
     try:
@@ -579,6 +612,7 @@ def test_diff_method_mode_not_overridden(tmp_path: pathlib.Path) -> None:
 
 
 def test_diff_method_mode_identical_override(tmp_path: pathlib.Path) -> None:
+    """Test diffing a method that has an identical override."""
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path.parent))
     try:
@@ -592,6 +626,7 @@ def test_diff_method_mode_identical_override(tmp_path: pathlib.Path) -> None:
 
 
 def test_diff_method_mode_deep_inheritance(tmp_path: pathlib.Path) -> None:
+    """Test diffing a method with deep inheritance."""
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path.parent))
     try:
@@ -608,6 +643,7 @@ def test_diff_method_mode_deep_inheritance(tmp_path: pathlib.Path) -> None:
 
 
 def test_diff_method_mode_method_not_in_parent(tmp_path: pathlib.Path) -> None:
+    """Test diffing a method that is not in the parent class."""
     old_sys_path = sys.path[:]
     sys.path.insert(0, str(tmp_path.parent))
     try:
@@ -621,6 +657,7 @@ def test_diff_method_mode_method_not_in_parent(tmp_path: pathlib.Path) -> None:
 
 
 def test_diff_method_mode_invalid_target() -> None:
+    """Test diffing an invalid target."""
     # Test case for a target string that doesn't fit the package.module.Class.method format
     with pytest.raises(ToolError) as excinfo:
         python_code_handler(mode="diff_method", target="InvalidTargetString")

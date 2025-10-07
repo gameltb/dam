@@ -1,4 +1,5 @@
 """Executes tool calls from a message in a domarkx document."""
+
 import pathlib
 from typing import Annotated, Any
 

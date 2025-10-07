@@ -1,4 +1,5 @@
 """Tests for the exec_doc action."""
+
 import asyncio
 import pathlib
 import re
@@ -12,12 +13,11 @@ from pytest_mock import MockerFixture
 from domarkx.action.exec_doc import aexec_doc
 
 VALID_MD_CONTENT = "## user\n\n> hello"
+EXPECTED_FILE_COUNT = 3
 
 
 class StopTestError(Exception):
     """Exception to stop the test after file creation."""
-
-    pass
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def test_exec_doc_creates_new_timestamp_if_a_exists(tmp_path: pathlib.Path, stop
 
     created_files = list(tmp_path.glob("test_*.md"))
     # We should have 3 files: original, original_A, and the new one with a new timestamp
-    assert len(created_files) == 3
+    assert len(created_files) == EXPECTED_FILE_COUNT
 
     new_file = None
     for f in created_files:

@@ -1,3 +1,5 @@
+"""Tests for the code execution utility."""
+
 import io
 from contextlib import redirect_stderr
 from typing import Any
@@ -6,12 +8,14 @@ import pytest
 
 from domarkx.utils.code_execution import execute_code_block
 
+EXPECTED_RESULT = 3
+
 
 def test_execute_code_block_success() -> None:
     """Tests that execute_code_block successfully executes valid code."""
     local_vars: dict[str, Any] = {}
     execute_code_block("a = 1 + 2", local_vars=local_vars)
-    assert local_vars["a"] == 3
+    assert local_vars["a"] == EXPECTED_RESULT
 
 
 def test_execute_code_block_failure_with_source() -> None:

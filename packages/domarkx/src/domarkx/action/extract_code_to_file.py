@@ -1,4 +1,5 @@
 """Extracts code blocks from a domarkx document and saves them to files."""
+
 import logging
 import pathlib
 import re

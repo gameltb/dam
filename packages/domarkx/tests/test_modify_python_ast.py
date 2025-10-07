@@ -1,6 +1,7 @@
-import textwrap
+"""Tests for the modify_python_ast tool."""
 
-# Setup and Teardown for temporary test files
+import textwrap
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -11,8 +12,8 @@ from domarkx.tools.tool_factory import ToolError
 
 
 @pytest.fixture
-def temp_py_file(tmp_path: Any) -> Any:
-    """Creates a temporary Python file for testing."""
+def temp_py_file(tmp_path: Path) -> Path:
+    """Create a temporary Python file for testing."""
     file_path = tmp_path / "test_module.py"
     initial_content = textwrap.dedent("""
         # This is a comment
@@ -30,26 +31,24 @@ def temp_py_file(tmp_path: Any) -> Any:
 
         VAR = 10
     """)
-    with open(file_path, "w") as f:
-        f.write(initial_content)
+    file_path.write_text(initial_content)
     return file_path
 
 
 @pytest.fixture
-def invalid_file(tmp_path: Any) -> Any:
-    """Creates a temporary Python file for testing."""
+def invalid_file(tmp_path: Path) -> Path:
+    """Create a temporary invalid file for testing."""
     file_path = tmp_path / "invalid_file.txt"
     initial_content = textwrap.dedent("""
         =this is not python
     """)
-    with open(file_path, "w") as f:
-        f.write(initial_content)
+    file_path.write_text(initial_content)
     return file_path
 
 
-def read_file_content(file_path: Any) -> str:
-    with open(file_path) as f:
-        return f.read()
+def read_file_content(file_path: Path) -> str:
+    """Read the content of a file."""
+    return file_path.read_text()
 
 
 # Helper function to call the tool via execute_tool_call
@@ -60,6 +59,7 @@ def call_modify_python_ast_tool(
     symbol: Any = None,
     **kwargs: Any,
 ) -> Any:
+    """Call the modify_python_ast tool."""
     REGISTERED_TOOLS["modify_python_ast"] = python_code_handler.python_code_handler
     parameters: dict[str, Any] = {"mode": "modify"}
     if file_path:
@@ -86,7 +86,8 @@ def call_modify_python_ast_tool(
 
 
 # Test Cases for existing modification_script tests
-def test_add_function_with_script(temp_py_file: Any) -> None:
+def test_add_function_with_script(temp_py_file: Path) -> None:
+    """Test adding a function with a modification script."""
     script = textwrap.dedent("""
         class AddFunctionTransformer(cst.CSTTransformer):
             def leave_Module(self, original_node, updated_node):
@@ -108,7 +109,8 @@ def test_add_function_with_script(temp_py_file: Any) -> None:
     assert "existing_function" in content
 
 
-def test_modify_function_body_with_script(temp_py_file: Any) -> None:
+def test_modify_function_body_with_script(temp_py_file: Path) -> None:
+    """Test modifying a function body with a modification script."""
     script = textwrap.dedent("""
         class ModifyFunctionBodyTransformer(cst.CSTTransformer):
             def leave_FunctionDef(self, original_node, updated_node):
@@ -126,7 +128,8 @@ def test_modify_function_body_with_script(temp_py_file: Any) -> None:
     assert "return x * 2" not in content
 
 
-def test_add_class_with_script(temp_py_file: Any) -> None:
+def test_add_class_with_script(temp_py_file: Path) -> None:
+    """Test adding a class with a modification script."""
     script = textwrap.dedent("""
         class AddClassTransformer(cst.CSTTransformer):
             def leave_Module(self, original_node, updated_node):
@@ -147,7 +150,8 @@ def test_add_class_with_script(temp_py_file: Any) -> None:
     assert "def __init__(self):" in content
 
 
-def test_add_import_with_script(temp_py_file: Any) -> None:
+def test_add_import_with_script(temp_py_file: Path) -> None:
+    """Test adding an import with a modification script."""
     script = textwrap.dedent("""
         class AddImportTransformer(cst.CSTTransformer):
             def leave_Module(self, original_node, updated_node):
@@ -199,7 +203,8 @@ def test_add_import_with_script(temp_py_file: Any) -> None:
     assert content.lstrip().startswith("# This is a comment")
 
 
-def test_remove_function_with_script(temp_py_file: Any) -> None:
+def test_remove_function_with_script(temp_py_file: Path) -> None:
+    """Test removing a function with a modification script."""
     script = textwrap.dedent("""
         class RemoveFunctionTransformer(cst.CSTTransformer):
             def leave_FunctionDef(self, original_node, updated_node):
@@ -219,7 +224,8 @@ def test_remove_function_with_script(temp_py_file: Any) -> None:
 # --- New Test Cases for create_code, update_code, delete_code operations ---
 
 
-def test_create_function(temp_py_file: Any) -> None:
+def test_create_function(temp_py_file: Path) -> None:
+    """Test creating a function."""
     code_content = textwrap.dedent("""
         def new_top_level_function(a, b):
             return a * b
@@ -236,7 +242,8 @@ def test_create_function(temp_py_file: Any) -> None:
     assert "return a * b" in content
 
 
-def test_create_method_in_class(temp_py_file: Any) -> None:
+def test_create_method_in_class(temp_py_file: Path) -> None:
+    """Test creating a method in a class."""
     code_content = textwrap.dedent("""
         def new_method(self, value):
             return self.existing_method(value, 1) * 2
@@ -254,7 +261,8 @@ def test_create_method_in_class(temp_py_file: Any) -> None:
     assert "return self.existing_method(value, 1) * 2" in content
 
 
-def test_create_class(temp_py_file: Any) -> None:
+def test_create_class(temp_py_file: Path) -> None:
+    """Test creating a class."""
     code_content = textwrap.dedent("""
         class AnotherClass:
             def greet(self):
@@ -273,7 +281,8 @@ def test_create_class(temp_py_file: Any) -> None:
     assert 'return "Hello from AnotherClass"' in content
 
 
-def test_create_assignment(temp_py_file: Any) -> None:
+def test_create_assignment(temp_py_file: Path) -> None:
+    """Test creating an assignment."""
     code_content = "NEW_CONSTANT = 'hello'"
     call_modify_python_ast_tool(
         file_path=temp_py_file,
@@ -286,7 +295,8 @@ def test_create_assignment(temp_py_file: Any) -> None:
     assert "NEW_CONSTANT = 'hello'" in content
 
 
-def test_update_function_body(temp_py_file: Any) -> None:
+def test_update_function_body(temp_py_file: Path) -> None:
+    """Test updating a function body."""
     new_code = textwrap.dedent("""
         def existing_function(x, y):
             # Updated function body
@@ -306,7 +316,8 @@ def test_update_function_body(temp_py_file: Any) -> None:
     assert "return x * 2" not in content  # Ensure old content is gone
 
 
-def test_update_method_body(temp_py_file: Any) -> None:
+def test_update_method_body(temp_py_file: Path) -> None:
+    """Test updating a method body."""
     new_code = textwrap.dedent("""
         def existing_method(self, a, d, c):
             # Updated method body
@@ -326,7 +337,8 @@ def test_update_method_body(temp_py_file: Any) -> None:
     assert "return a + b" not in content  # Ensure old content is gone
 
 
-def test_update_assignment(temp_py_file: Any) -> None:
+def test_update_assignment(temp_py_file: Path) -> None:
+    """Test updating an assignment."""
     new_value = "VAR = 200"
     call_modify_python_ast_tool(
         file_path=temp_py_file,
@@ -340,7 +352,8 @@ def test_update_assignment(temp_py_file: Any) -> None:
     assert "VAR = 10" not in content
 
 
-def test_delete_function(temp_py_file: Any) -> None:
+def test_delete_function(temp_py_file: Path) -> None:
+    """Test deleting a function."""
     call_modify_python_ast_tool(
         file_path=temp_py_file,
         operation="delete_code",
@@ -352,7 +365,8 @@ def test_delete_function(temp_py_file: Any) -> None:
     assert "return x * 2" not in content
 
 
-def test_delete_method(temp_py_file: Any) -> None:
+def test_delete_method(temp_py_file: Path) -> None:
+    """Test deleting a method."""
     call_modify_python_ast_tool(
         file_path=temp_py_file,
         operation="delete_code",
@@ -365,7 +379,8 @@ def test_delete_method(temp_py_file: Any) -> None:
     assert "class MyClass:" in content  # Class itself should remain
 
 
-def test_delete_class(temp_py_file: Any) -> None:
+def test_delete_class(temp_py_file: Path) -> None:
+    """Test deleting a class."""
     call_modify_python_ast_tool(
         file_path=temp_py_file,
         operation="delete_code",
@@ -378,7 +393,8 @@ def test_delete_class(temp_py_file: Any) -> None:
     assert "def existing_method(self, a, b):" not in content
 
 
-def test_delete_assignment(temp_py_file: Any) -> None:
+def test_delete_assignment(temp_py_file: Path) -> None:
+    """Test deleting an assignment."""
     call_modify_python_ast_tool(
         file_path=temp_py_file,
         operation="delete_code",
@@ -389,7 +405,8 @@ def test_delete_assignment(temp_py_file: Any) -> None:
     assert "VAR = 10" not in content
 
 
-def test_create_code_error_invalid_type(temp_py_file: Any) -> None:
+def test_create_code_error_invalid_type(temp_py_file: Path) -> None:
+    """Test that creating code with an invalid type raises an error."""
     code_content = "def invalid_type_func(): pass"
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
@@ -402,7 +419,8 @@ def test_create_code_error_invalid_type(temp_py_file: Any) -> None:
     assert isinstance(excinfo.value.original_exception, ValueError)
 
 
-def test_update_code_error_not_found(temp_py_file: Any) -> None:
+def test_update_code_error_not_found(temp_py_file: Path) -> None:
+    """Test that updating a non-existent node raises an error."""
     new_code = "def non_existent_func(): pass"
     with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
@@ -417,7 +435,8 @@ def test_update_code_error_not_found(temp_py_file: Any) -> None:
     assert "def existing_function(x):" in content
 
 
-def test_delete_code_error_not_found(temp_py_file: Any) -> None:
+def test_delete_code_error_not_found(temp_py_file: Path) -> None:
+    """Test that deleting a non-existent node raises an error."""
     with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
             file_path=temp_py_file,
@@ -430,7 +449,8 @@ def test_delete_code_error_not_found(temp_py_file: Any) -> None:
     assert "class MyClass:" in content
 
 
-def test_create_code_error_parent_not_found(temp_py_file: Any) -> None:
+def test_create_code_error_parent_not_found(temp_py_file: Path) -> None:
+    """Test that creating code in a non-existent parent raises an error."""
     code_content = "def new_func_in_non_existent(): pass"
     with pytest.raises(ToolError, match=r"Operation failed: Target node not found"):
         call_modify_python_ast_tool(
@@ -445,7 +465,8 @@ def test_create_code_error_parent_not_found(temp_py_file: Any) -> None:
 
 
 # Generic error tests (kept as they are still relevant)
-def test_invalid_python_file_path(invalid_file: Any) -> None:
+def test_invalid_python_file_path(invalid_file: Path) -> None:
+    """Test that providing an invalid file path raises an error."""
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path="non_existent_file.py",
@@ -467,14 +488,16 @@ def test_invalid_python_file_path(invalid_file: Any) -> None:
     assert isinstance(excinfo.value.original_exception, ValueError)
 
 
-def test_syntax_error_in_script(temp_py_file: Any) -> None:
+def test_syntax_error_in_script(temp_py_file: Path) -> None:
+    """Test that a syntax error in a modification script raises an error."""
     script = "this is not python code"
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(temp_py_file, modification_script=script)
     assert isinstance(excinfo.value.original_exception, ToolError)
 
 
-def test_invalid_cst_manipulation_in_script(temp_py_file: Any) -> None:
+def test_invalid_cst_manipulation_in_script(temp_py_file: Path) -> None:
+    """Test that invalid CST manipulation in a script raises an error."""
     script = textwrap.dedent("""
         class BadTransformer(cst.CSTTransformer):
             def leave_FunctionDef(self, original_node, updated_node):
@@ -489,7 +512,8 @@ def test_invalid_cst_manipulation_in_script(temp_py_file: Any) -> None:
     assert isinstance(excinfo.value.original_exception, ToolError)
 
 
-def test_operation_missing_target_type(temp_py_file: Any) -> None:
+def test_operation_missing_target_type(temp_py_file: Path) -> None:
+    """Test that a missing target type for an operation raises an error."""
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=temp_py_file, operation="create_code", symbol="", code_content="def func(): pass"
@@ -497,13 +521,15 @@ def test_operation_missing_target_type(temp_py_file: Any) -> None:
     assert isinstance(excinfo.value.original_exception, ValueError)
 
 
-def test_operation_missing_code_content(temp_py_file: Any) -> None:
+def test_operation_missing_code_content(temp_py_file: Path) -> None:
+    """Test that missing code content for an operation raises an error."""
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(file_path=temp_py_file, operation="create_code", symbol="", target_type="function")
     assert isinstance(excinfo.value.original_exception, ValueError)
 
 
-def test_unknown_operation_name(temp_py_file: Any) -> None:
+def test_unknown_operation_name(temp_py_file: Path) -> None:
+    """Test that an unknown operation name raises an error."""
     with pytest.raises(ToolError) as excinfo:
         call_modify_python_ast_tool(
             file_path=temp_py_file,

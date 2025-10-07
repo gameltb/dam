@@ -1,4 +1,5 @@
 """Expands macros in markdown files."""
+
 import pathlib
 from typing import Any
 

@@ -1,4 +1,5 @@
 """A remote tool handler that wraps a tool function to provide logging and error handling."""
+
 import functools
 import logging
 import traceback
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def remote_tool_handler[F: Callable[..., Any]](func: F) -> F:
     """
-    A decorator for tool functions to handle logging and exception wrapping.
+    Decorate a tool function to handle logging and exception wrapping.
 
     Args:
         func: The tool function to wrap.

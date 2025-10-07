@@ -1,4 +1,5 @@
 """An AssistantAgent that can resume from a previous function call."""
+
 import uuid
 from collections.abc import AsyncGenerator, Sequence
 from typing import (

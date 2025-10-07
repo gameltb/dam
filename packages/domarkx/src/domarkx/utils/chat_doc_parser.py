@@ -1,3 +1,5 @@
+"""A parser for markdown-based chat documents."""
+
 import io
 import json
 import logging
@@ -13,11 +15,14 @@ from domarkx.utils.markdown_utils import CodeBlock
 
 @dataclass
 class Message:
+    """A message in a chat document."""
+
     speaker: str
     code_blocks: list[CodeBlock] = field(default_factory=lambda: [])
     content: str | None = None
 
     def get_code_blocks(self, language: str | None = None, attrs: str | None = None) -> list[CodeBlock]:
+        """Get code blocks from the message, optionally filtering by language and attributes."""
         return [
             cb
             for cb in self.code_blocks
@@ -26,6 +31,7 @@ class Message:
 
     @property
     def metadata(self) -> dict[str, Any] | None:
+        """Get the metadata for the message."""
         blocks = self.get_code_blocks(attrs="msg-metadata")
         if not blocks:
             return None
@@ -34,12 +40,14 @@ class Message:
 
 @dataclass
 class ParsedDocument:
+    """A parsed chat document."""
+
     global_metadata: dict[str, Any] = field(default_factory=lambda: {})
     code_blocks: list[CodeBlock] = field(default_factory=lambda: [])
     conversation: list[Message] = field(default_factory=lambda: [])
 
     def to_markdown(self) -> str:
-        """Serializes the document back to a markdown string."""
+        """Serialize the document back to a markdown string."""
         writer = io.StringIO()
 
         if self.global_metadata:
@@ -58,6 +66,7 @@ class ParsedDocument:
         return writer.getvalue()
 
     def get_code_blocks(self, language: str | None = None, attrs: str | None = None) -> list[CodeBlock]:
+        """Get code blocks from the document, optionally filtering by language and attributes."""
         return [
             cb
             for cb in self.code_blocks
@@ -66,6 +75,7 @@ class ParsedDocument:
 
     @property
     def session_config(self) -> dict[str, Any] | None:
+        """Get the session configuration from the document."""
         blocks = self.get_code_blocks(attrs="session-config")
         if not blocks:
             return None
@@ -73,7 +83,10 @@ class ParsedDocument:
 
 
 class MarkdownLLMParser:
+    """A parser for markdown-based chat documents."""
+
     def __init__(self) -> None:
+        """Initialize the parser."""
         self.document = ParsedDocument()
         self.logger = logging.getLogger(__name__)
 
@@ -82,6 +95,7 @@ class MarkdownLLMParser:
             raise ValueError(f"Section '{speaker}' must have at least one code block or a non-empty content.")
 
     def parse(self, md_content: str) -> ParsedDocument:
+        """Parse a markdown string into a ParsedDocument."""
         self.document = ParsedDocument()
         lines = md_content.splitlines(keepends=True)
         i = 0
@@ -174,6 +188,7 @@ class MarkdownLLMParser:
 
 
 def append_message(writer: io.TextIOBase, message: Message) -> None:
+    """Append a message to a text stream."""
     writer.write(f"\n## {message.speaker}\n\n")
     for code_block in message.code_blocks:
         writer.write(

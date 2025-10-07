@@ -1,3 +1,5 @@
+"""Tests for the AutoGenSession class."""
+
 from typing import Any
 
 import pytest
@@ -7,6 +9,7 @@ from domarkx.autogen_session import AutoGenSession
 
 @pytest.fixture
 def setup_script() -> str:
+    """Provide a fixture for a setup script."""
     return """
 ```python setup-script
 from unittest.mock import MagicMock
@@ -19,6 +22,7 @@ tools = [my_tool]
 
 
 def test_session_setup(tmp_path: Any, setup_script: str) -> None:
+    """Test that the session can be set up."""
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
@@ -29,6 +33,7 @@ def test_session_setup(tmp_path: Any, setup_script: str) -> None:
 
 @pytest.mark.asyncio
 async def test_session_setup_async(tmp_path: Any, setup_script: str) -> None:
+    """Test that the session can be set up asynchronously."""
     doc_path = tmp_path / "test.md"
     doc_path.write_text(setup_script)
 
@@ -40,6 +45,7 @@ async def test_session_setup_async(tmp_path: Any, setup_script: str) -> None:
 
 
 def test_get_code_block(tmp_path: Any) -> None:
+    """Test that code blocks can be retrieved by name."""
     doc_content = """
 ```python foo
 print("foo")
@@ -65,6 +71,7 @@ print("bar")
 
 @pytest.mark.asyncio
 async def test_remote_tool_execution(tmp_path: Any) -> None:
+    """Test that remote tools can be executed."""
     doc_content = """
 ```python setup-script
 from unittest.mock import MagicMock

@@ -1,4 +1,5 @@
 """Tests for the run_tool_code action."""
+
 import pathlib
 
 from typer.testing import CliRunner
