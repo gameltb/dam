@@ -1,3 +1,5 @@
+"""Defines the ArchivePasswordComponent."""
+
 from dam.models.core import BaseComponent as Component
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -13,4 +15,5 @@ class ArchivePasswordComponent(Component):
     __table_args__ = (UniqueConstraint("entity_id", name="uq_password_entity"),)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"ArchivePasswordComponent(id={self.id}, entity_id={self.entity_id})"

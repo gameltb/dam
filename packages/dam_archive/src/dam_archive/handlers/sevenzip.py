@@ -1,3 +1,5 @@
+"""Provides a 7z archive handler using py7zr library."""
+
 from __future__ import annotations
 
 import asyncio
@@ -168,6 +170,7 @@ class QueueWriter(Py7zIO):
     """A file-like object that writes to a queue with buffering."""
 
     def __init__(self, queue: Queue[bytes | Exception | None]):
+        """Initialize the queue writer."""
         self.queue = queue
         self._size = 0
         self._buffer: list[bytes] = []
@@ -190,6 +193,7 @@ class QueueWriter(Py7zIO):
         self._buffer_size = 0
 
     def write(self, s: bytes | bytearray) -> int:
+        """Write bytes to the buffer."""
         chunk = bytes(s)
         self._buffer.append(chunk)
         self._buffer_size += len(chunk)
@@ -200,24 +204,30 @@ class QueueWriter(Py7zIO):
 
         return len(chunk)
 
-    def read(self, _: int | None = None) -> bytes:
+    def read(self, size: int | None = None) -> bytes:  # noqa: ARG002
+        """Read is not supported."""
         return b""
 
     def seek(self, offset: int, whence: int = 0) -> int:
+        """Seek is not supported."""
         if offset == 0 and whence in (0, 1):
             return 0
         raise OSError(f"seek not supported (offset={offset}, whence={whence})")
 
     def flush(self) -> None:
+        """Flush the buffer to the queue."""
         self._flush_buffer()
 
     def size(self) -> int:
+        """Return the total size of bytes written."""
         return self._size
 
     def seekable(self) -> bool:
+        """Return True if the stream supports random access."""
         return True
 
     def close(self) -> None:
+        """Close the writer and signal end of stream."""
         self._flush_buffer()
         self.queue.put(None)
 
@@ -230,11 +240,13 @@ class StreamingFactory(WriterFactory):
         members_map: dict[str, ArchiveMemberInfo],
         results_queue: Queue[tuple[str, Queue[bytes | Exception | None]] | Exception | None],
     ):
+        """Initialize the streaming factory."""
         self.members_map = members_map
         self.results_queue = results_queue
         self.last_writer: QueueWriter | None = None
 
     def create(self, filename: str, _: str = "wb") -> Py7zIO | None:  # type: ignore[override]
+        """Create a writer for a given filename."""
         if self.last_writer:
             self.last_writer.close()
             self.last_writer = None
@@ -249,6 +261,7 @@ class StreamingFactory(WriterFactory):
         return None
 
     def close_last_writer(self) -> None:
+        """Close the last writer created by the factory."""
         if self.last_writer:
             self.last_writer.close()
             self.last_writer = None
@@ -258,12 +271,14 @@ class SevenZipArchiveHandler(ArchiveHandler):
     """An archive handler for 7z files that supports true streaming extraction."""
 
     def __init__(self, stream_provider: StreamProvider, password: str | None = None):
+        """Initialize the 7z archive handler."""
         super().__init__(stream_provider, password)
         self.members: list[ArchiveMemberInfo] = []
         self._threads: list[threading.Thread] = []
 
     @classmethod
     async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> SevenZipArchiveHandler:
+        """Asynchronously create and initialize a 7z archive handler."""
         handler = cls(stream_provider, password)
         try:
             async with stream_provider.get_stream() as stream:
@@ -325,6 +340,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
         return results_queue
 
     def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
+        """Iterate over all files in the archive."""
         results_queue = self._start_producer()
         while True:
             item = results_queue.get()
@@ -339,6 +355,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
                 yield member_info, _SevenZipStreamReader(data_queue)
 
     def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
+        """Open a specific file from the archive."""
         norm_name = PurePosixPath(file_name).as_posix()
         member_info = next((m for m in self.members if PurePosixPath(m.name).as_posix() == norm_name), None)
         if not member_info:
@@ -362,8 +379,10 @@ class SevenZipArchiveHandler(ArchiveHandler):
             temp_file.close()
 
     async def close(self) -> None:
+        """Close the archive and join any running threads."""
         for t in self._threads:
             t.join()
 
     def list_files(self) -> list[ArchiveMemberInfo]:
+        """List all files in the archive."""
         return self.members

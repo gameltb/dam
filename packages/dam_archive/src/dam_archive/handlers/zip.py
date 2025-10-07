@@ -1,3 +1,5 @@
+"""Provides a zip archive handler."""
+
 from __future__ import annotations
 
 import contextlib
@@ -18,15 +20,20 @@ class ZipArchiveHandler(ArchiveHandler):
     """An archive handler for zip files."""
 
     def __init__(self, stream_provider: StreamProvider, password: str | None = None):
+        """Initialize the zip archive handler."""
         super().__init__(stream_provider, password)
         self.members: list[ArchiveMemberInfo] = []
         self.filename_map: dict[str, str] = {}
         self._stream: BinaryIO | None = None
         self.zip_file: zipfile.ZipFile | None = None
-        self._stream_cm_exit: Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]] | None = None
+        self._stream_cm_exit: (
+            Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]]
+            | None
+        ) = None
 
     @classmethod
     async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> ZipArchiveHandler:
+        """Asynchronously create and initialize a zip archive handler."""
         handler = cls(stream_provider, password)
         stream_cm = stream_provider.get_stream()
         handler._stream = await stream_cm.__aenter__()
@@ -86,6 +93,7 @@ class ZipArchiveHandler(ArchiveHandler):
         return filename
 
     async def close(self) -> None:
+        """Close the zip archive."""
         if self.zip_file:
             with contextlib.suppress(Exception):
                 self.zip_file.close()
@@ -97,6 +105,7 @@ class ZipArchiveHandler(ArchiveHandler):
         self._stream_cm_exit = None
 
     def list_files(self) -> list[ArchiveMemberInfo]:
+        """List all files in the archive."""
         return self.members
 
     def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
@@ -118,6 +127,7 @@ class ZipArchiveHandler(ArchiveHandler):
                 raise OSError(f"Failed to open file in zip: {e}") from e
 
     def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
+        """Open a specific file from the archive and return a file-like object."""
         if not self.zip_file:
             raise OSError(f"File not found in zip: {file_name}")
 
@@ -147,6 +157,7 @@ class ZipArchiveHandler(ArchiveHandler):
 
     @property
     def comment(self) -> str | None:
+        """Return the comment of the zip archive."""
         if not self.zip_file or not self.zip_file.comment:
             return None
         return self._decode_comment(self.zip_file.comment)

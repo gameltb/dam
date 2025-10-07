@@ -1,3 +1,5 @@
+"""Tests for the split archive detector."""
+
 import pytest
 
 from dam_archive.split_detector import SplitArchiveInfo, detect
@@ -29,5 +31,5 @@ from dam_archive.split_detector import SplitArchiveInfo, detect
     ],
 )
 def test_detect_split_archive(filename: str, expected: SplitArchiveInfo | None):
-    """Tests that the split archive detection works for various patterns."""
+    """Test that the split archive detection works for various patterns."""
     assert detect(filename) == expected

@@ -1,3 +1,5 @@
+"""Pytest fixtures for archive tests."""
+
 import subprocess
 import zipfile
 from pathlib import Path
@@ -32,7 +34,7 @@ def test_7z_content(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture(scope="session")
 def regular_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
-    """Creates a regular 7z archive."""
+    """Create a regular 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "regular_archive.7z"
     subprocess.run(
         ["7z", "a", str(archive_path), "file.txt"],
@@ -44,7 +46,7 @@ def regular_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content
 
 @pytest.fixture(scope="session")
 def protected_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
-    """Creates a password-protected 7z archive."""
+    """Create a password-protected 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "protected_archive.7z"
     subprocess.run(
         ["7z", "a", "-ppassword", str(archive_path), "file.txt"],
@@ -56,7 +58,7 @@ def protected_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_conte
 
 @pytest.fixture(scope="session")
 def bcj2_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
-    """Creates a BCJ2-filtered 7z archive."""
+    """Create a BCJ2-filtered 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "bcj2_archive.7z"
     subprocess.run(
         ["7z", "a", "-m0=BCJ2", "-m1=LZMA", str(archive_path), "hello_x86"],
@@ -68,6 +70,7 @@ def bcj2_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: P
 
 @pytest.fixture
 def test_archives(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a regular and a protected zip archive for testing."""
     # Regular archive
     regular_archive_path = tmp_path / "regular.zip"
     with zipfile.ZipFile(regular_archive_path, "w") as zf:

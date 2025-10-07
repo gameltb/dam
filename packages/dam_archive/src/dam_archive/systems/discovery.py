@@ -1,3 +1,5 @@
+"""Discovery system for the archive plugin."""
+
 import logging
 from pathlib import Path
 
@@ -16,7 +18,7 @@ async def discover_archive_path_siblings_handler(
     cmd: DiscoverPathSiblingsCommand,
     transaction: WorldTransaction,
 ) -> list[PathSibling] | None:
-    """Handles discovering path-based sibling entities for an entity that is a member of an archive."""
+    """Discover path-based sibling entities for an entity that is a member of an archive."""
     logger.debug("discover_archive_path_siblings_handler running for entity %s", cmd.entity_id)
 
     # 1. Get the ArchiveMemberComponent for the starting entity

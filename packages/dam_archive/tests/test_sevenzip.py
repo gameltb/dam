@@ -1,3 +1,5 @@
+"""Tests for 7z archive handling."""
+
 import datetime
 from pathlib import Path
 
@@ -15,6 +17,7 @@ NESTED_CONTENT = b"content_nested"
 
 @pytest.fixture
 def dummy_7z_file(tmp_path: Path) -> Path:
+    """Create a dummy 7z file."""
     file_path = tmp_path / "test.7z"
     with py7zr.SevenZipFile(file_path, "w") as z:
         z.writestr(CONTENT1, "file1.txt")
@@ -23,6 +26,7 @@ def dummy_7z_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_7z_archive(dummy_7z_file: Path) -> None:
+    """Test opening a simple 7z archive."""
     archive = None
     try:
         archive = await open_archive(dummy_7z_file, "application/x-7z-compressed")
@@ -39,7 +43,7 @@ async def test_open_7z_archive(dummy_7z_file: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
-    """Tests that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives."""
+    """Test that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives."""
     # We test SevenZipArchiveHandler directly, as open_archive would fall back to the CLI handler.
     stream_provider = to_stream_provider(bcj2_7z_archive)
     with pytest.raises(UnsupportedArchiveError):
@@ -48,6 +52,7 @@ async def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
 
 @pytest.fixture
 def protected_7z_file(tmp_path: Path) -> Path:
+    """Create a password-protected 7z file."""
     file_path = tmp_path / "protected.7z"
     with py7zr.SevenZipFile(file_path, "w", password="password") as z:
         z.writestr(CONTENT1, "file1.txt")
@@ -56,6 +61,7 @@ def protected_7z_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> None:
+    """Test opening a protected 7z archive with the correct password."""
     archive = None
     try:
         archive = await open_archive(protected_7z_file, "application/x-7z-compressed", password="password")
@@ -71,6 +77,7 @@ async def test_open_protected_7z_with_correct_password(protected_7z_file: Path) 
 
 @pytest.mark.asyncio
 async def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path) -> None:
+    """Test opening a protected 7z archive with an incorrect password."""
     archive = None
     try:
         with pytest.raises(InvalidPasswordError):
@@ -82,6 +89,7 @@ async def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path
 
 @pytest.fixture
 def nested_7z_file(tmp_path: Path) -> Path:
+    """Create a 7z file with a nested file."""
     file_path = tmp_path / "nested.7z"
     with py7zr.SevenZipFile(file_path, "w") as z:
         z.writestr(NESTED_CONTENT, "folder/nested_file.txt")
@@ -90,6 +98,7 @@ def nested_7z_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_nested_7z_file(nested_7z_file: Path) -> None:
+    """Test opening a 7z file with a nested file."""
     archive = None
     try:
         archive = await open_archive(nested_7z_file, "application/x-7z-compressed")
@@ -107,6 +116,7 @@ async def test_open_nested_7z_file(nested_7z_file: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_iter_files_7z_archive(dummy_7z_file: Path) -> None:
+    """Test iterating over files in a 7z archive."""
     archive = None
     try:
         archive = await open_archive(dummy_7z_file, "application/x-7z-compressed")

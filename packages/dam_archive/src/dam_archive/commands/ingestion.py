@@ -1,3 +1,5 @@
+"""Commands related to the ingestion of archive files."""
+
 from dataclasses import dataclass
 
 from dam.commands.analysis_commands import AnalysisCommand
@@ -9,6 +11,7 @@ from dam.system_events.base import BaseSystemEvent
 class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
     """
     A command to ingest members from an archive asset into the ECS world.
+
     This command returns a stream of events.
     """
 
@@ -16,7 +19,7 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
 
     @classmethod
     def get_supported_types(cls) -> dict[str, list[str]]:
-        """Returns a dictionary of supported MIME types and file extensions for archives."""
+        """Return a dictionary of supported MIME types and file extensions for archives."""
         return {
             "mimetypes": [],
             "extensions": [".zip", ".rar", ".7z"],

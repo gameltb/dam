@@ -1,3 +1,5 @@
+"""Provides a function to detect split archive parts."""
+
 import re
 from re import Pattern
 from typing import NamedTuple
@@ -29,7 +31,7 @@ SPLIT_ARCHIVE_PATTERNS: list[Pattern[str]] = [
 
 def detect(filename: str) -> SplitArchiveInfo | None:
     """
-    Detects if a filename belongs to a split archive based on known patterns.
+    Detect if a filename belongs to a split archive based on known patterns.
 
     Args:
         filename: The filename to check.

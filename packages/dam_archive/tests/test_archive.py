@@ -1,3 +1,5 @@
+"""Tests for the archive opening logic."""
+
 import datetime
 import subprocess
 import zipfile
@@ -15,6 +17,7 @@ CONTENT2 = b"content2"
 
 @pytest.fixture
 def dummy_zip_file(tmp_path: Path) -> Path:
+    """Create a dummy zip file for testing."""
     zip_path = tmp_path / "test.zip"
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr("file1.txt", CONTENT1)
@@ -25,6 +28,7 @@ def dummy_zip_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_zip_archive(dummy_zip_file: Path) -> None:
+    """Test opening a simple zip archive."""
     archive = await open_archive(dummy_zip_file, "application/zip")
     assert archive is not None
     assert archive.comment == "test comment"
@@ -52,6 +56,7 @@ async def test_open_zip_archive(dummy_zip_file: Path) -> None:
 
 @pytest.fixture
 def protected_zip_file(tmp_path: Path) -> Path:
+    """Create a password-protected zip file for testing."""
     zip_path = tmp_path / "protected.zip"
     file_to_zip = tmp_path / "file1.txt"
     file_to_zip.write_text("content1")
@@ -73,6 +78,7 @@ def protected_zip_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_protected_zip_with_correct_password(protected_zip_file: Path) -> None:
+    """Test opening a protected zip archive with the correct password."""
     archive = await open_archive(protected_zip_file, "application/zip", password="password")
     assert archive is not None
     member_info, f_in_zip = archive.open_file("file1.txt")
@@ -84,12 +90,14 @@ async def test_open_protected_zip_with_correct_password(protected_zip_file: Path
 
 @pytest.mark.asyncio
 async def test_open_protected_zip_with_incorrect_password(protected_zip_file: Path) -> None:
+    """Test opening a protected zip archive with an incorrect password."""
     with pytest.raises(InvalidPasswordError):
         await open_archive(protected_zip_file, "application/zip", password="wrong_password")
 
 
 @pytest.mark.asyncio
 async def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> None:
+    """Test opening a zip archive using a stream provider."""
     stream_provider = to_stream_provider(str(dummy_zip_file))
     archive = await open_archive(stream_provider, "application/zip")
     assert archive is not None

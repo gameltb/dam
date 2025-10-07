@@ -1,3 +1,5 @@
+"""Commands related to split archives."""
+
 from dataclasses import dataclass
 
 from dam.commands.core import BaseCommand, EntityCommand
@@ -8,6 +10,7 @@ from dam.system_events.base import BaseSystemEvent
 class UnbindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
     """
     A command to unbind a split archive by deleting its manifest and part info.
+
     When given the entity_id of a master archive, it unbinds it.
     When given the entity_id of a part, it finds the master and unbinds it.
     """
@@ -26,8 +29,9 @@ class CreateMasterArchiveCommand(BaseCommand[None, BaseSystemEvent]):
 @dataclass
 class BindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
     """
-    A command that attempts to discover and bind a split archive group
-    starting from the given entity.
+    A command that attempts to discover and bind a split archive group.
+
+    Starting from the given entity.
     """
 
     pass

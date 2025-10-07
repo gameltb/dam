@@ -1,3 +1,4 @@
+"""Commands for archive operations."""
 # Main entry point for commands in the dam_archive package.
 
 from .ingestion import (

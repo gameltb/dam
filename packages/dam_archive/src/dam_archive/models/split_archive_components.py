@@ -1,3 +1,4 @@
+"""Defines components related to split archives."""
 
 from dam.models.core import UniqueComponent as Component
 from sqlalchemy import BigInteger, ForeignKey, Integer
@@ -22,6 +23,7 @@ class SplitArchivePartInfoComponent(Component):
 class SplitArchiveManifestComponent(Component):
     """
     Component to hold the manifest of a complete split archive.
+
     This is typically attached to a master virtual entity.
     """
 

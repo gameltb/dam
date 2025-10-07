@@ -1,3 +1,5 @@
+"""Tests for rar archive handling."""
+
 import subprocess
 from pathlib import Path
 
@@ -10,7 +12,7 @@ NUM_FILES_IN_DUMMY_RAR = 2
 
 @pytest.fixture
 def dummy_rar_file(tmp_path: Path) -> Path:
-    """Creates a dummy rar file with a couple of files in it."""
+    """Create a dummy rar file with a couple of files in it."""
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     (src_dir / "file1.txt").write_text("content1")
@@ -31,6 +33,7 @@ def dummy_rar_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_rar_archive(dummy_rar_file: Path) -> None:
+    """Test opening a simple rar archive."""
     archive = await open_archive(str(dummy_rar_file), "application/vnd.rar")
     assert archive is not None
     files = archive.list_files()
@@ -52,7 +55,7 @@ async def test_open_rar_archive(dummy_rar_file: Path) -> None:
 
 @pytest.fixture
 def protected_rar_file(tmp_path: Path) -> Path:
-    """Creates a dummy password-protected rar file."""
+    """Create a dummy password-protected rar file."""
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     (src_dir / "file1.txt").write_text("content1")
@@ -71,6 +74,7 @@ def protected_rar_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
+    """Test opening a protected rar archive."""
     archive = await open_archive(str(protected_rar_file), "application/vnd.rar", password="password")
     assert archive is not None
     member_info, f = archive.open_file("file1.txt")
@@ -82,7 +86,7 @@ async def test_open_protected_rar_archive(protected_rar_file: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
-    # This test checks the iter_files method for rar archives.
+    """Test iterating over files in a rar archive."""
     archive = await open_archive(str(dummy_rar_file), "application/vnd.rar")
     assert archive is not None
 

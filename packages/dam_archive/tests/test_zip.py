@@ -1,3 +1,5 @@
+"""Tests for zip archive handling, especially with non-ASCII filenames."""
+
 import zipfile
 from pathlib import Path
 
@@ -10,6 +12,7 @@ FILE_CONTENT = b"content"
 
 @pytest.fixture
 def utf8_encoded_zip_file(tmp_path: Path) -> Path:
+    """Create a zip file with a UTF-8 encoded filename."""
     file_path = tmp_path / "utf8_test.zip"
     # "测试" means "test" in Chinese.
     filename_in_zip = "测试.txt"
@@ -20,6 +23,7 @@ def utf8_encoded_zip_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
+    """Test opening a zip file with a UTF-8 encoded filename."""
     # This test checks the happy path where the filename is UTF-8 encoded
     # and the UTF-8 flag is set in the zip file.
     archive = await open_archive(utf8_encoded_zip_file, "application/zip")
@@ -35,6 +39,7 @@ async def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
 
 @pytest.fixture
 def cp437_encoded_zip_file(tmp_path: Path) -> Path:
+    """Create a zip file with a CP437 encoded filename."""
     # It's difficult to create a zip file with a specific non-UTF-8 encoding
     # for the filename using the standard zipfile library.
     # This test creates a zip file where the filename is encoded with cp437,
@@ -52,6 +57,7 @@ def cp437_encoded_zip_file(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> None:
+    """Test opening a zip file with a CP437 encoded filename."""
     # This test checks the fallback path where the filename is not UTF-8.
     # My code attempts to decode with cp437, then utf-8, then gbk.
     # In this case, the filename is valid cp437.
@@ -63,6 +69,7 @@ async def test_open_zip_with_cp437_filename(cp437_encoded_zip_file: Path) -> Non
 
 @pytest.mark.asyncio
 async def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
+    """Test iterating over files in a zip with a UTF-8 encoded filename."""
     # This test checks the iter_files method.
     archive = await open_archive(utf8_encoded_zip_file, "application/zip")
     assert archive is not None

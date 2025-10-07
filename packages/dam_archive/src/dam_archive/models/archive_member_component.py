@@ -1,3 +1,5 @@
+"""Defines the ArchiveMemberComponent."""
+
 from datetime import datetime
 
 from dam.models.core import BaseComponent as Component

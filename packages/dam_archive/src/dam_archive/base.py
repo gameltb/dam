@@ -1,3 +1,5 @@
+"""Base classes and utilities for archive handling."""
+
 from __future__ import annotations
 
 import io
@@ -14,6 +16,19 @@ from dam.core.types import CallableStreamProvider, FileStreamProvider, StreamPro
 def to_stream_provider(
     file_or_path: str | BinaryIO | Path,
 ) -> StreamProvider:
+    """
+    Convert a file path or a binary stream into a StreamProvider.
+
+    Args:
+        file_or_path: The file path, Path object, or binary stream.
+
+    Returns:
+        A StreamProvider instance.
+
+    Raises:
+        ValueError: If the stream is not seekable.
+
+    """
     if isinstance(file_or_path, str):
         return FileStreamProvider(Path(file_or_path))
     if isinstance(file_or_path, Path):
@@ -48,7 +63,7 @@ class ArchiveHandler(ABC):
 
     def __init__(self, stream_provider: StreamProvider, password: str | None = None):
         """
-        Initializes the archive handler.
+        Initialize the archive handler.
 
         Args:
             stream_provider: A StreamProvider instance for the archive.
@@ -97,7 +112,8 @@ class ArchiveHandler(ABC):
     @abstractmethod
     async def close(self) -> None:
         """
-        Closes the archive file and releases any resources.
+        Close the archive file and release any resources.
+
         This should be called when the handler is no longer needed.
         """
         ...

@@ -1,3 +1,5 @@
+"""Systems for handling split archives."""
+
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,7 +33,7 @@ async def create_master_archive_handler(
     cmd: CreateMasterArchiveCommand,
     transaction: WorldTransaction,
 ):
-    """Handles the manual creation of a master entity for a split archive."""
+    """Handle the manual creation of a master entity for a split archive."""
     logger.info("Manually creating master archive '%s' for %s parts.", cmd.name, len(cmd.part_entity_ids))
 
     # 1. Create master entity and its components
@@ -85,7 +87,8 @@ async def bind_split_archive_handler(
     transaction: WorldTransaction,
 ):
     """
-    Handles discovering and binding a split archive from a starting entity.
+    Handle discovering and binding a split archive from a starting entity.
+
     This is the "consumer" of the generic sibling discovery.
     """
     logger.info("Attempting to bind split archive starting from entity %s", cmd.entity_id)
@@ -145,7 +148,7 @@ async def check_split_archive_binding_handler(
     cmd: CheckSplitArchiveBindingCommand,
     transaction: WorldTransaction,
 ) -> bool:
-    """Checks if an entity is part of a fully bound split archive."""
+    """Check if an entity is part of a fully bound split archive."""
     # Case 1: The entity is the master archive itself.
     manifest = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest:
@@ -167,7 +170,7 @@ async def unbind_split_archive_handler(
     cmd: UnbindSplitArchiveCommand,
     transaction: WorldTransaction,
 ):
-    """Handles unbinding a split archive, starting from either a master or a part."""
+    """Handle unbinding a split archive, starting from either a master or a part."""
     master_entity_id: int | None = None
 
     # Determine the master entity ID
