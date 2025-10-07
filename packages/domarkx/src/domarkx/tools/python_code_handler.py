@@ -110,20 +110,15 @@ class LibCstEditor:
         if modified_tree.deep_equals(self.module):
             operation_performed = False
             # Check for specific flags from the transformer if it indicates action
-            if getattr(transformer, "updated", False):
-                operation_performed = True
-            elif getattr(transformer, "created", False):
-                operation_performed = True
-            elif getattr(transformer, "deleted", False):
+            if getattr(transformer, "updated", False) or getattr(transformer, "created", False) or getattr(transformer, "deleted", False):
                 operation_performed = True
 
             if not operation_performed:
                 if not getattr(transformer, "found_target", True):
                     raise ValueError("Operation failed: Target node not found.")
-                else:
-                    raise ValueError(
-                        "Operation failed: Target node found but no changes were applied (content might be identical or no specific action flag set)."
-                    )
+                raise ValueError(
+                    "Operation failed: Target node found but no changes were applied (content might be identical or no specific action flag set)."
+                )
         self.module = modified_tree
         logging.info("Transformer applied.")
 
@@ -153,10 +148,9 @@ class LibCstEditor:
         if not internal_symbol_path:
             if target_type == "module":
                 return m.Module()
-            else:
-                raise ValueError(
-                    f"Invalid target_type '{target_type}' for empty internal_symbol_path. Only 'module' is supported when internal_symbol_path is empty."
-                )
+            raise ValueError(
+                f"Invalid target_type '{target_type}' for empty internal_symbol_path. Only 'module' is supported when internal_symbol_path is empty."
+            )
 
         parts = internal_symbol_path.split(".")
         target_name = parts[-1]
@@ -303,7 +297,7 @@ class LibCstEditor:
                                         raise ToolError("New code content must be a class definition.")
                                 self.updated = True
                                 return new_node
-                            elif self.target_type == "assignment":
+                            if self.target_type == "assignment":
                                 parsed_statement = cst.parse_statement(self.new_code_content)
                                 if (
                                     not isinstance(parsed_statement, cst.SimpleStatementLine)
@@ -442,9 +436,9 @@ def _handle_list_mode_by_symbol(full_symbol: str, target_type: str | None, list_
         if target_type:
             if target_type == "function" and not inspect.isfunction(target_obj) and not inspect.isbuiltin(target_obj):
                 return f"Symbol '{full_symbol}' is not a function."
-            elif target_type == "class" and not inspect.isclass(target_obj):
+            if target_type == "class" and not inspect.isclass(target_obj):
                 return f"Symbol '{full_symbol}' is not a class."
-            elif target_type == "module" and not inspect.ismodule(target_obj):
+            if target_type == "module" and not inspect.ismodule(target_obj):
                 return f"Symbol '{full_symbol}' is not a module."
 
         results = [f"--- Symbol: {full_symbol} ---"]
@@ -576,17 +570,15 @@ def _handle_list_mode_by_path(
                 if self.target_symbol_path_parts:
                     # If a specific symbol path is targeted, check for an exact match
                     return current_full_path == ".".join(self.target_symbol_path_parts)
-                else:
-                    # If no specific symbol path is targeted (i.e., listing all or by type)
-                    if self.target_type_filter is None or self.target_type_filter == "":
-                        # No specific target_type filter, so include all recognized top-level definition types
-                        # Explicitly exclude 'method' unless it's specifically requested
-                        if node_type == "method":
-                            return False  # Do not list methods by default when listing all
-                        return node_type in ["function", "class", "assignment"]
-                    else:
-                        # Specific target_type filter is provided, check for a match
-                        return self.target_type_filter == node_type
+                # If no specific symbol path is targeted (i.e., listing all or by type)
+                if self.target_type_filter is None or self.target_type_filter == "":
+                    # No specific target_type filter, so include all recognized top-level definition types
+                    # Explicitly exclude 'method' unless it's specifically requested
+                    if node_type == "method":
+                        return False  # Do not list methods by default when listing all
+                    return node_type in ["function", "class", "assignment"]
+                # Specific target_type filter is provided, check for a match
+                return self.target_type_filter == node_type
 
             def _add_definition(self, node: cst.CSTNode, type_name: str, name: str | None = None) -> None:
                 def_name = name
@@ -796,8 +788,7 @@ def _handle_diff_method_mode(target: str) -> str:
         if not parent_method:
             if any(method_name in bc.__dict__ for bc in inspect.getmro(subclass)[1:]):
                 return f"Method '{class_name}.{method_name}' is not overridden from its parent class."
-            else:
-                return f"Method '{method_name}' is defined on '{class_name}' but not found in any parent class."
+            return f"Method '{method_name}' is defined on '{class_name}' but not found in any parent class."
 
         # 5. Get source code for both methods
         try:
@@ -1018,16 +1009,15 @@ def python_code_handler(
         if mode == "list" and not target:
             internal_target_symbol_path = ""  # Ensure it's empty string for 'all'
 
-    else:
-        # If no path, 'target' must be a full importable symbol
-        # The _resolve_symbol_path function now raises ToolError directly, so no try...except needed here.
-        if mode != "diff_method":
-            file_to_process, internal_target_symbol_path = resolve_symbol_path(target)
-            logging.info(
-                f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
-            )
-            if not file_to_process.lower().endswith(".py"):
-                raise ValueError(f"Target '{target}' resolved to file '{file_to_process}' which is not a Python file.")
+    # If no path, 'target' must be a full importable symbol
+    # The _resolve_symbol_path function now raises ToolError directly, so no try...except needed here.
+    elif mode != "diff_method":
+        file_to_process, internal_target_symbol_path = resolve_symbol_path(target)
+        logging.info(
+            f"Resolved target '{target}' to file: {file_to_process}, internal path: '{internal_target_symbol_path}'"
+        )
+        if not file_to_process.lower().endswith(".py"):
+            raise ValueError(f"Target '{target}' resolved to file '{file_to_process}' which is not a Python file.")
 
     # --- Mode Dispatch ---
     if mode == "list":
@@ -1042,12 +1032,12 @@ def python_code_handler(
                 target_type,
                 list_detail_level,
             )
-        else:  # No path, so target must be a full importable symbol
-            return _handle_list_mode_by_symbol(
-                target, target_type, list_detail_level
-            )  # Use original 'target' for inspect
+        # No path, so target must be a full importable symbol
+        return _handle_list_mode_by_symbol(
+            target, target_type, list_detail_level
+        )  # Use original 'target' for inspect
 
-    elif mode == "modify":
+    if mode == "modify":
         if file_to_process is None:
             raise ValueError("The 'path' parameter is required for modify mode.")
         # For modify, target is always the internal path relative to the file_to_process
@@ -1059,10 +1049,9 @@ def python_code_handler(
             textwrap.dedent(code_content) if code_content else code_content,
             modification_script,
         )
-    elif mode == "diff_method":
+    if mode == "diff_method":
         if path:
             raise ValueError("The 'path' parameter is not supported for 'diff_method' mode.")
         return _handle_diff_method_mode(target)
-    else:
-        # This else is now redundant due to the check at the beginning, but kept for safety.
-        raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list', 'modify', or 'diff_method'.")
+    # This else is now redundant due to the check at the beginning, but kept for safety.
+    raise ValueError(f"Invalid mode: '{mode}'. Mode must be 'list', 'modify', or 'diff_method'.")

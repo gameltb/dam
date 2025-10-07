@@ -146,13 +146,13 @@ class _SevenZipStreamReader(BinaryIO):
     def writable(self) -> bool:
         return False
 
-    def write(self, s: bytes) -> int:  # type: ignore[override]
+    def write(self, _: bytes) -> int:  # type: ignore[override]
         raise OSError("write is not supported")
 
-    def writelines(self, lines: Iterable[bytes]) -> None:  # type: ignore[override]
+    def writelines(self, _: Iterable[bytes]) -> None:  # type: ignore[override]
         raise OSError("writelines is not supported")
 
-    def truncate(self, size: Optional[int] = None) -> int:
+    def truncate(self, _: Optional[int] = None) -> int:
         raise OSError("truncate is not supported")
 
     def __iter__(self) -> Iterator[bytes]:
@@ -201,7 +201,7 @@ class QueueWriter(Py7zIO):
 
         return len(chunk)
 
-    def read(self, size: Optional[int] = None) -> bytes:
+    def read(self, _: Optional[int] = None) -> bytes:
         return b""
 
     def seek(self, offset: int, whence: int = 0) -> int:
@@ -237,7 +237,7 @@ class StreamingFactory(WriterFactory):
         self.results_queue = results_queue
         self.last_writer: Optional[QueueWriter] = None
 
-    def create(self, filename: str, mode: str = "wb") -> Optional[Py7zIO]:  # type: ignore[override]
+    def create(self, filename: str, _: str = "wb") -> Optional[Py7zIO]:  # type: ignore[override]
         if self.last_writer:
             self.last_writer.close()
             self.last_writer = None
@@ -361,11 +361,10 @@ class SevenZipArchiveHandler(ArchiveHandler):
             current_norm_name, data_queue = item
             if current_norm_name == norm_name:
                 return member_info, _SevenZipStreamReader(data_queue)
-            else:
-                # This is a stream for a different file, which can happen
-                # if py7zr decides to extract dependencies. We need to drain it.
-                temp_file = _SevenZipStreamReader(data_queue)
-                temp_file.close()
+            # This is a stream for a different file, which can happen
+            # if py7zr decides to extract dependencies. We need to drain it.
+            temp_file = _SevenZipStreamReader(data_queue)
+            temp_file.close()
 
     async def close(self) -> None:
         for t in self._threads:

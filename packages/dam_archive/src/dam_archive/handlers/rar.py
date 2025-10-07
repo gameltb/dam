@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from datetime import datetime
 from types import TracebackType
 from typing import (
@@ -60,19 +61,16 @@ class RarArchiveHandler(ArchiveHandler):
 
             if isinstance(e, rarfile.RarWrongPassword):  # type: ignore
                 raise InvalidPasswordError("Invalid password for rar file.") from e
-            elif isinstance(e, rarfile.BadRarFile):  # type: ignore
+            if isinstance(e, rarfile.BadRarFile):  # type: ignore
                 raise IOError(f"Failed to open rar file: {e}") from e
-            else:
-                raise
+            raise
 
         return handler
 
     async def close(self) -> None:
         if self.rar_file:
-            try:
+            with contextlib.suppress(Exception):
                 self.rar_file.close()
-            except Exception:
-                pass
 
         if self._stream_cm_exit:
             await self._stream_cm_exit(None, None, None)

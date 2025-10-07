@@ -34,11 +34,11 @@ def rename_session(old_name: str, new_name: str, project_path: str | None = None
     os.rename(old_path, new_path)
 
     # Add to git
-    subprocess.run(["git", "add", new_path], cwd=project_path)
-    subprocess.run(["git", "rm", old_path], cwd=project_path)
+    subprocess.run(["git", "add", new_path], check=False, cwd=project_path)
+    subprocess.run(["git", "rm", old_path], check=False, cwd=project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Rename session {old_name} to {new_name}"],
-        cwd=project_path,
+        check=False, cwd=project_path,
     )
 
     return f"Session '{old_name}' renamed to '{new_name}'."
@@ -76,10 +76,10 @@ def update_session_metadata(session_name: str, metadata: dict[str, Any], project
         f.write(f"\n\n<!-- METADATA: {metadata} -->")
 
     # Add to git
-    subprocess.run(["git", "add", session_path], cwd=project_path)
+    subprocess.run(["git", "add", session_path], check=False, cwd=project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Update metadata for session {session_name}"],
-        cwd=project_path,
+        check=False, cwd=project_path,
     )
 
     return f"Metadata updated for session '{session_name}'."

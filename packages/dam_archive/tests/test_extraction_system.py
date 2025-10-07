@@ -2,7 +2,6 @@ import io
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from dam.commands.asset_commands import GetAssetStreamCommand, GetOrCreateEntityFromStreamCommand
@@ -15,6 +14,7 @@ from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import ProgressCompleted
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import RegisterLocalFileCommand
+from pytest_mock import MockerFixture
 from sqlalchemy import select
 
 from dam_archive.commands import IngestArchiveCommand, ReissueArchiveMemberEventsCommand
@@ -23,7 +23,9 @@ from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World, tmp_path: Path) -> None:
+async def test_ingestion_with_memory_limit_and_filename(
+    test_world_alpha: World, tmp_path: Path, mocker: MockerFixture
+) -> None:
     """
     Tests the ingestion logic with memory constraints and verifies the filename event field.
     """
@@ -47,10 +49,10 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
         await session.commit()
 
     # 3. Test Case: Memory limit is not reached
-    mock_memory = MagicMock()
+    mock_memory = mocker.MagicMock()
     mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
 
-    with patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory):
+    with mocker.patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory):
         ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
         stream = world.dispatch_command(ingest_cmd)
         events = [event async for event in stream]
@@ -64,22 +66,74 @@ async def test_ingestion_with_memory_limit_and_filename(test_world_alpha: World,
         assert new_entity_event.filename == file_name_in_archive
 
 
+async def _run_ingestion_with_memory_limit(
+    world: World, entity_id: int, mock_memory: MockerFixture, mocker: MockerFixture
+):
+    mocker.patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory)
+    dispatch_spy = mocker.patch.object(world, "dispatch_command", wraps=world.dispatch_command)
+
+    ingest_cmd_limit = IngestArchiveCommand(entity_id=entity_id)
+    stream = world.dispatch_command(ingest_cmd_limit)
+    events = [event async for event in stream]
+
+    new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
+    assert new_entity_event is not None
+    assert new_entity_event.stream_provider is None
+
+    get_or_create_cmd_call = next(
+        (call for call in dispatch_spy.call_args_list if isinstance(call.args[0], GetOrCreateEntityFromStreamCommand)),
+        None,
+    )
+    assert get_or_create_cmd_call is not None
+    get_or_create_cmd = get_or_create_cmd_call.args[0]
+    assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
+    async with get_or_create_cmd.stream_provider.get_stream() as stream:
+        assert isinstance(stream, ChainedStream)
+
+
+async def _run_ingestion_without_memory_limit(
+    world: World, entity_id: int, file_content: bytes, mock_memory: MockerFixture, mocker: MockerFixture
+):
+    mocker.patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory)
+    dispatch_spy = mocker.patch.object(world, "dispatch_command", wraps=world.dispatch_command)
+
+    ingest_cmd_no_limit = IngestArchiveCommand(entity_id=entity_id)
+    stream = world.dispatch_command(ingest_cmd_no_limit)
+    events = [event async for event in stream]
+
+    new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
+    assert new_entity_event is not None
+    assert new_entity_event.stream_provider is not None
+    async with new_entity_event.stream_provider.get_stream() as stream:
+        assert stream is not None
+        assert stream.read() == file_content
+        stream.seek(0)
+
+    get_or_create_cmd_call = next(
+        (call for call in dispatch_spy.call_args_list if isinstance(call.args[0], GetOrCreateEntityFromStreamCommand)),
+        None,
+    )
+    assert get_or_create_cmd_call is not None
+    get_or_create_cmd = get_or_create_cmd_call.args[0]
+    assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
+    async with get_or_create_cmd.stream_provider.get_stream() as stream:
+        assert isinstance(stream, io.BytesIO)
+        stream.seek(0)
+        assert stream.read() == file_content
+
+
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Path) -> None:
+async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Path, mocker: MockerFixture) -> None:
     """
     Tests the ingestion logic with memory constraints.
     """
     world = test_world_alpha
-
-    # 1. Create a test archive with a single file
     file_content = b"a" * (1024 * 1024)  # 1 MB
     archive_path = tmp_path / "large_archive.zip"
-
     with zipfile.ZipFile(archive_path, "w") as zf:
         zf.writestr("large_file.txt", file_content)
 
-    # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
     tm = world.get_context(WorldTransaction)
@@ -88,31 +142,10 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
         await set_content_mime_type(session, entity_id, "application/zip")
         await session.commit()
 
-    # 3. Test Case 1: Memory limit is reached
-    mock_memory = MagicMock()
-    mock_memory.available = 512 * 1024  # 512 KB, less than the file size
+    mock_memory_limited = mocker.MagicMock()
+    mock_memory_limited.available = 512 * 1024
+    await _run_ingestion_with_memory_limit(world, entity_id, mock_memory_limited, mocker)
 
-    with (
-        patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory),
-        patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
-    ):
-        ingest_cmd_limit = IngestArchiveCommand(entity_id=entity_id)
-        stream = world.dispatch_command(ingest_cmd_limit)
-        events = [event async for event in stream]
-
-        # Verify NewEntityCreatedEvent
-        new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
-        assert new_entity_event is not None
-        assert new_entity_event.stream_provider is None
-
-        # Verify stream passed to GetOrCreateEntityFromStreamCommand
-        get_or_create_cmd = dispatch_spy.call_args.args[0]
-        assert isinstance(get_or_create_cmd, GetOrCreateEntityFromStreamCommand)
-        assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
-        async with get_or_create_cmd.stream_provider.get_stream() as stream:
-            assert isinstance(stream, ChainedStream)
-
-    # 4. Clean up components for next run
     async with tm() as transaction:
         session = transaction.session
         info = await ecs_functions.get_component(session, entity_id, ArchiveInfoComponent)
@@ -125,34 +158,9 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
             await session.delete(member)
         await session.commit()
 
-    # 5. Test Case 2: Memory limit is not reached
-    mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
-
-    with (
-        patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory),
-        patch.object(world, "dispatch_command", wraps=world.dispatch_command) as dispatch_spy,
-    ):
-        ingest_cmd_no_limit = IngestArchiveCommand(entity_id=entity_id)
-        stream = world.dispatch_command(ingest_cmd_no_limit)
-        events = [event async for event in stream]
-
-        # Verify NewEntityCreatedEvent
-        new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
-        assert new_entity_event is not None
-        assert new_entity_event.stream_provider is not None
-        async with new_entity_event.stream_provider.get_stream() as stream:
-            assert stream is not None
-            assert stream.read() == file_content
-            stream.seek(0)
-
-        # Verify stream passed to GetOrCreateEntityFromStreamCommand
-        get_or_create_cmd = dispatch_spy.call_args.args[0]
-        assert isinstance(get_or_create_cmd, GetOrCreateEntityFromStreamCommand)
-        assert isinstance(get_or_create_cmd.stream_provider, CallableStreamProvider)
-        async with get_or_create_cmd.stream_provider.get_stream() as stream:
-            assert isinstance(stream, io.BytesIO)
-            stream.seek(0)
-            assert stream.read() == file_content
+    mock_memory_unlimited = mocker.MagicMock()
+    mock_memory_unlimited.available = 2 * 1024 * 1024
+    await _run_ingestion_without_memory_limit(world, entity_id, file_content, mock_memory_unlimited, mocker)
 
 
 @pytest.mark.serial
@@ -163,6 +171,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     """
     world = test_world_alpha
     regular_archive_path, protected_archive_path = test_archives
+    num_files_in_archive = 2
 
     # --- Test Regular Archive ---
     # 1. Register the regular archive file
@@ -192,7 +201,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_reg)
         )
         members_reg_all = members_reg.scalars().all()
-        assert len(members_reg_all) == 2
+        assert len(members_reg_all) == num_files_in_archive
         for member in members_reg_all:
             assert isinstance(member.modified_at, datetime)
 
@@ -223,7 +232,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id_prot)
         )
         members_prot_all = members_prot.scalars().all()
-        assert len(members_prot_all) == 2
+        assert len(members_prot_all) == num_files_in_archive
         for member in members_prot_all:
             assert isinstance(member.modified_at, datetime)
 
@@ -237,6 +246,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     """
     world = test_world_alpha
     regular_archive_path, _ = test_archives
+    num_files_in_archive = 2
 
     # 1. Register the archive file
     register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
@@ -254,7 +264,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     events1 = [event async for event in stream1]
     assert any(isinstance(event, ProgressCompleted) for event in events1)
     new_entity_events1 = [e for e in events1 if isinstance(e, NewEntityCreatedEvent)]
-    assert len(new_entity_events1) == 2
+    assert len(new_entity_events1) == num_files_in_archive
 
     # 3. Verify that it was processed correctly the first time
     async with tm() as transaction:
@@ -266,7 +276,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
         members = await session.execute(
             select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == entity_id)
         )
-        assert len(members.scalars().all()) == 2
+        assert len(members.scalars().all()) == num_files_in_archive
 
     # 4. Run the re-issue command for the second time (re-ingestion)
     reissue_cmd = ReissueArchiveMemberEventsCommand(entity_id=entity_id)
@@ -279,7 +289,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     assert completed_event.message == "Finished re-issuing events for members."
 
     new_entity_events2 = [e for e in events2 if isinstance(e, NewEntityCreatedEvent)]
-    assert len(new_entity_events2) == 2
+    assert len(new_entity_events2) == num_files_in_archive
 
     # Verify the contents of the re-issued events
     filenames_in_archive = {"file1.txt", "file2.txt"}

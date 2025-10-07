@@ -49,8 +49,8 @@ async def open_archive(
             # a different handler.
             raise
         except ArchiveError as e:
-            logger.warning(f"Handler {handler_class.__name__} failed: {e}")
+            logger.warning("Handler %s failed: %s", handler_class.__name__, e)
         except Exception:
-            logger.exception(f"An unexpected error occurred with handler {handler_class.__name__}")
+            logger.exception("An unexpected error occurred with handler %s", handler_class.__name__)
 
     return None

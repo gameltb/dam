@@ -17,22 +17,20 @@ def to_stream_provider(
         return FileStreamProvider(Path(file_or_path))
     if isinstance(file_or_path, Path):
         return FileStreamProvider(file_or_path)
-    else:
-        # If the stream is seekable, we can read it into memory and use it.
-        if file_or_path.seekable():
-            file_or_path.seek(0)
-            # Read the content into an immutable bytes object.
-            content = file_or_path.read()
+    # If the stream is seekable, we can read it into memory and use it.
+    if file_or_path.seekable():
+        file_or_path.seek(0)
+        # Read the content into an immutable bytes object.
+        content = file_or_path.read()
 
-            def bytes_stream_provider() -> BinaryIO:
-                # Create a new stream from the bytes object each time.
-                return io.BytesIO(content)
+        def bytes_stream_provider() -> BinaryIO:
+            # Create a new stream from the bytes object each time.
+            return io.BytesIO(content)
 
-            return CallableStreamProvider(bytes_stream_provider)
-        else:
-            # If the stream is not seekable, we cannot create a reliable
-            # stream provider from it.
-            raise ValueError("Cannot create a stream provider from a non-seekable stream.")
+        return CallableStreamProvider(bytes_stream_provider)
+    # If the stream is not seekable, we cannot create a reliable
+    # stream provider from it.
+    raise ValueError("Cannot create a stream provider from a non-seekable stream.")
 
 
 @dataclass

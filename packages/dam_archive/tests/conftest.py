@@ -5,14 +5,13 @@ from pathlib import Path
 import pytest
 from dam.core import World
 from dam_fs.plugin import FsPlugin
-from pytest import TempPathFactory
 
 from dam_archive.plugin import ArchivePlugin
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def setup_world_with_plugins(test_world_alpha: World):
     """Automatically sets up the test world with necessary plugins."""
     test_world_alpha.add_plugin(FsPlugin())
@@ -20,7 +19,7 @@ def setup_world_with_plugins(test_world_alpha: World):
 
 
 @pytest.fixture(scope="session")
-def test_7z_content(tmp_path_factory: TempPathFactory) -> Path:
+def test_7z_content(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Creates a directory with content for 7z archives."""
     content_dir = tmp_path_factory.mktemp("test_7z_content")
     (content_dir / "file.txt").write_text("This is a test file for 7z archives.\n")
@@ -32,7 +31,7 @@ def test_7z_content(tmp_path_factory: TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def regular_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+def regular_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
     """Creates a regular 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "regular_archive.7z"
     subprocess.run(
@@ -44,7 +43,7 @@ def regular_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path)
 
 
 @pytest.fixture(scope="session")
-def protected_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+def protected_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
     """Creates a password-protected 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "protected_archive.7z"
     subprocess.run(
@@ -56,7 +55,7 @@ def protected_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Pat
 
 
 @pytest.fixture(scope="session")
-def bcj2_7z_archive(tmp_path_factory: TempPathFactory, test_7z_content: Path) -> Path:
+def bcj2_7z_archive(tmp_path_factory: pytest.TempPathFactory, test_7z_content: Path) -> Path:
     """Creates a BCJ2-filtered 7z archive."""
     archive_path = tmp_path_factory.mktemp("archives") / "bcj2_archive.7z"
     subprocess.run(

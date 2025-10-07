@@ -20,16 +20,16 @@ from .split_archives import (
 )
 
 __all__ = [
+    "BindSplitArchiveCommand",
     "CheckArchiveCommand",
+    "CheckArchivePasswordCommand",
+    "CheckSplitArchiveBindingCommand",
     "ClearArchiveComponentsCommand",
+    "CreateMasterArchiveCommand",
     "IngestArchiveCommand",
     "ReissueArchiveMemberEventsCommand",
-    "TagArchivePartCommand",
-    "CheckArchivePasswordCommand",
     "RemoveArchivePasswordCommand",
     "SetArchivePasswordCommand",
-    "BindSplitArchiveCommand",
-    "CheckSplitArchiveBindingCommand",
-    "CreateMasterArchiveCommand",
+    "TagArchivePartCommand",
     "UnbindSplitArchiveCommand",
 ]
