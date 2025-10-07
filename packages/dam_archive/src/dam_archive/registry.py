@@ -1,3 +1,4 @@
+"""Provides a registry for archive handlers."""
 
 from .base import ArchiveHandler
 from .handlers.rar import RarArchiveHandler

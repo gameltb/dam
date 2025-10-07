@@ -1,3 +1,5 @@
+"""Systems for handling archive passwords."""
+
 import logging
 
 from dam.core.systems import system
@@ -18,7 +20,7 @@ async def check_archive_password_handler(
     cmd: CheckArchivePasswordCommand,
     transaction: WorldTransaction,
 ) -> bool:
-    """Checks if the ArchivePasswordComponent exists for the entity."""
+    """Check if the ArchivePasswordComponent exists for the entity."""
     component = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     return component is not None
 
@@ -28,7 +30,7 @@ async def remove_archive_password_handler(
     cmd: RemoveArchivePasswordCommand,
     transaction: WorldTransaction,
 ):
-    """Removes the ArchivePasswordComponent from the entity."""
+    """Remove the ArchivePasswordComponent from the entity."""
     component = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     if component:
         await transaction.remove_component(component)
@@ -40,7 +42,7 @@ async def set_archive_password_handler(
     cmd: SetArchivePasswordCommand,
     transaction: WorldTransaction,
 ) -> None:
-    """Handles setting the password for an archive."""
+    """Handle setting the password for an archive."""
     password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     if password_comp:
         password_comp.password = cmd.password

@@ -1,3 +1,5 @@
+"""Main entry point for opening archives."""
+
 import logging
 from pathlib import Path
 

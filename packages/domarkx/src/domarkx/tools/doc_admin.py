@@ -1,4 +1,4 @@
-import os
+import pathlib
 import subprocess
 from typing import Any
 
@@ -26,13 +26,13 @@ def rename_session(old_name: str, new_name: str, project_path: str | None = None
     """
     if project_path is None:
         project_path = settings.project_path
-    old_path = os.path.join(project_path, "sessions", f"{old_name}.md")
-    new_path = os.path.join(project_path, "sessions", f"{new_name}.md")
+    old_path = pathlib.Path(project_path) / "sessions" / f"{old_name}.md"
+    new_path = pathlib.Path(project_path) / "sessions" / f"{new_name}.md"
 
-    if not os.path.exists(old_path):
+    if not old_path.exists():
         raise FileNotFoundError(f"Session not found: {old_path}")
 
-    os.rename(old_path, new_path)
+    old_path.rename(new_path)
 
     # Add to git
     subprocess.run(["git", "add", new_path], check=False, cwd=project_path)
@@ -64,14 +64,14 @@ def update_session_metadata(session_name: str, metadata: dict[str, Any], project
     """
     if project_path is None:
         project_path = settings.project_path
-    session_path = os.path.join(project_path, "sessions", f"{session_name}.md")
+    session_path = pathlib.Path(project_path) / "sessions" / f"{session_name}.md"
 
-    if not os.path.exists(session_path):
+    if not session_path.exists():
         raise FileNotFoundError(f"Session not found: {session_path}")
 
     # This is a simplified implementation. A more robust solution would parse the
     # markdown and update the metadata block.
-    with open(session_path, "r+") as f:
+    with session_path.open("r+") as f:
         f.read()
         # This is a placeholder for a more robust metadata update logic.
         # For now, we'll just append the metadata as a comment.

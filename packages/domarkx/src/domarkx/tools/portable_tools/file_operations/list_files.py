@@ -1,5 +1,5 @@
 import logging
-import os
+import pathlib
 
 
 def tool_list_files(path: str = ".") -> list[str]:
@@ -10,7 +10,7 @@ def tool_list_files(path: str = ".") -> list[str]:
         path (str): The path to list files from. Defaults to the current directory.
 
     Returns:
-        List[str]: A list of files and directories.
+        list[str]: A list of files and directories.
 
     Raises:
         FileNotFoundError: If the directory is not found.
@@ -19,7 +19,7 @@ def tool_list_files(path: str = ".") -> list[str]:
     """
     logging.info(f"Listing files in: {path}")
     try:
-        return os.listdir(path)
+        return [p.name for p in pathlib.Path(path).iterdir()]
     except FileNotFoundError as e:
         logging.error(f"Error listing files in {path}: {e}")
         raise e

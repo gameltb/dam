@@ -1,3 +1,5 @@
+"""Tests for archive commands."""
+
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +13,7 @@ from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.models import FilenameComponent
 from sqlalchemy import select
 
-from dam_archive.commands import (
+from dam_archive.commands.split_archives import (
     BindSplitArchiveCommand,
     CreateMasterArchiveCommand,
     UnbindSplitArchiveCommand,
@@ -29,8 +31,9 @@ async def test_bind_split_archive_command_workflow(
     tmp_path: Path,
 ):
     """
-    Tests that the BindSplitArchiveCommand correctly finds and assembles a split archive
-    when triggered from a single part entity.
+    Test that the BindSplitArchiveCommand correctly finds and assembles a split archive.
+
+    This test checks the workflow when the command is triggered from a single part entity.
     """
     world = test_world_alpha
     base_name = "test_bind_command"
@@ -75,8 +78,9 @@ async def test_bind_split_archive_operation_workflow(
     tmp_path: Path,
 ):
     """
-    Tests the full lifecycle of the 'archive.bind-split-archive' AssetOperation:
-    add, check, and remove.
+    Test the full lifecycle of the 'archive.bind-split-archive' AssetOperation.
+
+    This test covers the add, check, and remove commands of the operation.
     """
     world = test_world_alpha
     base_name = "test_operation"
@@ -147,7 +151,7 @@ async def test_bind_split_archive_operation_workflow(
 async def test_manual_create_and_unbind_workflow(
     test_world_alpha: Annotated[World, "Resource"],
 ):
-    """Tests that manual creation and unbinding of a master archive works."""
+    """Test that manual creation and unbinding of a master archive works."""
     world = test_world_alpha
     entity_ids: list[int] = []
 

@@ -1,3 +1,5 @@
+"""Models for the archive plugin."""
+
 from .archive_info_component import ArchiveInfoComponent
 from .archive_member_component import ArchiveMemberComponent
 from .archive_password_component import ArchivePasswordComponent

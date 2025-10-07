@@ -1,3 +1,4 @@
+"""Systems for the archive plugin."""
 # Main entry point for systems in the dam_archive package.
 
 from .discovery import discover_archive_path_siblings_handler

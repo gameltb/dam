@@ -1,3 +1,5 @@
+"""Defines the asset operations for the archive plugin."""
+
 from dam.core.operations import AssetOperation
 
 from .commands.ingestion import (

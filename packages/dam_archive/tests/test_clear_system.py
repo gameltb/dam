@@ -1,18 +1,20 @@
+"""Tests for the clear_archive_components_handler system."""
 
 import pytest
 from dam.core.transaction import WorldTransaction
 from pytest_mock import MockerFixture
 
-from dam_archive.commands import ClearArchiveComponentsCommand
+from dam_archive.commands.ingestion import ClearArchiveComponentsCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
-from dam_archive.systems import clear_archive_components_handler
+from dam_archive.systems.ingestion import clear_archive_components_handler
 
 
 @pytest.mark.asyncio
 async def test_clear_archive_components_handler(mocker: MockerFixture):
     """
-    Tests that the clear_archive_components_handler system correctly removes
-    the ArchiveInfoComponent and all associated ArchiveMemberComponents.
+    Test that the clear_archive_components_handler system correctly removes components.
+
+    It should remove the ArchiveInfoComponent and all associated ArchiveMemberComponents.
     """
     archive_entity_id = 1
     member_entity_ids = [10, 11, 12]

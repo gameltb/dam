@@ -1,3 +1,4 @@
+"""Executes a specific code block from a parsed domarkx document."""
 import pathlib
 from typing import Annotated, Any
 
@@ -17,6 +18,15 @@ def exec_doc_code_block(
     message_index: int,
     code_block_in_message_index: int,
 ) -> None:
+    """
+    Execute a specific code block from a document.
+
+    Args:
+        doc (pathlib.Path): The path to the document.
+        message_index (int): The index of the message containing the code block.
+        code_block_in_message_index (int): The index of the code block within the message.
+
+    """
     with doc.open() as f:
         md_content = f.read()
 
@@ -52,5 +62,13 @@ def exec_doc_code_block(
         exec(code_block.code)
 
 
-def register(main_app: typer.Typer, settings: Any) -> None:
+def register(main_app: typer.Typer, _: Any) -> None:
+    """
+    Register the `exec_doc_code_block` command with the Typer application.
+
+    Args:
+        main_app (typer.Typer): The Typer application to register the command with.
+        _ (Any): The application settings (unused).
+
+    """
     main_app.command()(exec_doc_code_block)

@@ -1,6 +1,6 @@
 import glob
 import logging
-import os
+import pathlib
 
 
 def tool_read_file(
@@ -34,25 +34,26 @@ def tool_read_file(
     end_line = int(end_line) if end_line else None
     logging.info(f"Attempting to read file: '{path}'. Start line: {start_line}, End line: {end_line}.")
 
-    def _read_single_file(file_path: str, s_line: int | None, e_line: int | None) -> str:
-        logging.info(f"Reading single file: '{file_path}'.")
+    def _read_single_file(file_path_str: str, s_line: int | None, e_line: int | None) -> str:
+        logging.info(f"Reading single file: '{file_path_str}'.")
+        file_path = pathlib.Path(file_path_str)
 
-        if not os.path.exists(file_path):
+        if not file_path.exists():
             logging.error(f"File '{file_path}' does not exist.")
             raise FileNotFoundError(f"File '{file_path}' does not exist.")
-        if not os.path.isfile(file_path):
+        if not file_path.is_file():
             logging.error(f"Path '{file_path}' is a directory, not a file.")
             raise IsADirectoryError(f"Path '{file_path}' is a directory, not a file.")
 
         # Simulate PDF/DOCX handling
-        if file_path.lower().endswith((".pdf", ".docx")):
+        if file_path.suffix.lower() in [".pdf", ".docx"]:
             logging.warning(
                 f"Note: '{file_path}' is a binary file (PDF/DOCX). This tool simulates raw text extraction."
             )
             return f"Note: '{file_path}' is a binary file (PDF/DOCX). This tool simulates raw text extraction. Actual implementation would use appropriate libraries.\nSimulated content: This is the extracted text from {file_path}."
 
         try:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 lines = f.readlines()
             logging.info(f"Successfully read {len(lines)} lines from file '{file_path}'.")
 
@@ -107,9 +108,8 @@ def tool_read_file(
         if glob.has_magic(path):
             logging.info(f"Path '{path}' contains wildcards, will process multiple files.")
             use_recursive = "**" in path
-            dirname, basename = os.path.split(path)
-            directory_to_scan = dirname if dirname else "."
-            full_glob_pattern = os.path.join(directory_to_scan, basename)
+            p = pathlib.Path(path)
+            full_glob_pattern = str(p)
             matching_files = glob.glob(full_glob_pattern, recursive=use_recursive)
             logging.info(f"Found {len(matching_files)} files matching '{path}' (recursive: {use_recursive}).")
             if not matching_files:

@@ -1,3 +1,5 @@
+"""Tests for the archive extraction system."""
+
 import io
 import zipfile
 from datetime import datetime
@@ -17,7 +19,10 @@ from dam_fs.commands import RegisterLocalFileCommand
 from pytest_mock import MockerFixture
 from sqlalchemy import select
 
-from dam_archive.commands import IngestArchiveCommand, ReissueArchiveMemberEventsCommand
+from dam_archive.commands.ingestion import (
+    IngestArchiveCommand,
+    ReissueArchiveMemberEventsCommand,
+)
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 
 
@@ -26,7 +31,7 @@ from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
 async def test_ingestion_with_memory_limit_and_filename(
     test_world_alpha: World, tmp_path: Path, mocker: MockerFixture
 ) -> None:
-    """Tests the ingestion logic with memory constraints and verifies the filename event field."""
+    """Test the ingestion logic with memory constraints and verifies the filename event field."""
     world = test_world_alpha
 
     # 1. Create a test archive with a single file
@@ -123,7 +128,7 @@ async def _run_ingestion_without_memory_limit(
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Path, mocker: MockerFixture) -> None:
-    """Tests the ingestion logic with memory constraints."""
+    """Test the ingestion logic with memory constraints."""
     world = test_world_alpha
     file_content = b"a" * (1024 * 1024)  # 1 MB
     archive_path = tmp_path / "large_archive.zip"
@@ -162,7 +167,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
-    """Tests extracting both regular and protected archives using the new fixture."""
+    """Test extracting both regular and protected archives using the new fixture."""
     world = test_world_alpha
     regular_archive_path, protected_archive_path = test_archives
     num_files_in_archive = 2
@@ -235,8 +240,9 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
 @pytest.mark.asyncio
 async def test_reingest_already_extracted_archive(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
     """
-    Tests that the IngestArchiveCommand re-issues events for archives that have already been processed,
-    using the refactored _process_archive function.
+    Test that IngestArchiveCommand re-issues events for already processed archives.
+
+    This test uses the refactored _process_archive function.
     """
     world = test_world_alpha
     regular_archive_path, _ = test_archives

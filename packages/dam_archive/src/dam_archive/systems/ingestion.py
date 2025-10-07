@@ -1,4 +1,7 @@
+"""Systems for ingesting archives."""
+
 import contextlib
+import datetime
 import io
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator
@@ -6,7 +9,6 @@ from contextlib import asynccontextmanager
 from typing import (
     Annotated,
     Any,
-    AsyncContextManager,
     BinaryIO,
     TypedDict,
     cast,
@@ -35,7 +37,7 @@ from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.utils.stream_utils import ChainedStream
 from sqlalchemy import select
 
-from ..base import ArchiveMemberInfo
+from ..base import ArchiveHandler, ArchiveMemberInfo
 from ..commands.ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
@@ -61,7 +63,7 @@ async def check_archive_handler(
     cmd: CheckArchiveCommand,
     transaction: WorldTransaction,
 ) -> bool:
-    """Checks if the ArchiveInfoComponent exists for the entity."""
+    """Check if the ArchiveInfoComponent exists for the entity."""
     component = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
     return component is not None
 
@@ -71,7 +73,7 @@ async def reissue_archive_member_events_handler(
     cmd: ReissueArchiveMemberEventsCommand,
     transaction: WorldTransaction,
 ) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent, None]:
-    """Handles re-issuing NewEntityCreatedEvent events for all members of an existing archive."""
+    """Re-issue NewEntityCreatedEvent events for all members of an existing archive."""
     yield ProgressStarted()
 
     stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == cmd.entity_id)
@@ -125,7 +127,7 @@ def _create_archive_member_stream_provider(
 
 
 def _create_command_stream_provider(stream: BinaryIO) -> CallableStreamProvider:
-    """Creates a stream provider for a command from a given stream."""
+    """Create a stream provider for a command from a given stream."""
     return CallableStreamProvider(lambda: stream)
 
 
@@ -135,7 +137,7 @@ async def get_archive_asset_stream_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> StreamProvider | None:
-    """Handles getting a stream provider for an asset that is part of an archive."""
+    """Get a stream provider for an asset that is part of an archive."""
     archive_member_components = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
     if not archive_member_components:
         return None
@@ -181,7 +183,7 @@ async def get_archive_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: WorldTransaction,
 ) -> list[str] | None:
-    """Handles getting filenames for assets that are members of an archive."""
+    """Get filenames for assets that are members of an archive."""
     archive_member_comps = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
     if archive_member_comps:
         return [archive_member_comp.path_in_archive for archive_member_comp in archive_member_comps]
@@ -189,13 +191,29 @@ async def get_archive_asset_filenames_handler(
 
 
 class ChainedStreamProvider(StreamProvider):
+    """A stream provider that chains multiple stream providers together."""
+
     def __init__(self, providers: list[StreamProvider]):
+        """
+        Initialize the ChainedStreamProvider.
+
+        Args:
+            providers: A list of stream providers to chain.
+
+        """
         self._providers = providers
 
     @asynccontextmanager
     async def get_stream(self) -> AsyncIterator[BinaryIO]:
+        """
+        Get a chained stream from the providers.
+
+        Yields:
+            A chained binary stream.
+
+        """
         streams: list[BinaryIO] = []
-        context_managers: list[AsyncContextManager[BinaryIO]] = []
+        context_managers: list[contextlib.AbstractAsyncContextManager[BinaryIO]] = []
         try:
             for p in self._providers:
                 cm = p.get_stream()
@@ -214,7 +232,7 @@ async def _get_archive_stream_provider(  # noqa: PLR0911
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> tuple[StreamProvider | None, ProgressError | None]:
-    """Determines the correct StreamProvider for the given IngestArchiveCommand."""
+    """Determine the correct StreamProvider for the given IngestArchiveCommand."""
     if cmd.stream_provider:
         logger.info("Processing archive for entity %s from provided stream provider.", cmd.entity_id)
         return cmd.stream_provider, None
@@ -285,9 +303,10 @@ async def _resolve_password_and_open_archive(
     archive_stream_provider: StreamProvider,
     transaction: WorldTransaction,
     mime_type: str,
-) -> AsyncGenerator[SystemProgressEvent | InformationRequest[Any], Any]:
+) -> AsyncGenerator[SystemProgressEvent | InformationRequest[Any] | tuple["ArchiveHandler", str | None], Any]:
     """
-    Handles password resolution and opens the archive.
+    Handle password resolution and opens the archive.
+
     This is an async generator that yields ProgressError or PasswordRequest events.
     If successful, it yields a tuple of (ArchiveHandler, correct_password) as its
     final event before stopping.
@@ -346,8 +365,10 @@ async def _resolve_password_and_open_archive(
 
 
 class MemberProcessingContext(TypedDict):
+    """A TypedDict for the context of processing a member."""
+
     entity_id: int
-    member_mod_times: dict
+    member_mod_times: dict[str, datetime.datetime | None]
     world: Annotated[World, "Resource"]
     transaction: WorldTransaction
 
@@ -357,7 +378,7 @@ async def _process_member(
     member_file: BinaryIO,
     context: MemberProcessingContext,
 ) -> AsyncGenerator[NewEntityCreatedEvent, None]:
-    """Processes a single member of an archive, yielding a NewEntityCreatedEvent on success."""
+    """Process a single member of an archive, yielding a NewEntityCreatedEvent on success."""
     world = context["world"]
     transaction = context["transaction"]
     entity_id = context["entity_id"]
@@ -416,7 +437,7 @@ async def _process_archive(
     world: Annotated[World, "Resource"],
     transaction: WorldTransaction,
 ) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent | InformationRequest[Any], Any]:
-    """The core extraction and event-issuing logic for an archive."""
+    """Perform the core extraction and event-issuing logic for an archive."""
     yield ProgressStarted()
     entity_id = cmd.entity_id
 
@@ -426,7 +447,8 @@ async def _process_archive(
         return
 
     # --- Password Resolution ---
-    archive, correct_password = None, None
+    archive: ArchiveHandler | None = None
+    correct_password: str | None = None
     password_gen = _resolve_password_and_open_archive(cmd, archive_stream_provider, transaction, mime_type)
     response = None
     try:
@@ -493,7 +515,8 @@ async def ingest_archive_members_handler(
     world: Annotated[World, "Resource"],
 ) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent | InformationRequest[Any], Any]:
     """
-    Handles processing an archive. It's the main entry point for ingestion.
+    Handle processing an archive. It's the main entry point for ingestion.
+
     This handler determines the stream provider and then calls the main processing logic.
     """
     logger.info("Ingestion command received for entity %s", cmd.entity_id)
@@ -525,7 +548,7 @@ async def clear_archive_components_handler(
     cmd: ClearArchiveComponentsCommand,
     transaction: WorldTransaction,
 ) -> None:
-    """Handles clearing archive-related components from an entity and its members."""
+    """Clear archive-related components from an entity and its members."""
     # Delete ArchiveInfoComponent from the main archive entity
     info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
     if info_comp:

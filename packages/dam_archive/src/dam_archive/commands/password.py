@@ -1,3 +1,5 @@
+"""Commands related to archive passwords."""
+
 from dataclasses import dataclass
 
 from dam.commands.core import EntityCommand

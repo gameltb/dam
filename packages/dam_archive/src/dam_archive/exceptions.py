@@ -1,3 +1,6 @@
+"""Custom exceptions for archive handling."""
+
+
 class ArchiveError(Exception):
     """Base class for archive-related errors."""
 

@@ -1,3 +1,5 @@
+"""Provides a rar archive handler."""
+
 from __future__ import annotations
 
 import contextlib
@@ -19,13 +21,18 @@ class RarArchiveHandler(ArchiveHandler):
     """An archive handler for rar files."""
 
     def __init__(self, stream_provider: StreamProvider, password: str | None = None):
+        """Initialize the rar archive handler."""
         super().__init__(stream_provider, password)
         self._stream: BinaryIO | None = None
         self.rar_file: rarfile.RarFile | None = None
-        self._stream_cm_exit: Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]] | None = None
+        self._stream_cm_exit: (
+            Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]]
+            | None
+        ) = None
 
     @classmethod
     async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> RarArchiveHandler:
+        """Create a new rar archive handler."""
         handler = cls(stream_provider, password)
         stream_cm = stream_provider.get_stream()
         handler._stream = await stream_cm.__aenter__()
@@ -52,6 +59,7 @@ class RarArchiveHandler(ArchiveHandler):
         return handler
 
     async def close(self) -> None:
+        """Close the rar archive."""
         if self.rar_file:
             with contextlib.suppress(Exception):
                 self.rar_file.close()
@@ -63,6 +71,7 @@ class RarArchiveHandler(ArchiveHandler):
         self._stream_cm_exit = None
 
     def list_files(self) -> list[ArchiveMemberInfo]:
+        """List all files in the rar archive."""
         files: list[ArchiveMemberInfo] = []
         if not self.rar_file:
             return files
@@ -105,6 +114,7 @@ class RarArchiveHandler(ArchiveHandler):
                 raise OSError(f"File not found in rar: {f.filename}") from e  # type: ignore
 
     def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
+        """Open a file in the rar archive."""
         if not self.rar_file:
             raise OSError(f"File not found in rar: {file_name}")
 
@@ -128,6 +138,7 @@ class RarArchiveHandler(ArchiveHandler):
 
     @property
     def comment(self) -> str | None:
+        """Return the comment of the rar archive."""
         if not self.rar_file:
             return None
         comment = self.rar_file.comment  # type: ignore

@@ -1,9 +1,16 @@
+"""Tests for the chat document parser."""
 import pytest
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
 
+NUM_GLOBAL_CODE_BLOCKS = 2
+NUM_MESSAGES = 2
+NUM_USER_CODE_BLOCKS = 2
+NUM_ASSISTANT_CODE_BLOCKS = 1
+
 
 def test_parse_message_blocks_and_code() -> None:
+    """Test parsing of message blocks and code."""
     md = """---\ntitle: "Test Session"\n---\n\n```json session-config\n{"type": "AssistantAgentState"}\n```
 ```python setup-script\nprint("setup")\n```
 ## User\n\n```json msg-metadata\n{"source": "user", "type": "UserMessage"}\n```
@@ -13,30 +20,31 @@ def test_parse_message_blocks_and_code() -> None:
     parser = MarkdownLLMParser()
     doc = parser.parse(md)
     assert doc.global_metadata["title"] == "Test Session"
-    assert len(doc.code_blocks) == 2
+    assert len(doc.code_blocks) == NUM_GLOBAL_CODE_BLOCKS
     assert doc.code_blocks[0].language == "json"
     assert doc.code_blocks[0].attrs == "session-config"
     assert doc.code_blocks[1].language == "python"
     assert doc.code_blocks[1].attrs == "setup-script"
-    assert len(doc.conversation) == 2
+    assert len(doc.conversation) == NUM_MESSAGES
     user_msg = doc.conversation[0]
     assert user_msg.speaker == "User"
-    assert len(user_msg.code_blocks) == 2
+    assert len(user_msg.code_blocks) == NUM_USER_CODE_BLOCKS
     assert user_msg.code_blocks[0].language == "json"
     assert user_msg.code_blocks[1].language == "python"
     assert user_msg.content
     assert user_msg.content.strip() == "User's message content.\nSecond line."
     assistant_msg = doc.conversation[1]
     assert assistant_msg.speaker == "Assistant"
-    assert len(assistant_msg.code_blocks) == 1
+    assert len(assistant_msg.code_blocks) == NUM_ASSISTANT_CODE_BLOCKS
     assert assistant_msg.content
     assert assistant_msg.content.strip() == "Assistant's reply.\nMulti-line reply."
 
 
 def test_message_requires_code_or_content() -> None:
+    """Test that a message must have either a code block or content."""
     md1 = """## User\n\n"""
     parser = MarkdownLLMParser()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="must have at least one code block or a non-empty content"):
         parser.parse(md1)
     # Only content, no code block
     md2 = """## User\n\n> Only content\n"""
@@ -52,13 +60,15 @@ def test_message_requires_code_or_content() -> None:
 
 
 def test_message_multiple_blockquotes() -> None:
+    """Test that a message cannot have multiple blockquotes."""
     md = """## User\n\n> First blockquote\n\n> Second blockquote\n"""
     parser = MarkdownLLMParser()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Duplicate blockquote found in message."):
         parser.parse(md)
 
 
 def test_to_markdown_serialization() -> None:
+    """Test that the markdown serialization is correct."""
     md = """---
 title: Test Session
 ---

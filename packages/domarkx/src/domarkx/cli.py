@@ -1,6 +1,7 @@
+"""The command-line interface for domarkx."""
 import importlib
 import logging
-import os
+import pathlib
 from typing import Any
 
 import typer
@@ -14,7 +15,19 @@ logger = logging.getLogger("domarkx")
 
 
 class StrMsgOnlyFilter(logging.Filter):
+    """A logging filter that only allows string messages or exceptions to be logged."""
+
     def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Filter out log records that are not strings or exceptions.
+
+        Args:
+            record (logging.LogRecord): The log record to filter.
+
+        Returns:
+            bool: True if the record should be logged, False otherwise.
+
+        """
         return isinstance(record.msg, (str, Exception))
 
 
@@ -40,22 +53,30 @@ cli_app = typer.Typer()
 
 
 def load_actions(settings: Any) -> None:
-    actions_dir = os.path.join(os.path.dirname(__file__), "action")
-    for filename in os.listdir(actions_dir):
-        if filename.endswith(".py") and not filename.startswith("__"):
-            module_name = filename[:-3]
+    """
+    Dynamically load and register actions from the 'action' directory.
+
+    Args:
+        settings (Any): The application settings.
+
+    """
+    actions_dir = pathlib.Path(__file__).parent / "action"
+    for file_path in actions_dir.iterdir():
+        if file_path.suffix == ".py" and not file_path.name.startswith("__"):
+            module_name = file_path.stem
             module = importlib.import_module(f"domarkx.action.{module_name}")
             if hasattr(module, "register"):
                 module.register(cli_app, settings)
 
 
 def main() -> None:
+    """Run the main entry point for the domarkx CLI."""
     load_dotenv()
     load_actions(settings)
     try:
         cli_app()
     except Exception as e:
-        logger.error(e, exc_info=True)
+        logger.exception(e)
 
 
 if __name__ == "__main__":

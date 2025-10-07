@@ -1,3 +1,4 @@
+"""A tool executor that runs tools in a Jupyter kernel."""
 import inspect
 import json
 from collections.abc import Callable
@@ -10,22 +11,45 @@ from . import remote_tool_handler
 
 
 class JupyterToolExecutor:
+    """A tool executor that runs tools in a Jupyter kernel."""
+
     def __init__(self, code_executor: CodeExecutor):
+        """
+        Initialise the JupyterToolExecutor.
+
+        Args:
+            code_executor: The code executor to use.
+
+        """
         self.code_executor = code_executor
 
     async def start(self) -> None:
+        """Start the code executor."""
         if hasattr(self.code_executor, "start"):
             await self.code_executor.start()
 
     async def stop(self) -> None:
+        """Stop the code executor."""
         if hasattr(self.code_executor, "stop"):
             await self.code_executor.stop()
 
     async def restart(self) -> None:
+        """Restart the code executor."""
         if hasattr(self.code_executor, "restart"):
             await self.code_executor.restart()
 
     async def execute(self, tool_func: Callable[..., Any], **kwargs: Any) -> Any:
+        """
+        Execute a tool in the Jupyter kernel.
+
+        Args:
+            tool_func: The tool function to execute.
+            **kwargs: The arguments to pass to the tool function.
+
+        Returns:
+            The output of the tool execution.
+
+        """
         if hasattr(tool_func, "__source_code__"):
             tool_source = tool_func.__source_code__  # type: ignore
         else:

@@ -1,3 +1,4 @@
+"""Tests for the run_tool_code action."""
 import pathlib
 
 from typer.testing import CliRunner
@@ -8,6 +9,7 @@ cli_app = setup_test_app()
 
 
 def test_run_tool_code_action(tmp_path: pathlib.Path) -> None:
+    """Test the run-tool-code action."""
     md_content = """
 ## user
 

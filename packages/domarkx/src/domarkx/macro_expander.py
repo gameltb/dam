@@ -1,3 +1,4 @@
+"""Expands macros in markdown files."""
 import pathlib
 from typing import Any
 
@@ -6,7 +7,16 @@ from domarkx.utils.markdown_utils import Macro, find_first_macro
 
 
 class MacroExpander:
+    """Expands macros in a string."""
+
     def __init__(self, base_dir: str):
+        """
+        Initialize the MacroExpander.
+
+        Args:
+            base_dir (str): The base directory for resolving relative paths in macros.
+
+        """
         self.base_dir = base_dir
         self.macros = {
             "include": self._include_macro,
@@ -14,7 +24,11 @@ class MacroExpander:
         }
 
     def expand(self, content: str, override_parameters: dict[str, Any] | None = None) -> str:
-        """Expands macros in the content sequentially: find and expand the first macro, repeat until all macros are processed."""
+        """
+        Expand macros in the content sequentially.
+
+        It finds and expands the first macro, then repeats until all macros are processed.
+        """
         if override_parameters is None:
             override_parameters = {}
 
@@ -35,7 +49,7 @@ class MacroExpander:
                     macro.params.update(override_parameters[macro.link_text])
 
                 handler = self.macros[macro.command]
-                macro_value = handler(macro, expanded_content)
+                macro_value = handler(macro)
 
             # Recursively expand macros in the replacement value
             macro_value_str = self.expand(macro_value, override_parameters)
@@ -47,8 +61,8 @@ class MacroExpander:
             expande_pos = expande_pos + macro.start + len(macro_value_str)
         return expanded_content  # type: ignore[no-any-return]
 
-    def _include_macro(self, macro: Macro, content: str) -> str:
-        """Handles the @include macro."""
+    def _include_macro(self, macro: Macro) -> str:
+        """Handle the @include macro."""
         path = macro.params.get("path")
         if not path:
             raise Exception()
@@ -62,17 +76,36 @@ class MacroExpander:
         # If the path does not exist, return the original macro text to avoid breaking the content.
         return ""
 
-    def _set_macro(self, macro: Macro, content: str) -> str:
-        """Handles the @set macro."""
+    def _set_macro(self, macro: Macro) -> str:
+        """Handle the @set macro."""
         return str(macro.params.get("value", ""))
 
 
 class DocExpander:
+    """Expands macros in a parsed document."""
+
     def __init__(self, base_dir: str):
+        """
+        Initialize the DocExpander.
+
+        Args:
+            base_dir (str): The base directory for resolving relative paths.
+
+        """
         self.base_dir = base_dir
         self.parser = MarkdownLLMParser()
 
     def expand(self, content: str) -> ParsedDocument:
+        """
+        Expand macros in the content of a parsed document.
+
+        Args:
+            content (str): The markdown content to expand.
+
+        Returns:
+            ParsedDocument: The document with expanded macros.
+
+        """
         # Parse the document first
         parsed_doc = self.parser.parse(content)
 

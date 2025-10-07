@@ -1,8 +1,9 @@
+"""Handles the execution of domarkx documents."""
 import asyncio
 import pathlib
 import re
 from datetime import datetime
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 
 import aiofiles
 import typer
@@ -21,6 +22,19 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
     allow_user_message_in_function_execution: bool = True,
     overwrite: bool = False,
 ) -> None:
+    """
+    Asynchronously executes a document.
+
+    This involves reading the document, expanding any macros, handling file creation and timestamping,
+    and then running an interactive AutoGen session.
+
+    Args:
+        doc (pathlib.Path): The path to the document to execute.
+        handle_one_toolcall (bool): Whether to exit after a single tool call.
+        allow_user_message_in_function_execution (bool): Whether to prompt for user input during function execution.
+        overwrite (bool): Whether to overwrite the original file in the sessions folder.
+
+    """
     # Read the content from the document
     async with aiofiles.open(doc) as f:
         content = await f.read()
@@ -91,7 +105,7 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
         elif len(session.messages) == 0 or (
             latest_msg is not None and latest_msg.get("type", "") not in ["UserMessage"] and "content" in latest_msg
         ):
-            task_msg = await PromptSession[Optional[str]]().prompt_async(
+            task_msg = await PromptSession[str | None]().prompt_async(
                 "task > ",
                 multiline=PROMPT_TOOLKIT_IS_MULTILINE_CONDITION,
                 bottom_toolbar=lambda: "press Alt+Enter in order to accept the input. (Or Escape followed by Enter.)"
@@ -118,7 +132,7 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
 
         if handle_one_toolcall:
             break
-        user_input = await PromptSession[Optional[str]]().prompt_async("input r to continue > ")
+        user_input = await PromptSession[str | None]().prompt_async("input r to continue > ")
         if user_input is not None:
             user_input = user_input.strip().lower()
             if len(user_input) != 0 and user_input != "r":
@@ -133,8 +147,25 @@ def exec_doc(
     handle_one_toolcall: bool = False,
     overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite the original file in the sessions folder."),
 ) -> None:
+    """
+    Execute a domarkx document.
+
+    Args:
+        doc (pathlib.Path): The path to the document to execute.
+        handle_one_toolcall (bool): Whether to exit after a single tool call.
+        overwrite (bool): Whether to overwrite the original file in the sessions folder.
+
+    """
     asyncio.run(aexec_doc(doc, handle_one_toolcall, overwrite=overwrite))
 
 
 def register(main_app: typer.Typer, _: dict[str, Any]) -> None:
+    """
+    Register the `exec_doc` command with the Typer application.
+
+    Args:
+        main_app (typer.Typer): The Typer application to register the command with.
+        _ (dict[str, Any]): A dictionary of settings.
+
+    """
     main_app.command()(exec_doc)

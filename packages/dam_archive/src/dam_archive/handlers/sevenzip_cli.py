@@ -1,3 +1,5 @@
+"""Provides a 7z archive handler that uses the 7z command-line tool."""
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 class SevenZipCliArchiveHandler(ArchiveHandler):
     """
     An archive handler that uses the 7z command-line tool for extraction.
+
     This handler is intended to support archives with filters that py7zr does not,
     such as BCJ2.
     """
@@ -39,6 +42,16 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         file_path: str,
         temp_file_path: str | None,
     ):
+        """
+        Initialize the 7z CLI archive handler.
+
+        Args:
+            stream_provider: The stream provider for the archive.
+            password: The password for the archive, if any.
+            file_path: The path to the archive file.
+            temp_file_path: The path to a temporary file if the stream was written to disk.
+
+        """
         super().__init__(stream_provider, password)
         self.file_path = file_path
         self.members: list[ArchiveMemberInfo] = []
@@ -51,6 +64,20 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
     @classmethod
     async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> SevenZipCliArchiveHandler:
+        """
+        Asynchronously create and initialize a 7z CLI archive handler.
+
+        If the stream provider does not provide a file path, the stream will be
+        written to a temporary file on disk, as the 7z CLI requires a file path.
+
+        Args:
+            stream_provider: The stream provider for the archive.
+            password: The password for the archive, if any.
+
+        Returns:
+            An initialized SevenZipCliArchiveHandler instance.
+
+        """
         temp_file_path: str | None = None
         path: Path | None = stream_provider.get_path()
 
@@ -115,7 +142,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         self._parse_file_list(result.stdout)
 
     def _parse_file_list(self, output: str) -> None:
-        """Parses the output of '7z l -ba'."""
+        """Parse the output of '7z l -ba'."""
         members: list[ArchiveMemberInfo] = []
         for line in output.splitlines():
             match = self.FILE_LIST_RE.match(line)
@@ -138,9 +165,17 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         self.members = members
 
     def list_files(self) -> list[ArchiveMemberInfo]:
+        """List all files in the archive."""
         return self.members
 
     def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
+        """
+        Iterate over all files in the archive by extracting them to a temporary directory.
+
+        Yields:
+            A tuple of (ArchiveMemberInfo, BinaryIO) for each file.
+
+        """
         if self._temp_dir is None:
             self._temp_dir = tempfile.TemporaryDirectory(prefix="dam_7z_")
 
@@ -175,6 +210,22 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 logger.warning("File '%s' not found in extraction directory '%s'.", member.name, extract_path)
 
     def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
+        """
+        Open a specific file from the archive and return a file-like object.
+
+        This method extracts the file to stdout and returns the stdout stream.
+
+        Args:
+            file_name: The name of the file to open.
+
+        Returns:
+            A tuple of (ArchiveMemberInfo, BinaryIO).
+
+        Raises:
+            OSError: If the file is not found.
+            ArchiveError: If the 7z command fails.
+
+        """
         member_info = next((m for m in self.members if m.name == file_name), None)
         if not member_info:
             raise OSError(f"File not found in 7z archive: {file_name}")
@@ -198,6 +249,12 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         return member_info, process.stdout  # pyright: ignore[reportReturnType]
 
     async def close(self) -> None:
+        """
+        Clean up any temporary resources.
+
+        This includes deleting the temporary extraction directory and any temporary
+        file created from a stream.
+        """
         if self._temp_dir:
             self._temp_dir.cleanup()
             self._temp_dir = None
