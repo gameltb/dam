@@ -1,3 +1,5 @@
+"""Commit objects for automatic device management."""
+
 from typing import Any, NewType, TypeVar
 
 import accelerate.hooks
@@ -21,30 +23,58 @@ T = TypeVar("T")
 
 # 触发权重卸载后置于这种状态,当应用stack时首先让对象恢复正常(如果需要)
 FUSE_WEIGHT_OFFLOADED_STATE_UUID = NewType("FUSE_WEIGHT_OFFLOADED_STATE_UUID", type(None))
+"""A special state UUID to indicate that the weights have been offloaded."""
 
 
 class CommitWithAutoManage(CommitABC[T]):
+    """A commit that is aware of automatic device management."""
+
     def __init__(self) -> None:
+        """Initialize the commit."""
         super().__init__()
         self.am: AutoManageWrapper[T] | None = None
 
+    def apply(self, base_object: T, **kwargs: Any) -> None:
+        """Apply the commit."""
+
+    def revert(self, base_object: T) -> None:
+        """Revert the commit."""
+
+    def release_revert_resource(self) -> None:
+        """Release resources."""
+
 
 class FuseWeightCommit(CommitWithAutoManage[T]):
+    """A commit that fuses weights."""
+
     def apply(self, base_object: T, **kwargs: Any) -> None:
+        """Apply the weight fusion."""
         # 是否可以推迟到真正执行时
         return super().apply(base_object, **kwargs)
 
     def revert(self, base_object: T) -> None:
+        """Revert the weight fusion."""
         return super().revert(base_object)
 
 
 class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]):  # type: ignore
+    """A commit that applies to a component of a diffusion pipeline."""
+
     def __init__(self, component_name: str, component_commmit: CommitWithAutoManage[torch.nn.Module]):
+        """
+        Initialize the commit.
+
+        Args:
+            component_name: The name of the component to apply the commit to.
+            component_commmit: The commit to apply to the component.
+
+        """
         super().__init__()
         self.component_name = component_name
         self.component_commmit = component_commmit
 
     def apply(self, base_object: diffusers.DiffusionPipeline, **kwargs: Any) -> None:  # type: ignore
+        """Apply the commit to the pipeline component."""
         self.component_commmit.am = self.am  # type: ignore
         component = base_object.components.get(self.component_name)
         if component:
@@ -52,6 +82,7 @@ class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]
         return None
 
     def revert(self, base_object: diffusers.DiffusionPipeline) -> None:  # type: ignore
+        """Revert the commit from the pipeline component."""
         component = base_object.components.get(self.component_name)
         if component:
             return self.component_commmit.revert(component)
@@ -59,40 +90,79 @@ class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]
 
 
 class CommitAutoManage(CommitABC[T]):
+    """A commit that automatically manages the object's device placement."""
+
     def __init__(self, am: AutoManageWrapper[T] | None):
+        """
+        Initialize the commit.
+
+        Args:
+            am: The AutoManageWrapper for the object.
+
+        """
         super().__init__()
         self.am = am
 
-    def apply(self, base_object: T, **kwargs: Any) -> None:
+    def apply(self, base_object: T, **kwargs: Any) -> None:  # noqa: ARG002
+        """Load the managed object."""
         if self.am:
             self.am.load()
 
     def revert(self, base_object: T) -> None:
-        if self.am and isinstance(self.am.user, TorchModuleWrapper) and self.am.user.use_accelerate:
-            if isinstance(base_object, torch.nn.Module):
-                accelerate.hooks.remove_hook_from_module(base_object, recurse=True)
-                self.am.user.use_accelerate = False
+        """Revert the automatic management."""
+        if (
+            self.am
+            and isinstance(self.am.user, TorchModuleWrapper)
+            and self.am.user.use_accelerate
+            and isinstance(base_object, torch.nn.Module)
+        ):
+            accelerate.hooks.remove_hook_from_module(base_object, recurse=True)
+            self.am.user.use_accelerate = False
+
+    def release_revert_resource(self) -> None:
+        """Release resources."""
 
 
 class FuseWeightSquashItem(CommitSquashItem[T]):
+    """A squash item for fused weight commits."""
+
     def __init__(self, am: AutoManageWrapper[T]):
+        """
+        Initialize the squash item.
+
+        Args:
+            am: The AutoManageWrapper for the object.
+
+        """
         super().__init__()
         self.am = am
 
     def append(self, applied_commit_ref: AppliedCommitRefItem) -> None:
+        """Append a commit to the squash item."""
         return super().append(applied_commit_ref)
 
     def revert(self, base_object: T) -> None:
+        """Revert the squashed commits."""
         return super().revert(base_object)
 
 
 class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
+    """A base commit object reference with automatic management."""
+
     def __init__(self, base_object: T):
+        """
+        Initialize the reference.
+
+        Args:
+            base_object: The object to be managed.
+
+        """
         super().__init__(base_object)
         self.am: AutoManageWrapper[T] | None = None
         self.am_commit: CommitAutoManage[T] = CommitAutoManage(self.am)
 
     def apply_commit(self, commit_list: list[CommitABC[T]]) -> None:
+        """Apply a list of commits with automatic management."""
         if self.am is None:
             self.am = AutoManageWrapper(self.base_object)
             self.am_commit.am = self.am
@@ -118,6 +188,7 @@ class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
             super().apply_commit(commit_list)
 
     def rebase(self, commit_stack: list[CommitABC[T]]) -> None:
+        """Rebase the object to a new commit stack with automatic management."""
         if len(commit_stack) == 0 or commit_stack[-1] is not self.am_commit:
             commit_stack = [*commit_stack, self.am_commit]
 
@@ -130,7 +201,16 @@ class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
 
 
 class AutoManageCommitObjectProxy(CommitObjectProxy[T]):
+    """A commit object proxy with automatic management."""
+
     def __init__(self, base_object: T):
+        """
+        Initialize the proxy.
+
+        Args:
+            base_object: The object to proxy.
+
+        """
         super().__init__(
             get_base_commit_object_ref(base_object, AutoManageBaseCommitObjectRef)  # type: ignore
         )

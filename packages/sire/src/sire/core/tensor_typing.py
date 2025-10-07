@@ -1,3 +1,5 @@
+"""Typing utilities for tensors."""
+
 import logging
 from typing import Annotated
 
@@ -10,6 +12,8 @@ _logger = logging.getLogger(__name__)
 
 
 class TensorModel(AnnotatedBaseModel):
+    """A model for representing tensor metadata."""
+
     dims: list[type] | None = None
     dtype: str | None = None
 

@@ -1,3 +1,5 @@
+"""Data classes for storing and managing optimization plans."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -20,8 +22,9 @@ class PrefetchInstruction:
 @dataclass
 class OptimizationPlan:
     """
-    Stores the complete optimization strategy for a model, including device placements
-    and the prefetching schedule.
+    Stores the complete optimization strategy for a model.
+
+    This includes device placements and the prefetching schedule.
     """
 
     optimized_device_map: dict[str, torch.device] = field(default_factory=dict)  # type: ignore
@@ -33,8 +36,9 @@ class OptimizationPlan:
 
     def get_total_runtime_vram(self) -> int:
         """
-        Calculates the total VRAM required by this plan, summing the footprints
-        of all modules assigned to a CUDA device.
+        Calculate the total VRAM required by this plan.
+
+        This sums the footprints of all modules assigned to a CUDA device.
         """
         total_vram = 0
         for module_name, device in self.optimized_device_map.items():
@@ -43,21 +47,22 @@ class OptimizationPlan:
         return total_vram
 
     def __post_init__(self):
+        """Initialize the trigger index after the object is created."""
         self._build_trigger_index()
 
     def _build_trigger_index(self):
-        """Builds an index for quick lookup of prefetch instructions by trigger module."""
+        """Build an index for quick lookup of prefetch instructions by trigger module."""
         self.trigger_index = defaultdict(list)
         for instr in self.prefetch_schedule:
             self.trigger_index[instr.trigger_module].append(instr)
 
     def save(self, filepath: str):
-        """Saves the optimization plan to a JSON file."""
+        """Save the optimization plan to a JSON file."""
         save_to_json_file(self, filepath)
 
     @classmethod
     def load(cls, filepath: str) -> OptimizationPlan | None:
-        """Loads an optimization plan from a JSON file."""
+        """Load an optimization plan from a JSON file."""
         instance = load_from_json_file(filepath, cls)
         if isinstance(instance, cls):
             instance.__post_init__()

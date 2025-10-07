@@ -1,39 +1,60 @@
+"""A wrapper for modules that can be patched."""
+
 # type: ignore
-# wrapper to module have pacth module, make it run and can be export to onnx.
 from collections import OrderedDict
-from functools import reduce
 from typing import Any
 
 import torch
 
 
-# module can be inject to other network and get ext input it self.
 class PatchModuleKwargsHook:
-    """"""
+    """A hook to inject keyword arguments into a module's forward pass."""
 
     def __init__(self) -> None:
+        """Initialize the hook."""
         self.ext_kwargs: dict[str, Any] = {}
 
     def __call__(
-        self, module: torch.nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any]
+        self, _module: torch.nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Inject the external keyword arguments."""
         kwargs.update(self.ext_kwargs)
         return (args, kwargs)
 
 
 class PatchAbleModuleWrapper(torch.nn.Module):
     """
-    需要两种补丁模式,
-    1. 直接替换模块,此模块本身即为一个正常nn.Module,只不过可以添加额外的输入参数,Wrapper接受参数字典,然后将对应模块的额外参数通过hook发送到指定的模块.
-    2. 控制流补丁,这种需要对应的模块为专门编写的可以接受和应用补丁,补丁需要可以提供可能静态字典, 通过字符串识别补丁类型.
+    A wrapper for modules that allows for patching.
+
+    This wrapper supports two patching modes:
+    1.  Direct module replacement: The module itself is a normal nn.Module, but can
+        accept additional input parameters. The wrapper accepts a dictionary of
+        parameters and sends the additional parameters to the specified module
+        via a hook.
+    2.  Control-flow patching: The corresponding module is specially written to
+        accept and apply patches. The patch needs to provide a static
+        dictionary to identify the patch type by a string.
     """
 
     def __init__(self, module: torch.nn.Module) -> None:
-        super().__init__()
+        """
+        Initialize the wrapper.
+
+        Args:
+            module: The module to wrap.
+
+        """
+        super().__init__()  # type: ignore
         self.module = module
         self.replaced_module_kwargs_hook_map: OrderedDict[str, PatchModuleKwargsHook] = OrderedDict()
 
     def forward(self, /, **kwargs: Any) -> Any:
+        """
+        Forward pass for the wrapper.
+
+        This method extracts hook-specific keyword arguments and passes them to the
+        appropriate hooks before calling the wrapped module.
+        """
         for hook_id, v in self.replaced_module_kwargs_hook_map.items():
             hook_kwarg_prefix = f"{hook_id}_"
             for arg_name in list(kwargs.keys()):
@@ -42,25 +63,35 @@ class PatchAbleModuleWrapper(torch.nn.Module):
 
         return self.module(**kwargs)
 
-    def register_forward_ext_kwargs_hook(self, hook_id: str):
+    def register_forward_ext_kwargs_hook(self, hook_id: str) -> None:
+        """
+        Register a hook to extend the forward pass with extra keyword arguments.
+
+        Args:
+            hook_id: The unique identifier for the hook.
+
+        Raises:
+            Exception: If the hook_id is already registered.
+
+        """
         if hook_id in self.replaced_module_kwargs_hook_map:
             raise Exception(f"hook_id {hook_id} already registered")
         hook = PatchModuleKwargsHook()
         self.replaced_module_kwargs_hook_map[hook_id] = hook
 
-    def apply_forward_ext_kwargs_hook(self, module: torch.nn.Module, hook_id: str):
-        ext_kwargs_hook = self.replaced_module_kwargs_hook_map.get(hook_id, None)
+    def apply_forward_ext_kwargs_hook(self, module: torch.nn.Module, hook_id: str) -> None:
+        """
+        Apply a registered forward hook to a specific module.
+
+        Args:
+            module: The module to apply the hook to.
+            hook_id: The ID of the hook to apply.
+
+        Raises:
+            Exception: If the hook_id is not registered.
+
+        """
+        ext_kwargs_hook = self.replaced_module_kwargs_hook_map.get(hook_id)
         if ext_kwargs_hook is None:
             raise Exception(f"module_ext_kwargs_hook_id {hook_id} not registered")
         module.register_forward_pre_hook(ext_kwargs_hook, with_kwargs=True)
-
-
-# https://discuss.pytorch.org/t/how-to-access-to-a-layer-by-module-name/83797
-def get_module_by_name(module: torch.Tensor | torch.nn.Module, access_string: str) -> Any:
-    """
-    Retrieve a module nested in another by its access string.
-
-    Works even when there is a Sequential in the module.
-    """
-    names = access_string.split(sep=".")
-    return reduce(getattr, names, module)

@@ -1,10 +1,14 @@
+"""Custom logger for the Sire package."""
+
 import logging
-import os
 import sys
-from typing import TypedDict
+from pathlib import Path
+from typing import ClassVar, TypedDict
 
 
 class LevelConfig(TypedDict):
+    """Configuration for a logging level."""
+
     level_color: str
     message_color: str
     path_color: str
@@ -12,7 +16,9 @@ class LevelConfig(TypedDict):
 
 
 class LoggerFormatter(logging.Formatter):
-    COLORS = {
+    """A custom logger formatter that adds colors to the output."""
+
+    COLORS: ClassVar[dict[str, str]] = {
         "white": "\033[37m",
         "grey": "\033[90m",
         "blue": "\033[34m",
@@ -24,7 +30,7 @@ class LoggerFormatter(logging.Formatter):
         "reset": "\033[0m",
     }
 
-    LEVEL_CONFIGS: dict[int, LevelConfig] = {
+    LEVEL_CONFIGS: ClassVar[dict[int, LevelConfig]] = {
         logging.DEBUG: {
             "level_color": "grey",
             "message_color": "grey",
@@ -58,8 +64,15 @@ class LoggerFormatter(logging.Formatter):
     }
 
     def __init__(self, project_root: str | None = None):
+        """
+        Initialize the formatter.
+
+        Args:
+            project_root: The root directory of the project.
+
+        """
         super().__init__()
-        self.project_root = project_root or os.getcwd()
+        self.project_root = Path(project_root or Path.cwd())
         self._formatters: dict[int, logging.Formatter] = self._compile_formatters()
 
     def _compile_formatters(self) -> dict[int, logging.Formatter]:
@@ -86,13 +99,25 @@ class LoggerFormatter(logging.Formatter):
         return formatters
 
     def format(self, record: logging.LogRecord) -> str:
-        if self.project_root and record.pathname.startswith(self.project_root):
-            record.pathname = os.path.relpath(record.pathname, self.project_root)
+        """Format the log record."""
+        pathname = Path(record.pathname)
+        if self.project_root and pathname.is_relative_to(self.project_root):
+            record.pathname = str(pathname.relative_to(self.project_root))
         formatter = self._formatters.get(record.levelno, self._formatters[logging.DEBUG])
         return formatter.format(record)
 
 
 def setup_logger(name: str | None = None) -> logging.Logger:
+    """
+    Set up a logger with the custom formatter.
+
+    Args:
+        name: The name of the logger.
+
+    Returns:
+        The configured logger.
+
+    """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 

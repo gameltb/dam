@@ -1,3 +1,5 @@
+"""Generates unique signatures for model configurations and optimization plans."""
+
 import hashlib
 import logging
 import sys
@@ -10,8 +12,13 @@ from torch import nn
 
 logger = logging.getLogger(__name__)
 
+MAX_STR_LEN_SIG = 30
+MAX_STR_LEN_RAW = 100
+
 
 class SignatureType(Enum):
+    """Enum for the different levels of signature generation."""
+
     INPUT_ONLY = "input_only"  # Basic info and input shapes.
     WITH_WEIGHT_SHAPES = "with_weight_shapes"  # Adds model structure and weight shapes.
     WITH_WEIGHT_HASH = "with_weight_hash"  # Adds weight value hashes.
@@ -19,12 +26,13 @@ class SignatureType(Enum):
 
 class ConfigSignatureGenerator:
     """
-    Generates a unique signature for a model's configuration, including its
-    architecture, weights, and input shapes. This signature is used to cache
-    optimization plans.
+    Generate a unique signature for a model's configuration.
+
+    The signature includes its architecture, weights, and input shapes.
+    This signature is used to cache optimization plans.
     """
 
-    def _serialize_value_recursive(
+    def _serialize_value_recursive(  # noqa: PLR0912, PLR0913, PLR0915
         self,
         val: Any,
         path: list[str],
@@ -65,7 +73,7 @@ class ConfigSignatureGenerator:
                 dict_val = cast(dict[Any, Any], val)
                 keys: list[Any] = sorted(list(dict_val.keys()), key=str)
             except TypeError:
-                logger.debug(f"Dict keys {ps} not sortable by str.")
+                logger.debug("Dict keys %s not sortable by str.", ps)
                 keys = list(val.keys())  # type: ignore
             for i, k_ in enumerate(keys):
                 if i >= mc:
@@ -77,9 +85,11 @@ class ConfigSignatureGenerator:
                 self._serialize_value_recursive(val[k_], [*path, str(k_)], sig_parts, inode, md, cd + 1, mc)
         elif isinstance(val, (int, float, bool, str)):
             sval = str(val)
-            sval_sig = (sval[:27] + "...") if isinstance(val, str) and len(sval) > 30 else sval
+            sval_sig = (sval[:27] + "...") if isinstance(val, str) and len(sval) > MAX_STR_LEN_SIG else sval
             sig_parts.append(f"{ps}_V_{sval_sig}")
-            raw.update({"type": val.__class__.__name__, "value": (sval[:97] + "...") if len(sval) > 100 else sval})
+            raw.update(
+                {"type": val.__class__.__name__, "value": (sval[:97] + "...") if len(sval) > MAX_STR_LEN_RAW else sval}
+            )
         elif val is None:
             sig_parts.append(f"{ps}_None")
             raw["type"] = "NoneType"
@@ -92,9 +102,7 @@ class ConfigSignatureGenerator:
             except Exception:
                 raw["value_str"] = "Error_str_conversion"
 
-    def _get_input_parts(
-        self, mod: nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any], raw_in: dict[str, Any]
-    ) -> list[str]:
+    def _get_input_parts(self, args: tuple[Any, ...], kwargs: dict[str, Any], raw_in: dict[str, Any]) -> list[str]:
         s_p: list[str] = []
         args_list: list[dict[str, Any]] = []
         raw_in["args"] = args_list
@@ -133,7 +141,7 @@ class ConfigSignatureGenerator:
             s_p.append(part)
         return s_p
 
-    def generate_config_signature(
+    def generate_config_signature(  # noqa: PLR0913
         self,
         mod: nn.Module,
         args: tuple[Any, ...],
@@ -142,6 +150,7 @@ class ConfigSignatureGenerator:
         cb: Callable[..., Any] | None = None,
         level: SignatureType = SignatureType.WITH_WEIGHT_HASH,
     ) -> tuple[str, dict[str, Any]]:
+        """Generate a signature for the given model configuration."""
         class_name = f"{mod.__class__.__module__}.{mod.__class__.__name__}"
         raw: dict[str, Any] = {
             "inputs": {},
@@ -152,7 +161,7 @@ class ConfigSignatureGenerator:
         s_p: list[str] = [f"cls_{class_name}"]
 
         # Level 1: Inputs
-        s_p.extend(self._get_input_parts(mod, args, kwargs, raw["inputs"]) or ["inputs_empty"])
+        s_p.extend(self._get_input_parts(args, kwargs, raw["inputs"]) or ["inputs_empty"])
 
         # Level 2 & 3: Model structure, weights
         if level in [SignatureType.WITH_WEIGHT_SHAPES, SignatureType.WITH_WEIGHT_HASH]:
@@ -175,9 +184,9 @@ class ConfigSignatureGenerator:
                     s_p.extend([f"cc_{k_}{v_}" for k_, v_ in sorted(custom.items())])  # type: ignore
                 else:
                     logger.warning("Custom sig cb no dict.")
-            except Exception as e:
-                logger.error(f"Custom sig cb fail: {e}", exc_info=True)
-                raw["config"]["custom_cb_out"] = {"error": str(e)}
+            except Exception:
+                logger.exception("Custom sig cb fail")
+                raw["config"]["custom_cb_out"] = {"error": "exception"}
 
         s_p.append(f"moddt_{str(dtype).split('.')[-1]}")
         raw["config"]["mod_dtype"] = str(dtype)
@@ -190,12 +199,13 @@ class ConfigSignatureGenerator:
         raw["full_sig_unhashed"] = full_sig
         hashed_sig = hashlib.md5(full_sig.encode()).hexdigest()
         raw["final_config_sig_hash"] = hashed_sig
-        logger.debug(f"Config sig hash: {hashed_sig} (from: {full_sig[:100]}...)")
+        logger.debug("Config sig hash: %s (from: %s...)", hashed_sig, full_sig[:100])
         return hashed_sig, raw
 
     def generate_plan_identifier(self, mem_bytes: dict[str, int]) -> str:
+        """Generate a unique identifier for an optimization plan."""
         parts = [f"{k}{v / (1024**3):.1f}G" for k, v in sorted(mem_bytes.items())]
         mem_str = "_".join(parts) or "mem_auto_empty"
         plan_id = hashlib.md5(mem_str.encode()).hexdigest()[:16]
-        logger.debug(f"Plan ID: {plan_id} (mem: {mem_str})")
+        logger.debug("Plan ID: %s (mem: %s)", plan_id, mem_str)
         return plan_id

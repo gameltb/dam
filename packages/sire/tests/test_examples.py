@@ -1,3 +1,5 @@
+"""Tests for the code examples."""
+
 import runpy
 
 import pytest
@@ -5,7 +7,7 @@ import pytest
 
 @pytest.mark.skip(reason="Failing due to unrelated AttributeError in sire package")
 def test_simple_usage_example():
-    """Runs the simple_usage.py example to ensure it executes without errors."""
+    """Run the simple_usage.py example to ensure it executes without errors."""
     try:
         runpy.run_path("examples/simple_usage.py", run_name="__main__")
     except Exception as e:
