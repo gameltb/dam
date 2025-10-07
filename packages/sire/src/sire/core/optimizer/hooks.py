@@ -1,9 +1,11 @@
 # type: ignore
+"""Hooks for optimizing model inference with device placement and prefetching."""
+
 import functools
 import logging
-import os
 from collections import defaultdict
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import accelerate.hooks
@@ -39,7 +41,19 @@ accelerate.hooks.set_module_tensor_to_device = functools.partial(
 
 
 class PrefetchContext:
+    """A context for managing prefetching operations."""
+
     def __init__(self, plan: OptimizationPlan, model: nn.Module, num_streams: int, offload_policy: str) -> None:
+        """
+        Initialize the prefetch context.
+
+        Args:
+            plan: The optimization plan.
+            model: The model being optimized.
+            num_streams: The number of CUDA streams to use for prefetching.
+            offload_policy: The policy for offloading modules.
+
+        """
         self.plan, self.model = plan, model
         self.module_map: dict[str, nn.Module] = {name: mod for name, mod in model.named_modules()}
         self.num_streams, self.offload_policy = num_streams, offload_policy
@@ -54,10 +68,11 @@ class PrefetchContext:
                 for i in range(torch.cuda.device_count()):
                     streams[i] = [torch.cuda.Stream(device=i) for _ in range(self.num_streams)]
             except Exception as e:
-                logger.warning(f"Error initializing CUDA prefetch streams: {e}")
+                logger.warning("Error initializing CUDA prefetch streams: %s", e)
         return {"streams": streams, "stream_idx": s_idx}
 
     def get_stream(self, device: torch.device) -> torch.cuda.Stream | None:
+        """Get a CUDA stream for a given device."""
         if not (device.type == "cuda" and torch.cuda.is_available() and device.index < torch.cuda.device_count()):
             return None
         pool = self.stream_mgr["streams"].get(device.index, [])
@@ -69,33 +84,53 @@ class PrefetchContext:
         return stream
 
     def set_module_prefetch_stream(self, name: str, stream: torch.cuda.Stream) -> None:
+        """Set the prefetch stream for a module."""
         self.module_pf_streams[name] = stream
 
     def get_module_prefetch_stream(self, name: str) -> torch.cuda.Stream | None:
+        """Get the prefetch stream for a module."""
         return self.module_pf_streams.get(name)
 
     def clear_all_module_prefetch_streams(self) -> None:
+        """Clear all module prefetch streams."""
         self.module_pf_streams.clear()
 
 
 class PrefetchingWaitHook(ModelHook):
+    """A hook that waits for a prefetch operation to complete."""
+
     def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module, exec_dev: torch.device) -> None:
+        """
+        Initialize the hook.
+
+        Args:
+            ctx: The prefetch context.
+            name: The name of the module.
+            mod_inst: The module instance.
+            exec_dev: The execution device.
+
+        """
         super().__init__()
         self.ctx, self.name, self.mod_inst, self.exec_dev = ctx, name, mod_inst, exec_dev
         self.tied_ptrs_to_rm: set[tuple[int, torch.device]] = set()
         self.pf_submod_hf_hook: AlignDevicesHook | None = None
-        logger.debug(f"PrefetchingWaitHook for {self.name} on {self.exec_dev}")
+        logger.debug("PrefetchingWaitHook for %s on %s", self.name, self.exec_dev)
 
     @torch.compiler.disable()
     def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Wait for the prefetch stream before the forward pass."""
         if module is not self.mod_inst:
-            logger.warning(f"WaitHook for {self.name} called on wrong mod")
+            logger.warning("WaitHook for %s called on wrong mod", self.name)
             return args, kwargs
         pf_stream = self.ctx.get_module_prefetch_stream(self.name)
         if pf_stream:
             comp_stream = torch.cuda.current_stream(self.exec_dev)
             logger.debug(
-                f"Mod {self.name} on dev {self.exec_dev} (stream {comp_stream.stream_id}) waiting for pf stream {pf_stream.stream_id}"
+                "Mod %s on dev %s (stream %d) waiting for pf stream %d",
+                self.name,
+                self.exec_dev,
+                comp_stream.stream_id,
+                pf_stream.stream_id,
             )
             comp_stream.wait_stream(pf_stream)
             if self.pf_submod_hf_hook:
@@ -104,32 +139,49 @@ class PrefetchingWaitHook(ModelHook):
 
 
 class AlignDevicesHookTorchCompilerDisable(AlignDevicesHook):
+    """An AlignDevicesHook that disables the torch compiler."""
+
     @classmethod
     def from_align_devices_hook(cls, align_devices_hook: AlignDevicesHook) -> "AlignDevicesHookTorchCompilerDisable":
+        """Create a new hook from an existing AlignDevicesHook."""
         align_devices_hook.__class__ = cls
         return align_devices_hook
 
     @torch.compiler.disable()
     def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Execute the pre_forward hook with the torch compiler disabled."""
         return super().pre_forward(module, *args, **kwargs)
 
     @torch.compiler.disable()
     def post_forward(self, module: nn.Module, output: Any) -> Any:
+        """Execute the post_forward hook with the torch compiler disabled."""
         return super().post_forward(module, output)
 
 
 class PrefetchingHook(ModelHook):  # Placed on trigger module
+    """A hook that triggers prefetching operations."""
+
     def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module) -> None:
+        """
+        Initialize the hook.
+
+        Args:
+            ctx: The prefetch context.
+            name: The name of the module.
+            mod_inst: The module instance.
+
+        """
         super().__init__()
         self.ctx, self.name, self.mod_inst = ctx, name, mod_inst
-        logger.debug(f"PrefetchingHook (trigger) for {self.name}")
+        logger.debug("PrefetchingHook (trigger) for %s", self.name)
 
     @torch.compiler.disable()
     def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Trigger prefetching before the forward pass."""
         if module is not self.mod_inst:
-            logger.warning(f"TriggerHook for {self.name} called on wrong mod")
+            logger.warning("TriggerHook for %s called on wrong mod", self.name)
             return args, kwargs
-        logger.debug(f"TriggerHook pre_fwd for {self.name} (id {id(module)})")
+        logger.debug("TriggerHook pre_fwd for %s (id %d)", self.name, id(module))
         nvtx.range_push(f"pf_trigger_{self.name}")
         trigger_dev = find_device(module.state_dict())
 
@@ -137,11 +189,11 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
             pf_mod_name, pf_tgt_dev = instr.module_to_prefetch, instr.target_device
             mod_to_pf = self.ctx.module_map.get(pf_mod_name)
             if not mod_to_pf:
-                logger.warning(f"Mod '{pf_mod_name}' for prefetch not found")
+                logger.warning("Mod '%s' for prefetch not found", pf_mod_name)
                 continue
             pf_stream = self.ctx.get_stream(pf_tgt_dev)
             if not pf_stream:
-                logger.warning(f"No pf stream for {pf_tgt_dev}. Cannot prefetch {pf_mod_name}.")
+                logger.warning("No pf stream for %s. Cannot prefetch %s.", pf_tgt_dev, pf_mod_name)
                 continue
 
             if trigger_dev and trigger_dev.type == "cuda" and pf_tgt_dev.type == "cuda":
@@ -150,7 +202,10 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
         nvtx.range_pop()
         return args, kwargs
 
-    def do_prefetch(self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream) -> None:
+    def do_prefetch(  # noqa: PLR0912, PLR0915
+        self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream
+    ) -> None:
+        """Perform the prefetch operation."""
         nvtx.range_push(f"pf_task_{pf_name}_on_{pf_stream.stream_id}")
         try:
             pf_stream.wait_stream(torch.cuda.current_stream())
@@ -167,11 +222,11 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     align_hook = hook
 
                 if not align_hook:
-                    logger.error(f"No AlignHook on {pf_name}. Abort prefetch.")
+                    logger.error("No AlignHook on %s. Abort prefetch.", pf_name)
                     nvtx.range_pop()
                     return
                 if not wait_hook and self.ctx.plan.prefetch_schedule:
-                    logger.error(f"No WaitHook on {pf_name} with active prefetch. Abort.")
+                    logger.error("No WaitHook on %s with active prefetch. Abort.", pf_name)
                     nvtx.range_pop()
                     return
 
@@ -187,7 +242,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     getattr(align_hook, "tied_params_map", None),
                 )
                 if w_map is None or tied_map is None:
-                    logger.error(f"AlignHook on {pf_name} not init. No prefetch.")
+                    logger.error("AlignHook on %s not init. No prefetch.", pf_name)
                     nvtx.range_pop()
                     return
                 align_hook.execution_device = pf_dev
@@ -196,14 +251,14 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                     if val.device.type == "meta":
                         map_val = w_map.get(name)
                         if map_val is None:
-                            logger.warning(f"Meta tensor '{name}' in '{pf_name}' no value in weights_map.")
+                            logger.warning("Meta tensor '%s' in '%s' no value in weights_map.", name, pf_name)
                             continue
                         if map_val.device.type == "cpu" and not map_val.is_pinned():
                             try:
                                 map_val = map_val.pin_memory()
                                 w_map.dataset.state_dict[w_map.prefix + name] = map_val
                             except RuntimeError as e_pin:
-                                logger.warning(f"Could not pin {name} for prefetch: {e_pin}. Using unpinned.")
+                                logger.warning("Could not pin %s for prefetch: %s. Using unpinned.", name, e_pin)
 
                         if map_val.data_ptr() not in tied_map:
                             tied_map[map_val.data_ptr()] = {}
@@ -215,18 +270,20 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
                         if wait_hook:
                             wait_hook.tied_ptrs_to_rm.add((map_val.data_ptr(), pf_dev))
                     elif val.device != pf_dev:
-                        logger.debug(f"Prefetching existing tensor {name} from {val.device} to {pf_dev}")
+                        logger.debug("Prefetching existing tensor %s from %s to %s", name, val.device, pf_dev)
                         val.data = val.data.to(pf_dev, non_blocking=True)
-                logger.debug(f"Prefetch task for {pf_name} to {pf_dev} submitted on stream {pf_stream.stream_id}.")
+                logger.debug("Prefetch task for %s to %s submitted on stream %d.", pf_name, pf_dev, pf_stream.stream_id)
             self.ctx.set_module_prefetch_stream(pf_name, pf_stream)
-        except Exception as e_pf:
-            logger.error(f"Error in do_prefetch for {pf_name}: {e_pf}", exc_info=True)
+        except Exception:
+            logger.exception("Error in do_prefetch for %s", pf_name)
         finally:
             nvtx.range_pop()
 
 
 class InferenceOptimizerHook(ModelHook):
-    def __init__(
+    """A hook that optimizes model inference."""
+
+    def __init__(  # noqa: PLR0913
         self,
         cache_dir: str = "opt_cache",
         num_prefetch_streams: int = 1,
@@ -237,9 +294,23 @@ class InferenceOptimizerHook(ModelHook):
         run_profiling_if_needed: bool = True,
         max_memory_gb: dict[str, float] | None = None,
     ) -> None:
+        """
+        Initialize the hook.
+
+        Args:
+            cache_dir: The directory to cache optimization plans.
+            num_prefetch_streams: The number of CUDA streams for prefetching.
+            no_split_module_classes: A list of module classes that should not be split across devices.
+            custom_signature_callback: A callback to generate a custom signature for the model.
+            default_offload_policy: The default policy for offloading modules.
+            force_profiling: Whether to force profiling even if a cached plan exists.
+            run_profiling_if_needed: Whether to run profiling if no cached plan is found.
+            max_memory_gb: A dictionary mapping device IDs to the maximum memory in GB.
+
+        """
         super().__init__()
-        self.base_cache_dir = cache_dir
-        os.makedirs(self.base_cache_dir, exist_ok=True)
+        self.base_cache_dir = Path(cache_dir)
+        self.base_cache_dir.mkdir(exist_ok=True)
         self.num_prefetch_streams = max(1, num_prefetch_streams)
         self.no_split_module_classes = no_split_module_classes or []
         self.custom_signature_callback = custom_signature_callback
@@ -261,7 +332,7 @@ class InferenceOptimizerHook(ModelHook):
         self.current_module_dtype: torch.dtype | None = None
         self.module: nn.Module | None = None
         self.cpu_state_dict: dict[str, torch.Tensor] = {}
-        logger.info(f"IOHook init. Cache: {self.base_cache_dir}, Prefetch: {self.num_prefetch_streams}")
+        logger.info("IOHook init. Cache: %s, Prefetch: %d", self.base_cache_dir, self.num_prefetch_streams)
 
     def _get_max_mem_bytes(self) -> dict[str, int]:  # keys are str
         mem_map: dict[str, int] = {}
@@ -269,7 +340,7 @@ class InferenceOptimizerHook(ModelHook):
             for k, v in self.user_max_memory_gb.items():
                 mem_map[str(k)] = int(v * (1024**3))
             mem_str = {k: f"{val / (1024**3):.1f}GB" for k, val in mem_map.items()}
-            logger.info(f"User max_mem: {mem_str}")
+            logger.info("User max_mem: %s", mem_str)
         else:
             logger.info("Auto-balancing memory.")
             if not self.hooked_module_instance:
@@ -284,9 +355,9 @@ class InferenceOptimizerHook(ModelHook):
                 if balanced:
                     mem_map = {str(k): v for k, v in balanced.items()}
                 mem_str = {k: f"{val / (1024**3):.1f}GB" for k, val in mem_map.items()}
-                logger.info(f"Auto-balanced max_mem: {mem_str}")
-            except Exception as e:
-                logger.error(f"Auto-balance fail: {e}", exc_info=True)
+                logger.info("Auto-balanced max_mem: %s", mem_str)
+            except Exception:
+                logger.exception("Auto-balance fail")
                 mem_map = {"cpu": 64 * (1024**3)}
                 if torch.cuda.is_available():
                     for i in range(torch.cuda.device_count()):
@@ -294,21 +365,21 @@ class InferenceOptimizerHook(ModelHook):
                             mem_map[str(i)] = 1 * (1024**3)
         return mem_map
 
-    def _get_sig_dir_path(self) -> str:  # For current_config_sig_hash
+    def _get_sig_dir_path(self) -> Path:  # For current_config_sig_hash
         if not self.current_config_sig_hash:
             logger.error("Config sig hash None. Cannot get dir.")
-            return os.path.join(self.base_cache_dir, "_ERR_NO_CONF_SIG")
-        d = os.path.join(self.base_cache_dir, self.current_config_sig_hash)
-        os.makedirs(d, exist_ok=True)
+            return self.base_cache_dir / "_ERR_NO_CONF_SIG"
+        d = self.base_cache_dir / self.current_config_sig_hash
+        d.mkdir(exist_ok=True)
         return d
 
-    def _get_plan_file_path(self) -> str | None:  # For current_plan_id
+    def _get_plan_file_path(self) -> Path | None:  # For current_plan_id
         if not self.current_plan_id:
             logger.error("Plan ID None. Cannot get path.")
             return None
-        d = os.path.join(self._get_sig_dir_path(), "plans")
-        os.makedirs(d, exist_ok=True)
-        return os.path.join(d, f"{self.current_plan_id}.json")
+        d = self._get_sig_dir_path() / "plans"
+        d.mkdir(exist_ok=True)
+        return d / f"{self.current_plan_id}.json"
 
     def _gen_opt_plan(self, prof_data: ProfilingData, max_mem_plan: dict[str, int]) -> OptimizationPlan | None:
         logger.info("Generating optimization plan...")
@@ -319,7 +390,7 @@ class InferenceOptimizerHook(ModelHook):
         return opt.optimize()
 
     def _setup_module_with_plan(self, mod_to_opt: nn.Module, plan: OptimizationPlan) -> PrefetchContext | None:
-        logger.info(f"Preparing/dispatching '{mod_to_opt.__class__.__name__}' with plan...")
+        logger.info("Preparing/dispatching '%s' with plan...", mod_to_opt.__class__.__name__)
         offload = self.default_offload_policy
         if any(d.type == "cpu" for d in plan.optimized_device_map.values()) and offload != "cpu":
             offload = "cpu"
@@ -356,26 +427,29 @@ class InferenceOptimizerHook(ModelHook):
                 trigs += 1
 
         add_hook_to_module(mod_to_opt, self, append=True)
-        logger.info(f"Registered {waits} WaitHooks and {trigs} TriggerHooks.")
+        logger.info("Registered %d WaitHooks and %d TriggerHooks.", waits, trigs)
         return pf_ctx
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    def pre_forward(  # noqa: PLR0911, PLR0912, PLR0915
+        self, module: nn.Module, *args: Any, **kwargs: Any
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Prepare for the forward pass, handling profiling and planning."""
         nvtx.range_push("IOHook.full_forward")
         nvtx.range_push("IOHook.pre_forward")
         self.hooked_module_instance = module
 
         # One-time setup
         if self.current_module_dtype is None:
-            logger.info(f"Hook first fwd: {module.__class__.__name__} (id:{id(module)})")
+            logger.info("Hook first fwd: %s (id:%d)", module.__class__.__name__, id(module))
             try:
                 p_dt = next((p.dtype for p in module.parameters(False)), None)
                 b_dt = next((b.dtype for b in module.buffers(False)), None)
                 self.current_module_dtype = getattr(module, "dtype", p_dt or b_dt or torch.get_default_dtype())
             except Exception as e:
                 self.current_module_dtype = torch.get_default_dtype()
-                logger.warning(f"Dtype infer fail: {e}. Using {self.current_module_dtype}")
-            logger.info(f"Module dtype: {self.current_module_dtype}")
+                logger.warning("Dtype infer fail: %s. Using %s", e, self.current_module_dtype)
+            logger.info("Module dtype: %s", self.current_module_dtype)
             self.current_max_memory_bytes = self._get_max_mem_bytes()
 
         if not all([self.hooked_module_instance, self.current_module_dtype, self.current_max_memory_bytes]):
@@ -408,9 +482,11 @@ class InferenceOptimizerHook(ModelHook):
 
         if needs_plan_update:
             logger.info(
-                f"Plan update triggered. ModID_changed:{id(module) != self.last_module_id_processed}, "
-                f"NoPlan:{self.current_plan is None}, ForceProf:{self._force_profiling_active}, "
-                f"InputSig_changed:{input_sig_changed}"
+                "Plan update triggered. ModID_changed:%s, NoPlan:%s, ForceProf:%s, InputSig_changed:%s",
+                id(module) != self.last_module_id_processed,
+                self.current_plan is None,
+                self._force_profiling_active,
+                input_sig_changed,
             )
 
             if not self.current_module_dtype or not self.hooked_module_instance:
@@ -435,18 +511,18 @@ class InferenceOptimizerHook(ModelHook):
             self.current_config_sig_hash, self.current_plan_id = new_conf_hash, new_plan_id
 
             sig_dir = self._get_sig_dir_path()
-            prof_data_path = os.path.join(sig_dir, "profiling_data.json")
+            prof_data_path = sig_dir / "profiling_data.json"
             plan_path = self._get_plan_file_path()
 
             prof_data: ProfilingData | None = None
             just_profiled = False
             if not self._force_profiling_active:
-                prof_data = ProfilingData.load(prof_data_path)
+                prof_data = ProfilingData.load(str(prof_data_path))
 
             if prof_data is None:
                 if self.run_profiling_if_needed or self._force_profiling_active:
                     logger.info(
-                        f"Profiling for conf {self.current_config_sig_hash}. Force={self._force_profiling_active}"
+                        "Profiling for conf %s. Force=%s", self.current_config_sig_hash, self._force_profiling_active
                     )
                     profiler = Profiler(self.hooked_module_instance)
                     prof_data = profiler.run(
@@ -457,12 +533,12 @@ class InferenceOptimizerHook(ModelHook):
                     )
                     just_profiled = True
                     if prof_data:
-                        prof_data.save(prof_data_path)
-                        raw_details_path = os.path.join(sig_dir, "raw_signature_details.json")
+                        prof_data.save(str(prof_data_path))
+                        raw_details_path = sig_dir / "raw_signature_details.json"
                         try:
-                            save_to_json_file(raw_details, raw_details_path)
-                        except Exception as e:
-                            logger.error(f"Failed to save raw signature details: {e}")
+                            save_to_json_file(raw_details, str(raw_details_path))
+                        except Exception:
+                            logger.exception("Failed to save raw signature details")
                     else:
                         logger.error("Profiling failed, no data returned.")
                         self.current_plan = None
@@ -471,24 +547,24 @@ class InferenceOptimizerHook(ModelHook):
                         return args, kwargs
                 else:
                     logger.error(
-                        f"Profiling data not found for {self.current_config_sig_hash} and profiling is disabled."
+                        "Profiling data not found for %s and profiling is disabled.", self.current_config_sig_hash
                     )
                     self.current_plan = None
                     self.active_pf_ctx = None
                     nvtx.range_pop()
                     return args, kwargs
             else:
-                logger.info(f"Using existing profiling data from {prof_data_path}.")
-                raw_details_path = os.path.join(sig_dir, "raw_signature_details.json")
-                if not os.path.exists(raw_details_path):
+                logger.info("Using existing profiling data from %s.", prof_data_path)
+                raw_details_path = sig_dir / "raw_signature_details.json"
+                if not raw_details_path.exists():
                     try:
-                        save_to_json_file(raw_details, raw_details_path)
-                    except Exception as e:
-                        logger.error(f"Failed to save raw signature details: {e}")
+                        save_to_json_file(raw_details, str(raw_details_path))
+                    except Exception:
+                        logger.exception("Failed to save raw signature details")
 
             self.current_plan = None
             if not just_profiled and plan_path:
-                self.current_plan = OptimizationPlan.load(plan_path)
+                self.current_plan = OptimizationPlan.load(str(plan_path))
 
             if self.current_plan is None:
                 if not prof_data or not self.current_max_memory_bytes:
@@ -497,18 +573,18 @@ class InferenceOptimizerHook(ModelHook):
                     nvtx.range_pop()
                     return args, kwargs
                 logger.info(
-                    f"Generating plan for plan_id {self.current_plan_id} (config {self.current_config_sig_hash})"
+                    "Generating plan for plan_id %s (config %s)", self.current_plan_id, self.current_config_sig_hash
                 )
                 self.current_plan = self._gen_opt_plan(prof_data, self.current_max_memory_bytes)
                 if self.current_plan and plan_path:
-                    self.current_plan.save(plan_path)
+                    self.current_plan.save(str(plan_path))
                 elif not self.current_plan:
                     logger.error("Plan gen fail.")
                     self.active_pf_ctx = None
                     nvtx.range_pop()
                     return args, kwargs
             else:
-                logger.info(f"Loaded existing plan from {plan_path}")
+                logger.info("Loaded existing plan from %s", plan_path)
 
             if self.active_pf_ctx:
                 self.active_pf_ctx.clear_all_module_prefetch_streams()
@@ -543,23 +619,26 @@ class InferenceOptimizerHook(ModelHook):
                     None,
                 )
                 if align_hook:
-                    logger.debug(f"Manually calling pre_forward of AlignDevicesHook: {type(align_hook)}")
+                    logger.debug("Manually calling pre_forward of AlignDevicesHook: %s", type(align_hook))
                     result = align_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)
                     args, kwargs = result[0], result[1]
                 else:
                     logger.warning("No AlignDevicesHook found in SequentialHook post-setup.")
             elif hf_hook is not self and isinstance(hf_hook, AlignDevicesHook):
-                logger.debug(f"Manually calling pre_forward of sole AlignDevicesHook: {type(hf_hook)}")
+                logger.debug("Manually calling pre_forward of sole AlignDevicesHook: %s", type(hf_hook))
                 result = hf_hook.pre_forward(self.hooked_module_instance, *args, **kwargs)
                 args, kwargs = result[0], result[1]
             else:
                 logger.warning(
-                    f"No applicable hook found for arg alignment on {self.hooked_module_instance.__class__.__name__} post-setup. Hook is: {type(hf_hook)}"
+                    "No applicable hook found for arg alignment on %s post-setup. Hook is: %s",
+                    self.hooked_module_instance.__class__.__name__,
+                    type(hf_hook),
                 )
 
         nvtx.range_pop()
         return args, kwargs
 
-    def post_forward(self, module: nn.Module, output: Any) -> Any:
+    def post_forward(self, _module: nn.Module, output: Any) -> Any:
+        """Clean up after the forward pass."""
         nvtx.range_pop()
         return output

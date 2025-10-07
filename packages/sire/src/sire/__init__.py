@@ -1,3 +1,5 @@
+"""Sire is a resource management and optimization library for PyTorch."""
+
 __version__ = "0.2.0"
 
 from typing import Any
@@ -28,11 +30,13 @@ _initialized = False
 
 def initialize():
     """
-    Initializes Sire's environment. Sets up default CPU and CUDA resource pools
-    and registers the default type wrappers for common libraries like PyTorch
-    and Diffusers. This function is idempotent.
+    Initialize Sire's environment.
+
+    This function sets up default CPU and CUDA resource pools and registers the
+    default type wrappers for common libraries like PyTorch and Diffusers. This
+    function is idempotent.
     """
-    global _initialized
+    global _initialized  # noqa: PLW0603
     if _initialized:
         return
 
@@ -55,7 +59,8 @@ def initialize():
 
 def manage(model_object: Any) -> AutoManageWrapper[Any]:
     """
-    Wraps a model or object to be managed by Sire's resource manager.
+    Wrap a model or object to be managed by Sire's resource manager.
+
     This is the main entry point for making an object "Sire-aware".
     """
     return AutoManageWrapper(model_object)

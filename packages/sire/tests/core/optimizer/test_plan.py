@@ -1,5 +1,7 @@
-import os
+"""Tests for the OptimizationPlan class."""
+
 import tempfile
+from pathlib import Path
 
 import torch
 
@@ -7,7 +9,7 @@ from sire.core.optimizer.plan import OptimizationPlan, PrefetchInstruction
 
 
 def test_optimization_plan_save_load():
-    """Tests saving and loading an OptimizationPlan."""
+    """Test saving and loading an OptimizationPlan."""
     plan = OptimizationPlan(
         optimized_device_map={
             "module1": torch.device("cuda:0"),
@@ -23,13 +25,13 @@ def test_optimization_plan_save_load():
     )
 
     with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as tmp:
-        filepath = tmp.name
+        filepath = Path(tmp.name)
 
     try:
-        plan.save(filepath)
-        assert os.path.exists(filepath)
+        plan.save(str(filepath))
+        assert filepath.exists()
 
-        loaded_plan = OptimizationPlan.load(filepath)
+        loaded_plan = OptimizationPlan.load(str(filepath))
 
         assert loaded_plan is not None
         assert loaded_plan.optimized_device_map == plan.optimized_device_map
@@ -40,24 +42,24 @@ def test_optimization_plan_save_load():
         assert loaded_plan.trigger_index["module1"][0].module_to_prefetch == "module2"
 
     finally:
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        if filepath.exists():
+            filepath.unlink()
 
 
 def test_optimization_plan_empty():
-    """Tests creating and saving/loading an empty plan."""
+    """Test creating and saving/loading an empty plan."""
     plan = OptimizationPlan()
 
     with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as tmp:
-        filepath = tmp.name
+        filepath = Path(tmp.name)
 
     try:
-        plan.save(filepath)
-        loaded_plan = OptimizationPlan.load(filepath)
+        plan.save(str(filepath))
+        loaded_plan = OptimizationPlan.load(str(filepath))
         assert loaded_plan is not None
         assert not loaded_plan.optimized_device_map
         assert not loaded_plan.prefetch_schedule
         assert not loaded_plan.trigger_index
     finally:
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        if filepath.exists():
+            filepath.unlink()

@@ -1,3 +1,5 @@
+"""JSON serialization helpers for numpy data types."""
+
 import functools
 import json
 from typing import Any
@@ -8,7 +10,8 @@ import numpy as np
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types."""
 
-    def default(self, o: Any) -> Any:
+    def default(self, o: Any) -> Any:  # noqa: PLR0911
+        """Provide a JSON-serializable version of a numpy object."""
         if hasattr(o, "dtype"):
             if o.dtype.kind in "iu":
                 return int(o)
@@ -21,7 +24,7 @@ class NumpyEncoder(json.JSONEncoder):
             if o.dtype.kind == "V":
                 return None
 
-        if isinstance(o, (np.ndarray,)):
+        if isinstance(o, np.ndarray):
             return o.tolist()
 
         return super().default(o)

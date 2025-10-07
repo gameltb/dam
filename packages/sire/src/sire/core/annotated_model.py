@@ -1,3 +1,5 @@
+"""Models for annotated types."""
+
 import logging
 from typing import Any, TypeVar
 
@@ -7,13 +9,24 @@ _logger = logging.getLogger(__name__)
 
 
 class AnnotatedBaseModel(BaseModel):
-    pass
+    """Base model for annotated types."""
 
 
 M = TypeVar("M", bound=AnnotatedBaseModel)
 
 
 def find_annotated_model[M: AnnotatedBaseModel](annotation: Any, model_type: type[M] = AnnotatedBaseModel) -> M | None:  # type: ignore
+    """
+    Find an annotated model in a type annotation.
+
+    Args:
+        annotation: The type annotation to search.
+        model_type: The type of model to find.
+
+    Returns:
+        The annotated model, or None if not found.
+
+    """
     if isinstance(annotation, model_type):
         return annotation
     if hasattr(annotation, "__metadata__"):
@@ -34,7 +47,7 @@ def find_annotated_model[M: AnnotatedBaseModel](annotation: Any, model_type: typ
             build_kwargs_kset = set(build_kwargs.keys())
             model_fields_set = set(type(annotated_model).model_fields.keys())
             for k in build_kwargs_kset - model_fields_set:
-                _logger.warning(f"Ignored annotated key {k}:{build_kwargs[k]}.")
+                _logger.warning("Ignored annotated key %s:%s.", k, build_kwargs[k])
 
             annotated_model = annotated_model.model_copy(update=build_kwargs)
         return annotated_model

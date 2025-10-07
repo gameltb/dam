@@ -1,9 +1,10 @@
+"""JSON serialization helpers for custom types."""
+
 # pyright: reportUnknownMemberType=false, reportGeneralTypeIssues=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false, reportArgumentType=false, reportReturnType=false, reportUnnecessaryComparison=false
 import enum
 import inspect
 import json
 import logging
-import os
 import pathlib
 import sys
 import typing
@@ -20,6 +21,7 @@ import torch
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+DICT_TYPE_ARGS_LEN = 2
 
 
 def _json_custom_default_encoder(obj: Any) -> Any:
@@ -38,7 +40,7 @@ def _json_custom_default_encoder(obj: Any) -> Any:
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable: {obj}")
 
 
-def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
+def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:  # noqa: PLR0911, PLR0912, PLR0915
     if data is None:
         return None  # type: ignore
 
@@ -65,7 +67,9 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
             except (TypeError, ValueError, AttributeError):
                 continue
         logger.warning(
-            f"Could not definitively reconstruct Union type {expected_type} from data: {str(data)[:100]}. Returning raw data as fallback."
+            "Could not definitively reconstruct Union type %s from data: %s. Returning raw data as fallback.",
+            expected_type,
+            str(data)[:100],
         )
         return data  # Fallback
 
@@ -77,7 +81,9 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
             field_type_hints = typing.get_type_hints(expected_type, globalns=module_globals)
         except Exception as e_th:
             logger.warning(
-                f"Could not get precise type hints for dataclass {expected_type.__name__}: {e_th}. Falling back to basic field types."
+                "Could not get precise type hints for dataclass %s: %s. Falling back to basic field types.",
+                expected_type.__name__,
+                e_th,
             )
             field_type_hints = {f.name: f.type for f in fields(expected_type)}
 
@@ -90,9 +96,10 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
         try:
             return expected_type(**kwargs)  # type: ignore[return-value]
         except Exception as e_dc_init:
-            logger.error(
-                f"Failed to instantiate dataclass {expected_type.__name__} with kwargs from JSON: {kwargs}. Error: {e_dc_init}",
-                exc_info=True,
+            logger.exception(
+                "Failed to instantiate dataclass %s with kwargs from JSON: %s",
+                expected_type.__name__,
+                kwargs,
             )
             raise TypeError(f"Dataclass {expected_type.__name__} instantiation failed.") from e_dc_init
 
@@ -103,7 +110,7 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
         return [_reconstruct_from_data(item, element_type) for item in data]  # type: ignore
 
     elif origin_type in (dict, defaultdict) and isinstance(data, dict):
-        if not args_type or len(args_type) != 2:
+        if not args_type or len(args_type) != DICT_TYPE_ARGS_LEN:
             return data  # type: ignore Plain dict
         _key_type, value_type = args_type
         return {key: _reconstruct_from_data(val, value_type) for key, val in data.items()}  # type: ignore
@@ -130,7 +137,7 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
                 # Add more mappings if necessary
             return getattr(torch, dtype_name)
         except AttributeError as e:
-            logger.error(f"Could not convert string '{data}' to torch.dtype.")
+            logger.error("Could not convert string '%s' to torch.dtype.", data)
             raise TypeError(f"Cannot convert '{data}' to torch.dtype") from e
 
     origin = typing.get_origin(expected_type)
@@ -144,40 +151,47 @@ def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
         return expected_type(data)  # type: ignore
     except (TypeError, ValueError):
         logger.debug(
-            f"Data type {type(data)} for value '{str(data)[:50]}' not instance of {expected_type} and direct coercion failed. Returning as is."
+            "Data type %s for value '%s' not instance of %s and direct coercion failed. Returning as is.",
+            type(data),
+            str(data)[:50],
+            expected_type,
         )
         return data  # type: ignore
 
 
-def save_to_json_file(data_object: Any, filepath: str):
+def save_to_json_file(data_object: Any, filepath: str) -> None:
+    """Save a data object to a JSON file."""
     try:
-        base_dir = os.path.dirname(filepath)
-        if base_dir:
-            os.makedirs(base_dir, exist_ok=True)
-        with open(filepath, "w") as f:
+        path = pathlib.Path(filepath)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w") as f:
             json.dump(data_object, f, indent=4, default=_json_custom_default_encoder)
-        logger.info(f"Data saved to {filepath}")
-    except Exception as e:
-        logger.error(f"Failed to save data to {filepath}: {e}", exc_info=True)
+        logger.info("Data saved to %s", filepath)
+    except Exception:
+        logger.exception("Failed to save data to %s", filepath)
         raise
 
 
 def load_from_json_file[T](filepath: str, expected_type: type[T]) -> T | None:
-    if not os.path.exists(filepath):
-        logger.debug(f"File not found for loading: {filepath}")
+    """Load a data object from a JSON file."""
+    path = pathlib.Path(filepath)
+    if not path.exists():
+        logger.debug("File not found for loading: %s", filepath)
         return None
     try:
-        with open(filepath) as f:
+        with path.open() as f:
             raw_data_from_json = json.load(f)
         reconstructed_instance = _reconstruct_from_data(raw_data_from_json, expected_type)
         logger.info(
-            f"Data loaded and reconstructed from {filepath} as type {expected_type.__name__ if hasattr(expected_type, '__name__') else str(expected_type)}."
+            "Data loaded and reconstructed from %s as type %s.",
+            filepath,
+            expected_type.__name__ if hasattr(expected_type, "__name__") else str(expected_type),
         )
         return reconstructed_instance
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decoding error loading {filepath}: {e}", exc_info=True)
-    except (TypeError, ValueError) as e:  # Errors from _reconstruct_from_data
-        logger.error(f"Type reconstruction error for {expected_type} from {filepath}: {e}", exc_info=True)
-    except Exception as e:
-        logger.error(f"Failed to load/reconstruct {filepath} as {expected_type}: {e}", exc_info=True)
+    except json.JSONDecodeError:
+        logger.exception("JSON decoding error loading %s", filepath)
+    except (TypeError, ValueError):  # Errors from _reconstruct_from_data
+        logger.exception("Type reconstruction error for %s from %s", expected_type, filepath)
+    except Exception:
+        logger.exception("Failed to load/reconstruct %s as %s", filepath, expected_type)
     return None

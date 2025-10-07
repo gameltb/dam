@@ -1,3 +1,5 @@
+"""Tests for the main Sire API."""
+
 from typing import Any
 
 import pytest
@@ -7,25 +9,28 @@ import sire
 from sire.core.runtime_resource_management import AutoManageHook
 
 
-# A simple model for testing
 class SimpleModel(torch.nn.Module):
+    """A simple model for testing."""
+
     def __init__(self) -> None:
+        """Initialize the model."""
         super().__init__()  # type: ignore
         self.linear = torch.nn.Linear(10, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Perform a forward pass."""
         return self.linear(x)
 
 
 @pytest.fixture(autouse=True)
 def setup_sire() -> None:
-    """Sets up Sire with default pools before each test."""
+    """Set up Sire with default pools before each test."""
     sire.get_resource_management().__init__()  # Reset manager state for isolation
     sire.initialize()
 
 
 def test_initialize_idempotent() -> None:
-    """Tests that initialize can be called multiple times safely."""
+    """Test that initialize can be called multiple times safely."""
     sire.initialize()
     sire.initialize()
     management = sire.get_resource_management()
@@ -33,6 +38,7 @@ def test_initialize_idempotent() -> None:
 
 
 def test_manage_and_auto_manage_simple() -> None:
+    """Test the basic functionality of sire.manage and sire.auto_manage."""
     model = SimpleModel()
     managed_model_wrapper = sire.manage(model)
     assert next(model.parameters()).device.type == "cpu"
@@ -57,21 +63,30 @@ def test_manage_and_auto_manage_simple() -> None:
 
 
 class ManagedCommit(sire.CommitWithAutoManage[Any]):
+    """A mock commit for testing that tracks its state."""
+
     def __init__(self) -> None:
-        super().__init__()  # type: ignore
+        """Initialize the commit."""
+        super().__init__()
         self.apply_called = False
         self.revert_called = False
         self.execution_device_at_apply = None
 
-    def apply(self, base_object: Any, **kwargs: Any) -> None:
+    def apply(self, base_object: Any, **_kwargs: Any) -> None:  # noqa: ARG002
+        """Apply the commit and record the execution device."""
         self.apply_called = True
         assert self.am is not None
         self.execution_device_at_apply = self.am.get_execution_device()
 
-    def revert(self, base_object: Any) -> None:
+    def revert(self, base_object: Any) -> None:  # noqa: ARG002
+        """Revert the commit."""
         self.revert_called = True
 
+    def release_revert_resource(self) -> None:
+        """Release any resources held by the revert callable."""
+
     def get_runtime_device(self) -> torch.device:
+        """Get the runtime device from the AutoManageWrapper."""
         if self.am:
             device = self.am.get_execution_device()
             if device:
@@ -80,6 +95,7 @@ class ManagedCommit(sire.CommitWithAutoManage[Any]):
 
 
 def test_commit_with_auto_manage() -> None:
+    """Test that commits work correctly with auto-management."""
     if not torch.cuda.is_available():
         pytest.skip("CUDA not available, skipping GPU part of the test")
 
@@ -105,6 +121,7 @@ def test_commit_with_auto_manage() -> None:
 
 
 def test_automanage_hook() -> None:
+    """Test the AutoManageHook for automatic resource management."""
     if not torch.cuda.is_available():
         pytest.skip("CUDA not available, skipping GPU part of the test")
 

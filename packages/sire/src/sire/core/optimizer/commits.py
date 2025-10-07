@@ -1,3 +1,5 @@
+"""Commits for the inference optimizer."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -13,14 +15,15 @@ class InferenceOptimizerCommit(CommitABC[nn.Module]):
     """A commit that applies the InferenceOptimizerHook to a torch.nn.Module."""
 
     def __init__(self, **kwargs: Any):
-        """Initializes the commit with arguments for the InferenceOptimizerHook."""
+        """Initialize the commit with arguments for the InferenceOptimizerHook."""
         super().__init__()
         self.hook_kwargs = kwargs
         self.hook_instance: InferenceOptimizerHook | None = None
 
-    def apply(self, base_object: nn.Module, **kwargs: Any):
+    def apply(self, base_object: nn.Module, **kwargs: Any) -> None:  # noqa: ARG002
         """
-        Applies the InferenceOptimizerHook to the base module.
+        Apply the InferenceOptimizerHook to the base module.
+
         If a hook is already applied, it's first removed.
         """
         if self.hook_instance:
@@ -29,8 +32,8 @@ class InferenceOptimizerCommit(CommitABC[nn.Module]):
         self.hook_instance = InferenceOptimizerHook(**self.hook_kwargs)
         add_hook_to_module(base_object, self.hook_instance, append=False)
 
-    def revert(self, base_object: nn.Module):
-        """Removes the InferenceOptimizerHook from the base module."""
+    def revert(self, base_object: nn.Module) -> None:
+        """Remove the InferenceOptimizerHook from the base module."""
         if self.hook_instance:
             remove_hook_from_module(base_object)
             self.hook_instance = None

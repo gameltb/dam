@@ -1,3 +1,5 @@
+"""Context variables for Sire."""
+
 import contextlib
 import contextvars
 from typing import Any
@@ -12,7 +14,7 @@ sire_inference_context: contextvars.ContextVar[dict[str, Any] | None] = contextv
 
 def get_sire_inference_context() -> dict[str, Any] | None:
     """
-    Retrieves the inference context for the current task.
+    Retrieve the inference context for the current task.
 
     Returns:
         A dictionary containing the 'args' and 'kwargs' of the current
@@ -24,7 +26,7 @@ def get_sire_inference_context() -> dict[str, Any] | None:
 
 @contextlib.contextmanager
 def sire_inference_context_manager(*args: Any, **kwargs: Any):
-    """A context manager to set the inference context for the duration of a `with` block."""
+    """Set the inference context for the duration of a `with` block."""
     token = sire_inference_context.set({"args": args, "kwargs": kwargs})
     try:
         yield
