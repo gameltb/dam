@@ -1,3 +1,4 @@
+"""Expand macros in a Markdown document."""
 import logging
 import pathlib
 from typing import Annotated, Any
@@ -19,7 +20,7 @@ def expand(
         typer.Option("--output", "-o", help="Output file path. If not provided, defaults to <input_file>.expanded.md"),
     ] = None,
 ) -> None:
-    """Expands macros in a Markdown document."""
+    """Expand macros in a Markdown document."""
     input_path = input_file
     content = input_path.read_text()
 
@@ -29,8 +30,16 @@ def expand(
     output_path = output_file or input_path.with_suffix(".expanded.md")
 
     output_path.write_text(expanded_content)
-    logger.info(f"Expanded document written to {output_path}")
+    logger.info("Expanded document written to %s", output_path)
 
 
-def register(main_app: typer.Typer, settings: Any) -> None:
+def register(main_app: typer.Typer, _: Any) -> None:
+    """
+    Register the `expand` command with the Typer application.
+
+    Args:
+        main_app (typer.Typer): The Typer application to register the command with.
+        _ (Any): The application settings (unused).
+
+    """
     main_app.command()(expand)

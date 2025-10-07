@@ -1,5 +1,5 @@
 import logging
-import os
+import pathlib
 
 
 def tool_write_to_file(path: str, content: str, append: bool = False) -> str:
@@ -22,11 +22,10 @@ def tool_write_to_file(path: str, content: str, append: bool = False) -> str:
     logging.info(f"Writing to file: {path} (mode: {mode})")
     try:
         # Create parent directories if they don't exist
-        dir_name = os.path.dirname(path)
-        if dir_name:
-            os.makedirs(dir_name, exist_ok=True)
+        p = pathlib.Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(path, mode, encoding="utf-8") as f:
+        with p.open(mode, encoding="utf-8") as f:
             f.write(content)
         return f"File '{path}' written successfully."
     except Exception as e:

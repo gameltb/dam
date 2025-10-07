@@ -1,5 +1,6 @@
+"""The init command for domarkx."""
 import logging
-import os
+import pathlib
 import shutil
 import subprocess
 
@@ -7,48 +8,52 @@ import typer
 
 from domarkx.config import Settings
 
+logger = logging.getLogger(__name__)
+
 
 def init_project(
-    project_path: str = typer.Option(
+    project_path_str: str = typer.Option(
         ".",
         "--path",
         "-p",
         help="The path to initialize the project in.",
     ),
-    template_path: str | None = typer.Option(
+    template_path_str: str | None = typer.Option(
         None,
         "--template",
         "-t",
         help="The path to a custom template to use for initialization.",
     ),
 ) -> None:
-    """Initializes a new domarkx project."""
-    project_path = os.path.abspath(project_path)
-    if not os.path.exists(project_path):
-        os.makedirs(project_path)
+    """Initialize a new domarkx project."""
+    project_path = pathlib.Path(project_path_str).resolve()
+    if not project_path.exists():
+        project_path.mkdir(parents=True)
 
     # Initialize Git repository
     subprocess.run(["git", "init"], check=False, cwd=project_path)
 
     # Add template handling
-    if template_path:
-        logging.info(f"Initializing project from template: {template_path}")
+    if template_path_str:
+        template_path = pathlib.Path(template_path_str)
+        logger.info("Initializing project from template: %s", template_path)
         # TODO: Implement custom template copying
     else:
-        logging.info("Initializing project with default template.")
-        default_template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "default")
-        for item in os.listdir(default_template_path):
-            s = os.path.join(default_template_path, item)
-            d = os.path.join(project_path, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d, False, dirs_exist_ok=True)
+        logger.info("Initializing project with default template.")
+        default_template_path = pathlib.Path(__file__).parent / ".." / "templates" / "default"
+        for item_path in default_template_path.iterdir():
+            dest_path = project_path / item_path.name
+            if item_path.is_dir():
+                shutil.copytree(item_path, dest_path, dirs_exist_ok=True)
             else:
-                shutil.copy2(s, d)
+                shutil.copy2(item_path, dest_path)
 
-    logging.info(f"Project initialized at: {project_path}")
+    logger.info("Project initialized at: %s", project_path)
 
 
 def register(app: typer.Typer, settings: Settings) -> None:
+    """Register the init command with the Typer app."""
+
     @app.command(name="init")
     def init_command(  # type: ignore
         project_path: str = typer.Option(

@@ -1,3 +1,4 @@
+"""Represents an AutoGen session, managing messages and agent interactions."""
 import ast
 import io
 import json
@@ -15,7 +16,16 @@ from domarkx.utils.markdown_utils import CodeBlock
 
 
 class AutoGenSession(Session):
+    """Represents an AutoGen session, managing messages and agent interactions."""
+
     def __init__(self, doc_path: pathlib.Path):
+        """
+        Initialize an AutoGenSession.
+
+        Args:
+            doc_path (pathlib.Path): The path to the document.
+
+        """
         super().__init__(doc_path)
         self.messages: list[dict[str, Any]] = []
         self.system_message = ""
@@ -26,7 +36,7 @@ class AutoGenSession(Session):
     @classmethod
     def create_message(cls, speaker: str, content: str, metadata: dict[str, Any]) -> "Message":
         """
-        Creates a Message object with metadata as a code block.
+        Create a Message object with metadata as a code block.
 
         Args:
             speaker (str): The speaker of the message.
@@ -73,15 +83,26 @@ class AutoGenSession(Session):
                 thought, content = parse_r1_content(md_message.content)
             if "content" not in message_dict:
                 message_dict["content"] = content or ""
-            elif isinstance(message_dict.get("content"), list) and len(message_dict["content"]) == 1:
-                if "content" not in message_dict["content"][0] and "arguments" not in message_dict["content"][0]:
-                    message_dict["content"][0]["content"] = content or ""
+            elif (
+                isinstance(message_dict.get("content"), list)
+                and len(message_dict["content"]) == 1
+                and "content" not in message_dict["content"][0]
+                and "arguments" not in message_dict["content"][0]
+            ):
+                message_dict["content"][0]["content"] = content or ""
             if thought:
                 message_dict["thought"] = "\n".join(line.removeprefix("> ") for line in thought.splitlines())
             messages.append(message_dict)
         self.messages = messages
 
     def append_new_messages(self, new_state: dict[str, Any]) -> None:
+        """
+        Append new messages from the agent's state to the document.
+
+        Args:
+            new_state (dict[str, Any]): The new state from the agent.
+
+        """
         for message in new_state["llm_context"]["messages"][len(self.messages) :]:
             content = ""
             if "content" in message:
@@ -102,7 +123,12 @@ class AutoGenSession(Session):
                     self.create_message(message.get("source", "unknow"), content, message),
                 )
 
-    async def setup(self, **kwargs: Any) -> None:
+    async def setup(self, **_: Any) -> None:
+        """
+        Set up the AutoGen session.
+
+        This includes processing initial messages and executing the setup script.
+        """
         self._process_initial_messages()
         setup_script_blocks = self.doc.get_code_blocks(language="python", attrs="setup-script")
         if not setup_script_blocks:

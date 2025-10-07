@@ -1,3 +1,4 @@
+"""An AssistantAgent that can resume from a previous function call."""
 import uuid
 from collections.abc import AsyncGenerator, Sequence
 from typing import (
@@ -23,6 +24,8 @@ console = Console(markup=False)
 
 
 class ResumeFunCallAssistantAgent(AssistantAgent):
+    """An AssistantAgent that can resume from a previous function call."""
+
     async def on_messages_stream(
         self,
         messages: Sequence[BaseChatMessage],

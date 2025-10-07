@@ -602,8 +602,7 @@ def test_diff_method_mode_deep_inheritance(tmp_path: pathlib.Path) -> None:
         assert "--- a/BaseClass.farewell" in result
         assert "+++ b/GrandChildClass.farewell" in result
         assert '-    return "Goodbye from BaseClass"' in result
-        assert '+    message = "Farewell, and may the force be with you."' in result
-        assert "+    return message" in result
+        assert '+    return "Farewell, and may the force be with you."' in result
     finally:
         sys.path = old_sys_path
 

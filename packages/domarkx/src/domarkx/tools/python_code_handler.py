@@ -3,6 +3,7 @@ import importlib.util
 import inspect
 import logging
 import os
+import pathlib
 import textwrap
 from typing import Any
 
@@ -51,8 +52,9 @@ def resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
 
     assert file_path is not None
     # Optional: Check if the resolved file is within the workspace
-    workspace_root = "/workspace/domarkx"  # Adjust this if workspace root is dynamic
-    if os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) != os.path.abspath(workspace_root):
+    workspace_root_path = pathlib.Path("/workspace/domarkx").resolve()
+    file_path_resolved = pathlib.Path(file_path).resolve()
+    if workspace_root_path not in file_path_resolved.parents and workspace_root_path != file_path_resolved:
         logging.warning(
             f"Symbol '{full_symbol}' resolves to a file outside the workspace: {file_path}. Modifications might be restricted."
         )
@@ -75,12 +77,13 @@ class LibCstEditor:
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        if not os.path.exists(file_path):
+        p = pathlib.Path(file_path)
+        if not p.exists():
             raise FileNotFoundError(f"File '{file_path}' does not exist.")
-        if not os.path.isfile(file_path):
+        if not p.is_file():
             raise IsADirectoryError(f"Path '{file_path}' is a directory, not a file.")
 
-        with open(file_path, encoding="utf-8") as f:
+        with p.open(encoding="utf-8") as f:
             self.source_code = f.read()
         self.module = cst.parse_module(self.source_code)
         logging.info(f"Initialized LibCstEditor for {file_path}")
@@ -90,7 +93,7 @@ class LibCstEditor:
         if output_path is None:
             output_path = self.file_path
         try:
-            with open(output_path, "w", encoding="utf-8") as f:
+            with pathlib.Path(output_path).open("w", encoding="utf-8") as f:
                 f.write(self.module.code)
             logging.info(f"Code successfully saved to '{output_path}'.")
             return f"Code successfully saved to '{output_path}'."

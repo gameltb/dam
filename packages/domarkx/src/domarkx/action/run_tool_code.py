@@ -1,3 +1,4 @@
+"""Executes tool calls from a message in a domarkx document."""
 import pathlib
 from typing import Annotated, Any
 
@@ -17,6 +18,14 @@ def do_run_code_action(
     ],
     message_index: int,
 ) -> None:
+    """
+    Run the tool code action.
+
+    Args:
+        doc (pathlib.Path): The path to the document.
+        message_index (int): The index of the message to process.
+
+    """
     with doc.open() as f:
         md_content = f.read()
 
@@ -54,5 +63,13 @@ def do_run_code_action(
         )
 
 
-def register(main_app: typer.Typer, settings: Any) -> None:
+def register(main_app: typer.Typer, _: Any) -> None:
+    """
+    Register the `do_run_code_action` command with the Typer application.
+
+    Args:
+        main_app (typer.Typer): The Typer application to register the command with.
+        _ (Any): The application settings (unused).
+
+    """
     main_app.command()(do_run_code_action)

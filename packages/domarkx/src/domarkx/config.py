@@ -1,5 +1,6 @@
+"""Application configuration for DoMarkX."""
 import logging
-import os
+import pathlib
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     """
     Application settings for Domarkx.
+
     Values are loaded from environment variables and/or a .env file.
     """
 
@@ -27,7 +29,8 @@ class Settings(BaseSettings):
 
     @property
     def project_path(self) -> str:
-        return os.path.abspath(self.DOMARKX_PROJECT_PATH)
+        """Return the resolved absolute path to the project."""
+        return str(pathlib.Path(self.DOMARKX_PROJECT_PATH).resolve())
 
 
 # Global settings instance, initialized when this module is imported.
