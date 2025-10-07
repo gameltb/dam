@@ -1,8 +1,9 @@
 import asyncio
 import pathlib
+from collections.abc import AsyncGenerator
 
 # Fixture to initialize and finalize code executors
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import pytest
 import pytest_asyncio

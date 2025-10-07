@@ -1,12 +1,13 @@
 import functools
 import logging
 import traceback
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def remote_tool_handler(func: F) -> F:
+def remote_tool_handler[F: Callable[..., Any]](func: F) -> F:
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

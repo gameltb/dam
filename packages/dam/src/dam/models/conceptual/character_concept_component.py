@@ -2,9 +2,7 @@ from .base_conceptual_info_component import UniqueBaseConceptualInfoComponent
 
 
 class CharacterConceptComponent(UniqueBaseConceptualInfoComponent):
-    """
-    Defines a character as a conceptual entity.
-    """
+    """Defines a character as a conceptual entity."""
 
     __tablename__ = "component_character_concept"
 

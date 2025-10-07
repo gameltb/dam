@@ -401,9 +401,7 @@ async def test_check_data_command(capsys: CaptureFixture[Any]):
 
     # Mock the command dispatcher to return different results
     async def get_one_value_side_effect():
-        if mock_check_command.call_args.kwargs["entity_id"] == 1:
-            return True
-        return False
+        return mock_check_command.call_args.kwargs["entity_id"] == 1
 
     mock_stream = AsyncMock()
     mock_stream.get_one_value.side_effect = get_one_value_side_effect

@@ -29,7 +29,5 @@ from dam_archive.split_detector import SplitArchiveInfo, detect
     ],
 )
 def test_detect_split_archive(filename: str, expected: SplitArchiveInfo | None):
-    """
-    Tests that the split archive detection works for various patterns.
-    """
+    """Tests that the split archive detection works for various patterns."""
     assert detect(filename) == expected

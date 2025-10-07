@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Optional
+from typing import Annotated
 
 import torch
 from torch.export import Dim
@@ -10,8 +10,8 @@ _logger = logging.getLogger(__name__)
 
 
 class TensorModel(AnnotatedBaseModel):
-    dims: Optional[list[type]] = None
-    dtype: Optional[str] = None
+    dims: list[type] | None = None
+    dtype: str | None = None
 
 
 Tensor = Annotated[torch.Tensor, TensorModel()]

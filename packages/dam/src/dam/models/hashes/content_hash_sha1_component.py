@@ -9,9 +9,7 @@ from ..core.base_component import UniqueComponent
 
 
 class ContentHashSHA1Component(UniqueComponent):
-    """
-    Stores SHA1 content-based hashes (20 bytes) for an entity.
-    """
+    """Stores SHA1 content-based hashes (20 bytes) for an entity."""
 
     __tablename__ = "component_content_hash_sha1"
 

@@ -1,6 +1,7 @@
 import contextlib
 import weakref
-from typing import Any, Generic, Iterator, Optional, TypeVar, cast
+from collections.abc import Iterator
+from typing import Any, TypeVar, cast
 
 import torch
 from accelerate.hooks import ModelHook, add_hook_to_module
@@ -14,7 +15,7 @@ from .runtime_resource_user import ResourcePoolUserABC
 T = TypeVar("T")
 
 
-class AutoManageWrapper(Generic[T]):
+class AutoManageWrapper[T]:
     type_wrapper_map: dict[type, type] = {}
     wrapper_obj_map: weakref.WeakKeyDictionary[Any, ResourcePoolUserABC[Any]] = weakref.WeakKeyDictionary()
 
@@ -57,7 +58,7 @@ class AutoManageWrapper(Generic[T]):
 
 
 @contextlib.contextmanager
-def auto_manage(obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
+def auto_manage[T](obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
     """
     A context manager to automatically manage the memory of a resource,
     such as a PyTorch model.
@@ -66,6 +67,7 @@ def auto_manage(obj: T, **kwargs: Any) -> Iterator[AutoManageWrapper[T]]:
         obj: The object to manage.
         **kwargs: Configuration options passed to the underlying resource wrapper
                   (e.g., `inference_memory_estimator` for a `TorchModuleWrapper`).
+
     """
     if isinstance(obj, AutoManageWrapper):
         am = cast(AutoManageWrapper[Any], obj)
@@ -122,7 +124,7 @@ class ResourcePoolManagement:
         self.resource_pools: dict[resources_device, ResourcePool] = {}
         self.user_pool_map: dict[ResourcePoolUserABC[Any], list[ResourcePool]] = {}
 
-    def get_resource_pool(self, device: resources_device) -> Optional[ResourcePool]:
+    def get_resource_pool(self, device: resources_device) -> ResourcePool | None:
         if device.type != "cpu" and device.index is None:  # type: ignore
             device = resources_device(device.type, 0)
         return self.resource_pools.get(device, None)

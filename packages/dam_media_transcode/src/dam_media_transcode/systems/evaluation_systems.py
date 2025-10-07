@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from dam.core.exceptions import EntityNotFoundError
 from dam.core.transaction import WorldTransaction
@@ -39,11 +39,9 @@ class EvaluationError(Exception):
 
 
 async def create_evaluation_run_concept(
-    world: World, run_name: str, description: Optional[str] = None, session: Optional[AsyncSession] = None
+    world: World, run_name: str, description: str | None = None, session: AsyncSession | None = None
 ) -> Entity:
-    """
-    Creates a new EvaluationRun conceptual asset.
-    """
+    """Creates a new EvaluationRun conceptual asset."""
 
     async def _create(db_session: AsyncSession) -> Entity:
         existing_run_stmt = select(EvaluationRunComponent).where(EvaluationRunComponent.run_name == run_name)
@@ -69,7 +67,7 @@ async def create_evaluation_run_concept(
         # Tag it as an "Evaluation Run"
         try:
             tag_concept_name = "System:EvaluationRun"
-            tag_concept: Optional[Entity] = None
+            tag_concept: Entity | None = None
             try:
                 # Pass db_session directly, world is not used by get_tag_concept_by_name
                 tag_concept = await tag_functions.get_tag_concept_by_name(db_session, tag_concept_name)
@@ -97,17 +95,16 @@ async def create_evaluation_run_concept(
 
     if session:
         return await _create(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _create(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _create(tx.session)
 
 
 async def get_evaluation_run_by_name_or_id(
-    world: World, identifier: str | int, session: Optional[AsyncSession] = None
-) -> Tuple[Entity, EvaluationRunComponent]:
+    world: World, identifier: str | int, session: AsyncSession | None = None
+) -> tuple[Entity, EvaluationRunComponent]:
     """Retrieves an evaluation run by its name or entity ID."""
 
-    async def _get(db_session: AsyncSession) -> Tuple[Entity, EvaluationRunComponent]:
+    async def _get(db_session: AsyncSession) -> tuple[Entity, EvaluationRunComponent]:
         if isinstance(identifier, int):  # Entity ID
             stmt = (
                 select(Entity, EvaluationRunComponent)
@@ -127,9 +124,8 @@ async def get_evaluation_run_by_name_or_id(
 
     if session:
         return await _get(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _get(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _get(tx.session)
 
 
 async def evaluate_transcode_output(event: Any, world: World, session: Any) -> None:
@@ -142,10 +138,10 @@ async def evaluate_transcode_output(event: Any, world: World, session: Any) -> N
 async def execute_evaluation_run(
     world: World,
     evaluation_run_id_or_name: str | int,
-    source_asset_identifiers: List[str | int],  # Entity IDs or SHA256 Hashes
-    profile_identifiers: List[str | int],  # Transcode Profile Entity IDs or Names
+    source_asset_identifiers: list[str | int],  # Entity IDs or SHA256 Hashes
+    profile_identifiers: list[str | int],  # Transcode Profile Entity IDs or Names
     # quality_calculation_fn: Optional[Callable[[Path, Path], Dict[str, Any]]] = None # Path_original, Path_transcoded
-) -> List[EvaluationResultComponent]:
+) -> list[EvaluationResultComponent]:
     """
     Executes an evaluation run:
     1. Retrieves the EvaluationRunComponent.
@@ -167,10 +163,10 @@ async def execute_evaluation_run(
 
         world.logger.info(f"Starting evaluation run: '{eval_run_comp.run_name}' (Entity ID: {eval_run_comp.entity_id})")
 
-        results: List[EvaluationResultComponent] = []
+        results: list[EvaluationResultComponent] = []
 
         # Resolve source asset entity IDs
-        source_asset_entity_ids: List[int] = []
+        source_asset_entity_ids: list[int] = []
         for asset_id_or_hash in source_asset_identifiers:
             if isinstance(asset_id_or_hash, int):
                 source_asset_entity_ids.append(asset_id_or_hash)
@@ -188,7 +184,7 @@ async def execute_evaluation_run(
             raise EvaluationError("No valid source assets found for evaluation.")
 
         # Resolve transcode profile entity IDs and components
-        profiles_to_run: List[Tuple[Entity, TranscodeProfileComponent]] = []
+        profiles_to_run: list[tuple[Entity, TranscodeProfileComponent]] = []
         for prof_id_or_name in profile_identifiers:
             try:
                 profile_entity, profile_comp = await transcode_functions.get_transcode_profile_by_name_or_id(
@@ -219,7 +215,7 @@ async def execute_evaluation_run(
 
             for profile_entity, profile_comp in profiles_to_run:
                 world.logger.info(f"  Applying profile: '{profile_comp.profile_name}' (ID: {profile_entity.id})")
-                transcoded_asset_entity: Optional[Entity] = None
+                transcoded_asset_entity: Entity | None = None
                 try:
                     # apply_transcode_profile manages its own session internally for the core transcoding and ingestion logic.
                     # This is important because it dispatches events that run in separate transaction contexts.
@@ -298,13 +294,11 @@ async def execute_evaluation_run(
 
 
 async def get_evaluation_results(
-    world: World, evaluation_run_id_or_name: str | int, session: Optional[AsyncSession] = None
-) -> List[Dict[str, Any]]:
-    """
-    Retrieves and formats results for a given evaluation run.
-    """
+    world: World, evaluation_run_id_or_name: str | int, session: AsyncSession | None = None
+) -> list[dict[str, Any]]:
+    """Retrieves and formats results for a given evaluation run."""
 
-    async def _get(db_session: AsyncSession) -> List[Dict[str, Any]]:
+    async def _get(db_session: AsyncSession) -> list[dict[str, Any]]:
         _eval_run_entity, eval_run_comp = await get_evaluation_run_by_name_or_id(
             world, evaluation_run_id_or_name, session=db_session
         )
@@ -374,6 +368,5 @@ async def get_evaluation_results(
 
     if session:
         return await _get(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _get(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _get(tx.session)

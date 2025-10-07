@@ -14,14 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class CorePlugin(Plugin):
-    """
-    The core plugin for the DAM system.
-    """
+    """The core plugin for the DAM system."""
 
     def build(self, world: World) -> None:
-        """
-        Build the core plugin.
-        """
+        """Build the core plugin."""
         # Logic from initialize_world_resources
         if not world:
             raise ValueError("A valid World instance must be provided.")

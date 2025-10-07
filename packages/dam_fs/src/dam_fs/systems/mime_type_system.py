@@ -25,9 +25,7 @@ async def auto_set_mime_type_from_filename_system(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ):
-    """
-    Automatically sets the mime type for entities by reading the file content.
-    """
+    """Automatically sets the mime type for entities by reading the file content."""
     entity_id = command.entity_id
 
     # Check if mime type is already set
@@ -72,9 +70,7 @@ async def set_mime_type_from_buffer_system(
     command: SetMimeTypeFromBufferCommand,
     transaction: WorldTransaction,
 ):
-    """
-    Sets the mime type for an entity from a buffer, if it doesn't have one.
-    """
+    """Sets the mime type for an entity from a buffer, if it doesn't have one."""
     existing_mime_type = await transaction.get_component(command.entity_id, ContentMimeTypeComponent)
     if existing_mime_type:
         return

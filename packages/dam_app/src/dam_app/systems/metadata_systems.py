@@ -19,7 +19,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from ctypes import CDLL, c_int
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, Optional
+from typing import Any, BinaryIO
 
 import aiofiles
 from dam.core.systems import system
@@ -161,9 +161,9 @@ class ExifTool:
 
     async def get_metadata(
         self,
-        filepath: Optional[Path] = None,
-        stream: Optional[BinaryIO] = None,
-    ) -> Dict[str, Any] | None:
+        filepath: Path | None = None,
+        stream: BinaryIO | None = None,
+    ) -> dict[str, Any] | None:
         """
         Extracts metadata from a file or stream using the persistent exiftool process.
         Returns None if an error occurs.

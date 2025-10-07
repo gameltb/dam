@@ -1,6 +1,4 @@
-"""
-This file is reserved for event definitions for the dam_media_audio package.
-"""
+"""This file is reserved for event definitions for the dam_media_audio package."""
 
 
 # Example of an event:

@@ -1,5 +1,7 @@
+import contextlib
 import io
-from typing import IO, Any, Iterable, List, Optional, Sequence
+from collections.abc import Iterable, Sequence
+from typing import IO, Any
 
 
 class ChainedStream(io.IOBase):
@@ -45,7 +47,7 @@ class ChainedStream(io.IOBase):
         self._pos += len(buffer)
         return buffer
 
-    def readline(self, size: Optional[int] = -1) -> bytes:
+    def readline(self, size: int | None = -1) -> bytes:
         line = bytearray()
         limit = size if size is not None and size >= 0 else float("inf")
         while len(line) < limit:
@@ -57,8 +59,8 @@ class ChainedStream(io.IOBase):
                 break
         return bytes(line)
 
-    def readlines(self, hint: int = -1) -> List[bytes]:
-        lines: List[bytes] = []
+    def readlines(self, hint: int = -1) -> list[bytes]:
+        lines: list[bytes] = []
         while True:
             line = self.readline()
             if not line:
@@ -70,10 +72,8 @@ class ChainedStream(io.IOBase):
 
     def close(self) -> None:
         for stream in self.streams:
-            try:
+            with contextlib.suppress(Exception):
                 stream.close()
-            except Exception:
-                pass
         super().close()
 
     def tell(self) -> int:
@@ -88,7 +88,7 @@ class ChainedStream(io.IOBase):
     def writelines(self, lines: Iterable[Any]) -> None:
         raise io.UnsupportedOperation("writelines is not supported")
 
-    def truncate(self, size: Optional[int] = None) -> int:
+    def truncate(self, size: int | None = None) -> int:
         raise io.UnsupportedOperation("truncate is not supported")
 
     def flush(self) -> None:

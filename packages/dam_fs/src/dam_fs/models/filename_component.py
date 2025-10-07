@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import DateTime, String, UniqueConstraint
@@ -20,8 +19,8 @@ class FilenameComponent(BaseComponent):
 
     # id, entity_id are inherited from BaseComponent
 
-    filename: Mapped[Optional[str]] = mapped_column(String(), nullable=True, default=None)
-    first_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    filename: Mapped[str | None] = mapped_column(String(), nullable=True, default=None)
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     __table_args__ = (
         # An entity should only have one FilenameComponent.

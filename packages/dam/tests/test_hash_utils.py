@@ -8,9 +8,7 @@ from dam.utils.hash_utils import HashAlgorithm, calculate_hashes_from_stream
 
 
 def test_calculate_hashes_from_stream() -> None:
-    """
-    Tests that calculate_hashes_from_stream correctly calculates multiple hashes.
-    """
+    """Tests that calculate_hashes_from_stream correctly calculates multiple hashes."""
     data = b"hello world"
     stream = BytesIO(data)
     algorithms = {

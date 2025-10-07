@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -11,7 +11,7 @@ from .config import WorldConfig
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DatabaseManager", "Base"]
+__all__ = ["Base", "DatabaseManager"]
 
 
 class DatabaseManager:
@@ -26,10 +26,11 @@ class DatabaseManager:
 
         Args:
             world_config: The configuration for the world this manager will handle.
+
         """
         self.world_config = world_config
-        self._engine: Optional[AsyncEngine] = None
-        self._session_local: Optional[async_sessionmaker[AsyncSession]] = None
+        self._engine: AsyncEngine | None = None
+        self._session_local: async_sessionmaker[AsyncSession] | None = None
         self._initialize_engine()
 
     def _initialize_engine(self) -> None:
@@ -91,9 +92,7 @@ class DatabaseManager:
         return self._session_local()
 
     async def create_db_and_tables(self) -> None:
-        """
-        Creates all database tables for this world using its async engine.
-        """
+        """Creates all database tables for this world using its async engine."""
         logger.info(f"Attempting to create database tables for world '{self.world_config.name}'...")
 
         if self._engine is None:  # Guard against uninitialized engine

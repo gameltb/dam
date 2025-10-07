@@ -1,4 +1,3 @@
-from typing import Optional
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,7 +20,7 @@ class EntityCharacterLinkComponent(BaseComponent):
         nullable=False,
         index=True,
     )
-    role_in_asset: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    role_in_asset: Mapped[str | None] = mapped_column(String(), nullable=True)
 
     # Relationship to the Entity that represents the character concept
     # This Entity is expected to have a CharacterConceptComponent attached to it.

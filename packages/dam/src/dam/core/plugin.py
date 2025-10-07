@@ -5,9 +5,7 @@ if TYPE_CHECKING:
 
 
 class Plugin(Protocol):
-    """
-    A protocol for plugins that can be added to a World.
-    """
+    """A protocol for plugins that can be added to a World."""
 
     def build(self, world: "World") -> None:
         """
@@ -15,5 +13,6 @@ class Plugin(Protocol):
 
         Args:
             world: The world to build the plugin into.
+
         """
         ...

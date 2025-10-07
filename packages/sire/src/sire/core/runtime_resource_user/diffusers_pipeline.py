@@ -50,6 +50,7 @@ class DiffusersPipelineWrapper(WeakRefResourcePoolUser[DiffusionPipeline]):
     def get_runtime_device(self):
         for hook in self.all_module_hooks_map.values():
             return hook.am.get_execution_device()
+        return None
 
     def unlock(self) -> None:
         super().unlock()

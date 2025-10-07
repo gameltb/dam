@@ -1,6 +1,4 @@
-"""
-DAM Archive package.
-"""
+"""DAM Archive package."""
 
 from . import handlers
 from .plugin import ArchivePlugin

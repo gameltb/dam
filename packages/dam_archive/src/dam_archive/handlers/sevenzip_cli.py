@@ -6,9 +6,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Iterator, List, Optional, Tuple
+from typing import BinaryIO
 
 from ..base import ArchiveHandler, ArchiveMemberInfo, StreamProvider
 from ..exceptions import ArchiveError, InvalidPasswordError
@@ -34,14 +35,14 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
     def __init__(
         self,
         stream_provider: StreamProvider,
-        password: Optional[str],
+        password: str | None,
         file_path: str,
-        temp_file_path: Optional[str],
+        temp_file_path: str | None,
     ):
         super().__init__(stream_provider, password)
         self.file_path = file_path
-        self.members: List[ArchiveMemberInfo] = []
-        self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = None
+        self.members: list[ArchiveMemberInfo] = []
+        self._temp_dir: tempfile.TemporaryDirectory[str] | None = None
         self._temp_file_path = temp_file_path
 
         if self.password:
@@ -49,9 +50,9 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         self._list_files_and_populate_members()
 
     @classmethod
-    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> SevenZipCliArchiveHandler:
-        temp_file_path: Optional[str] = None
-        path: Optional[Path] = stream_provider.get_path()
+    async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> SevenZipCliArchiveHandler:
+        temp_file_path: str | None = None
+        path: Path | None = stream_provider.get_path()
 
         if path is None:
             # The 7z CLI tool requires a file path, so we must write the stream to a temporary file.
@@ -84,7 +85,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 raise InvalidPasswordError("Invalid password for 7z archive.") from e
             raise
 
-    def _run_7z(self, args: List[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    def _run_7z(self, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
         command = ["7z", *args]
         try:
             return subprocess.run(
@@ -115,7 +116,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
     def _parse_file_list(self, output: str) -> None:
         """Parses the output of '7z l -ba'."""
-        members: List[ArchiveMemberInfo] = []
+        members: list[ArchiveMemberInfo] = []
         for line in output.splitlines():
             match = self.FILE_LIST_RE.match(line)
             if match:
@@ -136,10 +137,10 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
         self.members = members
 
-    def list_files(self) -> List[ArchiveMemberInfo]:
+    def list_files(self) -> list[ArchiveMemberInfo]:
         return self.members
 
-    def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
+    def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
         if self._temp_dir is None:
             self._temp_dir = tempfile.TemporaryDirectory(prefix="dam_7z_")
 
@@ -168,15 +169,15 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         for member in self.members:
             file_path = Path(extract_path) / member.name
             if file_path.is_file():
-                file_handle = file_path.open("rb")  # noqa: SIM115
+                file_handle = file_path.open("rb")
                 yield member, file_handle  # pyright: ignore[reportReturnType]
             else:
                 logger.warning("File '%s' not found in extraction directory '%s'.", member.name, extract_path)
 
-    def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+    def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
         member_info = next((m for m in self.members if m.name == file_name), None)
         if not member_info:
-            raise IOError(f"File not found in 7z archive: {file_name}")
+            raise OSError(f"File not found in 7z archive: {file_name}")
 
         args = ["e", "-so", self.file_path, file_name]
         if self.password:

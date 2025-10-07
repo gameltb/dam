@@ -1,6 +1,4 @@
-"""
-Defines constants for the `source_type` field in the OriginalSourceInfoComponent.
-"""
+"""Defines constants for the `source_type` field in the OriginalSourceInfoComponent."""
 
 # Indicates the source was a local file that was processed and ingested.
 # The file's content is typically now managed by the DAM.

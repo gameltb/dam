@@ -2,7 +2,6 @@ import logging
 import os
 import shutil
 import subprocess
-from typing import Optional
 
 import typer
 
@@ -16,16 +15,14 @@ def init_project(
         "-p",
         help="The path to initialize the project in.",
     ),
-    template_path: Optional[str] = typer.Option(
+    template_path: str | None = typer.Option(
         None,
         "--template",
         "-t",
         help="The path to a custom template to use for initialization.",
     ),
 ) -> None:
-    """
-    Initializes a new domarkx project.
-    """
+    """Initializes a new domarkx project."""
     project_path = os.path.abspath(project_path)
     if not os.path.exists(project_path):
         os.makedirs(project_path)
@@ -60,7 +57,7 @@ def register(app: typer.Typer, settings: Settings) -> None:
             "-p",
             help="The path to initialize the project in.",
         ),
-        template_path: Optional[str] = typer.Option(
+        template_path: str | None = typer.Option(
             None,
             "--template",
             "-t",

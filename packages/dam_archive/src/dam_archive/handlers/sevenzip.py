@@ -5,9 +5,10 @@ import datetime
 import logging
 import lzma
 import threading
+from collections.abc import Iterable, Iterator
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import BinaryIO, cast
 
 import py7zr
 from py7zr.exceptions import PasswordRequired, UnsupportedCompressionMethodError
@@ -22,11 +23,9 @@ QUEUE_MAX_SIZE = 10
 
 
 class _SevenZipStreamReader(BinaryIO):
-    """
-    A file-like object that reads from a streaming queue.
-    """
+    """A file-like object that reads from a streaming queue."""
 
-    def __init__(self, queue: "Queue[Union[bytes, Exception, None]]"):
+    def __init__(self, queue: Queue[bytes | Exception | None]):
         self._queue = queue
         self._buffer = b""
         self._closed = False
@@ -78,10 +77,10 @@ class _SevenZipStreamReader(BinaryIO):
                     break
             self._closed = True
 
-    def __enter__(self) -> "_SevenZipStreamReader":
+    def __enter__(self) -> _SevenZipStreamReader:
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[object]) -> None:
+    def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: object | None) -> None:
         self.close()
 
     def readline(self, limit: int = -1) -> bytes:
@@ -110,7 +109,7 @@ class _SevenZipStreamReader(BinaryIO):
         return line
 
     def readlines(self, hint: int = -1) -> list[bytes]:
-        lines: List[bytes] = []
+        lines: list[bytes] = []
         while True:
             line = self.readline()
             if not line:
@@ -152,7 +151,7 @@ class _SevenZipStreamReader(BinaryIO):
     def writelines(self, _: Iterable[bytes]) -> None:  # type: ignore[override]
         raise OSError("writelines is not supported")
 
-    def truncate(self, _: Optional[int] = None) -> int:
+    def truncate(self, _: int | None = None) -> int:
         raise OSError("truncate is not supported")
 
     def __iter__(self) -> Iterator[bytes]:
@@ -168,10 +167,10 @@ class _SevenZipStreamReader(BinaryIO):
 class QueueWriter(Py7zIO):
     """A file-like object that writes to a queue with buffering."""
 
-    def __init__(self, queue: "Queue[Union[bytes, Exception, None]]"):
+    def __init__(self, queue: Queue[bytes | Exception | None]):
         self.queue = queue
         self._size = 0
-        self._buffer: List[bytes] = []
+        self._buffer: list[bytes] = []
         self._buffer_size = 0
         self.BUFFER_LIMIT = 100 * 1024 * 1024  # 100MB
 
@@ -190,7 +189,7 @@ class QueueWriter(Py7zIO):
         self._buffer = []
         self._buffer_size = 0
 
-    def write(self, s: Union[bytes, bytearray]) -> int:
+    def write(self, s: bytes | bytearray) -> int:
         chunk = bytes(s)
         self._buffer.append(chunk)
         self._buffer_size += len(chunk)
@@ -201,7 +200,7 @@ class QueueWriter(Py7zIO):
 
         return len(chunk)
 
-    def read(self, _: Optional[int] = None) -> bytes:
+    def read(self, _: int | None = None) -> bytes:
         return b""
 
     def seek(self, offset: int, whence: int = 0) -> int:
@@ -224,27 +223,25 @@ class QueueWriter(Py7zIO):
 
 
 class StreamingFactory(WriterFactory):
-    """
-    A factory that creates a data queue for each file and reports it back to the main thread.
-    """
+    """A factory that creates a data queue for each file and reports it back to the main thread."""
 
     def __init__(
         self,
-        members_map: Dict[str, ArchiveMemberInfo],
-        results_queue: "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]",
+        members_map: dict[str, ArchiveMemberInfo],
+        results_queue: Queue[tuple[str, Queue[bytes | Exception | None]] | Exception | None],
     ):
         self.members_map = members_map
         self.results_queue = results_queue
-        self.last_writer: Optional[QueueWriter] = None
+        self.last_writer: QueueWriter | None = None
 
-    def create(self, filename: str, _: str = "wb") -> Optional[Py7zIO]:  # type: ignore[override]
+    def create(self, filename: str, _: str = "wb") -> Py7zIO | None:  # type: ignore[override]
         if self.last_writer:
             self.last_writer.close()
             self.last_writer = None
 
         norm = PurePosixPath(filename).as_posix()
         if norm in self.members_map:
-            data_queue: "Queue[Union[bytes, Exception, None]]" = Queue(maxsize=QUEUE_MAX_SIZE)
+            data_queue: Queue[bytes | Exception | None] = Queue(maxsize=QUEUE_MAX_SIZE)
             self.results_queue.put((norm, data_queue))
             writer = QueueWriter(data_queue)
             self.last_writer = writer
@@ -258,17 +255,15 @@ class StreamingFactory(WriterFactory):
 
 
 class SevenZipArchiveHandler(ArchiveHandler):
-    """
-    An archive handler for 7z files that supports true streaming extraction.
-    """
+    """An archive handler for 7z files that supports true streaming extraction."""
 
-    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+    def __init__(self, stream_provider: StreamProvider, password: str | None = None):
         super().__init__(stream_provider, password)
-        self.members: List[ArchiveMemberInfo] = []
-        self._threads: List[threading.Thread] = []
+        self.members: list[ArchiveMemberInfo] = []
+        self._threads: list[threading.Thread] = []
 
     @classmethod
-    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> SevenZipArchiveHandler:
+    async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> SevenZipArchiveHandler:
         handler = cls(stream_provider, password)
         try:
             async with stream_provider.get_stream() as stream:
@@ -295,9 +290,9 @@ class SevenZipArchiveHandler(ArchiveHandler):
         return handler
 
     def _start_producer(
-        self, targets: Optional[List[str]] = None
-    ) -> "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]":
-        results_queue: "Queue[Union[Tuple[str, Queue[Union[bytes, Exception, None]]], Exception, None]]" = Queue()
+        self, targets: list[str] | None = None
+    ) -> Queue[tuple[str, Queue[bytes | Exception | None]] | Exception | None]:
+        results_queue: Queue[tuple[str, Queue[bytes | Exception | None]] | Exception | None] = Queue()
         members_map = {PurePosixPath(m.name).as_posix(): m for m in self.members}
 
         def producer_thread_target():
@@ -329,7 +324,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
         self._threads.append(thread)
         return results_queue
 
-    def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
+    def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
         results_queue = self._start_producer()
         while True:
             item = results_queue.get()
@@ -343,18 +338,18 @@ class SevenZipArchiveHandler(ArchiveHandler):
             if member_info:
                 yield member_info, _SevenZipStreamReader(data_queue)
 
-    def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+    def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
         norm_name = PurePosixPath(file_name).as_posix()
         member_info = next((m for m in self.members if PurePosixPath(m.name).as_posix() == norm_name), None)
         if not member_info:
-            raise IOError(f"File not found in 7z archive: {file_name}")
+            raise OSError(f"File not found in 7z archive: {file_name}")
 
         results_queue = self._start_producer(targets=[file_name])
 
         while True:
             item = results_queue.get()
             if item is None:
-                raise IOError(f"File not found in 7z archive stream: {file_name}")
+                raise OSError(f"File not found in 7z archive stream: {file_name}")
             if isinstance(item, Exception):
                 raise item
 
@@ -370,5 +365,5 @@ class SevenZipArchiveHandler(ArchiveHandler):
         for t in self._threads:
             t.join()
 
-    def list_files(self) -> List[ArchiveMemberInfo]:
+    def list_files(self) -> list[ArchiveMemberInfo]:
         return self.members

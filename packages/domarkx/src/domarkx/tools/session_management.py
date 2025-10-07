@@ -29,6 +29,7 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
         "Session 'test_session' created from template 'default'."
 
     The session file will be created in the sessions directory and committed to git.
+
     """
     template_path = os.path.join(settings.project_path, "templates", f"{template_name}.md")
     session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
@@ -36,7 +37,7 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template not found: {template_path}")
 
-    with open(template_path, "r") as f:
+    with open(template_path) as f:
         template_content = f.read()
 
     expander = MacroExpander(base_dir=os.path.join(settings.project_path, "templates"))
@@ -80,6 +81,7 @@ def send_message(session_name: str, message: str) -> str:
         "Message sent to session 'test_session'."
 
     The message will be appended to the session file and committed to git.
+
     """
     session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
 
@@ -116,21 +118,21 @@ def get_messages(session_name: str) -> str:
     Example:
         >>> get_messages("test_session")
         "...session content..."
+
     """
     session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
 
     if not os.path.exists(session_path):
         raise FileNotFoundError(f"Session not found: {session_path}")
 
-    with open(session_path, "r") as f:
-        content = f.read()
+    with open(session_path) as f:
+        return f.read()
 
-    return content
 
 
 @tool_handler()
 def list_sessions() -> str:
-    """
+    r"""
     List all available session files in the sessions directory.
 
     Returns:
@@ -139,6 +141,7 @@ def list_sessions() -> str:
     Example:
         >>> list_sessions()
         "test_session.md\nanother_session.md"
+
     """
     sessions_path = os.path.join(settings.project_path, "sessions")
     sessions = [f for f in os.listdir(sessions_path) if f.endswith(".md")]
@@ -165,6 +168,7 @@ def archive_session(session_name: str, topic: str) -> str:
         "Session 'test_session' archived to 'archive/testing/2023-11-15_test_session.md'."
 
     The session file will be moved to the archive directory and the changes will be committed to git.
+
     """
     session_path = os.path.join(settings.project_path, "sessions", f"{session_name}.md")
     if not os.path.exists(session_path):

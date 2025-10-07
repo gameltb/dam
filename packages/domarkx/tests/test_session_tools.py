@@ -22,7 +22,7 @@ def test_create_session(tmp_path: Any) -> None:
     assert result == "Session 'test_session' created from template 'default'."
     session_file = project_path / "sessions" / "test_session.md"
     assert session_file.exists()
-    with open(session_file, "r") as f:
+    with open(session_file) as f:
         content = f.read()
         assert "Test Session" in content
         assert "Hello" in content
@@ -38,7 +38,7 @@ def test_send_message(tmp_path: Any) -> None:
         f.write("Test Session\nHello")
     result = send_message("test_session", "This is a test message.")
     assert result == "Message sent to session 'test_session'."
-    with open(session_file, "r") as f:
+    with open(session_file) as f:
         content = f.read()
         assert "This is a test message." in content
 

@@ -17,17 +17,17 @@ T = TypeVar("T")
 resources_device = torch.device
 
 
-class ResourcePoolUserABC(ABC, Generic[T]):
+class ResourcePoolUserABC[T](ABC):
     def __init__(self) -> None:
         self._locked = False
         self.loaded = False
 
     @property
     @abstractmethod
-    def manage_object(self) -> Optional[T]: ...
+    def manage_object(self) -> T | None: ...
 
     @abstractmethod
-    def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]: ...
+    def on_setup(self, manager: ResourcePoolManagement) -> list[ResourcePool]: ...
 
     @abstractmethod
     def on_load(self) -> None:
@@ -41,14 +41,16 @@ class ResourcePoolUserABC(ABC, Generic[T]):
     def get_used_resource_size(self, device: resources_device) -> int: ...
 
     @abstractmethod
-    def get_used_resource_devices(self) -> Set[resources_device]: ...
+    def get_used_resource_devices(self) -> set[resources_device]: ...
 
     @abstractmethod
     def get_runtime_device(self) -> resources_device | None:
-        """get execution device for manage_object, mainly for torch module.
+        """
+        Get execution device for manage_object, mainly for torch module.
 
         Returns:
             resources_device: execution device
+
         """
         ...
 
@@ -89,7 +91,7 @@ class WeakRefResourcePoolUser(ResourcePoolUserABC[T]):
             self.logger = logging.getLogger(f"{__name__}_{self.__class__.__name__}")
 
     @property
-    def manage_object(self) -> Optional[T]:
+    def manage_object(self) -> T | None:
         return self._manage_object_weak_ref()
 
     def should_clear(self) -> bool:

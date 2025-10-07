@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Set
 
 from ..core.types import StreamProvider
 from ..system_events.base import BaseSystemEvent
@@ -15,4 +14,4 @@ class AddHashesFromStreamCommand(BaseCommand[None, BaseSystemEvent]):
 
     entity_id: int
     stream_provider: StreamProvider
-    algorithms: Set[HashAlgorithm]
+    algorithms: set[HashAlgorithm]

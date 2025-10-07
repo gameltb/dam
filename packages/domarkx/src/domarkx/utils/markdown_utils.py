@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 
@@ -8,9 +8,9 @@ from urllib.parse import parse_qs, urlparse
 class CodeBlock:
     """Represents a code block extracted from Markdown."""
 
-    language: Optional[str] = None
+    language: str | None = None
     code: str = ""
-    attrs: Optional[str] = None
+    attrs: str | None = None
 
 
 CODE_BLOCK_REGEX = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DOTALL)
@@ -48,7 +48,7 @@ MACRO_PATTERN = re.compile(r"\[@(.+?)\]\((domarkx://.+?)\)")
 FOLLOWING_LINKS_PATTERN = re.compile(r"\[(.+?)\]\((.+?)\)")
 
 
-def find_first_macro(content: str) -> Optional[Macro]:
+def find_first_macro(content: str) -> Macro | None:
     """Finds the first macro in the content and returns a Macro object if found."""
     match = MACRO_PATTERN.search(content)
     if not match:

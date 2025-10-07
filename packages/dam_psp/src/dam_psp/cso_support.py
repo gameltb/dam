@@ -9,9 +9,7 @@ CISO_WBITS = -15  # Raw deflate stream
 
 
 class CsoDecompressor(io.RawIOBase):
-    """
-    A file-like object for reading decompressed data from a CSO (Compressed ISO) stream.
-    """
+    """A file-like object for reading decompressed data from a CSO (Compressed ISO) stream."""
 
     def __init__(self, cso_stream: BinaryIO):
         super().__init__()
@@ -21,7 +19,7 @@ class CsoDecompressor(io.RawIOBase):
         # Read and parse the header
         header_data = self._cso_stream.read(24)
         if len(header_data) != 24:
-            raise IOError("Invalid CSO header: not enough data")
+            raise OSError("Invalid CSO header: not enough data")
 
         (
             magic,
@@ -33,7 +31,7 @@ class CsoDecompressor(io.RawIOBase):
         ) = struct.unpack(CISO_HEADER_FMT, header_data)
 
         if magic != CISO_MAGIC:
-            raise IOError("Invalid CSO magic number")
+            raise OSError("Invalid CSO magic number")
         if ver > 1:
             raise NotImplementedError(f"CSO version {ver} is not supported")
 
@@ -43,7 +41,7 @@ class CsoDecompressor(io.RawIOBase):
         # Read the block index
         index_data = self._cso_stream.read(index_size)
         if len(index_data) != index_size:
-            raise IOError("Invalid CSO block index: not enough data")
+            raise OSError("Invalid CSO block index: not enough data")
         self._block_index = struct.unpack(f"<{self._total_blocks + 1}I", index_data)
 
         self._position = 0
@@ -112,7 +110,7 @@ class CsoDecompressor(io.RawIOBase):
 
     def _load_block(self, block_num: int):
         if block_num >= self._total_blocks:
-            raise IOError("Attempt to read past the end of the file")
+            raise OSError("Attempt to read past the end of the file")
 
         index_entry = self._block_index[block_num]
         is_plain = index_entry & 0x80000000

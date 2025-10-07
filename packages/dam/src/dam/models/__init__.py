@@ -39,23 +39,23 @@ from .tags.tag_concept_component import TagConceptComponent
 __all__ = [
     # Core
     "Base",
-    "Entity",
     "BaseComponent",
+    # Source Info
+    # Conceptual (Concrete Components and Association Objects)
+    "ComicBookConceptComponent",
+    "ComicBookVariantComponent",
     # Hashes
     "ContentHashMD5Component",
     "ContentHashSHA256Component",
     # Properties
     # Metadata
     "ContentLengthComponent",
+    "Entity",
+    "EntityTagLinkComponent",
     "ExiftoolMetadataComponent",
-    # Source Info
-    # Conceptual (Concrete Components and Association Objects)
-    "ComicBookConceptComponent",
-    "ComicBookVariantComponent",
+    "ModelGeneratedTagLinkComponent",
     "PageLink",
     # Conceptual (Tag related components are now under their own section)
     # Tags
     "TagConceptComponent",
-    "EntityTagLinkComponent",
-    "ModelGeneratedTagLinkComponent",
 ]

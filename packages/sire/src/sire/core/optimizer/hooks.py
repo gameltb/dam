@@ -3,12 +3,12 @@ import functools
 import logging
 import os
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import accelerate.hooks
 import accelerate.utils.modeling
 import torch
-import torch.nn as nn
 from accelerate import dispatch_model
 from accelerate.hooks import (
     AlignDevicesHook,
@@ -20,6 +20,7 @@ from accelerate.hooks import (
     remove_hook_from_module,
 )
 from accelerate.utils import get_balanced_memory
+from torch import nn
 from torch.cuda import nvtx
 
 from ...utils.json_helpers import save_to_json_file
@@ -40,13 +41,13 @@ accelerate.hooks.set_module_tensor_to_device = functools.partial(
 class PrefetchContext:
     def __init__(self, plan: OptimizationPlan, model: nn.Module, num_streams: int, offload_policy: str) -> None:
         self.plan, self.model = plan, model
-        self.module_map: Dict[str, nn.Module] = {name: mod for name, mod in model.named_modules()}
+        self.module_map: dict[str, nn.Module] = {name: mod for name, mod in model.named_modules()}
         self.num_streams, self.offload_policy = num_streams, offload_policy
         self.stream_mgr = self._init_stream_mgr()
-        self.module_pf_streams: Dict[str, torch.cuda.Stream] = {}  # module_name -> stream for its prefetch
+        self.module_pf_streams: dict[str, torch.cuda.Stream] = {}  # module_name -> stream for its prefetch
 
-    def _init_stream_mgr(self) -> Dict[str, Any]:
-        streams: defaultdict[int, List[torch.cuda.Stream]] = defaultdict(list)
+    def _init_stream_mgr(self) -> dict[str, Any]:
+        streams: defaultdict[int, list[torch.cuda.Stream]] = defaultdict(list)
         s_idx: defaultdict[int, int] = defaultdict(int)
         if torch.cuda.is_available():
             try:
@@ -56,7 +57,7 @@ class PrefetchContext:
                 logger.warning(f"Error initializing CUDA prefetch streams: {e}")
         return {"streams": streams, "stream_idx": s_idx}
 
-    def get_stream(self, device: torch.device) -> Optional[torch.cuda.Stream]:
+    def get_stream(self, device: torch.device) -> torch.cuda.Stream | None:
         if not (device.type == "cuda" and torch.cuda.is_available() and device.index < torch.cuda.device_count()):
             return None
         pool = self.stream_mgr["streams"].get(device.index, [])
@@ -70,7 +71,7 @@ class PrefetchContext:
     def set_module_prefetch_stream(self, name: str, stream: torch.cuda.Stream) -> None:
         self.module_pf_streams[name] = stream
 
-    def get_module_prefetch_stream(self, name: str) -> Optional[torch.cuda.Stream]:
+    def get_module_prefetch_stream(self, name: str) -> torch.cuda.Stream | None:
         return self.module_pf_streams.get(name)
 
     def clear_all_module_prefetch_streams(self) -> None:
@@ -81,12 +82,12 @@ class PrefetchingWaitHook(ModelHook):
     def __init__(self, ctx: PrefetchContext, name: str, mod_inst: nn.Module, exec_dev: torch.device) -> None:
         super().__init__()
         self.ctx, self.name, self.mod_inst, self.exec_dev = ctx, name, mod_inst, exec_dev
-        self.tied_ptrs_to_rm: Set[Tuple[int, torch.device]] = set()
-        self.pf_submod_hf_hook: Optional[AlignDevicesHook] = None
+        self.tied_ptrs_to_rm: set[tuple[int, torch.device]] = set()
+        self.pf_submod_hf_hook: AlignDevicesHook | None = None
         logger.debug(f"PrefetchingWaitHook for {self.name} on {self.exec_dev}")
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
         if module is not self.mod_inst:
             logger.warning(f"WaitHook for {self.name} called on wrong mod")
             return args, kwargs
@@ -109,7 +110,7 @@ class AlignDevicesHookTorchCompilerDisable(AlignDevicesHook):
         return align_devices_hook
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
         return super().pre_forward(module, *args, **kwargs)
 
     @torch.compiler.disable()
@@ -124,7 +125,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
         logger.debug(f"PrefetchingHook (trigger) for {self.name}")
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
         if module is not self.mod_inst:
             logger.warning(f"TriggerHook for {self.name} called on wrong mod")
             return args, kwargs
@@ -229,12 +230,12 @@ class InferenceOptimizerHook(ModelHook):
         self,
         cache_dir: str = "opt_cache",
         num_prefetch_streams: int = 1,
-        no_split_module_classes: Optional[List[str]] = None,
-        custom_signature_callback: Optional[Callable[..., Any]] = None,
+        no_split_module_classes: list[str] | None = None,
+        custom_signature_callback: Callable[..., Any] | None = None,
         default_offload_policy: str = "cpu",
         force_profiling: bool = False,
         run_profiling_if_needed: bool = True,
-        max_memory_gb: Optional[Dict[str, float]] = None,
+        max_memory_gb: dict[str, float] | None = None,
     ) -> None:
         super().__init__()
         self.base_cache_dir = cache_dir
@@ -249,21 +250,21 @@ class InferenceOptimizerHook(ModelHook):
         self.user_max_memory_gb = max_memory_gb
 
         self.sig_gen = ConfigSignatureGenerator()
-        self.current_plan: Optional[OptimizationPlan] = None
-        self.current_config_sig_hash: Optional[str] = None
-        self.current_input_sig_hash: Optional[str] = None
-        self.current_max_memory_bytes: Optional[Dict[str, int]] = None
-        self.current_plan_id: Optional[str] = None
-        self.last_module_id_processed: Optional[int] = None
-        self.active_pf_ctx: Optional[PrefetchContext] = None
-        self.hooked_module_instance: Optional[nn.Module] = None
-        self.current_module_dtype: Optional[torch.dtype] = None
-        self.module: Optional[nn.Module] = None
-        self.cpu_state_dict: Dict[str, torch.Tensor] = {}
+        self.current_plan: OptimizationPlan | None = None
+        self.current_config_sig_hash: str | None = None
+        self.current_input_sig_hash: str | None = None
+        self.current_max_memory_bytes: dict[str, int] | None = None
+        self.current_plan_id: str | None = None
+        self.last_module_id_processed: int | None = None
+        self.active_pf_ctx: PrefetchContext | None = None
+        self.hooked_module_instance: nn.Module | None = None
+        self.current_module_dtype: torch.dtype | None = None
+        self.module: nn.Module | None = None
+        self.cpu_state_dict: dict[str, torch.Tensor] = {}
         logger.info(f"IOHook init. Cache: {self.base_cache_dir}, Prefetch: {self.num_prefetch_streams}")
 
-    def _get_max_mem_bytes(self) -> Dict[str, int]:  # keys are str
-        mem_map: Dict[str, int] = {}
+    def _get_max_mem_bytes(self) -> dict[str, int]:  # keys are str
+        mem_map: dict[str, int] = {}
         if self.user_max_memory_gb:
             for k, v in self.user_max_memory_gb.items():
                 mem_map[str(k)] = int(v * (1024**3))
@@ -301,7 +302,7 @@ class InferenceOptimizerHook(ModelHook):
         os.makedirs(d, exist_ok=True)
         return d
 
-    def _get_plan_file_path(self) -> Optional[str]:  # For current_plan_id
+    def _get_plan_file_path(self) -> str | None:  # For current_plan_id
         if not self.current_plan_id:
             logger.error("Plan ID None. Cannot get path.")
             return None
@@ -309,7 +310,7 @@ class InferenceOptimizerHook(ModelHook):
         os.makedirs(d, exist_ok=True)
         return os.path.join(d, f"{self.current_plan_id}.json")
 
-    def _gen_opt_plan(self, prof_data: ProfilingData, max_mem_plan: Dict[str, int]) -> Optional[OptimizationPlan]:
+    def _gen_opt_plan(self, prof_data: ProfilingData, max_mem_plan: dict[str, int]) -> OptimizationPlan | None:
         logger.info("Generating optimization plan...")
         if not self.hooked_module_instance:
             logger.error("Cannot gen plan: no module.")
@@ -317,7 +318,7 @@ class InferenceOptimizerHook(ModelHook):
         opt = HeuristicOptimizer(prof_data, max_mem_plan)
         return opt.optimize()
 
-    def _setup_module_with_plan(self, mod_to_opt: nn.Module, plan: OptimizationPlan) -> Optional[PrefetchContext]:
+    def _setup_module_with_plan(self, mod_to_opt: nn.Module, plan: OptimizationPlan) -> PrefetchContext | None:
         logger.info(f"Preparing/dispatching '{mod_to_opt.__class__.__name__}' with plan...")
         offload = self.default_offload_policy
         if any(d.type == "cpu" for d in plan.optimized_device_map.values()) and offload != "cpu":
@@ -329,7 +330,7 @@ class InferenceOptimizerHook(ModelHook):
         self.cpu_state_dict = mod_to_opt.state_dict()
 
         main_dev_dispatch = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-        map_for_dispatch: Dict[str, Any] = {
+        map_for_dispatch: dict[str, Any] = {
             k: ("cpu" if v.type == "cpu" else f"{v.type}:{v.index}") for k, v in plan.optimized_device_map.items()
         }
         dispatch_model(
@@ -359,7 +360,7 @@ class InferenceOptimizerHook(ModelHook):
         return pf_ctx
 
     @torch.compiler.disable()
-    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[tuple[Any, ...], dict[str, Any]]:
         nvtx.range_push("IOHook.full_forward")
         nvtx.range_push("IOHook.pre_forward")
         self.hooked_module_instance = module
@@ -437,7 +438,7 @@ class InferenceOptimizerHook(ModelHook):
             prof_data_path = os.path.join(sig_dir, "profiling_data.json")
             plan_path = self._get_plan_file_path()
 
-            prof_data: Optional[ProfilingData] = None
+            prof_data: ProfilingData | None = None
             just_profiled = False
             if not self._force_profiling_active:
                 prof_data = ProfilingData.load(prof_data_path)

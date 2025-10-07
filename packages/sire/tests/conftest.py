@@ -1,11 +1,12 @@
 import os
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 # Using a temporary directory for test artifacts

@@ -15,13 +15,13 @@ from .page_link import PageLink
 
 __all__ = [
     "BaseConceptualInfoComponent",
-    "UniqueBaseConceptualInfoComponent",
     "BaseVariantInfoComponent",
-    "UniqueBaseVariantInfoComponent",
+    "CharacterConceptComponent",
     "ComicBookConceptComponent",
     "ComicBookVariantComponent",
-    "PageLink",
-    "CharacterConceptComponent",
     "EntityCharacterLinkComponent",
     "MimeTypeConceptComponent",
+    "PageLink",
+    "UniqueBaseConceptualInfoComponent",
+    "UniqueBaseVariantInfoComponent",
 ]

@@ -9,9 +9,7 @@ from ..core.base_component import UniqueComponent
 
 
 class ContentHashBLAKE3Component(UniqueComponent):
-    """
-    Stores BLAKE3 content-based hashes (32 bytes) for an entity.
-    """
+    """Stores BLAKE3 content-based hashes (32 bytes) for an entity."""
 
     __tablename__ = "component_content_hash_blake3"
 

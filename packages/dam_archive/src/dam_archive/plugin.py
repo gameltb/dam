@@ -51,14 +51,10 @@ from .systems.split_archives import (
 
 
 class ArchivePlugin(Plugin):
-    """
-    A plugin for handling archives.
-    """
+    """A plugin for handling archives."""
 
     def build(self, world: World) -> None:
-        """
-        Builds the archive plugin.
-        """
+        """Builds the archive plugin."""
         # Command Handlers
         world.register_system(create_master_archive_handler, command_type=CreateMasterArchiveCommand)
         world.register_system(unbind_split_archive_handler, command_type=UnbindSplitArchiveCommand)

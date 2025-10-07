@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from dam.core.types import StreamProvider
 
@@ -14,5 +13,5 @@ class NewEntityCreatedEvent(BaseSystemEvent):
     """
 
     entity_id: int
-    stream_provider: Optional[StreamProvider] = None
-    filename: Optional[str] = None
+    stream_provider: StreamProvider | None = None
+    filename: str | None = None

@@ -35,7 +35,7 @@ def test_update_session_metadata(mocker: Any) -> None:
         metadata = {"key": "value"}
         result = update_session_metadata("test_session", metadata, project_path=fs)
         assert result == "Metadata updated for session 'test_session'."
-        with open(os.path.join(fs, "sessions/test_session.md"), "r") as f:
+        with open(os.path.join(fs, "sessions/test_session.md")) as f:
             content = f.read()
             assert str(metadata) in content
 

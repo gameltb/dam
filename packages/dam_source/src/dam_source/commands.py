@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from dam.commands.core import BaseCommand
 from dam.system_events.base import BaseSystemEvent
@@ -12,6 +12,6 @@ class IngestWebAssetCommand(BaseCommand[None, BaseSystemEvent]):
     world_name: str
     website_identifier_url: str
     source_url: str
-    metadata_payload: Optional[Dict[str, Any]] = None
-    original_file_url: Optional[str] = None
-    tags: Optional[List[str]] = None
+    metadata_payload: dict[str, Any] | None = None
+    original_file_url: str | None = None
+    tags: list[str] | None = None

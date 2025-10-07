@@ -1,7 +1,7 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Dict, Optional
+from typing import Annotated
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.systems import system
@@ -31,16 +31,14 @@ async def create_master_archive_handler(
     cmd: CreateMasterArchiveCommand,
     transaction: WorldTransaction,
 ):
-    """
-    Handles the manual creation of a master entity for a split archive.
-    """
+    """Handles the manual creation of a master entity for a split archive."""
     logger.info("Manually creating master archive '%s' for %s parts.", cmd.name, len(cmd.part_entity_ids))
 
     # 1. Create master entity and its components
     master_entity = await transaction.create_entity()
     await transaction.add_component_to_entity(
         master_entity.id,
-        FilenameComponent(filename=cmd.name, first_seen_at=datetime.now(timezone.utc)),
+        FilenameComponent(filename=cmd.name, first_seen_at=datetime.now(UTC)),
     )
     manifest = SplitArchiveManifestComponent()
     await transaction.add_component_to_entity(master_entity.id, manifest)
@@ -104,7 +102,7 @@ async def bind_split_archive_handler(
         return
 
     # 2. Use the split_detector to find and validate a complete group from the siblings
-    parts_by_basename: Dict[str, Dict[int, int]] = {}  # {base_name: {part_num: entity_id}}
+    parts_by_basename: dict[str, dict[int, int]] = {}  # {base_name: {part_num: entity_id}}
     for sibling in siblings:
         split_info = split_detector.detect(Path(sibling.path).name)
         if split_info:
@@ -147,9 +145,7 @@ async def check_split_archive_binding_handler(
     cmd: CheckSplitArchiveBindingCommand,
     transaction: WorldTransaction,
 ) -> bool:
-    """
-    Checks if an entity is part of a fully bound split archive.
-    """
+    """Checks if an entity is part of a fully bound split archive."""
     # Case 1: The entity is the master archive itself.
     manifest = await transaction.get_component(cmd.entity_id, SplitArchiveManifestComponent)
     if manifest:
@@ -171,10 +167,8 @@ async def unbind_split_archive_handler(
     cmd: UnbindSplitArchiveCommand,
     transaction: WorldTransaction,
 ):
-    """
-    Handles unbinding a split archive, starting from either a master or a part.
-    """
-    master_entity_id: Optional[int] = None
+    """Handles unbinding a split archive, starting from either a master or a part."""
+    master_entity_id: int | None = None
 
     # Determine the master entity ID
     # Case 1: The command is run on the master entity itself.

@@ -3,7 +3,7 @@ from typing import Any
 
 
 class ToolCallParsingError(Exception):
-    """自定义异常，用于工具调用解析错误。"""
+    """自定义异常，用于工具调用解析错误。."""
 
     pass
 
@@ -11,7 +11,7 @@ class ToolCallParsingError(Exception):
 def parse_tool_calls(message: str) -> list[dict[str, Any]]:
     """
     解析消息字符串中的工具调用，能够稳健处理残缺的块并尝试修复。
-    如果块不可修复，则抛出 ToolCallParsingError 错误。
+    如果块不可修复，则抛出 ToolCallParsingError 错误。.
 
     参数:
         message (str): 包含工具调用的消息字符串。

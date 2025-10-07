@@ -2,7 +2,6 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +12,7 @@ class TranscodeError(Exception):
     pass
 
 
-def _run_command(command: List[str]) -> Tuple[str, str]:
+def _run_command(command: list[str]) -> tuple[str, str]:
     """
     Runs a shell command and returns its stdout and stderr.
     Raises TranscodeError if the command fails.
@@ -61,6 +60,7 @@ def transcode_media(
     Raises:
         TranscodeError: If the transcoding fails or tool is not found.
         ValueError: If tool_params does not contain {input} and {output} placeholders.
+
     """
     if not input_path.exists():
         raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -73,8 +73,8 @@ def transcode_media(
 
     # Replace placeholders with actual paths
     # Ensure paths are quoted if they might contain spaces
-    formatted_params = tool_params.replace("{input}", f'"{str(input_path)}"')
-    formatted_params = formatted_params.replace("{output}", f'"{str(output_path)}"')
+    formatted_params = tool_params.replace("{input}", f'"{input_path!s}"')
+    formatted_params = formatted_params.replace("{output}", f'"{output_path!s}"')
 
     command_parts = [tool_name] + formatted_params.split()  # Simple split, might need shlex for complex params
 
@@ -209,4 +209,4 @@ if __name__ == "__main__":
     logger.info("\nMedia utils tests finished.")
 
 
-__all__ = ["transcode_media", "TranscodeError"]
+__all__ = ["TranscodeError", "transcode_media"]

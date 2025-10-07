@@ -1,4 +1,3 @@
-from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,12 +17,12 @@ class FramePropertiesComponent(BaseComponent):
 
     # id, entity_id are inherited from BaseComponent
 
-    frame_count: Mapped[Optional[int]] = mapped_column(nullable=True, default=None)
+    frame_count: Mapped[int | None] = mapped_column(nullable=True, default=None)
     # Frame rate might be tricky as it can vary per frame in formats like GIF.
     # Storing an average or typical frame rate might be an option, or duration of the animation.
     # For simplicity, let's assume a single representative frame rate or overall duration for now.
-    nominal_frame_rate: Mapped[Optional[float]] = mapped_column(nullable=True, default=None)  # Frames per second
-    animation_duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True, default=None)
+    nominal_frame_rate: Mapped[float | None] = mapped_column(nullable=True, default=None)  # Frames per second
+    animation_duration_seconds: Mapped[float | None] = mapped_column(nullable=True, default=None)
     # image_format: Mapped[Optional[str]] = mapped_column(nullable=True) # e.g., "GIF", "APNG", "AVIF sequence"
     # This might be better in FilePropertiesComponent or a dedicated format component
 

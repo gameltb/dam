@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Awaitable, Callable, Iterator
 from datetime import datetime
 from types import TracebackType
 from typing import (
-    Awaitable,
     BinaryIO,
-    Callable,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
     cast,
 )
 
@@ -21,27 +16,16 @@ from ..exceptions import InvalidPasswordError
 
 
 class RarArchiveHandler(ArchiveHandler):
-    """
-    An archive handler for rar files.
-    """
+    """An archive handler for rar files."""
 
-    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+    def __init__(self, stream_provider: StreamProvider, password: str | None = None):
         super().__init__(stream_provider, password)
-        self._stream: Optional[BinaryIO] = None
-        self.rar_file: Optional[rarfile.RarFile] = None
-        self._stream_cm_exit: Optional[
-            Callable[
-                [
-                    Optional[type[BaseException]],
-                    Optional[BaseException],
-                    Optional[TracebackType],
-                ],
-                Awaitable[Optional[bool]],
-            ]
-        ] = None
+        self._stream: BinaryIO | None = None
+        self.rar_file: rarfile.RarFile | None = None
+        self._stream_cm_exit: Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]] | None = None
 
     @classmethod
-    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> RarArchiveHandler:
+    async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> RarArchiveHandler:
         handler = cls(stream_provider, password)
         stream_cm = stream_provider.get_stream()
         handler._stream = await stream_cm.__aenter__()
@@ -62,7 +46,7 @@ class RarArchiveHandler(ArchiveHandler):
             if isinstance(e, rarfile.RarWrongPassword):  # type: ignore
                 raise InvalidPasswordError("Invalid password for rar file.") from e
             if isinstance(e, rarfile.BadRarFile):  # type: ignore
-                raise IOError(f"Failed to open rar file: {e}") from e
+                raise OSError(f"Failed to open rar file: {e}") from e
             raise
 
         return handler
@@ -78,14 +62,14 @@ class RarArchiveHandler(ArchiveHandler):
         self._stream = None
         self._stream_cm_exit = None
 
-    def list_files(self) -> List[ArchiveMemberInfo]:
-        files: List[ArchiveMemberInfo] = []
+    def list_files(self) -> list[ArchiveMemberInfo]:
+        files: list[ArchiveMemberInfo] = []
         if not self.rar_file:
             return files
 
         for f in self.rar_file.infolist():  # type: ignore
             if not f.isdir():  # type: ignore
-                mtime = cast(Optional[datetime], f.mtime)  # type: ignore
+                mtime = cast(datetime | None, f.mtime)  # type: ignore
                 if mtime is None:
                     mtime = rarfile.to_datetime(f.date_time)  # type: ignore
                 files.append(
@@ -97,7 +81,7 @@ class RarArchiveHandler(ArchiveHandler):
                 )
         return files
 
-    def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
+    def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
         """Iterate over all files in the archive."""
         if not self.rar_file:
             return
@@ -105,7 +89,7 @@ class RarArchiveHandler(ArchiveHandler):
         for f in self.rar_file.infolist():  # type: ignore
             if f.isdir():  # type: ignore
                 continue
-            mtime = cast(Optional[datetime], f.mtime)  # type: ignore
+            mtime = cast(datetime | None, f.mtime)  # type: ignore
             if mtime is None:
                 mtime = rarfile.to_datetime(f.date_time)  # type: ignore
             member_info = ArchiveMemberInfo(
@@ -118,15 +102,15 @@ class RarArchiveHandler(ArchiveHandler):
             except rarfile.RarWrongPassword as e:
                 raise InvalidPasswordError(f"Invalid password for file '{f.filename}' in rar archive.") from e  # type: ignore
             except KeyError as e:
-                raise IOError(f"File not found in rar: {f.filename}") from e  # type: ignore
+                raise OSError(f"File not found in rar: {f.filename}") from e  # type: ignore
 
-    def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+    def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
         if not self.rar_file:
-            raise IOError(f"File not found in rar: {file_name}")
+            raise OSError(f"File not found in rar: {file_name}")
 
         for f in self.rar_file.infolist():  # type: ignore
             if f.filename == file_name:  # type: ignore
-                mtime = cast(Optional[datetime], f.mtime)  # type: ignore
+                mtime = cast(datetime | None, f.mtime)  # type: ignore
                 if mtime is None:
                     mtime = rarfile.to_datetime(f.date_time)  # type: ignore
                 member_info = ArchiveMemberInfo(
@@ -139,11 +123,11 @@ class RarArchiveHandler(ArchiveHandler):
                 except rarfile.RarWrongPassword as e:
                     raise InvalidPasswordError(f"Invalid password for file '{f.filename}' in rar archive.") from e  # type: ignore
                 except KeyError as e:
-                    raise IOError(f"File not found in rar: {f.filename}") from e  # type: ignore
-        raise IOError(f"File not found in rar: {file_name}")
+                    raise OSError(f"File not found in rar: {f.filename}") from e  # type: ignore
+        raise OSError(f"File not found in rar: {file_name}")
 
     @property
-    def comment(self) -> Optional[str]:
+    def comment(self) -> str | None:
         if not self.rar_file:
             return None
         comment = self.rar_file.comment  # type: ignore

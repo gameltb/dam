@@ -146,7 +146,9 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) 
     char_entity = await character_service.create_character_concept(db_session, "Linkable Char", "For linking tests")
     asset1 = await ecs_service.create_entity(db_session)
     asset2 = await ecs_service.create_entity(db_session)
-    assert char_entity and asset1 and asset2
+    assert char_entity
+    assert asset1
+    assert asset2
 
     # Apply with role
     link1 = await character_service.apply_character_to_entity(db_session, asset1.id, char_entity.id, role="Protagonist")

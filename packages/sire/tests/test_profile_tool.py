@@ -3,8 +3,8 @@ import tempfile
 
 import pytest
 import torch
-import torch.nn as nn
 from accelerate.hooks import add_hook_to_module
+from torch import nn
 
 from sire.core.profile_tool import (
     ProfilerHook,
@@ -22,8 +22,7 @@ class SimpleModel(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
-        x = self.layer2(x)
-        return x
+        return self.layer2(x)
 
 
 def test_get_module_size() -> None:

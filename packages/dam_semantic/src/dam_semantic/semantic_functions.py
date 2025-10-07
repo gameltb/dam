@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 from dam.core.transaction import WorldTransaction
@@ -26,8 +26,8 @@ async def generate_embedding(
     sire_resource: "SireResource",
     text: str,
     model_name: str = DEFAULT_MODEL_NAME,
-    params: Optional[ModelHyperparameters] = None,
-) -> Optional[np.ndarray]:
+    params: ModelHyperparameters | None = None,
+) -> np.ndarray | None:
     if not text or not text.strip():
         return None
     try:
@@ -39,8 +39,7 @@ async def generate_embedding(
             if managed_model is None:
                 logger.error("Managed model is None, cannot encode text.")
                 return None
-            embedding = managed_model.encode(text, convert_to_numpy=True)
-        return embedding
+            return managed_model.encode(text, convert_to_numpy=True)
     except Exception as e:
         logger.error(f"Error generating embedding: {e}", exc_info=True)
         return None
@@ -65,15 +64,15 @@ class BatchTextItem(TypedDict):
 async def update_text_embeddings_for_entity(
     transaction: WorldTransaction,
     entity_id: int,
-    text_fields_map: Dict[str, Any],
+    text_fields_map: dict[str, Any],
     sire_resource: "SireResource",
     model_name: str = DEFAULT_MODEL_NAME,
-    model_params: Optional[ModelHyperparameters] = None,
-    batch_texts: Optional[List[BatchTextItem]] = None,
+    model_params: ModelHyperparameters | None = None,
+    batch_texts: list[BatchTextItem] | None = None,
     include_manual_tags: bool = True,
-    include_model_tags_config: Optional[List[Dict[str, Any]]] = None,
+    include_model_tags_config: list[dict[str, Any]] | None = None,
     tag_concatenation_strategy: str = " [TAGS] {tags_string}",
-) -> List[BaseSpecificEmbeddingComponent]:
+) -> list[BaseSpecificEmbeddingComponent]:
     logger.warning("update_text_embeddings_for_entity is not fully implemented with sire yet.")
     return []
 
@@ -83,8 +82,8 @@ async def find_similar_entities_by_text_embedding(
     query_text: str,
     sire_resource: "SireResource",
     model_name: str,
-    model_params: Optional[ModelHyperparameters] = None,
+    model_params: ModelHyperparameters | None = None,
     top_n: int = 10,
-) -> List[Tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
+) -> list[tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
     logger.warning("find_similar_entities_by_text_embedding is not fully implemented with sire yet.")
     return []

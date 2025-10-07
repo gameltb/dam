@@ -34,11 +34,11 @@ class BaseVariantInfoComponent(BaseComponent):
     )
 
     @declared_attr
-    def conceptual_asset(cls) -> Mapped["Entity"]:
+    def conceptual_asset(self) -> Mapped["Entity"]:
         """Relationship to the parent (owning) Conceptual Asset Entity."""
         return relationship(
             "Entity",
-            foreign_keys=[cls.conceptual_entity_id],  # type: ignore # Use cls.conceptual_entity_id
+            foreign_keys=[self.conceptual_entity_id],  # type: ignore # Use cls.conceptual_entity_id
             # backref="variants_conceptual_links", # Consider if a backref is needed and how it would work with multiple variant types
             repr=False,
             init=False,  # Prevent 'conceptual_asset' from being an __init__ parameter
@@ -70,11 +70,11 @@ class UniqueBaseVariantInfoComponent(UniqueComponent):
     )
 
     @declared_attr
-    def conceptual_asset(cls) -> Mapped["Entity"]:
+    def conceptual_asset(self) -> Mapped["Entity"]:
         """Relationship to the parent (owning) Conceptual Asset Entity."""
         return relationship(
             "Entity",
-            foreign_keys=[cls.conceptual_entity_id],  # type: ignore
+            foreign_keys=[self.conceptual_entity_id],  # type: ignore
             repr=False,
             init=False,
         )

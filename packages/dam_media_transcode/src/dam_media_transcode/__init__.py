@@ -7,9 +7,9 @@ from .events import (
 from .plugin import TranscodePlugin
 
 __all__ = [
-    "TranscodePlugin",
-    "TranscodeJobRequested",
+    "StartEvaluationForTranscodedAsset",
     "TranscodeJobCompleted",
     "TranscodeJobFailed",
-    "StartEvaluationForTranscodedAsset",
+    "TranscodeJobRequested",
+    "TranscodePlugin",
 ]

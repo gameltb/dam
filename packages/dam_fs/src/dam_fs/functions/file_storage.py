@@ -2,7 +2,6 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from dam.core.config import WorldConfig
 
@@ -35,7 +34,7 @@ def _get_storage_path_for_world(file_hash: str, world_config: WorldConfig) -> Pa
 def store_file(
     file_content: bytes,
     world_config: WorldConfig,
-    original_filename: Optional[str] = None,
+    original_filename: str | None = None,
 ) -> tuple[str, str]:
     """
     Stores the given file content using a content-addressable scheme (SHA256 hash)
@@ -50,6 +49,7 @@ def store_file(
         A tuple containing:
             - The SHA256 hash of the file content (content_hash).
             - The relative physical storage path suffix (e.g., "ab/cd/hashvalue").
+
     """
     content_hash = hashlib.sha256(file_content).hexdigest()
 
@@ -87,13 +87,11 @@ def store_file(
 
 
 def has_file(file_identifier: str, world_config: WorldConfig) -> bool:
-    """
-    Checks if a file with the given identifier (SHA256 hash) exists in storage.
-    """
+    """Checks if a file with the given identifier (SHA256 hash) exists in storage."""
     return get_file_path(file_identifier, world_config) is not None
 
 
-def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[Path]:  # Changed from world_name
+def get_file_path(file_identifier: str, world_config: WorldConfig) -> Path | None:  # Changed from world_name
     """
     Returns the absolute path to the file identified by file_identifier (SHA256 hash)
     from the specified world's asset storage, using the provided WorldConfig.
@@ -104,6 +102,7 @@ def get_file_path(file_identifier: str, world_config: WorldConfig) -> Optional[P
 
     Returns:
         The absolute Path object to the file if it exists, otherwise None.
+
     """
     if not file_identifier:
         return None
@@ -134,6 +133,7 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Cha
 
     Returns:
         True if the file was deleted, False otherwise.
+
     """
     actual_file_path = get_file_path(file_identifier, world_config)
     log_world_identifier = world_config.name

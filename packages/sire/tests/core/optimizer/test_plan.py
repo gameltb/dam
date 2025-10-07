@@ -7,9 +7,7 @@ from sire.core.optimizer.plan import OptimizationPlan, PrefetchInstruction
 
 
 def test_optimization_plan_save_load():
-    """
-    Tests saving and loading an OptimizationPlan.
-    """
+    """Tests saving and loading an OptimizationPlan."""
     plan = OptimizationPlan(
         optimized_device_map={
             "module1": torch.device("cuda:0"),

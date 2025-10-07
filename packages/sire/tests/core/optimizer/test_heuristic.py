@@ -1,4 +1,3 @@
-from typing import Dict, List
 
 import torch
 
@@ -6,10 +5,10 @@ from sire.core.optimizer.heuristic import HeuristicOptimizer
 from sire.core.profile_tool import AverageModuleStats, AverageProfilingStats, ProfilingData
 
 
-def _create_mock_profiling_data(module_stats: Dict[str, Dict[str, float]], execution_order: List[str]) -> ProfilingData:
+def _create_mock_profiling_data(module_stats: dict[str, dict[str, float]], execution_order: list[str]) -> ProfilingData:
     """Creates a mock ProfilingData object for testing."""
     profiling_data = ProfilingData()
-    avg_module_stats: Dict[str, AverageModuleStats] = {}
+    avg_module_stats: dict[str, AverageModuleStats] = {}
     for name, stats in module_stats.items():
         avg_module_stats[name] = AverageModuleStats(
             avg_exec_time=stats["time"],
@@ -27,9 +26,7 @@ def _create_mock_profiling_data(module_stats: Dict[str, Dict[str, float]], execu
 
 
 def test_heuristic_optimizer_simple_placement():
-    """
-    Tests a simple case where all modules fit on a single GPU and no prefetching is needed.
-    """
+    """Tests a simple case where all modules fit on a single GPU and no prefetching is needed."""
     module_stats = {
         "A": {"size": 100 * 1024**2, "vram": 50 * 1024**2, "time": 0.1},
         "B": {"size": 200 * 1024**2, "vram": 100 * 1024**2, "time": 0.2},
@@ -61,9 +58,7 @@ def test_heuristic_optimizer_simple_placement():
 
 
 def test_heuristic_optimizer_with_prefetching():
-    """
-    Tests a more complex scenario where prefetching is beneficial.
-    """
+    """Tests a more complex scenario where prefetching is beneficial."""
     MB = 1024**2
     module_stats = {
         "A": {"size": 10 * MB, "vram": 5 * MB, "time": 0.1},  # Small, short
@@ -118,9 +113,7 @@ def test_heuristic_optimizer_with_prefetching():
 
 
 def test_heuristic_optimizer_no_gpu():
-    """
-    Tests the case where no GPUs are available.
-    """
+    """Tests the case where no GPUs are available."""
     module_stats = {
         "A": {"size": 100 * 1024**2, "vram": 0, "time": 0.1},
         "B": {"size": 200 * 1024**2, "vram": 0, "time": 0.2},

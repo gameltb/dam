@@ -1,6 +1,6 @@
 import struct
 from io import BytesIO
-from typing import BinaryIO, Dict, Optional, Union, cast
+from typing import BinaryIO, cast
 
 import pycdlib  # type: ignore[import]
 
@@ -32,7 +32,7 @@ class SFO:
 
         self.idx_table = [SFOIndexTableEntry(raw_sfo, 0x14 + idx * 0x10) for idx in range(self.table_entries)]
 
-        self.data: Dict[str, Union[int, str]] = {}
+        self.data: dict[str, int | str] = {}
         for i in range(len(self.idx_table)):
             self._read_entry(raw_sfo, i)
 
@@ -50,7 +50,7 @@ class SFO:
         d_end = d_start + entry.data_len
 
         raw_data_bytes = raw_sfo[d_start:d_end]
-        data: Union[int, str]
+        data: int | str
         if entry.data_fmt == SFODataFormat.INT32:
             data = int.from_bytes(raw_data_bytes, "little")
         else:
@@ -59,7 +59,7 @@ class SFO:
         self.data[key] = data
 
 
-def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
+def process_iso_stream(stream: BinaryIO) -> SFO | None:
     """
     Processes a PSP ISO stream to extract SFO metadata.
 
@@ -68,12 +68,13 @@ def process_iso_stream(stream: BinaryIO) -> Optional[SFO]:
 
     Returns:
         An SFO object if found, otherwise None.
+
     """
     iso = pycdlib.PyCdlib()  # type: ignore[attr-defined]
     try:
         iso.open_fp(stream)  # type: ignore[arg-type]
     except Exception as e:
-        raise IOError("Failed to open stream as ISO file") from e
+        raise OSError("Failed to open stream as ISO file") from e
 
     try:
         for dirname, _, filelist in iso.walk(iso_path="/"):  # type: ignore

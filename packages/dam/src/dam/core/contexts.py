@@ -5,8 +5,6 @@ T = TypeVar("T", covariant=True)
 
 
 class ContextProvider(Protocol[T]):
-    """
-    A protocol for providers that can set up and tear down a context.
-    """
+    """A protocol for providers that can set up and tear down a context."""
 
     def __call__(self, **kwargs: Any) -> AbstractAsyncContextManager[T]: ...

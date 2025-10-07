@@ -48,7 +48,7 @@ def invalid_file(tmp_path: Any) -> Any:
 
 
 def read_file_content(file_path: Any) -> str:
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         return f.read()
 
 

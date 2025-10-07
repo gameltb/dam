@@ -1,18 +1,14 @@
 import contextlib
 import io
 import logging
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from typing import (
     Annotated,
     Any,
     AsyncContextManager,
-    AsyncGenerator,
-    AsyncIterator,
     BinaryIO,
-    List,
-    Optional,
     TypedDict,
-    Union,
     cast,
 )
 
@@ -74,10 +70,8 @@ async def check_archive_handler(
 async def reissue_archive_member_events_handler(
     cmd: ReissueArchiveMemberEventsCommand,
     transaction: WorldTransaction,
-) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent], None]:
-    """
-    Handles re-issuing NewEntityCreatedEvent events for all members of an existing archive.
-    """
+) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent, None]:
+    """Handles re-issuing NewEntityCreatedEvent events for all members of an existing archive."""
     yield ProgressStarted()
 
     stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == cmd.entity_id)
@@ -105,7 +99,7 @@ async def reissue_archive_member_events_handler(
 def _create_archive_member_stream_provider(
     archive_stream_provider: StreamProvider,
     mime_type: str,
-    password: Optional[str],
+    password: str | None,
     target_entity_id: int,
     path_in_archive: str,
 ) -> StreamProvider:
@@ -114,7 +108,7 @@ def _create_archive_member_stream_provider(
         async def get_stream(self) -> AsyncIterator[BinaryIO]:
             archive = await open_archive(archive_stream_provider, mime_type, password)
             if not archive:
-                raise IOError(f"Could not open archive for entity {target_entity_id}")
+                raise OSError(f"Could not open archive for entity {target_entity_id}")
 
             member_stream = None
             try:
@@ -140,10 +134,8 @@ async def get_archive_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[StreamProvider]:
-    """
-    Handles getting a stream provider for an asset that is part of an archive.
-    """
+) -> StreamProvider | None:
+    """Handles getting a stream provider for an asset that is part of an archive."""
     archive_member_components = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
     if not archive_member_components:
         return None
@@ -188,10 +180,8 @@ async def get_archive_asset_stream_handler(
 async def get_archive_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: WorldTransaction,
-) -> Optional[List[str]]:
-    """
-    Handles getting filenames for assets that are members of an archive.
-    """
+) -> list[str] | None:
+    """Handles getting filenames for assets that are members of an archive."""
     archive_member_comps = await transaction.get_components(cmd.entity_id, ArchiveMemberComponent)
     if archive_member_comps:
         return [archive_member_comp.path_in_archive for archive_member_comp in archive_member_comps]
@@ -199,13 +189,13 @@ async def get_archive_asset_filenames_handler(
 
 
 class ChainedStreamProvider(StreamProvider):
-    def __init__(self, providers: List[StreamProvider]):
+    def __init__(self, providers: list[StreamProvider]):
         self._providers = providers
 
     @asynccontextmanager
     async def get_stream(self) -> AsyncIterator[BinaryIO]:
-        streams: List[BinaryIO] = []
-        context_managers: List[AsyncContextManager[BinaryIO]] = []
+        streams: list[BinaryIO] = []
+        context_managers: list[AsyncContextManager[BinaryIO]] = []
         try:
             for p in self._providers:
                 cm = p.get_stream()
@@ -223,7 +213,7 @@ async def _get_archive_stream_provider(  # noqa: PLR0911
     cmd: IngestArchiveCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> tuple[Optional[StreamProvider], Optional[ProgressError]]:
+) -> tuple[StreamProvider | None, ProgressError | None]:
     """Determines the correct StreamProvider for the given IngestArchiveCommand."""
     if cmd.stream_provider:
         logger.info("Processing archive for entity %s from provided stream provider.", cmd.entity_id)
@@ -244,7 +234,7 @@ async def _get_archive_stream_provider(  # noqa: PLR0911
         parts = result.scalars().all()
         part_entity_ids = [part.entity_id for part in parts]
         try:
-            part_stream_providers: List[StreamProvider] = []
+            part_stream_providers: list[StreamProvider] = []
             for part_entity_id in part_entity_ids:
                 stream_cmd = GetAssetStreamCommand(entity_id=part_entity_id)
                 all_providers = await world.dispatch_command(stream_cmd).get_all_results()
@@ -295,7 +285,7 @@ async def _resolve_password_and_open_archive(
     archive_stream_provider: StreamProvider,
     transaction: WorldTransaction,
     mime_type: str,
-) -> AsyncGenerator[Union[SystemProgressEvent, InformationRequest[Any]], Any]:
+) -> AsyncGenerator[SystemProgressEvent | InformationRequest[Any], Any]:
     """
     Handles password resolution and opens the archive.
     This is an async generator that yields ProgressError or PasswordRequest events.
@@ -304,12 +294,12 @@ async def _resolve_password_and_open_archive(
     """
     entity_id = cmd.entity_id
 
-    async def _try_open_archive(password: Optional[str]):
+    async def _try_open_archive(password: str | None):
         try:
             return await open_archive(archive_stream_provider, mime_type, password)
         except InvalidPasswordError:
             return None
-        except (IOError, RuntimeError) as e:
+        except (OSError, RuntimeError) as e:
             return ProgressError(message=f"Failed to open archive {entity_id}", exception=e)
         except Exception:
             raise
@@ -380,7 +370,7 @@ async def _process_member(
         in_memory_buffer = io.BytesIO(member_stream.read(memory_limit))
         is_eof = not member_stream.read(1)
 
-        event_stream_provider: Optional[StreamProvider] = None
+        event_stream_provider: StreamProvider | None = None
         if is_eof:
             in_memory_buffer.seek(0)
             buffer_content = in_memory_buffer.read()
@@ -425,10 +415,8 @@ async def _process_archive(
     archive_stream_provider: StreamProvider,
     world: Annotated[World, "Resource"],
     transaction: WorldTransaction,
-) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any]:
-    """
-    The core extraction and event-issuing logic for an archive.
-    """
+) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent | InformationRequest[Any], Any]:
+    """The core extraction and event-issuing logic for an archive."""
     yield ProgressStarted()
     entity_id = cmd.entity_id
 
@@ -503,7 +491,7 @@ async def ingest_archive_members_handler(
     cmd: IngestArchiveCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> AsyncGenerator[Union[SystemProgressEvent, NewEntityCreatedEvent, InformationRequest[Any]], Any]:
+) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent | InformationRequest[Any], Any]:
     """
     Handles processing an archive. It's the main entry point for ingestion.
     This handler determines the stream provider and then calls the main processing logic.
@@ -537,9 +525,7 @@ async def clear_archive_components_handler(
     cmd: ClearArchiveComponentsCommand,
     transaction: WorldTransaction,
 ) -> None:
-    """
-    Handles clearing archive-related components from an entity and its members.
-    """
+    """Handles clearing archive-related components from an entity and its members."""
     # Delete ArchiveInfoComponent from the main archive entity
     info_comp = await transaction.get_component(cmd.entity_id, ArchiveInfoComponent)
     if info_comp:

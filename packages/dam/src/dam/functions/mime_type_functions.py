@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -35,7 +34,7 @@ async def get_mime_type_concept_by_name(session: AsyncSession, name: str) -> Ent
 async def get_or_create_mime_type_concept(
     session: AsyncSession,
     mime_type: str,
-) -> Optional[MimeTypeConceptComponent]:
+) -> MimeTypeConceptComponent | None:
     """
     Retrieves an existing MimeTypeConceptComponent by name, or creates a new one if not found.
     Returns the MimeTypeConceptComponent instance, or None if creation fails.
@@ -79,10 +78,8 @@ async def get_or_create_mime_type_concept(
 
 async def set_content_mime_type(
     session: AsyncSession, entity_id: int, mime_type: str
-) -> Optional[ContentMimeTypeComponent]:
-    """
-    Sets the content mime type for a given entity by linking it to a MimeTypeConcept.
-    """
+) -> ContentMimeTypeComponent | None:
+    """Sets the content mime type for a given entity by linking it to a MimeTypeConcept."""
     mime_type_concept = await get_or_create_mime_type_concept(session, mime_type)
     if not mime_type_concept:
         logger.error(f"Could not get or create mime type concept for '{mime_type}'.")
@@ -104,16 +101,14 @@ async def set_content_mime_type(
 
 
 async def remove_content_mime_type(session: AsyncSession, entity_id: int) -> None:
-    """
-    Removes the content mime type for a given entity.
-    """
+    """Removes the content mime type for a given entity."""
     component = await ecs_functions.get_component(session, entity_id, ContentMimeTypeComponent)
     if component:
         await ecs_functions.remove_component(session, component)
         logger.info(f"Removed ContentMimeTypeComponent from entity {entity_id}.")
 
 
-async def get_content_mime_type(session: AsyncSession, entity_id: int) -> Optional[str]:
+async def get_content_mime_type(session: AsyncSession, entity_id: int) -> str | None:
     """
     Gets the mime type for a given entity's content.
     Returns the mime type string or None if the entity has no content mime type.

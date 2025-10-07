@@ -1,4 +1,3 @@
-from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -24,7 +23,7 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
     source_model_name: Mapped[str] = mapped_column(String(), nullable=False, index=True)
 
     # Confidence score from the model for this specific tag suggestion
-    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships (optional, but can be useful for ORM-level access)
     # entity: Mapped["Entity"] = relationship(back_populates="model_generated_tags")

@@ -28,14 +28,10 @@ from .systems import (
 
 
 class PspPlugin(Plugin):
-    """
-    A plugin for handling PSP ISOs.
-    """
+    """A plugin for handling PSP ISOs."""
 
     def build(self, world: World) -> None:
-        """
-        Builds the PSP plugin.
-        """
+        """Builds the PSP plugin."""
         world.register_system(
             psp_iso_metadata_extraction_command_handler_system,
             command_type=ExtractPSPMetadataCommand,
@@ -53,4 +49,4 @@ class PspPlugin(Plugin):
         world.register_asset_operation(decompress_cso_operation)
 
 
-__all__ = ["PspPlugin", "psp_iso_functions", "extract_psp_metadata_operation", "decompress_cso_operation"]
+__all__ = ["PspPlugin", "decompress_cso_operation", "extract_psp_metadata_operation", "psp_iso_functions"]

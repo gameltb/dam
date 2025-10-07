@@ -9,9 +9,7 @@ from ..core.base_component import UniqueComponent
 
 
 class ContentHashMD5Component(UniqueComponent):
-    """
-    Stores MD5 content-based hashes (16 bytes) for an entity.
-    """
+    """Stores MD5 content-based hashes (16 bytes) for an entity."""
 
     __tablename__ = "component_content_hash_md5"
 

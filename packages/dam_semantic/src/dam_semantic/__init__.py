@@ -30,14 +30,10 @@ except ImportError:
 
 
 class SemanticPlugin(Plugin):
-    """
-    A plugin for handling semantic search.
-    """
+    """A plugin for handling semantic search."""
 
-    def build(self, world: "World") -> None:
-        """
-        Builds the semantic plugin.
-        """
+    def build(self, world: World) -> None:
+        """Builds the semantic plugin."""
         # Add dependent plugins
         world.add_plugin(ImagePlugin())
 

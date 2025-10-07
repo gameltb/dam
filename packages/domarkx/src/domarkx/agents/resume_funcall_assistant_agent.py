@@ -1,9 +1,6 @@
 import uuid
+from collections.abc import AsyncGenerator, Sequence
 from typing import (
-    AsyncGenerator,
-    List,
-    Sequence,
-    Union,
     cast,
 )
 
@@ -30,8 +27,9 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
         self,
         messages: Sequence[BaseChatMessage],
         cancellation_token: CancellationToken,
-    ) -> AsyncGenerator[Union[BaseAgentEvent, BaseChatMessage, Response], None]:
-        """Process messages and stream the response.
+    ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
+        """
+        Process messages and stream the response.
 
         Args:
             messages: Sequence of messages to process
@@ -39,8 +37,8 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
 
         Yields:
             Events, messages and final response during processing
-        """
 
+        """
         # Gather all relevant state here
         agent_name = self.name
         model_context = self._model_context
@@ -56,7 +54,7 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
         tool_call_summary_format = self._tool_call_summary_format
         tool_call_summary_formatter = self._tool_call_summary_formatter
         output_content_type = self._output_content_type
-        inner_messages: List[BaseAgentEvent | BaseChatMessage] = []
+        inner_messages: list[BaseAgentEvent | BaseChatMessage] = []
 
         # check if we have
         model_context_messages = await model_context.get_messages()
@@ -69,7 +67,7 @@ class ResumeFunCallAssistantAgent(AssistantAgent):
 
             create_result = CreateResult(
                 finish_reason="function_calls",
-                content=cast(List[FunctionCall], fun_model_result.content),
+                content=cast(list[FunctionCall], fun_model_result.content),
                 usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
                 cached=False,
                 logprobs=None,

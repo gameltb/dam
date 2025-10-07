@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.commands.core import BaseCommand, EntityCommand
@@ -13,13 +12,11 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
     This command returns a stream of events.
     """
 
-    password: Optional[str] = None
+    password: str | None = None
 
     @classmethod
-    def get_supported_types(cls) -> Dict[str, List[str]]:
-        """
-        Returns a dictionary of supported MIME types and file extensions for archives.
-        """
+    def get_supported_types(cls) -> dict[str, list[str]]:
+        """Returns a dictionary of supported MIME types and file extensions for archives."""
         return {
             "mimetypes": [],
             "extensions": [".zip", ".rar", ".7z"],
@@ -28,9 +25,7 @@ class IngestArchiveCommand(AnalysisCommand[None, BaseSystemEvent]):
 
 @dataclass
 class TagArchivePartCommand(BaseCommand[None, BaseSystemEvent]):
-    """
-    A command to tag a file as a potential split archive part.
-    """
+    """A command to tag a file as a potential split archive part."""
 
     entity_id: int
 
@@ -44,17 +39,13 @@ class CheckArchiveCommand(EntityCommand[bool, BaseSystemEvent]):
 
 @dataclass
 class ClearArchiveComponentsCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to clear archive-related components from an entity.
-    """
+    """A command to clear archive-related components from an entity."""
 
     pass
 
 
 @dataclass
 class ReissueArchiveMemberEventsCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to re-issue NewEntityCreatedEvent events for all members of an existing archive.
-    """
+    """A command to re-issue NewEntityCreatedEvent events for all members of an existing archive."""
 
     pass

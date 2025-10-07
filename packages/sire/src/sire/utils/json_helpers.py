@@ -11,8 +11,6 @@ from collections import defaultdict
 from dataclasses import asdict, fields, is_dataclass
 from typing import (
     Any,
-    Optional,
-    Type,
     TypeVar,
     Union,
 )
@@ -40,7 +38,7 @@ def _json_custom_default_encoder(obj: Any) -> Any:
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable: {obj}")
 
 
-def _reconstruct_from_data(data: Any, expected_type: Type[T]) -> T:
+def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:
     if data is None:
         return None  # type: ignore
 
@@ -164,12 +162,12 @@ def save_to_json_file(data_object: Any, filepath: str):
         raise
 
 
-def load_from_json_file(filepath: str, expected_type: Type[T]) -> Optional[T]:
+def load_from_json_file[T](filepath: str, expected_type: type[T]) -> T | None:
     if not os.path.exists(filepath):
         logger.debug(f"File not found for loading: {filepath}")
         return None
     try:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             raw_data_from_json = json.load(f)
         reconstructed_instance = _reconstruct_from_data(raw_data_from_json, expected_type)
         logger.info(

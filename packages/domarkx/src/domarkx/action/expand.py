@@ -1,6 +1,6 @@
 import logging
 import pathlib
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 
 import typer
 
@@ -15,7 +15,7 @@ def expand(
         typer.Argument(exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
     ],
     output_file: Annotated[
-        Optional[pathlib.Path],
+        pathlib.Path | None,
         typer.Option("--output", "-o", help="Output file path. If not provided, defaults to <input_file>.expanded.md"),
     ] = None,
 ) -> None:
@@ -26,10 +26,7 @@ def expand(
     expander = MacroExpander(base_dir=str(input_path.parent))
     expanded_content = expander.expand(content)
 
-    if output_file:
-        output_path = output_file
-    else:
-        output_path = input_path.with_suffix(".expanded.md")
+    output_path = output_file or input_path.with_suffix(".expanded.md")
 
     output_path.write_text(expanded_content)
     logger.info(f"Expanded document written to {output_path}")

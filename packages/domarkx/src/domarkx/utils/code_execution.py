@@ -1,12 +1,12 @@
 import linecache
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 
 def execute_code_block(
     code: str,
-    global_vars: Optional[dict[str, Any]] = None,
-    local_vars: Optional[dict[str, Any]] = None,
+    global_vars: dict[str, Any] | None = None,
+    local_vars: dict[str, Any] | None = None,
     filename: str = "<setup-script>",
 ) -> None:
     """
@@ -17,6 +17,7 @@ def execute_code_block(
         global_vars (dict, optional): A dictionary of global variables. Defaults to None.
         local_vars (dict, optional): A dictionary of local variables. Defaults to None.
         filename (str, optional): The filename to use in the traceback. Defaults to "<setup-script>".
+
     """
     if global_vars is None:
         global_vars = {}

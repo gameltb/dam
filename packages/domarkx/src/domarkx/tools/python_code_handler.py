@@ -52,9 +52,7 @@ def resolve_symbol_path(full_symbol: str) -> tuple[str, str]:
     assert file_path is not None
     # Optional: Check if the resolved file is within the workspace
     workspace_root = "/workspace/domarkx"  # Adjust this if workspace root is dynamic
-    if not os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) == os.path.abspath(
-        workspace_root
-    ):
+    if os.path.commonpath([os.path.abspath(file_path), os.path.abspath(workspace_root)]) != os.path.abspath(workspace_root):
         logging.warning(
             f"Symbol '{full_symbol}' resolves to a file outside the workspace: {file_path}. Modifications might be restricted."
         )
@@ -73,9 +71,7 @@ def _get_node_full_code(node: cst.CSTNode) -> str:
 
 
 class LibCstEditor:
-    """
-    A LibCST-based code editor for performing true lossless Python code modifications.
-    """
+    """A LibCST-based code editor for performing true lossless Python code modifications."""
 
     def __init__(self, file_path: str):
         self.file_path = file_path
@@ -84,7 +80,7 @@ class LibCstEditor:
         if not os.path.isfile(file_path):
             raise IsADirectoryError(f"Path '{file_path}' is a directory, not a file.")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             self.source_code = f.read()
         self.module = cst.parse_module(self.source_code)
         logging.info(f"Initialized LibCstEditor for {file_path}")
@@ -142,9 +138,7 @@ class LibCstEditor:
             raise ToolError(f"Error executing custom libcst script: {e}", original_exception=e) from e
 
     def _get_node_matcher(self, internal_symbol_path: str, target_type: str) -> m.BaseMatcherNode:
-        """
-        Constructs a LibCST matcher based on the internal relative symbol path and target type within a file.
-        """
+        """Constructs a LibCST matcher based on the internal relative symbol path and target type within a file."""
         if not internal_symbol_path:
             if target_type == "module":
                 return m.Module()
@@ -156,7 +150,7 @@ class LibCstEditor:
         target_name = parts[-1]
 
         innermost_matcher: m.BaseMatcherNode
-        if target_type == "function" or target_type == "method":
+        if target_type in {"function", "method"}:
             innermost_matcher = m.FunctionDef(name=m.Name(target_name))
         elif target_type == "class":
             innermost_matcher = m.ClassDef(name=m.Name(target_name))
@@ -184,9 +178,7 @@ class LibCstEditor:
         return current_matcher
 
     def create_code(self, parent_internal_symbol_path: str, target_type: str, code_content: str) -> str:
-        """
-        Creates a new class, function, or assignment statement within the specified parent symbol (module or class).
-        """
+        """Creates a new class, function, or assignment statement within the specified parent symbol (module or class)."""
         parent_matcher = self._get_node_matcher(
             parent_internal_symbol_path,
             "module" if not parent_internal_symbol_path else "class",
@@ -203,8 +195,7 @@ class LibCstEditor:
             def _get_new_node(self) -> cst.BaseStatement:
                 try:
                     # Parse as a statement, which can be a function, class, or assignment
-                    new_node = cst.parse_statement(self.code_content)
-                    return new_node
+                    return cst.parse_statement(self.code_content)
                 except cst.ParserSyntaxError as e:
                     raise ToolError(
                         f"Invalid code content for {self.target_type}: {e}",
@@ -214,62 +205,58 @@ class LibCstEditor:
             def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
                 if m.matches(original_node, self.parent_matcher):
                     self.found_target = True
-                    if not self.created:
-                        if self.target_type in ["function", "class", "assignment"]:
-                            new_node = self._get_new_node()
-                            new_body = list(updated_node.body)
-                            # Ensure proper spacing for new code
-                            if new_body and not isinstance(new_body[-1], cst.SimpleStatementLine):
-                                new_body.append(cst.SimpleStatementLine(body=[]))
-                            if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
-                                new_body.append(new_node)
+                    if not self.created and self.target_type in ["function", "class", "assignment"]:
+                        new_node = self._get_new_node()
+                        new_body = list(updated_node.body)
+                        # Ensure proper spacing for new code
+                        if new_body and not isinstance(new_body[-1], cst.SimpleStatementLine):
                             new_body.append(cst.SimpleStatementLine(body=[]))
-                            self.created = True
-                            return updated_node.with_changes(body=tuple(new_body))  # type: ignore[assignment]
+                        if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
+                            new_body.append(new_node)
+                        new_body.append(cst.SimpleStatementLine(body=[]))
+                        self.created = True
+                        return updated_node.with_changes(body=tuple(new_body))  # type: ignore[assignment]
                 return updated_node
 
             def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
                 if m.matches(original_node, self.parent_matcher):
                     self.found_target = True
-                    if not self.created:
-                        if self.target_type == "method":
-                            new_node = self._get_new_node()
-                            if not isinstance(new_node, cst.FunctionDef):
-                                # Change from ValueError to ToolError
-                                raise ToolError("Code content for 'method' must be a function definition.")
+                    if not self.created and self.target_type == "method":
+                        new_node = self._get_new_node()
+                        if not isinstance(new_node, cst.FunctionDef):
+                            # Change from ValueError to ToolError
+                            raise ToolError("Code content for 'method' must be a function definition.")
 
-                            existing_body = list(updated_node.body.body)
-                            new_body_elements: list[cst.BaseStatement] = []
-                            if not existing_body:
-                                # For empty class body, ensure proper indentation is handled by libcst
-                                new_body_elements = [
-                                    cst.SimpleStatementLine(body=[]),
-                                    new_node,
-                                    cst.SimpleStatementLine(body=[]),
-                                ]
-                            else:
-                                new_body_elements = list(existing_body)  # type: ignore[arg-type]
-                                if not isinstance(new_body_elements[-1], cst.SimpleStatementLine):
-                                    new_body_elements.append(cst.SimpleStatementLine(body=[]))
-                                if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
-                                    new_body_elements.append(new_node)
+                        existing_body = list(updated_node.body.body)
+                        new_body_elements: list[cst.BaseStatement] = []
+                        if not existing_body:
+                            # For empty class body, ensure proper indentation is handled by libcst
+                            new_body_elements = [
+                                cst.SimpleStatementLine(body=[]),
+                                new_node,
+                                cst.SimpleStatementLine(body=[]),
+                            ]
+                        else:
+                            new_body_elements = list(existing_body)  # type: ignore[arg-type]
+                            if not isinstance(new_body_elements[-1], cst.SimpleStatementLine):
                                 new_body_elements.append(cst.SimpleStatementLine(body=[]))
+                            if isinstance(new_node, (cst.SimpleStatementLine, cst.BaseCompoundStatement)):
+                                new_body_elements.append(new_node)
+                            new_body_elements.append(cst.SimpleStatementLine(body=[]))
 
-                            self.created = True
-                            return updated_node.with_changes(
-                                body=updated_node.body.with_changes(
-                                    body=tuple(new_body_elements)  # type: ignore[assignment]
-                                )
+                        self.created = True
+                        return updated_node.with_changes(
+                            body=updated_node.body.with_changes(
+                                body=tuple(new_body_elements)  # type: ignore[assignment]
                             )
+                        )
                 return updated_node
 
         self._apply_transformer(CreatorTransformer(target_type, code_content, parent_matcher))
         return f"Attempted to create {target_type} under '{parent_internal_symbol_path}'. Operation status: {'Created' if getattr(self._apply_transformer, 'created', False) else 'Failed to create (check logs)'}"
 
     def update_code(self, internal_symbol_path: str, target_type: str, new_code_content: str) -> str:
-        """
-        Updates the code content of the specified symbol (class, function, method, assignment).
-        """
+        """Updates the code content of the specified symbol (class, function, method, assignment)."""
         target_matcher = self._get_node_matcher(internal_symbol_path, target_type)
 
         class UpdaterTransformer(cst.CSTTransformer):
@@ -287,7 +274,7 @@ class LibCstEditor:
                         try:
                             if self.target_type in ["function", "method", "class"]:
                                 new_node = cst.parse_statement(self.new_code_content)
-                                if self.target_type == "function" or self.target_type == "method":
+                                if self.target_type in {"function", "method"}:
                                     if not isinstance(new_node, cst.FunctionDef):
                                         # Change from ValueError to ToolError
                                         raise ToolError("New code content must be a function definition.")
@@ -358,9 +345,7 @@ class LibCstEditor:
         return f"Attempted to update {target_type} at '{internal_symbol_path}'. Operation status: {'Updated' if getattr(self._apply_transformer, 'updated', False) else 'Failed to update (check logs)'}"
 
     def delete_code(self, internal_symbol_path: str, target_type: str) -> str:
-        """
-        Deletes the code of the specified symbol (class, function, method, assignment).
-        """
+        """Deletes the code of the specified symbol (class, function, method, assignment)."""
         target_matcher = self._get_node_matcher(internal_symbol_path, target_type)
 
         class DeleterTransformer(cst.CSTTransformer):
@@ -419,9 +404,7 @@ class LibCstEditor:
 
 
 def _handle_list_mode_by_symbol(full_symbol: str, target_type: str | None, list_detail_level: str) -> str:
-    """
-    Handles the logic for list mode when the target argument is an importable symbol (uses inspect).
-    """
+    """Handles the logic for list mode when the target argument is an importable symbol (uses inspect)."""
     try:
         # Dynamically import the object
         target_obj = None
@@ -490,9 +473,7 @@ def _handle_list_mode_by_path(
     target_type: str | None,
     list_detail_level: str,
 ) -> str:
-    """
-    Handles the logic for list mode when the path argument is provided (uses libcst).
-    """
+    """Handles the logic for list mode when the path argument is provided (uses libcst)."""
     files_to_process: list[str] = []
     if os.path.isfile(file_path):
         files_to_process = [file_path]
@@ -514,7 +495,7 @@ def _handle_list_mode_by_path(
         if not internal_target_symbol_path:
             output.append(f"\n--- File: {current_file_path} ---")
 
-        with open(current_file_path, "r", encoding="utf-8") as f:
+        with open(current_file_path, encoding="utf-8") as f:
             file_content = f.read()
         try:
             parsed_cst = cst.parse_module(file_content)
@@ -683,9 +664,7 @@ def _handle_modify_mode(
     code_content: str | None,
     modification_script: str | None,
 ) -> str:
-    """
-    Handles the logic for modify mode.
-    """
+    """Handles the logic for modify mode."""
     if not file_to_process.lower().endswith(".py"):
         raise ValueError(f"Modify operations only support Python files. File '{file_to_process}' is not a Python file.")
 
@@ -728,7 +707,7 @@ def _handle_modify_mode(
 
     final_module_code = editor.module.code
     if (
-        not final_module_code == initial_module_code
+        final_module_code != initial_module_code
     ):  # Use string comparison for simplicity, deep_equals is for CST nodes
         logging.info("Code changes detected. Showing diff:")
         diff = difflib.unified_diff(
@@ -745,9 +724,7 @@ def _handle_modify_mode(
 
 
 def _handle_diff_method_mode(target: str) -> str:
-    """
-    Handles the logic for diff_method mode, comparing a method with its parent's implementation.
-    """
+    """Handles the logic for diff_method mode, comparing a method with its parent's implementation."""
     try:
         # 1. Parse the target symbol
         try:
@@ -830,7 +807,7 @@ def python_code_handler(
     code_content: str | None = None,
     modification_script: str | None = None,
 ) -> str:
-    """
+    r"""
     A comprehensive tool for handling Python code, supporting listing definitions,
     querying details, performing code modifications, and comparing overridden methods.
 

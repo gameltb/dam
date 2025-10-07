@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from dam.core.systems import system
@@ -29,7 +29,7 @@ async def handle_ingest_web_asset_command(
     )
 
     # 1. Find or Create Website Entity
-    website_entity: Optional[Entity] = None
+    website_entity: Entity | None = None
     existing_website_profiles = await transaction.find_entities_by_component_attribute_value(
         WebsiteProfileComponent, "main_url", cmd.website_identifier_url
     )
@@ -70,7 +70,7 @@ async def handle_ingest_web_asset_command(
         except Exception:
             original_filename = f"web_asset_{asset_entity.id}"
 
-    web_source_data: Dict[str, Any] = {
+    web_source_data: dict[str, Any] = {
         "website_entity_id": website_entity.id if website_entity else None,
         "source_url": cmd.source_url,
         "original_file_url": cmd.original_file_url,

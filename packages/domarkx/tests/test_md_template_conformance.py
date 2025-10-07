@@ -1,5 +1,4 @@
 import glob
-from typing import List
 
 from typer.testing import CliRunner
 
@@ -10,9 +9,7 @@ runner = CliRunner()
 
 
 def test_all_templates_md_conformance() -> None:
-    """
-    Initialize a project and check every .md file in the project for MarkdownLLMParser conformance.
-    """
+    """Initialize a project and check every .md file in the project for MarkdownLLMParser conformance."""
     with runner.isolated_filesystem():
         result = runner.invoke(cli_app, ["init"])
         assert result.exit_code == 0
@@ -21,9 +18,9 @@ def test_all_templates_md_conformance() -> None:
         assert md_files, "No .md files found in project"
         parser = MarkdownLLMParser()
 
-        all_errors: List[str] = []
+        all_errors: list[str] = []
         for md_path in md_files:
-            with open(md_path, "r", encoding="utf-8") as f:
+            with open(md_path, encoding="utf-8") as f:
                 content = f.read()
                 try:
                     parsed = parser.parse(content)

@@ -18,9 +18,7 @@ from dam.utils.hash_utils import HashAlgorithm
 
 @pytest.mark.asyncio
 async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
-    """
-    Tests that the add_hashes_from_stream_system correctly adds hash components.
-    """
+    """Tests that the add_hashes_from_stream_system correctly adds hash components."""
     world = test_world_alpha
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
@@ -52,9 +50,7 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
 async def test_add_hashes_from_stream_system_propagates_mismatch_error(
     test_world_alpha: World,
 ) -> None:
-    """
-    Tests that the system propagates a HashMismatchError if a hash already exists and does not match.
-    """
+    """Tests that the system propagates a HashMismatchError if a hash already exists and does not match."""
     world = test_world_alpha
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:

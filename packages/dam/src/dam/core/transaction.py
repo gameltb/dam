@@ -1,6 +1,6 @@
 import logging
 from contextvars import ContextVar
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +29,7 @@ class WorldTransaction:
     async def create_entity(self) -> Entity:
         return await ecs_functions.create_entity(self.session)
 
-    async def get_entity(self, entity_id: int) -> Optional[Entity]:
+    async def get_entity(self, entity_id: int) -> Entity | None:
         return await ecs_functions.get_entity(self.session, entity_id)
 
     async def add_component_to_entity(self, entity_id: int, component_instance: T) -> T:
@@ -37,13 +37,13 @@ class WorldTransaction:
         # In this pattern, we want to control the flush at a higher level, so we set it to False.
         return await ecs_functions.add_component_to_entity(self.session, entity_id, component_instance, flush=False)
 
-    async def get_component(self, entity_id: int, component_type: Type[T]) -> Optional[T]:
+    async def get_component(self, entity_id: int, component_type: type[T]) -> T | None:
         return await ecs_functions.get_component(self.session, entity_id, component_type)
 
-    async def get_components(self, entity_id: int, component_type: Type[T]) -> List[T]:
+    async def get_components(self, entity_id: int, component_type: type[T]) -> list[T]:
         return await ecs_functions.get_components(self.session, entity_id, component_type)
 
-    async def get_all_components_for_entity(self, entity_id: int) -> List[Component]:
+    async def get_all_components_for_entity(self, entity_id: int) -> list[Component]:
         return await ecs_functions.get_all_components_for_entity(self.session, entity_id)
 
     async def add_or_update_component(self, entity_id: int, component_instance: T) -> T:
@@ -71,17 +71,17 @@ class WorldTransaction:
     async def delete_entity(self, entity_id: int) -> bool:
         return await ecs_functions.delete_entity(self.session, entity_id, flush=False)
 
-    async def find_entity_by_content_hash(self, hash_value: bytes, hash_type: str = "sha256") -> Optional[Entity]:
+    async def find_entity_by_content_hash(self, hash_value: bytes, hash_type: str = "sha256") -> Entity | None:
         return await ecs_functions.find_entity_by_content_hash(self.session, hash_value, hash_type)
 
     async def get_components_by_value(
-        self, entity_id: int, component_type: Type[T], attributes_values: Dict[str, Any]
-    ) -> List[T]:
+        self, entity_id: int, component_type: type[T], attributes_values: dict[str, Any]
+    ) -> list[T]:
         return await ecs_functions.get_components_by_value(self.session, entity_id, component_type, attributes_values)
 
     async def find_entities_by_component_attribute_value(
-        self, component_type: Type[T], attribute_name: str, value: Any
-    ) -> List[Entity]:
+        self, component_type: type[T], attribute_name: str, value: Any
+    ) -> list[Entity]:
         return await ecs_functions.find_entities_by_component_attribute_value(
             self.session, component_type, attribute_name, value
         )

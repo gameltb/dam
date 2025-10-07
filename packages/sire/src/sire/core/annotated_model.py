@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -13,17 +13,17 @@ class AnnotatedBaseModel(BaseModel):
 M = TypeVar("M", bound=AnnotatedBaseModel)
 
 
-def find_annotated_model(annotation: Any, model_type: Type[M] = AnnotatedBaseModel) -> Optional[M]:  # type: ignore
+def find_annotated_model[M: AnnotatedBaseModel](annotation: Any, model_type: type[M] = AnnotatedBaseModel) -> M | None:  # type: ignore
     if isinstance(annotation, model_type):
         return annotation
-    elif hasattr(annotation, "__metadata__"):
+    if hasattr(annotation, "__metadata__"):
         annotated_model = None
         build_kwargs_list: list[slice] = []
         for meta in reversed(annotation.__metadata__):
             if isinstance(meta, model_type):
                 annotated_model = meta
                 break
-            elif type(meta) is slice:
+            if type(meta) is slice:
                 build_kwargs_list.append(meta)
         if annotated_model is not None:
             build_kwargs: dict[str, Any] = {}

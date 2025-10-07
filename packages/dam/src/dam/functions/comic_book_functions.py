@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -21,9 +20,9 @@ logger = logging.getLogger(__name__)
 async def create_comic_book_concept(  # Made async
     session: AsyncSession,  # Use AsyncSession
     comic_title: str,
-    series_title: Optional[str] = None,
-    issue_number: Optional[str] = None,
-    publication_year: Optional[int] = None,
+    series_title: str | None = None,
+    issue_number: str | None = None,
+    publication_year: int | None = None,
 ) -> Entity:
     if not comic_title:
         raise ValueError("Comic title cannot be empty for a ComicBookConcept.")
@@ -48,11 +47,11 @@ async def link_comic_variant_to_concept(  # Made async
     session: AsyncSession,  # Use AsyncSession
     comic_concept_entity_id: int,
     file_entity_id: int,
-    language: Optional[str] = None,
-    format: Optional[str] = None,
+    language: str | None = None,
+    format: str | None = None,
     is_primary: bool = False,
-    scan_quality: Optional[str] = None,
-    variant_description: Optional[str] = None,
+    scan_quality: str | None = None,
+    variant_description: str | None = None,
 ) -> ComicBookVariantComponent:
     file_entity = await ecs_functions.get_entity(session, file_entity_id)  # Await async call
     if not file_entity:
@@ -79,10 +78,9 @@ async def link_comic_variant_to_concept(  # Made async
             raise ValueError(
                 f"File Entity ID {file_entity_id} is already linked as a ComicBookVariant to ComicBookConcept ID {comic_concept_entity_id}."
             )
-        else:
-            raise ValueError(
-                f"File Entity ID {file_entity_id} is already a ComicBookVariant of a different ComicBookConcept ID {existing_variant_comp.conceptual_entity_id}."
-            )
+        raise ValueError(
+            f"File Entity ID {file_entity_id} is already a ComicBookVariant of a different ComicBookConcept ID {existing_variant_comp.conceptual_entity_id}."
+        )
 
     if is_primary:
         stmt = select(ComicBookVariantComponent).where(
@@ -118,7 +116,7 @@ async def link_comic_variant_to_concept(  # Made async
 
 async def get_variants_for_comic_concept(
     session: AsyncSession, comic_concept_entity_id: int
-) -> List[Entity]:  # Made async
+) -> list[Entity]:  # Made async
     comic_concept_entity = await ecs_functions.get_entity(session, comic_concept_entity_id)  # Await
     if not comic_concept_entity or not await ecs_functions.get_component(  # Await
         session, comic_concept_entity_id, ComicBookConceptComponent
@@ -143,7 +141,7 @@ async def get_variants_for_comic_concept(
     return list(variant_entities)
 
 
-async def get_comic_concept_for_variant(session: AsyncSession, file_entity_id: int) -> Optional[Entity]:  # Made async
+async def get_comic_concept_for_variant(session: AsyncSession, file_entity_id: int) -> Entity | None:  # Made async
     cb_variant_comp = await ecs_functions.get_component(session, file_entity_id, ComicBookVariantComponent)  # Await
     if not cb_variant_comp:
         return None
@@ -152,11 +150,11 @@ async def get_comic_concept_for_variant(session: AsyncSession, file_entity_id: i
 
 async def find_comic_book_concepts(  # Made async
     session: AsyncSession,  # Use AsyncSession
-    comic_title_query: Optional[str] = None,
-    series_title_query: Optional[str] = None,
-    issue_number: Optional[str] = None,
-    publication_year: Optional[int] = None,
-) -> List[Entity]:
+    comic_title_query: str | None = None,
+    series_title_query: str | None = None,
+    issue_number: str | None = None,
+    publication_year: int | None = None,
+) -> list[Entity]:
     stmt = select(Entity).join(ComicBookConceptComponent, Entity.id == ComicBookConceptComponent.entity_id)
 
     if comic_title_query:
@@ -222,7 +220,7 @@ async def set_primary_comic_variant(
 
 async def get_primary_variant_for_comic_concept(
     session: AsyncSession, comic_concept_entity_id: int
-) -> Optional[Entity]:  # Made async
+) -> Entity | None:  # Made async
     stmt = (
         select(Entity)
         .join(ComicBookVariantComponent, Entity.id == ComicBookVariantComponent.entity_id)
@@ -230,8 +228,7 @@ async def get_primary_variant_for_comic_concept(
         .where(ComicBookVariantComponent.is_primary_variant)
     )
     result = await session.execute(stmt)  # Await
-    primary_variant_entity = result.scalars().first()
-    return primary_variant_entity
+    return result.scalars().first()
 
 
 async def unlink_comic_variant(session: AsyncSession, file_entity_id: int) -> bool:  # Made async
@@ -255,7 +252,7 @@ async def assign_page_to_comic_variant(  # Made async
     comic_variant_entity_id: int,
     page_image_entity_id: int,
     page_number: int,  # Use AsyncSession
-) -> Optional[PageLink]:
+) -> PageLink | None:
     variant_comp = await ecs_functions.get_component(
         session, comic_variant_entity_id, ComicBookVariantComponent
     )  # Await
@@ -355,7 +352,7 @@ async def remove_page_at_number_from_comic_variant(
 
 async def get_ordered_pages_for_comic_variant(
     session: AsyncSession, comic_variant_entity_id: int
-) -> List[Entity]:  # Made async
+) -> list[Entity]:  # Made async
     if not await ecs_functions.get_component(session, comic_variant_entity_id, ComicBookVariantComponent):  # Await
         logger.warning(f"Entity ID {comic_variant_entity_id} not a valid ComicBookVariant. Cannot get pages.")
         return []
@@ -373,14 +370,14 @@ async def get_ordered_pages_for_comic_variant(
 
 async def get_comic_variants_containing_image_as_page(  # Made async
     session: AsyncSession, page_image_entity_id: int
-) -> List[tuple[Entity, int]]:
+) -> list[tuple[Entity, int]]:
     stmt = select(PageLink.owner_entity_id, PageLink.page_number).where(
         PageLink.page_image_entity_id == page_image_entity_id
     )
     result_proxy = await session.execute(stmt)  # Await
     results = result_proxy.all()  # Get all rows from result object
 
-    variant_pages_info: List[tuple[Entity, int]] = []
+    variant_pages_info: list[tuple[Entity, int]] = []
     for owner_id, page_num in results:
         owner_entity = await ecs_functions.get_entity(session, owner_id)  # Await
         if owner_entity and await ecs_functions.get_component(session, owner_id, ComicBookVariantComponent):  # Await
@@ -394,8 +391,8 @@ async def get_comic_variants_containing_image_as_page(  # Made async
 
 
 async def update_page_order_for_comic_variant(  # Made async
-    session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: List[int]
-) -> List[PageLink]:
+    session: AsyncSession, comic_variant_entity_id: int, ordered_page_image_entity_ids: list[int]
+) -> list[PageLink]:
     if len(ordered_page_image_entity_ids) != len(set(ordered_page_image_entity_ids)):
         raise IntegrityError(
             "Duplicate page image entity IDs provided.",
@@ -412,7 +409,7 @@ async def update_page_order_for_comic_variant(  # Made async
     stmt_delete = delete(PageLink).where(PageLink.owner_entity_id == comic_variant_entity_id)
     await session.execute(stmt_delete)  # Await
 
-    new_page_links: List[PageLink] = []
+    new_page_links: list[PageLink] = []
     for i, page_image_id in enumerate(ordered_page_image_entity_ids):
         page_number = i + 1
         page_image_entity = await ecs_functions.get_entity(session, page_image_id)  # Await

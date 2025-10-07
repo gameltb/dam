@@ -1,4 +1,3 @@
-from typing import Optional
 
 from dam.models.core import UniqueComponent as Component
 from sqlalchemy import Text
@@ -13,7 +12,7 @@ class ArchiveInfoComponent(Component):
 
     __tablename__ = "component_archive_info"
 
-    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"ArchiveInfoComponent(entity_id={self.entity_id}, comment={self.comment})"

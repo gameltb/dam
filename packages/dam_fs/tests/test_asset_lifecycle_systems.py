@@ -24,11 +24,9 @@ from dam_fs.resources import FileStorageResource
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path):
-    """
-    Tests the full flow of registering a new file and then finding it by its properties.
-    """
+    """Tests the full flow of registering a new file and then finding it by its properties."""
     world = test_world_alpha
-    mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
+    mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.UTC)
 
     # 1. Register a new file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
@@ -97,7 +95,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     recent_file = tmp_path / "test_file.txt"
     recent_file.write_text("same content")
     recent_file.touch()  # Update mtime to now
-    recent_mod_time = datetime.datetime.fromtimestamp(recent_file.stat().st_mtime, tz=datetime.timezone.utc)
+    recent_mod_time = datetime.datetime.fromtimestamp(recent_file.stat().st_mtime, tz=datetime.UTC)
 
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
     entity_id = await world.dispatch_command(register_cmd1).get_one_value()
@@ -119,7 +117,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
 
     # Manually set older modification time
     os.utime(earlier_file, (earlier_mtime_val, earlier_mtime_val))
-    earlier_mod_time = datetime.datetime.fromtimestamp(earlier_mtime_val, tz=datetime.timezone.utc)
+    earlier_mod_time = datetime.datetime.fromtimestamp(earlier_mtime_val, tz=datetime.UTC)
 
     # 3. Register the older file
     register_cmd2 = RegisterLocalFileCommand(file_path=earlier_file)
@@ -158,7 +156,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
     # 2. Modify the file
     await asyncio.sleep(1)  # Ensure mtime changes
     temp_asset_file.touch()
-    new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.timezone.utc)
+    new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.UTC)
 
     assert new_mod_time > original_mtime
 
@@ -177,9 +175,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
-    """
-    Tests the store_assets_handler system.
-    """
+    """Tests the store_assets_handler system."""
     world = test_world_alpha
 
     # 1. Register a local file first

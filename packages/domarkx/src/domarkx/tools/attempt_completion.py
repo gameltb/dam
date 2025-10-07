@@ -17,6 +17,7 @@ def attempt_completion_tool(result: str, command: str | None = None) -> str:
 
     Raises:
         TypeError: If 'result' or 'command' argument types are incorrect.
+
     """
     logging.info("Attempting to format task completion information.")
 

@@ -1,11 +1,10 @@
 import re
-from typing import List, NamedTuple, Optional, Pattern
+from re import Pattern
+from typing import NamedTuple
 
 
 class SplitArchiveInfo(NamedTuple):
-    """
-    Information about a detected split archive part.
-    """
+    """Information about a detected split archive part."""
 
     base_name: str
     part_num: int
@@ -16,7 +15,7 @@ class SplitArchiveInfo(NamedTuple):
 # 1. The base name of the archive.
 # 2. The part number.
 # The patterns are ordered from most specific to least specific.
-SPLIT_ARCHIVE_PATTERNS: List[Pattern[str]] = [
+SPLIT_ARCHIVE_PATTERNS: list[Pattern[str]] = [
     # WinRAR-style: myarchive.part1.rar, myarchive.part01.rar
     re.compile(r"^(.*?)\.part(\d+)\.rar$", re.IGNORECASE),
     # 7-Zip style: myarchive.7z.001
@@ -28,7 +27,7 @@ SPLIT_ARCHIVE_PATTERNS: List[Pattern[str]] = [
 ]
 
 
-def detect(filename: str) -> Optional[SplitArchiveInfo]:
+def detect(filename: str) -> SplitArchiveInfo | None:
     """
     Detects if a filename belongs to a split archive based on known patterns.
 
@@ -37,6 +36,7 @@ def detect(filename: str) -> Optional[SplitArchiveInfo]:
 
     Returns:
         A SplitArchiveInfo tuple if it's a split archive part, otherwise None.
+
     """
     for pattern in SPLIT_ARCHIVE_PATTERNS:
         match = pattern.match(filename)

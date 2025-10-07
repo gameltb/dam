@@ -8,7 +8,7 @@ import io
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any
 
 import aiofiles
 import typer
@@ -24,7 +24,6 @@ from rich.traceback import Traceback
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tqdm import tqdm
-from typing_extensions import Annotated
 
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
@@ -35,7 +34,7 @@ app = AsyncTyper()
 @dataclass
 class VerifyArchiveContentsCommand(AnalysisCommand[None, BaseSystemEvent]):
     @classmethod
-    def get_supported_types(cls) -> Dict[str, List[str]]:
+    def get_supported_types(cls) -> dict[str, list[str]]:
         return {
             "mimetypes": [],
             "extensions": [".zip", ".rar", ".7z"],
@@ -50,7 +49,7 @@ COMMAND_MAP = {
 @app.command(name="verify")
 async def verify_assets(
     paths: Annotated[
-        List[Path],
+        list[Path],
         typer.Argument(
             ...,
             help="Path to the asset file or directory of asset files.",
@@ -64,7 +63,7 @@ async def verify_assets(
         typer.Option("-r", "--recursive", help="Process directory recursively."),
     ] = False,
     process: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--process",
             "-p",
@@ -76,14 +75,12 @@ async def verify_assets(
         typer.Option("--stop-on-error/--no-stop-on-error", help="Stop processing if an error occurs."),
     ] = True,
 ):
-    """
-    Verifies the integrity of local assets against the DAM.
-    """
+    """Verifies the integrity of local assets against the DAM."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
 
-    process_map: Dict[str, List[str]] = {}
+    process_map: dict[str, list[str]] = {}
     if process:
         for p in process:
             if ":" in p:
@@ -115,7 +112,7 @@ async def verify_assets(
 
     typer.echo("Starting asset verification process...")
 
-    files_to_process: List[Path] = []
+    files_to_process: list[Path] = []
     for path in paths:
         if path.is_file():
             files_to_process.append(path)
@@ -140,7 +137,7 @@ async def verify_assets(
                 sha256.update(data)
         return sha256.hexdigest()
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     success_count = 0
     failed_count = 0
     skipped_count = 0

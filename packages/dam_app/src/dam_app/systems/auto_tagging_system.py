@@ -21,9 +21,7 @@ async def auto_tag_entity_command_handler(
     world: Annotated[World, "Resource"],
     sire_resource: SireResource,
 ):
-    """
-    Handles the command to auto-tag a single entity.
-    """
+    """Handles the command to auto-tag a single entity."""
     session = transaction.session
     entity = cmd.entity
     logger.info(f"Handling AutoTagEntityCommand for entity {entity.id}")

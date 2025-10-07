@@ -40,9 +40,7 @@ async def set_archive_password_handler(
     cmd: SetArchivePasswordCommand,
     transaction: WorldTransaction,
 ) -> None:
-    """
-    Handles setting the password for an archive.
-    """
+    """Handles setting the password for an archive."""
     password_comp = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     if password_comp:
         password_comp.password = cmd.password

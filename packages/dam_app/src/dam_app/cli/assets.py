@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any
 
 import typer
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
@@ -29,7 +29,6 @@ from rich.console import Console
 from rich.table import Table
 from rich.traceback import Traceback
 from tqdm import tqdm
-from typing_extensions import Annotated
 
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
@@ -40,7 +39,7 @@ app = AsyncTyper()
 @app.command(name="add")
 async def add_assets(
     paths: Annotated[
-        List[Path],
+        list[Path],
         typer.Argument(
             ...,
             help="Path to the asset file or directory of asset files.",
@@ -54,7 +53,7 @@ async def add_assets(
         typer.Option("-r", "--recursive", help="Process directory recursively."),
     ] = False,
     process: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option(
             "--process",
             "-p",
@@ -66,15 +65,13 @@ async def add_assets(
         typer.Option("--stop-on-error/--no-stop-on-error", help="Stop processing if an error occurs."),
     ] = True,
 ):
-    """
-    Registers one or more local assets with the DAM.
-    """
+    """Registers one or more local assets with the DAM."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
 
     # Parse process option
-    process_map: Dict[str, List[str]] = {}
+    process_map: dict[str, list[str]] = {}
     if process:
         for p in process:
             if ":" in p:
@@ -120,8 +117,8 @@ async def add_assets(
         entity_id: int,
         depth: int,
         pbar: tqdm[Any],
-        filename: Optional[str] = None,
-        stream_provider_from_event: Optional[Any] = None,
+        filename: str | None = None,
+        stream_provider_from_event: Any | None = None,
     ):
         """Inner function to handle processing of a single entity."""
         if depth >= 10:
@@ -129,7 +126,7 @@ async def add_assets(
             return
 
         # 1. Get MIME type and filename
-        entity_filename: Optional[str] = filename
+        entity_filename: str | None = filename
 
         # Auto-set and get MIME type
         await target_world.dispatch_command(
@@ -148,7 +145,7 @@ async def add_assets(
         pbar.set_postfix_str(f"Processing {entity_id} ({entity_filename or 'No Filename'})")
 
         # 2. Collect commands based on MIME type and file extension (MIME type has priority)
-        commands_to_run: List[str] = []
+        commands_to_run: list[str] = []
         if mime_type_str and mime_type_str in process_map:
             commands_to_run.extend(process_map[mime_type_str])
         elif entity_filename:
@@ -200,7 +197,7 @@ async def add_assets(
                 async with target_world.get_context(WorldTransaction)(use_nested_transaction=use_nested):
                     stream = target_world.dispatch_command(processing_cmd)
 
-                    sub_pbar: Optional[tqdm[Any]] = None
+                    sub_pbar: tqdm[Any] | None = None
 
                     async for event in stream:
                         if isinstance(event, NewEntityCreatedEvent):
@@ -242,7 +239,7 @@ async def add_assets(
     # Main execution starts here
     typer.echo("Starting asset registration process...")
 
-    files_to_process: List[Path] = []
+    files_to_process: list[Path] = []
     for path in paths:
         if path.is_file():
             files_to_process.append(path)
@@ -266,7 +263,7 @@ async def add_assets(
             tqdm.write(f"Process ({file_path})")
             pbar.set_postfix_str(file_path.name)
             try:
-                mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.timezone.utc)
+                mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.UTC)
                 pre_check_cmd = FindEntityByFilePropertiesCommand(
                     file_path=file_path.as_uri(), last_modified_at=mod_time
                 )
@@ -311,9 +308,7 @@ async def store_assets(
         ),
     ] = "local_not_stored",
 ):
-    """
-    Copies registered local assets into the DAM's content-addressable storage.
-    """
+    """Copies registered local assets into the DAM's content-addressable storage."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -330,9 +325,7 @@ async def store_assets(
 async def show_entity(
     entity_id: Annotated[int, typer.Argument(..., help="The ID of the entity to show.")],
 ):
-    """
-    Shows all components of a given entity in JSON format.
-    """
+    """Shows all components of a given entity in JSON format."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -349,11 +342,9 @@ async def show_entity(
 @app.command(name="process")
 async def process_entities(
     operation_name: Annotated[str, typer.Argument(..., help="The name of the operation to execute.")],
-    entity_ids: Annotated[List[int], typer.Argument(..., help="The ID(s) of the entities to process.")],
+    entity_ids: Annotated[list[int], typer.Argument(..., help="The ID(s) of the entities to process.")],
 ):
-    """
-    Executes the 'add' action of a specific asset operation on one or more entities.
-    """
+    """Executes the 'add' action of a specific asset operation on one or more entities."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -388,11 +379,9 @@ async def process_entities(
 @app.command(name="remove-data")
 async def remove_data(
     operation_name: Annotated[str, typer.Argument(..., help="The name of the operation to execute.")],
-    entity_ids: Annotated[List[int], typer.Argument(..., help="The ID(s) of the entities to process.")],
+    entity_ids: Annotated[list[int], typer.Argument(..., help="The ID(s) of the entities to process.")],
 ):
-    """
-    Executes the 'remove' action of a specific asset operation on one or more entities.
-    """
+    """Executes the 'remove' action of a specific asset operation on one or more entities."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -427,11 +416,9 @@ async def remove_data(
 @app.command(name="check-data")
 async def check_data(
     operation_name: Annotated[str, typer.Argument(..., help="The name of the operation to execute.")],
-    entity_ids: Annotated[List[int], typer.Argument(..., help="The ID(s) of the entities to check.")],
+    entity_ids: Annotated[list[int], typer.Argument(..., help="The ID(s) of the entities to check.")],
 ):
-    """
-    Executes the 'check' action of a specific asset operation on one or more entities.
-    """
+    """Executes the 'check' action of a specific asset operation on one or more entities."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -467,9 +454,7 @@ async def check_data(
 
 @app.command(name="list-processes")
 async def list_processes():
-    """
-    Lists all available asset processing operations.
-    """
+    """Lists all available asset processing operations."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)

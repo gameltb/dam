@@ -1,11 +1,8 @@
 import linecache
 import os
+from collections.abc import Iterable
 from logging import LogRecord
 from typing import (
-    Iterable,
-    List,
-    Optional,
-    Tuple,
     TypeVar,
 )
 
@@ -36,9 +33,9 @@ from rich.traceback import Frame, PathHighlighter, Stack, Traceback
 T = TypeVar("T")
 
 
-def _loop_first_last(
+def _loop_first_last[T](
     values: Iterable[T],
-) -> Iterable[Tuple[bool, bool, T]]:
+) -> Iterable[tuple[bool, bool, T]]:
     """Iterate and generate flags for first and last value."""
     iter_values = iter(values)
     try:
@@ -57,9 +54,8 @@ def _loop_first_last(
             break
 
 
-def _iter_syntax_lines(start: Tuple[int, int], end: Tuple[int, int]) -> Iterable[Tuple[int, int, int]]:
+def _iter_syntax_lines(start: tuple[int, int], end: tuple[int, int]) -> Iterable[tuple[int, int, int]]:
     """Yield start and end positions per line."""
-
     line1, column1 = start
     line2, column2 = end
 
@@ -155,7 +151,7 @@ class NoBorderTraceback(Traceback):
 
             if stack.is_group:
                 for group_no, group_exception in enumerate(stack.exceptions, 1):
-                    grouped_exceptions: List[Group] = []
+                    grouped_exceptions: list[Group] = []
                     for _, group_last, group_stack in _loop_first_last(group_exception.stacks):
                         grouped_exceptions.append(render_stack(group_stack, group_last))
                     yield ""
@@ -199,7 +195,7 @@ class NoBorderTraceback(Traceback):
                 locals_p.box = BOX_STYLE  # type: ignore
                 yield locals_p
 
-        exclude_frames: Optional[range] = None
+        exclude_frames: range | None = None
         if self.max_frames != 0:
             exclude_frames = range(
                 self.max_frames // 2,

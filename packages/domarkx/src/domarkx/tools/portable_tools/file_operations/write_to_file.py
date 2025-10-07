@@ -16,6 +16,7 @@ def tool_write_to_file(path: str, content: str, append: bool = False) -> str:
 
     Raises:
         Exception: For any unexpected errors.
+
     """
     mode = "a" if append else "w"
     logging.info(f"Writing to file: {path} (mode: {mode})")

@@ -35,6 +35,7 @@ class AutoGenSession(Session):
 
         Returns:
             Message: The created Message object.
+
         """
         metadata_code_block = CodeBlock(
             language="json", attrs="msg-metadata", code=json.dumps(metadata, indent=2, ensure_ascii=False)
@@ -98,7 +99,7 @@ class AutoGenSession(Session):
             with self.doc_path.open("a") as f:
                 append_message(
                     io.StringIO(str(f)),
-                    self.create_message(message["source"] if "source" in message else "unknow", content, message),
+                    self.create_message(message.get("source", "unknow"), content, message),
                 )
 
     async def setup(self, **kwargs: Any) -> None:

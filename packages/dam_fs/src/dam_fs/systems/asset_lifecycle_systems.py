@@ -1,7 +1,7 @@
 import binascii
 import datetime
 import logging
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
 
 from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
@@ -54,7 +54,7 @@ async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: WorldTransaction,
     world_config: WorldConfig,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     logger.info(
         f"System handling FindEntityByHashCommand for hash: {cmd.hash_value} (type: {cmd.hash_type}) in world '{world_config.name}' (Req ID: {cmd.request_id})"
     )
@@ -72,7 +72,7 @@ async def handle_find_entity_by_hash_command(
 async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: WorldTransaction,
-) -> Optional[List[str]]:
+) -> list[str] | None:
     fncs = await transaction.get_components(cmd.entity_id, FilenameComponent)
     if fncs:
         return [fnc.filename for fnc in fncs if fnc.filename is not None]
@@ -84,13 +84,13 @@ async def register_local_file_handler(
     cmd: RegisterLocalFileCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[int]:
+) -> int | None:
     file_path = cmd.file_path
     file_uri = file_path.as_uri()
 
     try:
         file_stat = file_path.stat()
-        current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc)
+        current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.UTC)
         current_size = file_stat.st_size
     except FileNotFoundError:
         logger.warning(f"File not found during registration: {file_path}")
@@ -139,7 +139,7 @@ async def register_local_file_handler(
 async def find_entity_by_file_properties_handler(
     cmd: FindEntityByFilePropertiesCommand,
     transaction: WorldTransaction,
-) -> Optional[int]:
+) -> int | None:
     stmt = (
         select(FileLocationComponent.entity_id)
         .where(FileLocationComponent.url == cmd.file_path)

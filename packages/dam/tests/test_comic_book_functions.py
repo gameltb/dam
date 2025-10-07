@@ -172,8 +172,10 @@ async def test_get_variants_for_comic_concept(db_session: AsyncSession) -> None:
         else:
             non_primary_variant_entity = v_entity
 
-    assert primary_variant_entity is not None and primary_variant_entity.id == file_entity_2.id
-    assert non_primary_variant_entity is not None and non_primary_variant_entity.id == file_entity_1.id
+    assert primary_variant_entity is not None
+    assert primary_variant_entity.id == file_entity_2.id
+    assert non_primary_variant_entity is not None
+    assert non_primary_variant_entity.id == file_entity_1.id
 
     assert await cbs.get_variants_for_comic_concept(db_session, 999) == []
 
@@ -279,25 +281,31 @@ async def test_set_primary_comic_variant(db_session: AsyncSession) -> None:
     # Refresh components directly from session to check their state
     refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.entity_id)
     refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)
-    assert refreshed_vc1 is not None and refreshed_vc1.is_primary_variant is True
-    assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is False
+    assert refreshed_vc1 is not None
+    assert refreshed_vc1.is_primary_variant is True
+    assert refreshed_vc2 is not None
+    assert refreshed_vc2.is_primary_variant is False
 
     primary_v_entity = await cbs.get_primary_variant_for_comic_concept(db_session, concept_id)
-    assert primary_v_entity is not None and primary_v_entity.id == v1_id
+    assert primary_v_entity is not None
+    assert primary_v_entity.id == v1_id
 
     assert await cbs.set_primary_comic_variant(db_session, v2_id, concept_id) is True
     await db_session.commit()  # Commit changes
 
     refreshed_vc1 = await db_session.get(ComicBookVariantComponent, vc1.entity_id)  # Re-get after potential change
     refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)  # Re-get
-    assert refreshed_vc1 is not None and refreshed_vc1.is_primary_variant is False
-    assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
+    assert refreshed_vc1 is not None
+    assert refreshed_vc1.is_primary_variant is False
+    assert refreshed_vc2 is not None
+    assert refreshed_vc2.is_primary_variant is True
 
     # Setting already primary variant should return True and do nothing
     assert await cbs.set_primary_comic_variant(db_session, v2_id, concept_id) is True
     await db_session.commit()
     refreshed_vc2 = await db_session.get(ComicBookVariantComponent, vc2.entity_id)
-    assert refreshed_vc2 is not None and refreshed_vc2.is_primary_variant is True
+    assert refreshed_vc2 is not None
+    assert refreshed_vc2.is_primary_variant is True
 
     # Error cases
     assert await cbs.set_primary_comic_variant(db_session, v1_id, 999) is False  # Non-existent concept
@@ -323,7 +331,8 @@ async def test_get_primary_variant_for_comic_concept(db_session: AsyncSession) -
     await db_session.commit()
 
     primary = await cbs.get_primary_variant_for_comic_concept(db_session, concept.id)
-    assert primary is not None and primary.id == v2.id
+    assert primary is not None
+    assert primary.id == v2.id
 
     concept_no_primary = await cbs.create_comic_book_concept(
         db_session, comic_title="No Primary Comic"
@@ -484,10 +493,14 @@ async def test_assign_page_to_comic_variant(db_session: AsyncSession) -> None:
     page2_comp = await cbs.assign_page_to_comic_variant(db_session, variant_entity_id, image_entity2_id, 2)
     await db_session.commit()
 
-    assert page1_comp is not None and page1_comp.page_number == 1
-    assert page1_comp is not None and page1_comp.page_image.id == image_entity1_id
-    assert page2_comp is not None and page2_comp.page_number == 2
-    assert page2_comp is not None and page2_comp.page_image.id == image_entity2_id
+    assert page1_comp is not None
+    assert page1_comp.page_number == 1
+    assert page1_comp is not None
+    assert page1_comp.page_image.id == image_entity1_id
+    assert page2_comp is not None
+    assert page2_comp.page_number == 2
+    assert page2_comp is not None
+    assert page2_comp.page_image.id == image_entity2_id
 
     pages = await cbs.get_ordered_pages_for_comic_variant(db_session, variant_entity_id)
     assert len(pages) == 2
@@ -653,9 +666,12 @@ async def test_update_page_order_for_comic_variant(db_session: AsyncSession) -> 
     # Here, we are fetching new PageLink objects, so their scalar FKs should be populated.
     # If issues arise, explicit loading options on the select statement would be the next step.
     # For now, assuming scalar FKs are loaded.
-    assert links_check[0].page_image.id == img3_id and links_check[0].page_number == 1
-    assert links_check[1].page_image.id == img1_id and links_check[1].page_number == 2
-    assert links_check[2].page_image.id == img2_id and links_check[2].page_number == 3
+    assert links_check[0].page_image.id == img3_id
+    assert links_check[0].page_number == 1
+    assert links_check[1].page_image.id == img1_id
+    assert links_check[1].page_number == 2
+    assert links_check[2].page_image.id == img2_id
+    assert links_check[2].page_number == 3
 
     shorter_order_ids = [img1_id]
     await cbs.update_page_order_for_comic_variant(db_session, variant_e_id, shorter_order_ids)

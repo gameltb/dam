@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from ..system_events.base import BaseSystemEvent
 from .core import EntityCommand
@@ -7,16 +7,14 @@ from .core import EntityCommand
 
 @dataclass
 class PathSibling:
-    """
-    Represents a single "sibling" entity found by a path discovery command.
-    """
+    """Represents a single "sibling" entity found by a path discovery command."""
 
     entity_id: int
     path: str
 
 
 @dataclass
-class DiscoverPathSiblingsCommand(EntityCommand[Optional[List[PathSibling]], BaseSystemEvent]):
+class DiscoverPathSiblingsCommand(EntityCommand[Optional[list[PathSibling]], BaseSystemEvent]):
     """
     A command to discover "sibling" entities for a given entity based on path.
 

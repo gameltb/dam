@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 import accelerate
 import torch
@@ -19,7 +20,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         self,
         torch_model: torch.nn.Module,
         *,
-        inference_memory_estimator: Union[int, Callable[..., int], Profiler, OptimizationPlan, None] = None,
+        inference_memory_estimator: int | Callable[..., int] | Profiler | OptimizationPlan | None = None,
     ) -> None:
         super().__init__(torch_model)
         self.inference_memory_estimator = inference_memory_estimator
@@ -45,8 +46,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
             profiling_data = estimator.run(*args, **kwargs)
             avg_stats = profiling_data.get_avg_stats()
             # Sum of max VRAM delta over all modules
-            total_vram_delta = sum(s.max_peak_vram_delta for s in avg_stats.avg_module_stats.values())
-            return total_vram_delta
+            return sum(s.max_peak_vram_delta for s in avg_stats.avg_module_stats.values())
         if isinstance(estimator, OptimizationPlan):
             # An optimization plan should know its memory requirements.
             # This part needs to be implemented in OptimizationPlan.
@@ -64,7 +64,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         # ... other hardcoded cases ...
         return inference_memory_size
 
-    def on_setup(self, manager: "ResourcePoolManagement") -> list["ResourcePool"]:
+    def on_setup(self, manager: ResourcePoolManagement) -> list[ResourcePool]:
         self.offload_resource_pool = manager.get_resource_pool(torch.device("cpu"))
 
         if torch.cuda.is_available():
@@ -158,7 +158,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
 
         super().on_load()
 
-    def on_resource_request(self, device: "resources_device", size: int):
+    def on_resource_request(self, device: resources_device, size: int):
         if self.manage_object is None:
             return
 
@@ -183,12 +183,12 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
             )
         super().on_resource_request(device, size)
 
-    def get_runtime_device(self) -> Optional["resources_device"]:
+    def get_runtime_device(self) -> resources_device | None:
         if self.runtime_resource_pool:
             return self.runtime_resource_pool.get_pool_device()
         return None
 
-    def get_used_resource_size(self, device: "resources_device") -> int:
+    def get_used_resource_size(self, device: resources_device) -> int:
         if self.manage_object:
             return get_module_size(self.manage_object, device)
         return 0
@@ -209,7 +209,7 @@ class TorchModuleWrapper(WeakRefResourcePoolUser[torch.nn.Module]):
         # self.logger.info("unlock")
 
 
-def get_module_size(module: torch.nn.Module, device: Optional[torch.device] = None) -> int:
+def get_module_size(module: torch.nn.Module, device: torch.device | None = None) -> int:
     module_mem = 0
     sd: dict[str, torch.Tensor] = module.state_dict()
     for _, t in sd.items():

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 # from .types import JSONBType # Removed unused import, using sqlalchemy.JSON directly
 from dam.models.core import BaseComponent, Entity
@@ -37,43 +37,43 @@ class WebSourceComponent(BaseComponent):
         nullable=False,
         comment="URL of the asset's page or where it was found. Should be unique per (website_entity_id, gallery_id) or similar.",
     )
-    original_file_url: Mapped[Optional[str]] = mapped_column(
+    original_file_url: Mapped[str | None] = mapped_column(
         String(), comment="Direct URL to the media file, if different from source_url.", default=None
     )
 
     # website_name is now part of the linked Website Entity via WebsiteProfileComponent
     # gallery_id remains to identify the specific item on the site
-    gallery_id: Mapped[Optional[str]] = mapped_column(
+    gallery_id: Mapped[str | None] = mapped_column(
         String(),
         index=True,
         comment="Identifier for the gallery, post, or collection on the website (e.g., submission ID).",
         default=None,
     )
 
-    uploader_name: Mapped[Optional[str]] = mapped_column(
+    uploader_name: Mapped[str | None] = mapped_column(
         String(),
         index=True,  # This might also become a link to a User/Artist Entity later
         comment="Username of the uploader or artist on the site.",
         default=None,
     )
-    uploader_url: Mapped[Optional[str]] = mapped_column(
+    uploader_url: Mapped[str | None] = mapped_column(
         String(), comment="URL to the uploader's profile page.", default=None
     )
 
-    upload_date: Mapped[Optional[datetime]] = mapped_column(
+    upload_date: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="Date and time when the asset was originally uploaded or posted.", default=None
     )
 
-    asset_title: Mapped[Optional[str]] = mapped_column(
+    asset_title: Mapped[str | None] = mapped_column(
         String(), comment="Title of the asset on the website.", default=None
     )
-    asset_description: Mapped[Optional[str]] = mapped_column(
+    asset_description: Mapped[str | None] = mapped_column(
         Text, comment="Description or caption provided for the asset.", default=None
     )
 
     # For tags, a simple text field for comma-separated or JSON string.
     # A dedicated Tagging system/component would be better for advanced tag management.
-    tags_json: Mapped[Optional[str]] = mapped_column(
+    tags_json: Mapped[str | None] = mapped_column(
         Text, comment="JSON string or comma-separated list of tags from the source.", default=None
     )
 
@@ -81,7 +81,7 @@ class WebSourceComponent(BaseComponent):
     # Using JSON type if database supports it (like PostgreSQL).
     # For SQLite, this might default to TEXT and require manual JSON parsing.
     # Using sqlalchemy.types.JSON for broader compatibility including SQLite.
-    raw_metadata_dump: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    raw_metadata_dump: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True, comment="Dump of raw metadata from the web source, for extensibility.", default=None
     )
 

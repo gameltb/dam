@@ -1,7 +1,7 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -34,7 +34,7 @@ async def test_bind_split_archive_command_workflow(
     """
     world = test_world_alpha
     base_name = "test_bind_command"
-    entity_ids: List[int] = []
+    entity_ids: list[int] = []
 
     # 1. Setup: Register local files to create entities with all necessary components
     for i in range(1, 3):
@@ -80,7 +80,7 @@ async def test_bind_split_archive_operation_workflow(
     """
     world = test_world_alpha
     base_name = "test_operation"
-    entity_ids: List[int] = []
+    entity_ids: list[int] = []
     tm = world.get_context(WorldTransaction)
 
     # 1. Setup: Register part files as entities
@@ -147,11 +147,9 @@ async def test_bind_split_archive_operation_workflow(
 async def test_manual_create_and_unbind_workflow(
     test_world_alpha: Annotated[World, "Resource"],
 ):
-    """
-    Tests that manual creation and unbinding of a master archive works.
-    """
+    """Tests that manual creation and unbinding of a master archive works."""
     world = test_world_alpha
-    entity_ids: List[int] = []
+    entity_ids: list[int] = []
 
     # 1. Setup: Manually create part entities
     tm = world.get_context(WorldTransaction)
@@ -160,7 +158,7 @@ async def test_manual_create_and_unbind_workflow(
             entity = await transaction.create_entity()
             entity_ids.append(entity.id)
             await transaction.add_component_to_entity(
-                entity.id, FilenameComponent(filename=f"manual.part{i}.rar", first_seen_at=datetime.now(timezone.utc))
+                entity.id, FilenameComponent(filename=f"manual.part{i}.rar", first_seen_at=datetime.now(UTC))
             )
             await transaction.add_component_to_entity(entity.id, ContentLengthComponent(file_size_bytes=100))
         await transaction.session.commit()

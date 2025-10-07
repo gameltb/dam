@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from .base import BaseSystemEvent
 
@@ -22,7 +21,7 @@ class ProgressStarted(SystemProgressEvent):
 class ProgressCompleted(SystemProgressEvent):
     """Indicates that the process has completed successfully."""
 
-    message: Optional[str] = None
+    message: str | None = None
 
 
 @dataclass
@@ -30,13 +29,13 @@ class ProgressError(SystemProgressEvent):
     """Indicates that an error occurred during the process."""
 
     exception: Exception
-    message: Optional[str] = None
+    message: str | None = None
 
 
 @dataclass
 class ProgressUpdate(SystemProgressEvent):
     """Represents a progress update."""
 
-    total: Optional[int] = None
-    current: Optional[int] = None
-    message: Optional[str] = None
+    total: int | None = None
+    current: int | None = None
+    message: str | None = None

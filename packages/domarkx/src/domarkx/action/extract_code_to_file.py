@@ -29,7 +29,7 @@ FILENAME_PATTERNS = [
 
 
 def do_extract_code_to_file(
-    output_base_dir: str, block_inner_content: str, filepath_extracted: Optional[str] = None
+    output_base_dir: str, block_inner_content: str, filepath_extracted: str | None = None
 ) -> None:
     block_lines = block_inner_content.strip().split("\n")
     if not block_lines:
@@ -84,7 +84,7 @@ def do_extract_code_to_file(
             with open(full_path, "w", encoding="utf-8") as f:
                 f.write(code_to_write)
             logging.info(f"Extracted and wrote: {full_path}")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Error writing file {full_path}: {e}")
         except Exception as e:
             logging.error(f"An unexpected error occurred while writing {full_path}: {e}")

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Annotated, Optional
+from typing import Annotated
 
 from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.systems import system
@@ -19,7 +19,7 @@ async def get_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[StreamProvider]:
+) -> StreamProvider | None:
     """
     Handles getting a stream for a standalone asset. This is the default handler.
     It assumes that the archive handler has already run and returned None.

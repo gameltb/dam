@@ -1,6 +1,6 @@
 import collections
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import safetensors.torch
 import torch
@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 class TensorCheckPoint:
     def __init__(self) -> None:
         self.state_dict_name_counter: collections.defaultdict[str, int] = collections.defaultdict(lambda: 0)
-        self.state_dict: Dict[str, torch.Tensor] = {}
+        self.state_dict: dict[str, torch.Tensor] = {}
         self.check = False
         self.enable = False
 
@@ -27,11 +27,10 @@ class TensorCheckPoint:
             if self.check:
                 _logger.warning(f"check_tensor ==> {name}")
                 check_tensor(state, self.state_dict.get(state_dict_name, None))
+            elif state.device.type != "cpu":
+                self.state_dict[state_dict_name] = state.cpu()
             else:
-                if state.device.type != "cpu":
-                    self.state_dict[state_dict_name] = state.cpu()
-                else:
-                    self.state_dict[state_dict_name] = state.clone()
+                self.state_dict[state_dict_name] = state.clone()
 
             self.state_dict_name_counter[name] = name_count + 1
 

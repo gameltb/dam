@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.core.config import Settings, WorldConfig
@@ -46,9 +47,9 @@ class World:
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
         self._transaction_manager: TransactionManager = TransactionManager(world_config)
-        self._registered_plugin_types: set[Type[Plugin]] = set()
-        self.asset_operations: Dict[str, AssetOperation] = {}
-        self.context_providers: Dict[Type[Any], ContextProvider[Any]] = {}
+        self._registered_plugin_types: set[type[Plugin]] = set()
+        self.asset_operations: dict[str, AssetOperation] = {}
+        self.context_providers: dict[type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
         self.register_context_provider(WorldTransaction, self._transaction_manager)
         self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
@@ -61,38 +62,38 @@ class World:
         self.asset_operations[operation.name] = operation
         self.logger.info(f"Asset operation '{operation.name}' registered in world '{self.name}'.")
 
-    def get_asset_operation(self, name: str) -> Optional[AssetOperation]:
+    def get_asset_operation(self, name: str) -> AssetOperation | None:
         """Retrieves a registered asset operation by its name."""
         return self.asset_operations.get(name)
 
-    def get_all_asset_operations(self) -> List[AssetOperation]:
+    def get_all_asset_operations(self) -> list[AssetOperation]:
         """Returns a list of all registered asset operations."""
         return list(self.asset_operations.values())
 
-    def add_resource(self, instance: Any, resource_type: Optional[Type[Any]] = None) -> None:
+    def add_resource(self, instance: Any, resource_type: type[Any] | None = None) -> None:
         self.resource_manager.add_resource(instance, resource_type)
         self.logger.debug(f"Added resource type {resource_type or type(instance)} to World '{self.name}'.")
 
-    def get_resource(self, resource_type: Type[T]) -> T:
+    def get_resource(self, resource_type: type[T]) -> T:
         return self.resource_manager.get_resource(resource_type)
 
-    def has_resource(self, resource_type: Type[Any]) -> bool:
+    def has_resource(self, resource_type: type[Any]) -> bool:
         return self.resource_manager.has_resource(resource_type)
 
-    def register_context_provider(self, type_hint: Type[Any], provider: ContextProvider[Any]) -> None:
+    def register_context_provider(self, type_hint: type[Any], provider: ContextProvider[Any]) -> None:
         """Registers a context provider for a given type hint."""
         if type_hint in self.context_providers:
             self.logger.warning(f"Overwriting context provider for type {type_hint}.")
         self.context_providers[type_hint] = provider
 
-    def get_context(self, context_type: Type[T]) -> ContextProvider[T]:
+    def get_context(self, context_type: type[T]) -> ContextProvider[T]:
         """Gets a context provider for a given type hint."""
         provider = self.context_providers.get(context_type)
         if provider is None:
             raise KeyError(f"No context provider registered for type {context_type}")
         return provider
 
-    def has_context(self, context_type: Type[Any]) -> bool:
+    def has_context(self, context_type: type[Any]) -> bool:
         """Checks if a context provider is registered for a given type hint."""
         return context_type in self.context_providers
 
@@ -109,9 +110,9 @@ class World:
     def register_system(
         self,
         system_func: Callable[..., Any],
-        stage: Optional[SystemStage] = None,
-        event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type[BaseCommand[Any, Any]]] = None,
+        stage: SystemStage | None = None,
+        event_type: type[BaseEvent] | None = None,
+        command_type: type[BaseCommand[Any, Any]] | None = None,
         **kwargs: Any,
     ) -> None:
         num_triggers = sum(1 for trigger in [stage, event_type, command_type] if trigger is not None)
@@ -168,7 +169,7 @@ class World:
 
 
 # --- Global World Registry ---
-_world_registry: Dict[str, World] = {}
+_world_registry: dict[str, World] = {}
 
 
 def register_world(world_instance: World) -> None:
@@ -180,18 +181,18 @@ def register_world(world_instance: World) -> None:
     logger.info(f"World '{world_instance.name}' registered.")
 
 
-def get_world(world_name: str) -> Optional[World]:
+def get_world(world_name: str) -> World | None:
     return _world_registry.get(world_name)
 
 
-def get_default_world() -> Optional[World]:
+def get_default_world() -> World | None:
     default_name = global_app_settings.DEFAULT_WORLD_NAME
     if default_name:
         return get_world(default_name)
     return None
 
 
-def get_all_registered_worlds() -> List[World]:
+def get_all_registered_worlds() -> list[World]:
     return list(_world_registry.values())
 
 
@@ -210,7 +211,7 @@ def clear_world_registry() -> None:
     logger.info(f"Cleared {count} worlds from the registry.")
 
 
-def create_and_register_world(world_name: str, app_settings: Optional[Settings] = None) -> World:
+def create_and_register_world(world_name: str, app_settings: Settings | None = None) -> World:
     current_settings = app_settings or global_app_settings
     logger.info(
         f"Attempting to create and register world: {world_name} using settings: {'provided' if app_settings else 'global'}"
@@ -240,9 +241,9 @@ def create_and_register_world(world_name: str, app_settings: Optional[Settings] 
     return world
 
 
-def create_and_register_all_worlds_from_settings(app_settings: Optional[Settings] = None) -> List[World]:
+def create_and_register_all_worlds_from_settings(app_settings: Settings | None = None) -> list[World]:
     current_settings = app_settings or global_app_settings
-    created_worlds: List[World] = []
+    created_worlds: list[World] = []
     world_names = current_settings.get_all_world_names()
     logger.info(
         f"Found {len(world_names)} worlds in settings to create and register: {world_names} (using {'provided' if app_settings else 'global'} settings)"

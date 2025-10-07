@@ -1,6 +1,5 @@
 import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple, Union
 
 import torch
 
@@ -10,14 +9,14 @@ from .plan import OptimizationPlan, PrefetchInstruction
 logger = logging.getLogger(__name__)
 
 
-def _parse_device_str(device_str: Union[str, int, torch.device]) -> torch.device:
+def _parse_device_str(device_str: str | int | torch.device) -> torch.device:
     if isinstance(device_str, torch.device):
         return device_str
     if isinstance(device_str, int):
         return torch.device("cuda", device_str)
 
     s = str(device_str).lower()
-    if s == "cpu" or s == "meta":
+    if s in {"cpu", "meta"}:
         return torch.device(s)
     if ":" in s:
         return torch.device(s)
@@ -32,19 +31,19 @@ class HeuristicOptimizer:
     and a prefetching schedule.
     """
 
-    def __init__(self, profiling_data: ProfilingData, max_memory_bytes: Dict[str, int]):
+    def __init__(self, profiling_data: ProfilingData, max_memory_bytes: dict[str, int]):
         self.profiling_data = profiling_data
         self.max_memory_bytes = {str(k): int(v) for k, v in max_memory_bytes.items()}
         avg_stats_obj = self.profiling_data.get_avg_stats()
         self.avg_stats = avg_stats_obj.avg_module_stats
         self.avg_move_times = avg_stats_obj.avg_move_times
         self.execution_order = avg_stats_obj.execution_order
-        self.bandwidth_cache: Dict[Tuple[str, str], float] = {}
+        self.bandwidth_cache: dict[tuple[str, str], float] = {}
         self._init_bandwidth_info()
 
     def _init_bandwidth_info(self):
         gpus = sorted([k for k in self.max_memory_bytes if k != "cpu"])
-        devs = ["cpu"] + gpus
+        devs = ["cpu", *gpus]
         for s in devs:
             for t in devs:
                 if s == t:
@@ -69,12 +68,10 @@ class HeuristicOptimizer:
         return est
 
     def optimize(self) -> OptimizationPlan:
-        """
-        Runs the optimization algorithm to generate a plan.
-        """
+        """Runs the optimization algorithm to generate a plan."""
         logger.info("Starting heuristic optimization (prefetch-focused)...")
-        opt_map_str: Dict[str, str] = {}
-        prefetch_sched: List[PrefetchInstruction] = []
+        opt_map_str: dict[str, str] = {}
+        prefetch_sched: list[PrefetchInstruction] = []
         cpu, gpus = (
             "cpu",
             sorted(
@@ -87,7 +84,7 @@ class HeuristicOptimizer:
             logger.warning("No GPUs available/configured. All modules on CPU.")
             return OptimizationPlan({name: torch.device(cpu) for name in self.execution_order}, [])
 
-        gpu_load: Dict[str, int] = defaultdict(int)
+        gpu_load: dict[str, int] = defaultdict(int)
         benefit_ratio = 1.0
         cursor, exec_len = 0, len(self.execution_order)
 
@@ -126,10 +123,9 @@ class HeuristicOptimizer:
                     if pf_cand_idx == cursor:
                         opt_map_str[pf_mod_name] = cpu
                         break  # Must place on CPU
-                    else:
-                        window.append(pf_mod_name)
-                        accum_time += pf_stats.avg_exec_time
-                        continue  # Add to window, try next
+                    window.append(pf_mod_name)
+                    accum_time += pf_stats.avg_exec_time
+                    continue  # Add to window, try next
 
                 move_time = self._estimate_move_time(pf_stats.weight_size, cpu, tgt_gpu_pf)
                 if accum_time * benefit_ratio > move_time and window and move_time > 0.003:  # Prefetch viable
@@ -145,9 +141,9 @@ class HeuristicOptimizer:
                     window = []
                     accum_time = 0.0  # Advance main cursor, reset window
                     break  # From inner prefetch candidate loop
-                else:  # Prefetch not viable yet or first item
-                    window.append(pf_mod_name)
-                    accum_time += pf_stats.avg_exec_time
+                # Prefetch not viable yet or first item
+                window.append(pf_mod_name)
+                accum_time += pf_stats.avg_exec_time
             else:  # Inner loop exhausted without break
                 cursor = last_processed_idx + 1
 

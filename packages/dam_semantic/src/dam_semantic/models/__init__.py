@@ -12,22 +12,22 @@ from .text_embedding_component import (
 )
 
 __all__ = [
-    "BaseSpecificEmbeddingComponent",
-    "TextEmbeddingAllMiniLML6V2Dim384Component",
-    "TextEmbeddingClipVitB32Dim512Component",
+    "AUDIO_EMBEDDING_MODEL_REGISTRY",
     "EMBEDDING_MODEL_REGISTRY",
-    "get_embedding_component_class",
-    "ModelHyperparameters",
-    "EmbeddingModelInfo",
-    "OldTextEmbeddingComponent",  # Keep for now for transition
+    "AudioEmbeddingModelInfo",
+    "AudioEmbeddingPannsCnn14Dim2048Component",
+    "AudioEmbeddingVggishDim128Component",
+    "AudioModelHyperparameters",
     # Audio Embedding Components
     "BaseSpecificAudioEmbeddingComponent",
-    "AudioEmbeddingVggishDim128Component",
-    "AudioEmbeddingPannsCnn14Dim2048Component",
-    "AUDIO_EMBEDDING_MODEL_REGISTRY",
+    "BaseSpecificEmbeddingComponent",
+    "EmbeddingModelInfo",
+    "ModelHyperparameters",
+    "OldTextEmbeddingComponent",  # Keep for now for transition
+    "TextEmbeddingAllMiniLML6V2Dim384Component",
+    "TextEmbeddingClipVitB32Dim512Component",
     "get_audio_embedding_component_class",
-    "AudioModelHyperparameters",
-    "AudioEmbeddingModelInfo",
+    "get_embedding_component_class",
 ]
 
 from .audio_embedding_component import (

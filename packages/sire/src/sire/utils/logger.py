@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import Dict, Optional, TypedDict
+from typing import TypedDict
 
 
 class LevelConfig(TypedDict):
@@ -24,7 +24,7 @@ class LoggerFormatter(logging.Formatter):
         "reset": "\033[0m",
     }
 
-    LEVEL_CONFIGS: Dict[int, LevelConfig] = {
+    LEVEL_CONFIGS: dict[int, LevelConfig] = {
         logging.DEBUG: {
             "level_color": "grey",
             "message_color": "grey",
@@ -57,13 +57,13 @@ class LoggerFormatter(logging.Formatter):
         },
     }
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(self, project_root: str | None = None):
         super().__init__()
         self.project_root = project_root or os.getcwd()
-        self._formatters: Dict[int, logging.Formatter] = self._compile_formatters()
+        self._formatters: dict[int, logging.Formatter] = self._compile_formatters()
 
-    def _compile_formatters(self) -> Dict[int, logging.Formatter]:
-        formatters: Dict[int, logging.Formatter] = {}
+    def _compile_formatters(self) -> dict[int, logging.Formatter]:
+        formatters: dict[int, logging.Formatter] = {}
         base_fmt = (
             "{grey}%(asctime)s{reset} "
             "[{level_color}%(levelname).1s{reset}] "
@@ -92,7 +92,7 @@ class LoggerFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def setup_logger(name: Optional[str] = None) -> logging.Logger:
+def setup_logger(name: str | None = None) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 

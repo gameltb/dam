@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated
 
 import pytest
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
@@ -18,7 +18,7 @@ async def test_discover_fs_path_siblings(
     in the same filesystem directory and returns them as PathSibling objects.
     """
     world = test_world_alpha
-    entity_ids: List[int] = []
+    entity_ids: list[int] = []
 
     # 1. Setup: Register two files in the same directory
     file_1 = tmp_path / "file_1.txt"

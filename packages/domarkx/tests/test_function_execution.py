@@ -1,14 +1,13 @@
 import os
 import pathlib
 import shutil
-from typing import List
 
 import pytest
 
 from domarkx.action.exec_doc import aexec_doc
 
 
-def get_function_execution_tests_files() -> List[str]:
+def get_function_execution_tests_files() -> list[str]:
     function_execution_tests_dir = os.path.join(os.path.dirname(__file__), "function_execution_tests")
     if not os.path.isdir(function_execution_tests_dir):
         return []
@@ -22,9 +21,7 @@ def get_function_execution_tests_files() -> List[str]:
 @pytest.mark.parametrize("filepath", get_function_execution_tests_files())
 @pytest.mark.asyncio
 async def test_function_execution_in_temp_dir(filepath: str, tmp_path: pathlib.Path) -> None:
-    """
-    Tests that function_execution_test markdown files conform to the domarkx documentation format.
-    """
+    """Tests that function_execution_test markdown files conform to the domarkx documentation format."""
     temp_doc_path = tmp_path / os.path.basename(filepath)
     shutil.copy(filepath, temp_doc_path)
     doc_path = pathlib.Path(temp_doc_path)

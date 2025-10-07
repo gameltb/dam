@@ -11,9 +11,7 @@ class UnsupportedArchiveError(ArchiveError):
 
 
 class PasswordRequiredError(ArchiveError):
-    """
-    Raised when an archive requires a password but none was provided.
-    """
+    """Raised when an archive requires a password but none was provided."""
 
     pass
 

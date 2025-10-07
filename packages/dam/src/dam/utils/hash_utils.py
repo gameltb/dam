@@ -1,7 +1,7 @@
 import hashlib
 import zlib
 from enum import Enum
-from typing import Any, BinaryIO, Dict, Protocol, Set, runtime_checkable
+from typing import Any, BinaryIO, Protocol, runtime_checkable
 
 import blake3
 
@@ -20,7 +20,7 @@ class HashAlgorithm(Enum):
     BLAKE3 = "blake3"
 
 
-def calculate_hashes_from_stream(stream: BinaryIO, algorithms: Set[HashAlgorithm]) -> Dict[HashAlgorithm, bytes | int]:
+def calculate_hashes_from_stream(stream: BinaryIO, algorithms: set[HashAlgorithm]) -> dict[HashAlgorithm, bytes | int]:
     """
     Calculates multiple hashes from a stream in a single pass.
 
@@ -31,8 +31,9 @@ def calculate_hashes_from_stream(stream: BinaryIO, algorithms: Set[HashAlgorithm
     Returns:
         A dictionary mapping algorithm enums to their hash result
         (bytes for most, int for crc32).
+
     """
-    hashers: Dict[HashAlgorithm, Hasher] = {
+    hashers: dict[HashAlgorithm, Hasher] = {
         alg: hashlib.new(alg.value) for alg in algorithms if alg not in [HashAlgorithm.CRC32, HashAlgorithm.BLAKE3]
     }
     if HashAlgorithm.BLAKE3 in algorithms:
@@ -52,7 +53,7 @@ def calculate_hashes_from_stream(stream: BinaryIO, algorithms: Set[HashAlgorithm
         if crc32_hash is not None:
             crc32_hash = zlib.crc32(chunk, crc32_hash)
 
-    results: Dict[HashAlgorithm, bytes | int] = {name: hasher.digest() for name, hasher in hashers.items()}
+    results: dict[HashAlgorithm, bytes | int] = {name: hasher.digest() for name, hasher in hashers.items()}
     if crc32_hash is not None:
         results[HashAlgorithm.CRC32] = crc32_hash
 

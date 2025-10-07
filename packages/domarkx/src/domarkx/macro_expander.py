@@ -1,5 +1,5 @@
 import pathlib
-from typing import Any, Optional
+from typing import Any
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser, ParsedDocument
 from domarkx.utils.markdown_utils import Macro, find_first_macro
@@ -13,7 +13,7 @@ class MacroExpander:
             "set": self._set_macro,
         }
 
-    def expand(self, content: str, override_parameters: Optional[dict[str, Any]] = None) -> str:
+    def expand(self, content: str, override_parameters: dict[str, Any] | None = None) -> str:
         """Expands macros in the content sequentially: find and expand the first macro, repeat until all macros are processed."""
         if override_parameters is None:
             override_parameters = {}

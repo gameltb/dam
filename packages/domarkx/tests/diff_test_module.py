@@ -38,5 +38,4 @@ class GrandChildClass(SubClass):
 
     def farewell(self) -> str:
         """A more complex farewell."""
-        message = "Farewell, and may the force be with you."
-        return message
+        return "Farewell, and may the force be with you."

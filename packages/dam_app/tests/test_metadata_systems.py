@@ -115,9 +115,7 @@ async def test_extract_metadata_from_stream(mock_transaction: MagicMock):
 
 @pytest.mark.asyncio
 async def test_exiftool_process_reuse():
-    """
-    Tests that the same exiftool process is reused for multiple calls.
-    """
+    """Tests that the same exiftool process is reused for multiple calls."""
     exiftool = ExifTool()
     await exiftool.start()
 
@@ -142,9 +140,7 @@ async def test_exiftool_process_reuse():
 
 @pytest.mark.asyncio
 async def test_extract_metadata_with_extension():
-    """
-    Tests that the file extension is correctly extracted and passed to exiftool.
-    """
+    """Tests that the file extension is correctly extracted and passed to exiftool."""
     exiftool = ExifTool()
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -164,9 +160,7 @@ async def test_extract_metadata_with_extension():
 
 @pytest.mark.asyncio
 async def test_extract_metadata_removes_sourcefile():
-    """
-    Tests that the SourceFile field is removed from the exiftool output.
-    """
+    """Tests that the SourceFile field is removed from the exiftool output."""
     exiftool = ExifTool()
 
     with tempfile.TemporaryDirectory() as temp_dir:

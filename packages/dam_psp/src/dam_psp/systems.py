@@ -1,8 +1,9 @@
 import io
 import logging
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, AsyncGenerator, AsyncIterator, BinaryIO, Optional, cast
+from typing import Annotated, BinaryIO, cast
 
 from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
@@ -85,9 +86,7 @@ async def reissue_virtual_iso_event_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent, None]:
-    """
-    Handles re-issuing a NewEntityCreatedEvent for the virtual ISO derived from a CSO file.
-    """
+    """Handles re-issuing a NewEntityCreatedEvent for the virtual ISO derived from a CSO file."""
     yield ProgressStarted()
     stmt = select(CsoParentIsoComponent).where(CsoParentIsoComponent.cso_entity_id == cmd.entity_id)
     result = await transaction.session.execute(stmt)
@@ -139,9 +138,7 @@ async def ingest_cso_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> AsyncGenerator[SystemProgressEvent | NewEntityCreatedEvent, None]:
-    """
-    Handles ingesting a CSO file by decompressing it into a virtual ISO entity.
-    """
+    """Handles ingesting a CSO file by decompressing it into a virtual ISO entity."""
     yield ProgressStarted()
     try:
         # 1. Get stream provider for the CSO file
@@ -219,9 +216,7 @@ async def psp_iso_metadata_extraction_event_handler_system(
     transaction: WorldTransaction,
     world: World,
 ) -> None:
-    """
-    Listens for assets ready for metadata extraction and processes PSP ISOs.
-    """
+    """Listens for assets ready for metadata extraction and processes PSP ISOs."""
     logger.info(f"Received {len(event.entity_ids)} assets for PSP ISO metadata extraction.")
 
     for entity_id in event.entity_ids:
@@ -251,9 +246,7 @@ async def psp_iso_metadata_extraction_command_handler_system(
     transaction: WorldTransaction,
     world: World,
 ) -> None:
-    """
-    Handles the command to extract metadata from a PSP ISO file.
-    """
+    """Handles the command to extract metadata from a PSP ISO file."""
     entity_id = command.entity_id
     try:
         provider = await command.get_stream_provider(world)
@@ -267,14 +260,14 @@ async def psp_iso_metadata_extraction_command_handler_system(
             if sfo and sfo.data:
                 sfo_metadata = sfo.data
                 sfo_component = PSPSFOMetadataComponent(
-                    app_ver=cast(Optional[str], sfo_metadata.get("APP_VER")),
-                    bootable=cast(Optional[int], sfo_metadata.get("BOOTABLE")),
-                    category=cast(Optional[str], sfo_metadata.get("CATEGORY")),
-                    disc_id=cast(Optional[str], sfo_metadata.get("DISC_ID")),
-                    disc_version=cast(Optional[str], sfo_metadata.get("DISC_VERSION")),
-                    parental_level=cast(Optional[int], sfo_metadata.get("PARENTAL_LEVEL")),
-                    psp_system_ver=cast(Optional[str], sfo_metadata.get("PSP_SYSTEM_VER")),
-                    title=cast(Optional[str], sfo_metadata.get("TITLE")),
+                    app_ver=cast(str | None, sfo_metadata.get("APP_VER")),
+                    bootable=cast(int | None, sfo_metadata.get("BOOTABLE")),
+                    category=cast(str | None, sfo_metadata.get("CATEGORY")),
+                    disc_id=cast(str | None, sfo_metadata.get("DISC_ID")),
+                    disc_version=cast(str | None, sfo_metadata.get("DISC_VERSION")),
+                    parental_level=cast(int | None, sfo_metadata.get("PARENTAL_LEVEL")),
+                    psp_system_ver=cast(str | None, sfo_metadata.get("PSP_SYSTEM_VER")),
+                    title=cast(str | None, sfo_metadata.get("TITLE")),
                 )
                 await transaction.add_or_update_component(entity_id, sfo_component)
 
@@ -293,10 +286,8 @@ async def get_virtual_iso_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
-) -> Optional[StreamProvider]:
-    """
-    Handles getting a stream provider for a virtual ISO entity derived from a CSO.
-    """
+) -> StreamProvider | None:
+    """Handles getting a stream provider for a virtual ISO entity derived from a CSO."""
     # 1. Check if the entity is a virtual ISO
     parent_iso_comp = await transaction.get_component(cmd.entity_id, CsoParentIsoComponent)
     if not parent_iso_comp:

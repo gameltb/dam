@@ -3,17 +3,13 @@ import asyncio
 import inspect
 import logging
 from collections import defaultdict
+from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    AsyncGenerator,
-    Callable,
-    Dict,
-    List,
     Optional,
-    Type,
     TypeVar,
     cast,
     get_args,
@@ -36,22 +32,22 @@ if TYPE_CHECKING:
     from dam.core.world import World
 
 
-SYSTEM_METADATA: Dict[Callable[..., Any], SystemMetadata] = {}
+SYSTEM_METADATA: dict[Callable[..., Any], SystemMetadata] = {}
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 
-def _parse_system_params(func: Callable[..., Any]) -> Dict[str, SystemParameterInfo]:
+def _parse_system_params(func: Callable[..., Any]) -> dict[str, SystemParameterInfo]:
     sig = inspect.signature(func)
-    param_info: Dict[str, SystemParameterInfo] = {}
+    param_info: dict[str, SystemParameterInfo] = {}
     for name, param in sig.parameters.items():
         original_param_type = param.annotation
-        identity: Optional[Type[Any]] = None
+        identity: type[Any] | None = None
         actual_type = original_param_type
-        marker_component_type: Optional[Type[BaseComponent]] = None
-        event_specific_type: Optional[Type[BaseEvent]] = None
-        command_specific_type: Optional[Type["BaseCommand[Any, Any]"]] = None
+        marker_component_type: type[BaseComponent] | None = None
+        event_specific_type: type[BaseEvent] | None = None
+        command_specific_type: type[BaseCommand[Any, Any]] | None = None
         is_annotated = get_origin(original_param_type) is Annotated
 
         if is_annotated:
@@ -112,11 +108,11 @@ def _parse_system_params(func: Callable[..., Any]) -> Dict[str, SystemParameterI
 
 
 def system(
-    func: Optional[Callable[..., Any]] = None,
+    func: Callable[..., Any] | None = None,
     *,
-    on_stage: Optional[SystemStage] = None,
-    on_command: Optional[Type["BaseCommand[Any, Any]"]] = None,
-    on_event: Optional[Type[BaseEvent]] = None,
+    on_stage: SystemStage | None = None,
+    on_command: type["BaseCommand[Any, Any]"] | None = None,
+    on_event: type[BaseEvent] | None = None,
     **kwargs: Any,
 ) -> Callable[..., Any]:
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -150,18 +146,18 @@ class WorldScheduler:
     def __init__(self, world: "World") -> None:
         self.world = world
         self.resource_manager = world.resource_manager
-        self.system_registry: Dict[SystemStage, List[Callable[..., Any]]] = defaultdict(list)
-        self.event_handler_registry: Dict[Type[BaseEvent], List[Callable[..., Any]]] = defaultdict(list)
-        self.command_handler_registry: Dict[Type[BaseCommand[Any, Any]], List[Callable[..., Any]]] = defaultdict(list)
+        self.system_registry: dict[SystemStage, list[Callable[..., Any]]] = defaultdict(list)
+        self.event_handler_registry: dict[type[BaseEvent], list[Callable[..., Any]]] = defaultdict(list)
+        self.command_handler_registry: dict[type[BaseCommand[Any, Any]], list[Callable[..., Any]]] = defaultdict(list)
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def register_system_for_world(
         self,
         system_func: Callable[..., Any],
-        stage: Optional[SystemStage] = None,
-        event_type: Optional[Type[BaseEvent]] = None,
-        command_type: Optional[Type["BaseCommand[Any, Any]"]] = None,
+        stage: SystemStage | None = None,
+        event_type: type[BaseEvent] | None = None,
+        command_type: type["BaseCommand[Any, Any]"] | None = None,
         **kwargs: Any,
     ) -> None:
         metadata = self.system_metadata.get(system_func)
@@ -199,20 +195,19 @@ class WorldScheduler:
                             f"Handler '{system_func.__name__}' yields '{handler_event_type}' "
                             f"but command expects event type '{command_event_type}'."
                         )
-            else:
-                if command_result_type is not None and command_result_type is not Any:
-                    normalized_command_type = get_origin(command_result_type) or command_result_type
-                    normalized_handler_type = get_origin(handler_return_type) or handler_return_type
+            elif command_result_type is not None and command_result_type is not Any:
+                normalized_command_type = get_origin(command_result_type) or command_result_type
+                normalized_handler_type = get_origin(handler_return_type) or handler_return_type
 
-                    if normalized_handler_type is None:
-                        normalized_handler_type = type(None)
+                if normalized_handler_type is None:
+                    normalized_handler_type = type(None)
 
-                    if normalized_command_type != normalized_handler_type:
-                        self.logger.warning(
-                            f"Potential return type mismatch for command '{reg_command.__name__}'. "
-                            f"Handler '{system_func.__name__}' is annotated to return '{handler_return_type}' "
-                            f"but command expects '{command_result_type}'."
-                        )
+                if normalized_command_type != normalized_handler_type:
+                    self.logger.warning(
+                        f"Potential return type mismatch for command '{reg_command.__name__}'. "
+                        f"Handler '{system_func.__name__}' is annotated to return '{handler_return_type}' "
+                        f"but command expects '{command_result_type}'."
+                    )
             self.command_handler_registry[reg_command].append(system_func)
         elif metadata.system_type == SystemType.EVENT and metadata.listens_for_event_type:
             self.event_handler_registry[metadata.listens_for_event_type].append(system_func)
@@ -245,12 +240,12 @@ class WorldScheduler:
             )
             return SystemExecutor([], command.execution_strategy)
         generators = [self._execute_system_func(h, command_object=command, **kwargs) for h in handlers_to_run]
-        return SystemExecutor(cast(List[AsyncGenerator["EventType", None]], generators), command.execution_strategy)
+        return SystemExecutor(cast(list[AsyncGenerator["EventType", None]], generators), command.execution_strategy)
 
     async def _execute_system_func(
         self,
         system_func: Callable[..., Any],
-        event_object: Optional[BaseEvent] = None,
+        event_object: BaseEvent | None = None,
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
     ) -> AsyncGenerator[BaseSystemEvent, None]:
@@ -269,8 +264,8 @@ class WorldScheduler:
         gexit_raised = False
         try:
             async with AsyncExitStack() as stack:
-                resolved_params_by_name: Dict[str, Any] = {}
-                resolved_deps_by_type: Dict[Type, Any] = {}
+                resolved_params_by_name: dict[str, Any] = {}
+                resolved_deps_by_type: dict[type, Any] = {}
 
                 # Pre-populate with special objects that don't have providers
                 if event_object:
@@ -301,8 +296,8 @@ class WorldScheduler:
                     if not unresolved_params:
                         break
 
-                    newly_resolved_params: Dict[str, Any] = {}
-                    still_unresolved_params: Dict[str, SystemParameterInfo] = {}
+                    newly_resolved_params: dict[str, Any] = {}
+                    still_unresolved_params: dict[str, SystemParameterInfo] = {}
 
                     for name, param in unresolved_params.items():
                         provider_key = param.type_hint

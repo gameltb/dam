@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 from sire.core.optimizer.signature import ConfigSignatureGenerator
 
@@ -15,9 +15,7 @@ class SimpleModel(nn.Module):
 
 
 def test_signature_generator_consistency() -> None:
-    """
-    Tests that the signature generator produces the same signature for the same inputs.
-    """
+    """Tests that the signature generator produces the same signature for the same inputs."""
     gen = ConfigSignatureGenerator()
     model = SimpleModel()
     args = (torch.randn(8, 10),)
@@ -31,9 +29,7 @@ def test_signature_generator_consistency() -> None:
 
 
 def test_signature_generator_input_change_sensitivity() -> None:
-    """
-    Tests that the signature changes when model inputs change.
-    """
+    """Tests that the signature changes when model inputs change."""
     gen = ConfigSignatureGenerator()
     model = SimpleModel()
     dtype = torch.float32
@@ -58,9 +54,7 @@ def test_signature_generator_input_change_sensitivity() -> None:
 
 
 def test_signature_generator_model_change_sensitivity() -> None:
-    """
-    Tests that the signature changes when the model changes.
-    """
+    """Tests that the signature changes when the model changes."""
     gen = ConfigSignatureGenerator()
     args = (torch.randn(8, 10),)
     kwargs = {}
@@ -92,9 +86,7 @@ def test_signature_generator_model_change_sensitivity() -> None:
 
 
 def test_plan_identifier_generator() -> None:
-    """
-    Tests the generation of the plan identifier based on memory constraints.
-    """
+    """Tests the generation of the plan identifier based on memory constraints."""
     gen = ConfigSignatureGenerator()
     mem1 = {"0": 8 * 1024**3, "cpu": 16 * 1024**3}
     mem2 = {"0": 16 * 1024**3, "cpu": 16 * 1024**3}

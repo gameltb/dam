@@ -7,4 +7,4 @@ from .base_component import (
 )  # Assuming BaseComponent should also be exported
 from .entity import Entity
 
-__all__ = ["Entity", "BaseComponent", "UniqueComponent"]
+__all__ = ["BaseComponent", "Entity", "UniqueComponent"]

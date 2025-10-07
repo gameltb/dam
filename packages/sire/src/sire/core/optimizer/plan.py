@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import torch
 
@@ -11,9 +10,7 @@ from ...utils.json_helpers import load_from_json_file, save_to_json_file
 
 @dataclass
 class PrefetchInstruction:
-    """
-    Represents a single prefetching action.
-    """
+    """Represents a single prefetching action."""
 
     module_to_prefetch: str
     target_device: torch.device
@@ -27,10 +24,10 @@ class OptimizationPlan:
     and the prefetching schedule.
     """
 
-    optimized_device_map: Dict[str, torch.device] = field(default_factory=dict)  # type: ignore
-    prefetch_schedule: List[PrefetchInstruction] = field(default_factory=list)  # type: ignore
-    module_footprints: Dict[str, int] = field(default_factory=dict)  # type: ignore
-    trigger_index: Dict[str, List[PrefetchInstruction]] = field(
+    optimized_device_map: dict[str, torch.device] = field(default_factory=dict)  # type: ignore
+    prefetch_schedule: list[PrefetchInstruction] = field(default_factory=list)  # type: ignore
+    module_footprints: dict[str, int] = field(default_factory=dict)  # type: ignore
+    trigger_index: dict[str, list[PrefetchInstruction]] = field(
         default_factory=lambda: defaultdict(list), repr=False, compare=False
     )
 
@@ -59,7 +56,7 @@ class OptimizationPlan:
         save_to_json_file(self, filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> Optional[OptimizationPlan]:
+    def load(cls, filepath: str) -> OptimizationPlan | None:
         """Loads an optimization plan from a JSON file."""
         instance = load_from_json_file(filepath, cls)
         if isinstance(instance, cls):

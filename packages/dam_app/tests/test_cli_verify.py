@@ -54,7 +54,7 @@ async def test_verify_single_file_ok(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        async with aiofiles.open(report_files[0], "r") as f:
+        async with aiofiles.open(report_files[0]) as f:
             content = await f.read()
         string_io = io.StringIO(content)
         reader = csv.DictReader(string_io)
@@ -97,7 +97,7 @@ async def test_verify_single_file_fail(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        async with aiofiles.open(report_files[0], "r") as f:
+        async with aiofiles.open(report_files[0]) as f:
             content = await f.read()
         string_io = io.StringIO(content)
         reader = csv.DictReader(string_io)
@@ -148,7 +148,7 @@ async def test_verify_archive_ok(
     report_files = list(tmp_path.glob("verification_report_*.csv"))
     try:
         assert len(report_files) == 1
-        async with aiofiles.open(report_files[0], "r") as f:
+        async with aiofiles.open(report_files[0]) as f:
             content = await f.read()
         string_io = io.StringIO(content)
         reader = csv.DictReader(string_io)

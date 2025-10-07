@@ -1,6 +1,6 @@
 import logging
 import traceback
-from typing import Optional
+from typing import Annotated
 
 import typer
 from dam.core import config as app_config
@@ -12,7 +12,6 @@ from dam.core.world import (
     create_and_register_all_worlds_from_settings,
     get_all_registered_worlds,
 )
-from typing_extensions import Annotated
 
 from dam_app.cli import assets, verify
 from dam_app.state import get_world, global_state
@@ -39,7 +38,7 @@ def cli_list_worlds():
             return
         typer.echo("Available ECS worlds:")
         for world_instance in registered_worlds:
-            is_default = app_config.settings.DEFAULT_WORLD_NAME == world_instance.name
+            is_default = world_instance.name == app_config.settings.DEFAULT_WORLD_NAME
             default_marker = " (default)" if is_default else ""
             typer.echo(f"  - {world_instance.name}{default_marker}")
     except Exception as e:
@@ -69,7 +68,7 @@ async def setup_db(ctx: typer.Context):
 def main_callback(
     ctx: typer.Context,
     world: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--world",
             "-w",
@@ -115,10 +114,9 @@ def main_callback(
         if ctx.invoked_subcommand and ctx.invoked_subcommand not in ["list-worlds"]:
             typer.secho("Error: No world specified and no default is set.", fg=typer.colors.RED)
             raise typer.Exit(code=1)
-    elif not get_world():
-        if ctx.invoked_subcommand and ctx.invoked_subcommand not in ["list-worlds"]:
-            typer.secho(f"Error: World '{target_world_name}' not found or not configured.", fg=typer.colors.RED)
-            raise typer.Exit(code=1)
+    elif not get_world() and ctx.invoked_subcommand and ctx.invoked_subcommand not in ["list-worlds"]:
+        typer.secho(f"Error: World '{target_world_name}' not found or not configured.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
     if ctx.invoked_subcommand is None:
         current_world = get_world()

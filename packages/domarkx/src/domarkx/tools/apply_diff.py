@@ -30,6 +30,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
         IOError: If file read/write error occurs.
         ValueError: If diff format is invalid or does not match file content.
         Exception: For other unexpected errors.
+
     """
     logging.info(f"Attempting to apply diff to file '{path}'.")
 
@@ -41,12 +42,12 @@ def apply_diff_tool(path: str, diff: str) -> str:
         raise IsADirectoryError(f"Path '{path}' is a directory, not a file.")
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             original_lines = f.readlines()
         logging.info(f"Successfully read file '{path}'.")
-    except IOError as e:
+    except OSError as e:
         logging.error(f"IO error occurred while reading file '{path}': {e}")
-        raise IOError(f"Could not read file '{path}': {e}") from e
+        raise OSError(f"Could not read file '{path}': {e}") from e
 
     current_lines = list(original_lines)  # Create a copy for modification
     operations: list[Operation] = []
@@ -210,6 +211,6 @@ def apply_diff_tool(path: str, diff: str) -> str:
             f.writelines(current_lines)
         logging.info(f"File '{path}' successfully updated with {len(operations)} diff blocks applied.")
         return f"File '{path}' successfully updated with {len(operations)} diff blocks applied."
-    except IOError as e:
+    except OSError as e:
         logging.error(f"IO error occurred while writing to file '{path}': {e}")
-        raise IOError(f"Could not write to file '{path}': {e}") from e
+        raise OSError(f"Could not write to file '{path}': {e}") from e

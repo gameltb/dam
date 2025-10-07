@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,9 +36,9 @@ class Settings(BaseSettings):
         description="Path to a JSON file or a JSON string defining world configurations.",
     )
 
-    worlds: Dict[str, WorldConfig] = Field(default_factory=dict, description="Dictionary of configured worlds.")
+    worlds: dict[str, WorldConfig] = Field(default_factory=dict, description="Dictionary of configured worlds.")
 
-    DEFAULT_WORLD_NAME: Optional[str] = Field(
+    DEFAULT_WORLD_NAME: str | None = Field(
         default="default",
         validation_alias="DAM_DEFAULT_WORLD_NAME",
         description="The name of the world to use by default if not specified.",
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="before")
     @classmethod
-    def _load_and_process_worlds_config(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    def _load_and_process_worlds_config(cls, values: dict[str, Any]) -> dict[str, Any]:
         """
         Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
         This source can be a file path to a JSON file or a direct JSON string.
@@ -72,13 +72,13 @@ class Settings(BaseSettings):
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
-        raw_world_configs: Dict[str, Dict[str, Any]] = {}
+        raw_world_configs: dict[str, dict[str, Any]] = {}
         if os.path.exists(config_source):
             try:
-                with open(config_source, "r") as f:
+                with open(config_source) as f:
                     raw_world_configs = json.load(f)
                 logger.info(f"Loaded world configurations from file: {config_source}")
-            except (IOError, json.JSONDecodeError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 raise ValueError(f"Error reading or parsing worlds config file {config_source}: {e}") from e
         else:
             try:
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
-        final_worlds_dict: Dict[str, WorldConfig] = {}
+        final_worlds_dict: dict[str, WorldConfig] = {}
         for name, config_data in raw_world_configs.items():
             if not isinstance(config_data, dict):
                 raise ValueError(f"Configuration for world '{name}' must be a dictionary.")
@@ -144,7 +144,7 @@ class Settings(BaseSettings):
         logger.debug(f"Default world name set to: {values['DEFAULT_WORLD_NAME']}")
         return values
 
-    def get_world_config(self, world_name: Optional[str] = None) -> WorldConfig:
+    def get_world_config(self, world_name: str | None = None) -> WorldConfig:
         """
         Retrieves the configuration for a specific world.
         If world_name is None, returns the configuration for the default world.

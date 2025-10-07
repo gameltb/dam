@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import io
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Iterator, List, Optional, Tuple, Union
+from typing import BinaryIO
 
 from dam.core.types import CallableStreamProvider, FileStreamProvider, StreamProvider
 
 
 def to_stream_provider(
-    file_or_path: Union[str, BinaryIO, Path],
+    file_or_path: str | BinaryIO | Path,
 ) -> StreamProvider:
     if isinstance(file_or_path, str):
         return FileStreamProvider(Path(file_or_path))
@@ -35,51 +36,46 @@ def to_stream_provider(
 
 @dataclass
 class ArchiveMemberInfo:
-    """
-    Represents information about a member in an archive.
-    """
+    """Represents information about a member in an archive."""
 
     name: str
     size: int
-    modified_at: Optional[datetime]
+    modified_at: datetime | None
 
 
 class ArchiveHandler(ABC):
-    """
-    Abstract base class for archive handlers.
-    """
+    """Abstract base class for archive handlers."""
 
-    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+    def __init__(self, stream_provider: StreamProvider, password: str | None = None):
         """
         Initializes the archive handler.
 
         Args:
             stream_provider: A StreamProvider instance for the archive.
             password: The password for the archive, if any.
+
         """
         self._stream_provider = stream_provider
         self.password = password
 
     @classmethod
     @abstractmethod
-    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> ArchiveHandler:
-        """
-        Asynchronously creates and initializes an archive handler.
-        """
+    async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> ArchiveHandler:
+        """Asynchronously creates and initializes an archive handler."""
         ...
 
     @property
-    def comment(self) -> Optional[str]:
+    def comment(self) -> str | None:
         """The comment of the archive, if any."""
         return None
 
     @abstractmethod
-    def list_files(self) -> List[ArchiveMemberInfo]:
+    def list_files(self) -> list[ArchiveMemberInfo]:
         """List all file names and sizes in the archive."""
         ...
 
     @abstractmethod
-    def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
+    def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
         """
         Iterate over all files in the archive in their natural order.
 
@@ -94,7 +90,7 @@ class ArchiveHandler(ABC):
         ...
 
     @abstractmethod
-    def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+    def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
         """Open a specific file from the archive and return a file-like object."""
         ...
 

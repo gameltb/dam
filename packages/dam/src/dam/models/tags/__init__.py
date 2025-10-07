@@ -3,7 +3,7 @@ from .model_generated_tag_link_component import ModelGeneratedTagLinkComponent
 from .tag_concept_component import TagConceptComponent
 
 __all__ = [
+    "EntityTagLinkComponent",
     "ModelGeneratedTagLinkComponent",
     "TagConceptComponent",
-    "EntityTagLinkComponent",
 ]

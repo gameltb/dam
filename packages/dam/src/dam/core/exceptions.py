@@ -1,8 +1,5 @@
-"""
-Custom exceptions for the DAM ECS framework.
-"""
+"""Custom exceptions for the DAM ECS framework."""
 
-from typing import Optional
 
 
 class DamECSException(Exception):
@@ -18,8 +15,8 @@ class StageExecutionError(DamECSException):
         self,
         message: str,
         stage_name: str,
-        system_name: Optional[str] = None,
-        original_exception: Optional[Exception] = None,
+        system_name: str | None = None,
+        original_exception: Exception | None = None,
     ) -> None:
         super().__init__(message)
         self.stage_name = stage_name
@@ -43,8 +40,8 @@ class EventHandlingError(DamECSException):
         self,
         message: str,
         event_type: str,
-        handler_name: Optional[str] = None,
-        original_exception: Optional[Exception] = None,
+        handler_name: str | None = None,
+        original_exception: Exception | None = None,
     ) -> None:
         super().__init__(message)
         self.event_type = event_type
@@ -83,8 +80,8 @@ class CommandHandlingError(DamECSException):
         self,
         message: str,
         command_type: str,
-        handler_name: Optional[str] = None,
-        original_exception: Optional[Exception] = None,
+        handler_name: str | None = None,
+        original_exception: Exception | None = None,
     ) -> None:
         super().__init__(message)
         self.command_type = command_type

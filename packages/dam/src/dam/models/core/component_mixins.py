@@ -12,5 +12,5 @@ class UniqueComponentMixin:
     """
 
     @declared_attr.directive
-    def __table_args__(cls):
+    def __table_args__(self):
         return (UniqueConstraint("entity_id"),)

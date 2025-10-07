@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, List
 
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.commands.core import EntityCommand
@@ -22,15 +21,11 @@ class RemovePSPMetadataCommand(EntityCommand[None, BaseSystemEvent]):
 
 @dataclass
 class ExtractPSPMetadataCommand(AnalysisCommand[None, BaseSystemEvent]):
-    """
-    A command to extract metadata from a PSP ISO file.
-    """
+    """A command to extract metadata from a PSP ISO file."""
 
     @classmethod
-    def get_supported_types(cls) -> Dict[str, List[str]]:
-        """
-        Returns a dictionary of supported MIME types and file extensions for PSP ISOs.
-        """
+    def get_supported_types(cls) -> dict[str, list[str]]:
+        """Returns a dictionary of supported MIME types and file extensions for PSP ISOs."""
         return {
             "mimetypes": ["application/x-iso9660-image"],
             "extensions": [".iso"],
@@ -53,15 +48,11 @@ class ClearCsoIngestionCommand(EntityCommand[None, BaseSystemEvent]):
 
 @dataclass
 class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
-    """
-    A command to ingest a CSO file, decompress it, and create a virtual ISO entity.
-    """
+    """A command to ingest a CSO file, decompress it, and create a virtual ISO entity."""
 
     @classmethod
-    def get_supported_types(cls) -> Dict[str, List[str]]:
-        """
-        Returns a dictionary of supported MIME types and file extensions for CSO files.
-        """
+    def get_supported_types(cls) -> dict[str, list[str]]:
+        """Returns a dictionary of supported MIME types and file extensions for CSO files."""
         return {
             "mimetypes": ["application/x-ciso"],
             "extensions": [".cso"],
@@ -70,8 +61,6 @@ class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
 
 @dataclass
 class ReissueVirtualIsoEventCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to re-issue a NewEntityCreatedEvent for the virtual ISO derived from a CSO file.
-    """
+    """A command to re-issue a NewEntityCreatedEvent for the virtual ISO derived from a CSO file."""
 
     pass

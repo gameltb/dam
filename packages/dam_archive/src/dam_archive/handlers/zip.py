@@ -2,17 +2,11 @@ from __future__ import annotations
 
 import contextlib
 import zipfile
+from collections.abc import Awaitable, Callable, Iterator
 from datetime import datetime
 from types import TracebackType
 from typing import (
-    Awaitable,
     BinaryIO,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
     cast,
 )
 
@@ -21,29 +15,18 @@ from ..exceptions import InvalidPasswordError
 
 
 class ZipArchiveHandler(ArchiveHandler):
-    """
-    An archive handler for zip files.
-    """
+    """An archive handler for zip files."""
 
-    def __init__(self, stream_provider: StreamProvider, password: Optional[str] = None):
+    def __init__(self, stream_provider: StreamProvider, password: str | None = None):
         super().__init__(stream_provider, password)
-        self.members: List[ArchiveMemberInfo] = []
-        self.filename_map: Dict[str, str] = {}
-        self._stream: Optional[BinaryIO] = None
-        self.zip_file: Optional[zipfile.ZipFile] = None
-        self._stream_cm_exit: Optional[
-            Callable[
-                [
-                    Optional[type[BaseException]],
-                    Optional[BaseException],
-                    Optional[TracebackType],
-                ],
-                Awaitable[Optional[bool]],
-            ]
-        ] = None
+        self.members: list[ArchiveMemberInfo] = []
+        self.filename_map: dict[str, str] = {}
+        self._stream: BinaryIO | None = None
+        self.zip_file: zipfile.ZipFile | None = None
+        self._stream_cm_exit: Callable[[type[BaseException] | None, BaseException | None, TracebackType | None], Awaitable[bool | None]] | None = None
 
     @classmethod
-    async def create(cls, stream_provider: StreamProvider, password: Optional[str] = None) -> ZipArchiveHandler:
+    async def create(cls, stream_provider: StreamProvider, password: str | None = None) -> ZipArchiveHandler:
         handler = cls(stream_provider, password)
         stream_cm = stream_provider.get_stream()
         handler._stream = await stream_cm.__aenter__()
@@ -113,10 +96,10 @@ class ZipArchiveHandler(ArchiveHandler):
         self._stream = None
         self._stream_cm_exit = None
 
-    def list_files(self) -> List[ArchiveMemberInfo]:
+    def list_files(self) -> list[ArchiveMemberInfo]:
         return self.members
 
-    def iter_files(self) -> Iterator[Tuple[ArchiveMemberInfo, BinaryIO]]:
+    def iter_files(self) -> Iterator[tuple[ArchiveMemberInfo, BinaryIO]]:
         """Iterate over all files in the archive."""
         if not self.zip_file:
             return
@@ -132,15 +115,15 @@ class ZipArchiveHandler(ArchiveHandler):
             except RuntimeError as e:
                 if "password" in str(e).lower():
                     raise InvalidPasswordError("Invalid password for zip file.") from e
-                raise IOError(f"Failed to open file in zip: {e}") from e
+                raise OSError(f"Failed to open file in zip: {e}") from e
 
-    def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
+    def open_file(self, file_name: str) -> tuple[ArchiveMemberInfo, BinaryIO]:
         if not self.zip_file:
-            raise IOError(f"File not found in zip: {file_name}")
+            raise OSError(f"File not found in zip: {file_name}")
 
         original_name = self.filename_map.get(file_name)
         if not original_name:
-            raise IOError(f"File not found in zip: {file_name}")
+            raise OSError(f"File not found in zip: {file_name}")
         for f in self.zip_file.infolist():
             if f.filename == original_name:
                 member_info = ArchiveMemberInfo(name=file_name, size=f.file_size, modified_at=datetime(*f.date_time))
@@ -150,8 +133,8 @@ class ZipArchiveHandler(ArchiveHandler):
                 except RuntimeError as e:
                     if "password" in str(e).lower():
                         raise InvalidPasswordError("Invalid password for zip file.") from e
-                    raise IOError(f"Failed to open file in zip: {e}") from e
-        raise IOError(f"File not found in zip: {file_name}")
+                    raise OSError(f"Failed to open file in zip: {e}") from e
+        raise OSError(f"File not found in zip: {file_name}")
 
     def _decode_comment(self, comment: bytes) -> str:
         try:
@@ -163,7 +146,7 @@ class ZipArchiveHandler(ArchiveHandler):
                 return comment.decode("cp437")
 
     @property
-    def comment(self) -> Optional[str]:
+    def comment(self) -> str | None:
         if not self.zip_file or not self.zip_file.comment:
             return None
         return self._decode_comment(self.zip_file.comment)

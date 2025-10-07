@@ -9,9 +9,7 @@ from ..core.base_component import UniqueComponent
 
 
 class ContentHashCRC32Component(UniqueComponent):
-    """
-    Stores CRC32 content-based hashes (4 bytes) for an entity.
-    """
+    """Stores CRC32 content-based hashes (4 bytes) for an entity."""
 
     __tablename__ = "component_content_hash_crc32"
 

@@ -1,6 +1,4 @@
-"""
-This service provides functions for calculating perceptual hashes for images.
-"""
+"""This service provides functions for calculating perceptual hashes for images."""
 
 import asyncio
 import logging
@@ -23,8 +21,8 @@ def generate_perceptual_hashes(image_filepath: Path) -> dict[str, str]:
         A dictionary with hash_type as key and hex hash string as value.
         Example: {"phash": "...", "ahash": "...", "dhash": "..."}
         Returns empty dict if dependencies are missing, or image cannot be processed.
-    """
 
+    """
     hashes: dict[str, str] = {}
     try:
         img = Image.open(image_filepath)

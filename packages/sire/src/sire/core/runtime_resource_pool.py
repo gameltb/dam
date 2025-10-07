@@ -1,6 +1,6 @@
 import logging
 import weakref
-from typing import Any, Optional
+from typing import Any
 
 from ..utils.runtime_resource_util import get_free_mem_size_cpu, get_free_mem_size_cuda_pytorch
 from .runtime_resource_user import ResourcePoolUserABC, resources_device
@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 
 class ResourcePool:
-    def __init__(self, runtime_device: Optional[resources_device] = None) -> None:
+    def __init__(self, runtime_device: resources_device | None = None) -> None:
         if runtime_device is None:
             runtime_device = resources_device("cpu", 0)
         self.users: weakref.WeakSet[ResourcePoolUserABC[Any]] = weakref.WeakSet()

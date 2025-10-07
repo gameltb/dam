@@ -20,9 +20,7 @@ async def get_or_create_entity_from_stream_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> tuple[Entity, bytes]:
-    """
-    Handles getting or creating an entity from a stream.
-    """
+    """Handles getting or creating an entity from a stream."""
     logger.info(f"System handling GetOrCreateEntityFromStreamCommand in world {world.name}")
     all_algorithms = {HashAlgorithm.MD5, HashAlgorithm.SHA256, HashAlgorithm.CRC32, HashAlgorithm.BLAKE3}
 

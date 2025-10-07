@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.systems import system
@@ -70,17 +70,12 @@ async def add_hash_component(
 async def add_hashes_to_entity(
     transaction: WorldTransaction,
     entity_id: int,
-    hashes: Dict[HashAlgorithm, Any],
+    hashes: dict[HashAlgorithm, Any],
 ) -> None:
-    """
-    Adds multiple hash components to an entity from a dictionary of hashes.
-    """
+    """Adds multiple hash components to an entity from a dictionary of hashes."""
     for algorithm, hash_value in hashes.items():
         # Special handling for CRC32 as it's an int
-        if algorithm == HashAlgorithm.CRC32:
-            hash_value_bytes = hash_value.to_bytes(4, "big")
-        else:
-            hash_value_bytes = hash_value
+        hash_value_bytes = hash_value.to_bytes(4, "big") if algorithm == HashAlgorithm.CRC32 else hash_value
 
         await add_hash_component(
             transaction=transaction,
@@ -92,9 +87,7 @@ async def add_hashes_to_entity(
 
 @system(on_command=AddHashesFromStreamCommand)
 async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: WorldTransaction) -> None:
-    """
-    Handles the command to calculate and add multiple hash components to an entity from a stream.
-    """
+    """Handles the command to calculate and add multiple hash components to an entity from a stream."""
     logger.info(f"System handling AddHashesFromStreamCommand for entity {cmd.entity_id}")
 
     async with cmd.stream_provider.get_stream() as stream:

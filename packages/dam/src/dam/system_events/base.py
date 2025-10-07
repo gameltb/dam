@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 
@@ -9,10 +9,8 @@ class BaseSystemEvent:
     pass
 
 
-class SystemResultEvent(BaseSystemEvent, Generic[T]):
-    """
-    An event that wraps the final return value of a non-generator system.
-    """
+class SystemResultEvent[T](BaseSystemEvent):
+    """An event that wraps the final return value of a non-generator system."""
 
     def __init__(self, result: T):
         self.result = result

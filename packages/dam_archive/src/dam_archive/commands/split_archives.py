@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 from dam.commands.core import BaseCommand, EntityCommand
 from dam.system_events.base import BaseSystemEvent
@@ -18,12 +17,10 @@ class UnbindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
 
 @dataclass
 class CreateMasterArchiveCommand(BaseCommand[None, BaseSystemEvent]):
-    """
-    A command to manually create a master entity for a split archive.
-    """
+    """A command to manually create a master entity for a split archive."""
 
     name: str
-    part_entity_ids: List[int]
+    part_entity_ids: list[int]
 
 
 @dataclass
@@ -38,8 +35,6 @@ class BindSplitArchiveCommand(EntityCommand[None, BaseSystemEvent]):
 
 @dataclass
 class CheckSplitArchiveBindingCommand(EntityCommand[bool, BaseSystemEvent]):
-    """
-    A command to check if an entity is part of a fully bound split archive.
-    """
+    """A command to check if an entity is part of a fully bound split archive."""
 
     pass

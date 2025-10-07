@@ -1,4 +1,3 @@
-from typing import Optional
 
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Integer, UniqueConstraint
@@ -15,8 +14,8 @@ class ImageDimensionsComponent(BaseComponent):
 
     __tablename__ = "component_image_dimensions"
 
-    width_pixels: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
-    height_pixels: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
+    width_pixels: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    height_pixels: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     __table_args__ = (
         # An entity should generally have only one primary dimensions component.

@@ -1,16 +1,15 @@
 import contextlib
 import logging
-from typing import Dict, Optional
 
-import torch.nn as nn
 from accelerate.hooks import ModelHook, add_hook_to_module, remove_hook_from_module
+from torch import nn
 
 logger = logging.getLogger(__name__)
 
 
 class HookManager:
     """
-        A utility to manage hooks on a torch.nn.Module, particularly for temporarily
+    A utility to manage hooks on a torch.nn.Module, particularly for temporarily
         replacing hooks for operations like profiling.
 
         This manager helps to solve the problem of multiple components wanting to
@@ -18,7 +17,7 @@ class HookManager:
     to
         manipulate them.
 
-        Example:
+    Example:
             >>> model = MyModel()
             >>> hook_manager = HookManager(model)
             >>>
@@ -27,6 +26,7 @@ class HookManager:
             ...     # Inside this block, only MyProfilerHook is active.
             ...     model(data)
             >>> # Outside the block, the original hooks are restored.
+
     """
 
     def __init__(self, module: nn.Module):
@@ -35,23 +35,24 @@ class HookManager:
 
         Args:
             module: The top-level module to manage hooks for.
+
         """
         self.module = module
-        self._original_hooks: Optional[Dict[str, ModelHook]] = None
+        self._original_hooks: dict[str, ModelHook] | None = None
 
-    def _get_all_hooks(self) -> Dict[str, ModelHook]:
+    def _get_all_hooks(self) -> dict[str, ModelHook]:
         """
         Recursively finds and returns all hooks attached to the module and its submodules.
         Hooks are expected to be stored in the `_hf_hook` attribute by `accelerate`.
         """
-        all_hooks: Dict[str, ModelHook] = {}
+        all_hooks: dict[str, ModelHook] = {}
         for name, sub_mod in self.module.named_modules():  # type: ignore
             hook = getattr(sub_mod, "_hf_hook", None)  # type: ignore
             if hook is not None:
                 all_hooks[name] = hook
         return all_hooks
 
-    def _add_hooks(self, hooks: Dict[str, ModelHook], append: bool = True):
+    def _add_hooks(self, hooks: dict[str, ModelHook], append: bool = True):
         """Adds a dictionary of hooks to the corresponding submodules."""
         module_map = {name: mod for name, mod in self.module.named_modules()}  # type: ignore
         for name, hook in hooks.items():
@@ -80,6 +81,7 @@ class HookManager:
             ...     add_hook_to_module(model, MyProfilerHook(), append=True)
             ...     model(data)
             >>> # Outside the block, the original hooks are back.
+
         """
         self._original_hooks = self._get_all_hooks()
         logger.debug(f"Storing {len(self._original_hooks)} original hooks for temporary scope.")

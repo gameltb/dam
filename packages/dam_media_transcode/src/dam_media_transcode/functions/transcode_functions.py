@@ -2,7 +2,6 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional, Tuple
 
 from dam.core.config import settings
 from dam.core.stages import SystemStage
@@ -38,11 +37,9 @@ async def create_transcode_profile(
     tool_name: str,
     parameters: str,
     output_format: str,
-    description: Optional[str] = None,
+    description: str | None = None,
 ) -> Entity:
-    """
-    Creates a new transcoding profile as a conceptual asset.
-    """
+    """Creates a new transcoding profile as a conceptual asset."""
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         # Check if profile with this name already exists
@@ -77,7 +74,7 @@ async def create_transcode_profile(
         # This uses the existing tag_functions
         try:
             tag_concept_name = "System:TranscodeProfile"
-            tag_concept_entity: Optional[Entity] = None
+            tag_concept_entity: Entity | None = None
             # Ensure the tag concept exists
             try:
                 tag_concept_entity = await tag_functions.get_tag_concept_by_name(session, tag_concept_name)
@@ -112,13 +109,11 @@ async def create_transcode_profile(
 
 
 async def get_transcode_profile_by_name_or_id(
-    world: World, profile_identifier: str | int, session: Optional[AsyncSession] = None
-) -> Tuple[Entity, TranscodeProfileComponent]:
-    """
-    Retrieves a transcode profile entity and its component by name or entity ID.
-    """
+    world: World, profile_identifier: str | int, session: AsyncSession | None = None
+) -> tuple[Entity, TranscodeProfileComponent]:
+    """Retrieves a transcode profile entity and its component by name or entity ID."""
 
-    async def _get(db_session: AsyncSession) -> Tuple[Entity, TranscodeProfileComponent]:
+    async def _get(db_session: AsyncSession) -> tuple[Entity, TranscodeProfileComponent]:
         if isinstance(profile_identifier, int):  # It's an entity ID
             stmt = (
                 select(Entity, TranscodeProfileComponent)
@@ -139,9 +134,8 @@ async def get_transcode_profile_by_name_or_id(
 
     if session:
         return await _get(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _get(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _get(tx.session)
 
 
 async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: AsyncSession) -> Path:
@@ -176,7 +170,7 @@ async def apply_transcode_profile(
     world: World,
     source_asset_entity_id: int,
     profile_entity_id: int,  # Can also be profile name, handled by get_transcode_profile
-    output_parent_dir: Optional[Path] = None,  # If None, use default temp/cache location from settings
+    output_parent_dir: Path | None = None,  # If None, use default temp/cache location from settings
 ) -> Entity:
     """
     Applies a transcoding profile to a source asset, creates a new asset for the
@@ -307,8 +301,8 @@ async def apply_transcode_profile(
 
 
 async def get_transcoded_variants_for_original(
-    world: World, original_asset_entity_id: int, session: Optional[AsyncSession] = None
-) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
+    world: World, original_asset_entity_id: int, session: AsyncSession | None = None
+) -> list[tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
     """
     Retrieves all transcoded variants for a given original asset entity.
     Returns a list of tuples: (transcoded_entity, variant_component, profile_component).
@@ -316,7 +310,7 @@ async def get_transcoded_variants_for_original(
 
     async def _get(
         db_session: AsyncSession,
-    ) -> list[Tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
+    ) -> list[tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
         stmt = (
             select(Entity, TranscodedVariantComponent, TranscodeProfileComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
@@ -331,20 +325,19 @@ async def get_transcoded_variants_for_original(
 
     if session:
         return await _get(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _get(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _get(tx.session)
 
 
 async def get_assets_using_profile(
-    world: World, profile_entity_id: int, session: Optional[AsyncSession] = None
-) -> list[Tuple[Entity, TranscodedVariantComponent]]:
+    world: World, profile_entity_id: int, session: AsyncSession | None = None
+) -> list[tuple[Entity, TranscodedVariantComponent]]:
     """
     Retrieves all assets that were transcoded using a specific profile.
     Returns a list of tuples: (transcoded_entity, variant_component).
     """
 
-    async def _get(db_session: AsyncSession) -> list[Tuple[Entity, TranscodedVariantComponent]]:
+    async def _get(db_session: AsyncSession) -> list[tuple[Entity, TranscodedVariantComponent]]:
         stmt = (
             select(Entity, TranscodedVariantComponent)
             .join(TranscodedVariantComponent, Entity.id == TranscodedVariantComponent.entity_id)
@@ -355,6 +348,5 @@ async def get_assets_using_profile(
 
     if session:
         return await _get(session)
-    else:
-        async with world.get_context(WorldTransaction)() as tx:
-            return await _get(tx.session)
+    async with world.get_context(WorldTransaction)() as tx:
+        return await _get(tx.session)

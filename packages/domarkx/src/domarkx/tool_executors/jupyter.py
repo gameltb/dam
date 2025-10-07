@@ -1,6 +1,7 @@
 import inspect
 import json
-from typing import Any, Callable, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 from autogen_core import CancellationToken
 from autogen_core.code_executor import CodeBlock, CodeExecutor

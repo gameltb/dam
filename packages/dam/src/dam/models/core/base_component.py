@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Any, List, Type
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 # List to hold all registered component types that inherit from BaseComponent.
 # This list will be populated automatically by BaseComponent.__init_subclass__
-REGISTERED_COMPONENT_TYPES: List[Type["Component"]] = []
+REGISTERED_COMPONENT_TYPES: list[type["Component"]] = []
 
 # Initialize logger for this module
 logger = logging.getLogger(__name__)
@@ -27,19 +27,17 @@ class Component(Base):
     entity_id: Mapped[int]
 
     @declared_attr
-    def entity(cls) -> Mapped["Entity"]:
+    def entity(self) -> Mapped["Entity"]:
         """Relationship to the parent (owning) Entity."""
         return relationship(
             "Entity",
-            foreign_keys=[cls.entity_id],  # type: ignore
+            foreign_keys=[self.entity_id],  # type: ignore
             repr=False,
             init=False,
         )
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """
-        Registers concrete component subclasses.
-        """
+        """Registers concrete component subclasses."""
         super().__init_subclass__(**kwargs)
         is_abstract = cls.__dict__.get("__abstract__", False)
         if not is_abstract:

@@ -1,6 +1,7 @@
 # pyright: basic
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any
 
 from dam.commands.core import BaseCommand
 from dam.core.enums import SystemType
@@ -11,30 +12,26 @@ from dam.models.core.base_component import BaseComponent
 
 @dataclass
 class SystemParameterInfo:
-    """
-    Holds metadata about a single parameter of a system function.
-    """
+    """Holds metadata about a single parameter of a system function."""
 
     name: str
     type_hint: Any
-    identity: Optional[Type[Any]]
-    marker_component_type: Optional[Type[BaseComponent]]
-    event_type_hint: Optional[Type[BaseEvent]]
-    command_type_hint: Optional[Type[BaseCommand[Any, Any]]]
+    identity: type[Any] | None
+    marker_component_type: type[BaseComponent] | None
+    event_type_hint: type[BaseEvent] | None
+    command_type_hint: type[BaseCommand[Any, Any]] | None
     is_annotated: bool
     original_annotation: Any
 
 
 @dataclass
 class SystemMetadata:
-    """
-    Holds metadata about a system function.
-    """
+    """Holds metadata about a system function."""
 
     func: Callable[..., Any]
-    params: Dict[str, SystemParameterInfo]
+    params: dict[str, SystemParameterInfo]
     is_async: bool
     system_type: SystemType
-    stage: Optional[SystemStage]
-    handles_command_type: Optional[Type[BaseCommand[Any, Any]]]
-    listens_for_event_type: Optional[Type[BaseEvent]]
+    stage: SystemStage | None
+    handles_command_type: type[BaseCommand[Any, Any]] | None
+    listens_for_event_type: type[BaseEvent] | None

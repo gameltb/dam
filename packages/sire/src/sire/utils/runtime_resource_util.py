@@ -19,8 +19,7 @@ def get_free_mem_size_cuda_pytorch(device: _device_t) -> int:
     mem_reserved = stats["reserved_bytes.all.current"]
     mem_free_cuda = get_free_mem_size_cuda(device)
     mem_free_torch = mem_reserved - mem_active
-    mem_free_total = mem_free_cuda + mem_free_torch
-    return mem_free_total
+    return mem_free_cuda + mem_free_torch
 
 
 def get_free_mem_size_cpu() -> int:

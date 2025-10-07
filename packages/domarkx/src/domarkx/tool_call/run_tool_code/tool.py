@@ -1,6 +1,7 @@
 import io
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from rich.console import Console
 
@@ -20,7 +21,7 @@ console = Console(file=console_output, soft_wrap=True)
 
 def register_tool(name: str) -> Callable[..., Any]:
     """
-    一个装饰器，用于注册一个函数作为可执行工具。
+    一个装饰器，用于注册一个函数作为可执行工具。.
 
     参数:
         name (str): 工具的名称（对应于XML标签名）。
@@ -37,7 +38,7 @@ def execute_tool_call(
     tool_call: dict[str, Any], return_traceback: bool = False, handle_exception: bool = True
 ) -> tuple[Any, str]:
     """
-    执行一个解析出的工具调用。
+    执行一个解析出的工具调用。.
 
     参数:
         tool_call (dict): 由 parse_tool_calls 返回的单个工具调用字典。
@@ -87,9 +88,7 @@ def execute_tool_call(
 
 
 def format_assistant_response(tool_name: str, tool_result: str) -> str:
-    """
-    将工具执行结果格式化为助手的完整回复。
-    """
+    """将工具执行结果格式化为助手的完整回复。."""
     return f'<tool_output tool_name="{tool_name}">\n{tool_result}\n</tool_output>'
 
 

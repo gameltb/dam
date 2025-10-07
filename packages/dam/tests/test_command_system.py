@@ -1,5 +1,6 @@
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Annotated, AsyncGenerator
+from typing import Annotated
 
 import pytest
 from _pytest.logging import LogCaptureFixture

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from ..core.types import StreamProvider
 from ..models.core.entity import Entity
@@ -8,7 +8,7 @@ from .core import BaseCommand, EntityCommand
 
 
 @dataclass
-class GetOrCreateEntityFromStreamCommand(BaseCommand[Tuple[Entity, bytes], BaseSystemEvent]):
+class GetOrCreateEntityFromStreamCommand(BaseCommand[tuple[Entity, bytes], BaseSystemEvent]):
     """
     A command to get or create an entity from a stream.
     Returns a tuple of the entity and the calculated sha256 hash.
@@ -33,36 +33,28 @@ class GetAssetStreamCommand(BaseCommand[Optional[StreamProvider], BaseSystemEven
 
 @dataclass
 class SetMimeTypeCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to set the mime type for an asset.
-    """
+    """A command to set the mime type for an asset."""
 
     mime_type: str
 
 
 @dataclass
 class CheckContentMimeTypeCommand(EntityCommand[bool, BaseSystemEvent]):
-    """
-    A command to check if an entity has a content mime type.
-    """
+    """A command to check if an entity has a content mime type."""
 
     pass
 
 
 @dataclass
 class RemoveContentMimeTypeCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to remove the content mime type from an entity.
-    """
+    """A command to remove the content mime type from an entity."""
 
     pass
 
 
 @dataclass
 class SetMimeTypeFromBufferCommand(BaseCommand[None, BaseSystemEvent]):
-    """
-    A command to set the mime type for an asset from a buffer.
-    """
+    """A command to set the mime type for an asset from a buffer."""
 
     entity_id: int
     buffer: bytes
@@ -70,27 +62,21 @@ class SetMimeTypeFromBufferCommand(BaseCommand[None, BaseSystemEvent]):
 
 @dataclass
 class GetMimeTypeCommand(EntityCommand[str | None, BaseSystemEvent]):
-    """
-    A command to get the mime type for an asset.
-    """
+    """A command to get the mime type for an asset."""
 
     pass
 
 
 @dataclass
 class GetAssetMetadataCommand(EntityCommand[dict[str, Any], BaseSystemEvent]):
-    """
-    A command to get the metadata for an asset.
-    """
+    """A command to get the metadata for an asset."""
 
     pass
 
 
 @dataclass
 class UpdateAssetMetadataCommand(EntityCommand[None, BaseSystemEvent]):
-    """
-    A command to update the metadata for an asset.
-    """
+    """A command to update the metadata for an asset."""
 
     metadata: dict[str, Any]
 

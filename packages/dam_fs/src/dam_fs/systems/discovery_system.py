@@ -1,7 +1,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import unquote, urlparse
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
@@ -18,10 +17,8 @@ logger = logging.getLogger(__name__)
 async def discover_fs_path_siblings_handler(
     cmd: DiscoverPathSiblingsCommand,
     transaction: WorldTransaction,
-) -> Optional[List[PathSibling]]:
-    """
-    Handles discovering path-based sibling entities for an entity located on the filesystem.
-    """
+) -> list[PathSibling] | None:
+    """Handles discovering path-based sibling entities for an entity located on the filesystem."""
     logger.debug(f"discover_fs_path_siblings_handler running for entity {cmd.entity_id}")
 
     # 1. Get the FileLocationComponent for the starting entity
@@ -52,7 +49,7 @@ async def discover_fs_path_siblings_handler(
     all_candidates = result.scalars().all()
 
     # 4. Filter to include only direct children of the directory
-    siblings: List[PathSibling] = []
+    siblings: list[PathSibling] = []
     for component in all_candidates:
         if not component.url:
             continue

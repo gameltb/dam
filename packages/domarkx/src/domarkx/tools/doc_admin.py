@@ -22,6 +22,7 @@ def rename_session(old_name: str, new_name: str, project_path: str | None = None
 
     Raises:
         FileNotFoundError: If the old session file does not exist.
+
     """
     if project_path is None:
         project_path = settings.project_path
@@ -59,6 +60,7 @@ def update_session_metadata(session_name: str, metadata: dict[str, Any], project
 
     Raises:
         FileNotFoundError: If the session file does not exist.
+
     """
     if project_path is None:
         project_path = settings.project_path
@@ -96,6 +98,7 @@ def summarize_conversation(session_name: str, project_path: str | None = None) -
 
     Returns:
         str: Message indicating the summarization request was sent.
+
     """
     summarizer_session_name = f"summarizer-for-{session_name}"
     create_session(

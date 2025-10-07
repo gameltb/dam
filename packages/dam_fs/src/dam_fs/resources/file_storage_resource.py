@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from dam.core.config import WorldConfig
 
@@ -15,7 +14,7 @@ class FileStorageResource:
     def __init__(self, world_config: WorldConfig):
         self.world_config = world_config
 
-    def store_file(self, file_content: bytes, original_filename: Optional[str] = None) -> tuple[str, str]:
+    def store_file(self, file_content: bytes, original_filename: str | None = None) -> tuple[str, str]:
         """
         Stores file content in this world's configured storage.
         Delegates to `file_storage.store_file`.
@@ -24,7 +23,7 @@ class FileStorageResource:
             file_content=file_content, world_config=self.world_config, original_filename=original_filename
         )
 
-    def get_file_path(self, file_identifier: str) -> Optional[Path]:
+    def get_file_path(self, file_identifier: str) -> Path | None:
         """
         Gets the path to a file in this world's configured storage.
         Delegates to `file_storage.get_file_path`.
@@ -32,9 +31,7 @@ class FileStorageResource:
         return file_storage.get_file_path(file_identifier=file_identifier, world_config=self.world_config)
 
     def has_file(self, file_identifier: str) -> bool:
-        """
-        Checks if a file exists in this world's configured storage.
-        """
+        """Checks if a file exists in this world's configured storage."""
         return file_storage.has_file(file_identifier=file_identifier, world_config=self.world_config)
 
     def delete_file(self, file_identifier: str) -> bool:
@@ -45,7 +42,5 @@ class FileStorageResource:
         return file_storage.delete_file(file_identifier=file_identifier, world_config=self.world_config)
 
     def get_world_asset_storage_path(self) -> Path:
-        """
-        Returns the root asset storage path for the current world.
-        """
+        """Returns the root asset storage path for the current world."""
         return Path(self.world_config.ASSET_STORAGE_PATH)

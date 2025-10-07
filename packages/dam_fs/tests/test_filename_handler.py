@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,12 +10,10 @@ from dam_fs.systems.asset_lifecycle_systems import get_fs_asset_filenames_handle
 
 @pytest.mark.asyncio
 async def test_get_fs_asset_filenames_handler_with_filename() -> None:
-    """
-    Tests that the handler returns the filename when a FilenameComponent exists.
-    """
+    """Tests that the handler returns the filename when a FilenameComponent exists."""
     entity_id = 1
     filename = "test.jpg"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     mock_transaction = AsyncMock()
     mock_transaction.get_components.return_value = [FilenameComponent(filename=filename, first_seen_at=now)]
@@ -30,9 +28,7 @@ async def test_get_fs_asset_filenames_handler_with_filename() -> None:
 
 @pytest.mark.asyncio
 async def test_get_fs_asset_filenames_handler_no_component() -> None:
-    """
-    Tests that the handler returns None when no FilenameComponent exists.
-    """
+    """Tests that the handler returns None when no FilenameComponent exists."""
     entity_id = 1
 
     mock_transaction = AsyncMock()
@@ -48,11 +44,9 @@ async def test_get_fs_asset_filenames_handler_no_component() -> None:
 
 @pytest.mark.asyncio
 async def test_get_fs_asset_filenames_handler_no_filename() -> None:
-    """
-    Tests that the handler returns an empty list when the component exists but has no filename.
-    """
+    """Tests that the handler returns an empty list when the component exists but has no filename."""
     entity_id = 1
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     mock_transaction = AsyncMock()
     mock_transaction.get_components.return_value = [FilenameComponent(filename=None, first_seen_at=now)]

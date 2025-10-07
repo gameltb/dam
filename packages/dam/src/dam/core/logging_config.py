@@ -15,6 +15,7 @@ def setup_logging(level: int | str | None = None) -> None:
                a string (e.g., "INFO"), or None. If None, it tries to get
                the level from the DAM_LOG_LEVEL environment variable,
                defaulting to DEFAULT_LOG_LEVEL.
+
     """
     if level is None:
         env_level = os.environ.get("DAM_LOG_LEVEL", "").upper()

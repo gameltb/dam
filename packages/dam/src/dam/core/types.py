@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator, BinaryIO, Callable, Optional
+from typing import BinaryIO
 
 
 class StreamProvider(ABC):
@@ -22,7 +23,7 @@ class StreamProvider(ABC):
         if False:
             yield
 
-    def get_path(self) -> Optional[Path]:
+    def get_path(self) -> Path | None:
         """
         Returns the path to the file, if available.
 
@@ -33,9 +34,7 @@ class StreamProvider(ABC):
 
 
 class CallableStreamProvider(StreamProvider):
-    """
-    A stream provider that wraps a callable.
-    """
+    """A stream provider that wraps a callable."""
 
     def __init__(self, stream_factory: Callable[[], BinaryIO]):
         self._stream_factory = stream_factory
@@ -50,9 +49,7 @@ class CallableStreamProvider(StreamProvider):
 
 
 class FileStreamProvider(StreamProvider):
-    """
-    A stream provider that wraps a file path.
-    """
+    """A stream provider that wraps a file path."""
 
     def __init__(self, path: Path):
         self._path = path
@@ -62,5 +59,5 @@ class FileStreamProvider(StreamProvider):
         with self._path.open("rb") as stream:
             yield stream
 
-    def get_path(self) -> Optional[Path]:
+    def get_path(self) -> Path | None:
         return self._path

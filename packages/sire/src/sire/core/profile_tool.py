@@ -11,16 +11,10 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from typing import (
     Any,
-    DefaultDict,
-    Dict,
-    List,
-    Optional,
-    Tuple,
     cast,
 )
 
 import torch
-import torch.nn as nn
 from accelerate import dispatch_model  # type: ignore
 from accelerate.hooks import (
     ModelHook,
@@ -30,6 +24,7 @@ from accelerate.hooks import (
 from accelerate.utils import (
     find_device,  # type: ignore
 )
+from torch import nn
 
 from ..utils import human_readable_filesize
 from ..utils.hook_manager import HookManager
@@ -55,7 +50,7 @@ class InferenceMemorySizeCSVPoint:
     model_dtype: str = ""
 
 
-def csv_dump(objects: List[Any], filename: str):
+def csv_dump(objects: list[Any], filename: str):
     with open(filename, "w") as f:
         flds = [fld.name for fld in fields(objects[0])]
         w = csv.DictWriter(f, flds)
@@ -63,8 +58,8 @@ def csv_dump(objects: List[Any], filename: str):
         w.writerows([asdict(object) for object in objects])
 
 
-def csv_load(object_cls: type, filename: str) -> List[Any]:
-    with open(filename, "r") as f:
+def csv_load(object_cls: type, filename: str) -> list[Any]:
+    with open(filename) as f:
         results = csv.DictReader(f)
         return [object_cls(**result) for result in results]
 
@@ -106,7 +101,7 @@ def record_cuda_memory_history():  # type: ignore
 
 
 @contextlib.contextmanager
-def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
+def memory_stats(kwargs: dict[str, Any] | None = None):
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
     # When dynamic weights are not involved, we can use this simple method to determine how much memory we need.
     # When the weights are only transferred when needed,
@@ -154,18 +149,15 @@ def memory_stats(kwargs: Optional[Dict[str, Any]] = None):
                 point.model_dtype = str(model.model_dtype())
 
         csv_path = os.path.join(PROF_OUT_DIR, "inference_memory_size.csv")
-        if os.path.exists(csv_path):
-            points = csv_load(InferenceMemorySizeCSVPoint, csv_path)
-        else:
-            points = []
+        points = csv_load(InferenceMemorySizeCSVPoint, csv_path) if os.path.exists(csv_path) else []
         points.append(point)
         csv_dump(points, csv_path)
 
 
 @dataclass
 class ModuleStats:
-    exec_times: List[float] = field(default_factory=list)  # type: ignore
-    peak_vram_usages: List[int] = field(default_factory=list)  # type: ignore
+    exec_times: list[float] = field(default_factory=list)  # type: ignore
+    peak_vram_usages: list[int] = field(default_factory=list)  # type: ignore
     weight_size: int = 0
 
 
@@ -181,24 +173,24 @@ class AverageModuleStats:
 
 @dataclass
 class AverageProfilingStats:
-    avg_module_stats: Dict[str, AverageModuleStats] = field(default_factory=dict)  # type: ignore
-    avg_move_times: Dict[str, float] = field(default_factory=dict)  # type: ignore
-    execution_order: List[str] = field(default_factory=list)  # type: ignore
-    module_vram_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
+    avg_module_stats: dict[str, AverageModuleStats] = field(default_factory=dict)  # type: ignore
+    avg_move_times: dict[str, float] = field(default_factory=dict)  # type: ignore
+    execution_order: list[str] = field(default_factory=list)  # type: ignore
+    module_vram_footprint: dict[str, int] = field(default_factory=dict)  # type: ignore
 
 
 @dataclass
 class ProfilingData:
-    module_stats: DefaultDict[str, ModuleStats] = field(default_factory=lambda: defaultdict(ModuleStats))
-    move_times: DefaultDict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
-    execution_order: List[str] = field(default_factory=list)  # type: ignore
-    module_VRAM_footprint: Dict[str, int] = field(default_factory=dict)  # type: ignore
+    module_stats: defaultdict[str, ModuleStats] = field(default_factory=lambda: defaultdict(ModuleStats))
+    move_times: defaultdict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+    execution_order: list[str] = field(default_factory=list)  # type: ignore
+    module_VRAM_footprint: dict[str, int] = field(default_factory=dict)  # type: ignore
 
     def __post_init__(self):
         self.module_stats = defaultdict(ModuleStats, self.module_stats or {})
         self.move_times = defaultdict(list, self.move_times or {})
 
-    def record_execution(self, name: str, exec_time: Optional[float], peak_vram_delta: Optional[int]):
+    def record_execution(self, name: str, exec_time: float | None, peak_vram_delta: int | None):
         if name not in self.execution_order:
             self.execution_order.append(name)
         stats_entry = self.module_stats[name]
@@ -254,7 +246,7 @@ class ProfilingData:
 
 
 # --- Profiler Internals ---
-_current_profiling_data_global: Optional[ProfilingData] = None
+_current_profiling_data_global: ProfilingData | None = None
 _profiling_enabled_global: bool = False
 
 
@@ -288,12 +280,12 @@ def get_module_size(module: nn.Module, include_children: bool = True) -> int:
 
 def infer_fine_grained_device_map(
     model: nn.Module,
-    max_memory: Optional[Dict[str, int]],  # keys are str
-    no_split: Optional[List[str]],
+    max_memory: dict[str, int] | None,  # keys are str
+    no_split: list[str] | None,
     verbose: bool,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     no_split = no_split or []
-    dev_map: Dict[str, str] = {}
+    dev_map: dict[str, str] = {}
     frozen: set[str] = set()
     default_dev = "cpu"
     if max_memory:
@@ -340,8 +332,8 @@ class Profiler:
     def run(
         self,
         *args: Any,
-        no_split_module_classes: Optional[List[str]] = None,
-        max_memory: Optional[Dict[str, int]] = None,
+        no_split_module_classes: list[str] | None = None,
+        max_memory: dict[str, int] | None = None,
         **kwargs: Any,
     ) -> ProfilingData:
         """
@@ -358,6 +350,7 @@ class Profiler:
 
         Returns:
             A ProfilingData object containing the collected statistics.
+
         """
         _logger.info("=" * 20 + " Profiling Session Start " + "=" * 20)
         prof_data = ProfilingData()
@@ -408,10 +401,10 @@ class Profiler:
 class ProfilerHook(ModelHook):
     def __init__(self, module_name: str):
         super().__init__()
-        self.module_timing_events: Dict[int, Tuple[torch.cuda.Event, torch.cuda.Event]] = {}
-        self.module_start_vram_max: Dict[int, int] = {}
+        self.module_timing_events: dict[int, tuple[torch.cuda.Event, torch.cuda.Event]] = {}
+        self.module_start_vram_max: dict[int, int] = {}
         self.module_name = module_name
-        self.module: Optional[nn.Module] = None
+        self.module: nn.Module | None = None
 
     def pre_forward(self, module: nn.Module, *args: Any, **kwargs: Any) -> tuple[Any, Any]:
         if not (_profiling_enabled_global and _current_profiling_data_global):

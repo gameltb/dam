@@ -4,7 +4,8 @@ import inspect
 import io
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from autogen_core.tools import FunctionTool
 from rich.console import Console
@@ -18,7 +19,7 @@ class ToolError(Exception):
     """Custom exception for tool-related errors."""
 
     def __init__(
-        self, message: str, original_exception: Optional[Exception] = None, captured_logs_str: str = ""
+        self, message: str, original_exception: Exception | None = None, captured_logs_str: str = ""
     ) -> None:
         super().__init__(message)
         self.original_exception = original_exception
@@ -97,14 +98,12 @@ An error occurred in tool '{func.__name__}':
 
 class ToolFactory:
     def __init__(self) -> None:
-        self._tool_registry: Dict[str, Callable[..., Any]] = {}
-        self._tool_registry_unwrapped: Dict[str, Callable[..., Any]] = {}
+        self._tool_registry: dict[str, Callable[..., Any]] = {}
+        self._tool_registry_unwrapped: dict[str, Callable[..., Any]] = {}
         self._discover_and_register_tools()
 
     def _discover_and_register_tools(self) -> None:
-        """
-        Dynamically discovers and registers tools from the 'portable_tools' directory.
-        """
+        """Dynamically discovers and registers tools from the 'portable_tools' directory."""
         portable_tools_path = os.path.join(os.path.dirname(__file__), "portable_tools")
         for root, _, files in os.walk(portable_tools_path):
             for file in files:
@@ -115,7 +114,7 @@ class ToolFactory:
                     )
                     module = importlib.import_module(f"domarkx.tools.portable_tools.{module_name}")
 
-                    with open(module_path, "r") as f:
+                    with open(module_path) as f:
                         module_source = f.read()
 
                     for attribute_name, attribute in inspect.getmembers(module, inspect.isfunction):
@@ -126,22 +125,16 @@ class ToolFactory:
                             self._tool_registry[attribute_name] = wrapped_tool
 
     def get_tool(self, name: str) -> Callable[..., Any]:
-        """
-        Retrieves a tool from the registry by its name.
-        """
+        """Retrieves a tool from the registry by its name."""
         return self._tool_registry[name]
 
     def get_unwrapped_tool(self, name: str) -> Callable[..., Any]:
-        """
-        Retrieves an unwrapped tool from the registry by its name.
-        """
+        """Retrieves an unwrapped tool from the registry by its name."""
         return self._tool_registry_unwrapped[name]
 
-    def list_tools(self) -> List[Dict[str, Optional[str]]]:
-        """
-        Lists all available tool functions registered in the tool registry.
-        """
-        tool_infos: List[Dict[str, Optional[str]]] = []
+    def list_tools(self) -> list[dict[str, str | None]]:
+        """Lists all available tool functions registered in the tool registry."""
+        tool_infos: list[dict[str, str | None]] = []
         for name, func in self._tool_registry.items():
             tool_infos.append(
                 {
@@ -152,14 +145,12 @@ class ToolFactory:
             )
         return tool_infos
 
-    def wrap_function(self, func: Callable[..., Any], executor: Optional[Any] = None) -> FunctionTool:
-        """
-        Wraps a given function to be used as a tool, with an optional executor.
-        """
+    def wrap_function(self, func: Callable[..., Any], executor: Any | None = None) -> FunctionTool:
+        """Wraps a given function to be used as a tool, with an optional executor."""
         wrapped_func = tool_handler()(func)
 
         class DynamicToolWrapper(FunctionTool):
-            def __init__(self, tool_func: Callable[..., Any], tool_executor: Optional[Any], **kwargs: Any) -> None:
+            def __init__(self, tool_func: Callable[..., Any], tool_executor: Any | None, **kwargs: Any) -> None:
                 description = inspect.getdoc(tool_func) or ""
                 super().__init__(tool_func, description=description, **kwargs)
                 self.executor = tool_executor
@@ -181,14 +172,12 @@ class ToolFactory:
 
         return DynamicToolWrapper(tool_func=wrapped_func, tool_executor=executor)
 
-    def create_tool_from_string(self, code: str, executor: Optional[Any] = None) -> FunctionTool:
-        """
-        Creates a tool from a string of Python code.
-        """
+    def create_tool_from_string(self, code: str, executor: Any | None = None) -> FunctionTool:
+        """Creates a tool from a string of Python code."""
         local_namespace: dict[str, Any] = {}
         execute_code_block(code, global_vars=globals(), local_vars=local_namespace)
 
-        func_name = [name for name, obj in local_namespace.items() if inspect.isfunction(obj)][0]
+        func_name = next(name for name, obj in local_namespace.items() if inspect.isfunction(obj))
         func = local_namespace[func_name]
 
         # Attach the source code to the function object

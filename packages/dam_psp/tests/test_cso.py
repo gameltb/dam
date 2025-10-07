@@ -36,60 +36,59 @@ def create_dummy_iso(filepath: Path, size_in_mb: int):
 
 def compress_iso(infile: Path, outfile: Path):
     """Compresses an ISO file to the CSO format."""
-    with open(outfile, "wb") as fout:
-        with open(infile, "rb") as fin:
-            fin.seek(0, os.SEEK_END)
-            file_size = fin.tell()
-            fin.seek(0, os.SEEK_SET)
+    with open(outfile, "wb") as fout, open(infile, "rb") as fin:
+        fin.seek(0, os.SEEK_END)
+        file_size = fin.tell()
+        fin.seek(0, os.SEEK_SET)
 
-            ciso = {
-                "magic": CISO_MAGIC,
-                "ver": 1,
-                "block_size": CISO_BLOCK_SIZE,
-                "total_bytes": file_size,
-                "total_blocks": file_size // CISO_BLOCK_SIZE,
-                "align": 0,
-            }
+        ciso = {
+            "magic": CISO_MAGIC,
+            "ver": 1,
+            "block_size": CISO_BLOCK_SIZE,
+            "total_bytes": file_size,
+            "total_blocks": file_size // CISO_BLOCK_SIZE,
+            "align": 0,
+        }
 
-            fout.write(
-                struct.pack(
-                    CISO_HEADER_FMT,
-                    ciso["magic"],
-                    CISO_HEADER_SIZE,
-                    ciso["total_bytes"],
-                    ciso["block_size"],
-                    ciso["ver"],
-                    ciso["align"],
-                )
+        fout.write(
+            struct.pack(
+                CISO_HEADER_FMT,
+                ciso["magic"],
+                CISO_HEADER_SIZE,
+                ciso["total_bytes"],
+                ciso["block_size"],
+                ciso["ver"],
+                ciso["align"],
             )
+        )
 
-            block_index = [0] * (ciso["total_blocks"] + 1)
-            for _ in range(ciso["total_blocks"] + 1):
-                fout.write(struct.pack("<I", 0))
+        block_index = [0] * (ciso["total_blocks"] + 1)
+        for _ in range(ciso["total_blocks"] + 1):
+            fout.write(struct.pack("<I", 0))
 
-            write_pos = fout.tell()
+        write_pos = fout.tell()
 
-            for block in range(ciso["total_blocks"]):
-                block_index[block] = write_pos >> ciso["align"]
-                raw_data = fin.read(ciso["block_size"])
+        for block in range(ciso["total_blocks"]):
+            block_index[block] = write_pos >> ciso["align"]
+            raw_data = fin.read(ciso["block_size"])
 
-                compress_obj = zlib.compressobj(level=9, wbits=-15)
-                compressed_data = compress_obj.compress(raw_data) + compress_obj.flush()
+            compress_obj = zlib.compressobj(level=9, wbits=-15)
+            compressed_data = compress_obj.compress(raw_data) + compress_obj.flush()
 
-                if len(compressed_data) >= len(raw_data):
-                    block_index[block] |= 0x80000000
-                    writable_data = raw_data
-                else:
-                    writable_data = compressed_data
+            if len(compressed_data) >= len(raw_data):
+                block_index[block] |= 0x80000000
+                writable_data = raw_data
+            else:
+                writable_data = compressed_data
 
-                fout.write(writable_data)
-                write_pos += len(writable_data)
+            fout.write(writable_data)
+            write_pos += len(writable_data)
 
-            block_index[ciso["total_blocks"]] = write_pos >> ciso["align"]
+        block_index[ciso["total_blocks"]] = write_pos >> ciso["align"]
 
-            fout.seek(CISO_HEADER_SIZE)
-            for index_val in block_index:
-                fout.write(struct.pack("<I", index_val))
+        fout.seek(CISO_HEADER_SIZE)
+        for index_val in block_index:
+            fout.write(struct.pack("<I", index_val))
 
 
 @pytest.fixture
@@ -103,9 +102,7 @@ def cso_test_files(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def test_cso_decompressor(cso_test_files: tuple[Path, Path]):
-    """
-    Tests that the CsoDecompressor correctly decompresses a CSO file.
-    """
+    """Tests that the CsoDecompressor correctly decompresses a CSO file."""
     iso_path, cso_path = cso_test_files
     iso_content = iso_path.read_bytes()
     with open(cso_path, "rb") as f:
@@ -117,9 +114,7 @@ def test_cso_decompressor(cso_test_files: tuple[Path, Path]):
 
 
 def test_cso_decompressor_seek_and_read(cso_test_files: tuple[Path, Path]):
-    """
-    Tests that seeking and reading from the decompressor works correctly.
-    """
+    """Tests that seeking and reading from the decompressor works correctly."""
     iso_path, cso_path = cso_test_files
     iso_content = iso_path.read_bytes()
     with open(cso_path, "rb") as f:
@@ -141,9 +136,7 @@ def test_cso_decompressor_seek_and_read(cso_test_files: tuple[Path, Path]):
 
 @pytest.mark.asyncio
 async def test_ingest_cso_handler_system(mocker: MockerFixture, cso_test_files: tuple[Path, Path]):
-    """
-    Tests the ingest_cso_handler system using mocks.
-    """
+    """Tests the ingest_cso_handler system using mocks."""
     # 1. Setup
     cso_entity_id = 1
     virtual_iso_entity_id = 2

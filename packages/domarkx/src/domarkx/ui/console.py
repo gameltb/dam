@@ -2,8 +2,9 @@ import asyncio
 import os
 import sys
 import time
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from inspect import iscoroutinefunction
-from typing import AsyncGenerator, Awaitable, Callable, Dict, List, Optional, TypeVar, Union, cast
+from typing import TypeVar, Union, cast
 
 from autogen_agentchat.agents import UserProxyAgent
 from autogen_agentchat.base import Response, TaskResult
@@ -34,7 +35,7 @@ def _is_output_a_tty() -> bool:
 
 
 SyncInputFunc = Callable[[str], str]
-AsyncInputFunc = Callable[[str, Optional[CancellationToken]], Awaitable[str]]
+AsyncInputFunc = Callable[[str, CancellationToken | None], Awaitable[str]]
 InputFuncType = Union[SyncInputFunc, AsyncInputFunc]
 
 T = TypeVar("T", bound=TaskResult | Response)
@@ -42,11 +43,11 @@ T = TypeVar("T", bound=TaskResult | Response)
 
 class UserInputManager:
     def __init__(self, callback: InputFuncType):
-        self.input_events: Dict[str, asyncio.Event] = {}
+        self.input_events: dict[str, asyncio.Event] = {}
         self.callback = callback
 
     def get_wrapped_callback(self) -> AsyncInputFunc:
-        async def user_input_func_wrapper(prompt: str, cancellation_token: Optional[CancellationToken]) -> str:
+        async def user_input_func_wrapper(prompt: str, cancellation_token: CancellationToken | None) -> str:
             # Lookup the event for the prompt, if it exists wait for it.
             # If it doesn't exist, create it and store it.
             # Get request ID:
@@ -88,14 +89,14 @@ def ainput(prompt: str) -> Awaitable[str]:
     return asyncio.to_thread(input, prompt)
 
 
-async def Console(
+async def Console[T: TaskResult | Response](
     stream: AsyncGenerator[BaseAgentEvent | BaseChatMessage | T, None],
     *,
     no_inline_images: bool = False,
     output_stats: bool = False,
     user_input_manager: UserInputManager | None = None,
     exit_after_one_toolcall: bool = False,
-) -> Optional[T]:
+) -> T | None:
     """
     Consumes the message stream from :meth:`~autogen_agentchat.base.TaskRunner.run_stream`
     or :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream` and renders the messages to the console.
@@ -115,14 +116,15 @@ async def Console(
     Returns:
         last_processed: A :class:`~autogen_agentchat.base.TaskResult` if the stream is from :meth:`~autogen_agentchat.base.TaskRunner.run_stream`
             or a :class:`~autogen_agentchat.base.Response` if the stream is from :meth:`~autogen_agentchat.base.ChatAgent.on_messages_stream`.
+
     """
     render_image_iterm = _is_running_in_iterm() and _is_output_a_tty() and not no_inline_images
     start_time = time.time()
     total_usage = RequestUsage(prompt_tokens=0, completion_tokens=0)
 
-    last_processed: Optional[T] = None
+    last_processed: T | None = None
 
-    streaming_chunks: List[str] = []
+    streaming_chunks: list[str] = []
 
     async for message in stream:
         if isinstance(message, TaskResult):
@@ -159,10 +161,7 @@ async def Console(
 
             # Print summary.
             if output_stats:
-                if message.inner_messages is not None:
-                    num_inner_messages = len(message.inner_messages)
-                else:
-                    num_inner_messages = 0
+                num_inner_messages = len(message.inner_messages) if message.inner_messages is not None else 0
                 output = (
                     f"{'-' * 10} Summary {'-' * 10}\n"
                     f"Number of inner messages: {num_inner_messages}\n"
@@ -210,10 +209,9 @@ async def Console(
                 if not exit_after_one_toolcall and isinstance(message, ToolCallRequestEvent):
                     user_input = await PromptSession[str]().prompt_async("ToolCallRequestEvent > ")
                     user_input = user_input.strip().lower()
-                    if len(user_input) != 0 and user_input != "d" and user_input != "do":
+                    if len(user_input) != 0 and user_input not in {"d", "do"}:
                         return last_processed
-                if isinstance(message, ToolCallSummaryMessage):
-                    if exit_after_one_toolcall:
-                        return last_processed
+                if isinstance(message, ToolCallSummaryMessage) and exit_after_one_toolcall:
+                    return last_processed
 
     return last_processed

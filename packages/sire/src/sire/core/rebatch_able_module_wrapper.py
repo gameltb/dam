@@ -2,7 +2,7 @@
 # wrapper to module have pacth module, make it run and can be export to onnx.
 from collections import OrderedDict
 from functools import reduce
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 import torch
 
@@ -12,11 +12,11 @@ class PatchModuleKwargsHook:
     """"""
 
     def __init__(self) -> None:
-        self.ext_kwargs: Dict[str, Any] = {}
+        self.ext_kwargs: dict[str, Any] = {}
 
     def __call__(
-        self, module: torch.nn.Module, args: Tuple[Any, ...], kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        self, module: torch.nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         kwargs.update(self.ext_kwargs)
         return (args, kwargs)
 
@@ -52,8 +52,9 @@ class RebatchAbleModuleWrapper(torch.nn.Module):
 
 
 # https://discuss.pytorch.org/t/how-to-access-to-a-layer-by-module-name/83797
-def get_module_by_name(module: Union[torch.Tensor, torch.nn.Module], access_string: str):
-    """Retrieve a module nested in another by its access string.
+def get_module_by_name(module: torch.Tensor | torch.nn.Module, access_string: str):
+    """
+    Retrieve a module nested in another by its access string.
 
     Works even when there is a Sequential in the module.
     """

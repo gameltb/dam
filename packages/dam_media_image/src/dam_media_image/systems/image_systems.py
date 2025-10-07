@@ -1,6 +1,6 @@
 import io
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiofiles
 from dam.core.systems import system
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: WorldTransaction,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     logger.info(f"System handling FindSimilarImagesCommand for image: {cmd.image_path} (Req ID: {cmd.request_id})")
 
     try:
@@ -155,15 +155,14 @@ async def handle_find_similar_images_command(
                 except Exception as e_cmp:
                     logger.warning(f"Error comparing dHash for entity {d_comp.entity_id}: {e_cmp}")
 
-        final_matches_map: Dict[int, Dict[str, Any]] = {}
+        final_matches_map: dict[int, dict[str, Any]] = {}
         for match in potential_matches:
             entity_id = match["entity_id"]
-            if isinstance(entity_id, int):
-                if entity_id not in final_matches_map or (
-                    match["distance"] is not None
-                    and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
-                ):
-                    final_matches_map[entity_id] = match
+            if isinstance(entity_id, int) and (entity_id not in final_matches_map or (
+                match["distance"] is not None
+                and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
+            )):
+                final_matches_map[entity_id] = match
 
         similar_entities_info = list(final_matches_map.values())
         similar_entities_info.sort(key=lambda x: (x["distance"], x["entity_id"]))
@@ -187,9 +186,7 @@ async def process_image_metadata_system(
     transaction: WorldTransaction,
     world: World,
 ) -> None:
-    """
-    Listens for an image asset being detected and extracts its metadata.
-    """
+    """Listens for an image asset being detected and extracts its metadata."""
     logger.info(f"Processing image metadata for entity {event.entity.id}")
 
     try:

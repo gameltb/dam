@@ -1,4 +1,4 @@
-from typing import Any, List, Union
+from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -46,12 +46,12 @@ class MockSentenceTransformer(torch.nn.Module):
         return features
 
     def encode(
-        self, sentences: Union[str, List[str]], convert_to_numpy: bool = True, **kwargs: Any
-    ) -> Union[np.ndarray, List[Any]]:
+        self, sentences: str | list[str], convert_to_numpy: bool = True, **kwargs: Any
+    ) -> np.ndarray | list[Any]:
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
-        embeddings: List[np.ndarray] = []
+        embeddings: list[np.ndarray] = []
         for s in sentences:
             if not s or not s.strip():
                 embeddings.append(np.zeros(self.dim, dtype=np.float32))
@@ -72,14 +72,13 @@ class MockSentenceTransformer(torch.nn.Module):
                 vec = np.array([], dtype=np.float32)
             embeddings.append(vec)
         if not convert_to_numpy:
-            embeddings_list: List[Any] = [e.tolist() for e in embeddings]
+            embeddings_list: list[Any] = [e.tolist() for e in embeddings]
             if original_sentences_type is str:
                 return embeddings_list[0] if embeddings_list else []
             return embeddings_list
         if original_sentences_type is str:
             return embeddings[0] if embeddings else np.array([])
-        else:
-            return np.array(embeddings)
+        return np.array(embeddings)
 
 
 @pytest.mark.asyncio
@@ -88,12 +87,12 @@ async def test_generate_embedding_and_conversion(monkeypatch: pytest.MonkeyPatch
 
     async def mock_generate_embedding(
         sire_resource: SireResource, text: str, model_name: str, params: Any
-    ) -> Union[np.ndarray, None]:
+    ) -> np.ndarray | None:
         if not text or not text.strip():
             return None
         if model_name == TEST_MODEL_MINILM:
             return np.random.rand(384)
-        elif model_name == TEST_MODEL_CLIP:
+        if model_name == TEST_MODEL_CLIP:
             return np.random.rand(512)
         return None
 

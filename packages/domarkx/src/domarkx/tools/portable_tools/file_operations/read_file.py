@@ -1,11 +1,10 @@
 import glob
 import logging
 import os
-from typing import List, Optional, Union
 
 
 def tool_read_file(
-    path: Union[str, List[str]], start_line: Optional[int] = None, end_line: Optional[int] = None
+    path: str | list[str], start_line: int | None = None, end_line: int | None = None
 ) -> str:
     """
     Read the content of the specified file path. Supports reading partial content by specifying `start_line` and `end_line`.
@@ -29,12 +28,13 @@ def tool_read_file(
         ValueError: If line range is invalid.
         IOError: If file read/write error occurs.
         Exception: For other unexpected errors.
+
     """
     start_line = int(start_line) if start_line else None
     end_line = int(end_line) if end_line else None
     logging.info(f"Attempting to read file: '{path}'. Start line: {start_line}, End line: {end_line}.")
 
-    def _read_single_file(file_path: str, s_line: Optional[int], e_line: Optional[int]) -> str:
+    def _read_single_file(file_path: str, s_line: int | None, e_line: int | None) -> str:
         logging.info(f"Reading single file: '{file_path}'.")
 
         if not os.path.exists(file_path):
@@ -52,7 +52,7 @@ def tool_read_file(
             return f"Note: '{file_path}' is a binary file (PDF/DOCX). This tool simulates raw text extraction. Actual implementation would use appropriate libraries.\nSimulated content: This is the extracted text from {file_path}."
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
             logging.info(f"Successfully read {len(lines)} lines from file '{file_path}'.")
 
@@ -76,22 +76,22 @@ def tool_read_file(
             error_msg = f"No permission to read file '{file_path}': {e}"
             logging.error(error_msg)
             raise PermissionError(error_msg) from e
-        except IOError as e:
+        except OSError as e:
             error_msg = f"IO error occurred while reading file '{file_path}': {e}"
             logging.error(error_msg)
-            raise IOError(error_msg) from e
+            raise OSError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error occurred while reading file '{file_path}': {e}"
             logging.error(error_msg)
             raise Exception(error_msg) from e
 
-    def _read_multiple_files(file_list: List[str]) -> str:
+    def _read_multiple_files(file_list: list[str]) -> str:
         results: list[str] = []
         for file_item in sorted(file_list):
             try:
                 file_content = _read_single_file(file_item, None, None)
                 results.append(f"--- File: {file_item} ---\n{file_content}\n")
-            except (FileNotFoundError, IsADirectoryError, PermissionError, IOError, ValueError, Exception) as e:
+            except (OSError, FileNotFoundError, IsADirectoryError, PermissionError, ValueError, Exception) as e:
                 logging.error(f"Error processing file '{file_item}': {e}")
                 results.append(f"--- File: {file_item} ---\nError: {e}\n")
         if not results:

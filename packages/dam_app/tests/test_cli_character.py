@@ -1,6 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path  # Missing import
-from typing import Optional  # For asset_sha256 type hint
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -78,7 +77,7 @@ async def test_cli_character_apply_list_find(  # Made async
 ):
     # 1. Create a character by directly calling the service
     char_name = "Linkable Service Char"
-    char_id: Optional[int] = None
+    char_id: int | None = None
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
         char_entity = await character_service.create_character_concept(session, name=char_name)
@@ -88,7 +87,7 @@ async def test_cli_character_apply_list_find(  # Made async
     assert char_id is not None
 
     # 2. Add a dummy asset by directly calling the service
-    asset_id: Optional[int] = None
+    asset_id: int | None = None
     asset_filename = "asset_for_char_link_service.txt"
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
@@ -96,7 +95,7 @@ async def test_cli_character_apply_list_find(  # Made async
         await ecs_service.add_component_to_entity(
             session,
             asset_entity.id,
-            FilenameComponent(filename=asset_filename, first_seen_at=datetime.now(timezone.utc)),
+            FilenameComponent(filename=asset_filename, first_seen_at=datetime.now(UTC)),
         )
         await ecs_service.add_component_to_entity(session, asset_entity.id, ContentLengthComponent(file_size_bytes=100))
         await session.commit()
@@ -196,8 +195,8 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     await test_world_alpha.dispatch_command(add_command).get_all_results()
     # No add_result or exit_code to check here, assume success if no exceptions
 
-    asset_id_for_test: Optional[int] = None
-    asset_sha256_from_db: Optional[str] = None
+    asset_id_for_test: int | None = None
+    asset_sha256_from_db: str | None = None
 
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
@@ -214,7 +213,7 @@ async def test_cli_character_apply_with_identifiers(  # Made async
     assert asset_sha256_from_db is not None
 
     char_name_for_hash_test = "CharForHashAssetTestSvc"
-    char_id_for_hash_test: Optional[int] = None
+    char_id_for_hash_test: int | None = None
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
         char_entity = await character_service.create_character_concept(session, name=char_name_for_hash_test)

@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional, Tuple
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -30,9 +29,9 @@ class CharacterLinkNotFoundError(Exception):
 async def create_character_concept(
     session: AsyncSession,
     name: str,
-    description: Optional[str] = None,
+    description: str | None = None,
     # Add other character-specific fields from CharacterConceptComponent if any were added
-) -> Optional[Entity]:
+) -> Entity | None:
     """
     Creates a new character concept.
     A character concept is an entity that has a CharacterConceptComponent.
@@ -94,7 +93,7 @@ async def get_character_concept_by_name(session: AsyncSession, name: str) -> Ent
     return entity
 
 
-async def get_character_concept_by_id(session: AsyncSession, character_concept_entity_id: int) -> Optional[Entity]:
+async def get_character_concept_by_id(session: AsyncSession, character_concept_entity_id: int) -> Entity | None:
     """Retrieves a character concept entity by its ID."""
     character_concept_entity = await ecs_functions.get_entity(session, character_concept_entity_id)
     if character_concept_entity and await ecs_functions.get_component(
@@ -104,7 +103,7 @@ async def get_character_concept_by_id(session: AsyncSession, character_concept_e
     return None
 
 
-async def find_character_concepts(session: AsyncSession, query_name: Optional[str] = None) -> List[Entity]:
+async def find_character_concepts(session: AsyncSession, query_name: str | None = None) -> list[Entity]:
     """Finds character concepts, optionally filtering by name."""
     stmt = select(Entity).join(CharacterConceptComponent, Entity.id == CharacterConceptComponent.entity_id)
     if query_name:
@@ -117,10 +116,10 @@ async def find_character_concepts(session: AsyncSession, query_name: Optional[st
 async def update_character_concept(
     session: AsyncSession,
     character_concept_entity_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
+    name: str | None = None,
+    description: str | None = None,
     # Add other fields as needed
-) -> Optional[CharacterConceptComponent]:
+) -> CharacterConceptComponent | None:
     """Updates an existing character concept."""
     char_concept_comp = await ecs_functions.get_component(
         session, character_concept_entity_id, CharacterConceptComponent
@@ -188,8 +187,8 @@ async def apply_character_to_entity(
     session: AsyncSession,
     entity_id_to_link: int,
     character_concept_entity_id: int,
-    role: Optional[str] = None,
-) -> Optional[EntityCharacterLinkComponent]:
+    role: str | None = None,
+) -> EntityCharacterLinkComponent | None:
     """Applies (links) a character to an entity (e.g., an asset)."""
     target_entity = await ecs_functions.get_entity(session, entity_id_to_link)
     if not target_entity:
@@ -259,7 +258,7 @@ async def remove_character_from_entity(
     session: AsyncSession,
     entity_id_linked: int,
     character_concept_entity_id: int,
-    role: Optional[str] = None,  # Role must match to remove a specific link
+    role: str | None = None,  # Role must match to remove a specific link
 ) -> bool:
     """Removes a specific character link from an entity."""
     stmt = select(EntityCharacterLinkComponent).where(
@@ -290,14 +289,14 @@ async def remove_character_from_entity(
 
 async def get_characters_for_entity(
     session: AsyncSession, entity_id_linked: int
-) -> List[Tuple[Entity, Optional[str]]]:  # Returns (Character Concept Entity, role_in_asset)
+) -> list[tuple[Entity, str | None]]:  # Returns (Character Concept Entity, role_in_asset)
     """Gets all characters linked to a specific entity, along with their roles."""
     stmt = select(
         EntityCharacterLinkComponent.character_concept_entity_id, EntityCharacterLinkComponent.role_in_asset
     ).where(EntityCharacterLinkComponent.entity_id == entity_id_linked)
     result = await session.execute(stmt)
 
-    character_links_info: List[Tuple[Entity, Optional[str]]] = []
+    character_links_info: list[tuple[Entity, str | None]] = []
     for char_concept_id, role in result.all():
         char_concept_entity = await get_character_concept_by_id(session, char_concept_id)
         if char_concept_entity:
@@ -308,9 +307,9 @@ async def get_characters_for_entity(
 async def get_entities_for_character(
     session: AsyncSession,
     character_concept_entity_id: int,
-    role_filter: Optional[str] = None,
-    filter_by_role_presence: Optional[bool] = None,  # True for any role, False for no role (NULL)
-) -> List[Entity]:
+    role_filter: str | None = None,
+    filter_by_role_presence: bool | None = None,  # True for any role, False for no role (NULL)
+) -> list[Entity]:
     """Gets all entities linked to a specific character concept, optionally filtering by role."""
     # First, ensure the character concept entity is valid
     char_concept_entity = await get_character_concept_by_id(session, character_concept_entity_id)

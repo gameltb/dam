@@ -1,5 +1,5 @@
 import logging  # Added import
-from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Dict
+from typing import Any, TypeVar  # Added Dict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession for type hints
@@ -37,7 +37,7 @@ async def create_entity(session: AsyncSession) -> Entity:  # Made async, use Asy
     return entity
 
 
-async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]:  # Made async, use AsyncSession
+async def get_entity(session: AsyncSession, entity_id: int) -> Entity | None:  # Made async, use AsyncSession
     """
     Retrieves an entity by its ID from the given session.
     Note: Generic eager loading of all 'components' via Entity.components was removed
@@ -49,7 +49,7 @@ async def get_entity(session: AsyncSession, entity_id: int) -> Optional[Entity]:
     return result.scalar_one_or_none()
 
 
-async def add_component_to_entity(
+async def add_component_to_entity[T: Component](
     session: AsyncSession, entity_id: int, component_instance: T, flush: bool = True
 ) -> T:  # Made async
     """
@@ -63,8 +63,10 @@ async def add_component_to_entity(
 
     Returns:
         The added component instance.
+
     Raises:
         ValueError: If the entity is not found, or if a unique component of the same type already exists.
+
     """
     entity = await get_entity(session, entity_id)
     if not entity:
@@ -88,30 +90,26 @@ async def add_component_to_entity(
     return component_instance
 
 
-async def get_component(session: AsyncSession, entity_id: int, component_type: Type[T]) -> Optional[T]:  # Made async
-    """
-    Retrieves a single component of a specific type for an entity from the given session.
-    """
+async def get_component[T: Component](session: AsyncSession, entity_id: int, component_type: type[T]) -> T | None:  # Made async
+    """Retrieves a single component of a specific type for an entity from the given session."""
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     result = await session.execute(stmt)  # Await execute
     return result.scalar_one_or_none()
 
 
-async def get_components(session: AsyncSession, entity_id: int, component_type: Type[T]) -> List[T]:  # Made async
-    """
-    Retrieves all components of a specific type for an entity from the given session.
-    """
+async def get_components[T: Component](session: AsyncSession, entity_id: int, component_type: type[T]) -> list[T]:  # Made async
+    """Retrieves all components of a specific type for an entity from the given session."""
     stmt = select(component_type).where(component_type.entity_id == entity_id)
     result = await session.execute(stmt)  # Await execute
     return list(result.scalars().all())
 
 
-async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> List[Component]:
+async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -> list[Component]:
     """
     Retrieves all component instances associated with a given entity_id,
     checking against all REGISTERED_COMPONENT_TYPES.
     """
-    all_components: List[Component] = []
+    all_components: list[Component] = []
     if not await get_entity(session, entity_id):  # Check if entity exists
         logger.warning(f"Entity with ID {entity_id} not found when trying to get all its components.")
         return []  # Or raise an error, depending on desired behavior
@@ -124,18 +122,16 @@ async def get_all_components_for_entity(session: AsyncSession, entity_id: int) -
 
 async def get_all_components_for_entity_as_dict(
     session: AsyncSession, entity_id: int
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Retrieves all components for a given entity and returns them as a dictionary.
-    """
+) -> dict[str, list[dict[str, Any]]]:
+    """Retrieves all components for a given entity and returns them as a dictionary."""
     components = await get_all_components_for_entity(session, entity_id)
-    component_dict: Dict[str, List[Dict[str, Any]]] = {}
+    component_dict: dict[str, list[dict[str, Any]]] = {}
     for component in components:
         component_name = component.__class__.__name__
         if component_name not in component_dict:
             component_dict[component_name] = []
 
-        component_data: Dict[str, Any] = {}
+        component_data: dict[str, Any] = {}
         for c in component.__mapper__.column_attrs:
             value = getattr(component, c.key)
             if isinstance(value, bytes):
@@ -158,8 +154,10 @@ async def remove_component(session: AsyncSession, component: Component, flush: b
         session: The SQLAlchemy session for the target world.
         component: The component instance to delete.
         flush: Whether to flush the session after deletion. Defaults to False.
+
     Raises:
         ValueError: If the component is invalid.
+
     """
     if not isinstance(component, Component):
         raise ValueError("Invalid component instance for removal. Must be a session-managed Component with an ID.")
@@ -181,8 +179,10 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
         entity_id: The ID of the entity to delete.
         flush: Whether to flush the session after deletions. Defaults to True.
                  Set to False if part of a larger operation to be flushed later.
+
     Returns:
         True if the entity was found and deleted, False otherwise.
+
     """
     entity = await get_entity(session, entity_id)  # Await async call
     if not entity:
@@ -218,8 +218,8 @@ async def delete_entity(session: AsyncSession, entity_id: int, flush: bool = Tru
 
 
 async def find_entities_with_components(  # Made async
-    session: AsyncSession, required_component_types: List[Type[Component]]
-) -> List[Entity]:
+    session: AsyncSession, required_component_types: list[type[Component]]
+) -> list[Entity]:
     """
     Finds entities that have ALL of the specified component types.
     Entities are returned distinct.
@@ -248,7 +248,7 @@ async def find_entities_with_components(  # Made async
 
 async def find_entity_id_by_hash(
     session: AsyncSession, hash_value: str, hash_type: str = "sha256"
-) -> Optional[int]:  # Use AsyncSession
+) -> int | None:  # Use AsyncSession
     """
     Finds an entity ID by its content hash string (hex).
     Returns the Entity ID or None if not found.
@@ -273,19 +273,16 @@ async def find_entity_id_by_hash(
         return None  # Or raise ValueError
 
     result = await session.execute(stmt)
-    entity_id = result.scalar_one_or_none()
-    return entity_id
+    return result.scalar_one_or_none()
 
 
-async def get_components_by_value(  # Made async
+async def get_components_by_value[T: Component](  # Made async
     session: AsyncSession,
     entity_id: int,
-    component_type: Type[T],
-    attributes_values: Dict[str, Any],
-) -> List[T]:
-    """
-    Retrieves components of a specific type for an entity that match all given attribute values.
-    """
+    component_type: type[T],
+    attributes_values: dict[str, Any],
+) -> list[T]:
+    """Retrieves components of a specific type for an entity that match all given attribute values."""
     if not issubclass(component_type, Component):
         raise TypeError(f"Type {component_type} is not a Component subclass.")
 
@@ -301,14 +298,14 @@ async def get_components_by_value(  # Made async
 
 async def find_entity_by_content_hash(
     session: AsyncSession, hash_value: bytes, hash_type: str = "sha256"
-) -> Optional[Entity]:  # Made async
+) -> Entity | None:  # Made async
     """
     Finds a single entity by its content hash (SHA256 or MD5), provided as bytes.
     Returns the Entity or None if not found.
     If multiple entities somehow have the same content hash (shouldn't happen for CAS),
     it will return the first one found.
     """
-    component_to_query: Type[Component]
+    component_to_query: type[Component]
     if hash_type.lower() == "sha256":
         component_to_query = ContentHashSHA256Component
     elif hash_type.lower() == "md5":
@@ -345,14 +342,14 @@ async def find_entity_by_content_hash(
     return None
 
 
-async def find_entities_by_component_attribute_value(  # Made async
+async def find_entities_by_component_attribute_value[T: Component](  # Made async
     session: AsyncSession,
-    component_type: Type[T],
+    component_type: type[T],
     attribute_name: str,
     value: Any,
     # TODO: Consider adding options for specific SQLAlchemy relationship loading for Entity (e.g. using options())
     # to allow preloading other components of the found entities.
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Finds entities that have a component of `component_type`
     where `component_type.attribute_name == value`.

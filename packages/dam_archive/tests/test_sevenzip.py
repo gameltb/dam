@@ -39,9 +39,7 @@ async def test_open_7z_archive(dummy_7z_file: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
-    """
-    Tests that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives.
-    """
+    """Tests that SevenZipArchiveHandler raises UnsupportedArchiveError for BCJ2-filtered archives."""
     # We test SevenZipArchiveHandler directly, as open_archive would fall back to the CLI handler.
     stream_provider = to_stream_provider(bcj2_7z_archive)
     with pytest.raises(UnsupportedArchiveError):

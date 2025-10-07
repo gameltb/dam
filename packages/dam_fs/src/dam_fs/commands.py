@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from dam.commands.core import BaseCommand
 from dam.system_events.base import BaseSystemEvent
@@ -9,9 +9,7 @@ from dam.system_events.base import BaseSystemEvent
 
 @dataclass
 class AddFilePropertiesCommand(BaseCommand[None, BaseSystemEvent]):
-    """
-    A command to add file properties to an entity.
-    """
+    """A command to add file properties to an entity."""
 
     entity_id: int
     original_filename: str
@@ -29,7 +27,7 @@ class IngestReferenceCommand(BaseCommand[None, BaseSystemEvent]):
 
 
 @dataclass
-class FindEntityByHashCommand(BaseCommand[Optional[Dict[str, Any]], BaseSystemEvent]):
+class FindEntityByHashCommand(BaseCommand[Optional[dict[str, Any]], BaseSystemEvent]):
     """
     Command to find an entity by its content hash.
     The result is a dictionary with entity details or None, set on the future.
@@ -63,8 +61,6 @@ class RegisterLocalFileCommand(BaseCommand[int, BaseSystemEvent]):
 
 @dataclass
 class StoreAssetsCommand(BaseCommand[None, BaseSystemEvent]):
-    """
-    Command to store assets based on a query.
-    """
+    """Command to store assets based on a query."""
 
     query: str

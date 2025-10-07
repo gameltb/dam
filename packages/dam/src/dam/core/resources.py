@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Type, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class ResourceNotFoundError(Exception):
     """Exception raised when a requested resource is not found."""
 
-    def __init__(self, resource_type: Type[Any]):
+    def __init__(self, resource_type: type[Any]):
         super().__init__(f"Resource of type {resource_type.__name__} not found.")
 
 
@@ -24,9 +24,9 @@ class ResourceManager:
 
     def __init__(self) -> None:
         """Initializes an empty ResourceManager."""
-        self._resources: Dict[Type[Any], Any] = {}
+        self._resources: dict[type[Any], Any] = {}
 
-    def add_resource(self, instance: T, resource_type: Optional[Type[T]] = None) -> None:
+    def add_resource(self, instance: T, resource_type: type[T] | None = None) -> None:
         """
         Adds a resource instance to the manager.
 
@@ -39,12 +39,10 @@ class ResourceManager:
             instance: The resource instance to add (e.g., an instance of `FileOperationsResource`).
             resource_type: The type (class) to register this instance against. Systems will
                            request resources using this type. Defaults to `type(instance)`.
+
         """
-        res_type: Type[Any]
-        if resource_type is None:
-            res_type = type(instance)
-        else:
-            res_type = resource_type
+        res_type: type[Any]
+        res_type = type(instance) if resource_type is None else resource_type
 
         if res_type in self._resources:
             # Depending on policy, could raise error, log a warning, or allow replacement.
@@ -54,7 +52,7 @@ class ResourceManager:
 
         self._resources[res_type] = instance
 
-    def get_resource(self, resource_type: Type[T]) -> T:
+    def get_resource(self, resource_type: type[T]) -> T:
         """
         Retrieves a resource instance by its registered type.
 
@@ -70,6 +68,7 @@ class ResourceManager:
         Raises:
             ResourceNotFoundError: If no resource matching the `resource_type` (or its subclass)
                                    is found.
+
         """
         instance = self._resources.get(resource_type)
         if instance is None:
@@ -80,17 +79,12 @@ class ResourceManager:
             raise ResourceNotFoundError(resource_type)
         return cast(T, instance)
 
-    def has_resource(self, resource_type: Type[Any]) -> bool:
-        """
-        Checks if a resource of the given type (or a subclass of it) is registered.
-        """
+    def has_resource(self, resource_type: type[Any]) -> bool:
+        """Checks if a resource of the given type (or a subclass of it) is registered."""
         if resource_type in self._resources:
             return True
-        for res_type in self._resources:
-            if issubclass(res_type, resource_type):
-                return True
-        return False
+        return any(issubclass(res_type, resource_type) for res_type in self._resources)
 
-    def get_all_resource_types(self) -> List[Type[Any]]:
+    def get_all_resource_types(self) -> list[type[Any]]:
         """Returns a list of all registered resource types."""
         return list(self._resources.keys())

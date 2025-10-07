@@ -5,9 +5,9 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Self, TypeVar
 
-import torch.nn as nn
+from torch import nn
 
 _logger = logging.getLogger(__name__)
 
@@ -37,25 +37,25 @@ class ControlFlowPatchModuleMixin(nn.Module):
 
     def get_patch_module_name(self) -> str:
         """
-
         Returns:
-            str: control flow patch name.
+        str: control flow patch name.
+
         """
         raise NotImplementedError()
 
     def get_patch_module_version(self) -> str:
         """
-
         Returns:
-            str: control flow patch version.
+        str: control flow patch version.
+
         """
         raise NotImplementedError()
 
     def get_patch_module_uid(self) -> str:
         """
-
         Returns:
-            str: control flow patch uid.
+        str: control flow patch uid.
+
         """
         return self.get_patch_module_name() + self.get_patch_module_version()
 
@@ -63,9 +63,9 @@ class ControlFlowPatchModuleMixin(nn.Module):
 T = TypeVar("T")
 
 
-class ControlFlowPatchAbleModule(Generic[T]):
+class ControlFlowPatchAbleModule[T]:
     def __init__(self) -> None:
-        self.patcher_module_map: "OrderedDict[str, Any]" = OrderedDict()
+        self.patcher_module_map: OrderedDict[str, Any] = OrderedDict()
         type_hints = self.get_patch_module_type_hints()
         if type_hints:
             for patch_name, patch_type_hint in type_hints.items():
@@ -134,7 +134,7 @@ class ControlFlowPatchAbleModule(Generic[T]):
                 _logger.debug(f"Ignored {patch_type} not found in self. other {other_type_hints[patch_type]}")
 
 
-class ControlFlowPatchAbleModuleMixin(Generic[T]):
+class ControlFlowPatchAbleModuleMixin[T]:
     def __init__(self) -> None:
         self.patcher_module_init()
 

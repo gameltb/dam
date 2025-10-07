@@ -1,4 +1,4 @@
-from typing import Any, NewType, Optional, TypeVar
+from typing import Any, NewType, TypeVar
 
 import accelerate.hooks
 import diffusers
@@ -26,7 +26,7 @@ FUSE_WEIGHT_OFFLOADED_STATE_UUID = NewType("FUSE_WEIGHT_OFFLOADED_STATE_UUID", t
 class CommitWithAutoManage(CommitABC[T]):
     def __init__(self) -> None:
         super().__init__()
-        self.am: Optional[AutoManageWrapper[T]] = None
+        self.am: AutoManageWrapper[T] | None = None
 
 
 class FuseWeightCommit(CommitWithAutoManage[T]):
@@ -49,15 +49,17 @@ class PipelineComponentsCommit(CommitWithAutoManage[diffusers.DiffusionPipeline]
         component = base_object.components.get(self.component_name)
         if component:
             return self.component_commmit.apply(component, **kwargs)
+        return None
 
     def revert(self, base_object: diffusers.DiffusionPipeline) -> None:  # type: ignore
         component = base_object.components.get(self.component_name)
         if component:
             return self.component_commmit.revert(component)
+        return None
 
 
 class CommitAutoManage(CommitABC[T]):
-    def __init__(self, am: Optional[AutoManageWrapper[T]]):
+    def __init__(self, am: AutoManageWrapper[T] | None):
         super().__init__()
         self.am = am
 
@@ -87,7 +89,7 @@ class FuseWeightSquashItem(CommitSquashItem[T]):
 class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
     def __init__(self, base_object: T):
         super().__init__(base_object)
-        self.am: Optional[AutoManageWrapper[T]] = None
+        self.am: AutoManageWrapper[T] | None = None
         self.am_commit: CommitAutoManage[T] = CommitAutoManage(self.am)
 
     def apply_commit(self, commit_list: list[CommitABC[T]]) -> None:
@@ -117,13 +119,12 @@ class AutoManageBaseCommitObjectRef(BaseCommitObjectRef[T]):
 
     def rebase(self, commit_stack: list[CommitABC[T]]) -> None:
         if len(commit_stack) == 0 or commit_stack[-1] is not self.am_commit:
-            commit_stack = commit_stack + [self.am_commit]
+            commit_stack = [*commit_stack, self.am_commit]
 
         # check if am unload becuse of on_resource_request ,
         # clean am_commit state of applied_commit_ref_stack by do an dyn revert_commit.
-        if self.am and self.state_uuid == self.am_commit.commit_uuid:
-            if not self.am.user.loaded:
-                self.revert_commit()
+        if self.am and self.state_uuid == self.am_commit.commit_uuid and not self.am.user.loaded:
+            self.revert_commit()
 
         super().rebase(commit_stack)
 

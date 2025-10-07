@@ -1,4 +1,3 @@
-from typing import List
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -20,7 +19,7 @@ async def test_clear_archive_components_handler(mocker: MockerFixture):
     mock_info_component = ArchiveInfoComponent(comment=None)
 
     # Create mock member components
-    member_components: List[ArchiveMemberComponent] = []
+    member_components: list[ArchiveMemberComponent] = []
     for eid in member_entity_ids:
         comp = ArchiveMemberComponent(
             archive_entity_id=archive_entity_id, path_in_archive=f"file_{eid}.txt", modified_at=None

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 from dam.core.transaction import WorldTransaction
@@ -21,7 +21,7 @@ MOCK_AUDIO_MODEL_IDENTIFIER = "mock_audio_model"
 
 
 class MockAudioModel:
-    def __init__(self, model_name: str, params: Optional[AudioModelHyperparameters]) -> None:
+    def __init__(self, model_name: str, params: AudioModelHyperparameters | None) -> None:
         self.model_name = model_name
         self.params = params
         self.output_dim = (
@@ -41,7 +41,7 @@ class MockAudioModel:
 async def get_mock_audio_model(  # type: ignore[no-any-unimported]
     sire_resource: "SireResource",
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    params: Optional[AudioModelHyperparameters] = None,
+    params: AudioModelHyperparameters | None = None,
 ) -> Optional["AutoManageWrapper[MockAudioModel]"]:
     AutoManageWrapper.register_type_wrapper(MockAudioModel, TorchModuleWrapper)
     # return sire_resource.get_model(MockAudioModel, model_name, params=params)
@@ -65,9 +65,9 @@ async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported
     sire_resource: "SireResource",
     entity_id: int,
     model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    model_params: Optional[AudioModelHyperparameters] = None,
-    audio_file_path: Optional[str] = None,
-) -> Optional[BaseSpecificAudioEmbeddingComponent]:
+    model_params: AudioModelHyperparameters | None = None,
+    audio_file_path: str | None = None,
+) -> BaseSpecificAudioEmbeddingComponent | None:
     logger.warning("generate_audio_embedding_for_entity is not fully implemented with sire yet.")
     return None
 
@@ -77,18 +77,18 @@ async def find_similar_entities_by_audio_embedding(  # type: ignore[no-any-unimp
     sire_resource: "SireResource",
     query_audio_path: str,
     model_name: str,
-    model_params: Optional[AudioModelHyperparameters] = None,
+    model_params: AudioModelHyperparameters | None = None,
     top_n: int = 10,
-) -> List[Tuple[Entity, float, BaseSpecificAudioEmbeddingComponent]]:
+) -> list[tuple[Entity, float, BaseSpecificAudioEmbeddingComponent]]:
     logger.warning("find_similar_entities_by_audio_embedding is not fully implemented with sire yet.")
     return []
 
 
 __all__ = [
-    "convert_embedding_to_bytes",
-    "convert_bytes_to_embedding",
     "DEFAULT_AUDIO_MODEL_NAME",
-    "get_mock_audio_model",
-    "generate_audio_embedding_for_entity",
+    "convert_bytes_to_embedding",
+    "convert_embedding_to_bytes",
     "find_similar_entities_by_audio_embedding",
+    "generate_audio_embedding_for_entity",
+    "get_mock_audio_model",
 ]

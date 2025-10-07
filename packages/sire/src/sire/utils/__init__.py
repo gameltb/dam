@@ -1,7 +1,7 @@
 from typing import Optional
 
 
-def human_readable_filesize(sz: int, pref_sz: Optional[float] = None) -> str:
+def human_readable_filesize(sz: int, pref_sz: float | None = None) -> str:
     if pref_sz is None:
         pref_sz = float(sz)
     prefixes = ["B  ", "KiB", "MiB", "GiB", "TiB", "PiB"]

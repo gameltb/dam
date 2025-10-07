@@ -4,9 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 class ArchivePasswordComponent(Component):
-    """
-    Stores the password for an encrypted archive.
-    """
+    """Stores the password for an encrypted archive."""
 
     __tablename__ = "component_archive_password"
 

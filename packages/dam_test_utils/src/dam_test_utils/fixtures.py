@@ -1,20 +1,14 @@
 import json
 import os
 import uuid
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import (
     Any,
-    AsyncGenerator,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Union,
 )
 
 import numpy as np
 import psycopg
-import psycopg.sql as sql
 import pytest
 import pytest_asyncio
 import torch
@@ -30,18 +24,18 @@ from dam.core.world import (
 )
 from dam.models.core.base_class import Base
 from PIL import Image
+from psycopg import sql
 from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-_original_settings_values: Dict[str, Any] = {}
+_original_settings_values: dict[str, Any] = {}
 
 
 @pytest.fixture(scope="session", autouse=True)
-def backup_original_settings() -> Generator[None, None, None]:
+def backup_original_settings() -> None:
     _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
     _original_settings_values["worlds"] = global_settings.worlds.copy()
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
-    yield
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -80,7 +74,7 @@ async def test_db() -> AsyncGenerator[str, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> AsyncGenerator[Settings, None]:
-    def _factory() -> Dict[str, Dict[str, str]]:
+    def _factory() -> dict[str, dict[str, str]]:
         return {
             "test_world_alpha": {"DATABASE_URL": test_db},
             "test_world_beta": {"DATABASE_URL": test_db},
@@ -91,7 +85,7 @@ async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> A
         }
 
     raw_world_configs = _factory()
-    updated_test_worlds_config: Dict[str, Any] = {}
+    updated_test_worlds_config: dict[str, Any] = {}
 
     for world_name, config_template in raw_world_configs.items():
         asset_temp_dir = tmp_path / f"assets_{world_name}"
@@ -120,12 +114,9 @@ async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> A
 
 
 async def _setup_world(
-    world_name: str, settings_override_fixture: Settings, plugins: Optional[List[Any]] = None
+    world_name: str, settings_override_fixture: Settings, plugins: list[Any] | None = None
 ) -> World:
-    """
-    A fixture to set up a dam world, with optional plugins.
-    """
-
+    """A fixture to set up a dam world, with optional plugins."""
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
 
@@ -166,7 +157,7 @@ async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, No
 
 
 class MockSentenceTransformer(torch.nn.Module):
-    def __init__(self, model_name_or_path: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(self, model_name_or_path: str | None = None, **kwargs: Any) -> None:
         super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
@@ -180,12 +171,12 @@ class MockSentenceTransformer(torch.nn.Module):
         return features
 
     def encode(
-        self, sentences: Union[str, List[str]], convert_to_numpy: bool = True, **kwargs: Any
-    ) -> Union[np.ndarray, List[List[float]]]:
+        self, sentences: str | list[str], convert_to_numpy: bool = True, **kwargs: Any
+    ) -> np.ndarray | list[list[float]]:
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
-        embeddings: List[Any] = []
+        embeddings: list[Any] = []
         for s in sentences:
             if not s or not s.strip():
                 embeddings.append(np.zeros(self.dim, dtype=np.float32))
@@ -209,8 +200,7 @@ class MockSentenceTransformer(torch.nn.Module):
             embeddings = [e.tolist() for e in embeddings]
         if original_sentences_type is str:
             return embeddings[0] if embeddings else np.array([])
-        else:
-            return np.array(embeddings) if convert_to_numpy else embeddings
+        return np.array(embeddings) if convert_to_numpy else embeddings
 
 
 @pytest_asyncio.fixture(scope="function")

@@ -1,9 +1,8 @@
 import logging
 import os
-from typing import List
 
 
-def tool_list_files(path: str = ".") -> List[str]:
+def tool_list_files(path: str = ".") -> list[str]:
     """
     Lists all files and directories in the specified path.
 
@@ -16,6 +15,7 @@ def tool_list_files(path: str = ".") -> List[str]:
     Raises:
         FileNotFoundError: If the directory is not found.
         Exception: For other unexpected errors.
+
     """
     logging.info(f"Listing files in: {path}")
     try:

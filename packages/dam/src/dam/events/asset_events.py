@@ -1,40 +1,31 @@
 from dataclasses import dataclass
-from typing import List
 
 from dam.core.events import BaseEvent
 
 
 @dataclass
 class AssetCreatedEvent(BaseEvent):
-    """
-    An event that is triggered when a new asset is created.
-    """
+    """An event that is triggered when a new asset is created."""
 
     entity_id: int
 
 
 @dataclass
 class AssetUpdatedEvent(BaseEvent):
-    """
-    An event that is triggered when an asset is updated.
-    """
+    """An event that is triggered when an asset is updated."""
 
     entity_id: int
 
 
 @dataclass
 class AssetDeletedEvent(BaseEvent):
-    """
-    An event that is triggered when an asset is deleted.
-    """
+    """An event that is triggered when an asset is deleted."""
 
     entity_id: int
 
 
 @dataclass
 class AssetReadyForMetadataExtractionEvent(BaseEvent):
-    """
-    An event that is triggered when a batch of assets is ready for metadata extraction.
-    """
+    """An event that is triggered when a batch of assets is ready for metadata extraction."""
 
-    entity_ids: List[int]
+    entity_ids: list[int]

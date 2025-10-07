@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
-from typing import Any, Generator, Optional
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pycdlib
@@ -75,15 +75,13 @@ def create_dummy_iso_with_sfo() -> BytesIO:
 
 
 @pytest.fixture
-def dummy_iso_stream() -> Generator[BytesIO, None, None]:
+def dummy_iso_stream() -> BytesIO:
     """Pytest fixture to provide a dummy ISO stream."""
-    yield create_dummy_iso_with_sfo()
+    return create_dummy_iso_with_sfo()
 
 
 def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream: BytesIO) -> None:
-    """
-    Tests that process_iso_stream correctly extracts metadata from a dummy ISO.
-    """
+    """Tests that process_iso_stream correctly extracts metadata from a dummy ISO."""
     sfo = psp_iso_functions.process_iso_stream(dummy_iso_stream)
 
     assert sfo is not None
@@ -94,9 +92,7 @@ def test_process_iso_stream_extracts_sfo_metadata(dummy_iso_stream: BytesIO) -> 
 
 
 def test_process_iso_stream_handles_non_iso_file() -> None:
-    """
-    Tests that process_iso_stream raises an IOError for non-ISO files.
-    """
+    """Tests that process_iso_stream raises an IOError for non-ISO files."""
     non_iso_stream = BytesIO(b"this is not an iso file")
     with pytest.raises(IOError):
         psp_iso_functions.process_iso_stream(non_iso_stream)
@@ -104,9 +100,7 @@ def test_process_iso_stream_handles_non_iso_file() -> None:
 
 @pytest.mark.asyncio
 async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None:
-    """
-    Tests the psp_iso_metadata_extraction_system with a mix of assets.
-    """
+    """Tests the psp_iso_metadata_extraction_system with a mix of assets."""
     # 1. Setup
     # Create mock entities
     standalone_iso_entity_id = 1
@@ -116,14 +110,14 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
     # Mock transaction
     mock_transaction = AsyncMock()
 
-    async def get_component_side_effect(entity_id: int, component_type: Any) -> Optional[Any]:
+    async def get_component_side_effect(entity_id: int, component_type: Any) -> Any | None:
         if entity_id == standalone_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
             if component_type == ArchiveMemberComponent:
                 return None
             if component_type == FilenameComponent:
-                return FilenameComponent(filename="test.iso", first_seen_at=datetime.now(timezone.utc))
+                return FilenameComponent(filename="test.iso", first_seen_at=datetime.now(UTC))
         elif entity_id == archived_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:
                 return None
@@ -135,7 +129,7 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
             if component_type == ArchiveMemberComponent:
                 return None
             if component_type == FilenameComponent:
-                return FilenameComponent(filename="text.txt", first_seen_at=datetime.now(timezone.utc))
+                return FilenameComponent(filename="text.txt", first_seen_at=datetime.now(UTC))
         return None
 
     mock_transaction.get_component.side_effect = get_component_side_effect

@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.core.systems import system
@@ -16,10 +15,8 @@ logger = logging.getLogger(__name__)
 async def discover_archive_path_siblings_handler(
     cmd: DiscoverPathSiblingsCommand,
     transaction: WorldTransaction,
-) -> Optional[List[PathSibling]]:
-    """
-    Handles discovering path-based sibling entities for an entity that is a member of an archive.
-    """
+) -> list[PathSibling] | None:
+    """Handles discovering path-based sibling entities for an entity that is a member of an archive."""
     logger.debug("discover_archive_path_siblings_handler running for entity %s", cmd.entity_id)
 
     # 1. Get the ArchiveMemberComponent for the starting entity

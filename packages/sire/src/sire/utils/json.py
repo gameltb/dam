@@ -6,19 +6,19 @@ import numpy as np
 
 
 class NumpyEncoder(json.JSONEncoder):
-    """Custom encoder for numpy data types"""
+    """Custom encoder for numpy data types."""
 
     def default(self, o: Any) -> Any:
         if hasattr(o, "dtype"):
             if o.dtype.kind in "iu":
                 return int(o)
-            elif o.dtype.kind == "f":
+            if o.dtype.kind == "f":
                 return float(o)
-            elif o.dtype.kind == "c":
+            if o.dtype.kind == "c":
                 return {"real": o.real, "imag": o.imag}
-            elif o.dtype.kind == "b":
+            if o.dtype.kind == "b":
                 return bool(o)
-            elif o.dtype.kind == "V":
+            if o.dtype.kind == "V":
                 return None
 
         if isinstance(o, (np.ndarray,)):

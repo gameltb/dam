@@ -1,6 +1,4 @@
-"""
-This module defines the ExiftoolMetadataComponent for storing raw EXIF data.
-"""
+"""This module defines the ExiftoolMetadataComponent for storing raw EXIF data."""
 
 from typing import Any
 
@@ -11,9 +9,7 @@ from dam.models.core.base_component import UniqueComponent
 
 
 class ExiftoolMetadataComponent(UniqueComponent):
-    """
-    Component to store raw metadata extracted by exiftool.
-    """
+    """Component to store raw metadata extracted by exiftool."""
 
     __tablename__ = "component_exiftool_metadata"  # Renamed
 

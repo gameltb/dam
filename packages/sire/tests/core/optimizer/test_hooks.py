@@ -1,12 +1,12 @@
 import os
 import tempfile
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import torch
-import torch.nn as nn
 from accelerate.hooks import add_hook_to_module
+from torch import nn
 
 from sire.core.optimizer.hooks import InferenceOptimizerHook
 from sire.core.optimizer.plan import OptimizationPlan
@@ -20,8 +20,7 @@ class SimpleModel(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer1(x)
-        x = self.layer2(x)
-        return x
+        return self.layer2(x)
 
 
 @pytest.fixture(autouse=True)
@@ -84,9 +83,7 @@ def test_inference_optimizer_hook_first_run_profiling(
 def test_inference_optimizer_hook_second_run_cached(
     mock_get_mem: Mock, mock_dev_count: Mock, mock_cuda_avail: Mock, temp_cache_dir: str, mocker: Mock
 ) -> None:
-    """
-    Tests the hook's behavior on a second run, verifying it loads from cache.
-    """
+    """Tests the hook's behavior on a second run, verifying it loads from cache."""
     # Mock the main methods
     mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
     mock_profiler_instance = mock_profiler_cls.return_value
@@ -122,9 +119,7 @@ def test_inference_optimizer_hook_second_run_cached(
 def test_inference_optimizer_hook_force_profiling(
     mock_get_mem: Mock, mock_dev_count: Mock, mock_cuda_avail: Mock, temp_cache_dir: str, mocker: Mock
 ) -> None:
-    """
-    Tests that `force_profiling=True` re-runs profiling even if caches exist.
-    """
+    """Tests that `force_profiling=True` re-runs profiling even if caches exist."""
     # Mock the main methods
     mock_profiler_cls = mocker.patch("sire.core.optimizer.hooks.Profiler")
     mock_profiler_instance = mock_profiler_cls.return_value

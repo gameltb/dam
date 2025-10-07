@@ -1,6 +1,4 @@
-"""
-This file is reserved for event definitions for the dam_fs package.
-"""
+"""This file is reserved for event definitions for the dam_fs package."""
 
 from dataclasses import dataclass
 from pathlib import Path

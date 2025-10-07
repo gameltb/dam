@@ -22,7 +22,7 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
     overwrite: bool = False,
 ) -> None:
     # Read the content from the document
-    async with aiofiles.open(doc, "r") as f:
+    async with aiofiles.open(doc) as f:
         content = await f.read()
 
     # Expand macros
@@ -79,7 +79,7 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
     await session.setup()
 
     while True:
-        task_msg: Optional[str] = None
+        task_msg: str | None = None
         latest_msg = session.messages[-1] if len(session.messages) > 0 else None
         if (
             not allow_user_message_in_function_execution

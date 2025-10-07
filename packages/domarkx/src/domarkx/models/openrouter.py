@@ -1,14 +1,8 @@
 import warnings
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from typing import (
     Any,
-    AsyncGenerator,
-    Dict,
-    List,
     Literal,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
     cast,
 )
 
@@ -49,13 +43,14 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         *,
         tools: Sequence[Tool | ToolSchema] = [],
         tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
-        json_output: Optional[bool | type[BaseModel]] = None,
+        json_output: bool | type[BaseModel] | None = None,
         extra_create_args: Mapping[str, Any] = {},
-        cancellation_token: Optional[CancellationToken] = None,
+        cancellation_token: CancellationToken | None = None,
         max_consecutive_empty_chunk_tolerance: int = 0,
-        include_usage: Optional[bool] = None,
-    ) -> AsyncGenerator[Union[str, CreateResult], None]:
-        """Create a stream of string chunks from the model ending with a :class:`~autogen_core.models.CreateResult`.
+        include_usage: bool | None = None,
+    ) -> AsyncGenerator[str | CreateResult, None]:
+        """
+        Create a stream of string chunks from the model ending with a :class:`~autogen_core.models.CreateResult`.
 
         Extends :meth:`autogen_core.models.ChatCompletionClient.create_stream` to support OpenAI API.
 
@@ -76,7 +71,6 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             - `frequency_penalty` (float): A value between -2.0 and 2.0 that penalizes new tokens based on their existing frequency in the text so far, decreasing the likelihood of repeated phrases.
             - `presence_penalty` (float): A value between -2.0 and 2.0 that penalizes new tokens based on whether they appear in the text so far, encouraging the model to talk about new topics.
         """
-
         create_params = self._process_create_args(
             messages,
             tools,
@@ -123,10 +117,10 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         chunk: ChatCompletionChunk | None = None
         stop_reason = None
         maybe_model = None
-        content_deltas: List[str] = []
-        thought_deltas: List[str] = []
-        full_tool_calls: Dict[int, FunctionCall] = {}
-        logprobs: Optional[List[ChatCompletionTokenLogprob]] = None
+        content_deltas: list[str] = []
+        thought_deltas: list[str] = []
+        full_tool_calls: dict[int, FunctionCall] = {}
+        logprobs: list[ChatCompletionTokenLogprob] | None = None
 
         empty_chunk_warning_has_been_issued: bool = False
         empty_chunk_warning_threshold: int = 10
@@ -142,7 +136,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
                 # Emit the start event.
                 logger.info(
                     LLMStreamStartEvent(
-                        messages=cast(List[Dict[str, Any]], create_params.messages),
+                        messages=cast(list[dict[str, Any]], create_params.messages),
                     )
                 )
 
@@ -259,7 +253,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         )
 
         # Detect whether it is a function call or just text.
-        content: Union[str, List[FunctionCall]]
+        content: str | list[FunctionCall]
         thought: str | None = None
         # Determine the content and thought based on what was collected
         if full_tool_calls:
@@ -296,7 +290,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         if chunk:
             logger.info(
                 LLMCallEvent(
-                    messages=cast(List[Dict[str, Any]], create_params.messages),
+                    messages=cast(list[dict[str, Any]], create_params.messages),
                     response=chunk.model_dump(),
                     prompt_tokens=usage.prompt_tokens,
                     completion_tokens=usage.completion_tokens,

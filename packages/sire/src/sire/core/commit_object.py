@@ -5,7 +5,8 @@ import logging
 import uuid
 import weakref
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from .runtime_resource_user.commit_object import CommitObjectProxyWrapper
@@ -16,7 +17,7 @@ T = TypeVar("T")
 UNKNOWN_STATE_UUID = uuid.UUID("00000000-0000-0000-0000-000000000000")
 
 
-class CommitABC(ABC, Generic[T]):
+class CommitABC[T](ABC):
     def __init__(self) -> None:
         self.commit_uuid = uuid.uuid4()
 
@@ -28,7 +29,7 @@ class CommitABC(ABC, Generic[T]):
     def revert(self, base_object: T) -> None:
         pass
 
-    def get_revert_callable(self) -> Optional[Callable[..., Any]]:
+    def get_revert_callable(self) -> Callable[..., Any] | None:
         return self.revert
 
     def release_revert_resource(self) -> None:
@@ -39,7 +40,7 @@ class CallableCommit(CommitABC[T]):
     def __init__(self, commit_callable: Callable[[T], Callable[[T], None]]):
         super().__init__()
         self.commit_callable = commit_callable
-        self.revert_callable: Optional[Callable[[T], None]] = None
+        self.revert_callable: Callable[[T], None] | None = None
 
     def apply(self, base_object: T, **kwargs: Any) -> None:
         self.revert_callable = self.commit_callable(base_object)
@@ -48,7 +49,7 @@ class CallableCommit(CommitABC[T]):
         if self.revert_callable:
             self.revert_callable(base_object)
 
-    def get_revert_callable(self) -> Optional[Callable[[T], None]]:
+    def get_revert_callable(self) -> Callable[[T], None] | None:
         return self.revert_callable
 
     def release_revert_resource(self) -> None:
@@ -59,7 +60,7 @@ class CallableCommit(CommitABC[T]):
 class AppliedCommitRefItem:
     commit_ref: weakref.ref[CommitABC[Any]]
     commit_uuid: uuid.UUID
-    revert_callable: Optional[Callable[..., Any]]
+    revert_callable: Callable[..., Any] | None
     squash: bool = False
 
     @classmethod
@@ -71,10 +72,10 @@ class AppliedCommitRefItem:
         )
 
 
-class CommitSquashItem(Generic[T]):
+class CommitSquashItem[T]:
     def __init__(self) -> None:
         self.commit_stack_states: list[uuid.UUID] = []
-        self.revert_callable_list: list[Optional[Callable[..., Any]]] = []
+        self.revert_callable_list: list[Callable[..., Any] | None] = []
 
     def append(self, applied_commit_ref: AppliedCommitRefItem) -> None:
         self.commit_stack_states.append(applied_commit_ref.commit_uuid)
@@ -90,15 +91,15 @@ class CommitSquashItem(Generic[T]):
                 revert_callable(base_object)
 
 
-class BaseCommitObjectRef(Generic[T]):
+class BaseCommitObjectRef[T]:
     def __init__(self, base_object: T):
         self.object_uuid = uuid.uuid4()
-        self.state_uuid: Optional[uuid.UUID] = self.object_uuid
+        self.state_uuid: uuid.UUID | None = self.object_uuid
         self.base_object = base_object
         self.applied_commit_ref_stack: list[AppliedCommitRefItem] = []
 
         self._doing_squash = False
-        self.active_commit_squash: Optional[CommitSquashItem[T]] = None
+        self.active_commit_squash: CommitSquashItem[T] | None = None
         self.squash_commit_stack: list[CommitSquashItem[T]] = []
 
     def apply_commit(self, commit_list: list[CommitABC[T]]) -> None:
@@ -139,9 +140,8 @@ class BaseCommitObjectRef(Generic[T]):
                 if revert_commit.squash:
                     self.squash_commit_stack[-1].revert(self.base_object)
                     self.squash_commit_stack.pop()
-                else:
-                    if revert_commit.revert_callable:
-                        revert_commit.revert_callable(self.base_object)
+                elif revert_commit.revert_callable:
+                    revert_commit.revert_callable(self.base_object)
                 self.applied_commit_ref_stack = self.applied_commit_ref_stack[:-revert_callable_commit_count]
                 if len(self.applied_commit_ref_stack) > 0:
                     self.state_uuid = self.applied_commit_ref_stack[-1].commit_uuid
@@ -153,7 +153,7 @@ class BaseCommitObjectRef(Generic[T]):
 
     def rebase(self, commit_stack: list[CommitABC[T]]) -> None:
         current_state_uuid = self.state_uuid
-        target_state_uuid: Optional[uuid.UUID] = self.object_uuid
+        target_state_uuid: uuid.UUID | None = self.object_uuid
         if len(commit_stack) != 0:
             target_state_uuid = commit_stack[-1].commit_uuid
 
@@ -182,8 +182,7 @@ class BaseCommitObjectRef(Generic[T]):
             for applied_state, need_apply_state in zip(applied_commit_stack_states, commit_stack_states, strict=False):
                 if applied_state != need_apply_state:
                     break
-                else:
-                    common_path_len += 1
+                common_path_len += 1
             _logger.debug(f"common_path_len : {common_path_len}")
             assert common_path_len != 0
             stack_need_revert_count = self._expand_revert_stack_with_squash(
@@ -198,7 +197,7 @@ class BaseCommitObjectRef(Generic[T]):
         self.revert_commit(stack_need_revert_count)
         self.apply_commit(stack_need_apply)
 
-    def do_squash(self, squash: Optional[CommitSquashItem[T]] = None) -> None:
+    def do_squash(self, squash: CommitSquashItem[T] | None = None) -> None:
         if squash is None:
             squash = CommitSquashItem()
         self.active_commit_squash = squash
@@ -207,7 +206,7 @@ class BaseCommitObjectRef(Generic[T]):
     def stop_squash(self) -> None:
         self._doing_squash = False
 
-    def get_active_squash(self) -> Optional[CommitSquashItem[T]]:
+    def get_active_squash(self) -> CommitSquashItem[T] | None:
         assert self.doing_squash
         return self.active_commit_squash
 
@@ -264,12 +263,12 @@ BASE_COMMIT_OBJECT_REF_OBJECT_MAP: weakref.WeakKeyDictionary[Any, weakref.ref[Ba
 BCO = TypeVar("BCO", bound=BaseCommitObjectRef[Any])
 
 
-def get_base_commit_object_ref(
+def get_base_commit_object_ref[BCO: BaseCommitObjectRef[Any]](
     base_object: Any,
-    base_commit_object_ref_cls: Type[BCO] = BaseCommitObjectRef,  # type: ignore
+    base_commit_object_ref_cls: type[BCO] = BaseCommitObjectRef,  # type: ignore
 ) -> BCO:
     """
-    pipeline <- ref1
+    Pipeline <- ref1
       ├ unet <- ref2
        ├ text_encoder
       ...
@@ -278,6 +277,7 @@ def get_base_commit_object_ref(
     Args:
         base_object (Object): Object.
         base_commit_object_ref_cls (type, optional): Ref class. Defaults to BaseCommitObjectRef.
+
     """
     base_commit_object_ref_ref = BASE_COMMIT_OBJECT_REF_OBJECT_MAP.get(base_object)
     if base_commit_object_ref_ref:
@@ -290,11 +290,11 @@ def get_base_commit_object_ref(
     return base_commit_object_ref
 
 
-class CommitObjectProxy(Generic[T]):
-    def __init__(self, base_object: Union[T, BaseCommitObjectRef[T]]):
+class CommitObjectProxy[T]:
+    def __init__(self, base_object: T | BaseCommitObjectRef[T]):
         self.manager_uuid = uuid.uuid4()
         self.commit_stack: list[CommitABC[T]] = []
-        self.am_ref: Optional[weakref.ref[CommitObjectProxyWrapper[T]]] = None
+        self.am_ref: weakref.ref[CommitObjectProxyWrapper[T]] | None = None
 
         self.base_object_ref: BaseCommitObjectRef[T]
         if isinstance(base_object, BaseCommitObjectRef):
@@ -302,7 +302,7 @@ class CommitObjectProxy(Generic[T]):
         else:
             self.base_object_ref = get_base_commit_object_ref(base_object)
 
-    def clone(self) -> "CommitObjectProxy[T]":
+    def clone(self) -> CommitObjectProxy[T]:
         new_manager = CommitObjectProxy[T](self.base_object_ref)
         new_manager.commit_stack = [*self.commit_stack]
         return new_manager
@@ -310,14 +310,14 @@ class CommitObjectProxy(Generic[T]):
     def add_commit(self, commit: CommitABC[T]) -> None:
         self.commit_stack.append(commit)
 
-    def clone_and_add_commit(self, commit: CommitABC[T]) -> "CommitObjectProxy[T]":
+    def clone_and_add_commit(self, commit: CommitABC[T]) -> CommitObjectProxy[T]:
         new_self = self.clone()
         new_self.add_commit(commit)
         return new_self
 
     def clone_and_add_callable_commit(
         self, commit_callable: Callable[[T], Callable[[T], None]]
-    ) -> "CommitObjectProxy[T]":
+    ) -> CommitObjectProxy[T]:
         return self.clone_and_add_commit(CallableCommit(commit_callable))
 
     def apply_commit_stack(self) -> None:

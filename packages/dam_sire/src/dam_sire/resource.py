@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Callable, ContextManager, Type
+from collections.abc import Callable
+from typing import Any, ContextManager
 
 from sire.core.runtime_resource_management import AutoManageWrapper, auto_manage, get_management
 
@@ -11,7 +12,7 @@ class SireResource:
         self.management = get_management()
         logger.info("SireResource initialized.")
 
-    def register_model_type(self, model_class: Type[Any], wrapper_class: Type[Any]) -> None:
+    def register_model_type(self, model_class: type[Any], wrapper_class: type[Any]) -> None:
         logger.info(f"Registering wrapper {wrapper_class.__name__} for model {model_class.__name__}")
         AutoManageWrapper.register_type_wrapper(model_class, wrapper_class)
 

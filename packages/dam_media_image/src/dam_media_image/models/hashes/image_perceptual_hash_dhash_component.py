@@ -4,9 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 class ImagePerceptualDHashComponent(BaseComponent):
-    """
-    Stores dHash perceptual hashes (typically 8 bytes for 64-bit) for an image entity.
-    """
+    """Stores dHash perceptual hashes (typically 8 bytes for 64-bit) for an image entity."""
 
     __tablename__ = "component_image_perceptual_dhash"  # Renamed
 

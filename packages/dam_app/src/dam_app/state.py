@@ -1,10 +1,9 @@
-from typing import Optional
 
 from dam.core.world import get_world as get_world_from_core
 
 
 class GlobalState:
-    world_name: Optional[str] = None
+    world_name: str | None = None
 
 
 global_state = GlobalState()

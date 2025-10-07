@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 from dam.core.config import WorldConfig
 from dam.core.contexts import ContextProvider

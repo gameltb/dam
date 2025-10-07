@@ -1,7 +1,8 @@
 # pyright: basic
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, Generic, List, Optional, Self, TypeVar, overload
+from collections.abc import AsyncGenerator
+from typing import Any, Self, TypeVar, overload
 
 from dam.enums import ExecutionStrategy
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
@@ -13,7 +14,7 @@ ItemType = TypeVar("ItemType")
 SendType = TypeVar("SendType")
 
 
-class SystemExecutor(Generic[ResultType, EventType]):
+class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
     """
     Executes a collection of system generators according to a specified strategy
     and provides methods to consume the resulting event stream.
@@ -21,13 +22,13 @@ class SystemExecutor(Generic[ResultType, EventType]):
 
     def __init__(
         self,
-        generators: List[AsyncGenerator[EventType, Any]],
+        generators: list[AsyncGenerator[EventType, Any]],
         strategy: ExecutionStrategy,
     ):
         self._generators = generators
         self._strategy = strategy
-        self._results: Optional[List[ResultType]] = None
-        self._iterator: Optional[AsyncGenerator[EventType | InformationRequest[Any], Any]] = None
+        self._results: list[ResultType] | None = None
+        self._iterator: AsyncGenerator[EventType | InformationRequest[Any], Any] | None = None
 
     def __aiter__(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
         # To prevent re-running the generators, we create the iterator once and reuse it.
@@ -134,10 +135,8 @@ class SystemExecutor(Generic[ResultType, EventType]):
                 if isinstance(event, SystemResultEvent):
                     self._results.append(event.result)
 
-    async def get_all_results(self) -> List[ResultType]:
-        """
-        Consumes the stream and returns a list of all results from SystemResultEvents.
-        """
+    async def get_all_results(self) -> list[ResultType]:
+        """Consumes the stream and returns a list of all results from SystemResultEvents."""
         await self._populate_results_if_needed()
         return self._results if self._results is not None else []
 
@@ -151,7 +150,7 @@ class SystemExecutor(Generic[ResultType, EventType]):
             raise ValueError(f"Expected one result, but found {len(results)}.")
         return results[0]
 
-    async def get_first_non_none_value(self) -> Optional[ResultType]:
+    async def get_first_non_none_value(self) -> ResultType | None:
         """
         Consumes the stream until the first non-None result is found and returns it.
         Returns None if no non-None result is found.
@@ -170,21 +169,21 @@ class SystemExecutor(Generic[ResultType, EventType]):
         return None
 
     @overload
-    async def get_all_results_flat(self: "SystemExecutor[Optional[List[ItemType]], EventType]") -> List[ItemType]: ...
+    async def get_all_results_flat(self: "SystemExecutor[list[ItemType] | None, EventType]") -> list[ItemType]: ...
 
     @overload
-    async def get_all_results_flat(self: "SystemExecutor[List[ItemType], EventType]") -> List[ItemType]: ...
+    async def get_all_results_flat(self: "SystemExecutor[list[ItemType], EventType]") -> list[ItemType]: ...
 
     @overload
-    async def get_all_results_flat(self: Self) -> List[ResultType]: ...
+    async def get_all_results_flat(self: Self) -> list[ResultType]: ...
 
-    async def get_all_results_flat(self: Self) -> List[Any]:
+    async def get_all_results_flat(self: Self) -> list[Any]:
         """
         Consumes the stream, gets all results, and flattens any that are lists.
         If a result is None, it is ignored.
         """
         results = await self.get_all_results()
-        flat_list: List[Any] = []
+        flat_list: list[Any] = []
         for item in results:
             if isinstance(item, list):
                 flat_list.extend(item)

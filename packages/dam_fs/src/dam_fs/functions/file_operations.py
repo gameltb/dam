@@ -4,7 +4,6 @@ import logging
 import mimetypes
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple
 
 from dam.core.config import WorldConfig
 from dam.core.transaction import WorldTransaction
@@ -22,7 +21,7 @@ from ..utils.url_utils import get_local_path_for_url
 logger = logging.getLogger(__name__)
 
 
-def get_file_properties(filepath: Path) -> Tuple[str, int]:
+def get_file_properties(filepath: Path) -> tuple[str, int]:
     """
     Retrieves basic file properties.
 
@@ -34,6 +33,7 @@ def get_file_properties(filepath: Path) -> Tuple[str, int]:
 
     Raises:
         FileNotFoundError: If the file does not exist.
+
     """
     if not filepath.is_file():
         raise FileNotFoundError(f"File not found: {filepath}")
@@ -55,6 +55,7 @@ def get_mime_type(filepath: Path) -> str:
 
     Raises:
         FileNotFoundError: If the file does not exist.
+
     """
     if not filepath.is_file():
         raise FileNotFoundError(f"File not found: {filepath}")
@@ -100,7 +101,7 @@ async def read_file_async(filepath: Path) -> bytes:
     return await asyncio.to_thread(filepath.read_bytes)
 
 
-async def get_file_properties_async(filepath: Path) -> Tuple[str, int]:
+async def get_file_properties_async(filepath: Path) -> tuple[str, int]:
     """Asynchronously retrieves basic file properties."""
     return await asyncio.to_thread(get_file_properties, filepath)
 
@@ -119,7 +120,7 @@ async def create_entity_with_file(transaction: WorldTransaction, world_config: W
     entity = await ecs_functions.create_entity(transaction.session)
 
     file_stat = p_file_path.stat()
-    mod_time = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc).replace(microsecond=0)
+    mod_time = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.UTC).replace(microsecond=0)
 
     # Add FileLocationComponent
     file_url = p_file_path.as_uri()
@@ -145,7 +146,7 @@ async def create_entity_with_file(transaction: WorldTransaction, world_config: W
     return entity
 
 
-async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_id: int) -> Optional[Path]:
+async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_id: int) -> Path | None:
     """
     Resolves a file_id (which is the ID of a FilenameComponent) to a local, accessible file path.
     TODO: This function is fragile as it assumes file_id is a component ID. Refactor to use entity_id.
@@ -159,11 +160,9 @@ async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_
 
 
 async def get_file_path_for_entity(
-    world: World, transaction: WorldTransaction, entity_id: int, variant_name: Optional[str] = "original"
-) -> Optional[Path]:
-    """
-    Retrieves the full file path for a given entity.
-    """
+    world: World, transaction: WorldTransaction, entity_id: int, variant_name: str | None = "original"
+) -> Path | None:
+    """Retrieves the full file path for a given entity."""
     logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
 
     # 1. Try to get path from FileStorageResource using content hash

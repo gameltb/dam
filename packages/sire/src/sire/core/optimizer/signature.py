@@ -1,11 +1,12 @@
 import hashlib
 import logging
 import sys
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, List, Tuple, cast
+from typing import Any, cast
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,9 @@ class ConfigSignatureGenerator:
     def _serialize_value_recursive(
         self,
         val: Any,
-        path: List[str],
-        sig_parts: List[str],
-        raw: Dict[str, Any],
+        path: list[str],
+        sig_parts: list[str],
+        raw: dict[str, Any],
         md: int = 3,
         cd: int = 0,
         mc: int = 5,
@@ -54,26 +55,26 @@ class ConfigSignatureGenerator:
                     sig_parts.append(f"{ps}_{i}_itemlimit")
                     elements.append({"status": "item_limit"})
                     break
-                inode: Dict[str, Any] = {}
+                inode: dict[str, Any] = {}
                 elements.append(inode)
-                self._serialize_value_recursive(item, path + [str(i)], sig_parts, inode, md, cd + 1, mc)
+                self._serialize_value_recursive(item, [*path, str(i)], sig_parts, inode, md, cd + 1, mc)
         elif isinstance(val, dict):
             sig_parts.append(f"{ps}_D_len{len(val)}")  # type: ignore
             raw.update({"type": "Dict", "len": len(val), "items": {}})  # type: ignore
             try:
                 dict_val = cast(dict[Any, Any], val)
-                keys: List[Any] = sorted(list(dict_val.keys()), key=str)
+                keys: list[Any] = sorted(list(dict_val.keys()), key=str)
             except TypeError:
                 logger.debug(f"Dict keys {ps} not sortable by str.")
                 keys = list(val.keys())  # type: ignore
             for i, k_ in enumerate(keys):
                 if i >= mc:
-                    sig_parts.append(f"{ps}_{str(k_)}_itemlimit")
+                    sig_parts.append(f"{ps}_{k_!s}_itemlimit")
                     raw["items"][str(k_)] = {"status": "item_limit"}
                     break
                 inode = {}
                 raw["items"][str(k_)] = inode
-                self._serialize_value_recursive(val[k_], path + [str(k_)], sig_parts, inode, md, cd + 1, mc)
+                self._serialize_value_recursive(val[k_], [*path, str(k_)], sig_parts, inode, md, cd + 1, mc)
         elif isinstance(val, (int, float, bool, str)):
             sval = str(val)
             sval_sig = (sval[:27] + "...") if isinstance(val, str) and len(sval) > 30 else sval
@@ -92,25 +93,25 @@ class ConfigSignatureGenerator:
                 raw["value_str"] = "Error_str_conversion"
 
     def _get_input_parts(
-        self, mod: nn.Module, args: Tuple[Any, ...], kwargs: Dict[str, Any], raw_in: Dict[str, Any]
-    ) -> List[str]:
-        s_p: List[str] = []
+        self, mod: nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any], raw_in: dict[str, Any]
+    ) -> list[str]:
+        s_p: list[str] = []
         args_list: list[dict[str, Any]] = []
         raw_in["args"] = args_list
         for i, v_ in enumerate(args):
-            node: Dict[str, Any] = {}
+            node: dict[str, Any] = {}
             args_list.append(node)
             self._serialize_value_recursive(v_, [f"arg{i}"], s_p, node)
         kwargs_dict: dict[str, Any] = {}
         raw_in["kwargs"] = kwargs_dict
         for k_, v_ in sorted(kwargs.items()):
-            node: Dict[str, Any] = {}
+            node: dict[str, Any] = {}
             kwargs_dict[k_] = node
             self._serialize_value_recursive(v_, [f"kw_{k_}"], s_p, node)
         return s_p
 
-    def _get_weights_parts(self, mod: nn.Module, raw_w: Dict[str, Any], include_hash: bool) -> List[str]:
-        s_p: List[str] = []
+    def _get_weights_parts(self, mod: nn.Module, raw_w: dict[str, Any], include_hash: bool) -> list[str]:
+        s_p: list[str] = []
         raw_w.update({"parameters": {}, "buffers": {}})
         for n, p_ in sorted(mod.named_parameters(recurse=True), key=lambda x: x[0]):
             s, dt = "_".join(map(str, p_.shape)), str(p_.dtype).split(".")[-1]
@@ -135,20 +136,20 @@ class ConfigSignatureGenerator:
     def generate_config_signature(
         self,
         mod: nn.Module,
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
         dtype: torch.dtype,
         cb: Callable[..., Any] | None = None,
         level: SignatureType = SignatureType.WITH_WEIGHT_HASH,
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> tuple[str, dict[str, Any]]:
         class_name = f"{mod.__class__.__module__}.{mod.__class__.__name__}"
-        raw: Dict[str, Any] = {
+        raw: dict[str, Any] = {
             "inputs": {},
             "module_structure": {"class_name": class_name},
             "weights": {},
             "config": {},
         }
-        s_p: List[str] = [f"cls_{class_name}"]
+        s_p: list[str] = [f"cls_{class_name}"]
 
         # Level 1: Inputs
         s_p.extend(self._get_input_parts(mod, args, kwargs, raw["inputs"]) or ["inputs_empty"])
@@ -192,7 +193,7 @@ class ConfigSignatureGenerator:
         logger.debug(f"Config sig hash: {hashed_sig} (from: {full_sig[:100]}...)")
         return hashed_sig, raw
 
-    def generate_plan_identifier(self, mem_bytes: Dict[str, int]) -> str:
+    def generate_plan_identifier(self, mem_bytes: dict[str, int]) -> str:
         parts = [f"{k}{v / (1024**3):.1f}G" for k, v in sorted(mem_bytes.items())]
         mem_str = "_".join(parts) or "mem_auto_empty"
         plan_id = hashlib.md5(mem_str.encode()).hexdigest()[:16]

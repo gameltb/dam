@@ -1,6 +1,5 @@
 import threading
 import uuid
-from typing import Dict, Optional
 from urllib.parse import ParseResult, urlparse
 
 from ..resource_management import (
@@ -12,7 +11,7 @@ from ..resource_management import (
 
 
 class UUIDResourceResolver(ResourceResolver):
-    def _get_resource(self, url: ParseResult) -> Optional[Resource]:
+    def _get_resource(self, url: ParseResult) -> Resource | None:
         if url.hostname is None:
             return None
         return GLOBAL_UUID_RESOURCE_POOL.get(url.hostname, None)
@@ -20,7 +19,7 @@ class UUIDResourceResolver(ResourceResolver):
 
 GLOBAL_RESOURCE_RESOLVER.registe_scheme_resolver("playgraounduuidres", UUIDResourceResolver())
 
-GLOBAL_UUID_RESOURCE_POOL: Dict[str, Resource] = {}
+GLOBAL_UUID_RESOURCE_POOL: dict[str, Resource] = {}
 GLOBAL_UUID_RESOURCE_POOL_LOCK = threading.Lock()
 
 
@@ -39,7 +38,7 @@ def uuid_res_pool_put(resource: Resource) -> str:
 
 
 def uuid_res_pool_registe_url(url: str) -> str:
-    res_uuid: Optional[str] = None
+    res_uuid: str | None = None
     if identical_resource_urls := GLOBAL_RESOURCE_RESOLVER.find_identical_resource_url(
         url, scheme="playgraounduuidres"
     ):

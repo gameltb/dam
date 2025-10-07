@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 from urllib.parse import ParseResult
 
 from huggingface_hub import snapshot_download  # type: ignore
@@ -17,7 +16,7 @@ _logger = logging.getLogger(__name__)
 
 
 class HuggingfaceResourceResolver(ResourceResolver):
-    def _get_resource(self, url: ParseResult) -> Optional[Resource]:
+    def _get_resource(self, url: ParseResult) -> Resource | None:
         repo_id = url.path.strip("/")
 
         # local_path = get_local_huggingface_path(repo_id)
@@ -42,7 +41,7 @@ class HuggingfaceResourceResolver(ResourceResolver):
 GLOBAL_RESOURCE_RESOLVER.registe_scheme_resolver("huggingface", HuggingfaceResourceResolver())
 
 
-def hf(repo_id: str, repo_type: Optional[str] = None) -> str:
+def hf(repo_id: str, repo_type: str | None = None) -> str:
     # repo_type is not used
     resource = GLOBAL_RESOURCE_RESOLVER.get_resource(ParseResult("huggingface", "", repo_id, "", "", ""))
     if resource is None:

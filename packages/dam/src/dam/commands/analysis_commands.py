@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 from ..core.types import StreamProvider
 from ..system_events.base import BaseSystemEvent
@@ -16,17 +16,17 @@ if TYPE_CHECKING:
 class AnalysisCommand(EntityCommand[ResultType, EventType]):
     """Base class for commands that analyze an entity's data."""
 
-    stream_provider: Optional[StreamProvider] = None
+    stream_provider: StreamProvider | None = None
 
     @classmethod
-    def get_supported_types(cls) -> Dict[str, List[str]]:
+    def get_supported_types(cls) -> dict[str, list[str]]:
         """
         Returns a dictionary of supported MIME types and file extensions.
-        Example: {"mimetypes": ["image/jpeg"], "extensions": [".jpg", ".jpeg"]}
+        Example: {"mimetypes": ["image/jpeg"], "extensions": [".jpg", ".jpeg"]}.
         """
         return {"mimetypes": [], "extensions": []}
 
-    async def get_stream_provider(self, world: "World") -> Optional[StreamProvider]:
+    async def get_stream_provider(self, world: World) -> StreamProvider | None:
         """
         Gets a provider for a binary stream for the command's entity.
         If a provider was passed in the command, it is returned.
@@ -46,8 +46,6 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
 
 @dataclass
 class AutoSetMimeTypeCommand(AnalysisCommand[None, BaseSystemEvent]):
-    """
-    A command to automatically set the mime type for an asset.
-    """
+    """A command to automatically set the mime type for an asset."""
 
     entity_id: int
