@@ -1,3 +1,4 @@
+"""Data model for content length."""
 
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
@@ -15,4 +16,5 @@ class ContentLengthComponent(UniqueComponent):
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True, default=None)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"ContentLengthComponent(entity_id={self.entity_id}, file_size_bytes={self.file_size_bytes})"

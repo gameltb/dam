@@ -1,3 +1,5 @@
+"""Core plugin for the DAM system."""
+
 import logging
 
 from dam.core.database import DatabaseManager
@@ -26,19 +28,21 @@ class CorePlugin(Plugin):
         resource_manager = world.resource_manager
         world_name = world_config.name
 
-        world.logger.info(f"Populating base resources for World '{world_name}'...")
+        world.logger.info("Populating base resources for World '%s'...", world_name)
 
         resource_manager.add_resource(world_config, world_config.__class__)
-        world.logger.debug(f"Added WorldConfig resource for World '{world_name}'.")
+        world.logger.debug("Added WorldConfig resource for World '%s'.", world_name)
 
         db_manager = DatabaseManager(
             world_config=world_config,
         )
         resource_manager.add_resource(db_manager, DatabaseManager)
-        world.logger.debug(f"Added DatabaseManager resource for World '{world_name}'.")
+        world.logger.debug("Added DatabaseManager resource for World '%s'.", world_name)
 
         world.logger.info(
-            f"Base resources populated for World '{world_name}'. Current resources: {list(resource_manager.get_all_resource_types())}"
+            "Base resources populated for World '%s'. Current resources: %s",
+            world_name,
+            list(resource_manager.get_all_resource_types()),
         )
 
         # Logic from register_core_systems
@@ -46,4 +50,4 @@ class CorePlugin(Plugin):
         world.register_system(get_or_create_entity_from_stream_handler)
         world.register_system(set_mime_type_system)
         world.register_system(get_mime_type_system)
-        logger.info(f"Core system registration complete for world: {world.name}")
+        logger.info("Core system registration complete for world: %s", world.name)

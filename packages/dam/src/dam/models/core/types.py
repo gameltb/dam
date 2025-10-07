@@ -1,3 +1,5 @@
+"""Custom types for SQLAlchemy models."""
+
 from datetime import datetime
 from typing import Annotated
 

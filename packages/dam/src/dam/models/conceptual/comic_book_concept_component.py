@@ -1,3 +1,5 @@
+"""Data model for comic book concepts."""
+
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -7,6 +9,7 @@ from .base_conceptual_info_component import UniqueBaseConceptualInfoComponent
 class ComicBookConceptComponent(UniqueBaseConceptualInfoComponent):
     """
     Represents the concept of a specific comic book issue or work.
+
     This component is attached to an Entity that acts as the central identifier
     for this comic book concept, to which different file variants can be linked.
     """
@@ -51,6 +54,7 @@ class ComicBookConceptComponent(UniqueBaseConceptualInfoComponent):
     # summary: Mapped[str | None] # Kept as Text in SQLAlchemy
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"ComicBookConceptComponent(entity_id={self.entity_id}, "
             f"comic_title='{self.comic_title}', issue='{self.issue_number}', year={self.publication_year})"

@@ -1,3 +1,5 @@
+"""Commands for analyzing entities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,14 +23,16 @@ class AnalysisCommand(EntityCommand[ResultType, EventType]):
     @classmethod
     def get_supported_types(cls) -> dict[str, list[str]]:
         """
-        Returns a dictionary of supported MIME types and file extensions.
+        Return a dictionary of supported MIME types and file extensions.
+
         Example: {"mimetypes": ["image/jpeg"], "extensions": [".jpg", ".jpeg"]}.
         """
         return {"mimetypes": [], "extensions": []}
 
     async def get_stream_provider(self, world: World) -> StreamProvider | None:
         """
-        Gets a provider for a binary stream for the command's entity.
+        Get a provider for a binary stream for the command's entity.
+
         If a provider was passed in the command, it is returned.
         Otherwise, a new GetAssetStreamCommand is dispatched to fetch the provider.
         """

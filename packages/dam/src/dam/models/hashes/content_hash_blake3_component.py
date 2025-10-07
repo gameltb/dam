@@ -1,3 +1,5 @@
+"""Data model for BLAKE3 content hashes."""
+
 from sqlalchemy import (
     CheckConstraint,
     LargeBinary,
@@ -21,5 +23,6 @@ class ContentHashBLAKE3Component(UniqueComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return f"ContentHashBLAKE3Component(entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

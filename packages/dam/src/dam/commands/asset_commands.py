@@ -1,5 +1,7 @@
+"""Commands related to asset manipulation."""
+
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from ..core.types import StreamProvider
 from ..models.core.entity import Entity
@@ -11,6 +13,7 @@ from .core import BaseCommand, EntityCommand
 class GetOrCreateEntityFromStreamCommand(BaseCommand[tuple[Entity, bytes], BaseSystemEvent]):
     """
     A command to get or create an entity from a stream.
+
     Returns a tuple of the entity and the calculated sha256 hash.
     """
 
@@ -18,7 +21,7 @@ class GetOrCreateEntityFromStreamCommand(BaseCommand[tuple[Entity, bytes], BaseS
 
 
 @dataclass
-class GetAssetStreamCommand(BaseCommand[Optional[StreamProvider], BaseSystemEvent]):
+class GetAssetStreamCommand(BaseCommand[StreamProvider | None, BaseSystemEvent]):
     """
     A command to get a provider for a binary stream for an asset's content.
 
@@ -85,6 +88,7 @@ class UpdateAssetMetadataCommand(EntityCommand[None, BaseSystemEvent]):
 class GetAssetFilenamesCommand(EntityCommand[list[str], BaseSystemEvent]):
     """
     A command to get all available filenames for an asset.
+
     Handlers for this command should return a list of strings,
     each representing a known filename for the asset.
     """

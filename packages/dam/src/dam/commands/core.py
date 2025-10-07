@@ -1,3 +1,5 @@
+"""Core components for the command system."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

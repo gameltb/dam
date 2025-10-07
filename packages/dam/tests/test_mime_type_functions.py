@@ -1,3 +1,5 @@
+"""Tests for MIME type functions."""
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from dam.models.core.entity import Entity
 
 @pytest_asyncio.fixture
 async def generic_entity(db_session: AsyncSession) -> Entity:
+    """Provide a generic entity for testing."""
     entity = await ecs_functions.create_entity(db_session)
     await db_session.commit()
     assert entity is not None
@@ -17,6 +20,7 @@ async def generic_entity(db_session: AsyncSession) -> Entity:
 
 @pytest.mark.asyncio
 async def test_get_or_create_mime_type_concept(db_session: AsyncSession):
+    """Test getting or creating a MIME type concept."""
     # Test creation
     mime_type = "image/jpeg"
     concept_comp = await mt_funks.get_or_create_mime_type_concept(db_session, mime_type)
@@ -35,6 +39,7 @@ async def test_get_or_create_mime_type_concept(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_set_and_get_content_mime_type(db_session: AsyncSession, generic_entity: Entity):
+    """Test setting and getting the content MIME type for an entity."""
     mime_type = "application/pdf"
 
     # Set the mime type
@@ -55,6 +60,7 @@ async def test_set_and_get_content_mime_type(db_session: AsyncSession, generic_e
 
 @pytest.mark.asyncio
 async def test_update_content_mime_type(db_session: AsyncSession, generic_entity: Entity):
+    """Test updating the content MIME type for an entity."""
     # Set initial mime type
     await mt_funks.set_content_mime_type(db_session, generic_entity.id, "image/png")
     await db_session.commit()

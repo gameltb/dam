@@ -1,3 +1,4 @@
+"""Core data models for the DAM system."""
 # This file makes the 'core' directory a Python package.
 
 # Example:

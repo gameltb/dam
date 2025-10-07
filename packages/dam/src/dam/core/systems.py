@@ -1,3 +1,5 @@
+"""Core components for the Entity Component System (ECS) framework."""
+
 # pyright: basic
 import asyncio
 import inspect
@@ -79,12 +81,10 @@ def _parse_system_params(func: Callable[..., Any]) -> dict[str, SystemParameterI
 
             if identity is MarkedEntityList:
                 marker_component_type = next((m for m in type_based_markers if issubclass(m, BaseComponent)), None)
-            elif identity is EventMarker:
-                if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
-                    event_specific_type = actual_type
-            elif identity is CommandMarker:
-                if inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand):
-                    command_specific_type = actual_type
+            elif (
+                identity is CommandMarker and inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand)
+            ) or (identity is CommandMarker and inspect.isclass(actual_type) and issubclass(actual_type, BaseCommand)):
+                command_specific_type = actual_type
 
         if not identity:
             if inspect.isclass(actual_type) and issubclass(actual_type, BaseEvent):
@@ -113,8 +113,10 @@ def system(
     on_stage: SystemStage | None = None,
     on_command: type["BaseCommand[Any, Any]"] | None = None,
     on_event: type[BaseEvent] | None = None,
-    **kwargs: Any,
+    **_kwargs: Any,
 ) -> Callable[..., Any]:
+    """Register a function as a system."""
+
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         param_info = _parse_system_params(f)
 
@@ -143,7 +145,10 @@ def system(
 
 
 class WorldScheduler:
+    """Schedules and executes systems within a world."""
+
     def __init__(self, world: "World") -> None:
+        """Initialize the scheduler."""
         self.world = world
         self.resource_manager = world.resource_manager
         self.system_registry: dict[SystemStage, list[Callable[..., Any]]] = defaultdict(list)
@@ -155,11 +160,12 @@ class WorldScheduler:
     def register_system_for_world(
         self,
         system_func: Callable[..., Any],
-        stage: SystemStage | None = None,
-        event_type: type[BaseEvent] | None = None,
-        command_type: type["BaseCommand[Any, Any]"] | None = None,
-        **kwargs: Any,
+        _stage: SystemStage | None = None,
+        _event_type: type[BaseEvent] | None = None,
+        _command_type: type["BaseCommand[Any, Any]"] | None = None,
+        **_kwargs: Any,
     ) -> None:
+        """Register a system with the appropriate registry based on its metadata."""
         metadata = self.system_metadata.get(system_func)
         if not metadata:
             return
@@ -191,9 +197,11 @@ class WorldScheduler:
                     handler_event_type = get_args(handler_return_type)[0]
                     if handler_event_type is not Any and handler_event_type != command_event_type:
                         self.logger.warning(
-                            f"Potential event type mismatch for command '{reg_command.__name__}'. "
-                            f"Handler '{system_func.__name__}' yields '{handler_event_type}' "
-                            f"but command expects event type '{command_event_type}'."
+                            "Potential event type mismatch for command '%s'. Handler '%s' yields '%s' but command expects event type '%s'.",
+                            reg_command.__name__,
+                            system_func.__name__,
+                            handler_event_type,
+                            command_event_type,
                         )
             elif command_result_type is not None and command_result_type is not Any:
                 normalized_command_type = get_origin(command_result_type) or command_result_type
@@ -204,15 +212,18 @@ class WorldScheduler:
 
                 if normalized_command_type != normalized_handler_type:
                     self.logger.warning(
-                        f"Potential return type mismatch for command '{reg_command.__name__}'. "
-                        f"Handler '{system_func.__name__}' is annotated to return '{handler_return_type}' "
-                        f"but command expects '{command_result_type}'."
+                        "Potential return type mismatch for command '%s'. Handler '%s' is annotated to return '%s' but command expects '%s'.",
+                        reg_command.__name__,
+                        system_func.__name__,
+                        handler_return_type,
+                        command_result_type,
                     )
             self.command_handler_registry[reg_command].append(system_func)
         elif metadata.system_type == SystemType.EVENT and metadata.listens_for_event_type:
             self.event_handler_registry[metadata.listens_for_event_type].append(system_func)
 
     async def execute_stage(self, stage: SystemStage) -> None:
+        """Execute all systems registered for a given stage."""
         systems_to_run = self.system_registry.get(stage, [])
         if not systems_to_run:
             return
@@ -222,6 +233,7 @@ class WorldScheduler:
             pass
 
     async def dispatch_event(self, event: BaseEvent) -> None:
+        """Dispatch an event to all registered handlers."""
         handlers_to_run = self.event_handler_registry.get(type(event), [])
         if not handlers_to_run:
             return
@@ -233,10 +245,11 @@ class WorldScheduler:
     def dispatch_command(
         self, command: "BaseCommand[ResultType, EventType]", **kwargs: Any
     ) -> "SystemExecutor[ResultType, EventType]":
+        """Dispatch a command to its registered handlers and return an executor."""
         handlers_to_run = self.command_handler_registry.get(type(command), [])
         if not handlers_to_run:
             self.logger.warning(
-                f"No system registered for command {type(command).__name__} in world '{self.world.name}'."
+                "No system registered for command %s in world '%s'.", type(command).__name__, self.world.name
             )
             return SystemExecutor([], command.execution_strategy)
         generators = [self._execute_system_func(h, command_object=command, **kwargs) for h in handlers_to_run]
@@ -376,5 +389,6 @@ class WorldScheduler:
     def execute_one_time_system(
         self, system_func: Callable[..., Any], **kwargs: Any
     ) -> SystemExecutor[Any, BaseSystemEvent]:
+        """Execute a single system function immediately, outside the normal flow."""
         generator = self._execute_system_func(system_func, **kwargs)
         return SystemExecutor([generator], ExecutionStrategy.SERIAL)

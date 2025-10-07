@@ -1,3 +1,5 @@
+"""Base classes for variant asset components."""
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
@@ -11,7 +13,8 @@ if TYPE_CHECKING:
 
 class BaseVariantInfoComponent(BaseComponent):
     """
-    Abstract base class for components that link a concrete File Entity
+    Abstract base class for components that link a concrete File Entity.
+
     (a specific file manifestation) to a Conceptual Asset Entity.
     This component defines that the File Entity is a 'variant' of a conceptual work.
 
@@ -50,12 +53,14 @@ class BaseVariantInfoComponent(BaseComponent):
     # and specific subclasses might need different constraints.
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
 
 
 class UniqueBaseVariantInfoComponent(UniqueComponent):
     """
-    Abstract base class for unique components that link a concrete File Entity
+    Abstract base class for unique components that link a concrete File Entity.
+
     to a Conceptual Asset Entity.
     """
 
@@ -80,6 +85,7 @@ class UniqueBaseVariantInfoComponent(UniqueComponent):
         )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"{self.__class__.__name__}(entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
         )

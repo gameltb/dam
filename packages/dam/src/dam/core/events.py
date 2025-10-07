@@ -1,3 +1,5 @@
+"""Core event definitions for the DAM system."""
+
 from dataclasses import dataclass
 
 

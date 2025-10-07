@@ -1,3 +1,5 @@
+"""Systems for handling core entity operations."""
+
 import io
 import logging
 from typing import Annotated
@@ -20,8 +22,8 @@ async def get_or_create_entity_from_stream_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> tuple[Entity, bytes]:
-    """Handles getting or creating an entity from a stream."""
-    logger.info(f"System handling GetOrCreateEntityFromStreamCommand in world {world.name}")
+    """Handle getting or creating an entity from a stream."""
+    logger.info("System handling GetOrCreateEntityFromStreamCommand in world %s", world.name)
     all_algorithms = {HashAlgorithm.MD5, HashAlgorithm.SHA256, HashAlgorithm.CRC32, HashAlgorithm.BLAKE3}
 
     async with cmd.stream_provider.get_stream() as stream:
@@ -39,10 +41,10 @@ async def get_or_create_entity_from_stream_handler(
 
     if existing_entity:
         entity = existing_entity
-        logger.info(f"Content already exists as Entity ID {entity.id}.")
+        logger.info("Content already exists as Entity ID %s.", entity.id)
     else:
         entity = await ecs_functions.create_entity(transaction.session)
-        logger.info(f"Creating new Entity ID {entity.id}.")
+        logger.info("Creating new Entity ID %s.", entity.id)
 
     if not entity:
         raise Exception("Failed to create or find entity for the asset.")

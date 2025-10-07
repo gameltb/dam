@@ -1,3 +1,5 @@
+"""Data model for content MIME types."""
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -12,19 +14,18 @@ if TYPE_CHECKING:
 
 @dataclass
 class ContentMimeTypeComponent(UniqueComponent):
-    __tablename__ = "component_content_mime_type"
-    """
-    A component that stores a reference to the mime type of an asset's content.
-    """
+    """A component that stores a reference to the mime type of an asset's content."""
 
-    mime_type_concept_id: Mapped[int] = mapped_column(
+    __tablename__ = "component_content_mime_type"
+
+    mime_type_concept_id: Mapped[int] = mapped_column(  # noqa: RUF009
         ForeignKey("component_mime_type_concept.id"),
         nullable=False,
         index=True,
         comment="The ID of the MimeTypeConceptComponent that represents this mime type.",
     )
 
-    mime_type_concept: Mapped["MimeTypeConceptComponent"] = relationship(
+    mime_type_concept: Mapped["MimeTypeConceptComponent"] = relationship(  # noqa: RUF009
         "MimeTypeConceptComponent",
         lazy="joined",
         init=False,

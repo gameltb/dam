@@ -1,3 +1,5 @@
+"""Core enumerations for the DAM system."""
+
 # pyright: basic
 from enum import Enum, auto
 

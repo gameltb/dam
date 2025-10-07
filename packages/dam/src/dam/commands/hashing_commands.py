@@ -1,3 +1,5 @@
+"""Commands related to calculating and storing content hashes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,3 +1,4 @@
+"""Base classes for conceptual asset components."""
 
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,6 +9,7 @@ from ..core.base_component import BaseComponent, UniqueComponent
 class BaseConceptualInfoComponent(BaseComponent):
     """
     Abstract base class for components that define a 'Conceptual Asset'.
+
     A Conceptual Asset represents an abstract idea or work, which can have
     multiple concrete versions or manifestations (Variants).
 
@@ -22,6 +24,7 @@ class BaseConceptualInfoComponent(BaseComponent):
     concept_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         # Since this is abstract, direct instantiation isn't typical for __repr__
         # but subclasses might call super().__repr__()
         return (
@@ -38,4 +41,5 @@ class UniqueBaseConceptualInfoComponent(UniqueComponent):
     concept_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"{self.__class__.__name__}(entity_id={self.entity_id}, concept_name='{self.concept_name}')"

@@ -1,3 +1,5 @@
+"""Tests for hash utility functions."""
+
 import hashlib
 import zlib
 from io import BytesIO

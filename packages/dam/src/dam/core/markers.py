@@ -1,3 +1,4 @@
+"""Marker classes for dependency injection."""
 # pyright: basic
 
 

@@ -1,6 +1,9 @@
+"""Configuration management for the DAM system."""
+
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field, model_validator
@@ -27,6 +30,7 @@ _DEFAULT_WORLD_CONFIG_JSON = '{"default": {"DATABASE_URL": "postgresql+psycopg:/
 class Settings(BaseSettings):
     """
     Application settings.
+
     Values are loaded from environment variables and/or a .env file.
     Manages configurations for multiple ECS worlds.
     """
@@ -60,7 +64,8 @@ class Settings(BaseSettings):
     @classmethod
     def _load_and_process_worlds_config(cls, values: dict[str, Any]) -> dict[str, Any]:
         """
-        Loads world configurations from the source specified by DAM_WORLDS_CONFIG.
+        Load world configurations from the source specified by DAM_WORLDS_CONFIG.
+
         This source can be a file path to a JSON file or a direct JSON string.
         """
         config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))
@@ -73,11 +78,12 @@ class Settings(BaseSettings):
                 values["DEFAULT_WORLD_NAME"] = "default"
 
         raw_world_configs: dict[str, dict[str, Any]] = {}
-        if os.path.exists(config_source):
+        config_path = Path(config_source)
+        if config_path.exists():
             try:
-                with open(config_source) as f:
+                with config_path.open() as f:
                     raw_world_configs = json.load(f)
-                logger.info(f"Loaded world configurations from file: {config_source}")
+                logger.info("Loaded world configurations from file: %s", config_source)
             except (OSError, json.JSONDecodeError) as e:
                 raise ValueError(f"Error reading or parsing worlds config file {config_source}: {e}") from e
         else:
@@ -88,7 +94,9 @@ class Settings(BaseSettings):
                 # If it's not a valid path and not valid JSON, it might be a simple string meant for default.
                 # This path is less likely if default is handled above.
                 logger.warning(
-                    f"DAM_WORLDS_CONFIG_SOURCE '{config_source}' is not a valid file path or JSON string. Attempting default. Error: {e}"
+                    "DAM_WORLDS_CONFIG_SOURCE '%s' is not a valid file path or JSON string. Attempting default. Error: %s",
+                    config_source,
+                    e,
                 )
                 raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
                 if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
@@ -137,16 +145,18 @@ class Settings(BaseSettings):
             first_world_by_name = sorted(final_worlds_dict.keys())[0]
             values["DEFAULT_WORLD_NAME"] = first_world_by_name
             logger.info(
-                f"DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '{first_world_by_name}'."
+                "DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '%s'.",
+                first_world_by_name,
             )
 
-        logger.debug(f"Final processed worlds: {list(values['worlds'].keys())}")
-        logger.debug(f"Default world name set to: {values['DEFAULT_WORLD_NAME']}")
+        logger.debug("Final processed worlds: %s", list(values["worlds"].keys()))
+        logger.debug("Default world name set to: %s", values["DEFAULT_WORLD_NAME"])
         return values
 
     def get_world_config(self, world_name: str | None = None) -> WorldConfig:
         """
-        Retrieves the configuration for a specific world.
+        Retrieve the configuration for a specific world.
+
         If world_name is None, returns the configuration for the default world.
         Raises ValueError if the specified or default world is not found.
         """
@@ -171,7 +181,7 @@ class Settings(BaseSettings):
         return self.worlds[target_world_name]
 
     def get_all_world_names(self) -> list[str]:
-        """Returns a list of names of all configured worlds."""
+        """Return a list of names of all configured worlds."""
         return list(self.worlds.keys())
 
 

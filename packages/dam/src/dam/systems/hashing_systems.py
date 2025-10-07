@@ -1,3 +1,5 @@
+"""Systems for calculating and storing content hashes."""
+
 import logging
 from typing import Any, cast
 
@@ -28,6 +30,7 @@ class HashMismatchError(Exception):
     """Raised when a calculated hash does not match an existing hash component."""
 
     def __init__(self, entity_id: int, algorithm: HashAlgorithm, existing_hash: str, new_hash: str):
+        """Initialize the error."""
         self.entity_id = entity_id
         self.algorithm = algorithm
         self.existing_hash = existing_hash
@@ -44,10 +47,10 @@ async def add_hash_component(
     algorithm: HashAlgorithm,
     hash_value: bytes,
 ) -> None:
-    """Adds a single hash component to an entity."""
+    """Add a single hash component to an entity."""
     component_class = HASH_ALGORITHM_TO_COMPONENT.get(algorithm)
     if not component_class:
-        logger.warning(f"No component class found for hash algorithm {algorithm.name}. Skipping.")
+        logger.warning("No component class found for hash algorithm %s. Skipping.", algorithm.name)
         return
 
     existing_component = await transaction.get_component(entity_id, component_class)
@@ -64,7 +67,7 @@ async def add_hash_component(
     else:
         new_component = component_class(hash_value=hash_value)
         await transaction.add_component_to_entity(entity_id, new_component)
-        logger.info(f"Added {component_class.__name__} to entity {entity_id}")
+        logger.info("Added %s to entity %s", component_class.__name__, entity_id)
 
 
 async def add_hashes_to_entity(
@@ -72,7 +75,7 @@ async def add_hashes_to_entity(
     entity_id: int,
     hashes: dict[HashAlgorithm, Any],
 ) -> None:
-    """Adds multiple hash components to an entity from a dictionary of hashes."""
+    """Add multiple hash components to an entity from a dictionary of hashes."""
     for algorithm, hash_value in hashes.items():
         # Special handling for CRC32 as it's an int
         hash_value_bytes = hash_value.to_bytes(4, "big") if algorithm == HashAlgorithm.CRC32 else hash_value
@@ -87,8 +90,8 @@ async def add_hashes_to_entity(
 
 @system(on_command=AddHashesFromStreamCommand)
 async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transaction: WorldTransaction) -> None:
-    """Handles the command to calculate and add multiple hash components to an entity from a stream."""
-    logger.info(f"System handling AddHashesFromStreamCommand for entity {cmd.entity_id}")
+    """Handle the command to calculate and add multiple hash components to an entity from a stream."""
+    logger.info("System handling AddHashesFromStreamCommand for entity %s", cmd.entity_id)
 
     async with cmd.stream_provider.get_stream() as stream:
         hashes = calculate_hashes_from_stream(stream, cmd.algorithms)
@@ -100,7 +103,7 @@ async def add_hashes_from_stream_system(cmd: AddHashesFromStreamCommand, transac
         elif isinstance(hash_value, bytes):
             hash_value_bytes = hash_value
         else:
-            logger.warning(f"Unsupported hash value type for {algorithm}: {type(hash_value)}")
+            logger.warning("Unsupported hash value type for %s: %s", algorithm, type(hash_value))
             continue
 
         await add_hash_component(

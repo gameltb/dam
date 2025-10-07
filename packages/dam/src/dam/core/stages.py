@@ -1,3 +1,5 @@
+"""Core system stage definitions for the DAM system."""
+
 from enum import Enum, auto
 from typing import Any
 
@@ -5,6 +7,7 @@ from typing import Any
 class SystemStage(Enum):
     """
     Defines distinct stages in the application lifecycle where systems can be executed.
+
     Systems are registered to run at specific stages using the `@system(on_stage=SystemStage.SOME_STAGE)`
     decorator. The `WorldScheduler` then executes systems belonging to a requested stage,
     typically in the order these enum members are defined.
@@ -34,6 +37,7 @@ class SystemStage(Enum):
     # UPDATE = auto()
 
     def __lt__(self, other: Any) -> bool:
+        """Compare two stages based on their definition order."""
         if self.__class__ is other.__class__:
             # Get all members in definition order
             members = list(self.__class__)

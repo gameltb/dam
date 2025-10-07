@@ -1,3 +1,5 @@
+"""Data model for linking entities to tag concepts."""
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
@@ -11,7 +13,8 @@ if TYPE_CHECKING:
 
 class EntityTagLinkComponent(BaseComponent):
     """
-    Links an Entity (the one this component is attached to) to a TagConceptEntity
+    Links an Entity to a TagConceptEntity.
+
     (an Entity that has a TagConceptComponent, representing the tag definition).
     This component effectively applies a defined tag to an entity, optionally with a value.
     """
@@ -55,4 +58,5 @@ class EntityTagLinkComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<EntityTagLinkComponent id={self.id} entity_id={self.entity_id} tag_concept_id={self.tag_concept_entity_id} value='{self.tag_value}'>"

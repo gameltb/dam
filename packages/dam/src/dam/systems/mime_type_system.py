@@ -1,3 +1,5 @@
+"""Systems for handling MIME type operations."""
+
 import logging
 
 from dam.commands.asset_commands import (
@@ -22,7 +24,7 @@ async def check_content_mime_type_handler(
     cmd: CheckContentMimeTypeCommand,
     transaction: WorldTransaction,
 ) -> bool:
-    """Checks if the ContentMimeTypeComponent exists for the entity."""
+    """Check if the ContentMimeTypeComponent exists for the entity."""
     component = await transaction.get_component(cmd.entity_id, ContentMimeTypeComponent)
     return component is not None
 
@@ -32,22 +34,22 @@ async def remove_content_mime_type_handler(
     cmd: RemoveContentMimeTypeCommand,
     transaction: WorldTransaction,
 ):
-    """Removes the ContentMimeTypeComponent from the entity."""
+    """Remove the ContentMimeTypeComponent from the entity."""
     component = await transaction.get_component(cmd.entity_id, ContentMimeTypeComponent)
     if component:
         await transaction.remove_component(component)
-        logger.info(f"Removed ContentMimeTypeComponent from entity {cmd.entity_id}")
+        logger.info("Removed ContentMimeTypeComponent from entity %s", cmd.entity_id)
 
 
 @system(on_command=SetMimeTypeCommand)
 async def set_mime_type_system(cmd: SetMimeTypeCommand, transaction: WorldTransaction):
-    """Handles the command to set the mime type for an entity."""
-    logger.info(f"Setting mime type for entity {cmd.entity_id} to {cmd.mime_type}")
+    """Handle the command to set the mime type for an entity."""
+    logger.info("Setting mime type for entity %s to %s", cmd.entity_id, cmd.mime_type)
     await set_content_mime_type(transaction.session, cmd.entity_id, cmd.mime_type)
 
 
 @system(on_command=GetMimeTypeCommand)
 async def get_mime_type_system(cmd: GetMimeTypeCommand, transaction: WorldTransaction) -> str | None:
-    """Handles the command to get the mime type for an entity."""
-    logger.info(f"Getting mime type for entity {cmd.entity_id}")
+    """Handle the command to get the mime type for an entity."""
+    logger.info("Getting mime type for entity %s", cmd.entity_id)
     return await get_content_mime_type(transaction.session, cmd.entity_id)

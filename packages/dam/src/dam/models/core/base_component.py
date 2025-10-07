@@ -1,3 +1,5 @@
+"""Base classes for data components in the DAM system."""
+
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -37,20 +39,21 @@ class Component(Base):
         )
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Registers concrete component subclasses."""
+        """Register concrete component subclasses."""
         super().__init_subclass__(**kwargs)
         is_abstract = cls.__dict__.get("__abstract__", False)
         if not is_abstract:
             if cls not in REGISTERED_COMPONENT_TYPES:
                 REGISTERED_COMPONENT_TYPES.append(cls)
-                logger.debug(f"Registered component: {cls.__name__}")
+                logger.debug("Registered component: %s", cls.__name__)
         else:
-            logger.debug(f"Not registering abstract class: {cls.__name__}")
+            logger.debug("Not registering abstract class: %s", cls.__name__)
 
 
 class BaseComponent(Component):
     """
     Abstract base class for all components.
+
     Provides common fields like id, entity_id (linking to an Entity).
     """
 
@@ -65,6 +68,7 @@ class BaseComponent(Component):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, init=False)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"
 
     # __init_subclass__ is now handled by the parent Component class.
@@ -73,6 +77,7 @@ class BaseComponent(Component):
 class UniqueComponent(Component):
     """
     Abstract base class for components that are unique to an entity.
+
     The entity_id serves as the primary key.
     """
 
@@ -81,6 +86,7 @@ class UniqueComponent(Component):
     entity_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("entities.id"), primary_key=True, init=False)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"{self.__class__.__name__}(entity_id={self.entity_id})"
 
     # __init_subclass__ is now handled by the parent Component class.

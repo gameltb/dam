@@ -1,3 +1,5 @@
+"""Database management for DAM worlds."""
+
 import logging
 from typing import Any
 
@@ -17,12 +19,13 @@ __all__ = ["Base", "DatabaseManager"]
 class DatabaseManager:
     """
     Manages asynchronous database connections and sessions for a single, specific ECS World.
+
     An instance of DatabaseManager is typically associated with one World instance.
     """
 
     def __init__(self, world_config: WorldConfig):
         """
-        Initializes the DatabaseManager for a specific world.
+        Initialize the DatabaseManager for a specific world.
 
         Args:
             world_config: The configuration for the world this manager will handle.
@@ -34,7 +37,7 @@ class DatabaseManager:
         self._initialize_engine()
 
     def _initialize_engine(self) -> None:
-        """Initializes the async engine and session maker for this world."""
+        """Initialize the async engine and session maker for this world."""
         if not self.world_config.DATABASE_URL:
             raise ValueError(f"DATABASE_URL not set for world '{self.world_config.name}'. Cannot initialize database.")
 
@@ -47,7 +50,9 @@ class DatabaseManager:
             # This might be too aggressive if other async sqlite drivers were intended,
             # but for this project, aiosqlite is the standard.
             logger.warning(
-                f"Adjusting DATABASE_URL for world '{self.world_config.name}' to use 'sqlite+aiosqlite'. Original: '{self.world_config.DATABASE_URL}'"
+                "Adjusting DATABASE_URL for world '%s' to use 'sqlite+aiosqlite'. Original: '%s'",
+                self.world_config.name,
+                self.world_config.DATABASE_URL,
             )
             self.world_config.DATABASE_URL = self.world_config.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
 
@@ -63,26 +68,29 @@ class DatabaseManager:
         )
         self._session_local = async_sessionmaker(bind=self._engine, expire_on_commit=False)
         logger.info(
-            f"Initialized async database engine for world: '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+            "Initialized async database engine for world: '%s' (%s)",
+            self.world_config.name,
+            self.world_config.DATABASE_URL,
         )
 
     @property
     def engine(self) -> AsyncEngine:
-        """Returns the SQLAlchemy AsyncEngine for this world."""
+        """Return the SQLAlchemy AsyncEngine for this world."""
         if self._engine is None:
             raise RuntimeError(f"Async Database engine for world '{self.world_config.name}' has not been initialized.")
         return self._engine
 
     @property
     def session_local(self) -> async_sessionmaker[AsyncSession]:
-        """Returns the AsyncSessionLocal factory for this world."""
+        """Return the AsyncSessionLocal factory for this world."""
         if self._session_local is None:
             raise RuntimeError(f"AsyncSessionLocal for world '{self.world_config.name}' has not been initialized.")
         return self._session_local
 
     def get_db_session(self) -> AsyncSession:
         """
-        Provides a new asynchronous database session for this world.
+        Provide a new asynchronous database session for this world.
+
         The caller is responsible for closing the session, typically using `async with`.
         """
         if self._session_local is None:  # Should ideally be caught by property access if it were None
@@ -92,8 +100,8 @@ class DatabaseManager:
         return self._session_local()
 
     async def create_db_and_tables(self) -> None:
-        """Creates all database tables for this world using its async engine."""
-        logger.info(f"Attempting to create database tables for world '{self.world_config.name}'...")
+        """Create all database tables for this world using its async engine."""
+        logger.info("Attempting to create database tables for world '%s'...", self.world_config.name)
 
         if self._engine is None:  # Guard against uninitialized engine
             raise RuntimeError(
@@ -106,12 +114,14 @@ class DatabaseManager:
                     await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 await conn.run_sync(Base.metadata.create_all)
             logger.info(
-                f"Database tables created (or verified existing) for world '{self.world_config.name}' ({self.world_config.DATABASE_URL})"
+                "Database tables created (or verified existing) for world '%s' (%s)",
+                self.world_config.name,
+                self.world_config.DATABASE_URL,
             )
-        except Exception as e:
-            logger.error(f"Error creating tables for world '{self.world_config.name}': {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error creating tables for world '%s'", self.world_config.name)
             raise
 
     def get_world_name(self) -> str:
-        """Returns the name of the world this manager is associated with."""
+        """Return the name of the world this manager is associated with."""
         return self.world_config.name

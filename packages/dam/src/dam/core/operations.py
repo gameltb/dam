@@ -1,3 +1,5 @@
+"""Core components for asset operations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,7 +23,8 @@ class AssetOperation:
 
     def get_supported_types(self) -> dict[str, list[str]]:
         """
-        Returns a dictionary of supported MIME types and file extensions.
+        Return a dictionary of supported MIME types and file extensions.
+
         This is delegated from the add_command.
         """
         if hasattr(self.add_command_class, "get_supported_types"):

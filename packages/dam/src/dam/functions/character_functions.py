@@ -1,3 +1,5 @@
+"""Functions for managing character concepts and their links to entities."""
+
 import logging
 
 from sqlalchemy import delete, select
@@ -33,7 +35,8 @@ async def create_character_concept(
     # Add other character-specific fields from CharacterConceptComponent if any were added
 ) -> Entity | None:
     """
-    Creates a new character concept.
+    Create a new character concept.
+
     A character concept is an entity that has a CharacterConceptComponent.
     """
     if not name:
@@ -43,7 +46,9 @@ async def create_character_concept(
         existing_char_concept = await get_character_concept_by_name(session, name)
         if existing_char_concept:
             logger.warning(
-                f"CharacterConcept with name '{name}' already exists with Entity ID {existing_char_concept.id}."
+                "CharacterConcept with name '%s' already exists with Entity ID %s.",
+                name,
+                existing_char_concept.id,
             )
             return existing_char_concept
     except CharacterConceptNotFoundError:
@@ -61,26 +66,26 @@ async def create_character_concept(
     )
     try:
         await ecs_functions.add_component_to_entity(session, character_entity.id, character_concept_comp)
-        logger.info(f"Created CharacterConcept Entity ID {character_entity.id} with name '{name}'.")
+        logger.info("Created CharacterConcept Entity ID %s with name '%s'.", character_entity.id, name)
         return character_entity
     except IntegrityError:  # Catch potential unique constraint violations if name is made unique in DB
         await session.rollback()
         logger.error(
-            f"Failed to create CharacterConcept '{name}' due to unique constraint violation (name likely exists)."
+            "Failed to create CharacterConcept '%s' due to unique constraint violation (name likely exists).", name
         )
         # Re-fetch just in case it was a race condition, though less likely with the initial check
         try:
             return await get_character_concept_by_name(session, name)
         except CharacterConceptNotFoundError:
             return None  # Truly failed
-    except Exception as e:
+    except Exception:
         await session.rollback()
-        logger.error(f"Unexpected error creating CharacterConcept '{name}': {e}", exc_info=True)
+        logger.exception("Unexpected error creating CharacterConcept '%s'", name)
         return None
 
 
 async def get_character_concept_by_name(session: AsyncSession, name: str) -> Entity:
-    """Retrieves a character concept entity by its name."""
+    """Retrieve a character concept entity by its name."""
     stmt = (
         select(Entity)
         .join(CharacterConceptComponent, Entity.id == CharacterConceptComponent.entity_id)
@@ -94,7 +99,7 @@ async def get_character_concept_by_name(session: AsyncSession, name: str) -> Ent
 
 
 async def get_character_concept_by_id(session: AsyncSession, character_concept_entity_id: int) -> Entity | None:
-    """Retrieves a character concept entity by its ID."""
+    """Retrieve a character concept entity by its ID."""
     character_concept_entity = await ecs_functions.get_entity(session, character_concept_entity_id)
     if character_concept_entity and await ecs_functions.get_component(
         session, character_concept_entity_id, CharacterConceptComponent
@@ -104,7 +109,7 @@ async def get_character_concept_by_id(session: AsyncSession, character_concept_e
 
 
 async def find_character_concepts(session: AsyncSession, query_name: str | None = None) -> list[Entity]:
-    """Finds character concepts, optionally filtering by name."""
+    """Find character concepts, optionally filtering by name."""
     stmt = select(Entity).join(CharacterConceptComponent, Entity.id == CharacterConceptComponent.entity_id)
     if query_name:
         stmt = stmt.where(CharacterConceptComponent.concept_name.ilike(f"%{query_name}%"))
@@ -120,12 +125,12 @@ async def update_character_concept(
     description: str | None = None,
     # Add other fields as needed
 ) -> CharacterConceptComponent | None:
-    """Updates an existing character concept."""
+    """Update an existing character concept."""
     char_concept_comp = await ecs_functions.get_component(
         session, character_concept_entity_id, CharacterConceptComponent
     )
     if not char_concept_comp:
-        logger.warning(f"CharacterConceptComponent not found for Entity ID {character_concept_entity_id}.")
+        logger.warning("CharacterConceptComponent not found for Entity ID %s.", character_concept_entity_id)
         return None
 
     updated = False
@@ -135,7 +140,9 @@ async def update_character_concept(
             existing_char = await get_character_concept_by_name(session, name)
             if existing_char and existing_char.id != character_concept_entity_id:
                 logger.error(
-                    f"Cannot update character name to '{name}' as it already exists for CharacterConcept ID {existing_char.id}."
+                    "Cannot update character name to '%s' as it already exists for CharacterConcept ID %s.",
+                    name,
+                    existing_char.id,
                 )
                 return None
         except CharacterConceptNotFoundError:
@@ -153,21 +160,22 @@ async def update_character_concept(
         try:
             session.add(char_concept_comp)  # Add to session if changes were made
             await session.flush()
-            logger.info(f"Updated CharacterConceptComponent for Entity ID {character_concept_entity_id}.")
+            logger.info("Updated CharacterConceptComponent for Entity ID %s.", character_concept_entity_id)
         except IntegrityError:  # Should be caught by pre-check, but as a safeguard
             await session.rollback()
             logger.error(
-                f"Failed to update CharacterConcept '{char_concept_comp.concept_name}' due to unique constraint (name likely exists)."
+                "Failed to update CharacterConcept '%s' due to unique constraint (name likely exists).",
+                char_concept_comp.concept_name,
             )
             return None
     return char_concept_comp
 
 
 async def delete_character_concept(session: AsyncSession, character_concept_entity_id: int) -> bool:
-    """Deletes a character concept and all its links to assets."""
+    """Delete a character concept and all its links to assets."""
     char_concept_entity = await get_character_concept_by_id(session, character_concept_entity_id)
     if not char_concept_entity:
-        logger.warning(f"CharacterConcept Entity ID {character_concept_entity_id} not found for deletion.")
+        logger.warning("CharacterConcept Entity ID %s not found for deletion.", character_concept_entity_id)
         return False
 
     # Delete all EntityCharacterLinkComponent instances that refer to this character concept
@@ -189,15 +197,15 @@ async def apply_character_to_entity(
     character_concept_entity_id: int,
     role: str | None = None,
 ) -> EntityCharacterLinkComponent | None:
-    """Applies (links) a character to an entity (e.g., an asset)."""
+    """Apply (link) a character to an entity (e.g., an asset)."""
     target_entity = await ecs_functions.get_entity(session, entity_id_to_link)
     if not target_entity:
-        logger.error(f"Entity to link character to (ID: {entity_id_to_link}) not found.")
+        logger.error("Entity to link character to (ID: %s) not found.", entity_id_to_link)
         return None
 
     character_concept_entity = await get_character_concept_by_id(session, character_concept_entity_id)
     if not character_concept_entity:
-        logger.error(f"CharacterConcept Entity (ID: {character_concept_entity_id}) not found.")
+        logger.error("CharacterConcept Entity (ID: %s) not found.", character_concept_entity_id)
         return None
 
     # Check if this exact link already exists
@@ -215,8 +223,11 @@ async def apply_character_to_entity(
         )
         char_name = char_concept_comp.concept_name if char_concept_comp else "Unknown Character"
         logger.warning(
-            f"Character '{char_name}' (Concept ID: {character_concept_entity_id}) with role '{role}' "
-            f"is already linked to Entity {entity_id_to_link}. Not applying again."
+            "Character '%s' (Concept ID: %s) with role '%s' is already linked to Entity %s. Not applying again.",
+            char_name,
+            character_concept_entity_id,
+            role,
+            entity_id_to_link,
         )
         return existing_link  # Return existing link
 
@@ -234,7 +245,11 @@ async def apply_character_to_entity(
         )
         char_name = char_concept_comp_for_log.concept_name if char_concept_comp_for_log else "Unknown Character"
         logger.info(
-            f"Applied character '{char_name}' (Concept ID: {character_concept_entity_id}) to Entity ID {entity_id_to_link} with role '{role}'."
+            "Applied character '%s' (Concept ID: %s) to Entity ID %s with role '%s'.",
+            char_name,
+            character_concept_entity_id,
+            entity_id_to_link,
+            role,
         )
         return link_comp
     except IntegrityError:  # Should be caught by pre-check
@@ -244,13 +259,16 @@ async def apply_character_to_entity(
         )
         char_name = char_name_fetch.concept_name if char_name_fetch else "Unknown Character"
         logger.error(
-            f"Failed to apply character '{char_name}' to Entity {entity_id_to_link} (role: '{role}'). "
-            "Likely duplicate application (this should have been caught by pre-check)."
+            "Failed to apply character '%s' to Entity %s (role: '%s'). "
+            "Likely duplicate application (this should have been caught by pre-check).",
+            char_name,
+            entity_id_to_link,
+            role,
         )
         return None
-    except Exception as e:
+    except Exception:
         await session.rollback()
-        logger.error(f"An unexpected error occurred while applying character link: {e}", exc_info=True)
+        logger.exception("An unexpected error occurred while applying character link.")
         raise
 
 
@@ -260,7 +278,7 @@ async def remove_character_from_entity(
     character_concept_entity_id: int,
     role: str | None = None,  # Role must match to remove a specific link
 ) -> bool:
-    """Removes a specific character link from an entity."""
+    """Remove a specific character link from an entity."""
     stmt = select(EntityCharacterLinkComponent).where(
         EntityCharacterLinkComponent.entity_id == entity_id_linked,
         EntityCharacterLinkComponent.character_concept_entity_id == character_concept_entity_id,
@@ -277,12 +295,19 @@ async def remove_character_from_entity(
         )
         char_name = char_name_fetch.concept_name if char_name_fetch else "Unknown Character"
         logger.info(
-            f"Removed character '{char_name}' (Concept ID: {character_concept_entity_id}, Role: '{role}') from Entity ID {entity_id_linked}."
+            "Removed character '%s' (Concept ID: %s, Role: '%s') from Entity ID %s.",
+            char_name,
+            character_concept_entity_id,
+            role,
+            entity_id_linked,
         )
         return True
 
     logger.warning(
-        f"Character link (Concept ID: {character_concept_entity_id}, Role: '{role}') not found on Entity ID {entity_id_linked}."
+        "Character link (Concept ID: %s, Role: '%s') not found on Entity ID %s.",
+        character_concept_entity_id,
+        role,
+        entity_id_linked,
     )
     return False
 
@@ -290,7 +315,7 @@ async def remove_character_from_entity(
 async def get_characters_for_entity(
     session: AsyncSession, entity_id_linked: int
 ) -> list[tuple[Entity, str | None]]:  # Returns (Character Concept Entity, role_in_asset)
-    """Gets all characters linked to a specific entity, along with their roles."""
+    """Get all characters linked to a specific entity, along with their roles."""
     stmt = select(
         EntityCharacterLinkComponent.character_concept_entity_id, EntityCharacterLinkComponent.role_in_asset
     ).where(EntityCharacterLinkComponent.entity_id == entity_id_linked)
@@ -310,7 +335,7 @@ async def get_entities_for_character(
     role_filter: str | None = None,
     filter_by_role_presence: bool | None = None,  # True for any role, False for no role (NULL)
 ) -> list[Entity]:
-    """Gets all entities linked to a specific character concept, optionally filtering by role."""
+    """Get all entities linked to a specific character concept, optionally filtering by role."""
     # First, ensure the character concept entity is valid
     char_concept_entity = await get_character_concept_by_id(session, character_concept_entity_id)
     if not char_concept_entity:
