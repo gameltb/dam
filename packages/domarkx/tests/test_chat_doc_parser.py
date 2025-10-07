@@ -1,4 +1,5 @@
 """Tests for the chat document parser."""
+
 import pytest
 
 from domarkx.utils.chat_doc_parser import MarkdownLLMParser
@@ -63,7 +64,7 @@ def test_message_multiple_blockquotes() -> None:
     """Test that a message cannot have multiple blockquotes."""
     md = """## User\n\n> First blockquote\n\n> Second blockquote\n"""
     parser = MarkdownLLMParser()
-    with pytest.raises(ValueError, match="Duplicate blockquote found in message."):
+    with pytest.raises(ValueError, match=r"Duplicate blockquote found in message\."):
         parser.parse(md)
 
 

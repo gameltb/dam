@@ -1,3 +1,5 @@
+"""Markdown parsing utilities."""
+
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -17,7 +19,7 @@ CODE_BLOCK_REGEX = re.compile(r"```(\w*)(?:\s*name=([\S]+))?\n(.*?)\n```", re.DO
 
 
 def find_code_blocks(text: str) -> list[CodeBlock]:
-    """Finds all code blocks in a Markdown string."""
+    """Find all code blocks in a Markdown string."""
     matches = CODE_BLOCK_REGEX.finditer(text)
     results: list[CodeBlock] = []
     for match in matches:
@@ -49,7 +51,7 @@ FOLLOWING_LINKS_PATTERN = re.compile(r"\[(.+?)\]\((.+?)\)")
 
 
 def find_first_macro(content: str) -> Macro | None:
-    """Finds the first macro in the content and returns a Macro object if found."""
+    """Find the first macro in the content and return a Macro object if found."""
     match = MACRO_PATTERN.search(content)
     if not match:
         return None

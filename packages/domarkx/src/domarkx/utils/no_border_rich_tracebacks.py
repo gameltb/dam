@@ -1,5 +1,7 @@
+"""A Rich traceback handler with no borders."""
+
 import linecache
-import os
+import pathlib
 from collections.abc import Iterable
 from logging import LogRecord
 from typing import (
@@ -75,7 +77,10 @@ BOX_STYLE = rich.box.SIMPLE
 
 
 class NoBorderTraceback(Traceback):
+    """A Traceback that renders without a border."""
+
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        """Render the traceback."""
         theme = self.theme
         background_style = theme.get_background_style()
         token_style = theme.get_style_for_token
@@ -179,7 +184,7 @@ class NoBorderTraceback(Traceback):
             yield render_stack(stack, last)
 
     @group()
-    def _render_stack(self, stack: Stack) -> RenderResult:
+    def _render_stack(self, stack: Stack) -> RenderResult:  # noqa: PLR0912, PLR0915
         path_highlighter = PathHighlighter()
         theme = self.theme
 
@@ -221,7 +226,7 @@ class NoBorderTraceback(Traceback):
             frame_filename = frame.filename
             suppressed = any(frame_filename.startswith(path) for path in self.suppress)
 
-            if os.path.exists(frame.filename):
+            if pathlib.Path(frame.filename).exists():
                 text = Text.assemble(
                     path_highlighter(Text(frame.filename, style="pygments.string")),
                     (":", "pygments.text"),
@@ -279,13 +284,14 @@ class NoBorderTraceback(Traceback):
 
                         # Stylize a line at a time
                         # So that indentation isn't underlined (which looks bad)
-                        for line1, column1, column2 in _iter_syntax_lines(start, end):
+                        for line1, col1, col2 in _iter_syntax_lines(start, end):
                             try:
-                                if column1 == 0:
+                                start_col, end_col = col1, col2
+                                if start_col == 0:
                                     line = code_lines[line1 - 1]
-                                    column1 = len(line) - len(line.lstrip())
-                                if column2 == -1:
-                                    column2 = len(code_lines[line1 - 1])
+                                    start_col = len(line) - len(line.lstrip())
+                                if end_col == -1:
+                                    end_col = len(code_lines[line1 - 1])
                             except IndexError:
                                 # Being defensive here
                                 # If last_instruction reports a line out-of-bounds, we don't want to crash
@@ -293,8 +299,8 @@ class NoBorderTraceback(Traceback):
 
                             syntax.stylize_range(
                                 style="traceback.error_range",
-                                start=(line1, column1),
-                                end=(line1, column2),
+                                start=(line1, start_col),
+                                end=(line1, end_col),
                             )
                     yield (
                         Columns(
@@ -310,8 +316,10 @@ class NoBorderTraceback(Traceback):
 
 
 class NoBorderRichHandler(RichHandler):
+    """A RichHandler that uses the NoBorderTraceback."""
+
     def emit(self, record: LogRecord) -> None:
-        """Invoked by logging."""
+        """Emit a record."""
         message = self.format(record)
         traceback = None
         if self.rich_tracebacks and record.exc_info and record.exc_info != (None, None, None):

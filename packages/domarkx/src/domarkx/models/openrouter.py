@@ -1,4 +1,5 @@
 """Custom OpenAI client for OpenRouter R1 models."""
+
 import warnings
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from typing import (
@@ -102,7 +103,59 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
 
         return content, thought
 
-    async def create_stream(
+    async def _iterate_and_process_chunks(
+        self, chunks: AsyncGenerator[Any, None], state: dict[str, Any]
+    ) -> AsyncGenerator[str, None]:
+        """Iterate over stream chunks, update state, and yield content."""
+        async for chunk in chunks:
+            if state["first_chunk"]:
+                logger.info(LLMStreamStartEvent(messages=cast(list[dict[str, Any]], state["messages"])))
+                state["first_chunk"] = False
+
+            if not chunk.choices:
+                state["empty_chunk_count"] += 1
+                if (
+                    not state["empty_chunk_warning_has_been_issued"]
+                    and state["empty_chunk_count"] >= EMPTY_CHUNK_WARNING_THRESHOLD
+                ):
+                    warnings.warn("More than 10 consecutive empty chunks received.", stacklevel=2)
+                    state["empty_chunk_warning_has_been_issued"] = True
+                continue
+            state["empty_chunk_count"] = 0
+
+            if len(chunk.choices) > 1:
+                warnings.warn("Multiple choices received, only using the first.", UserWarning, stacklevel=2)
+
+            choice = chunk.choices[0]
+            state["choice"] = choice
+            if chunk.usage is None and state["stop_reason"] is None:
+                state["stop_reason"] = choice.finish_reason
+            state["chunk"] = chunk
+
+            reasoning_content, state["is_reasoning"] = self._process_reasoning_content(choice, state["is_reasoning"])
+            if reasoning_content:
+                state["thought_deltas"].append(reasoning_content)
+                yield reasoning_content
+
+            if choice.delta.content:
+                state["content_deltas"].append(choice.delta.content)
+                yield choice.delta.content
+                continue
+
+            self._process_tool_calls(choice, state["full_tool_calls"])
+
+            if choice.logprobs and choice.logprobs.content:
+                state["logprobs"] = [
+                    ChatCompletionTokenLogprob(
+                        token=x.token,
+                        logprob=x.logprob,
+                        top_logprobs=[TopLogprob(logprob=y.logprob, bytes=y.bytes) for y in x.top_logprobs],
+                        bytes=x.bytes,
+                    )
+                    for x in choice.logprobs.content
+                ]
+
+    async def create_stream(  # noqa: PLR0913
         self,
         messages: Sequence[LLMMessage],
         *,
@@ -117,9 +170,10 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
         """Create a stream of string chunks from the model ending with a :class:`~autogen_core.models.CreateResult`."""
         create_params = self._process_create_args(messages, tools, tool_choice, json_output, extra_create_args)
         if include_usage is not None:
-            if "stream_options" in create_params.create_args and create_params.create_args["stream_options"].get(
-                "include_usage"
-            ) != include_usage:
+            if (
+                "stream_options" in create_params.create_args
+                and create_params.create_args["stream_options"].get("include_usage") != include_usage
+            ):
                 raise ValueError("include_usage and extra_create_args['stream_options']['include_usage'] differ.")
             create_params.create_args.setdefault("stream_options", {})["include_usage"] = True
 
@@ -143,65 +197,38 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             )
         )
 
-        content_deltas, thought_deltas, full_tool_calls, logprobs = [], [], {}, None
-        is_reasoning, first_chunk = False, True
-        stop_reason, maybe_model, choice = None, None, None
-        empty_chunk_count, empty_chunk_warning_has_been_issued = 0, False
+        state: dict[str, Any] = {
+            "content_deltas": [],
+            "thought_deltas": [],
+            "full_tool_calls": {},
+            "logprobs": None,
+            "is_reasoning": False,
+            "first_chunk": True,
+            "stop_reason": None,
+            "choice": None,
+            "chunk": None,
+            "empty_chunk_count": 0,
+            "empty_chunk_warning_has_been_issued": False,
+            "messages": create_params.messages,
+        }
 
-        async for chunk in chunks:
-            if first_chunk:
-                logger.info(LLMStreamStartEvent(messages=cast(list[dict[str, Any]], create_params.messages)))
-                first_chunk = False
+        async for content_chunk in self._iterate_and_process_chunks(chunks, state):
+            yield content_chunk
 
-            if not chunk.choices:
-                empty_chunk_count += 1
-                if not empty_chunk_warning_has_been_issued and empty_chunk_count >= EMPTY_CHUNK_WARNING_THRESHOLD:
-                    warnings.warn("More than 10 consecutive empty chunks received.", stacklevel=2)
-                    empty_chunk_warning_has_been_issued = True
-                continue
-            empty_chunk_count = 0
-
-            if len(chunk.choices) > 1:
-                warnings.warn("Multiple choices received, only using the first.", UserWarning, stacklevel=2)
-
-            choice = chunk.choices[0]
-            stop_reason = choice.finish_reason if chunk.usage is None and stop_reason is None else stop_reason
-            maybe_model = chunk.model
-
-            reasoning_content, is_reasoning = self._process_reasoning_content(choice, is_reasoning)
-            if reasoning_content:
-                thought_deltas.append(reasoning_content)
-                yield reasoning_content
-
-            if choice.delta.content:
-                content_deltas.append(choice.delta.content)
-                if choice.delta.content:
-                    yield choice.delta.content
-                continue
-
-            self._process_tool_calls(choice, full_tool_calls)
-
-            if choice.logprobs and choice.logprobs.content:
-                logprobs = [
-                    ChatCompletionTokenLogprob(
-                        token=x.token,
-                        logprob=x.logprob,
-                        top_logprobs=[TopLogprob(logprob=y.logprob, bytes=y.bytes) for y in x.top_logprobs],
-                        bytes=x.bytes,
-                    )
-                    for x in choice.logprobs.content
-                ]
-
-        if stop_reason == "function_call":
+        if state["stop_reason"] == "function_call":
             raise ValueError("Function calls are not supported in this context")
 
+        chunk = state.get("chunk")
         usage = RequestUsage(
             prompt_tokens=chunk.usage.prompt_tokens if chunk and chunk.usage else 0,
             completion_tokens=chunk.usage.completion_tokens if chunk and chunk.usage else 0,
         )
 
-        content, thought = self._finalize_content(content_deltas, thought_deltas, full_tool_calls)
+        content, thought = self._finalize_content(
+            state["content_deltas"], state["thought_deltas"], state["full_tool_calls"]
+        )
 
+        choice = state.get("choice")
         if choice:
             if isinstance(content, str):
                 choice.delta.content = content
@@ -219,11 +246,11 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
             )
 
         result = CreateResult(
-            finish_reason=normalize_stop_reason(stop_reason),
+            finish_reason=normalize_stop_reason(state["stop_reason"]),
             content=content,
             usage=usage,
             cached=False,
-            logprobs=logprobs,
+            logprobs=state.get("logprobs"),
             thought=thought,
         )
         logger.info(

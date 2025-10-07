@@ -1,1 +1,1 @@
-# This package contains "clean" tool implementations that are free of domarkx-specific dependencies.
+"""A collection of portable tools that can be used in different environments."""

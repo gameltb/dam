@@ -1,4 +1,5 @@
 """A robust parser for extracting tool calls from a message string."""
+
 import re
 from typing import Any
 
@@ -24,13 +25,11 @@ def _parse_params(tool_block_content: str, tool_name: str) -> dict[str, Any]:
         ToolCallParsingError: If malformed content is found.
 
     """
-    current_params = {}
+    current_params: dict[str, Any] = {}
     temp_idx = 0
     while temp_idx < len(tool_block_content):
         # Find the start tag of the next parameter
-        param_open_tag_match = re.search(
-            r"<\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*>", tool_block_content[temp_idx:], re.DOTALL
-        )
+        param_open_tag_match = re.search(r"<\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*>", tool_block_content[temp_idx:], re.DOTALL)
 
         if not param_open_tag_match:
             break  # No more tags, or only whitespace remains, exit the loop

@@ -1,4 +1,5 @@
 """Represents an AutoGen session, managing messages and agent interactions."""
+
 import ast
 import io
 import json

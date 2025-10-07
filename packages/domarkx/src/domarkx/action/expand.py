@@ -1,4 +1,5 @@
 """Expand macros in a Markdown document."""
+
 import logging
 import pathlib
 from typing import Annotated, Any

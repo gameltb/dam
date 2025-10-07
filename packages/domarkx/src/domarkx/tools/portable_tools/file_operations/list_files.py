@@ -1,10 +1,17 @@
+"""A tool for listing files in a directory."""
+
 import logging
 import pathlib
 
+from domarkx.tools.tool_factory import tool_handler
 
+logger = logging.getLogger(__name__)
+
+
+@tool_handler()
 def tool_list_files(path: str = ".") -> list[str]:
     """
-    Lists all files and directories in the specified path.
+    List all files and directories in the specified path.
 
     Args:
         path (str): The path to list files from. Defaults to the current directory.
@@ -17,12 +24,12 @@ def tool_list_files(path: str = ".") -> list[str]:
         Exception: For other unexpected errors.
 
     """
-    logging.info(f"Listing files in: {path}")
+    logger.info("Listing files in: %s", path)
     try:
         return [p.name for p in pathlib.Path(path).iterdir()]
     except FileNotFoundError as e:
-        logging.error(f"Error listing files in {path}: {e}")
+        logger.error("Error listing files in %s: %s", path, e)
         raise e
     except Exception as e:
-        logging.error(f"An unexpected error occurred while listing files in {path}: {e}")
+        logger.error("An unexpected error occurred while listing files in %s: %s", path, e)
         raise e

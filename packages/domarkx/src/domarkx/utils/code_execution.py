@@ -1,3 +1,5 @@
+"""A utility for executing code blocks."""
+
 import linecache
 import traceback
 from typing import Any
@@ -10,7 +12,7 @@ def execute_code_block(
     filename: str = "<setup-script>",
 ) -> None:
     """
-    Executes a block of code and prints a traceback if an exception occurs.
+    Execute a block of code and print a traceback if an exception occurs.
 
     Args:
         code (str): The code to execute.

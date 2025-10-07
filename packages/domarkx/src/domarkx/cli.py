@@ -1,4 +1,5 @@
 """The command-line interface for domarkx."""
+
 import importlib
 import logging
 import pathlib

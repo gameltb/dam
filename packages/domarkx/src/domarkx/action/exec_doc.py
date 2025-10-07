@@ -1,4 +1,5 @@
 """Handles the execution of domarkx documents."""
+
 import asyncio
 import pathlib
 import re
@@ -120,7 +121,7 @@ async def aexec_doc(  # noqa: PLR0912, PLR0915
             ):
                 task_msg = None
 
-        await domarkx.ui.console.Console(
+        await domarkx.ui.console.console_render(
             session.agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
         )
 

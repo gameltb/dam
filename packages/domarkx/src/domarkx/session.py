@@ -1,4 +1,5 @@
 """Base class for managing interactive sessions within a domarkx document."""
+
 import pathlib
 from abc import ABC, abstractmethod
 from typing import Any

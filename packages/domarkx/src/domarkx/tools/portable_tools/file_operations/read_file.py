@@ -1,123 +1,145 @@
+"""A tool for reading files, including partial content and multiple files via wildcards."""
+
 import glob
 import logging
 import pathlib
 
+from domarkx.tools.tool_factory import tool_handler
 
-def tool_read_file(
-    path: str | list[str], start_line: int | None = None, end_line: int | None = None
-) -> str:
+logger = logging.getLogger(__name__)
+
+
+def _read_single_file(file_path_str: str, s_line: int | None, e_line: int | None) -> str:
+    """Read a single file, with an optional line range."""
+    logger.info("Reading single file: '%s'", file_path_str)
+    file_path = pathlib.Path(file_path_str)
+
+    if not file_path.exists():
+        msg = f"File '{file_path}' does not exist."
+        logger.error(msg)
+        raise FileNotFoundError(msg)
+    if not file_path.is_file():
+        msg = f"Path '{file_path}' is a directory, not a file."
+        logger.error(msg)
+        raise IsADirectoryError(msg)
+
+    # Simulate PDF/DOCX handling
+    if file_path.suffix.lower() in [".pdf", ".docx"]:
+        logger.warning("Note: '%s' is a binary file (PDF/DOCX). This tool simulates raw text extraction.", file_path)
+        return (
+            f"Note: '{file_path}' is a binary file (PDF/DOCX). "
+            f"This tool simulates raw text extraction. Actual implementation would use appropriate libraries.\n"
+            f"Simulated content: This is the extracted text from {file_path}."
+        )
+
+    try:
+        # read_text is simpler and safer for reading entire files
+        lines = file_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        logger.info("Successfully read %d lines from file '%s'.", len(lines), file_path)
+
+        # If no line numbers are specified, return the whole content
+        if s_line is None and e_line is None:
+            return "".join(lines)
+
+        start_idx = (s_line - 1) if s_line is not None and s_line > 0 else 0
+        end_idx = e_line if e_line is not None and e_line > 0 else len(lines)
+        start_idx = max(0, min(start_idx, len(lines)))
+        end_idx = max(0, min(end_idx, len(lines)))
+
+        if start_idx >= end_idx:
+            msg = (
+                f"The specified line range (from {s_line} to {e_line}) is invalid or empty, "
+                f"as the file only has {len(lines)} lines. No content was read."
+            )
+            logger.warning(msg)
+            raise ValueError(msg)
+
+        output_lines = lines[start_idx:end_idx]
+        logger.info("Successfully extracted specified lines from file '%s'.", file_path)
+        return "".join(output_lines)
+
+    except PermissionError as e:
+        msg = f"No permission to read file '{file_path}': {e}"
+        logger.error(msg)
+        raise PermissionError(msg) from e
+    except OSError as e:
+        msg = f"IO error occurred while reading file '{file_path}': {e}"
+        logger.error(msg)
+        raise OSError(msg) from e
+    except Exception as e:
+        msg = f"Unexpected error occurred while reading file '{file_path}': {e}"
+        logger.error(msg)
+        raise Exception(msg) from e
+
+
+def _read_multiple_files(file_list: list[str]) -> str:
+    """Read multiple files and concatenate their contents."""
+    results: list[str] = []
+    for file_item in sorted(file_list):
+        try:
+            # When reading multiple files, we read the whole file, so line numbers are None
+            file_content = _read_single_file(file_item, None, None)
+            results.append(f"--- File: {file_item} ---\n{file_content}\n")
+        except (OSError, FileNotFoundError, IsADirectoryError, PermissionError, ValueError, Exception) as e:
+            logger.error("Error processing file '%s': %s", file_item, e)
+            results.append(f"--- File: {file_item} ---\nError: {e}\n")
+    if not results:
+        msg = "All specified files could not be read or do not exist."
+        logger.error(msg)
+        raise RuntimeError(msg)
+    return "\n".join(results)
+
+
+@tool_handler()
+def tool_read_file(path: str | list[str], start_line: int | None = None, end_line: int | None = None) -> str:
     """
-    Read the content of the specified file path. Supports reading partial content by specifying `start_line` and `end_line`.
-    Supports wildcard `*` to read multiple files at once (e.g., `*.py`, `dir/*.md`).
-    When using wildcards or passing a file list, `start_line` and `end_line` are ignored and all matching files are read in full.
+    Read file content, with support for partial reads and wildcards.
+
+    When using wildcards or a list of files, `start_line` and `end_line` are ignored.
 
     Args:
-        path (Union[str, List[str]]): File path to read. Can be a single path string (with wildcards),
-                                     or a list of file paths. Use `**` for recursive directory matching.
-        start_line (int): (Optional) Start line number (1-based).
-        end_line (int): (Optional) End line number (1-based, inclusive).
+        path: File path(s) to read. Can be a single path, a list, or a string with wildcards.
+        start_line: Optional start line number (1-based).
+        end_line: Optional end line number (1-based, inclusive).
 
     Returns:
-        str: File content. If multiple files are matched or a file list is provided, each file's content is shown, separated by filename.
+        The file content, or concatenated contents for multiple files.
 
     Raises:
         TypeError: If argument types are incorrect.
-        FileNotFoundError: If file does not exist.
-        IsADirectoryError: If path is a directory.
-        PermissionError: If lacking permission to read file.
-        ValueError: If line range is invalid.
-        IOError: If file read/write error occurs.
-        Exception: For other unexpected errors.
+        FileNotFoundError: If a file does not exist.
+        IsADirectoryError: If a path is a directory.
+        PermissionError: If lacking permission to read a file.
+        ValueError: If the line range is invalid.
+        RuntimeError: If no files could be read.
 
     """
     start_line = int(start_line) if start_line else None
     end_line = int(end_line) if end_line else None
-    logging.info(f"Attempting to read file: '{path}'. Start line: {start_line}, End line: {end_line}.")
-
-    def _read_single_file(file_path_str: str, s_line: int | None, e_line: int | None) -> str:
-        logging.info(f"Reading single file: '{file_path_str}'.")
-        file_path = pathlib.Path(file_path_str)
-
-        if not file_path.exists():
-            logging.error(f"File '{file_path}' does not exist.")
-            raise FileNotFoundError(f"File '{file_path}' does not exist.")
-        if not file_path.is_file():
-            logging.error(f"Path '{file_path}' is a directory, not a file.")
-            raise IsADirectoryError(f"Path '{file_path}' is a directory, not a file.")
-
-        # Simulate PDF/DOCX handling
-        if file_path.suffix.lower() in [".pdf", ".docx"]:
-            logging.warning(
-                f"Note: '{file_path}' is a binary file (PDF/DOCX). This tool simulates raw text extraction."
-            )
-            return f"Note: '{file_path}' is a binary file (PDF/DOCX). This tool simulates raw text extraction. Actual implementation would use appropriate libraries.\nSimulated content: This is the extracted text from {file_path}."
-
-        try:
-            with file_path.open(encoding="utf-8") as f:
-                lines = f.readlines()
-            logging.info(f"Successfully read {len(lines)} lines from file '{file_path}'.")
-
-            output_lines: list[str] = []
-            start_idx = (s_line - 1) if s_line is not None and s_line > 0 else 0
-            end_idx = e_line if e_line is not None and e_line > 0 else len(lines)
-            start_idx = max(0, min(start_idx, len(lines)))
-            end_idx = max(0, min(end_idx, len(lines)))
-
-            if start_idx >= end_idx and s_line is not None and e_line is not None:
-                error_msg = f"The specified line range (from {s_line} to {e_line}) is invalid or empty, as the file only has {len(lines)} lines. No content was read."
-                logging.warning(error_msg)
-                raise ValueError(error_msg)
-
-            for i in range(start_idx, end_idx):
-                output_lines.append(lines[i].rstrip("\n"))
-
-            logging.info(f"Successfully extracted specified lines from file '{file_path}'.")
-            return "\n".join(output_lines)
-        except PermissionError as e:
-            error_msg = f"No permission to read file '{file_path}': {e}"
-            logging.error(error_msg)
-            raise PermissionError(error_msg) from e
-        except OSError as e:
-            error_msg = f"IO error occurred while reading file '{file_path}': {e}"
-            logging.error(error_msg)
-            raise OSError(error_msg) from e
-        except Exception as e:
-            error_msg = f"Unexpected error occurred while reading file '{file_path}': {e}"
-            logging.error(error_msg)
-            raise Exception(error_msg) from e
-
-    def _read_multiple_files(file_list: list[str]) -> str:
-        results: list[str] = []
-        for file_item in sorted(file_list):
-            try:
-                file_content = _read_single_file(file_item, None, None)
-                results.append(f"--- File: {file_item} ---\n{file_content}\n")
-            except (OSError, FileNotFoundError, IsADirectoryError, PermissionError, ValueError, Exception) as e:
-                logging.error(f"Error processing file '{file_item}': {e}")
-                results.append(f"--- File: {file_item} ---\nError: {e}\n")
-        if not results:
-            error_msg = "All specified files could not be read or do not exist."
-            logging.error(error_msg)
-            raise RuntimeError(error_msg)
-        return "\n".join(results)
+    logger.info("Attempting to read file: '%s'. Start line: %s, End line: %s.", path, start_line, end_line)
 
     if isinstance(path, list):
-        logging.info(f"Path argument is a list, will process {len(path)} files.")
+        logger.info("Path is a list, processing %d files.", len(path))
         return _read_multiple_files(path)
-    if isinstance(path, str):
-        if glob.has_magic(path):
-            logging.info(f"Path '{path}' contains wildcards, will process multiple files.")
-            use_recursive = "**" in path
-            p = pathlib.Path(path)
-            full_glob_pattern = str(p)
-            matching_files = glob.glob(full_glob_pattern, recursive=use_recursive)
-            logging.info(f"Found {len(matching_files)} files matching '{path}' (recursive: {use_recursive}).")
-            if not matching_files:
-                warning_msg = f"Warning: No files found matching wildcard pattern '{path}'."
-                logging.warning(warning_msg)
-                return warning_msg
-            return _read_multiple_files(matching_files)
+
+    if not isinstance(path, str):
+        msg = f"Argument 'path' must be a string or list of strings, but received {type(path).__name__}."
+        logger.error(msg)
+        raise TypeError(msg)
+
+    # It's a string, check for wildcards
+    if not glob.has_magic(path):
         return _read_single_file(path, start_line, end_line)
-    error_msg = f"Argument 'path' must be a string or list of strings, but received {type(path).__name__}."
-    logging.error(error_msg)
-    raise TypeError(error_msg)
+
+    logger.info("Path '%s' contains wildcards, will process multiple files.", path)
+    # Using Path.glob/rglob for wildcard matching
+    base_dir = pathlib.Path.cwd()
+    matching_files = [str(p) for p in base_dir.rglob(path) if p.is_file()]
+
+    logger.info("Found %d files matching '%s'.", len(matching_files), path)
+    if not matching_files:
+        warning_msg = f"Warning: No files found matching wildcard pattern '{path}'."
+        logger.warning(warning_msg)
+        return warning_msg
+
+    return _read_multiple_files(matching_files)

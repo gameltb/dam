@@ -1,10 +1,17 @@
+"""A tool for executing shell commands."""
+
 import logging
 import subprocess
 
+from domarkx.tools.tool_factory import tool_handler
 
+logger = logging.getLogger(__name__)
+
+
+@tool_handler()
 def tool_execute_command(command: str) -> str:
     """
-    Executes a shell command and returns its output.
+    Execute a shell command and return its output.
 
     Args:
         command (str): The command to execute.
@@ -16,7 +23,7 @@ def tool_execute_command(command: str) -> str:
         subprocess.CalledProcessError: If the command fails.
 
     """
-    logging.info(f"Executing command: {command}")
+    logger.info("Executing command: %s", command)
     try:
         result = subprocess.run(
             command,
@@ -27,5 +34,5 @@ def tool_execute_command(command: str) -> str:
         )
         return result.stdout
     except subprocess.CalledProcessError as e:
-        logging.error(f"Error executing command: {e}\n{e.stderr}")
+        logger.error("Error executing command: %s\n%s", e, e.stderr)
         raise e

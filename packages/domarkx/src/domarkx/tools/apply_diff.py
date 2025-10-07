@@ -1,4 +1,5 @@
 """A tool for applying diffs to files."""
+
 import logging
 import pathlib
 import re
@@ -38,144 +39,130 @@ def _read_and_validate_file(path: str) -> tuple[pathlib.Path, list[str]]:
         raise OSError(f"Could not read file '{path}': {e}") from e
 
 
-def _parse_diff_blocks(diff_lines: list[str], original_lines: list[str], path: str) -> list[Operation]:
-    """Parse diff blocks from the diff string."""
-    operations: list[Operation] = []
-    current_line_in_diff = 0
-    logger.info("Starting to parse diff blocks.")
-    while current_line_in_diff < len(diff_lines):
-        line = diff_lines[current_line_in_diff]
+def _find_match(
+    original_lines: list[str], search_lines: list[str], start_line_num: int, path: str, search_window: int = 5
+) -> int:
+    """Find an exact match for the search content within a window in the original file."""
+    start_idx = start_line_num - 1
+    original_len = len(original_lines)
+    search_len = len(search_lines)
 
-        if not re.fullmatch(r"\s*<<<<<<< ?SEARCH\s*", line.strip()):
-            current_line_in_diff += 1
-            continue
-
-        logger.info("Found SEARCH block, starting at diff line %d.", current_line_in_diff + 1)
-        current_line_in_diff += 1
-        if current_line_in_diff >= len(diff_lines):
-            raise ValueError("Invalid diff format: SEARCH block missing content after delimiter.")
-
-        line = diff_lines[current_line_in_diff].strip()
-        if not line.startswith(":start_line:"):
-            raise ValueError("Invalid diff format: SEARCH block missing ':start_line:' after delimiter.")
-        try:
-            start_line_num = int(line.split(":")[2].strip())
-        except (IndexError, ValueError) as e:
-            raise ValueError("Invalid diff format: Invalid line number after ':start_line:'.") from e
-
-        current_line_in_diff += 1
-
-        if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-            r"\s*-------\s*", diff_lines[current_line_in_diff].strip()
-        ):
-            raise ValueError("Invalid diff format: SEARCH block missing '-------' separator after start line.")
-        current_line_in_diff += 1
-
-        search_content_lines: list[str] = []
-        while current_line_in_diff < len(diff_lines) and not re.fullmatch(
-            r"\s*=======\s*", diff_lines[current_line_in_diff].strip()
-        ):
-            search_content_lines.append(diff_lines[current_line_in_diff])
-            current_line_in_diff += 1
-        search_content = "".join(search_content_lines)
-
-        if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-            r"\s*=======\s*", diff_lines[current_line_in_diff].strip()
-        ):
-            raise ValueError("Invalid diff format: SEARCH content missing '=======' separator.")
-        current_line_in_diff += 1
-
-        replace_content_lines: list[str] = []
-        while current_line_in_diff < len(diff_lines):
-            line = diff_lines[current_line_in_diff]
-            if re.fullmatch(r"\s*>{5,9} ?REPLACE\s*", line.strip()):
-                break
-            replace_content_lines.append(line)
-            current_line_in_diff += 1
-        replace_content = "".join(replace_content_lines)
-
-        if current_line_in_diff >= len(diff_lines) or not re.fullmatch(
-            r"\s*>{5,9} ?REPLACE\s*", diff_lines[current_line_in_diff].strip()
-        ):
-            raise ValueError("Invalid diff format: REPLACE content missing '>>>>>>> REPLACE' end marker.")
-        current_line_in_diff += 1
-
-        start_idx = start_line_num - 1
-        normalized_search_lines: list[str] = search_content.splitlines(keepends=True)
-
-        if start_idx < 0 or start_idx > len(original_lines):
-            raise ValueError(
-                f"Start line number {start_line_num} in diff block is out of bounds for file '{path}' (1 to {len(original_lines) + 1})."
-            )
-
-        search_window = 5
-        found_match = False
-        original_len = len(original_lines)
-        search_len = len(normalized_search_lines)
-
-        if search_len == 0 and search_content.strip() != "":
-            raise ValueError("Search content could not be parsed into a valid list of lines.")
-        if search_len == 0 and search_content.strip() == "":
-            found_match = True
-        else:
-            logger.info(
-                "Searching for matching content in file '%s', around line %d +/- %d.",
-                path,
-                start_line_num,
-                search_window,
-            )
-            for current_search_idx in range(
-                max(0, start_idx - search_window), min(original_len - search_len + 1, start_idx + search_window + 1)
-            ):
-                actual_window_content = original_lines[current_search_idx : current_search_idx + search_len]
-                actual_window_normalized = [line.strip() for line in actual_window_content]
-                search_normalized = [line.strip() for line in normalized_search_lines]
-                if actual_window_normalized == search_normalized:
-                    start_idx = current_search_idx
-                    found_match = True
-                    logger.info("Exact match found at line %d.", start_idx + 1)
-                    break
-
-        if not found_match:
-            mismatch_info: list[str] = []
-            actual_content_for_error = original_lines[start_idx : min(start_idx + search_len, original_len)]
-            actual_stripped_for_error: list[str] = [line.strip() for line in actual_content_for_error]
-            search_stripped_for_error: list[str] = [line.strip() for line in normalized_search_lines]
-
-            max_len = max(len(actual_stripped_for_error), len(search_stripped_for_error))
-            for i in range(max_len):
-                actual_l = (
-                    actual_stripped_for_error[i] if i < len(actual_stripped_for_error) else "<Actual content ends>"
-                )
-                search_l = (
-                    search_stripped_for_error[i]
-                    if i < len(search_stripped_for_error)
-                    else "<Expected content ends>"
-                )
-                if actual_l != search_l:
-                    mismatch_info.append(f"  Line {start_line_num + i}: Actual='{actual_l}', Expected='{search_l}'")
-            if len(actual_stripped_for_error) != len(search_stripped_for_error):
-                mismatch_info.append(
-                    f"  Line count mismatch: Actual={len(actual_stripped_for_error)}, Expected={len(search_stripped_for_error)}"
-                )
-
-            error_msg = (
-                f"Search content in diff block does not match the actual content in file '{path}', starting or around line {start_line_num}.\n"
-                f"Search content (normalized for comparison):\n{''.join(normalized_search_lines)}\n"
-                f"Actual content (normalized for comparison):\n{''.join(actual_content_for_error)}\n"
-                f"Mismatch details:\n{chr(10).join(mismatch_info)}\n"
-                f"Tried to find an exact match within +/- {search_window} lines of line number {start_line_num}, but no match was found."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        operations.append(
-            {
-                "start_idx": start_idx,
-                "search_len": search_len,
-                "replace_content": replace_content,
-            }
+    if start_idx < 0 or start_idx > original_len:
+        raise ValueError(
+            f"Start line number {start_line_num} in diff block is out of bounds for file '{path}' (1 to {original_len + 1})."
         )
+
+    if search_len == 0:
+        return start_idx  # Empty search block matches at the specified line.
+
+    logger.info(
+        "Searching for matching content in file '%s', around line %d +/- %d.", path, start_line_num, search_window
+    )
+    for current_search_idx in range(
+        max(0, start_idx - search_window), min(original_len - search_len + 1, start_idx + search_window + 1)
+    ):
+        actual_window_content = original_lines[current_search_idx : current_search_idx + search_len]
+        if [line.strip() for line in actual_window_content] == [line.strip() for line in search_lines]:
+            logger.info("Exact match found at line %d.", current_search_idx + 1)
+            return current_search_idx
+
+    # If no match is found, raise an error with detailed mismatch information.
+    actual_content_for_error = original_lines[start_idx : min(start_idx + search_len, original_len)]
+    mismatch_info: list[str] = []
+    max_len = max(len(actual_content_for_error), len(search_lines))
+    for i in range(max_len):
+        actual_l = actual_content_for_error[i].strip() if i < len(actual_content_for_error) else "<Actual content ends>"
+        search_l = search_lines[i].strip() if i < len(search_lines) else "<Expected content ends>"
+        if actual_l != search_l:
+            mismatch_info.append(f"  Line {start_line_num + i}: Actual='{actual_l}', Expected='{search_l}'")
+    if len(actual_content_for_error) != len(search_lines):
+        mismatch_info.append(
+            f"  Line count mismatch: Actual={len(actual_content_for_error)}, Expected={len(search_lines)}"
+        )
+
+    error_msg = (
+        f"Search content in diff block does not match the actual content in file '{path}', starting or around line {start_line_num}.\n"
+        f"Search content (normalized for comparison):\n{''.join(search_lines)}\n"
+        f"Actual content (normalized for comparison):\n{''.join(actual_content_for_error)}\n"
+        f"Mismatch details:\n{chr(10).join(mismatch_info)}"
+    )
+    logger.error(error_msg)
+    raise ValueError(error_msg)
+
+
+def _parse_diff_block(
+    diff_lines: list[str], current_line_idx: int, original_lines: list[str], path: str
+) -> tuple[Operation, int]:
+    """Parse a single diff block from the diff string."""
+    logger.info("Found SEARCH block, starting at diff line %d.", current_line_idx + 1)
+
+    # Move past '<<<<<<< SEARCH'
+    current_line_idx += 1
+    if current_line_idx >= len(diff_lines):
+        raise ValueError("Invalid diff format: SEARCH block missing content after delimiter.")
+
+    # Parse start line number
+    line = diff_lines[current_line_idx].strip()
+    if not line.startswith(":start_line:"):
+        raise ValueError("Invalid diff format: SEARCH block missing ':start_line:' after delimiter.")
+    try:
+        start_line_num = int(line.split(":")[2].strip())
+    except (IndexError, ValueError) as e:
+        raise ValueError("Invalid diff format: Invalid line number after ':start_line:'.") from e
+    current_line_idx += 1
+
+    # Move past '-------'
+    if current_line_idx >= len(diff_lines) or not re.fullmatch(r"\s*-------\s*", diff_lines[current_line_idx].strip()):
+        raise ValueError("Invalid diff format: SEARCH block missing '-------' separator after start line.")
+    current_line_idx += 1
+
+    # Parse search content
+    search_content_lines: list[str] = []
+    while current_line_idx < len(diff_lines) and not re.fullmatch(
+        r"\s*=======\s*", diff_lines[current_line_idx].strip()
+    ):
+        search_content_lines.append(diff_lines[current_line_idx])
+        current_line_idx += 1
+
+    # Move past '======='
+    if current_line_idx >= len(diff_lines):
+        raise ValueError("Invalid diff format: SEARCH content missing '=======' separator.")
+    current_line_idx += 1
+
+    # Parse replace content
+    replace_content_lines: list[str] = []
+    while current_line_idx < len(diff_lines) and not re.fullmatch(
+        r"\s*>{5,9} ?REPLACE\s*", diff_lines[current_line_idx].strip()
+    ):
+        replace_content_lines.append(diff_lines[current_line_idx])
+        current_line_idx += 1
+
+    # Move past '>>>>>>> REPLACE'
+    if current_line_idx >= len(diff_lines):
+        raise ValueError("Invalid diff format: REPLACE content missing '>>>>>>> REPLACE' end marker.")
+    current_line_idx += 1
+
+    replace_content = "".join(replace_content_lines)
+    search_len = len(search_content_lines)
+
+    start_idx = _find_match(original_lines, search_content_lines, start_line_num, path)
+
+    operation = Operation(start_idx=start_idx, search_len=search_len, replace_content=replace_content)
+    return operation, current_line_idx
+
+
+def _parse_all_diff_blocks(diff_lines: list[str], original_lines: list[str], path: str) -> list[Operation]:
+    """Parse all diff blocks from the diff string."""
+    operations: list[Operation] = []
+    current_line_idx = 0
+    logger.info("Starting to parse all diff blocks.")
+    while current_line_idx < len(diff_lines):
+        line = diff_lines[current_line_idx]
+        if re.fullmatch(r"\s*<<<<<<< ?SEARCH\s*", line.strip()):
+            operation, current_line_idx = _parse_diff_block(diff_lines, current_line_idx, original_lines, path)
+            operations.append(operation)
+        else:
+            current_line_idx += 1
 
     logger.info("Successfully parsed %d diff blocks.", len(operations))
     return operations
@@ -188,9 +175,7 @@ def _apply_operations(current_lines: list[str], operations: list[Operation]) -> 
         start_idx = op["start_idx"]
         search_len = op["search_len"]
         replace_content = op["replace_content"]
-        logger.info(
-            "Applying diff block %d: Replacing %d lines starting at line %d.", i + 1, search_len, start_idx + 1
-        )
+        logger.info("Applying diff block %d: Replacing %d lines starting at line %d.", i + 1, search_len, start_idx + 1)
 
         replace_lines = replace_content.splitlines(keepends=True)
         if replace_content and not replace_content.endswith("\n") and replace_lines:
@@ -223,7 +208,7 @@ def apply_diff_tool(path: str, diff: str) -> str:
     """
     file_path, original_lines = _read_and_validate_file(path)
     diff_lines = diff.splitlines(keepends=True)
-    operations = _parse_diff_blocks(diff_lines, original_lines, path)
+    operations = _parse_all_diff_blocks(diff_lines, original_lines, path)
     current_lines = _apply_operations(list(original_lines), operations)
 
     try:

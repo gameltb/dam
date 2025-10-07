@@ -1,9 +1,11 @@
+"""A factory for creating and managing tools."""
+
 import functools
 import importlib
 import inspect
 import io
 import logging
-import os
+import pathlib
 from collections.abc import Callable
 from typing import Any
 
@@ -14,13 +16,14 @@ from rich.traceback import Traceback
 
 from domarkx.utils.code_execution import execute_code_block
 
+logger = logging.getLogger(__name__)
+
 
 class ToolError(Exception):
     """Custom exception for tool-related errors."""
 
-    def __init__(
-        self, message: str, original_exception: Exception | None = None, captured_logs_str: str = ""
-    ) -> None:
+    def __init__(self, message: str, original_exception: Exception | None = None, captured_logs_str: str = "") -> None:
+        """Initialize the ToolError."""
         super().__init__(message)
         self.original_exception = original_exception
         self.captured_logs = captured_logs_str
@@ -28,7 +31,8 @@ class ToolError(Exception):
 
 def tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> Callable[..., Any]:
     """
-    A decorator for tool functions to handle logging and exception wrapping.
+    Decorate a tool function to handle logging and exception wrapping.
+
     This is a private function used by the ToolFactory.
     """
 
@@ -54,10 +58,10 @@ def tool_handler(log_level: int = logging.INFO, capture_logs: bool = False) -> C
             logging.getLogger().setLevel(runtime_log_level)
             logging.getLogger().propagate = False
 
-            logging.info(f"Tool '{func.__name__}' started.")
+            logger.info("Tool '%s' started.", func.__name__)
             try:
                 result = func(*args, **kwargs)
-                logging.info(f"Tool '{func.__name__}' completed successfully.")
+                logger.info("Tool '%s' completed successfully.", func.__name__)
                 captured_logs_str = ""
                 if runtime_capture_logs:
                     captured_logs_str = captured_rich_logs_buffer.getvalue().strip()
@@ -84,7 +88,7 @@ An error occurred in tool '{func.__name__}':
 --- Captured Logs ---
 {captured_logs_str}
 """.strip()
-                logging.error(f"Tool '{func.__name__}' encountered an error.")
+                logger.error("Tool '%s' encountered an error.", func.__name__)
                 raise ToolError(full_error_message, original_exception=e, captured_logs_str=captured_logs_str) from e
             finally:
                 logging.getLogger().removeHandler(rich_handler)
@@ -97,43 +101,42 @@ An error occurred in tool '{func.__name__}':
 
 
 class ToolFactory:
+    """A factory for creating and managing tools."""
+
     def __init__(self) -> None:
+        """Initialize the ToolFactory."""
         self._tool_registry: dict[str, Callable[..., Any]] = {}
         self._tool_registry_unwrapped: dict[str, Callable[..., Any]] = {}
         self._discover_and_register_tools()
 
     def _discover_and_register_tools(self) -> None:
-        """Dynamically discovers and registers tools from the 'portable_tools' directory."""
-        portable_tools_path = os.path.join(os.path.dirname(__file__), "portable_tools")
-        for root, _, files in os.walk(portable_tools_path):
-            for file in files:
-                if file.endswith(".py") and not file.startswith("__init__"):
-                    module_path = os.path.join(root, file)
-                    module_name = os.path.splitext(os.path.relpath(module_path, portable_tools_path))[0].replace(
-                        os.sep, "."
-                    )
-                    module = importlib.import_module(f"domarkx.tools.portable_tools.{module_name}")
+        """Dynamically discover and register tools from the 'portable_tools' directory."""
+        portable_tools_path = pathlib.Path(__file__).parent / "portable_tools"
+        for file in portable_tools_path.rglob("*.py"):
+            if not file.name.startswith("__init__"):
+                module_path = file
+                module_name = ".".join(file.relative_to(portable_tools_path).parts).removesuffix(".py")
+                module = importlib.import_module(f"domarkx.tools.portable_tools.{module_name}")
 
-                    with open(module_path) as f:
-                        module_source = f.read()
+                module_source = module_path.read_text()
 
-                    for attribute_name, attribute in inspect.getmembers(module, inspect.isfunction):
-                        if attribute_name.startswith("tool_"):
-                            self._tool_registry_unwrapped[attribute_name] = attribute
-                            wrapped_tool = tool_handler()(attribute)
-                            wrapped_tool.__source_code__ = module_source
-                            self._tool_registry[attribute_name] = wrapped_tool
+                for attribute_name, attribute in inspect.getmembers(module, inspect.isfunction):
+                    if attribute_name.startswith("tool_"):
+                        self._tool_registry_unwrapped[attribute_name] = attribute
+                        wrapped_tool = tool_handler()(attribute)
+                        wrapped_tool.__source_code__ = module_source
+                        self._tool_registry[attribute_name] = wrapped_tool
 
     def get_tool(self, name: str) -> Callable[..., Any]:
-        """Retrieves a tool from the registry by its name."""
+        """Retrieve a tool from the registry by its name."""
         return self._tool_registry[name]
 
     def get_unwrapped_tool(self, name: str) -> Callable[..., Any]:
-        """Retrieves an unwrapped tool from the registry by its name."""
+        """Retrieve an unwrapped tool from the registry by its name."""
         return self._tool_registry_unwrapped[name]
 
     def list_tools(self) -> list[dict[str, str | None]]:
-        """Lists all available tool functions registered in the tool registry."""
+        """List all available tool functions registered in the tool registry."""
         tool_infos: list[dict[str, str | None]] = []
         for name, func in self._tool_registry.items():
             tool_infos.append(
@@ -146,7 +149,7 @@ class ToolFactory:
         return tool_infos
 
     def wrap_function(self, func: Callable[..., Any], executor: Any | None = None) -> FunctionTool:
-        """Wraps a given function to be used as a tool, with an optional executor."""
+        """Wrap a given function to be used as a tool, with an optional executor."""
         wrapped_func = tool_handler()(func)
 
         class DynamicToolWrapper(FunctionTool):
@@ -173,7 +176,7 @@ class ToolFactory:
         return DynamicToolWrapper(tool_func=wrapped_func, tool_executor=executor)
 
     def create_tool_from_string(self, code: str, executor: Any | None = None) -> FunctionTool:
-        """Creates a tool from a string of Python code."""
+        """Create a tool from a string of Python code."""
         local_namespace: dict[str, Any] = {}
         execute_code_block(code, global_vars=globals(), local_vars=local_namespace)
 

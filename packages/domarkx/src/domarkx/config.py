@@ -1,4 +1,5 @@
 """Application configuration for DoMarkX."""
+
 import logging
 import pathlib
 
