@@ -1,3 +1,5 @@
+"""System executor for running ECS systems."""
+
 # pyright: basic
 import asyncio
 import logging
@@ -8,6 +10,8 @@ from dam.enums import ExecutionStrategy
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 from dam.system_events.requests import InformationRequest
 
+logger = logging.getLogger(__name__)
+
 ResultType = TypeVar("ResultType")
 EventType = TypeVar("EventType", bound=BaseSystemEvent)
 ItemType = TypeVar("ItemType")
@@ -16,8 +20,9 @@ SendType = TypeVar("SendType")
 
 class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
     """
-    Executes a collection of system generators according to a specified strategy
-    and provides methods to consume the resulting event stream.
+    Executes a collection of system generators according to a specified strategy.
+
+    Provides methods to consume the resulting event stream.
     """
 
     def __init__(
@@ -25,12 +30,14 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
         generators: list[AsyncGenerator[EventType, Any]],
         strategy: ExecutionStrategy,
     ):
+        """Initialize the SystemExecutor."""
         self._generators = generators
         self._strategy = strategy
         self._results: list[ResultType] | None = None
         self._iterator: AsyncGenerator[EventType | InformationRequest[Any], Any] | None = None
 
     def __aiter__(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
+        """Return the async iterator."""
         # To prevent re-running the generators, we create the iterator once and reuse it.
         if self._iterator is None:
             if self._strategy == ExecutionStrategy.SERIAL:
@@ -42,7 +49,7 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
         return self._iterator
 
     async def _run_serial(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
-        """Executes generators one by one, handling InformationRequests."""
+        """Execute generators one by one, handling InformationRequests."""
         for gen in self._generators:
             value_to_send: Any = None
             while True:
@@ -55,7 +62,7 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
                     break
 
     async def _run_parallel(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
-        """Executes generators concurrently, yielding events as they become available."""
+        """Execute generators concurrently, yielding events as they become available."""
         # A queue for events and requests from drainers to the main loop.
         q: asyncio.Queue[EventType | Exception | InformationRequest[Any]] = asyncio.Queue()
         # A single queue for responses from the main loop back to the waiting drainer.
@@ -126,7 +133,7 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
             self._results = []
             async for event in self:
                 if isinstance(event, InformationRequest):
-                    logging.warning(
+                    logger.warning(
                         "SystemExecutor yielded an InformationRequest, but it was consumed by a method "
                         "that cannot handle it (e.g., get_all_results). The request will be ignored. "
                         "To handle the request, you must iterate over the executor manually."
@@ -142,7 +149,8 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
 
     async def get_one_value(self) -> ResultType:
         """
-        Consumes the stream and returns the single result value.
+        Consume the stream and return the single result value.
+
         Raises a ValueError if there is not exactly one result.
         """
         results = await self.get_all_results()
@@ -152,7 +160,8 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
 
     async def get_first_non_none_value(self) -> ResultType | None:
         """
-        Consumes the stream until the first non-None result is found and returns it.
+        Consume the stream until the first non-None result is found and returns it.
+
         Returns None if no non-None result is found.
         """
         if self._results is not None:
@@ -179,7 +188,8 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
 
     async def get_all_results_flat(self: Self) -> list[Any]:
         """
-        Consumes the stream, gets all results, and flattens any that are lists.
+        Consume the stream, gets all results, and flattens any that are lists.
+
         If a result is None, it is ignored.
         """
         results = await self.get_all_results()

@@ -1,3 +1,5 @@
+"""Tests for character functions."""
+
 import pytest
 from sqlalchemy import select  # Added import for select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLink
 
 @pytest.mark.asyncio
 async def test_create_character_concept(db_session: AsyncSession) -> None:
+    """Test creating a character concept."""
     char_name = "Test Character One"
     char_desc = "A character for testing."
 
@@ -39,6 +42,7 @@ async def test_create_character_concept(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_get_character_concept_by_name_and_id(db_session: AsyncSession) -> None:
+    """Test getting a character concept by name and ID."""
     char_name = "Finder Character"
     char_desc = "Character to be found."
     char_entity = await character_service.create_character_concept(db_session, char_name, char_desc)
@@ -60,6 +64,7 @@ async def test_get_character_concept_by_name_and_id(db_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_find_character_concepts(db_session: AsyncSession) -> None:
+    """Test finding character concepts."""
     await character_service.create_character_concept(db_session, "Alpha Char", "Desc A")
     await character_service.create_character_concept(db_session, "Beta Char", "Desc B")
     await character_service.create_character_concept(db_session, "Gamma Person", "Desc C")
@@ -92,6 +97,7 @@ async def test_find_character_concepts(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_update_character_concept(db_session: AsyncSession) -> None:
+    """Test updating a character concept."""
     char_entity = await character_service.create_character_concept(db_session, "Updatable Char", "Initial Desc")
     assert char_entity is not None
 
@@ -116,6 +122,7 @@ async def test_update_character_concept(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_character_concept(db_session: AsyncSession) -> None:
+    """Test deleting a character concept."""
     char_to_delete = await character_service.create_character_concept(db_session, "Deletable Char", "Will be deleted")
     assert char_to_delete is not None
 
@@ -143,6 +150,7 @@ async def test_delete_character_concept(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) -> None:
+    """Test applying and removing a character from an entity."""
     char_entity = await character_service.create_character_concept(db_session, "Linkable Char", "For linking tests")
     asset1 = await ecs_service.create_entity(db_session)
     asset2 = await ecs_service.create_entity(db_session)
@@ -253,5 +261,6 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) 
 
 @pytest.mark.asyncio
 async def test_get_entities_for_nonexistent_character(db_session: AsyncSession) -> None:
+    """Test getting entities for a non-existent character."""
     with pytest.raises(character_service.CharacterConceptNotFoundError):
         await character_service.get_entities_for_character(db_session, -999)

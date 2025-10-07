@@ -1,4 +1,4 @@
-"""This module defines the ExiftoolMetadataComponent for storing raw EXIF data."""
+"""Defines the ExiftoolMetadataComponent for storing raw EXIF data."""
 
 from typing import Any
 
@@ -21,4 +21,5 @@ class ExiftoolMetadataComponent(UniqueComponent):
     raw_exif_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<ExiftoolMetadataComponent entity_id={self.entity_id} data_keys_count='{len(self.raw_exif_json.keys()) if self.raw_exif_json else 0}'>"

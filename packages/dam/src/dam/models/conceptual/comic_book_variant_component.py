@@ -1,3 +1,5 @@
+"""Data model for comic book variants."""
+
 from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -7,6 +9,7 @@ from .base_variant_info_component import UniqueBaseVariantInfoComponent
 class ComicBookVariantComponent(UniqueBaseVariantInfoComponent):
     """
     Represents a specific variant of a Comic Book Concept.
+
     This component is attached to a File Entity and links it to a
     ComicBookConceptComponent's Entity.
     """
@@ -54,6 +57,7 @@ class ComicBookVariantComponent(UniqueBaseVariantInfoComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"ComicBookVariantComponent(entity_id={self.entity_id}, "
             f"conceptual_entity_id={self.conceptual_entity_id}, "

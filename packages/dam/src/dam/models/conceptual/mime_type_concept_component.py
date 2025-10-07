@@ -1,3 +1,5 @@
+"""Data model for MIME type concepts."""
+
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -7,6 +9,7 @@ from .base_conceptual_info_component import BaseConceptualInfoComponent
 class MimeTypeConceptComponent(BaseConceptualInfoComponent):
     """
     Defines a mime type concept.
+
     This component is attached to an Entity that represents the mime type itself.
     Other entities can then link to this "Mime Type Entity" to refer to the mime type.
     """
@@ -23,4 +26,5 @@ class MimeTypeConceptComponent(BaseConceptualInfoComponent):
     __table_args__ = (UniqueConstraint("mime_type", name="uq_mime_type_concept_mime_type"),)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<MimeTypeConceptComponent id={self.id} entity_id={self.entity_id} mime_type='{self.mime_type}'>"

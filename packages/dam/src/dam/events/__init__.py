@@ -1,3 +1,5 @@
+"""Event definitions for the DAM system."""
+
 from .asset_events import (
     AssetCreatedEvent,
     AssetDeletedEvent,

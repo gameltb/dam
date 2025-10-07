@@ -1,3 +1,4 @@
+"""Fundamental building blocks of the DAM ECS framework."""
 # Core exports for the DAM system
 
 from .config import Settings, WorldConfig, settings

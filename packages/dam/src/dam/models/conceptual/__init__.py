@@ -1,3 +1,5 @@
+"""Data models related to conceptual assets and their variants."""
+
 from .base_conceptual_info_component import (
     BaseConceptualInfoComponent,
     UniqueBaseConceptualInfoComponent,

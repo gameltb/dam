@@ -1,3 +1,4 @@
+"""Data models for the DAM system."""
 # This file makes the 'models' directory a Python package.
 
 # Ensure all model modules are imported so they register with Base.metadata

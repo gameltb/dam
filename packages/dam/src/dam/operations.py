@@ -1,3 +1,5 @@
+"""Core asset operations for the DAM system."""
+
 from dam.commands.asset_commands import (
     CheckContentMimeTypeCommand,
     RemoveContentMimeTypeCommand,

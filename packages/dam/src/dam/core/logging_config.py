@@ -1,3 +1,5 @@
+"""Logging configuration for the DAM application."""
+
 import logging
 import os
 import sys
@@ -8,7 +10,7 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 def setup_logging(level: int | str | None = None) -> None:
     """
-    Sets up basic logging for the DAM application.
+    Set up basic logging for the DAM application.
 
     Args:
         level: The logging level to set. Can be an integer (e.g., logging.INFO),
@@ -91,7 +93,8 @@ if __name__ == "__main__":
     logging.getLogger("dam").handlers.clear()
     setup_logging()
     logger.info(
-        f"Default log level test. Current level: {logging.getLevelName(logging.getLogger('dam').getEffectiveLevel())}"
+        "Default log level test. Current level: %s",
+        logging.getLevelName(logging.getLogger("dam").getEffectiveLevel()),
     )
     logger.debug("This debug message should not be seen with default INFO level.")
 
@@ -99,5 +102,5 @@ if __name__ == "__main__":
     logging.getLogger("dam").handlers.clear()
     setup_logging(level="WARNING")
     effective_level_name = logging.getLevelName(logging.getLogger("dam").getEffectiveLevel())
-    logger.info(f"Test log at WARNING. Effective: {effective_level_name}. Info should not appear.")
+    logger.info("Test log at WARNING. Effective: %s. Info should not appear.", effective_level_name)
     logger.warning("This warning message should be seen.")

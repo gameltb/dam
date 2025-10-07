@@ -1,3 +1,5 @@
+"""Data model for the core Entity."""
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger
@@ -10,9 +12,12 @@ if TYPE_CHECKING:
 
 
 class Entity(Base):
+    """Represents a unique entity in the system, acting as a container for components."""
+
     __tablename__ = "entities"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, init=False)
 
     def __repr__(self) -> str:
+        """Return a string representation of the entity."""
         return f"Entity(id={self.id})"

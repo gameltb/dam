@@ -1,3 +1,5 @@
+"""System events for reporting progress."""
+
 from dataclasses import dataclass
 
 from .base import BaseSystemEvent

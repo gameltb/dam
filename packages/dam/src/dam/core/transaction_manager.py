@@ -1,3 +1,5 @@
+"""Core transaction manager for the DAM system."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
@@ -14,14 +16,19 @@ if TYPE_CHECKING:
 
 
 class TransactionManager(ContextProvider[WorldTransaction]):
+    """Manages the creation and lifecycle of database transactions."""
+
     def __init__(self, world_config: WorldConfig):
+        """Initialize the transaction manager."""
         self.db_manager = DatabaseManager(world_config)
 
     async def create_db_and_tables(self) -> None:
+        """Create database tables for the world."""
         await self.db_manager.create_db_and_tables()
 
     @asynccontextmanager
     async def __call__(self, **kwargs: Any) -> AsyncGenerator[WorldTransaction, None]:
+        """Provide a WorldTransaction context, handling nested and top-level transactions."""
         transaction = active_transaction.get()
         use_nested_transaction = kwargs.get("use_nested_transaction", False)
 

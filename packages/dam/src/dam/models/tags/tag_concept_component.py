@@ -1,3 +1,5 @@
+"""Data model for tag concepts."""
+
 from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +16,7 @@ from ..conceptual.base_conceptual_info_component import BaseConceptualInfoCompon
 class TagConceptComponent(BaseConceptualInfoComponent):
     """
     Defines a tag concept, its scope, and properties.
+
     This component is attached to an Entity that represents the tag itself.
     Other entities are then linked to this "Tag Entity" to apply the tag.
     """
@@ -64,4 +67,5 @@ class TagConceptComponent(BaseConceptualInfoComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<TagConceptComponent id={self.id} entity_id={self.entity_id} name='{self.tag_name}' scope='{self.tag_scope_type}'>"

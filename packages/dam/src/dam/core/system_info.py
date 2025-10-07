@@ -1,3 +1,5 @@
+"""Data classes for storing system metadata."""
+
 # pyright: basic
 from collections.abc import Callable
 from dataclasses import dataclass

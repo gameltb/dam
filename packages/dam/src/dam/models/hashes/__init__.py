@@ -1,3 +1,4 @@
+"""Data models for content hashes."""
 # This file makes the 'hashes' directory a Python package.
 
 from .content_hash_blake3_component import ContentHashBLAKE3Component

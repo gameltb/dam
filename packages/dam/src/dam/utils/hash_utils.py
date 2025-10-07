@@ -1,3 +1,5 @@
+"""Utility functions for calculating content hashes."""
+
 import hashlib
 import zlib
 from enum import Enum
@@ -8,11 +10,20 @@ import blake3
 
 @runtime_checkable
 class Hasher(Protocol):
-    def update(self, __data: bytes) -> Any: ...
-    def digest(self) -> bytes: ...
+    """A protocol for hash-like objects."""
+
+    def update(self, __data: bytes) -> Any:
+        """Update the hash object with the bytes-like object."""
+        ...
+
+    def digest(self) -> bytes:
+        """Return the digest of the data passed to the update() method so far."""
+        ...
 
 
 class HashAlgorithm(Enum):
+    """An enumeration of supported hash algorithms."""
+
     SHA256 = "sha256"
     MD5 = "md5"
     SHA1 = "sha1"
@@ -22,7 +33,7 @@ class HashAlgorithm(Enum):
 
 def calculate_hashes_from_stream(stream: BinaryIO, algorithms: set[HashAlgorithm]) -> dict[HashAlgorithm, bytes | int]:
     """
-    Calculates multiple hashes from a stream in a single pass.
+    Calculate multiple hashes from a stream in a single pass.
 
     Args:
         stream: A binary file-like object.

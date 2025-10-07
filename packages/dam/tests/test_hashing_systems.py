@@ -1,3 +1,5 @@
+"""Tests for hashing systems."""
+
 import hashlib
 from io import BytesIO
 

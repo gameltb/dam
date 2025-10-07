@@ -1,3 +1,4 @@
+"""Core providers for the DAM system."""
 # pyright: basic
 
 from collections.abc import AsyncGenerator
@@ -21,7 +22,7 @@ class MarkedEntityListProvider(ContextProvider[list[Entity]]):
         marker_component_type: type[BaseComponent],
         transaction: WorldTransaction,
     ) -> AsyncGenerator[list[Entity], None]:
-        """Queries for entities with the given marker component within a transaction."""
+        """Query for entities with the given marker component within a transaction."""
         stmt = sql_select(Entity).where(sql_exists().where(marker_component_type.entity_id == Entity.id))
         result = await transaction.session.execute(stmt)
         entities_to_process = list(result.scalars().all())

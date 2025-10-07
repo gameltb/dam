@@ -1,3 +1,5 @@
+"""Data model for SHA1 content hashes."""
+
 from sqlalchemy import (
     CheckConstraint,
     LargeBinary,
@@ -22,5 +24,6 @@ class ContentHashSHA1Component(UniqueComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
         return f"ContentHashSHA1Component(entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

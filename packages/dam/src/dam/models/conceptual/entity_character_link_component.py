@@ -1,3 +1,4 @@
+"""Data model for linking entities to character concepts."""
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,8 +9,9 @@ from ..core.entity import Entity
 
 class EntityCharacterLinkComponent(BaseComponent):
     """
-    Links an entity (e.g., an image, a story) to a CharacterConceptComponent's entity,
-    optionally defining the character's role or status in that context.
+    Links an entity to a CharacterConceptComponent's entity.
+
+    This component optionally defines the character's role or status in that context.
     """
 
     __tablename__ = "component_entity_character_link"
@@ -46,6 +48,7 @@ class EntityCharacterLinkComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"EntityCharacterLinkComponent(id={self.id}, entity_id={self.entity_id}, "
             f"character_concept_entity_id={self.character_concept_entity_id}, role='{self.role_in_asset}')"

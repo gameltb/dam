@@ -1,3 +1,4 @@
+"""Tests for the `dam` package."""
 # This file makes the 'tests' directory a Python package.
 # Test files should typically start with 'test_' and live in this directory
 # or subdirectories.

@@ -1,5 +1,6 @@
+"""Commands for discovering related entities."""
+
 from dataclasses import dataclass
-from typing import Optional
 
 from ..system_events.base import BaseSystemEvent
 from .core import EntityCommand
@@ -14,7 +15,7 @@ class PathSibling:
 
 
 @dataclass
-class DiscoverPathSiblingsCommand(EntityCommand[Optional[list[PathSibling]], BaseSystemEvent]):
+class DiscoverPathSiblingsCommand(EntityCommand[list[PathSibling] | None, BaseSystemEvent]):
     """
     A command to discover "sibling" entities for a given entity based on path.
 

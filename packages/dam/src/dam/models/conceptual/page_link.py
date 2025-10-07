@@ -1,3 +1,5 @@
+"""Data model for linking pages to owner entities."""
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
@@ -11,7 +13,9 @@ if TYPE_CHECKING:
 
 class PageLink(Base):
     """
-    Association object linking an "owner" Entity (which could be a comic book variant,
+    Association object linking an "owner" Entity to a "page image" Entity.
+
+    This links an "owner" Entity (which could be a comic book variant,
     or any other entity) to a "page image" Entity, with an order defined by page_number.
     This table facilitates a many-to-many relationship where an image can be a page
     in multiple owner entities, and an owner entity can have multiple ordered pages.
@@ -60,4 +64,5 @@ class PageLink(Base):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<PageLink owner_id={self.owner_entity_id} page_id={self.page_image_entity_id} page_num={self.page_number}>"
