@@ -9,13 +9,16 @@ from dam_archive.base import to_stream_provider
 from dam_archive.exceptions import InvalidPasswordError
 from dam_archive.main import open_archive
 
+CONTENT1 = b"content1"
+CONTENT2 = b"content2"
+
 
 @pytest.fixture
 def dummy_zip_file(tmp_path: Path) -> Path:
     zip_path = tmp_path / "test.zip"
     with zipfile.ZipFile(zip_path, "w") as zf:
-        zf.writestr("file1.txt", b"content1")
-        zf.writestr("dir/file2.txt", b"content2")
+        zf.writestr("file1.txt", CONTENT1)
+        zf.writestr("dir/file2.txt", CONTENT2)
         zf.comment = b"test comment"
     return zip_path
 
@@ -35,15 +38,15 @@ async def test_open_zip_archive(dummy_zip_file: Path) -> None:
 
     member_info, f_in_zip = archive.open_file("file1.txt")
     with f_in_zip:
-        assert f_in_zip.read() == b"content1"
+        assert f_in_zip.read() == CONTENT1
     assert member_info.name == "file1.txt"
-    assert member_info.size == 8
+    assert member_info.size == len(CONTENT1)
 
     member_info, f_in_zip = archive.open_file("dir/file2.txt")
     with f_in_zip:
-        assert f_in_zip.read() == b"content2"
+        assert f_in_zip.read() == CONTENT2
     assert member_info.name == "dir/file2.txt"
-    assert member_info.size == 8
+    assert member_info.size == len(CONTENT2)
     await archive.close()
 
 
@@ -101,13 +104,13 @@ async def test_open_zip_archive_with_stream_provider(dummy_zip_file: Path) -> No
 
     member_info, f_in_zip = archive.open_file("file1.txt")
     with f_in_zip:
-        assert f_in_zip.read() == b"content1"
+        assert f_in_zip.read() == CONTENT1
     assert member_info.name == "file1.txt"
-    assert member_info.size == 8
+    assert member_info.size == len(CONTENT1)
 
     member_info, f_in_zip = archive.open_file("dir/file2.txt")
     with f_in_zip:
-        assert f_in_zip.read() == b"content2"
+        assert f_in_zip.read() == CONTENT2
     assert member_info.name == "dir/file2.txt"
-    assert member_info.size == 8
+    assert member_info.size == len(CONTENT2)
     await archive.close()

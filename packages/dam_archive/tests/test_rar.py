@@ -5,6 +5,8 @@ import pytest
 
 from dam_archive.main import open_archive
 
+NUM_FILES_IN_DUMMY_RAR = 2
+
 
 @pytest.fixture
 def dummy_rar_file(tmp_path: Path) -> Path:
@@ -85,7 +87,7 @@ async def test_iter_files_rar_archive(dummy_rar_file: Path) -> None:
     assert archive is not None
 
     files = list(archive.iter_files())
-    assert len(files) == 2
+    assert len(files) == NUM_FILES_IN_DUMMY_RAR
     for member_info, f in files:
         with f:
             assert f.read()

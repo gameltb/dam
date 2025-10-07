@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import zipfile
 from datetime import datetime
 from types import TracebackType
@@ -71,10 +72,9 @@ class ZipArchiveHandler(ArchiveHandler):
 
             if isinstance(e, RuntimeError):
                 raise InvalidPasswordError("Invalid password for zip file.") from e
-            elif isinstance(e, zipfile.BadZipFile):
+            if isinstance(e, zipfile.BadZipFile):
                 raise InvalidPasswordError(f"Invalid password for zip file: {e}") from e
-            else:
-                raise
+            raise
 
         return handler
 
@@ -84,8 +84,8 @@ class ZipArchiveHandler(ArchiveHandler):
         # the filename is encoded in UTF-8.
         # Otherwise, it's encoded in CP437.
         # https://stackoverflow.com/questions/37723505/namelist-from-zipfile-returns-strings-with-an-invalid-encoding
-        ZIP_FILENAME_UTF8_FLAG = 0x800
-        if info.flag_bits & ZIP_FILENAME_UTF8_FLAG == 0:
+        zip_filename_utf8_flag = 0x800
+        if info.flag_bits & zip_filename_utf8_flag == 0:
             try:
                 # The filename is decoded with cp437 by default by zipfile module.
                 # We re-encode it to get the original bytes.
@@ -104,10 +104,8 @@ class ZipArchiveHandler(ArchiveHandler):
 
     async def close(self) -> None:
         if self.zip_file:
-            try:
+            with contextlib.suppress(Exception):
                 self.zip_file.close()
-            except Exception:
-                pass
 
         if self._stream_cm_exit:
             await self._stream_cm_exit(None, None, None)

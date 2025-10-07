@@ -65,7 +65,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                         shutil.copyfileobj(stream, temp_file)
             except Exception:
                 # Ensure cleanup if something goes wrong during stream copying
-                os.unlink(temp_path_str)
+                Path(temp_path_str).unlink()
                 raise
         else:
             file_path = path
@@ -85,7 +85,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             raise
 
     def _run_7z(self, args: List[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-        command = ["7z"] + args
+        command = ["7z", *args]
         try:
             return subprocess.run(
                 command,
@@ -132,7 +132,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
                     members.append(ArchiveMemberInfo(name=name, size=size, modified_at=modified_at))
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Could not parse file list line: {line} ({e})")
+                    logger.warning("Could not parse file list line: %s (%s)", line, e)
 
         self.members = members
 
@@ -159,17 +159,19 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
         if extracted_files != member_files:
             logger.warning(
                 "Mismatch between archive members and extracted files.\n"
-                f"Members not found on disk: {sorted(list(member_files - extracted_files))}\n"
-                f"Files on disk not in members: {sorted(list(extracted_files - member_files))}"
+                "Members not found on disk: %s\n"
+                "Files on disk not in members: %s",
+                sorted(list(member_files - extracted_files)),
+                sorted(list(extracted_files - member_files)),
             )
 
         for member in self.members:
             file_path = Path(extract_path) / member.name
             if file_path.is_file():
-                file_handle = open(file_path, "rb")
+                file_handle = file_path.open("rb")  # noqa: SIM115
                 yield member, file_handle  # pyright: ignore[reportReturnType]
             else:
-                logger.warning(f"File '{member.name}' not found in extraction directory '{extract_path}'.")
+                logger.warning("File '%s' not found in extraction directory '%s'.", member.name, extract_path)
 
     def open_file(self, file_name: str) -> Tuple[ArchiveMemberInfo, BinaryIO]:
         member_info = next((m for m in self.members if m.name == file_name), None)
@@ -182,7 +184,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
 
         try:
             process = subprocess.Popen(
-                ["7z"] + args,
+                ["7z", *args],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
@@ -203,4 +205,4 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 Path(self._temp_file_path).unlink()
                 self._temp_file_path = None
             except OSError as e:
-                logger.warning(f"Could not delete temporary file '{self._temp_file_path}': {e}")
+                logger.warning("Could not delete temporary file '%s': %s", self._temp_file_path, e)

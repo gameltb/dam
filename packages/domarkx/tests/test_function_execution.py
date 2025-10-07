@@ -28,4 +28,4 @@ async def test_function_execution_in_temp_dir(filepath: str, tmp_path: pathlib.P
     temp_doc_path = tmp_path / os.path.basename(filepath)
     shutil.copy(filepath, temp_doc_path)
     doc_path = pathlib.Path(temp_doc_path)
-    await aexec_doc(doc_path, handle_one_toolcall=True, allow_user_message_in_FunctionExecution=False)
+    await aexec_doc(doc_path, handle_one_toolcall=True, allow_user_message_in_function_execution=False)

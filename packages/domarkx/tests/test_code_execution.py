@@ -22,9 +22,8 @@ def test_execute_code_block_failure_with_source() -> None:
     """
     code = "a = 1\nb = a / 0"
     f = io.StringIO()
-    with redirect_stderr(f):
-        with pytest.raises(ZeroDivisionError):
-            execute_code_block(code)
+    with redirect_stderr(f), pytest.raises(ZeroDivisionError):
+        execute_code_block(code)
 
     s = f.getvalue()
     assert "b = a / 0" in s

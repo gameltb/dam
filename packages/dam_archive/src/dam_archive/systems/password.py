@@ -32,7 +32,7 @@ async def remove_archive_password_handler(
     component = await transaction.get_component(cmd.entity_id, ArchivePasswordComponent)
     if component:
         await transaction.remove_component(component)
-        logger.info(f"Removed ArchivePasswordComponent from entity {cmd.entity_id}")
+        logger.info("Removed ArchivePasswordComponent from entity %s", cmd.entity_id)
 
 
 @system(on_command=SetArchivePasswordCommand)

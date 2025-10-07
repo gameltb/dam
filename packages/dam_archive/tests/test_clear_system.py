@@ -1,8 +1,8 @@
 from typing import List
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from dam.core.transaction import WorldTransaction
+from pytest_mock import MockerFixture
 
 from dam_archive.commands import ClearArchiveComponentsCommand
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
@@ -10,7 +10,7 @@ from dam_archive.systems import clear_archive_components_handler
 
 
 @pytest.mark.asyncio
-async def test_clear_archive_components_handler():
+async def test_clear_archive_components_handler(mocker: MockerFixture):
     """
     Tests that the clear_archive_components_handler system correctly removes
     the ArchiveInfoComponent and all associated ArchiveMemberComponents.
@@ -30,9 +30,9 @@ async def test_clear_archive_components_handler():
         member_components.append(comp)
 
     # Mock the transaction and its session
-    mock_transaction = AsyncMock(spec=WorldTransaction)
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
+    mock_transaction = mocker.AsyncMock(spec=WorldTransaction)
+    mock_session = mocker.AsyncMock()
+    mock_result = mocker.MagicMock()
     mock_result.scalars.return_value.all.return_value = member_components
     mock_session.execute.return_value = mock_result
     mock_transaction.session = mock_session

@@ -103,7 +103,7 @@ def tool_read_file(
     if isinstance(path, list):
         logging.info(f"Path argument is a list, will process {len(path)} files.")
         return _read_multiple_files(path)
-    elif isinstance(path, str):
+    if isinstance(path, str):
         if glob.has_magic(path):
             logging.info(f"Path '{path}' contains wildcards, will process multiple files.")
             use_recursive = "**" in path
@@ -117,9 +117,7 @@ def tool_read_file(
                 logging.warning(warning_msg)
                 return warning_msg
             return _read_multiple_files(matching_files)
-        else:
-            return _read_single_file(path, start_line, end_line)
-    else:
-        error_msg = f"Argument 'path' must be a string or list of strings, but received {type(path).__name__}."
-        logging.error(error_msg)
-        raise TypeError(error_msg)
+        return _read_single_file(path, start_line, end_line)
+    error_msg = f"Argument 'path' must be a string or list of strings, but received {type(path).__name__}."
+    logging.error(error_msg)
+    raise TypeError(error_msg)

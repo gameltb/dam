@@ -5,6 +5,8 @@ import pytest
 
 from dam_archive.main import open_archive
 
+FILE_CONTENT = b"content"
+
 
 @pytest.fixture
 def utf8_encoded_zip_file(tmp_path: Path) -> Path:
@@ -12,7 +14,7 @@ def utf8_encoded_zip_file(tmp_path: Path) -> Path:
     # "测试" means "test" in Chinese.
     filename_in_zip = "测试.txt"
     with zipfile.ZipFile(file_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(filename_in_zip, b"content")
+        zf.writestr(filename_in_zip, FILE_CONTENT)
     return file_path
 
 
@@ -27,7 +29,7 @@ async def test_open_zip_with_utf8_filename(utf8_encoded_zip_file: Path) -> None:
 
     member_info, f_in_zip = archive.open_file("测试.txt")
     with f_in_zip:
-        assert f_in_zip.read() == b"content"
+        assert f_in_zip.read() == FILE_CONTENT
     assert member_info.name == "测试.txt"
 
 
@@ -44,7 +46,7 @@ def cp437_encoded_zip_file(tmp_path: Path) -> Path:
         # and use a ZipInfo object to bypass the default UTF-8 encoding.
         zinfo = zipfile.ZipInfo(filename_in_zip)
         zinfo.flag_bits &= ~0x800  # Unset the UTF-8 flag
-        zf.writestr(zinfo, b"content")
+        zf.writestr(zinfo, FILE_CONTENT)
     return file_path
 
 
@@ -70,7 +72,7 @@ async def test_iter_files_zip_with_utf8_filename(utf8_encoded_zip_file: Path) ->
 
     member_info, member_stream = files[0]
     assert member_info.name == "测试.txt"
-    assert member_info.size == 7  # "content" is 7 bytes
+    assert member_info.size == len(FILE_CONTENT)
 
     with member_stream as f_in_zip:
-        assert f_in_zip.read() == b"content"
+        assert f_in_zip.read() == FILE_CONTENT

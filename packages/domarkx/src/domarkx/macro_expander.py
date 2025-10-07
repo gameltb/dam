@@ -59,9 +59,8 @@ class MacroExpander:
 
         if include_path.exists():
             return include_path.read_text()
-        else:
-            # If the path does not exist, return the original macro text to avoid breaking the content.
-            return ""
+        # If the path does not exist, return the original macro text to avoid breaking the content.
+        return ""
 
     def _set_macro(self, macro: Macro, content: str) -> str:
         """Handles the @set macro."""

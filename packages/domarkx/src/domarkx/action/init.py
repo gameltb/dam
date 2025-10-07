@@ -31,7 +31,7 @@ def init_project(
         os.makedirs(project_path)
 
     # Initialize Git repository
-    subprocess.run(["git", "init"], cwd=project_path)
+    subprocess.run(["git", "init"], check=False, cwd=project_path)
 
     # Add template handling
     if template_path:

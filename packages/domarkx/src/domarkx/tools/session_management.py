@@ -51,10 +51,10 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
         f.write(expanded_content)
 
     # Add to git
-    subprocess.run(["git", "add", session_path], cwd=settings.project_path)
+    subprocess.run(["git", "add", session_path], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Create session {session_name}"],
-        cwd=settings.project_path,
+        check=False, cwd=settings.project_path,
     )
 
     return f"Session '{session_name}' created from template '{template_name}'."
@@ -90,10 +90,10 @@ def send_message(session_name: str, message: str) -> str:
         f.write(f"\n\n{message}")
 
     # Add to git
-    subprocess.run(["git", "add", session_path], cwd=settings.project_path)
+    subprocess.run(["git", "add", session_path], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Send message to session {session_name}"],
-        cwd=settings.project_path,
+        check=False, cwd=settings.project_path,
     )
 
     return f"Message sent to session '{session_name}'."
@@ -184,11 +184,11 @@ def archive_session(session_name: str, topic: str) -> str:
     os.rename(session_path, new_session_path)
 
     # Add to git
-    subprocess.run(["git", "add", new_session_path], cwd=settings.project_path)
-    subprocess.run(["git", "rm", session_path], cwd=settings.project_path)
+    subprocess.run(["git", "add", new_session_path], check=False, cwd=settings.project_path)
+    subprocess.run(["git", "rm", session_path], check=False, cwd=settings.project_path)
     subprocess.run(
         ["git", "commit", "-m", f"Archive session {session_name} to {topic}"],
-        cwd=settings.project_path,
+        check=False, cwd=settings.project_path,
     )
 
     return f"Session '{session_name}' archived to '{new_session_path}'."

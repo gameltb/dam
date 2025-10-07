@@ -15,10 +15,10 @@ from domarkx.macro_expander import DocExpander
 from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
-async def aexec_doc(
+async def aexec_doc(  # noqa: PLR0912, PLR0915
     doc: pathlib.Path,
     handle_one_toolcall: bool = False,
-    allow_user_message_in_FunctionExecution: bool = True,
+    allow_user_message_in_function_execution: bool = True,
     overwrite: bool = False,
 ) -> None:
     # Read the content from the document
@@ -53,10 +53,10 @@ async def aexec_doc(
             if match:
                 # Timestamp found.
                 # Try to create a new filename with 'A' appended.
-                new_stem_with_A = f"{doc.stem}A"
-                path_with_A = doc.with_name(f"{new_stem_with_A}.md")
+                new_stem_with_a = f"{doc.stem}A"
+                path_with_a = doc.with_name(f"{new_stem_with_a}.md")
 
-                if path_with_A.exists():
+                if path_with_a.exists():
                     # File with 'A' exists, so we create a new timestamped file.
                     # We need to find the base name by stripping the found suffix.
                     base_name = doc.stem[: match.start()]
@@ -65,7 +65,7 @@ async def aexec_doc(
                     doc_to_exec = doc.with_name(new_filename)
                 else:
                     # File with 'A' does not exist, so we use it.
-                    doc_to_exec = path_with_A
+                    doc_to_exec = path_with_a
             else:
                 # No timestamp found, add one.
                 now = datetime.now().strftime(timestamp_format)
@@ -82,7 +82,7 @@ async def aexec_doc(
         task_msg: Optional[str] = None
         latest_msg = session.messages[-1] if len(session.messages) > 0 else None
         if (
-            not allow_user_message_in_FunctionExecution
+            not allow_user_message_in_function_execution
             and latest_msg
             and isinstance(latest_msg.get("content", ""), list)
         ):
@@ -98,9 +98,13 @@ async def aexec_doc(
                 if PROMPT_TOOLKIT_IS_MULTILINE_CONDITION()
                 else None,
             )
-            if latest_msg and latest_msg.get("type", "") in ["FunctionExecutionResultMessage"]:
-                if task_msg is not None and len(task_msg.strip()) == 0:
-                    task_msg = None
+            if (
+                latest_msg
+                and latest_msg.get("type", "") in ["FunctionExecutionResultMessage"]
+                and task_msg is not None
+                and not task_msg.strip()
+            ):
+                task_msg = None
 
         await domarkx.ui.console.Console(
             session.agent.run_stream(task=task_msg), output_stats=True, exit_after_one_toolcall=handle_one_toolcall
@@ -132,5 +136,5 @@ def exec_doc(
     asyncio.run(aexec_doc(doc, handle_one_toolcall, overwrite=overwrite))
 
 
-def register(main_app: typer.Typer, settings: dict[str, Any]) -> None:
+def register(main_app: typer.Typer, _: dict[str, Any]) -> None:
     main_app.command()(exec_doc)

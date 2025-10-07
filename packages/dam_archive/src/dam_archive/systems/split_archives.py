@@ -1,6 +1,6 @@
 import logging
-import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, Dict, Optional
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
@@ -34,7 +34,7 @@ async def create_master_archive_handler(
     """
     Handles the manual creation of a master entity for a split archive.
     """
-    logger.info(f"Manually creating master archive '{cmd.name}' for {len(cmd.part_entity_ids)} parts.")
+    logger.info("Manually creating master archive '%s' for %s parts.", cmd.name, len(cmd.part_entity_ids))
 
     # 1. Create master entity and its components
     master_entity = await transaction.create_entity()
@@ -59,12 +59,12 @@ async def create_master_archive_handler(
     for part_id in cmd.part_entity_ids:
         fnc = await transaction.get_component(part_id, FilenameComponent)
         if not fnc or not fnc.filename:
-            logger.warning(f"Skipping part entity {part_id} as it has no filename component.")
+            logger.warning("Skipping part entity %s as it has no filename component.", part_id)
             continue
 
         split_info = split_detector.detect(fnc.filename)
         if not split_info:
-            logger.warning(f"Skipping part entity {part_id} as it does not look like a split archive part.")
+            logger.warning("Skipping part entity %s as it does not look like a split archive part.", part_id)
             continue
 
         part_info_comp = await transaction.get_component(part_id, SplitArchivePartInfoComponent)
@@ -77,7 +77,7 @@ async def create_master_archive_handler(
             )
             await transaction.add_component_to_entity(part_id, new_part_info)
 
-    logger.info(f"Successfully created master entity {master_entity.id} for archive '{cmd.name}'.")
+    logger.info("Successfully created master entity %s for archive '%s'.", master_entity.id, cmd.name)
 
 
 @system(on_command=BindSplitArchiveCommand)
@@ -90,7 +90,7 @@ async def bind_split_archive_handler(
     Handles discovering and binding a split archive from a starting entity.
     This is the "consumer" of the generic sibling discovery.
     """
-    logger.info(f"Attempting to bind split archive starting from entity {cmd.entity_id}")
+    logger.info("Attempting to bind split archive starting from entity %s", cmd.entity_id)
 
     # 1. Discover sibling entities
     discover_cmd = DiscoverPathSiblingsCommand(entity_id=cmd.entity_id)
@@ -100,13 +100,13 @@ async def bind_split_archive_handler(
         siblings = None
 
     if not siblings:
-        logger.info(f"No siblings found for entity {cmd.entity_id}. Cannot bind split archive.")
+        logger.info("No siblings found for entity %s. Cannot bind split archive.", cmd.entity_id)
         return
 
     # 2. Use the split_detector to find and validate a complete group from the siblings
     parts_by_basename: Dict[str, Dict[int, int]] = {}  # {base_name: {part_num: entity_id}}
     for sibling in siblings:
-        split_info = split_detector.detect(os.path.basename(sibling.path))
+        split_info = split_detector.detect(Path(sibling.path).name)
         if split_info:
             parts_by_basename.setdefault(split_info.base_name, {})[split_info.part_num] = sibling.entity_id
 
@@ -119,14 +119,14 @@ async def bind_split_archive_handler(
         is_complete = all(i in range(1, max_part_num + 1) for i in parts_by_num)
 
         if is_complete:
-            logger.info(f"Found complete split archive '{base_name}' with {max_part_num} parts.")
+            logger.info("Found complete split archive '%s' with %s parts.", base_name, max_part_num)
 
             # Check if a master archive already exists for this group
             master_name = f"{base_name} (Split Archive)"
             stmt = select(FilenameComponent).where(FilenameComponent.filename == master_name)
             result = await transaction.session.execute(stmt)
             if result.scalar_one_or_none():
-                logger.warning(f"A master archive named '{master_name}' already exists. Skipping creation.")
+                logger.warning("A master archive named '%s' already exists. Skipping creation.", master_name)
                 continue
 
             # 4. Dispatch command to create the master entity
@@ -188,17 +188,19 @@ async def unbind_split_archive_handler(
             master_entity_id = part_info.master_entity_id
 
     if not master_entity_id:
-        logger.warning(f"Entity {cmd.entity_id} is not a split archive master or part. Nothing to unbind.")
+        logger.warning("Entity %s is not a split archive master or part. Nothing to unbind.", cmd.entity_id)
         return
 
-    logger.info(f"Unbinding split archive master entity {master_entity_id}.")
+    logger.info("Unbinding split archive master entity %s.", master_entity_id)
 
     # Get the manifest component of the actual master
     master_manifest = await transaction.get_component(master_entity_id, SplitArchiveManifestComponent)
     if not master_manifest:
         # This case could happen if the master was deleted but the part component remained.
         logger.error(
-            f"Could not find a split archive manifest for master entity {master_entity_id}, though part {cmd.entity_id} referenced it."
+            "Could not find a split archive manifest for master entity %s, though part %s referenced it.",
+            master_entity_id,
+            cmd.entity_id,
         )
         return
 
@@ -214,4 +216,4 @@ async def unbind_split_archive_handler(
     # Delete the manifest from the master
     await transaction.remove_component(master_manifest)
 
-    logger.info(f"Successfully unbound archive for master entity {master_entity_id}.")
+    logger.info("Successfully unbound archive for master entity %s.", master_entity_id)

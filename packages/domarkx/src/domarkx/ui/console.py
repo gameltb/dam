@@ -65,11 +65,10 @@ class UserInputManager:
                 # Cast to AsyncInputFunc for proper typing
                 async_func = cast(AsyncInputFunc, self.callback)
                 return await async_func(prompt, cancellation_token)
-            else:
-                # Cast to SyncInputFunc for proper typing
-                sync_func = cast(SyncInputFunc, self.callback)
-                loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(None, sync_func, prompt)
+            # Cast to SyncInputFunc for proper typing
+            sync_func = cast(SyncInputFunc, self.callback)
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, sync_func, prompt)
 
         return user_input_func_wrapper
 
