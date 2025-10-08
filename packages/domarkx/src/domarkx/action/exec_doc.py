@@ -17,7 +17,7 @@ from domarkx.macro_expander import DocExpander
 from domarkx.ui.console import PROMPT_TOOLKIT_IS_MULTILINE_CONDITION
 
 
-async def aexec_doc(  # noqa: PLR0912, PLR0915
+async def aexec_doc(  # noqa: PLR0912
     doc: pathlib.Path,
     handle_one_toolcall: bool = False,
     allow_user_message_in_function_execution: bool = True,

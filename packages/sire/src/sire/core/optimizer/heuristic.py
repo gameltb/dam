@@ -87,7 +87,7 @@ class HeuristicOptimizer:
         )
         return est
 
-    def optimize(self) -> OptimizationPlan:  # noqa: PLR0912, PLR0915
+    def optimize(self) -> OptimizationPlan:  # noqa: PLR0912
         """Run the optimization algorithm to generate a plan."""
         logger.info("Starting heuristic optimization (prefetch-focused)...")
         opt_map_str: dict[str, str] = {}

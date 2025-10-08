@@ -1,3 +1,5 @@
+"""Defines the FileLocationComponent model."""
+
 from datetime import datetime
 
 from dam.models.core import BaseComponent
@@ -8,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class FileLocationComponent(BaseComponent):
     """
     Stores the physical location or reference of an asset's content.
+
     An entity's content can exist in multiple locations or be referenced multiple times.
     """
 
@@ -20,4 +23,5 @@ class FileLocationComponent(BaseComponent):
     last_modified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"FileLocationComponent(id={self.id}, entity_id={self.entity_id}, url='{self.url}')"

@@ -32,7 +32,7 @@ class ConfigSignatureGenerator:
     This signature is used to cache optimization plans.
     """
 
-    def _serialize_value_recursive(  # noqa: PLR0912, PLR0913, PLR0915
+    def _serialize_value_recursive(  # noqa: PLR0912
         self,
         val: Any,
         path: list[str],
@@ -141,7 +141,7 @@ class ConfigSignatureGenerator:
             s_p.append(part)
         return s_p
 
-    def generate_config_signature(  # noqa: PLR0913
+    def generate_config_signature(
         self,
         mod: nn.Module,
         args: tuple[Any, ...],

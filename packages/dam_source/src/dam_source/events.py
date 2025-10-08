@@ -1,4 +1,4 @@
-"""This file is reserved for event definitions for the dam_source package."""
+"""Defines event models for the `dam_source` package."""
 
 
 # Example of an event:

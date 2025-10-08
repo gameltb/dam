@@ -1,3 +1,5 @@
+"""Defines systems for handling asset lifecycle events related to the filesystem."""
+
 import binascii
 import datetime
 import logging
@@ -38,7 +40,8 @@ async def add_file_properties_handler(
     cmd: AddFilePropertiesCommand,
     transaction: WorldTransaction,
 ) -> None:
-    logger.info(f"System handling AddFilePropertiesCommand for entity: {cmd.entity_id}")
+    """Handle the AddFilePropertiesCommand to add file properties to an entity."""
+    logger.info("System handling AddFilePropertiesCommand for entity: %s", cmd.entity_id)
 
     # Add FilenameComponent
     fnc = FilenameComponent(filename=cmd.original_filename, first_seen_at=cmd.modified_at)
@@ -55,8 +58,13 @@ async def handle_find_entity_by_hash_command(
     transaction: WorldTransaction,
     world_config: WorldConfig,
 ) -> dict[str, Any] | None:
+    """Handle the FindEntityByHashCommand to find an entity by its content hash."""
     logger.info(
-        f"System handling FindEntityByHashCommand for hash: {cmd.hash_value} (type: {cmd.hash_type}) in world '{world_config.name}' (Req ID: {cmd.request_id})"
+        "System handling FindEntityByHashCommand for hash: %s (type: %s) in world '%s' (Req ID: %s)",
+        cmd.hash_value,
+        cmd.hash_type,
+        world_config.name,
+        cmd.request_id,
     )
     try:
         hash_bytes = binascii.unhexlify(cmd.hash_value)
@@ -73,6 +81,7 @@ async def get_fs_asset_filenames_handler(
     cmd: GetAssetFilenamesCommand,
     transaction: WorldTransaction,
 ) -> list[str] | None:
+    """Handle the GetAssetFilenamesCommand to retrieve filenames for an asset."""
     fncs = await transaction.get_components(cmd.entity_id, FilenameComponent)
     if fncs:
         return [fnc.filename for fnc in fncs if fnc.filename is not None]
@@ -85,6 +94,7 @@ async def register_local_file_handler(
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> int | None:
+    """Handle the RegisterLocalFileCommand to register a local file."""
     file_path = cmd.file_path
     file_uri = file_path.as_uri()
 
@@ -93,7 +103,7 @@ async def register_local_file_handler(
         current_mtime = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.UTC)
         current_size = file_stat.st_size
     except FileNotFoundError:
-        logger.warning(f"File not found during registration: {file_path}")
+        logger.warning("File not found during registration: %s", file_path)
         return None
 
     # Check if we've seen this file location before and if it's modified
@@ -101,7 +111,7 @@ async def register_local_file_handler(
     existing_flc = (await transaction.session.execute(stmt)).scalar_one_or_none()
 
     if existing_flc and existing_flc.last_modified_at == current_mtime:
-        logger.info(f"File '{file_path}' is unchanged since last scan. Skipping.")
+        logger.info("File '%s' is unchanged since last scan. Skipping.", file_path)
         return existing_flc.entity_id
 
     # File is new or modified, proceed with hash-based entity creation/retrieval
@@ -140,6 +150,7 @@ async def find_entity_by_file_properties_handler(
     cmd: FindEntityByFilePropertiesCommand,
     transaction: WorldTransaction,
 ) -> int | None:
+    """Handle the FindEntityByFilePropertiesCommand to find an entity by file properties."""
     stmt = (
         select(FileLocationComponent.entity_id)
         .where(FileLocationComponent.url == cmd.file_path)
@@ -152,12 +163,13 @@ async def find_entity_by_file_properties_handler(
 
 @system(on_command=StoreAssetsCommand)
 async def store_assets_handler(
-    cmd: StoreAssetsCommand,
+    _cmd: StoreAssetsCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],
 ) -> None:
     """
-    Handles storing assets in the file storage based on a query.
+    Handle storing assets in the file storage based on a query.
+
     Currently, it stores all assets that are not yet in the storage.
     """
     storage_resource = world.get_resource(FileStorageResource)
@@ -191,8 +203,8 @@ async def store_assets_handler(
                     content = stream.read()
                     storage_resource.store_file(content)
                     stored_count += 1
-                    logger.info(f"Stored entity {entity.id} (hash: {content_hash})")
-            except Exception as e:
-                logger.error(f"Failed to store entity {entity.id}: {e}", exc_info=True)
+                    logger.info("Stored entity %s (hash: %s)", entity.id, content_hash)
+            except Exception:
+                logger.exception("Failed to store entity %s", entity.id)
 
-    logger.info(f"Successfully stored {stored_count} new assets.")
+    logger.info("Successfully stored %s new assets.", stored_count)

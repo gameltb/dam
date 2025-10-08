@@ -1,3 +1,5 @@
+"""Defines the WebSourceComponent model."""
+
 from datetime import datetime
 from typing import Any
 
@@ -10,8 +12,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship  # Added relation
 
 class WebSourceComponent(BaseComponent):
     """
-    Component to store information about assets originating from web sources,
-    linking to a Website Entity and detailing the specific asset's context on that site.
+    Component to store information about assets originating from web sources.
+
+    This component links to a Website Entity and details the specific asset's
+    context on that site.
     """
 
     __tablename__ = "component_web_source"
@@ -89,6 +93,7 @@ class WebSourceComponent(BaseComponent):
     # Consider a 'last_checked_at' timestamp for link validation.
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"WebSourceComponent(id={self.id}, entity_id={self.entity_id}, website_entity_id={self.website_entity_id}, source_url='{self.source_url[:50]}...')"
 
     # Potential __table_args__:

@@ -1,3 +1,5 @@
+"""Fixtures for DAM tests."""
+
 import json
 import os
 import uuid
@@ -29,10 +31,12 @@ from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _original_settings_values: dict[str, Any] = {}
+MOCK_TRANSFORMER_EMBEDDING_DIM = 3
 
 
 @pytest.fixture(scope="session", autouse=True)
 def backup_original_settings() -> None:
+    """Backup the original settings before tests run."""
     _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
     _original_settings_values["worlds"] = global_settings.worlds.copy()
     _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
@@ -40,6 +44,7 @@ def backup_original_settings() -> None:
 
 @pytest_asyncio.fixture(scope="function")
 async def test_db() -> AsyncGenerator[str, None]:
+    """Create a temporary database for testing."""
     db_user = os.environ.get("POSTGRES_USER", "postgres")
     db_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
     db_host = os.environ.get("POSTGRES_HOST", "localhost")
@@ -74,6 +79,8 @@ async def test_db() -> AsyncGenerator[str, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> AsyncGenerator[Settings, None]:
+    """Override settings for testing."""
+
     def _factory() -> dict[str, dict[str, str]]:
         return {
             "test_world_alpha": {"DATABASE_URL": test_db},
@@ -113,10 +120,8 @@ async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> A
     clear_world_registry()
 
 
-async def _setup_world(
-    world_name: str, settings_override_fixture: Settings, plugins: list[Any] | None = None
-) -> World:
-    """A fixture to set up a dam world, with optional plugins."""
+async def _setup_world(world_name: str, settings_override_fixture: Settings, plugins: list[Any] | None = None) -> World:
+    """Set up a dam world, with optional plugins."""
     world = create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
 
@@ -144,6 +149,7 @@ async def _teardown_world_async(world: World) -> None:
 
 @pytest_asyncio.fixture(scope="function")
 async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
+    """Create a test world named 'alpha'."""
     world = await _setup_world("test_world_alpha", settings_override, plugins=None)
     yield world
     await _teardown_world_async(world)
@@ -151,13 +157,17 @@ async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World,
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, None]:
+    """Create a new database session for a test."""
     db_mngr = test_world_alpha.get_resource(DatabaseManager)
     async with db_mngr.session_local() as session:
         yield session
 
 
 class MockSentenceTransformer(torch.nn.Module):
-    def __init__(self, model_name_or_path: str | None = None, **kwargs: Any) -> None:
+    """A mock sentence transformer for testing."""
+
+    def __init__(self, model_name_or_path: str | None = None, **_kwargs: Any) -> None:
+        """Initialize the mock sentence transformer."""
         super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
@@ -168,11 +178,13 @@ class MockSentenceTransformer(torch.nn.Module):
             self.dim = 384
 
     def forward(self, features: Any) -> Any:
+        """Perform a forward pass."""
         return features
 
     def encode(
-        self, sentences: str | list[str], convert_to_numpy: bool = True, **kwargs: Any
+        self, sentences: str | list[str], convert_to_numpy: bool = True, **_kwargs: Any
     ) -> np.ndarray | list[list[float]]:
+        """Encode sentences into embeddings."""
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
@@ -184,8 +196,11 @@ class MockSentenceTransformer(torch.nn.Module):
             sum_ords = sum(ord(c) for c in s)
             model_ord_sum = sum(ord(c) for c in (self.model_name or "default"))
             vec_elements = [sum_ords % 100, len(s) % 100, model_ord_sum % 100]
-            if self.dim >= 3:
-                vec = np.array(vec_elements[: self.dim] + [0.0] * (self.dim - min(3, self.dim)), dtype=np.float32)
+            if self.dim >= MOCK_TRANSFORMER_EMBEDDING_DIM:
+                vec = np.array(
+                    vec_elements[: self.dim] + [0.0] * (self.dim - min(MOCK_TRANSFORMER_EMBEDDING_DIM, self.dim)),
+                    dtype=np.float32,
+                )
             elif self.dim > 0:
                 vec = np.array(vec_elements[: self.dim], dtype=np.float32)
             else:
@@ -205,6 +220,7 @@ class MockSentenceTransformer(torch.nn.Module):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_world_beta(settings_override: Settings) -> AsyncGenerator[World, None]:
+    """Create a test world named 'beta'."""
     world = await _setup_world("test_world_beta", settings_override)
     yield world
     await _teardown_world_async(world)
@@ -212,6 +228,7 @@ async def test_world_beta(settings_override: Settings) -> AsyncGenerator[World, 
 
 @pytest_asyncio.fixture(scope="function")
 async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World, None]:
+    """Create a test world named 'gamma'."""
     world = await _setup_world("test_world_gamma", settings_override)
     yield world
     await _teardown_world_async(world)
@@ -219,6 +236,7 @@ async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World,
 
 @pytest.fixture
 def temp_asset_file(tmp_path: Path) -> Path:
+    """Create a temporary asset file."""
     file_path = tmp_path / "test_asset.txt"
     file_path.write_text("This is a test asset.")
     return file_path
@@ -226,6 +244,7 @@ def temp_asset_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def temp_image_file(tmp_path: Path) -> Path:
+    """Create a temporary image file."""
     file_path = tmp_path / "test_image.png"
     img = Image.new("RGB", (60, 30), color="red")
     img.save(file_path)
@@ -234,6 +253,7 @@ def temp_image_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_image_a(tmp_path: Path) -> Path:
+    """Create a sample image file."""
     file_path = tmp_path / "sample_A.png"
     img = Image.new("RGB", (2, 1), color=(128, 128, 128))
     img.save(file_path)
@@ -242,6 +262,7 @@ def sample_image_a(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_text_file(tmp_path: Path) -> Path:
+    """Create a sample text file."""
     file_path = tmp_path / "sample_doc.txt"
     file_path.write_text("This is a common test document.")
     return file_path
@@ -249,6 +270,7 @@ def sample_text_file(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_video_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder video file."""
     file_path = tmp_path / "sample_video_placeholder.mp4"
     # A minimal mp4 file
     file_path.write_bytes(b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isomiso2avc1mp41")
@@ -257,6 +279,7 @@ def sample_video_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_audio_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder audio file."""
     file_path = tmp_path / "sample_audio_placeholder.wav"
     samplerate = 44100
     duration = 1
@@ -270,6 +293,7 @@ def sample_audio_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_gif_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder GIF file."""
     file_path = tmp_path / "sample_gif_placeholder.gif"
     img = Image.new("RGB", (1, 1), color=(255, 255, 255))
     img.save(file_path)
@@ -278,6 +302,7 @@ def sample_gif_file_placeholder(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_wav_file(tmp_path: Path) -> Path:
+    """Create a sample WAV file."""
     file_path = tmp_path / "sample.wav"
     samplerate = 48000
     duration = 1

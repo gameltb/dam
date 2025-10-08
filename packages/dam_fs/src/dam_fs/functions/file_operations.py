@@ -1,3 +1,5 @@
+"""Provides file-related operations and utilities."""
+
 import asyncio
 import datetime
 import logging
@@ -5,7 +7,6 @@ import mimetypes
 import subprocess
 from pathlib import Path
 
-from dam.core.config import WorldConfig
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def get_file_properties(filepath: Path) -> tuple[str, int]:
     """
-    Retrieves basic file properties.
+    Retrieve basic file properties.
 
     Args:
         filepath: Path to the file.
@@ -45,7 +46,7 @@ def get_file_properties(filepath: Path) -> tuple[str, int]:
 
 def get_mime_type(filepath: Path) -> str:
     """
-    Detects the MIME type of a file.
+    Detect the MIME type of a file.
 
     Args:
         filepath: Path to the file.
@@ -69,26 +70,31 @@ def get_mime_type(filepath: Path) -> str:
             check=True,
         )
         mime_type = result.stdout.strip()
-        logger.debug(f"MIME type from 'file' command for {filepath.name}: {mime_type}")
+        logger.debug("MIME type from 'file' command for %s: %s", filepath.name, mime_type)
     except FileNotFoundError:
         logger.warning("'file' command not found. Falling back to mimetypes module.")
     except subprocess.CalledProcessError as e:
         logger.warning(
-            f"'file' command failed for {filepath.name}: {e}. Output: {e.stderr}. Falling back to mimetypes."
+            "'file' command failed for %s: %s. Output: %s. Falling back to mimetypes.",
+            filepath.name,
+            e,
+            e.stderr,
         )
     except Exception as e:
         logger.warning(
-            f"An unexpected error occurred while using 'file' command for {filepath.name}: {e}. Falling back to mimetypes."
+            "An unexpected error occurred while using 'file' command for %s: %s. Falling back to mimetypes.",
+            filepath.name,
+            e,
         )
 
     if not mime_type:
         mime_type_guess, _ = mimetypes.guess_type(filepath)
         if mime_type_guess:
             mime_type = mime_type_guess
-            logger.debug(f"MIME type from mimetypes for {filepath.name}: {mime_type}")
+            logger.debug("MIME type from mimetypes for %s: %s", filepath.name, mime_type)
         else:
             mime_type = "application/octet-stream"
-            logger.warning(f"mimetypes could not guess MIME type for {filepath.name}. Defaulting to {mime_type}.")
+            logger.warning("mimetypes could not guess MIME type for %s. Defaulting to %s.", filepath.name, mime_type)
     return mime_type
 
 
@@ -111,9 +117,10 @@ async def get_mime_type_async(filepath: Path) -> str:
     return await asyncio.to_thread(get_mime_type, filepath)
 
 
-async def create_entity_with_file(transaction: WorldTransaction, world_config: WorldConfig, file_path: str) -> Entity:
+async def create_entity_with_file(transaction: WorldTransaction, file_path: str) -> Entity:
     """
-    Creates an entity for a given file path, with file-related components.
+    Create an entity for a given file path, with file-related components.
+
     Note: This is a simplified helper and does not perform content-based deduplication.
     """
     p_file_path = Path(file_path)
@@ -148,12 +155,13 @@ async def create_entity_with_file(transaction: WorldTransaction, world_config: W
 
 async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_id: int) -> Path | None:
     """
-    Resolves a file_id (which is the ID of a FilenameComponent) to a local, accessible file path.
+    Resolve a file_id (which is the ID of a FilenameComponent) to a local, accessible file path.
+
     TODO: This function is fragile as it assumes file_id is a component ID. Refactor to use entity_id.
     """
     fnc = await transaction.get_component(file_id, FilenameComponent)
     if not fnc:
-        logger.warning(f"Could not find FilenameComponent with ID {file_id}.")
+        logger.warning("Could not find FilenameComponent with ID %s.", file_id)
         return None
 
     return await get_file_path_for_entity(world, transaction, fnc.entity_id)
@@ -162,8 +170,8 @@ async def get_file_path_by_id(world: World, transaction: WorldTransaction, file_
 async def get_file_path_for_entity(
     world: World, transaction: WorldTransaction, entity_id: int, variant_name: str | None = "original"
 ) -> Path | None:
-    """Retrieves the full file path for a given entity."""
-    logger.debug(f"Attempting to get file path for entity {entity_id}, variant {variant_name}")
+    """Retrieve the full file path for a given entity."""
+    logger.debug("Attempting to get file path for entity %s, variant %s", entity_id, variant_name)
 
     # 1. Try to get path from FileStorageResource using content hash
     sha256_comp = await transaction.get_component(entity_id, ContentHashSHA256Component)
@@ -176,13 +184,13 @@ async def get_file_path_for_entity(
             if potential_path:
                 is_file = await asyncio.to_thread(potential_path.is_file)
             if potential_path and is_file:
-                logger.debug(f"Found file in FileStorageResource for entity {entity_id} at {potential_path}")
+                logger.debug("Found file in FileStorageResource for entity %s at %s", entity_id, potential_path)
                 return potential_path
 
     # 2. Fallback to FileLocationComponent
     all_locations = await transaction.get_components(entity_id, FileLocationComponent)
     if not all_locations:
-        logger.warning(f"No FileLocationComponent found for entity {entity_id}.")
+        logger.warning("No FileLocationComponent found for entity %s.", entity_id)
         return None
 
     # TODO: Add proper variant handling logic here
@@ -194,9 +202,9 @@ async def get_file_path_for_entity(
         if potential_path:
             is_file = await asyncio.to_thread(potential_path.is_file)
         if potential_path and is_file:
-            logger.debug(f"Found file via FileLocationComponent for entity {entity_id} at {potential_path}")
+            logger.debug("Found file via FileLocationComponent for entity %s at %s", entity_id, potential_path)
             return potential_path
     except (ValueError, FileNotFoundError) as e:
-        logger.debug(f"Could not resolve or find file for URL '{target_loc.url}' for entity {entity_id}: {e}")
+        logger.debug("Could not resolve or find file for URL '%s' for entity %s: %s", target_loc.url, entity_id, e)
 
     return None

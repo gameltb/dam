@@ -40,7 +40,7 @@ def _json_custom_default_encoder(obj: Any) -> Any:
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable: {obj}")
 
 
-def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:  # noqa: PLR0911, PLR0912, PLR0915
+def _reconstruct_from_data[T](data: Any, expected_type: type[T]) -> T:  # noqa: PLR0911, PLR0912
     if data is None:
         return None  # type: ignore
 

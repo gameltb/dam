@@ -1,3 +1,5 @@
+"""The `dam_semantic` package provides semantic search functionalities."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -33,7 +35,13 @@ class SemanticPlugin(Plugin):
     """A plugin for handling semantic search."""
 
     def build(self, world: World) -> None:
-        """Builds the semantic plugin."""
+        """
+        Build the semantic plugin.
+
+        Args:
+            world: The world to build the plugin in.
+
+        """
         # Add dependent plugins
         world.add_plugin(ImagePlugin())
 

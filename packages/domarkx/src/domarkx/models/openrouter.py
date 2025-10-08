@@ -155,7 +155,7 @@ class OpenRouterR1OpenAIChatCompletionClient(OpenAIChatCompletionClient):
                     for x in choice.logprobs.content
                 ]
 
-    async def create_stream(  # noqa: PLR0913
+    async def create_stream(
         self,
         messages: Sequence[LLMMessage],
         *,

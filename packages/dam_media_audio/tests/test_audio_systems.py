@@ -1,3 +1,5 @@
+"""Tests for the audio systems."""
+
 from pathlib import Path
 
 import pytest

@@ -202,7 +202,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
         nvtx.range_pop()
         return args, kwargs
 
-    def do_prefetch(  # noqa: PLR0912, PLR0915
+    def do_prefetch(  # noqa: PLR0912
         self, pf_name: str, pf_dev: torch.device, pf_mod: nn.Module, pf_stream: torch.cuda.Stream
     ) -> None:
         """Perform the prefetch operation."""
@@ -283,7 +283,7 @@ class PrefetchingHook(ModelHook):  # Placed on trigger module
 class InferenceOptimizerHook(ModelHook):
     """A hook that optimizes model inference."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         cache_dir: str = "opt_cache",
         num_prefetch_streams: int = 1,

@@ -1,10 +1,12 @@
+"""Tests for the semantic functions."""
+
 from typing import Any
-from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 import torch
 from dam_sire.resource import SireResource
+from pytest_mock import MockerFixture
 
 # ModelExecutionManager fixture from conftest.py
 from dam_semantic import semantic_functions
@@ -32,7 +34,10 @@ assert ClipEmbeddingComponent is not None, "Test CLIP model not registered or cl
 
 
 class MockSentenceTransformer(torch.nn.Module):
-    def __init__(self, model_name_or_path: str = "", **kwargs: Any):
+    """A mock sentence transformer for testing."""
+
+    def __init__(self, model_name_or_path: str = "", **_kwargs: Any):
+        """Initialize the mock sentence transformer."""
         super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         if model_name_or_path and "clip" in model_name_or_path.lower():
@@ -43,11 +48,13 @@ class MockSentenceTransformer(torch.nn.Module):
             self.dim = 384
 
     def forward(self, features: Any) -> Any:
+        """Perform a forward pass."""
         return features
 
     def encode(
-        self, sentences: str | list[str], convert_to_numpy: bool = True, **kwargs: Any
+        self, sentences: str | list[str], convert_to_numpy: bool = True, **_kwargs: Any
     ) -> np.ndarray | list[Any]:
+        """Encode sentences into embeddings."""
         original_sentences_type = type(sentences)
         if isinstance(sentences, str):
             sentences = [sentences]
@@ -82,11 +89,12 @@ class MockSentenceTransformer(torch.nn.Module):
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_and_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
-    sire_resource_mock = MagicMock(spec=SireResource)
+async def test_generate_embedding_and_conversion(mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the generation and conversion of embeddings."""
+    sire_resource_mock = mocker.MagicMock(spec=SireResource)
 
     async def mock_generate_embedding(
-        sire_resource: SireResource, text: str, model_name: str, params: Any
+        _sire_resource: SireResource, text: str, model_name: str, _params: Any
     ) -> np.ndarray | None:
         if not text or not text.strip():
             return None

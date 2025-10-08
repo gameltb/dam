@@ -1,3 +1,5 @@
+"""Defines the FilenameComponent model."""
+
 from datetime import datetime
 
 from dam.models.core.base_component import BaseComponent
@@ -7,8 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class FilenameComponent(BaseComponent):
     """
-    Stores the original filename of an asset and the earliest known time
-    this filename was associated with the asset.
+    Stores the original filename of an asset and the earliest known time.
 
     This component helps track the provenance of a filename. The
     `first_seen_at` timestamp is updated only if a newly observed file
@@ -28,6 +29,7 @@ class FilenameComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"FilenameComponent(id={self.id}, entity_id={self.entity_id}, "
             f"filename='{self.filename}', first_seen_at='{self.first_seen_at}')"

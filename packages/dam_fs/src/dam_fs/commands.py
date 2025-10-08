@@ -1,7 +1,9 @@
+"""Defines commands for the `dam_fs` package."""
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from dam.commands.core import BaseCommand
 from dam.system_events.base import BaseSystemEvent
@@ -27,9 +29,10 @@ class IngestReferenceCommand(BaseCommand[None, BaseSystemEvent]):
 
 
 @dataclass
-class FindEntityByHashCommand(BaseCommand[Optional[dict[str, Any]], BaseSystemEvent]):
+class FindEntityByHashCommand(BaseCommand[dict[str, Any] | None, BaseSystemEvent]):
     """
     Command to find an entity by its content hash.
+
     The result is a dictionary with entity details or None, set on the future.
     """
 
@@ -39,9 +42,10 @@ class FindEntityByHashCommand(BaseCommand[Optional[dict[str, Any]], BaseSystemEv
 
 
 @dataclass
-class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int], BaseSystemEvent]):
+class FindEntityByFilePropertiesCommand(BaseCommand[int | None, BaseSystemEvent]):
     """
     Command to find an entity by its file properties (path and modification time).
+
     The result is the entity ID or None.
     """
 
@@ -53,6 +57,7 @@ class FindEntityByFilePropertiesCommand(BaseCommand[Optional[int], BaseSystemEve
 class RegisterLocalFileCommand(BaseCommand[int, BaseSystemEvent]):
     """
     Command to register a local file, creating an entity if needed.
+
     Returns the entity ID.
     """
 

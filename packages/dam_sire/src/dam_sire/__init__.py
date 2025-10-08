@@ -1,4 +1,1 @@
-from .plugin import SirePlugin
-from .resource import SireResource
-
-__all__ = ["SirePlugin", "SireResource"]
+"""The `dam_sire` package provides integration with the Sire library."""

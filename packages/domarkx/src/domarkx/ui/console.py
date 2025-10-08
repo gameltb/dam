@@ -99,7 +99,7 @@ def ainput(prompt: str) -> Awaitable[str]:
     return asyncio.to_thread(input, prompt)
 
 
-async def console_render[T: TaskResult | Response](  # noqa: PLR0912, PLR0915
+async def console_render[T: TaskResult | Response](  # noqa: PLR0912
     stream: AsyncGenerator[BaseAgentEvent | BaseChatMessage | T, None],
     *,
     no_inline_images: bool = False,

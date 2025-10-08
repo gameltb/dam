@@ -1,4 +1,4 @@
-"""This module provides utility functions for parsing and resolving file URLs."""
+"""Utility functions for parsing and resolving file URLs."""
 
 import os
 from pathlib import Path
@@ -7,7 +7,8 @@ from urllib.parse import unquote_to_bytes, urlparse
 
 def get_local_path_for_url(url: str) -> Path:
     """
-    Resolves a URL to a local filesystem Path.
+    Resolve a URL to a local filesystem Path.
+
     Supports 'file://' scheme.
     """
     if not url:

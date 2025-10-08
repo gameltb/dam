@@ -1,3 +1,5 @@
+"""Defines the component models for storing audio embeddings."""
+
 from typing import Any, TypedDict
 
 from dam.models.core import BaseComponent
@@ -8,7 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 class BaseSpecificAudioEmbeddingComponent(BaseComponent):
     """
     Base class for specific audio embedding components.
-    Each subclass will correspond to a unique table for a specific audio model/hyperparameter combination.
+
+    Each subclass will correspond to a unique table for a specific audio
+    model/hyperparameter combination.
     """
 
     __abstract__ = True
@@ -19,6 +23,7 @@ class BaseSpecificAudioEmbeddingComponent(BaseComponent):
     # For now, assumes embedding of the whole audio file or a canonical segment.
 
     def __repr_base__(self) -> str:
+        """Return the base string representation of the component."""
         return (
             f"entity_id={self.entity_id}, model_name='{self.model_name}', "
             f"embedding_vector_len={len(self.embedding_vector) if self.embedding_vector else 0} bytes"
@@ -33,6 +38,7 @@ class AudioEmbeddingVggishDim128Component(BaseSpecificAudioEmbeddingComponent):
     # model_name is already a field in the base class, will be set to "vggish"
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"AudioEmbeddingVggishD128Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -43,6 +49,7 @@ class AudioEmbeddingPannsCnn14Dim2048Component(BaseSpecificAudioEmbeddingCompone
     # model_name is already a field in the base class, will be set to "panns_cnn14"
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"AudioEmbeddingPannsCnn14D2048Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -51,6 +58,8 @@ AudioModelHyperparameters = dict[str, Any]
 
 
 class AudioEmbeddingModelInfo(TypedDict):
+    """A TypedDict for storing information about an audio embedding model."""
+
     model_class: type[BaseSpecificAudioEmbeddingComponent]
     default_params: AudioModelHyperparameters
     # Potentially add loader function or library info here
@@ -69,10 +78,11 @@ AUDIO_EMBEDDING_MODEL_REGISTRY: dict[str, AudioEmbeddingModelInfo] = {
 
 
 def get_audio_embedding_component_class(
-    model_name: str, params: AudioModelHyperparameters | None = None
+    model_name: str, _params: AudioModelHyperparameters | None = None
 ) -> type[BaseSpecificAudioEmbeddingComponent] | None:
     """
-    Retrieves the specific audio embedding component class based on model name.
+    Retrieve the specific audio embedding component class based on model name.
+
     Params matching might be added later if needed.
     """
     registry_entry = AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name)

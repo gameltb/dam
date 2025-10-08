@@ -1,3 +1,1 @@
-from .file_storage_resource import FileStorageResource
-
-__all__ = ["FileStorageResource"]
+"""Defines resource models for the `dam_fs` package."""

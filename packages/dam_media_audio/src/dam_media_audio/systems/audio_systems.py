@@ -1,7 +1,10 @@
+"""Defines systems for handling audio media."""
+
 import asyncio
 import json
 import logging
 import subprocess
+from typing import Any
 
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
@@ -15,11 +18,59 @@ from ..models.properties.audio_properties_component import AudioPropertiesCompon
 logger = logging.getLogger(__name__)
 
 
+def _parse_ffprobe_output_and_create_component(metadata: dict[str, Any]) -> AudioPropertiesComponent | None:
+    """
+    Parse ffprobe output and create an AudioPropertiesComponent.
+
+    Args:
+        metadata: The JSON output from ffprobe.
+
+    Returns:
+        An AudioPropertiesComponent if an audio stream is found, otherwise None.
+
+    """
+    audio_stream = next(
+        (stream for stream in metadata.get("streams", []) if stream.get("codec_type") == "audio"),
+        None,
+    )
+
+    if not audio_stream:
+        return None
+
+    audio_comp = AudioPropertiesComponent()
+
+    duration = audio_stream.get("duration", metadata.get("format", {}).get("duration"))
+    if duration:
+        audio_comp.duration_seconds = float(duration)
+
+    audio_comp.codec_name = audio_stream.get("codec_name")
+
+    sample_rate = audio_stream.get("sample_rate")
+    if sample_rate:
+        audio_comp.sample_rate_hz = int(sample_rate)
+
+    channels = audio_stream.get("channels")
+    if channels:
+        audio_comp.channels = int(channels)
+
+    bit_rate = audio_stream.get("bit_rate", metadata.get("format", {}).get("bit_rate"))
+    if bit_rate:
+        audio_comp.bit_rate_kbps = int(bit_rate) // 1000
+
+    return audio_comp
+
+
 @system(on_command=ExtractAudioMetadataCommand)
 async def add_audio_components_system(
     cmd: ExtractAudioMetadataCommand,
     transaction: WorldTransaction,
 ) -> None:
+    """
+    Extract metadata from an audio file and add it as components to the entity.
+
+    This system uses ffprobe to get audio properties and adds an
+    AudioPropertiesComponent to the entity.
+    """
     logger.info("Running add_audio_components_system with ffprobe")
 
     entity = cmd.entity
@@ -31,9 +82,7 @@ async def add_audio_components_system(
     for loc in all_locations:
         try:
             potential_path = get_local_path_for_url(loc.url)
-            is_file = False
-            if potential_path:
-                is_file = await asyncio.to_thread(potential_path.is_file)
+            is_file = await asyncio.to_thread(potential_path.is_file) if potential_path else False
             if potential_path and is_file:
                 filepath_on_disk = potential_path
                 break
@@ -44,7 +93,7 @@ async def add_audio_components_system(
         return
 
     mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
-    logger.info(f"MIME type for {filepath_on_disk}: {mime_type}")
+    logger.info("MIME type for %s: %s", filepath_on_disk, mime_type)
     if not mime_type.startswith("audio/"):
         return
 
@@ -62,40 +111,19 @@ async def add_audio_components_system(
         result = await asyncio.to_thread(subprocess.run, ffprobe_cmd, capture_output=True, text=True, check=True)
         metadata = json.loads(result.stdout)
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
-        logger.warning(f"ffprobe failed for {filepath_on_disk}: {e}")
+        logger.warning("ffprobe failed for %s: %s", filepath_on_disk, e)
         return
 
-    audio_stream = next(
-        (stream for stream in metadata.get("streams", []) if stream.get("codec_type") == "audio"),
-        None,
-    )
-
-    if not audio_stream:
-        logger.warning(f"No audio stream found in {filepath_on_disk}")
+    if await transaction.get_components(entity.id, AudioPropertiesComponent):
         return
 
-    if not await transaction.get_components(entity.id, AudioPropertiesComponent):
-        audio_comp = AudioPropertiesComponent()
+    audio_comp = _parse_ffprobe_output_and_create_component(metadata)
 
-        duration = audio_stream.get("duration", metadata.get("format", {}).get("duration"))
-        if duration:
-            audio_comp.duration_seconds = float(duration)
+    if not audio_comp:
+        logger.warning("No audio stream found in %s", filepath_on_disk)
+        return
 
-        audio_comp.codec_name = audio_stream.get("codec_name")
-
-        sample_rate = audio_stream.get("sample_rate")
-        if sample_rate:
-            audio_comp.sample_rate_hz = int(sample_rate)
-
-        channels = audio_stream.get("channels")
-        if channels:
-            audio_comp.channels = int(channels)
-
-        bit_rate = audio_stream.get("bit_rate", metadata.get("format", {}).get("bit_rate"))
-        if bit_rate:
-            audio_comp.bit_rate_kbps = int(bit_rate) // 1000
-
-        await transaction.add_component_to_entity(entity.id, audio_comp)
-        logger.info(f"Added AudioPropertiesComponent for standalone audio Entity ID {entity.id}")
+    await transaction.add_component_to_entity(entity.id, audio_comp)
+    logger.info("Added AudioPropertiesComponent for standalone audio Entity ID %s", entity.id)
 
     await transaction.flush()
