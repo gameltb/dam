@@ -1,3 +1,5 @@
+"""Plugin definition for the `dam_fs` package."""
+
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
 from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
@@ -34,15 +36,24 @@ from .systems.stream_handler_system import get_asset_stream_handler
 
 
 class FsPlugin(Plugin):
+    """A plugin that provides filesystem-related functionalities."""
+
     def build(self, world: "World") -> None:
+        """
+        Build the plugin by adding resources and systems to the world.
+
+        Args:
+            world: The world to build the plugin in.
+
+        """
         # Add FileStorageResource
         file_storage_svc = FileStorageResource(world_config=world.config)
         world.add_resource(file_storage_svc, FileStorageResource)
-        world.logger.debug(f"Added FileStorageResource resource for World '{world.name}'.")
+        world.logger.debug("Added FileStorageResource resource for World '%s'.", world.name)
 
         # Add FileOperationsResource
         world.add_resource(FileOperationsResource())
-        world.logger.debug(f"Added FileOperationsResource for World '{world.name}'.")
+        world.logger.debug("Added FileOperationsResource for World '%s'.", world.name)
 
         world.register_system(
             add_file_properties_handler,

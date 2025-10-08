@@ -1,3 +1,5 @@
+"""Defines the WebsiteProfileComponent model."""
+
 from typing import Any
 
 from dam.models.core import BaseComponent
@@ -8,8 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class WebsiteProfileComponent(BaseComponent):
     """
-    Component attached to an Entity representing a website, storing common
-    profile information and configurations for that website.
+    Component attached to an Entity representing a website.
+
+    This component stores common profile information and configurations for that website.
     """
 
     __tablename__ = "component_website_profile"
@@ -25,9 +28,7 @@ class WebsiteProfileComponent(BaseComponent):
         String(), unique=True, index=True, nullable=False, comment="Main homepage URL of the website."
     )
 
-    description: Mapped[str | None] = mapped_column(
-        Text, comment="Optional description of the website.", default=None
-    )
+    description: Mapped[str | None] = mapped_column(Text, comment="Optional description of the website.", default=None)
     icon_url: Mapped[str | None] = mapped_column(
         String(), comment="URL to a favicon or logo for the website.", default=None
     )
@@ -49,4 +50,5 @@ class WebsiteProfileComponent(BaseComponent):
     __table_args__ = (UniqueConstraint("entity_id", name="uq_website_profile_entity_id"),)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"WebsiteProfileComponent(id={self.id}, entity_id={self.entity_id}, name='{self.name}', main_url='{self.main_url}')"

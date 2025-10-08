@@ -184,7 +184,7 @@ class NoBorderTraceback(Traceback):
             yield render_stack(stack, last)
 
     @group()
-    def _render_stack(self, stack: Stack) -> RenderResult:  # noqa: PLR0912, PLR0915
+    def _render_stack(self, stack: Stack) -> RenderResult:  # noqa: PLR0912
         path_highlighter = PathHighlighter()
         theme = self.theme
 

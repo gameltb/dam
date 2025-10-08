@@ -1,3 +1,5 @@
+"""Defines audio-related functions, including mock model behavior for testing."""
+
 import asyncio
 import logging
 from typing import Any, Optional
@@ -21,65 +23,81 @@ MOCK_AUDIO_MODEL_IDENTIFIER = "mock_audio_model"
 
 
 class MockAudioModel:
+    """A mock audio model for testing purposes."""
+
     def __init__(self, model_name: str, params: AudioModelHyperparameters | None) -> None:
+        """Initialize the mock audio model."""
         self.model_name = model_name
         self.params = params
         self.output_dim = (
             AUDIO_EMBEDDING_MODEL_REGISTRY.get(model_name, {}).get("default_params", {}).get("dimensions", 128)
         )
-        logger.info(f"MockAudioModel '{model_name}' initialized with output_dim: {self.output_dim}")
+        logger.info("MockAudioModel '%s' initialized with output_dim: %s", model_name, self.output_dim)
 
-    def encode(self, audio_path: str, **kwargs: Any) -> np.ndarray:
-        logger.info(f"MockAudioModel '{self.model_name}': Simulating encoding for '{audio_path}'")
+    def encode(self, audio_path: str, **_kwargs: Any) -> np.ndarray:
+        """Simulate encoding an audio file."""
+        logger.info("MockAudioModel '%s': Simulating encoding for '%s'", self.model_name, audio_path)
         return np.random.rand(self.output_dim).astype(np.float32)
 
     async def encode_async(self, audio_path: str, **kwargs: Any) -> np.ndarray:
+        """Asynchronously encode an audio file."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.encode, audio_path, **kwargs)
 
 
 async def get_mock_audio_model(  # type: ignore[no-any-unimported]
-    sire_resource: "SireResource",
-    model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    params: AudioModelHyperparameters | None = None,
+    _sire_resource: "SireResource",
+    _model_name: str = DEFAULT_AUDIO_MODEL_NAME,
+    _params: AudioModelHyperparameters | None = None,
 ) -> Optional["AutoManageWrapper[MockAudioModel]"]:
+    """Get a mock audio model."""
     AutoManageWrapper.register_type_wrapper(MockAudioModel, TorchModuleWrapper)
     # return sire_resource.get_model(MockAudioModel, model_name, params=params)
     return None
 
 
 def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
-    """Converts a numpy float32 embedding to bytes."""
+    """Convert a numpy float32 embedding to bytes."""
     if embedding.dtype != np.float32:
         embedding = embedding.astype(np.float32)
     return embedding.tobytes()
 
 
 def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) -> np.ndarray:
-    """Converts bytes back to a numpy embedding."""
+    """Convert bytes back to a numpy embedding."""
     return np.frombuffer(embedding_bytes, dtype=dtype)
 
 
 async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported]
-    transaction: WorldTransaction,
-    sire_resource: "SireResource",
-    entity_id: int,
-    model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    model_params: AudioModelHyperparameters | None = None,
-    audio_file_path: str | None = None,
+    _transaction: WorldTransaction,
+    _sire_resource: "SireResource",
+    _entity_id: int,
+    _model_name: str = DEFAULT_AUDIO_MODEL_NAME,
+    _model_params: AudioModelHyperparameters | None = None,
+    _audio_file_path: str | None = None,
 ) -> BaseSpecificAudioEmbeddingComponent | None:
+    """
+    Generate an audio embedding for a given entity.
+
+    Note: This function is not fully implemented yet.
+    """
     logger.warning("generate_audio_embedding_for_entity is not fully implemented with sire yet.")
     return None
 
 
 async def find_similar_entities_by_audio_embedding(  # type: ignore[no-any-unimported]
-    transaction: WorldTransaction,
-    sire_resource: "SireResource",
-    query_audio_path: str,
-    model_name: str,
-    model_params: AudioModelHyperparameters | None = None,
-    top_n: int = 10,
+    _transaction: WorldTransaction,
+    _sire_resource: "SireResource",
+    _query_audio_path: str,
+    _model_name: str,
+    _model_params: AudioModelHyperparameters | None = None,
+    _top_n: int = 10,
 ) -> list[tuple[Entity, float, BaseSpecificAudioEmbeddingComponent]]:
+    """
+    Find similar entities by audio embedding.
+
+    Note: This function is not fully implemented yet.
+    """
     logger.warning("find_similar_entities_by_audio_embedding is not fully implemented with sire yet.")
     return []
 

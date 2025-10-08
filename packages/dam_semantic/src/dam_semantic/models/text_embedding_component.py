@@ -1,3 +1,5 @@
+"""Defines the component models for storing text embeddings."""
+
 from typing import Any, TypedDict
 
 from dam.models.core import BaseComponent
@@ -8,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class BaseSpecificEmbeddingComponent(BaseComponent):
     """
     Base class for specific embedding components.
+
     Each subclass will correspond to a unique table for a specific model/hyperparameter combination.
     It does NOT store model_name or model_parameters as columns, as this is implied by the table itself.
     """
@@ -22,6 +25,7 @@ class BaseSpecificEmbeddingComponent(BaseComponent):
     source_field_name: Mapped[str | None] = mapped_column(String(), nullable=True)
 
     def __repr_base__(self) -> str:
+        """Return the base string representation of the component."""
         # Helper for subclasses' __repr__
         return (
             f"entity_id={self.entity_id}, "
@@ -43,6 +47,7 @@ class TextEmbeddingAllMiniLML6V2Dim384Component(BaseSpecificEmbeddingComponent):
     # Corresponds to model_name="all-MiniLM-L6-v2", params={"dimensions": 384} (implicitly)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"TextEmbeddingAllMiniLML6V2Dim384Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -53,6 +58,7 @@ class TextEmbeddingClipVitB32Dim512Component(BaseSpecificEmbeddingComponent):
     # Corresponds to model_name="clip-ViT-B-32", params={"dimensions": 512} (implicitly)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"TextEmbeddingClipVitB32Dim512Component(id={self.id}, {super().__repr_base__()})"
 
 
@@ -63,6 +69,8 @@ ModelHyperparameters = dict[str, Any]
 
 
 class EmbeddingModelInfo(TypedDict):
+    """A TypedDict for storing information about an embedding model."""
+
     model_class: type[BaseSpecificEmbeddingComponent]
     default_params: ModelHyperparameters
 
@@ -89,10 +97,10 @@ EMBEDDING_MODEL_REGISTRY: dict[str, EmbeddingModelInfo] = {
 
 
 def get_embedding_component_class(
-    model_name: str, params: ModelHyperparameters | None = None
+    model_name: str, _params: ModelHyperparameters | None = None
 ) -> type[BaseSpecificEmbeddingComponent] | None:
     """
-    Retrieves the specific embedding component class based on model name and parameters.
+    Retrieve the specific embedding component class based on model name and parameters.
 
     This function will evolve to more strictly match parameters to registered classes
     if multiple classes exist for the same base `model_name` but different key parameters
@@ -126,6 +134,7 @@ def get_embedding_component_class(
 class OldTextEmbeddingComponent(BaseComponent):
     """
     DEPRECATED: Stores text embeddings for an entity, generated from one of its text fields.
+
     Replaced by specific embedding component tables. This class is kept temporarily for
     module imports and Alembic transition.
     """
@@ -137,6 +146,7 @@ class OldTextEmbeddingComponent(BaseComponent):
     source_field_name: Mapped[str | None] = mapped_column(String(), nullable=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"OldTextEmbeddingComponent(id={self.id}, entity_id={self.entity_id}, "
             f"model_name='{self.model_name}', source='{self.source_component_name}.{self.source_field_name}', "

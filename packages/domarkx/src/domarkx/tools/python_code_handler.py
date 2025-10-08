@@ -613,7 +613,7 @@ def _handle_list_mode_by_path(
     return "\n".join(output)
 
 
-def _handle_modify_mode(  # noqa: PLR0913, PLR0912
+def _handle_modify_mode(  # noqa: PLR0912
     file_to_process: str,
     internal_target_symbol_path: str,
     operation: str | None,
@@ -730,7 +730,7 @@ def _handle_diff_method_mode(target: str) -> str:
 
 
 @tool_handler(log_level=logging.INFO)
-def python_code_handler(  # noqa: PLR0913, PLR0912
+def python_code_handler(  # noqa: PLR0912
     mode: str,
     target: str,
     path: str | None = None,

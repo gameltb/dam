@@ -158,10 +158,13 @@ async def handle_find_similar_images_command(
         final_matches_map: dict[int, dict[str, Any]] = {}
         for match in potential_matches:
             entity_id = match["entity_id"]
-            if isinstance(entity_id, int) and (entity_id not in final_matches_map or (
-                match["distance"] is not None
-                and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
-            )):
+            if isinstance(entity_id, int) and (
+                entity_id not in final_matches_map
+                or (
+                    match["distance"] is not None
+                    and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
+                )
+            ):
                 final_matches_map[entity_id] = match
 
         similar_entities_info = list(final_matches_map.values())

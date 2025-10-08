@@ -1,3 +1,5 @@
+"""Defines the system for handling asset streams."""
+
 import asyncio
 import logging
 from typing import Annotated
@@ -18,11 +20,13 @@ logger = logging.getLogger(__name__)
 async def get_asset_stream_handler(
     cmd: GetAssetStreamCommand,
     transaction: WorldTransaction,
-    world: Annotated[World, "Resource"],
+    _world: Annotated[World, "Resource"],
 ) -> StreamProvider | None:
     """
-    Handles getting a stream for a standalone asset. This is the default handler.
-    It assumes that the archive handler has already run and returned None.
+    Handle getting a stream for a standalone asset.
+
+    This is the default handler. It assumes that the archive handler has
+    already run and returned None.
     """
     # Get all file locations for the entity
     all_locations = await transaction.get_components(cmd.entity_id, FileLocationComponent)
@@ -40,7 +44,12 @@ async def get_asset_stream_handler(
             if potential_path and is_file:
                 return FileStreamProvider(potential_path)
         except (ValueError, FileNotFoundError) as e:
-            logger.debug(f"Could not resolve or find file for URL '{loc.url}' for entity {cmd.entity_id}: {e}")
+            logger.debug(
+                "Could not resolve or find file for URL '%s' for entity %s: %s",
+                loc.url,
+                cmd.entity_id,
+                e,
+            )
             continue
 
     # No valid local file found.

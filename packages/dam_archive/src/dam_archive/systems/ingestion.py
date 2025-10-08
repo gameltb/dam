@@ -227,7 +227,7 @@ class ChainedStreamProvider(StreamProvider):
                 await cm.__aexit__(None, None, None)
 
 
-async def _get_archive_stream_provider(  # noqa: PLR0911
+async def _get_archive_stream_provider(
     cmd: IngestArchiveCommand,
     transaction: WorldTransaction,
     world: Annotated[World, "Resource"],

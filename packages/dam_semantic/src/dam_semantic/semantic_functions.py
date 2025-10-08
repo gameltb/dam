@@ -1,3 +1,5 @@
+"""Semantic search-related functions for DAM."""
+
 import logging
 from typing import Any, TypedDict
 
@@ -28,6 +30,19 @@ async def generate_embedding(
     model_name: str = DEFAULT_MODEL_NAME,
     params: ModelHyperparameters | None = None,
 ) -> np.ndarray | None:
+    """
+    Generate an embedding for a given text using a sentence transformer model.
+
+    Args:
+        sire_resource: The Sire resource for managing models.
+        text: The text to embed.
+        model_name: The name of the sentence transformer model to use.
+        params: Additional parameters for the model.
+
+    Returns:
+        The generated embedding as a numpy array, or None if an error occurred.
+
+    """
     if not text or not text.strip():
         return None
     try:
@@ -40,50 +55,83 @@ async def generate_embedding(
                 logger.error("Managed model is None, cannot encode text.")
                 return None
             return managed_model.encode(text, convert_to_numpy=True)
-    except Exception as e:
-        logger.error(f"Error generating embedding: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error generating embedding")
         return None
 
 
 def convert_embedding_to_bytes(embedding: np.ndarray) -> bytes:
+    """
+    Convert a numpy array embedding to bytes.
+
+    Args:
+        embedding: The numpy array to convert.
+
+    Returns:
+        The embedding as bytes.
+
+    """
     if embedding.dtype != np.float32:
         embedding = embedding.astype(np.float32)
     return embedding.tobytes()
 
 
 def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) -> np.ndarray:
+    """
+    Convert bytes to a numpy array embedding.
+
+    Args:
+        embedding_bytes: The bytes to convert.
+        dtype: The numpy data type of the embedding.
+
+    Returns:
+        The embedding as a numpy array.
+
+    """
     return np.frombuffer(embedding_bytes, dtype=dtype)
 
 
 class BatchTextItem(TypedDict):
+    """Represents a single item for batch text processing."""
+
     component_name: str
     field_name: str
     text_content: str
 
 
 async def update_text_embeddings_for_entity(
-    transaction: WorldTransaction,
-    entity_id: int,
-    text_fields_map: dict[str, Any],
-    sire_resource: "SireResource",
-    model_name: str = DEFAULT_MODEL_NAME,
-    model_params: ModelHyperparameters | None = None,
-    batch_texts: list[BatchTextItem] | None = None,
-    include_manual_tags: bool = True,
-    include_model_tags_config: list[dict[str, Any]] | None = None,
-    tag_concatenation_strategy: str = " [TAGS] {tags_string}",
+    _transaction: WorldTransaction,
+    _entity_id: int,
+    _text_fields_map: dict[str, Any],
+    _sire_resource: "SireResource",
+    _model_name: str = DEFAULT_MODEL_NAME,
+    _model_params: ModelHyperparameters | None = None,
+    _batch_texts: list[BatchTextItem] | None = None,
+    _include_manual_tags: bool = True,
+    _include_model_tags_config: list[dict[str, Any]] | None = None,
+    _tag_concatenation_strategy: str = " [TAGS] {tags_string}",
 ) -> list[BaseSpecificEmbeddingComponent]:
+    """
+    Update text embeddings for a given entity.
+
+    Note: This function is not fully implemented yet.
+    """
     logger.warning("update_text_embeddings_for_entity is not fully implemented with sire yet.")
     return []
 
 
 async def find_similar_entities_by_text_embedding(
-    transaction: WorldTransaction,
-    query_text: str,
-    sire_resource: "SireResource",
-    model_name: str,
-    model_params: ModelHyperparameters | None = None,
-    top_n: int = 10,
+    _transaction: WorldTransaction,
+    _query_text: str,
+    _sire_resource: "SireResource",
+    _model_name: str,
+    _model_params: ModelHyperparameters | None = None,
+    _top_n: int = 10,
 ) -> list[tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
+    """
+    Find similar entities by text embedding.
+
+    Note: This function is not fully implemented yet.
+    """
     logger.warning("find_similar_entities_by_text_embedding is not fully implemented with sire yet.")
     return []

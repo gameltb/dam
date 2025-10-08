@@ -1,3 +1,5 @@
+"""Defines the OriginalSourceInfoComponent model."""
+
 from dam.models.core import BaseComponent
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,7 +9,8 @@ from . import source_types
 
 class OriginalSourceInfoComponent(BaseComponent):
     """
-    Classifies the original source type of an entity's content.
+    Classify the original source type of an entity's content.
+
     This component acts as a marker or tag, indicating the nature of the origin.
     Detailed information about the source, like filename, path, or URL,
     is stored in other components such as FilePropertiesComponent,
@@ -39,6 +42,7 @@ class OriginalSourceInfoComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"OriginalSourceInfoComponent(id={self.id}, entity_id={self.entity_id}, source_type='{self.source_type}')"
         )

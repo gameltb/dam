@@ -1,12 +1,14 @@
+"""Defines commands for the `dam_semantic` package."""
+
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from dam.commands.core import BaseCommand
 from dam.system_events.base import BaseSystemEvent
 
 
 @dataclass
-class SemanticSearchCommand(BaseCommand[Optional[list[tuple[Any, float, Any]]], BaseSystemEvent]):
+class SemanticSearchCommand(BaseCommand[list[tuple[Any, float, Any]] | None, BaseSystemEvent]):
     """A command to perform a semantic search for text."""
 
     query_text: str

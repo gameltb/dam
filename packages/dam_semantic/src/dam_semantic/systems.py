@@ -1,3 +1,5 @@
+"""Defines systems for the semantic package."""
+
 import logging
 from typing import Annotated, Any
 
@@ -22,9 +24,10 @@ TEXT_SOURCES_FOR_EMBEDDING: dict[str, list[str]] = {
 
 @system(stage=SystemStage.POST_PROCESSING)
 async def generate_embeddings_system(
-    transaction: WorldTransaction,
-    sire_resource: Annotated[SireResource, "Resource"],
+    _transaction: WorldTransaction,
+    _sire_resource: Annotated[SireResource, "Resource"],
 ) -> None:
+    """Generate embeddings for entities that don't have them yet."""
     logger.info("SemanticEmbeddingSystem: Starting embedding generation pass.")
 
 
@@ -34,6 +37,7 @@ async def handle_semantic_search_command(
     transaction: WorldTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ) -> list[tuple[Any, float, Any]] | None:
+    """Handle the SemanticSearchCommand to perform a semantic search."""
     model_to_use = cmd.model_name if cmd.model_name else semantic_functions.DEFAULT_MODEL_NAME
 
     try:
@@ -44,8 +48,8 @@ async def handle_semantic_search_command(
             top_n=cmd.top_n,
             model_name=model_to_use,
         )
-    except Exception as e:
-        logger.error(f"Error in handle_semantic_search_command: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in handle_semantic_search_command")
         raise
 
 
@@ -55,6 +59,7 @@ async def handle_audio_search_command(
     transaction: WorldTransaction,
     sire_resource: Annotated[SireResource, "Resource"],
 ) -> list[tuple[Any, float, Any]] | None:
+    """Handle the AudioSearchCommand to perform an audio similarity search."""
     model_to_use = cmd.model_name if cmd.model_name else audio_functions.DEFAULT_AUDIO_MODEL_NAME
 
     try:
@@ -65,8 +70,8 @@ async def handle_audio_search_command(
             top_n=cmd.top_n,
             model_name=model_to_use,
         )
-    except Exception as e:
-        logger.error(f"Error in handle_audio_search_command: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in handle_audio_search_command")
         raise
 
 

@@ -1,4 +1,3 @@
-
 from dam.core.world import get_world as get_world_from_core
 
 

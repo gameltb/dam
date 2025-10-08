@@ -1,33 +1,42 @@
+"""Provides content-addressable storage (CAS) functions for managing files."""
+
 import hashlib
 import logging
-import os
 from pathlib import Path
 
 from dam.core.config import WorldConfig
 
 logger = logging.getLogger(__name__)
 
+MIN_HASH_LENGTH = 4
+
 
 def _get_storage_path_for_world(file_hash: str, world_config: WorldConfig) -> Path:
-    logger.info(
-        f"[_get_storage_path_for_world] World: {world_config.name}, Base path: {Path(world_config.ASSET_STORAGE_PATH)}, Hash: {file_hash}"
-    )
     """
-    Constructs the full path for a given file hash using a nested directory structure,
+    Construct the full path for a given file hash.
+
+    Constructs the full path using a nested directory structure,
     specific to the asset storage path defined in the world_config.
     Example: <world_asset_storage_path>/ab/cd/ef123456...
     """
+    logger.info(
+        "[_get_storage_path_for_world] World: %s, Base path: %s, Hash: %s",
+        world_config.name,
+        Path(world_config.ASSET_STORAGE_PATH),
+        file_hash,
+    )
+
     base_path = Path(world_config.ASSET_STORAGE_PATH)
 
-    if not file_hash or len(file_hash) < 4:
-        raise ValueError("File hash must be at least 4 characters long for storage path generation.")
+    if not file_hash or len(file_hash) < MIN_HASH_LENGTH:
+        raise ValueError(f"File hash must be at least {MIN_HASH_LENGTH} characters long for storage path generation.")
 
     sub_dir_1 = file_hash[:2]
     sub_dir_2 = file_hash[2:4]
     file_name = file_hash
 
     full_path = base_path / sub_dir_1 / sub_dir_2 / file_name
-    logger.info(f"[_get_storage_path_for_world] Constructed full path: {full_path}")
+    logger.info("[_get_storage_path_for_world] Constructed full path: %s", full_path)
     return full_path
 
 
@@ -37,8 +46,10 @@ def store_file(
     original_filename: str | None = None,
 ) -> tuple[str, str]:
     """
-    Stores the given file content using a content-addressable scheme (SHA256 hash)
-    into the specified world's asset storage, using the provided WorldConfig.
+    Store the given file content using a content-addressable scheme (SHA256 hash).
+
+    This function stores the content into the specified world's asset storage,
+    using the provided WorldConfig.
 
     Args:
         file_content: The binary content of the file to store.
@@ -54,47 +65,58 @@ def store_file(
     content_hash = hashlib.sha256(file_content).hexdigest()
 
     # Construct the relative path suffix for CAS based on the hash
-    # This logic is similar to _get_storage_path_for_world but only for the suffix part
-    if not content_hash or len(content_hash) < 4:
-        raise ValueError("Content hash must be at least 4 characters long for storage path generation.")
+    if not content_hash or len(content_hash) < MIN_HASH_LENGTH:
+        raise ValueError(
+            f"Content hash must be at least {MIN_HASH_LENGTH} characters long for storage path generation."
+        )
     sub_dir_1 = content_hash[:2]
     sub_dir_2 = content_hash[2:4]
     file_name_in_cas = content_hash
-    # The physical_storage_path_suffix is the path relative to the CAS root for this file
     physical_storage_path_suffix = str(Path(sub_dir_1) / sub_dir_2 / file_name_in_cas)
 
-    # Get the full absolute storage path using the existing helper
     storage_path = _get_storage_path_for_world(content_hash, world_config)
     logger.info(
-        f"[store_file] World: {world_config.name}, Original: {original_filename}, Hash: {content_hash}, Target storage_path: {storage_path}"
+        "[store_file] World: %s, Original: %s, Hash: %s, Target storage_path: %s",
+        world_config.name,
+        original_filename,
+        content_hash,
+        storage_path,
     )
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
     log_world_identifier = world_config.name
 
     if not storage_path.exists():
-        with open(storage_path, "wb") as f:
+        with storage_path.open("wb") as f:
             f.write(file_content)
         logger.info(
-            f"Stored file {original_filename or content_hash} to {storage_path} in world '{log_world_identifier}'"
+            "Stored file %s to %s in world '%s'",
+            original_filename or content_hash,
+            storage_path,
+            log_world_identifier,
         )
     else:
         logger.debug(
-            f"File {original_filename or content_hash} (hash: {content_hash}) already exists at {storage_path} in world '{log_world_identifier}'"
+            "File %s (hash: %s) already exists at %s in world '%s'",
+            original_filename or content_hash,
+            content_hash,
+            storage_path,
+            log_world_identifier,
         )
 
     return content_hash, physical_storage_path_suffix
 
 
 def has_file(file_identifier: str, world_config: WorldConfig) -> bool:
-    """Checks if a file with the given identifier (SHA256 hash) exists in storage."""
+    """Check if a file with the given identifier (SHA256 hash) exists in storage."""
     return get_file_path(file_identifier, world_config) is not None
 
 
-def get_file_path(file_identifier: str, world_config: WorldConfig) -> Path | None:  # Changed from world_name
+def get_file_path(file_identifier: str, world_config: WorldConfig) -> Path | None:
     """
-    Returns the absolute path to the file identified by file_identifier (SHA256 hash)
-    from the specified world's asset storage, using the provided WorldConfig.
+    Return the absolute path to the file identified by file_identifier (SHA256 hash).
+
+    The path is resolved from the specified world's asset storage, using the provided WorldConfig.
 
     Args:
         file_identifier: The SHA256 hash of the file.
@@ -107,25 +129,28 @@ def get_file_path(file_identifier: str, world_config: WorldConfig) -> Path | Non
     if not file_identifier:
         return None
 
-    # world_config is now passed directly
     try:
         storage_path = _get_storage_path_for_world(file_identifier, world_config)
         logger.info(
-            f"[get_file_path] World: {world_config.name}, Identifier: {file_identifier}, Checking storage_path: {storage_path}"
+            "[get_file_path] World: %s, Identifier: %s, Checking storage_path: %s",
+            world_config.name,
+            file_identifier,
+            storage_path,
         )
         if storage_path.exists() and storage_path.is_file():
             return storage_path.resolve()
         return None
-    except ValueError:  # Raised by _get_storage_path_for_world for short identifiers
-        logger.warning(f"Invalid file identifier format: {file_identifier}")
+    except ValueError:
+        logger.warning("Invalid file identifier format: %s", file_identifier)
         return None
 
 
-def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Changed from world_name
+def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:
     """
-    Deletes the file identified by file_identifier (SHA256 hash) from the
-    specified world's asset storage, using the provided WorldConfig.
-    Also attempts to remove empty parent directories.
+    Delete the file identified by file_identifier (SHA256 hash).
+
+    The file is deleted from the specified world's asset storage, using the
+    provided WorldConfig. This function also attempts to remove empty parent directories.
 
     Args:
         file_identifier: The SHA256 hash of the file.
@@ -140,39 +165,43 @@ def delete_file(file_identifier: str, world_config: WorldConfig) -> bool:  # Cha
 
     if actual_file_path and actual_file_path.exists():
         try:
-            os.remove(actual_file_path)
-            logger.info(f"Deleted file {actual_file_path} from world '{log_world_identifier}'")
+            actual_file_path.unlink()
+            logger.info("Deleted file %s from world '%s'", actual_file_path, log_world_identifier)
 
-            # Attempt to remove empty parent directories
             parent_dir = actual_file_path.parent
             try:
-                if not any(parent_dir.iterdir()):  # Check if directory is empty
-                    os.rmdir(parent_dir)
-                    logger.info(f"Removed empty directory {parent_dir} from world '{log_world_identifier}'")
-                    # Try to remove grandparent directory as well if it's now empty
+                if not any(parent_dir.iterdir()):
+                    parent_dir.rmdir()
+                    logger.info("Removed empty directory %s from world '%s'", parent_dir, log_world_identifier)
+
                     grandparent_dir = parent_dir.parent
-                    # Ensure grandparent_dir is still within the world's asset storage path
-                    # to avoid accidentally trying to remove directories outside of it.
-                    # This check is a bit simplistic; Path.is_relative_to (Python 3.9+) or
-                    # checking common prefix would be more robust.
-                    # For now, assume the structure is <base_path>/xx/yy/hash
                     if grandparent_dir != Path(world_config.ASSET_STORAGE_PATH) and not any(grandparent_dir.iterdir()):
-                        os.rmdir(grandparent_dir)
-                        logger.info(f"Removed empty directory {grandparent_dir} from world '{log_world_identifier}'")
+                        grandparent_dir.rmdir()
+                        logger.info(
+                            "Removed empty directory %s from world '%s'",
+                            grandparent_dir,
+                            log_world_identifier,
+                        )
             except OSError as e:
-                # This is not critical if directories cannot be removed (e.g., not empty, permissions)
                 logger.debug(
-                    f"Could not remove parent directory for {actual_file_path} in world '{log_world_identifier}': {e}"
+                    "Could not remove parent directory for %s in world '%s': %s",
+                    actual_file_path,
+                    log_world_identifier,
+                    e,
                 )
             return True
         except OSError as e:
-            logger.error(
-                f"Error deleting file {actual_file_path} from world '{log_world_identifier}': {e}",
-                exc_info=True,
+            logger.exception(
+                "Error deleting file %s from world '%s': %s",
+                actual_file_path,
+                log_world_identifier,
+                e,
             )
             return False
     else:
         logger.warning(
-            f"File with identifier {file_identifier} not found in world '{log_world_identifier}' for deletion."
+            "File with identifier %s not found in world '%s' for deletion.",
+            file_identifier,
+            log_world_identifier,
         )
         return False

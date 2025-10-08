@@ -1,3 +1,5 @@
+"""Tests for the asset lifecycle systems in the `dam_fs` package."""
+
 import asyncio
 import datetime
 import os
@@ -86,8 +88,9 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
 @pytest.mark.asyncio
 async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
     """
-    Tests that the first_seen_at timestamp is correctly updated to the
-    earliest known time.
+    Test that the first_seen_at timestamp is correctly updated.
+
+    It should be updated to the earliest known time.
     """
     world = test_world_alpha
 
@@ -137,8 +140,9 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
 @pytest.mark.asyncio
 async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file: Path):
     """
-    Tests that re-registering a file after it has been modified updates its
-    last_modified_at timestamp.
+    Test that re-registering a modified file updates its timestamp.
+
+    The last_modified_at timestamp should be updated.
     """
     world = test_world_alpha
 

@@ -1,3 +1,5 @@
+"""Tests for the discovery system in the `dam_fs` package."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -14,8 +16,10 @@ async def test_discover_fs_path_siblings(
     tmp_path: Path,
 ):
     """
-    Tests that the discover_fs_path_siblings_handler correctly finds entities
-    in the same filesystem directory and returns them as PathSibling objects.
+    Test that the discover_fs_path_siblings_handler finds entities.
+
+    It should correctly find entities in the same filesystem directory and
+    return them as PathSibling objects.
     """
     world = test_world_alpha
     entity_ids: list[int] = []

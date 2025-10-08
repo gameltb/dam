@@ -1,3 +1,5 @@
+"""Defines commands for the `dam_source` package."""
+
 from dataclasses import dataclass
 from typing import Any
 

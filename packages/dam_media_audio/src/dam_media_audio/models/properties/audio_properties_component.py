@@ -1,3 +1,4 @@
+"""Defines the AudioPropertiesComponent model."""
 
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy.orm import Mapped, mapped_column
@@ -24,6 +25,7 @@ class AudioPropertiesComponent(BaseComponent):
     # entity: Mapped["Entity"] = relationship(back_populates="audio_properties_components")
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"<AudioPropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
             f"duration={self.duration_seconds}s, codec='{self.codec_name}', "

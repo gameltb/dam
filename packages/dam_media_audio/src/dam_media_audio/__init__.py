@@ -1,3 +1,1 @@
-from .plugin import AudioPlugin
-
-__all__ = ["AudioPlugin"]
+"""The `dam_media_audio` package provides audio-related functionalities."""

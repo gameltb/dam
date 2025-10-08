@@ -10,7 +10,7 @@ import numpy as np
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types."""
 
-    def default(self, o: Any) -> Any:  # noqa: PLR0911
+    def default(self, o: Any) -> Any:
         """Provide a JSON-serializable version of a numpy object."""
         if hasattr(o, "dtype"):
             if o.dtype.kind in "iu":

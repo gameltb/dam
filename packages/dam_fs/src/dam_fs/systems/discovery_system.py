@@ -1,5 +1,6 @@
+"""Defines the system for discovering filesystem path siblings."""
+
 import logging
-import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -18,29 +19,29 @@ async def discover_fs_path_siblings_handler(
     cmd: DiscoverPathSiblingsCommand,
     transaction: WorldTransaction,
 ) -> list[PathSibling] | None:
-    """Handles discovering path-based sibling entities for an entity located on the filesystem."""
-    logger.debug(f"discover_fs_path_siblings_handler running for entity {cmd.entity_id}")
+    """Discover path-based sibling entities for an entity located on the filesystem."""
+    logger.debug("discover_fs_path_siblings_handler running for entity %s", cmd.entity_id)
 
     # 1. Get the FileLocationComponent for the starting entity
     flc = await transaction.get_component(cmd.entity_id, FileLocationComponent)
     if not flc or not flc.url:
-        logger.debug(f"Entity {cmd.entity_id} has no FileLocationComponent with a URL. Skipping fs discovery.")
+        logger.debug("Entity %s has no FileLocationComponent with a URL. Skipping fs discovery.", cmd.entity_id)
         return None
 
     # 2. Determine the directory from the URL
     try:
         parsed_url = urlparse(flc.url)
         if parsed_url.scheme != "file":
-            logger.debug(f"URL scheme for entity {cmd.entity_id} is not 'file'. Skipping fs discovery.")
+            logger.debug("URL scheme for entity %s is not 'file'. Skipping fs discovery.", cmd.entity_id)
             return None
 
-        directory_path_str = os.path.dirname(unquote(parsed_url.path))
+        directory_path_str = Path(unquote(parsed_url.path)).parent
         # Ensure the directory path is absolute and normalized for the OS
         directory_path = Path(directory_path_str).resolve()
         directory_uri_prefix = directory_path.as_uri()
 
     except Exception as e:
-        logger.error(f"Could not parse directory from URL '{flc.url}': {e}")
+        logger.error("Could not parse directory from URL '%s': %s", flc.url, e)
         return None
 
     # 3. Find all candidate entities in or below the directory
@@ -64,7 +65,12 @@ async def discover_fs_path_siblings_handler(
             continue
 
     if siblings:
-        logger.info(f"Found {len(siblings)} filesystem siblings for entity {cmd.entity_id} in '{directory_path}'.")
+        logger.info(
+            "Found %s filesystem siblings for entity %s in '%s'.",
+            len(siblings),
+            cmd.entity_id,
+            directory_path,
+        )
         return siblings
 
     return None
