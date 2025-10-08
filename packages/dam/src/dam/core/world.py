@@ -73,7 +73,7 @@ class World:
         """Return a list of all registered asset operations."""
         return list(self.asset_operations.values())
 
-    def add_resource(self, instance: Any, resource_type: type[Any] | None = None) -> None:
+    def add_resource(self, instance: object, resource_type: type[Any] | None = None) -> None:
         """Add a resource to the world's resource manager."""
         self.resource_manager.add_resource(instance, resource_type)
         self.logger.debug("Added resource type %s to World '%s'.", resource_type or type(instance), self.name)

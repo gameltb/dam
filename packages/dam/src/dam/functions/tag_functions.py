@@ -16,7 +16,6 @@ from dam.models.conceptual import (  # Keep conceptual imports that are still re
 )
 from dam.models.core.base_component import (
     REGISTERED_COMPONENT_TYPES,
-    Component,
 )
 from dam.models.core.entity import Entity
 
@@ -133,7 +132,7 @@ async def update_tag_concept(  # Made async
     allow_values: bool | None = None,
 ) -> TagConceptComponent | None:
     """Update an existing tag concept."""
-    tag_concept_comp = await ecs_functions.get_component(session, tag_concept_entity_id, TagConceptComponent)  # Await
+    tag_concept_comp = await ecs_functions.get_component(session, tag_concept_entity_id, TagConceptComponent)
     if not tag_concept_comp:
         logger.warning("TagConceptComponent not found for Entity ID %s.", tag_concept_entity_id)
         return None
@@ -141,38 +140,32 @@ async def update_tag_concept(  # Made async
     updated = False
     if name is not None and tag_concept_comp.tag_name != name:
         try:
-            existing_tag = await get_tag_concept_by_name(session, name)  # Await
+            existing_tag = await get_tag_concept_by_name(session, name)
             if existing_tag and existing_tag.id != tag_concept_entity_id:
                 logger.error(
-                    "Cannot update tag name to '%s' as it already exists for TagConcept ID %s.",
-                    name,
-                    existing_tag.id,
+                    "Cannot update tag name to '%s' as it already exists for TagConcept ID %s.", name, existing_tag.id
                 )
                 return None
         except TagConceptNotFoundError:
-            # This is the expected case if the new name is available
-            pass
+            pass  # This is the expected case if the new name is available
         tag_concept_comp.tag_name = name
         updated = True
+
     if scope_type is not None and tag_concept_comp.tag_scope_type != scope_type.upper():
         tag_concept_comp.tag_scope_type = scope_type.upper()
         updated = True
 
-    if scope_detail == "__CLEAR__":
-        if tag_concept_comp.tag_scope_detail is not None:
-            tag_concept_comp.tag_scope_detail = None
+    if scope_detail is not None:
+        new_scope_detail = None if scope_detail == "__CLEAR__" else scope_detail
+        if tag_concept_comp.tag_scope_detail != new_scope_detail:
+            tag_concept_comp.tag_scope_detail = new_scope_detail
             updated = True
-    elif scope_detail is not None and tag_concept_comp.tag_scope_detail != scope_detail:
-        tag_concept_comp.tag_scope_detail = scope_detail
-        updated = True
 
-    if description == "__CLEAR__":
-        if tag_concept_comp.tag_description is not None:
-            tag_concept_comp.tag_description = None
+    if description is not None:
+        new_description = None if description == "__CLEAR__" else description
+        if tag_concept_comp.tag_description != new_description:
+            tag_concept_comp.tag_description = new_description
             updated = True
-    elif description is not None and tag_concept_comp.tag_description != description:
-        tag_concept_comp.tag_description = description
-        updated = True
 
     if allow_values is not None and tag_concept_comp.allow_values != allow_values:
         tag_concept_comp.allow_values = allow_values
@@ -181,10 +174,10 @@ async def update_tag_concept(  # Made async
     if updated:
         try:
             session.add(tag_concept_comp)
-            await session.flush()  # Await
+            await session.flush()
             logger.info("Updated TagConceptComponent for Entity ID %s.", tag_concept_entity_id)
         except IntegrityError:
-            await session.rollback()  # Await
+            await session.rollback()
             logger.error(
                 "Failed to update TagConcept '%s' due to unique constraint violation (name likely exists).",
                 tag_concept_comp.tag_name,
@@ -195,143 +188,139 @@ async def update_tag_concept(  # Made async
 
 async def delete_tag_concept(session: AsyncSession, tag_concept_entity_id: int) -> bool:  # Made async
     """Delete a tag concept and all its links to entities."""
-    tag_concept_entity = await get_tag_concept_by_id(session, tag_concept_entity_id)  # Await
+    tag_concept_entity = await get_tag_concept_by_id(session, tag_concept_entity_id)
     if not tag_concept_entity:
         logger.warning("TagConcept Entity ID %s not found for deletion.", tag_concept_entity_id)
         return False
 
     stmt = delete(EntityTagLinkComponent).where(EntityTagLinkComponent.tag_concept_entity_id == tag_concept_entity_id)
-    await session.execute(stmt)  # Await
+    await session.execute(stmt)
 
-    return await ecs_functions.delete_entity(session, tag_concept_entity_id)  # Await
+    return await ecs_functions.delete_entity(session, tag_concept_entity_id)
 
 
 # --- Tag Application Functions ---
 
 
-async def _is_scope_valid(
+async def _validate_scope_component_class(
     session: AsyncSession, entity_id_to_tag: int, tag_concept_comp: TagConceptComponent
-) -> bool:  # Made async
-    # print(f"DEBUG: _is_scope_valid called for entity {entity_id_to_tag}, tag '{tag_concept_comp.tag_name}'")
-    # print(f"DEBUG: REGISTERED_COMPONENT_TYPES at start of _is_scope_valid: {[c.__name__ for c in REGISTERED_COMPONENT_TYPES]}")
-
-    scope_type = tag_concept_comp.tag_scope_type
+) -> bool:
+    """Validate scope for COMPONENT_CLASS_REQUIRED."""
     scope_detail = tag_concept_comp.tag_scope_detail
+    if not scope_detail:
+        logger.error(
+            "TagConcept '%s' (ID: %s) has scope COMPONENT_CLASS_REQUIRED but no scope_detail.",
+            tag_concept_comp.tag_name,
+            tag_concept_comp.entity_id,
+        )
+        return False
 
-    if scope_type == "GLOBAL":
-        return True
-
-    if scope_type == "COMPONENT_CLASS_REQUIRED":
-        if not scope_detail:
-            logger.error(
-                "TagConcept '%s' (ID: %s) has scope COMPONENT_CLASS_REQUIRED but no scope_detail (component class name).",
-                tag_concept_comp.tag_name,
-                tag_concept_comp.entity_id,
-            )
-            return False
-
-        required_class: type[Component] | None = None
-        for comp_class in REGISTERED_COMPONENT_TYPES:
-            if comp_class.__name__ == scope_detail:
-                required_class = comp_class
-                break
-
-        if not required_class:
-            logger.error(
-                "Scope validation failed: Component class '%s' for tag '%s' is not a registered component type.",
-                scope_detail,
-                tag_concept_comp.tag_name,
-            )
-            return False
-
-        if not await ecs_functions.get_component(session, entity_id_to_tag, required_class):  # Await
-            logger.warning(
-                "Scope validation failed: Entity %s does not have required component '%s' for tag '%s'.",
-                entity_id_to_tag,
-                scope_detail,
-                tag_concept_comp.tag_name,
-            )
-            return False
-        return True
-
-    if scope_type == "CONCEPTUAL_ASSET_LOCAL":
-        if not scope_detail:
-            logger.error(
-                "TagConcept '%s' (ID: %s) has scope CONCEPTUAL_ASSET_LOCAL but no scope_detail (conceptual asset entity ID).",
-                tag_concept_comp.tag_name,
-                tag_concept_comp.entity_id,
-            )
-            return False
-        try:
-            conceptual_asset_entity_id_for_scope = int(scope_detail)
-        except ValueError:
-            logger.error(
-                "Invalid scope_detail '%s' for CONCEPTUAL_ASSET_LOCAL scope of tag '%s'. Expected integer Entity ID.",
-                scope_detail,
-                tag_concept_comp.tag_name,
-            )
-            return False
-
-        scope_owner_is_conceptual_asset = False
-        if await ecs_functions.get_component(
-            session, conceptual_asset_entity_id_for_scope, ComicBookConceptComponent
-        ):  # Await
-            scope_owner_is_conceptual_asset = True
-        else:
-            for comp_type_check in REGISTERED_COMPONENT_TYPES:
-                if (
-                    inspect.isclass(comp_type_check)
-                    and issubclass(comp_type_check, BaseConceptualInfoComponent)
-                    and not comp_type_check.__dict__.get("__abstract__", False)
-                ):  # Use __dict__.get for direct check
-                    if await ecs_functions.get_component(
-                        session, conceptual_asset_entity_id_for_scope, comp_type_check
-                    ):  # Await
-                        scope_owner_is_conceptual_asset = True
-                        break
-
-        if not scope_owner_is_conceptual_asset:
-            logger.error(
-                "Scope detail ID %s for tag '%s' (scope type CONCEPTUAL_ASSET_LOCAL) does not refer to a valid conceptual asset entity.",
-                conceptual_asset_entity_id_for_scope,
-                tag_concept_comp.tag_name,
-            )
-            return False
-
-        if entity_id_to_tag == conceptual_asset_entity_id_for_scope:
-            return True
-        is_valid_variant = False
-        for comp_type_check in REGISTERED_COMPONENT_TYPES:
-            is_class = inspect.isclass(comp_type_check)
-            is_variant_subclass = (
-                issubclass(comp_type_check, (BaseVariantInfoComponent, UniqueBaseVariantInfoComponent))
-                if is_class
-                else False
-            )
-            # Correctly check if the class itself is concrete (not inheriting __abstract__ from parent)
-            is_actually_concrete = not comp_type_check.__dict__.get("__abstract__", False) if is_class else False
-
-            if is_class and is_variant_subclass and is_actually_concrete:
-                variant_comp = await ecs_functions.get_component(session, entity_id_to_tag, comp_type_check)
-                if variant_comp:
-                    actual_conceptual_id = getattr(variant_comp, "conceptual_entity_id", None)
-                    if actual_conceptual_id == conceptual_asset_entity_id_for_scope:
-                        is_valid_variant = True
-                        break
-
-        if is_valid_variant:
-            return True
-
-        logger.warning(
-            "Scope validation failed: Entity %s is not the specified conceptual asset %s nor its variant for tag '%s'.",
-            entity_id_to_tag,
-            conceptual_asset_entity_id_for_scope,
+    required_class = next((c for c in REGISTERED_COMPONENT_TYPES if c.__name__ == scope_detail), None)
+    if not required_class:
+        logger.error(
+            "Scope validation failed: Component class '%s' for tag '%s' is not registered.",
+            scope_detail,
             tag_concept_comp.tag_name,
         )
         return False
 
+    if not await ecs_functions.get_component(session, entity_id_to_tag, required_class):
+        logger.warning(
+            "Scope validation failed: Entity %s lacks required component '%s' for tag '%s'.",
+            entity_id_to_tag,
+            scope_detail,
+            tag_concept_comp.tag_name,
+        )
+        return False
+    return True
+
+
+async def _is_conceptual_asset(session: AsyncSession, entity_id: int) -> bool:
+    """Check if an entity is a conceptual asset."""
+    if await ecs_functions.get_component(session, entity_id, ComicBookConceptComponent):
+        return True
+    for comp_type in REGISTERED_COMPONENT_TYPES:
+        if (
+            inspect.isclass(comp_type)
+            and issubclass(comp_type, BaseConceptualInfoComponent)
+            and not comp_type.__dict__.get("__abstract__", False)
+            and await ecs_functions.get_component(session, entity_id, comp_type)
+        ):
+            return True
+    return False
+
+
+async def _is_variant_of_conceptual_asset(
+    session: AsyncSession, variant_entity_id: int, conceptual_entity_id: int
+) -> bool:
+    """Check if an entity is a variant of a given conceptual asset."""
+    for comp_type in REGISTERED_COMPONENT_TYPES:
+        is_class = inspect.isclass(comp_type)
+        is_variant = is_class and issubclass(comp_type, (BaseVariantInfoComponent, UniqueBaseVariantInfoComponent))
+        is_concrete = is_class and not comp_type.__dict__.get("__abstract__", False)
+
+        if is_variant and is_concrete:
+            variant_comp = await ecs_functions.get_component(session, variant_entity_id, comp_type)
+            if variant_comp and getattr(variant_comp, "conceptual_entity_id", None) == conceptual_entity_id:
+                return True
+    return False
+
+
+async def _validate_scope_conceptual_asset_local(
+    session: AsyncSession, entity_id_to_tag: int, tag_concept_comp: TagConceptComponent
+) -> bool:
+    """Validate scope for CONCEPTUAL_ASSET_LOCAL."""
+    scope_detail = tag_concept_comp.tag_scope_detail
+    if not scope_detail:
+        logger.error(
+            "TagConcept '%s' (ID: %s) has scope CONCEPTUAL_ASSET_LOCAL but no scope_detail.",
+            tag_concept_comp.tag_name,
+            tag_concept_comp.entity_id,
+        )
+        return False
+    try:
+        conceptual_id = int(scope_detail)
+    except ValueError:
+        logger.error(
+            "Invalid scope_detail '%s' for tag '%s'. Expected integer Entity ID.",
+            scope_detail,
+            tag_concept_comp.tag_name,
+        )
+        return False
+
+    if not await _is_conceptual_asset(session, conceptual_id):
+        logger.error(
+            "Scope detail ID %s for tag '%s' is not a valid conceptual asset.", conceptual_id, tag_concept_comp.tag_name
+        )
+        return False
+
+    if entity_id_to_tag == conceptual_id or await _is_variant_of_conceptual_asset(
+        session, entity_id_to_tag, conceptual_id
+    ):
+        return True
+
     logger.warning(
-        "Unknown tag_scope_type '%s' for tag '%s'. Denying application by default for unknown scopes.",
+        "Scope validation failed: Entity %s is not asset %s nor its variant for tag '%s'.",
+        entity_id_to_tag,
+        conceptual_id,
+        tag_concept_comp.tag_name,
+    )
+    return False
+
+
+async def _is_scope_valid(session: AsyncSession, entity_id_to_tag: int, tag_concept_comp: TagConceptComponent) -> bool:
+    """Check if an entity is within the scope of a tag concept."""
+    scope_type = tag_concept_comp.tag_scope_type
+
+    if scope_type == "GLOBAL":
+        return True
+    if scope_type == "COMPONENT_CLASS_REQUIRED":
+        return await _validate_scope_component_class(session, entity_id_to_tag, tag_concept_comp)
+    if scope_type == "CONCEPTUAL_ASSET_LOCAL":
+        return await _validate_scope_conceptual_asset_local(session, entity_id_to_tag, tag_concept_comp)
+
+    logger.warning(
+        "Unknown tag_scope_type '%s' for tag '%s'. Denying application by default.",
         scope_type,
         tag_concept_comp.tag_name,
     )

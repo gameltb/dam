@@ -63,22 +63,32 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def _load_and_process_worlds_config(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """
-        Load world configurations from the source specified by DAM_WORLDS_CONFIG.
+        """Load, validate, and process world configurations."""
+        config_source, values = cls._get_config_source(values)
+        raw_world_configs = cls._load_raw_configs(config_source, values)
+        final_worlds_dict = cls._create_world_config_objects(raw_world_configs)
+        values["worlds"] = final_worlds_dict
+        values["DEFAULT_WORLD_NAME"] = cls._determine_default_world(final_worlds_dict, values)
+        logger.debug("Final processed worlds: %s", list(values["worlds"].keys()))
+        logger.debug("Default world name set to: %s", values["DEFAULT_WORLD_NAME"])
+        return values
 
-        This source can be a file path to a JSON file or a direct JSON string.
-        """
+    @classmethod
+    def _get_config_source(cls, values: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        """Determine the source of the world configurations."""
         config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))
-
         if not config_source:
             logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.")
             config_source = _DEFAULT_WORLD_CONFIG_JSON
-            # Ensure DEFAULT_WORLD_NAME reflects this if it wasn't explicitly set
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
+        return config_source, values
 
-        raw_world_configs: dict[str, dict[str, Any]] = {}
+    @classmethod
+    def _load_raw_configs(cls, config_source: str, values: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        """Load raw world configurations from a file or JSON string."""
         config_path = Path(config_source)
+        raw_world_configs: dict[str, dict[str, Any]] = {}
         if config_path.exists():
             try:
                 with config_path.open() as f:
@@ -91,8 +101,6 @@ class Settings(BaseSettings):
                 raw_world_configs = json.loads(config_source)
                 logger.info("Loaded world configurations from JSON string.")
             except json.JSONDecodeError as e:
-                # If it's not a valid path and not valid JSON, it might be a simple string meant for default.
-                # This path is less likely if default is handled above.
                 logger.warning(
                     "DAM_WORLDS_CONFIG_SOURCE '%s' is not a valid file path or JSON string. Attempting default. Error: %s",
                     config_source,
@@ -103,55 +111,51 @@ class Settings(BaseSettings):
                     values["DEFAULT_WORLD_NAME"] = "default"
 
         if not isinstance(raw_world_configs, dict):
-            raise ValueError("Worlds configuration must be a JSON object (dictionary of world_name: world_config).")
-
-        if not raw_world_configs:  # Ensure there's at least one world
+            raise ValueError("Worlds configuration must be a JSON object.")
+        if not raw_world_configs:
             logger.warning("No worlds found in configuration source. Adding a default world.")
             raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
             if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
                 values["DEFAULT_WORLD_NAME"] = "default"
+        return raw_world_configs
 
+    @classmethod
+    def _create_world_config_objects(cls, raw_world_configs: dict[str, dict[str, Any]]) -> dict[str, WorldConfig]:
+        """Create WorldConfig objects from raw configuration data."""
         final_worlds_dict: dict[str, WorldConfig] = {}
         for name, config_data in raw_world_configs.items():
             if not isinstance(config_data, dict):
                 raise ValueError(f"Configuration for world '{name}' must be a dictionary.")
-            # Add the world's name to its config data, so WorldConfig can store it.
-            config_data_with_name = {"name": name, **config_data}
+            config_data_with_name: dict[str, Any] = {"name": name, **config_data}
             final_worlds_dict[name] = WorldConfig(**config_data_with_name)
+        return final_worlds_dict
 
-        values["worlds"] = final_worlds_dict
-
-        # Validate or determine DEFAULT_WORLD_NAME
-        # Explicitly check env var as validator 'values' might not fully reflect it yet for aliased fields
+    @classmethod
+    def _determine_default_world(cls, final_worlds_dict: dict[str, WorldConfig], values: dict[str, Any]) -> str | None:
+        """Determine and validate the default world name."""
         env_default_world = os.environ.get("DAM_DEFAULT_WORLD_NAME")
         default_world_name_val = env_default_world or values.get("DEFAULT_WORLD_NAME", values.get("default_world_name"))
 
-        if not final_worlds_dict:  # Should be caught by earlier check, but defensive
+        if not final_worlds_dict:
             logger.error("No worlds configured after processing. This is unexpected.")
-            values["DEFAULT_WORLD_NAME"] = None
-            return values
+            return None
 
         if default_world_name_val:
             if default_world_name_val not in final_worlds_dict:
                 raise ValueError(
                     f"DEFAULT_WORLD_NAME '{default_world_name_val}' is set but not found in the configured worlds: {list(final_worlds_dict.keys())}"
                 )
-            values["DEFAULT_WORLD_NAME"] = default_world_name_val  # Ensure values dict is updated
-        elif "default" in final_worlds_dict:
-            values["DEFAULT_WORLD_NAME"] = "default"
+            return default_world_name_val
+        if "default" in final_worlds_dict:
             logger.info("DEFAULT_WORLD_NAME not explicitly set, using 'default' world.")
-        else:
-            # No explicit default, 'default' world doesn't exist, pick the first one alphabetically.
-            first_world_by_name = sorted(final_worlds_dict.keys())[0]
-            values["DEFAULT_WORLD_NAME"] = first_world_by_name
-            logger.info(
-                "DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '%s'.",
-                first_world_by_name,
-            )
+            return "default"
 
-        logger.debug("Final processed worlds: %s", list(values["worlds"].keys()))
-        logger.debug("Default world name set to: %s", values["DEFAULT_WORLD_NAME"])
-        return values
+        first_world_by_name = sorted(final_worlds_dict.keys())[0]
+        logger.info(
+            "DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '%s'.",
+            first_world_by_name,
+        )
+        return first_world_by_name
 
     def get_world_config(self, world_name: str | None = None) -> WorldConfig:
         """
