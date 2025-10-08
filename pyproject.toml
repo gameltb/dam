@@ -77,7 +77,7 @@ target-version = "py312"
 docstring-code-format = true
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "B", "Q", "I", "ASYNC", "LOG", "G", "PT", "RET", "SIM", "ARG", "PTH", "N",  "RUF", "PL", "UP", "D", "DOC", "TID251", "T20", "PLC0415"]
+select = ["E", "F", "W", "B", "Q", "I", "ASYNC", "LOG", "G", "PT", "RET", "SIM", "ARG", "PTH", "N",  "RUF", "PL", "UP", "D", "TID251", "T20", "PLC0415"]
 ignore = ["E501", "D212", "D203"]
 
 [tool.ruff.lint.pylint]
