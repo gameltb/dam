@@ -135,6 +135,7 @@ async def test_verify_archive_ok(
     # Add archive to DAM and process it
     register_cmd = RegisterLocalFileCommand(file_path=zip_path)
     entity_id = await test_world_alpha.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
 
     # Set MIME type before ingestion
     set_mime_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)

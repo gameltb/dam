@@ -45,6 +45,7 @@ async def test_ingestion_with_memory_limit_and_filename(
     # 2. Register the archive
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
@@ -137,6 +138,7 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
 
     register_cmd = RegisterLocalFileCommand(file_path=archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         session = transaction.session
@@ -176,6 +178,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # 1. Register the regular archive file
     register_cmd_reg = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id_reg = await world.dispatch_command(register_cmd_reg).get_one_value()
+    assert entity_id_reg is not None
 
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
@@ -208,6 +211,7 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
     # 1. Register the protected archive file
     register_cmd_prot = RegisterLocalFileCommand(file_path=protected_archive_path)
     entity_id_prot = await world.dispatch_command(register_cmd_prot).get_one_value()
+    assert entity_id_prot is not None
 
     async with tm() as transaction:
         session = transaction.session
@@ -251,6 +255,7 @@ async def test_reingest_already_extracted_archive(test_world_alpha: World, test_
     # 1. Register the archive file
     register_cmd = RegisterLocalFileCommand(file_path=regular_archive_path)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
 
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:

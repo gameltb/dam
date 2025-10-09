@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 async def create_master_archive_handler(
     cmd: CreateMasterArchiveCommand,
     transaction: WorldTransaction,
-):
+) -> None:
     """Handle the manual creation of a master entity for a split archive."""
     logger.info("Manually creating master archive '%s' for %s parts.", cmd.name, len(cmd.part_entity_ids))
 

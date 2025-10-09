@@ -71,7 +71,7 @@ async def auto_set_mime_type_from_filename_system(
 async def set_mime_type_from_buffer_system(
     command: SetMimeTypeFromBufferCommand,
     transaction: WorldTransaction,
-):
+) -> None:
     """Set the mime type for an entity from a buffer, if it doesn't have one."""
     existing_mime_type = await transaction.get_component(command.entity_id, ContentMimeTypeComponent)
     if existing_mime_type:

@@ -34,8 +34,7 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
     # 1. Register a new file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
-
-    assert isinstance(entity_id, int)
+    assert entity_id is not None
 
     # Verify components for the new entity
     async with world.get_context(WorldTransaction)() as tx:
@@ -103,6 +102,7 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
 
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
     entity_id = await world.dispatch_command(register_cmd1).get_one_value()
+    assert entity_id is not None
 
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
@@ -150,6 +150,7 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
     # 1. Register the file for the first time
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
 
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
@@ -186,6 +187,7 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
     # 1. Register a local file first
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
     entity_id = await world.dispatch_command(register_cmd).get_one_value()
+    assert entity_id is not None
 
     # 2. Dispatch the store command
     store_cmd = StoreAssetsCommand(query="local_not_stored")
