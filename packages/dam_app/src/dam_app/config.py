@@ -28,7 +28,7 @@ class WorldDefinition(BaseModel):
 
     db: DatabaseConfig
     plugins: PluginConfig
-    paths: dict[str, Path] = Field(default_factory=dict)
+    paths: dict[str, Path]
     plugin_settings: dict[str, Any] = Field(default_factory=dict)
 
 

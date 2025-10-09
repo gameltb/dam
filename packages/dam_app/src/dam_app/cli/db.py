@@ -24,101 +24,29 @@ console = Console()
 
 # --- Helper Functions ---
 
-# This points to the directory containing our alembic templates (env.py, etc.)
-ALEMBIC_TEMPLATE_DIR = Path(__file__).parent.parent / "alembic"
+# This points to the directory containing our alembic templates.
+ALEMBIC_TEMPLATE_DIR = Path(__file__).parent.parent / "alembic_template"
 
 
-def get_alembic_dir_for_world(world_name: str, config: Config) -> Path:
+def get_alembic_ini_path(world_name: str, config: Config) -> Path:
     """
-    Determine the Alembic directory for a given world.
+    Get the path to the alembic.ini file for a given world.
 
-    Uses the 'alembic' path from the world's [paths] configuration if available,
-    otherwise defaults to ~/.dam/worlds/<world_name>.
+    This function relies on the mandatory `paths.alembic` configuration.
     """
     world_def = config.worlds.get(world_name)
-    if world_def and "alembic" in world_def.paths:
-        return world_def.paths["alembic"].resolve()
+    if not world_def or "alembic" not in world_def.paths:
+        console.print(
+            f"[bold red]Error:[/] The `[worlds.{world_name}.paths]` table with an 'alembic' key is not defined in your dam.toml."
+        )
+        raise typer.Exit(1)
 
-    # Fallback to the default path
-    return Path.home() / ".dam" / "worlds" / world_name
-
-
-def setup_alembic_env(world_dir: Path) -> Path:
-    """
-    Set up the necessary directory structure and config file for running Alembic.
-
-    This function is idempotent.
-
-    Args:
-        world_dir: The root directory for the world's migration environment.
-
-    Returns:
-        The path to the generated alembic.ini file.
-
-    """
-    versions_dir = world_dir / "versions"
-    versions_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy the master templates into the world's directory if they don't exist.
-    # This makes each world's migration environment self-contained.
-    shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "env.py", world_dir / "env.py")
-    shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "script.py.mako", world_dir / "script.py.mako")
-
-    # Generate the alembic.ini file for this specific world
-    alembic_ini_path = world_dir / "alembic.ini"
-    ini_content = f"""
-[alembic]
-# The script location is the world's migration directory.
-# Alembic will look for env.py and the 'versions' directory here.
-script_location = {world_dir.absolute()}
-
-# Template for new migration files
-file_template = %%(rev)s_%%(slug)s
-
-# Set to true if you don't want to generate .pyc files
-sourceless = true
-
-[loggers]
-keys = root,sqlalchemy,alembic
-
-[handlers]
-keys = console
-
-[formatters]
-keys = generic
-
-[logger_root]
-level = WARN
-handlers = console
-qualname =
-
-[logger_sqlalchemy]
-level = INFO
-handlers =
-qualname = sqlalchemy.engine
-
-[logger_alembic]
-level = INFO
-handlers =
-qualname = alembic
-
-[handler_console]
-class = StreamHandler
-args = (sys.stderr,)
-level = NOTSET
-formatter = generic
-
-[formatter_generic]
-format = %(levelname)-5.5s [%(name)s] %(message)s
-datefmt = %H:%M:%S
-"""
-    alembic_ini_path.write_text(ini_content)
-    return alembic_ini_path
+    return world_def.paths["alembic"].resolve() / "alembic.ini"
 
 
 def _run_alembic_command(world_name: str, command: list[str]):
     """Set up the environment and run an Alembic command."""
-    # First, ensure the world is valid by trying to load the config
+    # First, load the config and find the alembic.ini path.
     try:
         config_path_str = os.getenv("DAM_CONFIG_FILE")
         config_path = Path(config_path_str) if config_path_str else None
@@ -126,12 +54,16 @@ def _run_alembic_command(world_name: str, command: list[str]):
         if world_name not in config.worlds:
             console.print(f"[bold red]Error:[/] World '{world_name}' not found in configuration.")
             raise typer.Exit(1)
+
+        alembic_ini_path = get_alembic_ini_path(world_name, config)
+        if not alembic_ini_path.is_file():
+            console.print(f"[bold red]Error:[/] alembic.ini not found at configured path: {alembic_ini_path}")
+            console.print(f"Please run `dam-cli db init --world {world_name}` first.")
+            raise typer.Exit(1)
+
     except FileNotFoundError as e:
         console.print("[bold red]Error:[/] Configuration file not found.")
         raise typer.Exit(1) from e
-
-    world_dir = get_alembic_dir_for_world(world_name, config)
-    alembic_ini_path = setup_alembic_env(world_dir)
 
     # Set environment variables for the subprocess
     env = os.environ.copy()
@@ -144,13 +76,15 @@ def _run_alembic_command(world_name: str, command: list[str]):
     console.print(f"[dim]Running command: {' '.join(full_command)}[/dim]")
 
     try:
-        subprocess.run(full_command, check=True, env=env, capture_output=True, text=True)
+        # Use subprocess.run without capturing output to stream directly to console
+        result = subprocess.run(full_command, check=True, env=env, text=True)
+        if result.stdout:
+            console.print(result.stdout)
+        if result.stderr:
+            console.print(result.stderr)
+
     except subprocess.CalledProcessError as e:
         console.print("[bold red]Alembic command failed.[/bold red]")
-        console.print("[bold]Alembic stdout:[/bold]")
-        console.print(e.stdout)
-        console.print("[bold]Alembic stderr:[/bold]")
-        console.print(e.stderr)
         raise typer.Exit(1) from e
     except FileNotFoundError as e:
         console.print("[bold red]Error:[/] `alembic` command not found. Is it installed?")
@@ -166,7 +100,6 @@ def init(
 ):
     """Initialize the migration environment for a specific world."""
     console.print(f"Initializing migration environment for world: [bold cyan]{world}[/bold cyan]")
-    config = Config()
     try:
         config_path_str = os.getenv("DAM_CONFIG_FILE")
         config_path = Path(config_path_str) if config_path_str else None
@@ -174,13 +107,23 @@ def init(
         if world not in config.worlds:
             console.print(f"[bold red]Error:[/] World '{world}' not found in configuration.")
             raise typer.Exit(1)
-    except FileNotFoundError:
-        # For init, it's okay if the config doesn't exist, we'll use the default path.
-        pass
 
-    world_dir = get_alembic_dir_for_world(world, config)
-    setup_alembic_env(world_dir)
-    console.print(f"[green]Successfully initialized.[/green] Migration files will be stored in: {world_dir}")
+        # get_alembic_ini_path also validates the path is configured
+        alembic_ini_path = get_alembic_ini_path(world, config)
+        alembic_dir = alembic_ini_path.parent
+        alembic_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy the template files
+        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "alembic.ini", alembic_dir / "alembic.ini")
+        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "env.py", alembic_dir / "env.py")
+        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "script.py.mako", alembic_dir / "script.py.mako")
+        (alembic_dir / "versions").mkdir(exist_ok=True)
+
+        console.print(f"[green]Successfully initialized.[/green] Migration files will be stored in: {alembic_dir}")
+
+    except FileNotFoundError as e:
+        console.print("[bold red]Error:[/] Configuration file not found.")
+        raise typer.Exit(1) from e
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

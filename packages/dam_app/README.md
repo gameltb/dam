@@ -6,6 +6,8 @@ This package provides the main command-line interface (CLI) for the [Digital Ass
 
 *   Provides a rich set of commands for managing and interacting with the DAM system.
 *   Uses a plugin-based architecture to load optional features, such as `dam_psp` and `dam_semantic`.
+*   Supports multiple, isolated "worlds," each with its own database schema and configuration, managed via a central `dam.toml` file.
+*   Includes a database migration system powered by Alembic to manage schema changes on a per-world basis.
 
 ## Installation
 
@@ -27,20 +29,52 @@ This package provides the main command-line interface (CLI) for the [Digital Ass
         ```bash
         uv pip install -e '.[all]'
         ```
-4.  **Set up your `.env` file** by copying the `.env.example` file and modifying it as needed.
-5.  **Initialize the database:**
-    ```bash
-    dam-cli setup-db
-    ```
+
+## Configuration
+
+The `dam-cli` application is configured using a `dam.toml` file in the root of your project. This file is mandatory and defines the different "worlds" the application can operate on.
+
+### Example `dam.toml`
+
+Here is an example `dam.toml` that defines two worlds: `fs_world` and `archive_world`.
+
+```toml
+# Configuration for the DAM application using PostgreSQL
+
+# --- Filesystem World ---
+# This world will store its migrations in a custom local directory.
+[worlds.fs_world]
+[worlds.fs_world.db]
+url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
+
+[worlds.fs_world.plugins]
+names = ["dam-fs", "dam-source"]
+
+[worlds.fs_world.paths]
+# Mandatory: The directory to store Alembic migration files for this world.
+alembic = "./fs_world_migrations"
+
+# --- Archive World ---
+# This world will use a custom storage path for the dam-fs plugin.
+[worlds.archive_world]
+[worlds.archive_world.db]
+url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
+
+[worlds.archive_world.plugins]
+names = ["dam-fs", "dam-source", "dam-archive"]
+
+[worlds.archive_world.paths]
+# Mandatory: The directory to store Alembic migration files for this world.
+alembic = "./archive_world_migrations"
+
+[worlds.archive_world.plugin_settings."dam-fs"]
+# Optional: A custom storage path for the dam-fs plugin in this world.
+storage_path = "./archive_world_storage"
+```
 
 ## Development Setup with Docker Compose
 
-For a more robust and persistent local development setup, example Docker Compose files are provided in the `docker/` directory within this package. They simplify the process of starting the required PostgreSQL database.
-
-**Key benefits:**
-- **Persistence:** The provided `docker-compose.yml` uses a Docker volume to store the database data, so your data will persist even if you stop and restart the container.
-- **Configuration:** It is pre-configured to work with the application's default settings.
-- **Simplicity:** It's easier to manage than long `docker run` commands.
+For a more robust and persistent local development setup, a Docker Compose file is provided in the `docker/` directory to start the required PostgreSQL database.
 
 ### Usage
 
@@ -48,27 +82,43 @@ For a more robust and persistent local development setup, example Docker Compose
     ```bash
     cd packages/dam_app/docker
     ```
-2.  **Copy `.env.example` to `.env`:**
-    ```bash
-    cp .env.example .env
-    ```
-3.  **(Optional) Configure Data Path:** Open the `.env` file and change the `POSTGRES_DATA_PATH` to specify where you want to store the database files on your local machine. If you leave it unset, a `pg_data` directory will be created in the `docker` folder.
-4.  **Start the database:**
+2.  **Start the database:**
     ```bash
     docker compose up -d
     ```
-5.  **Stop the database:**
+3.  **Stop the database:**
     ```bash
     docker compose down
     ```
 
+## Database Migrations
+
+Database schemas are managed on a per-world basis using the `dam-cli db` command, which is a wrapper around Alembic.
+
+**Workflow:**
+
+1.  **Initialize the migration environment for your world.** This only needs to be done once per world. It will create the directory specified in your `dam.toml` and populate it with the necessary Alembic files.
+    ```bash
+    uv run poe run --package dam_app -- db init --world <your_world_name>
+    ```
+
+2.  **Generate a new migration script.** After making changes to your SQLAlchemy models in a plugin, run this command to automatically generate a migration script.
+    ```bash
+    uv run poe run --package dam_app -- db revision --world <your_world_name> --autogenerate -m "A message describing your changes"
+    ```
+
+3.  **Apply the migration to the database.** This will execute the migration script and update your database schema.
+    ```bash
+    uv run poe run --package dam_app -- db upgrade --world <your_world_name> head
+    ```
+
 ## Usage
 
-Once installed, the `dam-cli` command will be available in your environment.
+Once installed, all commands should be run via the `uv run poe run --package dam_app` task.
 
 **General help:**
 ```bash
-dam-cli --help
+uv run poe run --package dam_app -- --help
 ```
 
 The CLI is organized into several subcommands. For more information on the available commands and the concepts behind them, please refer to the main [DAM documentation](../dam/README.md).
