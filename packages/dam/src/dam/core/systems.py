@@ -20,12 +20,12 @@ from typing import (
 
 from dam.commands.core import BaseCommand
 from dam.core.enums import SystemType
-from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.markers import CommandMarker, EventMarker, MarkedEntityList, ResourceMarker
 from dam.core.stages import SystemStage
 from dam.core.system_info import SystemMetadata, SystemParameterInfo
 from dam.enums import ExecutionStrategy
+from dam.events import BaseEvent
 from dam.models.core.base_component import BaseComponent
 from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 

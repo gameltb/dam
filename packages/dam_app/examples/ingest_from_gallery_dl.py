@@ -33,8 +33,9 @@ from pathlib import Path
 
 import typer
 from dam.core import config as app_config
-from dam.core.logging_config import setup_logging
-from dam.core.world import World, create_and_register_all_worlds_from_settings, get_world
+from dam_app.logging_config import setup_logging
+from dam.core.world import World
+from dam import world_manager
 from dam.core.world_setup import register_core_systems
 from dam.functions import ecs_functions as ecs_service
 from dam.models import (
@@ -318,17 +319,16 @@ def main(
 
     # Initialize worlds
     try:
-        create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
+        world_manager.create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
     except Exception as e:
         logger.critical(f"Could not initialize worlds from settings: {e}", exc_info=True)
         raise typer.Exit(code=1)
 
     # Register core systems (important for resources like FileStorageResource)
-
-    for w_instance in get_world(None, get_all=True):  # type: ignore
+    for w_instance in world_manager.get_all_registered_worlds():
         register_core_systems(w_instance)
 
-    target_world = get_world(world_name)
+    target_world = world_manager.get_world(world_name)
     if not target_world:
         logger.error(f"World '{world_name}' not found or not initialized correctly.")
         raise typer.Exit(code=1)

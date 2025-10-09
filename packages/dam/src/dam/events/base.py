@@ -1,4 +1,4 @@
-"""Core event definitions for the DAM system."""
+"""Base event for the DAM system."""
 
 from dataclasses import dataclass
 
@@ -8,6 +8,3 @@ class BaseEvent:
     """Base class for all events, providing a common structure if needed."""
 
     pass
-
-
-__all__ = ["BaseEvent"]

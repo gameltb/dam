@@ -14,16 +14,13 @@ import psycopg
 import pytest
 import pytest_asyncio
 import torch
+from dam import world_manager
+from dam.contexts.transaction_manager import TransactionManager
 from dam.core.config import Settings
 from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
 from dam.core.transaction import WorldTransaction
-from dam.core.transaction_manager import TransactionManager
-from dam.core.world import (
-    World,
-    clear_world_registry,
-    create_and_register_world,
-)
+from dam.core.world import World
 from dam.models.core.base_class import Base
 from PIL import Image
 from psycopg import sql
@@ -99,7 +96,11 @@ async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> A
         asset_temp_dir.mkdir(parents=True, exist_ok=True)
         updated_test_worlds_config[world_name] = {
             **config_template,
-            "ASSET_STORAGE_PATH": str(asset_temp_dir),
+            "plugin_settings": {
+                "dam-fs": {
+                    "storage_path": str(asset_temp_dir),
+                }
+            },
         }
 
     default_test_world_name = "test_world_alpha"
@@ -112,17 +113,17 @@ async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> A
     monkeypatch.setattr(global_settings, "worlds", new_settings.worlds)
     monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", new_settings.DEFAULT_WORLD_NAME)
 
-    clear_world_registry()
+    world_manager.clear_world_registry()
     yield new_settings
     monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", _original_settings_values["DAM_WORLDS_CONFIG"])
     monkeypatch.setattr(global_settings, "worlds", _original_settings_values["worlds"])
     monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", _original_settings_values["DEFAULT_WORLD_NAME"])
-    clear_world_registry()
+    world_manager.clear_world_registry()
 
 
 async def _setup_world(world_name: str, settings_override_fixture: Settings, plugins: list[Any] | None = None) -> World:
     """Set up a dam world, with optional plugins."""
-    world = create_and_register_world(world_name, app_settings=settings_override_fixture)
+    world = world_manager.create_and_register_world(world_name, app_settings=settings_override_fixture)
     world.add_resource(world, World)
 
     transaction_manager = world.get_context(WorldTransaction)

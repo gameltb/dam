@@ -7,8 +7,8 @@ from typing import Any
 
 from dam.commands.core import BaseCommand
 from dam.core.enums import SystemType
-from dam.core.events import BaseEvent
 from dam.core.stages import SystemStage
+from dam.events import BaseEvent
 from dam.models.core.base_component import BaseComponent
 
 

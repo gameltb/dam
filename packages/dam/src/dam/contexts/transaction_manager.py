@@ -6,8 +6,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-from dam.core.config import WorldConfig
-from dam.core.contexts import ContextProvider
+from dam.contexts import ContextProvider
 from dam.core.database import DatabaseManager
 from dam.core.transaction import WorldTransaction, active_transaction
 
@@ -18,9 +17,9 @@ if TYPE_CHECKING:
 class TransactionManager(ContextProvider[WorldTransaction]):
     """Manages the creation and lifecycle of database transactions."""
 
-    def __init__(self, world_config: WorldConfig):
+    def __init__(self, db_manager: DatabaseManager):
         """Initialize the transaction manager."""
-        self.db_manager = DatabaseManager(world_config)
+        self.db_manager = db_manager
 
     async def create_db_and_tables(self) -> None:
         """Create database tables for the world."""

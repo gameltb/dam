@@ -323,7 +323,7 @@ It is important to distinguish between Events and Commands to maintain a clean a
 
 A core principle of the framework is to ensure data consistency through atomic transactions. The system uses a powerful dependency injection (DI) mechanism to manage this automatically.
 
--   **Transaction Provider**: The `dam.core.transaction_manager.TransactionManager` is a `ContextProvider` responsible for creating and managing database transactions. It ensures that operations are wrapped in a transaction, which is committed on success and rolled back on failure. It also handles nested transactions (savepoints) automatically.
+-   **Transaction Provider**: The `dam.contexts.transaction_manager.TransactionManager` is a `ContextProvider` responsible for creating and managing database transactions. It ensures that operations are wrapped in a transaction, which is committed on success and rolled back on failure. It also handles nested transactions (savepoints) automatically.
 
 -   **The `WorldTransaction` Object**: The `dam.core.transaction.WorldTransaction` class acts as a single point of contact for all ECS-related database operations. It wraps the `AsyncSession` and exposes high-level methods for interacting with entities and components.
 
