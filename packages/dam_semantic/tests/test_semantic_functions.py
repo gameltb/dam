@@ -12,7 +12,7 @@ from pytest_mock import MockerFixture
 from dam_semantic import semantic_functions
 
 # Models to be tested (actual specific component classes)
-from dam_semantic.models import (
+from dam_semantic.models.text_embedding_component import (
     ModelHyperparameters,
     get_embedding_component_class,
 )

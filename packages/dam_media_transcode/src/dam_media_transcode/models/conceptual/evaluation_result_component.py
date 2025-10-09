@@ -1,4 +1,5 @@
 """Defines the EvaluationResultComponent for storing transcoding evaluation results."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column

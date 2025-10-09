@@ -1,4 +1,5 @@
 """Defines the dHash component for storing image perceptual hashes."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import LargeBinary, UniqueConstraint  # Changed String to LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column

@@ -1,4 +1,5 @@
 """Defines the plugin for PSP-related functionality in the DAM system."""
+
 from __future__ import annotations
 
 from dam.commands.asset_commands import GetAssetStreamCommand

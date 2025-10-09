@@ -1,4 +1,5 @@
 """Defines systems for running and managing transcoding evaluations."""
+
 import json
 from typing import Any
 
@@ -55,7 +56,8 @@ async def create_evaluation_run_concept(
                 description="Marks an entity as an Evaluation Run.",
                 scope_type="GLOBAL",
             )
-            await tag_functions.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
+            if tag_concept:
+                await tag_functions.apply_tag_to_entity(db_session, run_entity.id, tag_concept.id)
         except Exception as e:
             world.logger.warning("Could not apply system tag to evaluation run '%s': %s", run_name, e)
 
@@ -105,11 +107,9 @@ async def evaluate_transcode_output(_event: Any, world: World, _session: Any) ->
     world.logger.warning("Placeholder evaluate_transcode_output called by an outdated test.")
 
 
-async def _resolve_source_assets(
-    world: World, session: AsyncSession, identifiers: list[str | int]
-) -> list[int]:
+async def _resolve_source_assets(world: World, session: AsyncSession, identifiers: list[str | int]) -> list[int]:
     """Resolve a list of identifiers to source asset entity IDs."""
-    entity_ids = []
+    entity_ids: list[int] = []
     for asset_id_or_hash in identifiers:
         if isinstance(asset_id_or_hash, int):
             entity_ids.append(asset_id_or_hash)
@@ -131,7 +131,7 @@ async def _resolve_transcode_profiles(
     world: World, session: AsyncSession, identifiers: list[str | int]
 ) -> list[tuple[Entity, TranscodeProfileComponent]]:
     """Resolve a list of identifiers to transcode profile entities and components."""
-    profiles = []
+    profiles: list[tuple[Entity, TranscodeProfileComponent]] = []
     for prof_id_or_name in identifiers:
         try:
             profile = await transcode_functions.get_transcode_profile_by_name_or_id(
@@ -147,7 +147,11 @@ async def _resolve_transcode_profiles(
 
 
 async def _process_job(
-    world: World, session: AsyncSession, original_asset_id: int, profile_entity: Entity, profile_comp: TranscodeProfileComponent
+    world: World,
+    session: AsyncSession,
+    original_asset_id: int,
+    profile_entity: Entity,
+    profile_comp: TranscodeProfileComponent,
 ) -> EvaluationResultComponent | None:
     """Process a single transcoding job within an evaluation run."""
     world.logger.info("  Applying profile: '%s' (ID: %d)", profile_comp.profile_name, profile_entity.id)
@@ -160,17 +164,25 @@ async def _process_job(
         world.logger.info("    Successfully transcoded. New asset ID: %d", transcoded_entity.id)
 
         clc = await ecs_functions.get_component(session, transcoded_entity.id, ContentLengthComponent)
+        eval_run_entity, _ = await get_evaluation_run_by_name_or_id(world, world.name)
         eval_result = EvaluationResultComponent(
-            evaluation_run_entity_id=(await get_evaluation_run_by_name_or_id(world, world.name))[1].entity_id,
+            evaluation_run_entity_id=eval_run_entity.id,
             original_asset_entity_id=original_asset_id,
             transcode_profile_entity_id=profile_entity.id,
             transcoded_asset_entity_id=transcoded_entity.id,
             file_size_bytes=clc.file_size_bytes if clc else None,
+            vmaf_score=None,
+            ssim_score=None,
+            psnr_score=None,
+            custom_metrics_json=None,
+            notes=None,
         )
         eval_result.entity_id = transcoded_entity.id
         session.add(eval_result)
         await session.flush()
-        world.logger.info("    EvaluationResultComponent created (ID: %d) for asset %d", eval_result.id, transcoded_entity.id)
+        world.logger.info(
+            "    EvaluationResultComponent created (ID: %d) for asset %d", eval_result.id, transcoded_entity.id
+        )
         return eval_result
     except transcode_functions.TranscodeFunctionsError as e:
         world.logger.error(
@@ -213,7 +225,9 @@ async def execute_evaluation_run(
             world.logger.error("Failed to start evaluation: %s", e)
             raise
 
-        world.logger.info("Starting evaluation run: '%s' (Entity ID: %d)", eval_run_comp.run_name, eval_run_comp.entity_id)
+        world.logger.info(
+            "Starting evaluation run: '%s' (Entity ID: %d)", eval_run_comp.run_name, eval_run_comp.entity_id
+        )
         source_ids = await _resolve_source_assets(world, session, source_asset_identifiers)
         profiles = await _resolve_transcode_profiles(world, session, profile_identifiers)
         world.logger.info("Source Assets for Evaluation (%d): %s", len(source_ids), source_ids)
@@ -221,7 +235,7 @@ async def execute_evaluation_run(
             "Transcode Profiles for Evaluation (%d): %s", len(profiles), [p[1].profile_name for p in profiles]
         )
 
-        results = []
+        results: list[EvaluationResultComponent] = []
         for original_id in source_ids:
             world.logger.info("Processing original asset ID: %d", original_id)
             for profile_entity, profile_comp in profiles:
@@ -230,9 +244,7 @@ async def execute_evaluation_run(
                     results.append(result)
 
         await session.commit()
-        world.logger.info(
-            "Evaluation run '%s' completed. %d results generated.", eval_run_comp.run_name, len(results)
-        )
+        world.logger.info("Evaluation run '%s' completed. %d results generated.", eval_run_comp.run_name, len(results))
         return results
 
 
@@ -247,32 +259,41 @@ async def get_evaluation_results(
         )
         stmt = (
             select(EvaluationResultComponent, TranscodeProfileComponent, Entity)
-            .join(TranscodeProfileComponent, EvaluationResultComponent.transcode_profile_entity_id == TranscodeProfileComponent.entity_id)
+            .join(
+                TranscodeProfileComponent,
+                EvaluationResultComponent.transcode_profile_entity_id == TranscodeProfileComponent.entity_id,
+            )
             .join(Entity, EvaluationResultComponent.entity_id == Entity.id)
             .where(EvaluationResultComponent.evaluation_run_entity_id == eval_run_comp.entity_id)
         )
         db_results = (await db_session.execute(stmt)).all()
 
-        formatted = []
+        formatted: list[dict[str, Any]] = []
         for res_comp, prof_comp, transcoded_entity in db_results:
-            orig_fnc = await ecs_functions.get_component(db_session, res_comp.original_asset_entity_id, FilenameComponent)
+            orig_fnc = await ecs_functions.get_component(
+                db_session, res_comp.original_asset_entity_id, FilenameComponent
+            )
             trans_fnc = await ecs_functions.get_component(db_session, transcoded_entity.id, FilenameComponent)
-            custom_metrics = json.loads(res_comp.custom_metrics_json) if res_comp.custom_metrics_json else {}
-            formatted.append({
-                "evaluation_result_id": res_comp.id,
-                "evaluation_run_name": eval_run_comp.run_name,
-                "original_asset_entity_id": res_comp.original_asset_entity_id,
-                "original_asset_filename": orig_fnc.filename if orig_fnc else "N/A",
-                "transcoded_asset_entity_id": res_comp.transcoded_asset_entity_id,
-                "transcoded_asset_filename": trans_fnc.filename if trans_fnc else "N/A",
-                "profile_name": prof_comp.profile_name,
-                "file_size_bytes": res_comp.file_size_bytes,
-                "vmaf_score": res_comp.vmaf_score,
-                "ssim_score": res_comp.ssim_score,
-                "psnr_score": res_comp.psnr_score,
-                "custom_metrics": custom_metrics,
-                "notes": res_comp.notes,
-            })
+            custom_metrics: dict[str, Any] = (
+                json.loads(res_comp.custom_metrics_json) if res_comp.custom_metrics_json else {}
+            )
+            formatted.append(
+                {
+                    "evaluation_result_id": res_comp.id,
+                    "evaluation_run_name": eval_run_comp.run_name,
+                    "original_asset_entity_id": res_comp.original_asset_entity_id,
+                    "original_asset_filename": orig_fnc.filename if orig_fnc else "N/A",
+                    "transcoded_asset_entity_id": res_comp.transcoded_asset_entity_id,
+                    "transcoded_asset_filename": trans_fnc.filename if trans_fnc else "N/A",
+                    "profile_name": prof_comp.profile_name,
+                    "file_size_bytes": res_comp.file_size_bytes,
+                    "vmaf_score": res_comp.vmaf_score,
+                    "ssim_score": res_comp.ssim_score,
+                    "psnr_score": res_comp.psnr_score,
+                    "custom_metrics": custom_metrics,
+                    "notes": res_comp.notes,
+                }
+            )
         return formatted
 
     if session:

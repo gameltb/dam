@@ -10,7 +10,7 @@ from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
-from dam_fs.models import FilenameComponent
+from dam_fs.models.filename_component import FilenameComponent
 from sqlalchemy import select
 
 from .. import split_detector

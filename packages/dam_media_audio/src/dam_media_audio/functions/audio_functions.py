@@ -46,9 +46,9 @@ class MockAudioModel:
 
 
 async def get_mock_audio_model(  # type: ignore[no-any-unimported]
-    _sire_resource: "SireResource",
-    _model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    _params: AudioModelHyperparameters | None = None,
+    sire_resource: "SireResource",  # noqa: ARG001
+    model_name: str = DEFAULT_AUDIO_MODEL_NAME,  # noqa: ARG001
+    params: AudioModelHyperparameters | None = None,  # noqa: ARG001
 ) -> Optional["AutoManageWrapper[MockAudioModel]"]:
     """Get a mock audio model."""
     AutoManageWrapper.register_type_wrapper(MockAudioModel, TorchModuleWrapper)
@@ -69,12 +69,12 @@ def convert_bytes_to_embedding(embedding_bytes: bytes, dtype: Any = np.float32) 
 
 
 async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported]
-    _transaction: WorldTransaction,
-    _sire_resource: "SireResource",
-    _entity_id: int,
-    _model_name: str = DEFAULT_AUDIO_MODEL_NAME,
-    _model_params: AudioModelHyperparameters | None = None,
-    _audio_file_path: str | None = None,
+    transaction: WorldTransaction,  # noqa: ARG001
+    sire_resource: "SireResource",  # noqa: ARG001
+    entity_id: int,  # noqa: ARG001
+    model_name: str = DEFAULT_AUDIO_MODEL_NAME,  # noqa: ARG001
+    model_params: AudioModelHyperparameters | None = None,  # noqa: ARG001
+    audio_file_path: str | None = None,  # noqa: ARG001
 ) -> BaseSpecificAudioEmbeddingComponent | None:
     """
     Generate an audio embedding for a given entity.
@@ -86,12 +86,12 @@ async def generate_audio_embedding_for_entity(  # type: ignore[no-any-unimported
 
 
 async def find_similar_entities_by_audio_embedding(  # type: ignore[no-any-unimported]
-    _transaction: WorldTransaction,
-    _sire_resource: "SireResource",
-    _query_audio_path: str,
-    _model_name: str,
-    _model_params: AudioModelHyperparameters | None = None,
-    _top_n: int = 10,
+    transaction: WorldTransaction,  # noqa: ARG001
+    sire_resource: "SireResource",  # noqa: ARG001
+    query_audio_path: str,  # noqa: ARG001
+    model_name: str,  # noqa: ARG001
+    model_params: AudioModelHyperparameters | None = None,  # noqa: ARG001
+    top_n: int = 10,  # noqa: ARG001
 ) -> list[tuple[Entity, float, BaseSpecificAudioEmbeddingComponent]]:
     """
     Find similar entities by audio embedding.

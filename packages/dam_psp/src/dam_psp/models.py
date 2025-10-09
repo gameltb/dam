@@ -1,4 +1,5 @@
 """Defines the database models for PSP-related components."""
+
 from typing import Any
 
 from dam.models.core.base_component import BaseComponent, UniqueComponent

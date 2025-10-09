@@ -1,4 +1,5 @@
 """Defines the TranscodedVariantComponent for linking transcoded assets to their originals."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column

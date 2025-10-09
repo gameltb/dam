@@ -1,4 +1,5 @@
 """Image-related commands for the DAM system."""
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any

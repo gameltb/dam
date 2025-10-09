@@ -1,4 +1,5 @@
 """Defines the ImageDimensionsComponent for storing the width and height of a visual entity."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column

@@ -1,4 +1,5 @@
 """Provides a file-like object for reading CSO (Compressed ISO) files."""
+
 import io
 import struct
 import zlib

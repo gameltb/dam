@@ -1,4 +1,5 @@
 """Defines commands related to PSP ISO and CSO file handling."""
+
 from dataclasses import dataclass
 
 from dam.commands.analysis_commands import AnalysisCommand

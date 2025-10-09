@@ -13,7 +13,7 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
-from pytest_mock import MagicMock, MockerFixture
+from pytest_mock import MockerFixture
 
 from dam_app.commands import ExtractExifMetadataCommand
 from dam_app.systems.metadata_systems import (
@@ -24,7 +24,7 @@ from dam_app.systems.metadata_systems import (
 
 
 @pytest.fixture
-def mock_transaction(mocker: MockerFixture) -> MagicMock:
+def mock_transaction(mocker: MockerFixture) -> Any:
     """Fixture for a mocked WorldTransaction."""
     transaction = mocker.MagicMock(spec=WorldTransaction)
     transaction.get_components = mocker.AsyncMock(return_value=[])
@@ -33,7 +33,7 @@ def mock_transaction(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_file(mock_transaction: MagicMock, mocker: MockerFixture):
+async def test_extract_metadata_from_file(mock_transaction: Any, mocker: MockerFixture):
     """
     Test that metadata extraction from a file uses a persistent exiftool process.
 
@@ -67,7 +67,7 @@ async def test_extract_metadata_from_file(mock_transaction: MagicMock, mocker: M
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_stream(mock_transaction: MagicMock, mocker: MockerFixture):
+async def test_extract_metadata_from_stream(mock_transaction: Any, mocker: MockerFixture):
     """
     Test that metadata extraction from a stream uses a persistent exiftool process.
 

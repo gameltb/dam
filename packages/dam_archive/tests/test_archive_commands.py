@@ -10,7 +10,7 @@ from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_fs.commands import RegisterLocalFileCommand
-from dam_fs.models import FilenameComponent
+from dam_fs.models.filename_component import FilenameComponent
 from sqlalchemy import select
 
 from dam_archive.commands.split_archives import (

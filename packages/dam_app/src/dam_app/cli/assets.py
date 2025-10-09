@@ -1,4 +1,5 @@
 """Defines the CLI for managing assets in the DAM."""
+
 from __future__ import annotations
 
 import datetime
@@ -12,12 +13,12 @@ from dam.commands.asset_commands import (
     GetAssetFilenamesCommand,
     GetMimeTypeCommand,
 )
-from dam.core.events import BaseEvent
 from dam.core.executor import SystemExecutor
 from dam.core.operations import AssetOperation
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions as dam_ecs_functions
+from dam.system_events.base import BaseSystemEvent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -85,14 +86,12 @@ def _parse_process_options(process: list[str] | None, target_world: World) -> di
 
 
 async def _handle_progress_events(  # noqa: PLR0912
-    stream: SystemExecutor[Any, BaseEvent],
+    stream: SystemExecutor[Any, BaseSystemEvent],
     operation_name: str,
     entity_id: int,
     depth: int,
     pbar: tqdm[Any],
-    process_entity_callback: Callable[
-        [World, int, int, tqdm[Any], dict[str, list[str]], str | None, Any | None], Coroutine[Any, Any, None]
-    ],
+    process_entity_callback: Callable[..., Coroutine[Any, Any, None]],
     target_world: World,
     process_map: dict[str, list[str]],
 ):
@@ -102,11 +101,11 @@ async def _handle_progress_events(  # noqa: PLR0912
         if isinstance(event, NewEntityCreatedEvent):
             tqdm.write(f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}")
             await process_entity_callback(
-                target_world,
-                event.entity_id,
-                depth + 1,
-                pbar,
-                process_map,
+                target_world=target_world,
+                entity_id=event.entity_id,
+                depth=depth + 1,
+                pbar=pbar,
+                process_map=process_map,
                 filename=event.filename,
                 stream_provider_from_event=event.stream_provider,
             )
@@ -233,7 +232,15 @@ async def add_assets(
                     success_count += 1
 
                 if entity_id and process_map:
-                    await _process_entity(target_world, entity_id, 0, pbar, process_map, filename=file_path.name)
+                    await _process_entity(
+                        target_world,
+                        entity_id,
+                        0,
+                        pbar,
+                        process_map,
+                        filename=file_path.name,
+                        stream_provider_from_event=None,
+                    )
 
             except Exception:
                 error_count += 1
@@ -301,7 +308,8 @@ async def _process_entity(  # noqa: PLR0912
         if action == "add" and operation.add_command_class:
             tqdm.write(f"Running {operation_name} on entity {entity_id} at depth {depth}")
             processing_cmd = operation.add_command_class(
-                entity_id=entity_id, stream_provider=stream_provider_from_event  # type: ignore [call-arg]
+                entity_id=entity_id,
+                stream_provider=stream_provider_from_event,  # type: ignore [call-arg]
             )
         elif action == "reprocess" and operation.reprocess_derived_command_class:
             tqdm.write(
@@ -393,7 +401,7 @@ async def process_entities(
     for entity_id in entity_ids:
         typer.echo(f"Processing entity {entity_id}...")
         try:
-            processing_cmd = command_class(entity_id=entity_id)  # type: ignore [call-arg]
+            processing_cmd = command_class(entity_id=entity_id, stream_provider=None)  # type: ignore [call-arg]
             async with target_world.get_context(WorldTransaction)():
                 stream = target_world.dispatch_command(processing_cmd)
                 async for event in stream:

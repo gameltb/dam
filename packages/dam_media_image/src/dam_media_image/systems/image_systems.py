@@ -1,10 +1,10 @@
 """Defines the systems for handling image-specific metadata and commands."""
+
 import io
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import aiofiles
-from dam.core.models import BaseComponent
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -14,19 +14,28 @@ from dam_fs.models.filename_component import FilenameComponent
 from PIL import Image
 from sqlalchemy import select as sql_select
 
-from ..commands import FindSimilarImagesCommand
-from ..events import ImageAssetDetected
-from ..functions import image_hashing_functions as image_hashing_service
-from ..models.hashes.image_perceptual_hash_ahash_component import (
+from dam_media_image.commands import FindSimilarImagesCommand
+from dam_media_image.events import ImageAssetDetected
+from dam_media_image.functions import image_hashing_functions as image_hashing_service
+from dam_media_image.models.hashes.base_image_perceptual_hash_component import (
+    BaseImagePerceptualHashComponent,
+)
+from dam_media_image.models.hashes.image_perceptual_hash_ahash_component import (
     ImagePerceptualAHashComponent,
 )
-from ..models.hashes.image_perceptual_hash_dhash_component import (
+from dam_media_image.models.hashes.image_perceptual_hash_dhash_component import (
     ImagePerceptualDHashComponent,
 )
-from ..models.hashes.image_perceptual_hash_phash_component import (
+from dam_media_image.models.hashes.image_perceptual_hash_phash_component import (
     ImagePerceptualPHashComponent,
 )
-from ..models.properties.image_dimensions_component import ImageDimensionsComponent
+from dam_media_image.models.properties.image_dimensions_component import (
+    ImageDimensionsComponent,
+)
+
+if TYPE_CHECKING:
+    import imagehash
+    from imagehash import ImageHash
 
 try:
     import imagehash
@@ -47,22 +56,20 @@ async def _find_source_entity_id(transaction: WorldTransaction, cmd: FindSimilar
         source_entity = await transaction.find_entity_by_content_hash(source_content_hash_bytes, "sha256")  # type: ignore
         return source_entity.id if source_entity else None
     except Exception as e:
-        logger.warning(
-            "Could not determine source entity for %s to exclude from results: %s", cmd.image_path.name, e
-        )
+        logger.warning("Could not determine source entity for %s to exclude from results: %s", cmd.image_path.name, e)
         return None
 
 
 async def _find_similar_hashes(
     transaction: WorldTransaction,
     source_entity_id: int | None,
-    input_hash_obj: imagehash.ImageHash,
-    hash_component_class: type[BaseComponent],
+    input_hash_obj: ImageHash,
+    hash_component_class: type[BaseImagePerceptualHashComponent],
     threshold: int,
     hash_type: str,
 ) -> list[dict[str, Any]]:
     """Find similar images for a given hash type."""
-    matches = []
+    matches: list[dict[str, Any]] = []
     stmt = sql_select(hash_component_class)
     result = await transaction.session.execute(stmt)
     db_hash_components = result.scalars().all()
@@ -71,6 +78,7 @@ async def _find_similar_hashes(
         if source_entity_id and comp.entity_id == source_entity_id:
             continue
         try:
+            assert imagehash is not None
             db_hash_hex = comp.hash_value.hex()
             db_hash_obj = imagehash.hex_to_hash(db_hash_hex)
             distance = input_hash_obj - db_hash_obj
@@ -100,8 +108,7 @@ def _consolidate_matches(potential_matches: list[dict[str, Any]]) -> list[dict[s
         if isinstance(entity_id, int) and (
             entity_id not in final_matches_map
             or (
-                match["distance"] is not None
-                and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
+                match["distance"] is not None and int(match["distance"]) < int(final_matches_map[entity_id]["distance"])
             )
         ):
             final_matches_map[entity_id] = match
@@ -170,18 +177,14 @@ async def handle_find_similar_images_command(
             )
 
         similar_entities_info = _consolidate_matches(potential_matches)
-        logger.info(
-            "[QueryResult RequestID: %s] Found %d similar images.", cmd.request_id, len(similar_entities_info)
-        )
+        logger.info("[QueryResult RequestID: %s] Found %d similar images.", cmd.request_id, len(similar_entities_info))
         return similar_entities_info
 
     except ValueError as ve:
         logger.warning("[QueryResult RequestID: %s] Error processing image for similarity: %s", cmd.request_id, ve)
         return [{"error": str(ve)}]
     except Exception as e:
-        logger.exception(
-            "[QueryResult RequestID: %s] Unexpected error in similarity search: %s", cmd.request_id, e
-        )
+        logger.exception("[QueryResult RequestID: %s] Unexpected error in similarity search: %s", cmd.request_id, e)
         raise
 
 

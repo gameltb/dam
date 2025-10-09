@@ -1,4 +1,5 @@
 """Defines events related to transcoding and evaluation for the DAM system."""
+
 from dataclasses import dataclass
 from pathlib import Path
 

@@ -1,4 +1,5 @@
 """Provides utility functions for transcoding media files using external tools."""
+
 import logging
 import shutil
 import subprocess
@@ -112,7 +113,7 @@ if __name__ == "__main__":
 
     ffmpeg_params_template = (
         "-y -f lavfi -i color=c=blue:s=320x240:d=1 "
-        '-vf "drawtext=textfile=\'{input}\':fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2" '
+        "-vf \"drawtext=textfile='{input}':fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2\" "
         "-c:v libx264 -preset ultrafast -tune zerolatency -movflags +faststart "
         "{output}"
     )

@@ -1,4 +1,5 @@
 """Defines the FramePropertiesComponent for storing metadata about animated images."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy.orm import Mapped, mapped_column
 

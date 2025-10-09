@@ -1,4 +1,5 @@
 """Defines the TranscodeProfileComponent for representing a transcoding profile."""
+
 from typing import ClassVar
 
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
@@ -30,7 +31,7 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent):
     concept_name: Mapped[str] = mapped_column(String, nullable=False)
     concept_description: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    __mapper_args__: ClassVar[dict[str, str]] = {
+    __mapper_args__: ClassVar[dict[str, str]] = {  # pyright: ignore[reportIncompatibleVariableOverride]
         "polymorphic_identity": "transcode_profile",
     }
 

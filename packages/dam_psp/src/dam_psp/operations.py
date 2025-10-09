@@ -1,4 +1,5 @@
 """Defines asset operations related to PSP files."""
+
 from dam.core.operations import AssetOperation
 
 from .commands import (

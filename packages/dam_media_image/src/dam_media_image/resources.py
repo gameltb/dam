@@ -1,4 +1,5 @@
 """Defines the resource for the image hashing service."""
+
 from .functions import image_hashing_functions as image_hashing_service
 
 

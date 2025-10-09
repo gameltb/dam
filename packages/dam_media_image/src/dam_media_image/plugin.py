@@ -1,4 +1,5 @@
 """Defines the plugin for image-related functionality in the DAM system."""
+
 from dam.core.plugin import Plugin
 from dam.core.world import World
 

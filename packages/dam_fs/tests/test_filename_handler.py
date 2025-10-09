@@ -6,7 +6,7 @@ import pytest
 from dam.commands.asset_commands import GetAssetFilenamesCommand
 from pytest_mock import MockerFixture
 
-from dam_fs.models import FilenameComponent
+from dam_fs.models.filename_component import FilenameComponent
 from dam_fs.systems.asset_lifecycle_systems import get_fs_asset_filenames_handler
 
 
