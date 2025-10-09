@@ -1,3 +1,4 @@
+"""Defines the plugin for PSP-related functionality in the DAM system."""
 from __future__ import annotations
 
 from dam.commands.asset_commands import GetAssetStreamCommand
@@ -31,7 +32,7 @@ class PspPlugin(Plugin):
     """A plugin for handling PSP ISOs."""
 
     def build(self, world: World) -> None:
-        """Builds the PSP plugin."""
+        """Build the PSP plugin by registering its systems and operations."""
         world.register_system(
             psp_iso_metadata_extraction_command_handler_system,
             command_type=ExtractPSPMetadataCommand,

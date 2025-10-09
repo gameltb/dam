@@ -1,3 +1,4 @@
+"""Defines events related to transcoding and evaluation for the DAM system."""
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from dam.core.events import BaseEvent
 # --- Transcoding Events ---
 @dataclass
 class TranscodeJobRequested(BaseEvent):
+    """Event fired when a new transcoding job is requested."""
+
     world_name: str
     source_entity_id: int
     profile_id: int  # This is the Entity ID of the TranscodeProfileComponent's entity
@@ -16,6 +19,8 @@ class TranscodeJobRequested(BaseEvent):
 
 @dataclass
 class TranscodeJobCompleted(BaseEvent):
+    """Event fired when a transcoding job has successfully completed."""
+
     job_id: int  # Corresponds to the ID in the TranscodeJobDB table
     world_name: str
     source_entity_id: int
@@ -26,6 +31,8 @@ class TranscodeJobCompleted(BaseEvent):
 
 @dataclass
 class TranscodeJobFailed(BaseEvent):
+    """Event fired when a transcoding job has failed."""
+
     job_id: int
     world_name: str
     source_entity_id: int
@@ -36,6 +43,8 @@ class TranscodeJobFailed(BaseEvent):
 # --- Evaluation Events ---
 @dataclass
 class StartEvaluationForTranscodedAsset(BaseEvent):
+    """Event fired to start the evaluation process for a newly transcoded asset."""
+
     world_name: str
     evaluation_run_id: int  # Entity ID of the EvaluationRun concept
     transcoded_asset_id: int  # Entity ID of the asset that was transcoded (output of a transcode job)

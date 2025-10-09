@@ -1,7 +1,8 @@
+"""Tests for the DAM application's CLI commands."""
+
 import io
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dam.commands.asset_commands import GetAssetFilenamesCommand, GetMimeTypeCommand
@@ -13,7 +14,7 @@ from dam.core.world import World
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam_archive.commands import CheckArchiveCommand, IngestArchiveCommand
 from dam_fs.commands import FindEntityByFilePropertiesCommand, RegisterLocalFileCommand
-from pytest import CaptureFixture
+from pytest_mock import MockerFixture
 
 from dam_app.cli.assets import add_assets, check_data, process_entities, remove_data
 from dam_app.commands import CheckExifMetadataCommand, ExtractExifMetadataCommand
@@ -24,7 +25,7 @@ from dam_app.main import (
 
 
 @pytest.mark.serial
-def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any]):
+def test_cli_list_worlds(settings_override: Settings, capsys: pytest.CaptureFixture[Any]):
     """Test the list-worlds command."""
     # Ensure worlds are registered
     create_and_register_all_worlds_from_settings(app_settings=settings_override)
@@ -37,10 +38,11 @@ def test_cli_list_worlds(settings_override: Settings, capsys: CaptureFixture[Any
 
 
 @pytest.mark.asyncio
-async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+@pytest.mark.usefixtures("_capsys")
+async def test_add_assets_with_recursive_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option for recursive processing."""
     # 1. Setup
-    mock_world = MagicMock(spec=World)
+    mock_world = mocker.MagicMock(spec=World)
 
     # Configure the mock to return specific operations
     mock_ingest_op = AssetOperation(
@@ -71,18 +73,18 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     mock_stream_provider = CallableStreamProvider(mock_stream_factory)
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
-        mock_stream = AsyncMock()
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **_kwargs: Any):
+        mock_stream = mocker.AsyncMock()
 
         if isinstance(command, IngestArchiveCommand):
 
-            async def event_generator(self: AsyncMock):
+            async def event_generator(_self: Any):
                 yield NewEntityCreatedEvent(entity_id=2, stream_provider=mock_stream_provider, filename="new_file.jpg")
 
             mock_stream.__aiter__ = event_generator
         elif isinstance(command, ExtractExifMetadataCommand):
 
-            async def event_generator_empty(self: AsyncMock):
+            async def event_generator_empty(_self: Any):
                 if False:
                     yield
 
@@ -115,7 +117,7 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
     test_file.write_text("dummy content")
 
     # 3. Call add_assets
-    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
+    with mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world):
         await add_assets(
             paths=[test_file],
             recursive=False,
@@ -148,10 +150,11 @@ async def test_add_assets_with_recursive_process_option(capsys: CaptureFixture[A
 
 
 @pytest.mark.asyncio
-async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+@pytest.mark.usefixtures("_capsys")
+async def test_add_assets_with_extension_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option based on file extension."""
     # 1. Setup
-    mock_world = MagicMock(spec=World)
+    mock_world = mocker.MagicMock(spec=World)
 
     # Configure the mock to return a specific operation
     mock_ingest_op = AssetOperation(
@@ -162,8 +165,8 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
     mock_world.get_asset_operation.return_value = mock_ingest_op
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
-        mock_stream = AsyncMock()
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **_kwargs: Any):
+        mock_stream = mocker.AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
             mock_stream.get_one_value.return_value = None
@@ -177,7 +180,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
             mock_stream.get_one_value.return_value = False
         else:
             # For AutoSetMimeTypeCommand and IngestArchiveCommand
-            async def event_generator_empty(self: AsyncMock):
+            async def event_generator_empty(_self: Any):
                 if False:
                     yield
 
@@ -191,7 +194,7 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
     test_file = tmp_path / "test_archive.zip"
     test_file.write_text("dummy content")
 
-    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
+    with mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world):
         # 3. Call add_assets with an extension-based process rule
         await add_assets(
             paths=[test_file],
@@ -213,13 +216,14 @@ async def test_add_assets_with_extension_process_option(capsys: CaptureFixture[A
 
 
 @pytest.mark.asyncio
-async def test_add_assets_with_command_name_process_option(capsys: CaptureFixture[Any], tmp_path: Path):
+@pytest.mark.usefixtures("_capsys")
+async def test_add_assets_with_command_name_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option using only the command name."""
     # 1. Setup
     # Reset cache before test to ensure dynamic logic is tested
     ExtractExifMetadataCommand._cached_extensions = None  # type: ignore [protected-access]
 
-    mock_world = MagicMock(spec=World)
+    mock_world = mocker.MagicMock(spec=World)
 
     # Configure the mock to return specific operations
     mock_ingest_op = AssetOperation(
@@ -243,8 +247,8 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     mock_world.get_asset_operation.side_effect = get_asset_operation_side_effect
 
     # Create a side effect function for dispatch_command
-    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **kwargs: Any):
-        mock_stream = AsyncMock()
+    def dispatch_command_side_effect(command: BaseCommand[Any, Any], **_kwargs: Any):
+        mock_stream = mocker.AsyncMock()
         mock_stream.get_all_results.return_value = []
         if isinstance(command, FindEntityByFilePropertiesCommand):
             mock_stream.get_one_value.return_value = None  # File does not exist
@@ -268,7 +272,7 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
             mock_stream.get_one_value.return_value = False
         else:
             # For other commands like AutoSetMimeType, Ingest, Extract
-            async def event_generator_empty(self: AsyncMock):
+            async def event_generator_empty(_self: Any):
                 if False:
                     yield
 
@@ -284,12 +288,12 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
     archive_file.write_text("dummy archive")
 
     # Mock the subprocess call to exiftool
-    mock_subprocess_result = MagicMock()
+    mock_subprocess_result = mocker.MagicMock()
     mock_subprocess_result.stdout = "Recognized file extensions:\nJPG ZIP"
     with (
-        patch("dam_app.cli.assets.get_world", return_value=mock_world),
-        patch("dam_app.commands.subprocess.run", return_value=mock_subprocess_result),
-        patch("dam_app.commands.shutil.which", return_value="/fake/path/to/exiftool"),
+        mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world),
+        mocker.patch("dam_app.commands.subprocess.run", return_value=mock_subprocess_result),
+        mocker.patch("dam_app.commands.shutil.which", return_value="/fake/path/to/exiftool"),
     ):
         # 3. Call add_assets with command name-based process rules
         await add_assets(
@@ -319,11 +323,11 @@ async def test_add_assets_with_command_name_process_option(capsys: CaptureFixtur
 
 
 @pytest.mark.asyncio
-async def test_process_entities_command(capsys: CaptureFixture[Any]):
+async def test_process_entities_command(capsys: pytest.CaptureFixture[Any], mocker: MockerFixture):
     """Test the 'process' CLI command."""
     # 1. Setup
-    mock_world = MagicMock(spec=World)
-    mock_add_command = MagicMock()
+    mock_world = mocker.MagicMock(spec=World)
+    mock_add_command = mocker.MagicMock()
     mock_operation = AssetOperation(
         name="test-op",
         description="A test operation",
@@ -332,11 +336,11 @@ async def test_process_entities_command(capsys: CaptureFixture[Any]):
     mock_world.get_asset_operation.return_value = mock_operation
 
     # Mock the command dispatcher
-    mock_stream = AsyncMock()
+    mock_stream = mocker.AsyncMock()
     mock_stream.get_all_results.return_value = []
     mock_world.dispatch_command.return_value = mock_stream
 
-    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
+    with mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world):
         # 2. Call the command
         await process_entities(operation_name="test-op", entity_ids=[1, 2])
 
@@ -356,25 +360,25 @@ async def test_process_entities_command(capsys: CaptureFixture[Any]):
 
 
 @pytest.mark.asyncio
-async def test_remove_data_command(capsys: CaptureFixture[Any]):
+async def test_remove_data_command(capsys: pytest.CaptureFixture[Any], mocker: MockerFixture):
     """Test the 'remove-data' CLI command."""
     # 1. Setup
-    mock_world = MagicMock(spec=World)
-    mock_remove_command = MagicMock()
+    mock_world = mocker.MagicMock(spec=World)
+    mock_remove_command = mocker.MagicMock()
     mock_operation = AssetOperation(
         name="test-op",
         description="A test operation",
-        add_command_class=MagicMock(),  # type: ignore [arg-type]
+        add_command_class=mocker.MagicMock(),  # type: ignore [arg-type]
         remove_command_class=mock_remove_command,  # type: ignore [arg-type]
     )
     mock_world.get_asset_operation.return_value = mock_operation
 
     # Mock the command dispatcher
-    mock_stream = AsyncMock()
+    mock_stream = mocker.AsyncMock()
     mock_stream.get_all_results.return_value = []
     mock_world.dispatch_command.return_value = mock_stream
 
-    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
+    with mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world):
         # 2. Call the command
         await remove_data(operation_name="test-op", entity_ids=[10])
 
@@ -386,15 +390,15 @@ async def test_remove_data_command(capsys: CaptureFixture[Any]):
 
 
 @pytest.mark.asyncio
-async def test_check_data_command(capsys: CaptureFixture[Any]):
+async def test_check_data_command(capsys: pytest.CaptureFixture[Any], mocker: MockerFixture):
     """Test the 'check-data' CLI command."""
     # 1. Setup
-    mock_world = MagicMock(spec=World)
-    mock_check_command = MagicMock()
+    mock_world = mocker.MagicMock(spec=World)
+    mock_check_command = mocker.MagicMock()
     mock_operation = AssetOperation(
         name="test-op",
         description="A test operation",
-        add_command_class=MagicMock(),  # type: ignore [arg-type]
+        add_command_class=mocker.MagicMock(),  # type: ignore [arg-type]
         check_command_class=mock_check_command,  # type: ignore [arg-type]
     )
     mock_world.get_asset_operation.return_value = mock_operation
@@ -403,11 +407,11 @@ async def test_check_data_command(capsys: CaptureFixture[Any]):
     async def get_one_value_side_effect():
         return mock_check_command.call_args.kwargs["entity_id"] == 1
 
-    mock_stream = AsyncMock()
+    mock_stream = mocker.AsyncMock()
     mock_stream.get_one_value.side_effect = get_one_value_side_effect
     mock_world.dispatch_command.return_value = mock_stream
 
-    with patch("dam_app.cli.assets.get_world", return_value=mock_world):
+    with mocker.patch("dam_app.cli.assets.get_world", return_value=mock_world):
         # 2. Call the command
         await check_data(operation_name="test-op", entity_ids=[1, 2])
 

@@ -1,3 +1,4 @@
+"""Provides functions for managing and applying transcoding profiles."""
 import asyncio
 import logging
 import uuid
@@ -28,8 +29,6 @@ logger = logging.getLogger(__name__)
 class TranscodeFunctionsError(Exception):
     """Custom exception for TranscodeService errors."""
 
-    pass
-
 
 async def create_transcode_profile(
     world: World,
@@ -39,7 +38,7 @@ async def create_transcode_profile(
     output_format: str,
     description: str | None = None,
 ) -> Entity:
-    """Creates a new transcoding profile as a conceptual asset."""
+    """Create a new transcoding profile as a conceptual asset."""
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
         # Check if profile with this name already exists
@@ -54,28 +53,22 @@ async def create_transcode_profile(
         await session.flush()  # To get profile_entity.id
 
         # Create the TranscodeProfileComponent
-        # For BaseConceptualInfoComponent fields:
-        concept_name = profile_name
-        concept_description = description
-
         profile_component = TranscodeProfileComponent(
-            id=profile_entity.id,  # For TranscodeProfileComponent's own PK/FK 'id' field
+            id=profile_entity.id,
             profile_name=profile_name,
             tool_name=tool_name,
             parameters=parameters,
             output_format=output_format,
             description=description,
-            concept_name=concept_name,
-            concept_description=concept_description,
+            concept_name=profile_name,
+            concept_description=description,
         )
         await ecs_functions.add_component_to_entity(session, profile_entity.id, profile_component)
 
         # Add a tag to mark this entity as a "Transcode Profile"
-        # This uses the existing tag_functions
         try:
             tag_concept_name = "System:TranscodeProfile"
             tag_concept_entity: Entity | None = None
-            # Ensure the tag concept exists
             try:
                 tag_concept_entity = await tag_functions.get_tag_concept_by_name(session, tag_concept_name)
             except tag_functions.TagConceptNotFoundError:
@@ -83,44 +76,42 @@ async def create_transcode_profile(
                     session,
                     tag_name=tag_concept_name,
                     description="Marks an entity as a transcoding profile.",
-                    scope_type="GLOBAL",  # Or a more specific scope if desired
+                    scope_type="GLOBAL",
                 )
 
             if tag_concept_entity is None:
                 raise TranscodeFunctionsError(f"Could not get or create tag concept '{tag_concept_name}'")
             await tag_functions.apply_tag_to_entity(
-                session,  # Pass session directly
+                session,
                 entity_id_to_tag=profile_entity.id,
-                tag_concept_entity_id=tag_concept_entity.id,  # Corrected parameter name
+                tag_concept_entity_id=tag_concept_entity.id,
             )
         except Exception as e:
-            # Log this error, but don't let it fail profile creation entirely
-            # Or re-raise if this tag is critical
             world.logger.warning(
-                f"Could not apply system tag to transcode profile '{profile_name}': {e}", exc_info=True
+                "Could not apply system tag to transcode profile '%s': %s", profile_name, e, exc_info=True
             )
 
         await session.commit()
         await session.refresh(profile_entity)
         await session.refresh(profile_component)
 
-        logger.info(f"Transcode profile '{profile_name}' (Entity ID: {profile_entity.id}) created successfully.")
+        logger.info("Transcode profile '%s' (Entity ID: %d) created successfully.", profile_name, profile_entity.id)
         return profile_entity
 
 
 async def get_transcode_profile_by_name_or_id(
     world: World, profile_identifier: str | int, session: AsyncSession | None = None
 ) -> tuple[Entity, TranscodeProfileComponent]:
-    """Retrieves a transcode profile entity and its component by name or entity ID."""
+    """Retrieve a transcode profile entity and its component by name or entity ID."""
 
     async def _get(db_session: AsyncSession) -> tuple[Entity, TranscodeProfileComponent]:
-        if isinstance(profile_identifier, int):  # It's an entity ID
+        if isinstance(profile_identifier, int):
             stmt = (
                 select(Entity, TranscodeProfileComponent)
                 .join(TranscodeProfileComponent, Entity.id == TranscodeProfileComponent.entity_id)
                 .where(Entity.id == profile_identifier)
             )
-        else:  # It's a profile name
+        else:
             stmt = (
                 select(Entity, TranscodeProfileComponent)
                 .join(TranscodeProfileComponent, Entity.id == TranscodeProfileComponent.entity_id)
@@ -130,7 +121,7 @@ async def get_transcode_profile_by_name_or_id(
         result = (await db_session.execute(stmt)).first()
         if not result:
             raise TranscodeFunctionsError(f"Transcode profile '{profile_identifier}' not found.")
-        return result[0], result[1]  # Entity, TranscodeProfileComponent
+        return result[0], result[1]
 
     if session:
         return await _get(session)
@@ -138,8 +129,8 @@ async def get_transcode_profile_by_name_or_id(
         return await _get(tx.session)
 
 
-async def _get_source_asset_filepath(world: World, asset_entity_id: int, session: AsyncSession) -> Path:
-    """Helper to get a readable filepath for a source asset using its URL."""
+async def _get_source_asset_filepath(_world: World, asset_entity_id: int, session: AsyncSession) -> Path:
+    """Get a readable filepath for a source asset using its URL."""
     flc = await ecs_functions.get_component(
         session,
         entity_id=asset_entity_id,
@@ -149,11 +140,8 @@ async def _get_source_asset_filepath(world: World, asset_entity_id: int, session
         raise TranscodeFunctionsError(f"Asset entity {asset_entity_id} has no URL in its FileLocationComponent.")
 
     try:
-        # Use the url_utils to resolve the URL to a local, absolute path
-        # This requires the world's config to resolve 'local_cas' URLs
         source_path = url_utils.get_local_path_for_url(flc.url)
     except ValueError as e:
-        # Raised by url_utils if URL scheme is not supported for local access
         raise TranscodeFunctionsError(
             f"Could not resolve a local path for asset {asset_entity_id} with URL '{flc.url}': {e}"
         ) from e
@@ -169,53 +157,39 @@ async def _get_source_asset_filepath(world: World, asset_entity_id: int, session
 async def apply_transcode_profile(
     world: World,
     source_asset_entity_id: int,
-    profile_entity_id: int,  # Can also be profile name, handled by get_transcode_profile
-    output_parent_dir: Path | None = None,  # If None, use default temp/cache location from settings
+    profile_entity_id: int,
+    output_parent_dir: Path | None = None,
 ) -> Entity:
-    """
-    Applies a transcoding profile to a source asset, creates a new asset for the
-    transcoded file, and links them.
-    """
+    """Apply a transcoding profile to a source asset, create a new asset, and link them."""
     async with world.get_context(WorldTransaction)() as tx:
         session = tx.session
-        # 1. Get Transcode Profile
         _profile_entity, profile_component = await get_transcode_profile_by_name_or_id(
             world, profile_entity_id, session=session
         )
 
-        # 2. Get Source Asset's File Path
         source_entity = await ecs_functions.get_entity(session, source_asset_entity_id)
         if not source_entity:
             raise TranscodeFunctionsError(f"Source asset entity ID {source_asset_entity_id} not found.")
 
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
-        # 3. Determine Output Path for Transcoded File
-        # Use a temporary/cache directory from settings or a specific output_parent_dir
-        # The actual filename will be unique.
-        # settings instance is imported directly now
         temp_transcode_dir = Path(settings.TRANSCODING_TEMP_DIR)
-        temp_transcode_dir.mkdir(parents=True, exist_ok=True)  # Ensure it exists
+        temp_transcode_dir.mkdir(parents=True, exist_ok=True)
 
-        if output_parent_dir:
-            final_output_dir_base = output_parent_dir
-        else:
-            # If no specific output path, the file will be ingested into DAM's content-addressable storage.
-            # The transcode_media utility needs a temporary place to write the file before ingestion.
-            final_output_dir_base = temp_transcode_dir
-
+        final_output_dir_base = output_parent_dir or temp_transcode_dir
         final_output_dir_base.mkdir(parents=True, exist_ok=True)
 
-        # Generate a unique name for the temporary output file before ingestion
         unique_suffix = uuid.uuid4().hex[:8]
         temp_output_filename = f"{Path(source_filepath).stem}_{profile_component.profile_name.replace(' ', '_')}_{unique_suffix}.{profile_component.output_format}"
         temp_output_filepath = final_output_dir_base / temp_output_filename
 
-        # 4. Execute Transcoding
         logger.info(
-            f"Applying profile '{profile_component.profile_name}' to asset ID {source_asset_entity_id} ({source_filepath})"
+            "Applying profile '%s' to asset ID %d (%s)",
+            profile_component.profile_name,
+            source_asset_entity_id,
+            source_filepath,
         )
-        logger.info(f"Output will be temporarily written to: {temp_output_filepath}")
+        logger.info("Output will be temporarily written to: %s", temp_output_filepath)
 
         try:
             transcoded_filepath = await asyncio.to_thread(
@@ -227,20 +201,15 @@ async def apply_transcode_profile(
             )
         except TranscodeError as e:
             raise TranscodeFunctionsError(f"Transcoding failed: {e}") from e
-        except FileNotFoundError as e:  # e.g. input file gone missing
+        except FileNotFoundError as e:
             raise TranscodeFunctionsError(f"Transcoding input file error: {e}") from e
 
         if not transcoded_filepath.exists() or transcoded_filepath.stat().st_size == 0:
-            # Should be caught by transcode_media, but as a safeguard:
             if transcoded_filepath.exists():
                 transcoded_filepath.unlink(missing_ok=True)
             raise TranscodeFunctionsError(f"Transcoding produced no output or an empty file at {transcoded_filepath}.")
 
-        # 5. Ingest the Transcoded File as a New Asset
-        # This uses the existing asset ingestion event flow.
         ingestion_command = RegisterLocalFileCommand(file_path=transcoded_filepath)
-
-        # Dispatch command. The handler will ingest the file and return the new entity ID.
         newly_ingested_entity_id = await world.dispatch_command(ingestion_command).get_one_value()
 
         if not newly_ingested_entity_id:
@@ -249,53 +218,41 @@ async def apply_transcode_profile(
                 "RegisterLocalFileCommand did not return an entity ID."
             )
 
-        # To ensure the file is processed by ingestion systems (metadata, etc.)
-        # This would typically run after the event that adds NeedsMetadataExtractionComponent
         await world.execute_stage(SystemStage.METADATA_EXTRACTION)  # type: ignore
-
-        # Get the entity object from the ID
         transcoded_asset_entity = await ecs_functions.get_entity(session, newly_ingested_entity_id)
 
         if not transcoded_asset_entity:
-            transcoded_filepath.unlink(missing_ok=True)  # Clean up temp file
+            transcoded_filepath.unlink(missing_ok=True)
             raise TranscodeFunctionsError(
                 f"Failed to find newly ingested transcoded asset with ID {newly_ingested_entity_id}. "
                 "Ingestion might have failed."
             )
 
-        logger.info(f"Transcoded asset ingested. New Entity ID: {transcoded_asset_entity.id}")
+        logger.info("Transcoded asset ingested. New Entity ID: %d", transcoded_asset_entity.id)
 
-        # 6. Create and Attach TranscodedVariantComponent
         transcoded_variant_comp = TranscodedVariantComponent(
             original_asset_entity_id=source_asset_entity_id,
-            transcode_profile_entity_id=profile_component.entity_id,  # Use entity_id from profile_component
+            transcode_profile_entity_id=profile_component.entity_id,
             transcoded_file_size_bytes=transcoded_filepath.stat().st_size,
             quality_metric_vmaf=None,
             quality_metric_ssim=None,
-            custom_metrics_json=None,  # Added field
+            custom_metrics_json=None,
         )
         await ecs_functions.add_component_to_entity(session, transcoded_asset_entity.id, transcoded_variant_comp)
 
-        # 7. Commit changes (TranscodedVariantComponent)
-        # The ingestion event would have handled its own commit for the new asset.
-        # This commit is for the TranscodedVariantComponent.
         await session.commit()
-        await session.refresh(transcoded_asset_entity)  # Refresh to see all components if needed
+        await session.refresh(transcoded_asset_entity)
 
         logger.info(
-            f"TranscodedVariantComponent created and linked for new asset entity ID {transcoded_asset_entity.id}."
+            "TranscodedVariantComponent created and linked for new asset entity ID %d.", transcoded_asset_entity.id
         )
 
-        # 8. Clean up the temporary transcoded file if it's different from final DAM storage path
-        # The AssetFileIngestionRequested event handler should specify if the file was copied or moved.
-        # If it was copied, we should delete the temp_output_filepath.
-        # Assuming the ingestion process copies the file to DAM storage:
         if transcoded_filepath.exists():
             try:
                 transcoded_filepath.unlink()
-                logger.info(f"Cleaned up temporary transcoded file: {transcoded_filepath}")
+                logger.info("Cleaned up temporary transcoded file: %s", transcoded_filepath)
             except OSError as e:
-                logger.warning(f"Could not delete temporary transcoded file {transcoded_filepath}: {e}")
+                logger.warning("Could not delete temporary transcoded file %s: %s", transcoded_filepath, e)
 
         return transcoded_asset_entity
 
@@ -304,7 +261,8 @@ async def get_transcoded_variants_for_original(
     world: World, original_asset_entity_id: int, session: AsyncSession | None = None
 ) -> list[tuple[Entity, TranscodedVariantComponent, TranscodeProfileComponent]]:
     """
-    Retrieves all transcoded variants for a given original asset entity.
+    Retrieve all transcoded variants for a given original asset entity.
+
     Returns a list of tuples: (transcoded_entity, variant_component, profile_component).
     """
 
@@ -333,7 +291,8 @@ async def get_assets_using_profile(
     world: World, profile_entity_id: int, session: AsyncSession | None = None
 ) -> list[tuple[Entity, TranscodedVariantComponent]]:
     """
-    Retrieves all assets that were transcoded using a specific profile.
+    Retrieve all assets that were transcoded using a specific profile.
+
     Returns a list of tuples: (transcoded_entity, variant_component).
     """
 

@@ -1,3 +1,5 @@
+"""Defines the DAM application plugin and its lifecycle hooks."""
+
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
@@ -13,7 +15,10 @@ from .systems.metadata_systems import (
 
 
 class AppPlugin(Plugin):
+    """The main plugin for the DAM application."""
+
     def build(self, world: "World") -> None:
+        """Register all systems, commands, and event listeners for the app plugin."""
         # Register Command Handlers
         world.register_system(auto_tag_entity_command_handler)
         world.register_system(extract_metadata_command_handler)
@@ -26,6 +31,6 @@ class AppPlugin(Plugin):
         # Register Asset Operations
         world.register_asset_operation(extract_exif_operation)
 
-    async def on_stop(self, world: "World"):
-        """Called when the world is shutting down."""
+    async def on_stop(self, _world: "World"):
+        """Stop the persistent exiftool process when the world shuts down."""
         await exiftool_instance.stop()

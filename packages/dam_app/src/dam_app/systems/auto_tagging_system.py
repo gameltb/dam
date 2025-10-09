@@ -1,3 +1,5 @@
+"""Defines the system responsible for auto-tagging entities."""
+
 import logging
 from typing import Annotated
 
@@ -21,14 +23,14 @@ async def auto_tag_entity_command_handler(
     world: Annotated[World, "Resource"],
     sire_resource: SireResource,
 ):
-    """Handles the command to auto-tag a single entity."""
+    """Handle the command to auto-tag a single entity."""
     session = transaction.session
     entity = cmd.entity
-    logger.info(f"Handling AutoTagEntityCommand for entity {entity.id}")
+    logger.info("Handling AutoTagEntityCommand for entity %d", entity.id)
 
     image_path = await file_operations_module.get_file_path_for_entity(world, transaction, entity.id)
     if not image_path:
-        logger.warning(f"Could not determine image file path for entity {entity.id}. Skipping auto-tagging.")
+        logger.warning("Could not determine image file path for entity %d. Skipping auto-tagging.", entity.id)
         return
 
     try:
@@ -40,4 +42,4 @@ async def auto_tag_entity_command_handler(
             "wd-v1-4-moat-tagger-v2",
         )
     except Exception as e:
-        logger.error(f"Error auto-tagging entity {entity.id}: {e}", exc_info=True)
+        logger.exception("Error auto-tagging entity %d: %s", entity.id, e)

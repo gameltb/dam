@@ -1,3 +1,5 @@
+"""Defines the CLI for verifying the integrity of local assets against the DAM."""
+
 from __future__ import annotations
 
 import asyncio
@@ -33,8 +35,11 @@ app = AsyncTyper()
 
 @dataclass
 class VerifyArchiveContentsCommand(AnalysisCommand[None, BaseSystemEvent]):
+    """A command to trigger verification of archive contents."""
+
     @classmethod
     def get_supported_types(cls) -> dict[str, list[str]]:
+        """Return the supported file types for this command."""
         return {
             "mimetypes": [],
             "extensions": [".zip", ".rar", ".7z"],
@@ -46,8 +51,130 @@ COMMAND_MAP = {
 }
 
 
+async def _get_sha256(file_path: Path) -> str:
+    """Calculate the SHA256 hash of a file."""
+    sha256 = hashlib.sha256()
+    async with aiofiles.open(file_path, "rb") as f:
+        while True:
+            data = await f.read(65536)  # Read in 64k chunks
+            if not data:
+                break
+            sha256.update(data)
+    return sha256.hexdigest()
+
+
+async def _verify_file(session: AsyncSession, entity_id: int, file_path: Path, display_path: str) -> dict[str, Any]:
+    """Verify a single file's hash against the one stored in the DAM."""
+    try:
+        stored_hash_orm = await dam_ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
+        if not stored_hash_orm or not stored_hash_orm.hash_value:
+            typer.secho(f"SKIP: No hash found in DAM for {display_path}", fg=typer.colors.YELLOW)
+            return {"file_path": display_path, "status": "SKIPPED (No Hash)"}
+
+        dam_hash = stored_hash_orm.hash_value.hex()
+        calculated_hash = await _get_sha256(file_path)
+
+        if calculated_hash == dam_hash:
+            status = "VERIFIED"
+            typer.secho(f"OK: {display_path}", fg=typer.colors.GREEN)
+        else:
+            status = "FAILED"
+            typer.secho(f"FAIL: {display_path}", fg=typer.colors.RED)
+        return {"file_path": display_path, "calculated_hash": calculated_hash, "dam_hash": dam_hash, "status": status}
+    except Exception:
+        console = Console()
+        tqdm.write(f"Error verifying file {display_path}")
+        console.print(Traceback())
+        return {"file_path": display_path, "calculated_hash": "ERROR", "dam_hash": "ERROR", "status": "ERROR"}
+
+
+async def _extract_archive(archive_path: Path, tmp_path: Path) -> bool:
+    """Extract an archive to a temporary directory."""
+    ext = archive_path.suffix.lower()
+    cmd = ""
+    if ext == ".zip":
+        cmd = f"unzip -o '{archive_path.as_posix()}' -d '{tmp_path.as_posix()}'"
+    elif ext == ".rar":
+        cmd = f"unrar x -o+ '{archive_path.as_posix()}' '{tmp_path.as_posix()}/'"
+    elif ext == ".7z":
+        cmd = f"7z x -o'{tmp_path.as_posix()}' '{archive_path.as_posix()}'"
+    else:
+        tqdm.write(f"Unsupported archive type for verification: {ext}")
+        return False
+
+    proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        tqdm.write(f"Failed to extract archive {archive_path.name}: {stderr.decode()}")
+        return False
+    return True
+
+
+async def _verify_archive_contents(
+    session: AsyncSession, archive_entity_id: int, archive_path: Path
+) -> list[dict[str, Any]]:
+    """Verify the contents of an archive against DAM records."""
+    results: list[dict[str, Any]] = []
+    child_stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == archive_entity_id)
+    child_results = await session.execute(child_stmt)
+    child_members = child_results.scalars().all()
+    dam_members_map = {member.path_in_archive: member for member in child_members}
+    dam_members_found: set[str] = set()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        if not await _extract_archive(archive_path, tmp_path):
+            return []
+
+        extracted_files = {p.relative_to(tmp_path).as_posix(): p for p in tmp_path.glob("**/*") if p.is_file()}
+
+        for path_in_archive, file_path in extracted_files.items():
+            display_path = f"{archive_path.name}/{path_in_archive}"
+            member = dam_members_map.get(path_in_archive)
+            if member:
+                result = await _verify_file(session, member.entity_id, file_path, display_path)
+                results.append(result)
+                dam_members_found.add(path_in_archive)
+            else:
+                typer.secho(f"FAIL: {display_path} (Not in DAM)", fg=typer.colors.RED)
+                results.append({"file_path": display_path, "status": "FAILED (Not in DAM)"})
+
+        for member in child_members:
+            if member.path_in_archive not in dam_members_found:
+                display_path = f"{archive_path.name}/{member.path_in_archive}"
+                typer.secho(f"FAIL: {display_path} (Not in Archive)", fg=typer.colors.RED)
+                results.append({"file_path": display_path, "status": "FAILED (Not in Archive)"})
+    return results
+
+
+async def _process_entity(
+    session: AsyncSession, entity_id: int, file_path: Path, process_map: dict[str, list[str]]
+) -> list[dict[str, Any]]:
+    """Process a single entity for verification."""
+    results: list[dict[str, Any]] = []
+    file_result = await _verify_file(session, entity_id, file_path, file_path.name)
+    results.append(file_result)
+
+    ext = file_path.suffix.lower()
+    commands_to_run = process_map.get(ext, [])
+    for command_name in set(commands_to_run):
+        if command_name == "VerifyArchiveContentsCommand":
+            tqdm.write(f"Verifying contents of archive: {file_path.name}")
+            archive_results = await _verify_archive_contents(session, entity_id, file_path)
+            results.extend(archive_results)
+    return results
+
+
+def _update_counts(results: list[dict[str, Any]]) -> tuple[int, int, int]:
+    """Update success, failed, and skipped counts based on verification results."""
+    success = sum(1 for r in results if r["status"] == "VERIFIED")
+    failed = sum(1 for r in results if r["status"].startswith("FAILED"))
+    skipped = sum(1 for r in results if r["status"].startswith("SKIPPED"))
+    return success, failed, skipped
+
+
 @app.command(name="verify")
-async def verify_assets(
+async def verify_assets(  # noqa: PLR0912
     paths: Annotated[
         list[Path],
         typer.Argument(
@@ -75,7 +202,7 @@ async def verify_assets(
         typer.Option("--stop-on-error/--no-stop-on-error", help="Stop processing if an error occurs."),
     ] = True,
 ):
-    """Verifies the integrity of local assets against the DAM."""
+    """Verify the integrity of local assets against the DAM."""
     target_world = get_world()
     if not target_world:
         raise typer.Exit(code=1)
@@ -83,32 +210,10 @@ async def verify_assets(
     process_map: dict[str, list[str]] = {}
     if process:
         for p in process:
-            if ":" in p:
-                try:
-                    key, command_name = p.split(":", 1)
-                    if key not in process_map:
-                        process_map[key] = []
-                    process_map[key].append(command_name)
-                except ValueError as e:
-                    typer.secho(
-                        f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'", fg=typer.colors.RED
-                    )
-                    raise typer.Exit(code=1) from e
-            else:
-                command_name = p
-                command_class = COMMAND_MAP.get(command_name)
-                if not command_class:
-                    typer.secho(f"Unknown command '{command_name}' specified.", fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
-                supported_types = command_class.get_supported_types()
-                for mime_type in supported_types.get("mimetypes", []):
-                    if mime_type not in process_map:
-                        process_map[mime_type] = []
-                    process_map[mime_type].append(command_name)
-                for extension in supported_types.get("extensions", []):
-                    if extension not in process_map:
-                        process_map[extension] = []
-                    process_map[extension].append(command_name)
+            key, command_name = p.split(":", 1)
+            if key not in process_map:
+                process_map[key] = []
+            process_map[key].append(command_name)
 
     typer.echo("Starting asset verification process...")
 
@@ -126,133 +231,11 @@ async def verify_assets(
 
     typer.echo(f"Found {len(files_to_process)} file(s) to process.")
 
-    async def _get_sha256(file_path: Path) -> str:
-        """Helper function to calculate SHA256 hash."""
-        sha256 = hashlib.sha256()
-        async with aiofiles.open(file_path, "rb") as f:
-            while True:
-                data = await f.read(65536)  # Read in 64k chunks
-                if not data:
-                    break
-                sha256.update(data)
-        return sha256.hexdigest()
-
-    results: list[dict[str, Any]] = []
+    all_results: list[dict[str, Any]] = []
     success_count = 0
     failed_count = 0
     skipped_count = 0
     error_count = 0
-
-    async def _verify_file(session: AsyncSession, entity_id: int, file_path: Path, display_path: str):
-        nonlocal success_count, failed_count, skipped_count, error_count
-        try:
-            stored_hash_orm = await dam_ecs_functions.get_component(session, entity_id, ContentHashSHA256Component)
-            if not stored_hash_orm or not stored_hash_orm.hash_value:
-                typer.secho(f"SKIP: No hash found in DAM for {display_path}", fg=typer.colors.YELLOW)
-                results.append(
-                    {
-                        "file_path": display_path,
-                        "calculated_hash": "N/A",
-                        "dam_hash": "N/A",
-                        "status": "SKIPPED (No Hash)",
-                    }
-                )
-                skipped_count += 1
-                return
-
-            dam_hash = stored_hash_orm.hash_value.hex()
-            calculated_hash = await _get_sha256(file_path)
-            if calculated_hash == dam_hash:
-                status = "VERIFIED"
-                success_count += 1
-                typer.secho(f"OK: {display_path}", fg=typer.colors.GREEN)
-            else:
-                status = "FAILED"
-                failed_count += 1
-                typer.secho(f"FAIL: {display_path}", fg=typer.colors.RED)
-            results.append(
-                {"file_path": display_path, "calculated_hash": calculated_hash, "dam_hash": dam_hash, "status": status}
-            )
-        except Exception:
-            error_count += 1
-            console = Console()
-            tqdm.write(f"Error verifying file {display_path}")
-            console.print(Traceback())
-            results.append(
-                {"file_path": display_path, "calculated_hash": "ERROR", "dam_hash": "ERROR", "status": "ERROR"}
-            )
-            if stop_on_error:
-                raise
-
-    async def _verify_archive_contents(session: AsyncSession, archive_entity_id: int, archive_path: Path):
-        nonlocal failed_count
-        child_stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == archive_entity_id)
-        child_results = await session.execute(child_stmt)
-        child_members = child_results.scalars().all()
-
-        dam_members_map = {member.path_in_archive: member for member in child_members}
-        dam_members_found: set[str] = set()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_path = Path(tmpdir)
-            ext = archive_path.suffix.lower()
-            cmd = ""
-            if ext == ".zip":
-                cmd = f"unzip -o '{archive_path.as_posix()}' -d '{tmp_path.as_posix()}'"
-            elif ext == ".rar":
-                cmd = f"unrar x -o+ '{archive_path.as_posix()}' '{tmp_path.as_posix()}/'"
-            elif ext == ".7z":
-                cmd = f"7z x -o'{tmp_path.as_posix()}' '{archive_path.as_posix()}'"
-            else:
-                tqdm.write(f"Unsupported archive type for verification: {ext}")
-                return
-
-            proc = await asyncio.create_subprocess_shell(
-                cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                tqdm.write(f"Failed to extract archive {archive_path.name}: {stderr.decode()}")
-                return
-
-            extracted_files = {p.relative_to(tmp_path).as_posix(): p for p in tmp_path.glob("**/*") if p.is_file()}
-
-            # Iterate over files in the archive
-            for path_in_archive, file_path in extracted_files.items():
-                display_path = f"{archive_path.name}/{path_in_archive}"
-                member = dam_members_map.get(path_in_archive)
-
-                if member:
-                    await _verify_file(session, member.entity_id, file_path, display_path)
-                    dam_members_found.add(path_in_archive)
-                else:
-                    # File exists in archive but not in DAM
-                    status = "FAILED (Not in DAM)"
-                    failed_count += 1
-                    typer.secho(f"FAIL: {display_path} (Not in DAM)", fg=typer.colors.RED)
-                    results.append(
-                        {"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": status}
-                    )
-
-            # Check for files in DAM but not in archive
-            for member in child_members:
-                if member.path_in_archive not in dam_members_found:
-                    display_path = f"{archive_path.name}/{member.path_in_archive}"
-                    status = "FAILED (Not in Archive)"
-                    failed_count += 1
-                    typer.secho(f"FAIL: {display_path} (Not in Archive)", fg=typer.colors.RED)
-                    results.append(
-                        {"file_path": display_path, "calculated_hash": "N/A", "dam_hash": "N/A", "status": status}
-                    )
-
-    async def _process_entity(session: AsyncSession, entity_id: int, file_path: Path):
-        await _verify_file(session, entity_id, file_path, file_path.name)
-        ext = file_path.suffix.lower()
-        commands_to_run = process_map.get(ext, [])
-        for command_name in set(commands_to_run):
-            if command_name == "VerifyArchiveContentsCommand":
-                tqdm.write(f"Verifying contents of archive: {file_path.name}")
-                await _verify_archive_contents(session, entity_id, file_path)
 
     with tqdm(total=len(files_to_process), desc="Verifying assets", unit="file") as pbar:
         async with target_world.get_context(WorldTransaction)() as tx:
@@ -268,32 +251,23 @@ async def verify_assets(
 
                     if not entity_id:
                         typer.secho(f"SKIP: Asset not found in DAM for {file_path.name}", fg=typer.colors.YELLOW)
-                        results.append(
-                            {
-                                "file_path": file_path.as_posix(),
-                                "calculated_hash": "N/A",
-                                "dam_hash": "N/A",
-                                "status": "SKIPPED (Not Found)",
-                            }
-                        )
+                        all_results.append({"file_path": file_path.as_posix(), "status": "SKIPPED (Not Found)"})
                         skipped_count += 1
                         continue
 
-                    await _process_entity(session, entity_id, file_path)
+                    entity_results = await _process_entity(session, entity_id, file_path, process_map)
+                    all_results.extend(entity_results)
+                    s, f, sk = _update_counts(entity_results)
+                    success_count += s
+                    failed_count += f
+                    skipped_count += sk
 
                 except Exception:
                     error_count += 1
                     console = Console()
                     tqdm.write(f"Error processing file {file_path.name}")
                     console.print(Traceback())
-                    results.append(
-                        {
-                            "file_path": file_path.as_posix(),
-                            "calculated_hash": "ERROR",
-                            "dam_hash": "ERROR",
-                            "status": "ERROR",
-                        }
-                    )
+                    all_results.append({"file_path": file_path.as_posix(), "status": "ERROR"})
                     if stop_on_error:
                         raise
                 finally:
@@ -302,14 +276,12 @@ async def verify_assets(
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     report_filename = f"verification_report_{timestamp}.csv"
 
-    # Use an in-memory text buffer (StringIO) for the synchronous csv writer
     string_buffer = io.StringIO()
     fieldnames = ["file_path", "calculated_hash", "dam_hash", "status"]
     writer = csv.DictWriter(string_buffer, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerows(results)
+    writer.writerows(all_results)
 
-    # Asynchronously write the buffer's content to the actual file
     async with aiofiles.open(report_filename, "w", newline="", encoding="utf-8") as csvfile:
         await csvfile.write(string_buffer.getvalue())
 

@@ -1,3 +1,5 @@
+"""Defines the asset ingestion and dispatching system."""
+
 import logging
 from typing import Annotated
 
@@ -20,21 +22,23 @@ async def asset_dispatcher_system(
     transaction: WorldTransaction,
 ):
     """
-    Listens for when a file has been stored, stores its mime type, and dispatches it
-    to the appropriate processing pipeline based on its MIME type.
+    Listen for when a file has been stored, store its mime type, and dispatch it.
+
+    The system dispatches the asset to the appropriate processing pipeline
+    based on its MIME type.
     """
-    logger.info(f"Dispatching asset for entity {event.entity.id} with file path '{event.file_path}'.")
+    logger.info("Dispatching asset for entity %d with file path '%s'.", event.entity.id, event.file_path)
 
     try:
         mime_type = magic.from_file(str(event.file_path), mime=True)  # type: ignore
-        logger.info(f"Detected MIME type '{mime_type}' for entity {event.entity.id}.")
+        logger.info("Detected MIME type '%s' for entity %d.", mime_type, event.entity.id)
 
         # Store the mime type using the new refactored function
         await set_content_mime_type(transaction.session, event.entity.id, mime_type)
 
         if mime_type.startswith("image/"):
             await world.dispatch_event(ImageAssetDetected(entity=event.entity, file_id=event.file_id))
-            logger.info(f"Dispatched entity {event.entity.id} to image processing pipeline.")
+            logger.info("Dispatched entity %d to image processing pipeline.", event.entity.id)
 
         elif mime_type in [
             "application/zip",
@@ -44,16 +48,13 @@ async def asset_dispatcher_system(
             "application/x-7z-compressed",
         ]:
             await world.dispatch_command(TagArchivePartCommand(entity_id=event.entity.id))
-            logger.info(f"Dispatched entity {event.entity.id} to archive tagging pipeline.")
+            logger.info("Dispatched entity %d to archive tagging pipeline.", event.entity.id)
 
         else:
             logger.info(
-                f"No specific processing pipeline found for MIME type '{mime_type}' on entity {event.entity.id}."
+                "No specific processing pipeline found for MIME type '%s' on entity %d.", mime_type, event.entity.id
             )
 
     except Exception as e:
-        logger.error(
-            f"Failed during asset dispatch for entity {event.entity.id} ('{event.file_path}'): {e}",
-            exc_info=True,
-        )
+        logger.exception("Failed during asset dispatch for entity %d ('%s'): %s", event.entity.id, event.file_path, e)
         raise

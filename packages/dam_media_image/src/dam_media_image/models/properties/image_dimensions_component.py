@@ -1,13 +1,14 @@
+"""Defines the ImageDimensionsComponent for storing the width and height of a visual entity."""
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-# kw_only=True is inherited from Base via BaseComponent
 class ImageDimensionsComponent(BaseComponent):
     """
-    Stores width and height for a visual entity (e.g., static image,
-    video frame dimensions, GIF dimensions).
+    Stores width and height for a visual entity.
+
+    This can be a static image, video frame dimensions, or GIF dimensions.
     An entity typically has one primary set of dimensions.
     """
 
@@ -22,4 +23,5 @@ class ImageDimensionsComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<ImageDimensionsComponent(id={self.id}, entity_id={self.entity_id}, width={self.width_pixels}, height={self.height_pixels})>"

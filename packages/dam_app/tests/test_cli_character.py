@@ -1,5 +1,7 @@
+"""Tests for the character-related CLI commands and service functions."""
+
 from datetime import UTC, datetime
-from pathlib import Path  # Missing import
+from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -10,11 +12,12 @@ from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLink
 from dam.models.hashes import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_fs.commands import RegisterLocalFileCommand
-from dam_fs.models import FilenameComponent  # For creating dummy assets
+from dam_fs.models.filename_component import FilenameComponent
 
 
-@pytest.mark.asyncio  # Added async marker
+@pytest.mark.asyncio
 async def test_cli_character_create(test_world_alpha: World):
+    """Test the creation of character concepts via the service layer."""
     char_name = "CLI Test Char 1"
     char_desc = "A character created via CLI for testing."
 
@@ -64,17 +67,16 @@ async def test_cli_character_create(test_world_alpha: World):
         assert char_comp_after_dupe_attempt.concept_description == char_desc  # Original description
 
     # Test validation (e.g., empty name) by trying to call the service function
-    with pytest.raises(ValueError, match="Character name cannot be empty."):
-        async with test_world_alpha.get_context(WorldTransaction)() as tx:
-            session = tx.session
+    async with test_world_alpha.get_context(WorldTransaction)() as tx:
+        session = tx.session
+        with pytest.raises(ValueError, match=r"Character name cannot be empty\."):
             await character_service.create_character_concept(session=session, name="", description="Test empty name")
-            await session.commit()  # Should not be reached
 
 
-@pytest.mark.asyncio  # Added async marker
-async def test_cli_character_apply_list_find(  # Made async
-    test_world_alpha: World, sample_text_file: str
-):
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_sample_text_file")
+async def test_cli_character_apply_list_find(test_world_alpha: World):
+    """Test applying, listing, and finding characters on assets via the service layer."""
     # 1. Create a character by directly calling the service
     char_name = "Linkable Service Char"
     char_id: int | None = None
@@ -164,10 +166,9 @@ async def test_cli_character_apply_list_find(  # Made async
         assert len(linked_assets_wrong_role) == 0
 
 
-@pytest.mark.asyncio  # Added async marker
-async def test_cli_character_apply_with_identifiers(  # Made async
-    test_world_alpha: World, sample_image_a: Path
-):
+@pytest.mark.asyncio
+async def test_cli_character_apply_with_identifiers(test_world_alpha: World, sample_image_a: Path):
+    """Test applying characters to assets using different identifiers (name, hash)."""
     # This test uses asset SHA256 hash and character name for identification
 
     # 1. Add an asset to get its SHA256 hash

@@ -1,3 +1,4 @@
+"""Defines the database models for PSP-related components."""
 from typing import Any
 
 from dam.models.core.base_component import BaseComponent, UniqueComponent
@@ -22,6 +23,7 @@ class PSPSFOMetadataComponent(UniqueComponent):
     title: Mapped[str | None] = mapped_column(String(), index=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"PSPSFOMetadataComponent(entity_id={self.entity_id}, title='{self.title}', disc_id='{self.disc_id}')"
 
 
@@ -33,6 +35,7 @@ class PspSfoRawMetadataComponent(UniqueComponent):
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"PspSfoRawMetadataComponent(entity_id={self.entity_id}, "
             f"metadata_json_keys='{list(self.metadata_json.keys())}')"
@@ -53,16 +56,19 @@ class CsoParentIsoComponent(BaseComponent):
     )
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"CsoParentIsoComponent(entity_id={self.entity_id}, cso_entity_id={self.cso_entity_id})"
 
 
 class IngestedCsoComponent(UniqueComponent):
     """
-    A marker component indicating that a CSO file has been successfully ingested
-    and a corresponding virtual ISO entity has been created.
+    A marker component indicating that a CSO file has been successfully ingested.
+
+    This also implies that a corresponding virtual ISO entity has been created.
     """
 
     __tablename__ = "component_ingested_cso"
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"IngestedCsoComponent(entity_id={self.entity_id})"
