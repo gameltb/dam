@@ -62,7 +62,6 @@ extend = "../../pyproject.toml"
 exclude = [
     "build",
     "dist",
-    "src/dam_app/alembic",
     "src/dam_app/alembic_template",
 ]
 include = ["src/**", "tests/**"]
