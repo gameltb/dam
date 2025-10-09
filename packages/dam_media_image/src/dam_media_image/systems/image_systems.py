@@ -1,8 +1,10 @@
 """Defines the systems for handling image-specific metadata and commands."""
 
+from __future__ import annotations
+
 import io
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
 from dam.core.systems import system

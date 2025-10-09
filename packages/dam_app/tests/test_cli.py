@@ -38,7 +38,7 @@ def test_cli_list_worlds(settings_override: Settings, capsys: pytest.CaptureFixt
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("_capsys")
+@pytest.mark.usefixtures("capsys")
 async def test_add_assets_with_recursive_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option for recursive processing."""
     # 1. Setup
@@ -150,7 +150,7 @@ async def test_add_assets_with_recursive_process_option(tmp_path: Path, mocker: 
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("_capsys")
+@pytest.mark.usefixtures("capsys")
 async def test_add_assets_with_extension_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option based on file extension."""
     # 1. Setup
@@ -216,7 +216,7 @@ async def test_add_assets_with_extension_process_option(tmp_path: Path, mocker: 
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("_capsys")
+@pytest.mark.usefixtures("capsys")
 async def test_add_assets_with_command_name_process_option(tmp_path: Path, mocker: MockerFixture):
     """Test the add_assets command with the --process option using only the command name."""
     # 1. Setup
@@ -349,8 +349,8 @@ async def test_process_entities_command(capsys: pytest.CaptureFixture[Any], mock
     assert mock_world.get_asset_operation.call_args.args[0] == "test-op"
 
     assert mock_add_command.call_count == 2
-    mock_add_command.assert_any_call(entity_id=1)
-    mock_add_command.assert_any_call(entity_id=2)
+    mock_add_command.assert_any_call(entity_id=1, stream_provider=None)
+    mock_add_command.assert_any_call(entity_id=2, stream_provider=None)
 
     captured = capsys.readouterr()
     assert "Executing operation 'test-op' on 2 entities..." in captured.out

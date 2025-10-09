@@ -148,7 +148,9 @@ async def test_verify_archive_ok(
 
     # Run verification
     os.chdir(tmp_path)
-    await verify_assets(paths=[zip_path], recursive=False, process=["VerifyArchiveContentsCommand"], stop_on_error=True)
+    await verify_assets(
+        paths=[zip_path], recursive=False, process=[".zip:VerifyArchiveContentsCommand"], stop_on_error=True
+    )
 
     # Check report
     report_files = list(tmp_path.glob("verification_report_*.csv"))

@@ -74,7 +74,7 @@ async def test_cli_character_create(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("_sample_text_file")
+@pytest.mark.usefixtures("sample_text_file")
 async def test_cli_character_apply_list_find(test_world_alpha: World):
     """Test applying, listing, and finding characters on assets via the service layer."""
     # 1. Create a character by directly calling the service

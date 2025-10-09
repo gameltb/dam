@@ -40,3 +40,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src"
+
+[tool.deptry]
+known_first_party = ["dam_media_image"]
