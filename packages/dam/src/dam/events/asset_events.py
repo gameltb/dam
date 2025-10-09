@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from dam.core.events import BaseEvent
+from .base import BaseEvent
 
 
 @dataclass

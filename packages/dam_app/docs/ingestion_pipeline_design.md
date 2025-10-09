@@ -16,7 +16,7 @@ The primary benefits of this approach are:
 To maintain modularity, events will be defined in the packages most relevant to them.
 
 ### Core `dam` Package Events
-- **File Location**: `packages/dam/src/dam/core/events.py`
+- **File Location**: `packages/dam/src/dam/events/__init__.py`
 - **Event**: `AssetIngestionRequested(BaseEvent)`
   - **Payload**:
     - `entity: Entity`: The newly created entity for this asset.

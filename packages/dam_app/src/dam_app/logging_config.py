@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Example usage and test
     os.environ["DAM_LOG_LEVEL"] = "DEBUG"
     setup_logging()
-    logger = logging.getLogger("dam.core.logging_config_test")
+    logger = logging.getLogger("dam_app.logging_config_test")
     logger.debug("This is a debug message.")
     logger.info("This is an info message.")
     logger.warning("This is a warning message.")

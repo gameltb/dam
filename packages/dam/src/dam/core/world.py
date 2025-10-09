@@ -5,20 +5,15 @@ from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
-from dam.core.config import Settings, WorldConfig
-from dam.core.config import settings as global_app_settings
-from dam.core.contexts import ContextProvider
-from dam.core.events import BaseEvent
+from dam.contexts import ContextProvider
+from dam.core.config import WorldConfig
 from dam.core.executor import SystemExecutor
-from dam.core.markers import MarkedEntityList
 from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
-from dam.core.providers import MarkedEntityListProvider
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
-from dam.core.transaction import WorldTransaction
-from dam.core.transaction_manager import TransactionManager
+from dam.events import BaseEvent
 from dam.system_events.base import SystemResultEvent
 
 logger = logging.getLogger(__name__)
@@ -49,13 +44,10 @@ class World:
 
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
-        self._transaction_manager: TransactionManager = TransactionManager(world_config)
         self._registered_plugin_types: set[type[Plugin]] = set()
         self.asset_operations: dict[str, AssetOperation] = {}
         self.context_providers: dict[type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
-        self.register_context_provider(WorldTransaction, self._transaction_manager)
-        self.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
         self.logger.info("Minimal World '%s' instance created. Base resources to be populated externally.", self.name)
 
     def register_asset_operation(self, operation: AssetOperation) -> None:
@@ -191,104 +183,4 @@ class World:
         return f"<World name='{self.name}' config='{self.config!r}'>"
 
 
-# --- Global World Registry ---
-_world_registry: dict[str, World] = {}
-
-
-def register_world(world_instance: World) -> None:
-    """Register a world instance in the global registry."""
-    if not isinstance(world_instance, World):
-        raise TypeError("Can only register instances of World.")
-    if world_instance.name in _world_registry:
-        logger.warning("World with name '%s' is already registered. Overwriting.", world_instance.name)
-    _world_registry[world_instance.name] = world_instance
-    logger.info("World '%s' registered.", world_instance.name)
-
-
-def get_world(world_name: str) -> World | None:
-    """Get a world instance from the global registry by name."""
-    return _world_registry.get(world_name)
-
-
-def get_default_world() -> World | None:
-    """Get the default world instance from the global registry."""
-    default_name = global_app_settings.DEFAULT_WORLD_NAME
-    if default_name:
-        return get_world(default_name)
-    return None
-
-
-def get_all_registered_worlds() -> list[World]:
-    """Return a list of all registered world instances."""
-    return list(_world_registry.values())
-
-
-def unregister_world(world_name: str) -> bool:
-    """Remove a world instance from the global registry."""
-    if world_name in _world_registry:
-        del _world_registry[world_name]
-        logger.info("World '%s' unregistered.", world_name)
-        return True
-    logger.warning("Attempted to unregister World '%s', but it was not found.", world_name)
-    return False
-
-
-def clear_world_registry() -> None:
-    """Clear all worlds from the global registry."""
-    count = len(_world_registry)
-    _world_registry.clear()
-    logger.info("Cleared %d worlds from the registry.", count)
-
-
-def create_and_register_world(world_name: str, app_settings: Settings | None = None) -> World:
-    """Create a new world instance and register it globally."""
-    current_settings = app_settings or global_app_settings
-    logger.info(
-        "Attempting to create and register world: %s using settings: %s",
-        world_name,
-        "provided" if app_settings else "global",
-    )
-    try:
-        world_cfg = current_settings.get_world_config(world_name)
-    except ValueError as e:
-        logger.error("Failed to get configuration for world '%s': %s", world_name, e)
-        raise
-
-    world = World(world_config=world_cfg)
-
-    from dam.plugins.core import CorePlugin  # noqa: PLC0415
-
-    world.add_plugin(CorePlugin())
-
-    # The scheduler was initialized with world.resource_manager. Since initialize_world_resources
-    # modifies that same instance, the scheduler should already have the correct reference.
-    # Explicitly setting it again like world.scheduler.resource_manager = world.resource_manager is harmless
-    # but usually not necessary if the instance itself was modified.
-    # For clarity and safety, ensuring the scheduler sees the potentially *reconfigured* manager is good.
-    world.scheduler.resource_manager = world.resource_manager
-
-    world.logger.info("World '%s' resources populated and scheduler updated.", world.name)
-
-    register_world(world)
-    return world
-
-
-def create_and_register_all_worlds_from_settings(app_settings: Settings | None = None) -> list[World]:
-    """Create and register all worlds defined in the application settings."""
-    current_settings = app_settings or global_app_settings
-    created_worlds: list[World] = []
-    world_names = current_settings.get_all_world_names()
-    logger.info(
-        "Found %d worlds in settings to create and register: %s (using %s settings)",
-        len(world_names),
-        world_names,
-        "provided" if app_settings else "global",
-    )
-
-    for name in world_names:
-        try:
-            world = create_and_register_world(name, app_settings=current_settings)
-            created_worlds.append(world)
-        except Exception:
-            logger.exception("Failed to create or register world '%s'", name)
-    return created_worlds
+# This space is intentionally left blank.

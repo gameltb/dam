@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from dam.core.logging_config import setup_logging
 
 from dam_app.cli import assets, db, verify
 from dam_app.config import load_config
+from dam_app.logging_config import setup_logging
 from dam_app.state import global_state
 
 app = typer.Typer(

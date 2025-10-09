@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dam.core.events import BaseEvent
+from dam.events import BaseEvent
 
 
 # --- Transcoding Events ---

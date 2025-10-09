@@ -2,8 +2,12 @@
 
 import logging
 
+from dam.contexts.providers import MarkedEntityListProvider
+from dam.contexts.transaction_manager import TransactionManager
 from dam.core.database import DatabaseManager
+from dam.core.markers import MarkedEntityList
 from dam.core.plugin import Plugin
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
@@ -38,6 +42,12 @@ class CorePlugin(Plugin):
         )
         resource_manager.add_resource(db_manager, DatabaseManager)
         world.logger.debug("Added DatabaseManager resource for World '%s'.", world_name)
+
+        # Register core context providers
+        transaction_manager = TransactionManager(db_manager)
+        world.register_context_provider(WorldTransaction, transaction_manager)
+        world.register_context_provider(MarkedEntityList, MarkedEntityListProvider())
+        world.logger.debug("Core context providers registered for World '%s'.", world_name)
 
         world.logger.info(
             "Base resources populated for World '%s'. Current resources: %s",

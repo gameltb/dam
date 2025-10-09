@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import exists as sql_exists
 from sqlalchemy import select as sql_select
 
-from dam.core.contexts import ContextProvider
+from dam.contexts import ContextProvider
 from dam.core.transaction import WorldTransaction
 from dam.models.core.base_component import BaseComponent
 from dam.models.core.entity import Entity

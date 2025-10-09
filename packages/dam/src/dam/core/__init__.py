@@ -2,32 +2,15 @@
 # Core exports for the DAM system
 
 from .config import Settings, WorldConfig, settings
-from .contexts import ContextProvider
 from .database import Base, DatabaseManager
-from .events import BaseEvent
 from .exceptions import EventHandlingError, StageExecutionError
 from .resources import ResourceManager, ResourceNotFoundError
 from .stages import SystemStage
 from .systems import WorldScheduler, system
-from .transaction_manager import TransactionManager
-from .world import (
-    World,
-    clear_world_registry,
-    create_and_register_all_worlds_from_settings,
-    create_and_register_world,
-    get_all_registered_worlds,
-    get_default_world,
-    get_world,
-    register_world,  # Added missing register_world
-    unregister_world,
-)
+from .world import World
 
 __all__ = [
     "Base",
-    # Events
-    "BaseEvent",
-    # Contexts
-    "ContextProvider",
     # Database
     "DatabaseManager",
     # Exceptions
@@ -40,21 +23,11 @@ __all__ = [
     "StageExecutionError",
     # Stages
     "SystemStage",
-    # Transaction
-    "TransactionManager",
     # World
     "World",
     "WorldConfig",
     # Systems
     "WorldScheduler",
-    "clear_world_registry",
-    "create_and_register_all_worlds_from_settings",
-    "create_and_register_world",
-    "get_all_registered_worlds",
-    "get_default_world",
-    "get_world",
-    "register_world",
     "settings",
     "system",
-    "unregister_world",
 ]
