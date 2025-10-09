@@ -136,6 +136,7 @@ deptry = "python run_task_in_pkgs_if_exist.py deptry"
 check-full = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "mypy --package ${package}", "deptry --package ${package}", "test-cov --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
 check = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "deptry --package ${package}", "test --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
 check-ci = { sequence = ["fmt --package ${package}", "lint --package ${package}", "pyright --package ${package}", "deptry --package ${package}", "test-cov --package ${package}"], args=[{name="package", help="The package to run checks on"}] }
+run = "python run_task_in_pkgs_if_exist.py run"
 
 [tool.pytest.ini_options]
 addopts = "-p no:serial"

@@ -43,27 +43,8 @@ class DatabaseManager:
 
         # Ensure the DATABASE_URL is compatible with aiosqlite if it's a sqlite URL
         # The project aims to use aiosqlite for async SQLite operations.
-        if "sqlite://" in self.world_config.DATABASE_URL and not self.world_config.DATABASE_URL.startswith(
-            "sqlite+aiosqlite://"
-        ):
-            # Automatically adjust sqlite DSNs to use aiosqlite
-            # This might be too aggressive if other async sqlite drivers were intended,
-            # but for this project, aiosqlite is the standard.
-            logger.warning(
-                "Adjusting DATABASE_URL for world '%s' to use 'sqlite+aiosqlite'. Original: '%s'",
-                self.world_config.name,
-                self.world_config.DATABASE_URL,
-            )
-            self.world_config.DATABASE_URL = self.world_config.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
-
-        # connect_args for aiosqlite are generally not needed for basic operation.
-        # 'check_same_thread' is not applicable.
-        # If specific pragmas or extensions are needed, they can be passed via listeners or engine events.
-        connect_args: dict[str, Any] = {}  # Kept empty for now, can be populated if specific needs arise.
-
         self._engine = create_async_engine(
             self.world_config.DATABASE_URL,
-            connect_args=connect_args,  # Pass empty connect_args
             # echo=True # Uncomment for debugging SQL statements
         )
         self._session_local = async_sessionmaker(bind=self._engine, expire_on_commit=False)

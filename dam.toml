@@ -1,0 +1,15 @@
+# Configuration for the DAM application using PostgreSQL
+
+[worlds.fs_world]
+[worlds.fs_world.db]
+url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
+
+[worlds.fs_world.plugins]
+names = ["dam-fs", "dam-source"]
+
+[worlds.archive_world]
+[worlds.archive_world.db]
+url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
+
+[worlds.archive_world.plugins]
+names = ["dam-fs", "dam-source", "dam-archive"]

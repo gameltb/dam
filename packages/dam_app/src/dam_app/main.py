@@ -1,72 +1,43 @@
 """Main CLI entry point for the DAM application."""
 
 import logging
+import os
 import traceback
+from pathlib import Path
 from typing import Annotated
 
 import typer
-from dam.core import config as app_config
 from dam.core.logging_config import setup_logging
-from dam.core.transaction import WorldTransaction
-from dam.core.transaction_manager import TransactionManager
-from dam.core.world import (
-    clear_world_registry,
-    create_and_register_all_worlds_from_settings,
-    get_all_registered_worlds,
-)
 
-from dam_app.cli import assets, verify
-from dam_app.state import get_world, global_state
-from dam_app.utils.async_typer import AsyncTyper
+from dam_app.cli import assets, db, verify
+from dam_app.config import load_config
+from dam_app.state import global_state
 
-logger = logging.getLogger(__name__)
-
-app = AsyncTyper(
+app = typer.Typer(
     name="dam-cli",
     help="Digital Asset Management System CLI",
     add_completion=True,
-    rich_markup_mode=None,
+    no_args_is_help=True,
+    rich_markup_mode="markdown",
 )
 
 app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
 app.add_typer(verify.app, name="verify", help="Commands for verifying asset integrity.")
+app.add_typer(db.app, name="db", help="Commands for database schema management.")
 
 
 @app.command(name="list-worlds")
 def cli_list_worlds():
-    """List all configured and registered ECS worlds."""
-    try:
-        registered_worlds = get_all_registered_worlds()
-        if not registered_worlds:
-            typer.secho("No ECS worlds are currently registered or configured correctly.", fg=typer.colors.YELLOW)
-            return
-        typer.echo("Available ECS worlds:")
-        for world_instance in registered_worlds:
-            is_default = world_instance.name == app_config.settings.DEFAULT_WORLD_NAME
-            default_marker = " (default)" if is_default else ""
-            typer.echo(f"  - {world_instance.name}{default_marker}")
-    except Exception as e:
-        typer.secho(f"Error listing worlds: {e}", fg=typer.colors.RED)
-        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
+    """List all worlds defined in the configuration file."""
+    if not global_state.config or not global_state.config.worlds:
+        typer.secho("No worlds are defined. Please create or specify a configuration file.", fg=typer.colors.YELLOW)
         return
 
-
-@app.command(name="setup-db")
-async def setup_db(_ctx: typer.Context):
-    """Set up the database for the current world, creating tables if they don't exist."""
-    target_world = get_world()
-    if not target_world:
-        typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    typer.echo(f"Setting up database for world: '{target_world.name}'...")
-    try:
-        transaction_manager = target_world.get_context(WorldTransaction)
-        assert isinstance(transaction_manager, TransactionManager)
-        await transaction_manager.create_db_and_tables()
-        typer.secho("Database setup complete.", fg=typer.colors.GREEN)
-    except Exception as e:
-        typer.secho(f"Error during database setup: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1) from e
+    typer.echo("Defined worlds:")
+    for world_name in global_state.config.worlds:
+        is_active = world_name == global_state.world_name
+        active_marker = " (active)" if is_active else ""
+        typer.echo(f"  - {world_name}{active_marker}")
 
 
 @app.callback(invoke_without_command=True)
@@ -81,58 +52,75 @@ def main_callback(
             envvar="DAM_CURRENT_WORLD",
         ),
     ] = None,
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to the configuration file (e.g., dam.toml).",
+            envvar="DAM_CONFIG_FILE",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
 ):
-    """Initialize the application, load plugins, and set the target world."""
-    setup_logging()
+    """
+    Initialize the application, load configuration, and set the target world.
+    """
+    setup_logging(logging.INFO)
+
     try:
-        initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
+        global_state.config = load_config(config_file)
+        if config_file:
+            os.environ["DAM_CONFIG_FILE"] = str(config_file)
+
+    except FileNotFoundError:
+        is_db_command = ctx.invoked_subcommand and "db" in ctx.invoked_subcommand
+        if not ctx.resilient_parsing and not is_db_command:
+            typer.secho("Error: Configuration file not found.", fg=typer.colors.RED)
+            raise typer.Exit(1)
     except Exception as e:
-        typer.secho(f"Critical error: Could not initialize worlds: {e}", fg=typer.colors.RED)
+        typer.secho(f"Critical error loading configuration: {e}", fg=typer.colors.RED)
+        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
         raise typer.Exit(code=1) from e
 
-    # Dynamically load all plugins
-    plugins = {
-        "AppPlugin": "dam_app.plugin",
-        "FsPlugin": "dam_fs",
-        "SourcePlugin": "dam_source",
-        "SirePlugin": "dam_sire",
-        "ImagePlugin": "dam_media_image",
-        "AudioPlugin": "dam_media_audio",
-        "TranscodePlugin": "dam_media_transcode",
-        "ArchivePlugin": "dam_archive",
-        "PspPlugin": "dam_psp",
-        "SemanticPlugin": "dam_semantic",
-    }
-    for plugin_class_name, module_name in plugins.items():
-        try:
-            module = __import__(module_name, fromlist=[plugin_class_name])
-            plugin_class = getattr(module, plugin_class_name)
-            for world_instance in initialized_worlds:
-                world_instance.add_plugin(plugin_class())
-        except ImportError:
-            logger.info("%s plugin not installed. Skipping.", module_name)
+    # Set the active world name. The actual World object will be instantiated
+    # on-demand by get_world() when a command needs it.
+    global_state.world_name = world
 
-    # Determine and set the target world
-    target_world_name = world or app_config.settings.DEFAULT_WORLD_NAME
-    global_state.world_name = target_world_name
+    # Validate that a world is specified for commands that require it.
+    # `db` commands and `list-worlds` are exempt.
+    requires_world = not (
+        ctx.invoked_subcommand is None or
+        (ctx.invoked_subcommand and "db" in ctx.invoked_subcommand) or
+        ctx.invoked_subcommand == "list-worlds"
+    )
 
-    if not target_world_name:
-        if ctx.invoked_subcommand and ctx.invoked_subcommand not in ["list-worlds"]:
-            typer.secho("Error: No world specified and no default is set.", fg=typer.colors.RED)
-            raise typer.Exit(code=1)
-    elif not get_world() and ctx.invoked_subcommand and ctx.invoked_subcommand not in ["list-worlds"]:
-        typer.secho(f"Error: World '{target_world_name}' not found or not configured.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+    if requires_world:
+        if not world:
+            typer.secho("Error: A world must be specified with --world or DAM_CURRENT_WORLD.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+        if not global_state.get_current_world_def():
+            typer.secho(f"Error: World '{world}' is not defined in the configuration.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+        # The first access will trigger the lazy load
+        if not global_state.get_current_world():
+             typer.secho(f"Error: Failed to instantiate world '{world}'.", fg=typer.colors.RED)
+             raise typer.Exit(1)
+
 
     if ctx.invoked_subcommand is None:
-        current_world = get_world()
-        world_name = current_world.name if current_world else "None"
-        typer.echo(f"Current world: '{world_name}'")
+        typer.echo("Welcome to the DAM CLI. Use --help to see available commands.")
+        if global_state.world_name:
+            typer.echo(f"Current world context: [bold cyan]{global_state.world_name}[/bold cyan]")
+        else:
+            typer.echo("No world context set. Use --world <name> for world-specific commands.")
 
 
 def run_cli_directly():
-    """Run the CLI application, ensuring a clean state."""
-    clear_world_registry()
+    """Run the CLI application."""
     app()
 
 

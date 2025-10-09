@@ -80,6 +80,7 @@ markers = [
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
+run = "dam-cli"
 mypy = "mypy --config-file ../../pyproject.toml src tests"
 
 [tool.deptry.per_rule_ignores]
