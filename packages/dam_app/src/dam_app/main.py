@@ -1,3 +1,5 @@
+"""Main CLI entry point for the DAM application."""
+
 import logging
 import traceback
 from typing import Annotated
@@ -17,6 +19,8 @@ from dam_app.cli import assets, verify
 from dam_app.state import get_world, global_state
 from dam_app.utils.async_typer import AsyncTyper
 
+logger = logging.getLogger(__name__)
+
 app = AsyncTyper(
     name="dam-cli",
     help="Digital Asset Management System CLI",
@@ -30,7 +34,7 @@ app.add_typer(verify.app, name="verify", help="Commands for verifying asset inte
 
 @app.command(name="list-worlds")
 def cli_list_worlds():
-    """Lists all configured and registered ECS worlds."""
+    """List all configured and registered ECS worlds."""
     try:
         registered_worlds = get_all_registered_worlds()
         if not registered_worlds:
@@ -48,7 +52,8 @@ def cli_list_worlds():
 
 
 @app.command(name="setup-db")
-async def setup_db(ctx: typer.Context):
+async def setup_db(_ctx: typer.Context):
+    """Set up the database for the current world, creating tables if they don't exist."""
     target_world = get_world()
     if not target_world:
         typer.secho(f"Error: World '{global_state.world_name}' not found.", fg=typer.colors.RED)
@@ -77,6 +82,7 @@ def main_callback(
         ),
     ] = None,
 ):
+    """Initialize the application, load plugins, and set the target world."""
     setup_logging()
     try:
         initialized_worlds = create_and_register_all_worlds_from_settings(app_settings=app_config.settings)
@@ -104,7 +110,7 @@ def main_callback(
             for world_instance in initialized_worlds:
                 world_instance.add_plugin(plugin_class())
         except ImportError:
-            logging.info(f"{module_name} plugin not installed. Skipping.")
+            logger.info("%s plugin not installed. Skipping.", module_name)
 
     # Determine and set the target world
     target_world_name = world or app_config.settings.DEFAULT_WORLD_NAME
@@ -125,6 +131,7 @@ def main_callback(
 
 
 def run_cli_directly():
+    """Run the CLI application, ensuring a clean state."""
     clear_world_registry()
     app()
 

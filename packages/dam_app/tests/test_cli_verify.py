@@ -1,3 +1,5 @@
+"""Tests for the asset verification CLI command."""
+
 from __future__ import annotations
 
 import csv
@@ -19,6 +21,7 @@ from dam_app.state import global_state
 
 
 async def _get_sha256(file_path: Path) -> str:
+    """Calculate the SHA256 hash of a file."""
     h = hashlib.sha256()
     async with aiofiles.open(file_path, "rb") as f:
         while True:
@@ -34,6 +37,7 @@ async def test_verify_single_file_ok(
     tmp_path: Path,
     test_world_alpha: World,
 ):
+    """Test that a single, unmodified file passes verification."""
     # Setup a test file
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello")
@@ -74,6 +78,7 @@ async def test_verify_single_file_fail(
     tmp_path: Path,
     test_world_alpha: World,
 ):
+    """Test that a single, modified file fails verification."""
     # Setup a test file
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello")
@@ -115,6 +120,7 @@ async def test_verify_archive_ok(
     tmp_path: Path,
     test_world_alpha: World,
 ):
+    """Test that an unmodified archive and its contents pass verification."""
     # Create a zip file
     zip_path = tmp_path / "test.zip"
     file1 = tmp_path / "file1.txt"
@@ -142,7 +148,9 @@ async def test_verify_archive_ok(
 
     # Run verification
     os.chdir(tmp_path)
-    await verify_assets(paths=[zip_path], recursive=False, process=["VerifyArchiveContentsCommand"], stop_on_error=True)
+    await verify_assets(
+        paths=[zip_path], recursive=False, process=[".zip:VerifyArchiveContentsCommand"], stop_on_error=True
+    )
 
     # Check report
     report_files = list(tmp_path.glob("verification_report_*.csv"))

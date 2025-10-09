@@ -1,3 +1,5 @@
+"""Functions for processing PSP ISO files and extracting metadata."""
+
 import struct
 from io import BytesIO
 from typing import BinaryIO, cast
@@ -6,13 +8,18 @@ import pycdlib  # type: ignore[import]
 
 
 class SFODataFormat:
+    """Represents the data format types in a PARAM.SFO file."""
+
     UTF8_NOTERM = 0x0004
     UTF8 = 0x0204
     INT32 = 0x0404
 
 
 class SFOIndexTableEntry:
+    """Represents an entry in the SFO index table."""
+
     def __init__(self, raw: bytes, offset: int) -> None:
+        """Initialize the SFO index table entry from raw bytes."""
         fields = struct.unpack("<HHIII", raw[offset : offset + 0x10])
         self.key_offset = fields[0]
         self.data_fmt = fields[1]
@@ -22,7 +29,10 @@ class SFOIndexTableEntry:
 
 
 class SFO:
+    """Represents a parsed PARAM.SFO file."""
+
     def __init__(self, raw_sfo: bytes) -> None:
+        """Initialize and parse the SFO data from raw bytes."""
         if raw_sfo[:0x4] != b"\x00PSF":
             raise ValueError("Invalid SFO file format")
 
@@ -61,7 +71,7 @@ class SFO:
 
 def process_iso_stream(stream: BinaryIO) -> SFO | None:
     """
-    Processes a PSP ISO stream to extract SFO metadata.
+    Process a PSP ISO stream to extract SFO metadata.
 
     Args:
         stream: A binary stream of the ISO file.

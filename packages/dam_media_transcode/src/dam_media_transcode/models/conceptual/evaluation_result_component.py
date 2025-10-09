@@ -1,3 +1,5 @@
+"""Defines the EvaluationResultComponent for storing transcoding evaluation results."""
+
 from dam.models.core.base_component import BaseComponent
 from sqlalchemy import Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -5,8 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class EvaluationResultComponent(BaseComponent):
     """
-    Component storing the results of a specific transcoding operation
-    performed as part of an evaluation run.
+    Component storing the results of a specific transcoding operation performed as part of an evaluation run.
+
     This component is attached to the entity representing the transcoded file
     that was generated during the evaluation.
     """
@@ -56,6 +58,7 @@ class EvaluationResultComponent(BaseComponent):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return (
             f"<EvaluationResultComponent(id={self.id}, entity_id={self.entity_id}, "
             f"run_id={self.evaluation_run_entity_id}, original_id={self.original_asset_entity_id}, "

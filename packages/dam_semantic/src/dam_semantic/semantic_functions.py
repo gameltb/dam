@@ -11,7 +11,7 @@ from dam.models.core.entity import Entity
 from dam_sire.resource import SireResource
 from sentence_transformers import SentenceTransformer
 
-from .models import (
+from dam_semantic.models.text_embedding_component import (
     BaseSpecificEmbeddingComponent,
     ModelHyperparameters,
 )
@@ -100,16 +100,16 @@ class BatchTextItem(TypedDict):
 
 
 async def update_text_embeddings_for_entity(
-    _transaction: WorldTransaction,
-    _entity_id: int,
-    _text_fields_map: dict[str, Any],
-    _sire_resource: "SireResource",
-    _model_name: str = DEFAULT_MODEL_NAME,
-    _model_params: ModelHyperparameters | None = None,
-    _batch_texts: list[BatchTextItem] | None = None,
-    _include_manual_tags: bool = True,
-    _include_model_tags_config: list[dict[str, Any]] | None = None,
-    _tag_concatenation_strategy: str = " [TAGS] {tags_string}",
+    transaction: WorldTransaction,  # noqa: ARG001
+    entity_id: int,  # noqa: ARG001
+    text_fields_map: dict[str, Any],  # noqa: ARG001
+    sire_resource: "SireResource",  # noqa: ARG001
+    model_name: str = DEFAULT_MODEL_NAME,  # noqa: ARG001
+    model_params: ModelHyperparameters | None = None,  # noqa: ARG001
+    batch_texts: list[BatchTextItem] | None = None,  # noqa: ARG001
+    include_manual_tags: bool = True,  # noqa: ARG001
+    include_model_tags_config: list[dict[str, Any]] | None = None,  # noqa: ARG001
+    tag_concatenation_strategy: str = " [TAGS] {tags_string}",  # noqa: ARG001
 ) -> list[BaseSpecificEmbeddingComponent]:
     """
     Update text embeddings for a given entity.
@@ -121,12 +121,12 @@ async def update_text_embeddings_for_entity(
 
 
 async def find_similar_entities_by_text_embedding(
-    _transaction: WorldTransaction,
-    _query_text: str,
-    _sire_resource: "SireResource",
-    _model_name: str,
-    _model_params: ModelHyperparameters | None = None,
-    _top_n: int = 10,
+    transaction: WorldTransaction,  # noqa: ARG001
+    query_text: str,  # noqa: ARG001
+    sire_resource: "SireResource",  # noqa: ARG001
+    model_name: str,  # noqa: ARG001
+    model_params: ModelHyperparameters | None = None,  # noqa: ARG001
+    top_n: int = 10,  # noqa: ARG001
 ) -> list[tuple[Entity, float, BaseSpecificEmbeddingComponent]]:
     """
     Find similar entities by text embedding.

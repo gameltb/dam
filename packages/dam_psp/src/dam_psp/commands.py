@@ -1,3 +1,5 @@
+"""Defines commands related to PSP ISO and CSO file handling."""
+
 from dataclasses import dataclass
 
 from dam.commands.analysis_commands import AnalysisCommand
@@ -9,14 +11,10 @@ from dam.system_events.base import BaseSystemEvent
 class CheckPSPMetadataCommand(EntityCommand[bool, BaseSystemEvent]):
     """A command to check if an entity has PSP metadata."""
 
-    pass
-
 
 @dataclass
 class RemovePSPMetadataCommand(EntityCommand[None, BaseSystemEvent]):
     """A command to remove PSP metadata from an entity."""
-
-    pass
 
 
 @dataclass
@@ -25,7 +23,7 @@ class ExtractPSPMetadataCommand(AnalysisCommand[None, BaseSystemEvent]):
 
     @classmethod
     def get_supported_types(cls) -> dict[str, list[str]]:
-        """Returns a dictionary of supported MIME types and file extensions for PSP ISOs."""
+        """Return a dictionary of supported MIME types and file extensions for PSP ISOs."""
         return {
             "mimetypes": ["application/x-iso9660-image"],
             "extensions": [".iso"],
@@ -36,14 +34,10 @@ class ExtractPSPMetadataCommand(AnalysisCommand[None, BaseSystemEvent]):
 class CheckCsoIngestionCommand(EntityCommand[bool, BaseSystemEvent]):
     """A command to check if a CSO file has been ingested."""
 
-    pass
-
 
 @dataclass
 class ClearCsoIngestionCommand(EntityCommand[None, BaseSystemEvent]):
     """A command to clear the ingestion data from a CSO file."""
-
-    pass
 
 
 @dataclass
@@ -52,7 +46,7 @@ class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
 
     @classmethod
     def get_supported_types(cls) -> dict[str, list[str]]:
-        """Returns a dictionary of supported MIME types and file extensions for CSO files."""
+        """Return a dictionary of supported MIME types and file extensions for CSO files."""
         return {
             "mimetypes": ["application/x-ciso"],
             "extensions": [".cso"],
@@ -62,5 +56,3 @@ class IngestCsoCommand(AnalysisCommand[None, BaseSystemEvent]):
 @dataclass
 class ReissueVirtualIsoEventCommand(EntityCommand[None, BaseSystemEvent]):
     """A command to re-issue a NewEntityCreatedEvent for the virtual ISO derived from a CSO file."""
-
-    pass

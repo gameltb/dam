@@ -19,8 +19,9 @@ from dam_fs.commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
-from dam_fs.models import FileLocationComponent, FilenameComponent
-from dam_fs.resources import FileStorageResource
+from dam_fs.models.file_location_component import FileLocationComponent
+from dam_fs.models.filename_component import FilenameComponent
+from dam_fs.resources.file_storage_resource import FileStorageResource
 
 
 @pytest.mark.serial

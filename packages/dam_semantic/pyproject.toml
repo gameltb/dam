@@ -52,3 +52,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[tool.deptry]
+known_first_party = ["dam_semantic"]

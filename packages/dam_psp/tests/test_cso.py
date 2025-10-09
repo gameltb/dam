@@ -1,10 +1,11 @@
+"""Tests for CSO (Compressed ISO) functionality."""
+
 import hashlib
 import io
 import os
 import struct
 import zlib
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 
 import aiofiles
 import pytest
@@ -26,8 +27,8 @@ CISO_HEADER_FMT = "<LLQLBBxx"  # Little endian
 
 
 def create_dummy_iso(filepath: Path, size_in_mb: int):
-    """Creates a dummy ISO file with patterned data."""
-    with open(filepath, "wb") as f:
+    """Create a dummy ISO file with patterned data."""
+    with filepath.open("wb") as f:
         for i in range(size_in_mb * 1024 // (CISO_BLOCK_SIZE // 1024)):
             block_num_bytes = struct.pack("<I", i)
             padding = CISO_BLOCK_SIZE - len(block_num_bytes)
@@ -36,7 +37,7 @@ def create_dummy_iso(filepath: Path, size_in_mb: int):
 
 def compress_iso(infile: Path, outfile: Path):
     """Compresses an ISO file to the CSO format."""
-    with open(outfile, "wb") as fout, open(infile, "rb") as fin:
+    with outfile.open("wb") as fout, infile.open("rb") as fin:
         fin.seek(0, os.SEEK_END)
         file_size = fin.tell()
         fin.seek(0, os.SEEK_SET)
@@ -93,7 +94,7 @@ def compress_iso(infile: Path, outfile: Path):
 
 @pytest.fixture
 def cso_test_files(tmp_path: Path) -> tuple[Path, Path]:
-    """Generates a dummy ISO and CSO file for testing and returns their paths."""
+    """Generate a dummy ISO and CSO file for testing and return their paths."""
     iso_path = tmp_path / "test.iso"
     cso_path = tmp_path / "test.cso"
     create_dummy_iso(iso_path, 1)
@@ -105,7 +106,7 @@ def test_cso_decompressor(cso_test_files: tuple[Path, Path]):
     """Tests that the CsoDecompressor correctly decompresses a CSO file."""
     iso_path, cso_path = cso_test_files
     iso_content = iso_path.read_bytes()
-    with open(cso_path, "rb") as f:
+    with cso_path.open("rb") as f:
         decompressor = CsoDecompressor(f)
         decompressed_data = decompressor.read()
 
@@ -117,7 +118,7 @@ def test_cso_decompressor_seek_and_read(cso_test_files: tuple[Path, Path]):
     """Tests that seeking and reading from the decompressor works correctly."""
     iso_path, cso_path = cso_test_files
     iso_content = iso_path.read_bytes()
-    with open(cso_path, "rb") as f:
+    with cso_path.open("rb") as f:
         decompressor = CsoDecompressor(f)
 
         # Seek to a position and read a chunk
@@ -136,33 +137,33 @@ def test_cso_decompressor_seek_and_read(cso_test_files: tuple[Path, Path]):
 
 @pytest.mark.asyncio
 async def test_ingest_cso_handler_system(mocker: MockerFixture, cso_test_files: tuple[Path, Path]):
-    """Tests the ingest_cso_handler system using mocks."""
+    """Test the ingest_cso_handler system using mocks."""
     # 1. Setup
     cso_entity_id = 1
     virtual_iso_entity_id = 2
     _, cso_path = cso_test_files
 
-    mock_transaction = AsyncMock()
-    mock_transaction.add_or_update_component = AsyncMock()
+    mock_transaction = mocker.AsyncMock()
+    mock_transaction.add_or_update_component = mocker.AsyncMock()
 
-    mock_world = MagicMock()
+    mock_world = mocker.MagicMock()
 
     # Mock the return of GetOrCreateEntityFromStreamCommand
     mock_iso_entity = Entity()
     mock_iso_entity.id = virtual_iso_entity_id
-    get_or_create_result = MagicMock()
-    get_or_create_result.get_one_value = AsyncMock(return_value=(mock_iso_entity, True))
+    get_or_create_result = mocker.MagicMock()
+    get_or_create_result.get_one_value = mocker.AsyncMock(return_value=(mock_iso_entity, True))
 
     # Mock the return of GetAssetFilenamesCommand
-    get_filenames_result = MagicMock()
-    get_filenames_result.get_all_results_flat = AsyncMock(return_value=[cso_path.name])
+    get_filenames_result = mocker.MagicMock()
+    get_filenames_result.get_all_results_flat = mocker.AsyncMock(return_value=[cso_path.name])
 
-    def dispatch_side_effect(cmd: object) -> MagicMock:
+    def dispatch_side_effect(cmd: object) -> object:
         if "GetOrCreateEntityFromStreamCommand" in str(type(cmd)):
             return get_or_create_result
         if "GetAssetFilenamesCommand" in str(type(cmd)):
             return get_filenames_result
-        return MagicMock()
+        return mocker.MagicMock()
 
     mock_world.dispatch_command.side_effect = dispatch_side_effect
 

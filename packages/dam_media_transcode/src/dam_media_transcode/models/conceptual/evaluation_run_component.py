@@ -1,3 +1,5 @@
+"""Defines the EvaluationRunComponent for representing a transcoding evaluation run."""
+
 from dam.models.conceptual.base_conceptual_info_component import BaseConceptualInfoComponent
 from sqlalchemy import (
     ForeignKey,  # Added for ForeignKey
@@ -9,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseComponent
     """
     Component defining an evaluation run.
+
     This is a conceptual asset, representing the concept of a specific
     evaluation setup (e.g., evaluating various profiles on a set of assets).
     """
@@ -31,4 +34,5 @@ class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseCompon
     # concept_description: Mapped[str | None] (can be used for general description)
 
     def __repr__(self) -> str:
+        """Return a string representation of the component."""
         return f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, run_name='{self.run_name}')>"

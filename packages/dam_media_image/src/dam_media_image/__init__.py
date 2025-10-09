@@ -1,4 +1,1 @@
-from .events import ImageAssetDetected
-from .plugin import ImagePlugin
-
-__all__ = ["ImageAssetDetected", "ImagePlugin"]
+"""Image-related plugins and components for the DAM system."""

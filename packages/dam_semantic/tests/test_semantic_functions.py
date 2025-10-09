@@ -12,7 +12,7 @@ from pytest_mock import MockerFixture
 from dam_semantic import semantic_functions
 
 # Models to be tested (actual specific component classes)
-from dam_semantic.models import (
+from dam_semantic.models.text_embedding_component import (
     ModelHyperparameters,
     get_embedding_component_class,
 )
@@ -94,7 +94,7 @@ async def test_generate_embedding_and_conversion(mocker: MockerFixture, monkeypa
     sire_resource_mock = mocker.MagicMock(spec=SireResource)
 
     async def mock_generate_embedding(
-        _sire_resource: SireResource, text: str, model_name: str, _params: Any
+        _sire_resource: SireResource, text: str, model_name: str, **_kwargs: Any
     ) -> np.ndarray | None:
         if not text or not text.strip():
             return None

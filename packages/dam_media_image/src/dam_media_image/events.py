@@ -1,3 +1,5 @@
+"""Image-related events for the DAM system."""
+
 from dataclasses import dataclass
 
 from dam.core.events import BaseEvent

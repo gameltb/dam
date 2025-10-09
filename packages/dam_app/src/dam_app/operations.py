@@ -1,3 +1,5 @@
+"""Defines the asset operations for the DAM application."""
+
 from dam.core.operations import AssetOperation
 
 from .commands import (
