@@ -36,6 +36,8 @@ dependencies = [
     "dam_sire",
     "sire",
     "aiofiles",
+    "pydantic",
+    "tomli",
 ]
 
 [project.optional-dependencies]
@@ -57,7 +59,11 @@ dam-cli = "dam_app.main:app"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
-exclude = ["build", "dist"]
+exclude = [
+    "build",
+    "dist",
+    "src/dam_app/alembic",
+]
 include = ["src/**", "tests/**"]
 
 [tool.pyright]

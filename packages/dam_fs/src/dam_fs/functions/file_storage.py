@@ -23,8 +23,7 @@ def _get_storage_path(base_path: Path, file_hash: str) -> Path:
     sub_dir_2 = file_hash[2:4]
     file_name = file_hash
 
-    full_path = base_path / sub_dir_1 / sub_dir_2 / file_name
-    return full_path
+    return base_path / sub_dir_1 / sub_dir_2 / file_name
 
 
 def store_file(
@@ -44,6 +43,7 @@ def store_file(
         A tuple containing:
             - The SHA256 hash of the file content (content_hash).
             - The relative physical storage path suffix (e.g., "ab/cd/hashvalue").
+
     """
     content_hash = hashlib.sha256(file_content).hexdigest()
 
@@ -94,6 +94,7 @@ def get_file_path(file_identifier: str, storage_path: Path) -> Path | None:
 
     Returns:
         The absolute Path object to the file if it exists, otherwise None.
+
     """
     if not file_identifier:
         return None
@@ -120,6 +121,7 @@ def delete_file(file_identifier: str, storage_path: Path) -> bool:
 
     Returns:
         True if the file was deleted, False otherwise.
+
     """
     actual_file_path = get_file_path(file_identifier, storage_path)
 

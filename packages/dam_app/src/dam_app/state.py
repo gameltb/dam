@@ -1,6 +1,7 @@
+"""Manages the global, shared state for the CLI application."""
+
 import importlib
 import logging
-from typing import Optional
 
 from dam.core.config import WorldConfig
 from dam.core.world import World
@@ -28,19 +29,21 @@ class GlobalState:
     """A singleton class to hold the global state of the CLI application."""
 
     def __init__(self):
-        self.config: Optional[Config] = None
-        self.world_name: Optional[str] = None
+        """Initialize the GlobalState."""
+        self.config: Config | None = None
+        self.world_name: str | None = None
         self._worlds_cache: dict[str, World] = {}
 
-    def get_current_world_def(self) -> Optional[WorldDefinition]:
-        """Retrieves the configuration definition for the currently active world."""
+    def get_current_world_def(self) -> WorldDefinition | None:
+        """Retrieve the configuration definition for the currently active world."""
         if self.config and self.world_name:
             return self.config.worlds.get(self.world_name)
         return None
 
-    def get_current_world(self) -> Optional[World]:
+    def get_current_world(self) -> World | None:
         """
-        Lazily instantiates and returns the currently active World object.
+        Lazily instantiate and return the currently active World object.
+
         Caches the instantiated world for subsequent calls.
         """
         if not self.world_name:
@@ -55,15 +58,19 @@ class GlobalState:
         if not world_def:
             return None
 
-        logger.info(f"Lazily instantiating world: '{self.world_name}'")
-        world_config = WorldConfig(name=self.world_name, db_url=world_def.db.url)
+        logger.info("Lazily instantiating world: '%s'", self.world_name)
+        world_config = WorldConfig(
+            name=self.world_name,
+            DATABASE_URL=world_def.db.url,
+            plugin_settings=world_def.model_dump().get("plugin_settings", {}),
+        )
         world_instance = World(world_config=world_config)
 
         # Load all configured plugins for this world
         world_instance.add_plugin(AppPlugin())
         for plugin_name in world_def.plugins.names:
             if plugin_name not in PLUGIN_CLASS_MAP:
-                logger.warning(f"Unknown plugin '{plugin_name}' for world '{self.world_name}'. Skipping.")
+                logger.warning("Unknown plugin '%s' for world '%s'. Skipping.", plugin_name, self.world_name)
                 continue
             try:
                 module_path = plugin_name.replace("-", "_")
@@ -71,9 +78,11 @@ class GlobalState:
                 plugin_module = importlib.import_module(f"{module_path}.plugin")
                 plugin_class = getattr(plugin_module, class_name)
                 world_instance.add_plugin(plugin_class())
-                logger.info(f"Loaded plugin '{plugin_name}' for world '{self.world_name}'.")
+                logger.info("Loaded plugin '%s' for world '%s'.", plugin_name, self.world_name)
             except (ImportError, AttributeError) as e:
-                logger.warning(f"Could not load plugin '{plugin_name}' for world '{self.world_name}'. Reason: {e}.")
+                logger.warning(
+                    "Could not load plugin '%s' for world '%s'. Reason: %s.", plugin_name, self.world_name, e
+                )
 
         # Cache and return the new instance
         self._worlds_cache[self.world_name] = world_instance
@@ -84,5 +93,5 @@ global_state = GlobalState()
 
 
 def get_world() -> World | None:
-    """Convenience function to get the current world from the global state."""
+    """Get the current world from the global state."""
     return global_state.get_current_world()

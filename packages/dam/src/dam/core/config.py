@@ -24,7 +24,9 @@ class WorldConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
 
-_DEFAULT_WORLD_CONFIG_JSON = '{"default": {"DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/dam", "plugin_settings": {}}}'
+_DEFAULT_WORLD_CONFIG_JSON = (
+    '{"default": {"DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/dam", "plugin_settings": {}}}'
+)
 
 
 class Settings(BaseSettings):

@@ -1,4 +1,5 @@
 """Tests for the DAM application's CLI commands."""
+
 from typing import Any
 
 import pytest

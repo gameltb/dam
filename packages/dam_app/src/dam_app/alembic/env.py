@@ -2,11 +2,12 @@ import asyncio
 import importlib
 import os
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from dam.models import Base
 from dam_app.config import load_config
@@ -36,16 +37,19 @@ world_definition = app_config.worlds.get(WORLD_NAME)
 if not world_definition:
     raise ValueError(f"World '{WORLD_NAME}' not found in configuration.")
 
+
 # Set the database URL for the current world. Alembic will use this.
 config.set_main_option("sqlalchemy.url", world_definition.db.url)
 
 
 def import_plugin_models() -> None:
     """
-    Dynamically imports the 'models' module from the plugins
-    enabled for the current world. This populates Base.metadata
-    with the tables required for this specific world instance.
+    Dynamically import the 'models' module from the plugins enabled for the current world.
+
+    This populates Base.metadata with the tables required for this specific world instance.
     """
+    # This assertion helps pyright understand that world_definition is not None here.
+    assert world_definition is not None
     plugin_names_to_load = set(["dam"] + world_definition.plugins.names)
 
     print(f"Loading models for world '{WORLD_NAME}' with plugins: {', '.join(sorted(plugin_names_to_load))}")
@@ -82,6 +86,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
+    """Run the migrations."""
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -94,8 +99,10 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    url = config.get_main_option("sqlalchemy.url")
+    assert url, "sqlalchemy.url must be set in alembic.ini or via config"
     connectable = create_async_engine(
-        config.get_main_option("sqlalchemy.url"),
+        url,
         poolclass=pool.NullPool,
     )
 

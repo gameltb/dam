@@ -66,9 +66,7 @@ def main_callback(
         ),
     ] = None,
 ):
-    """
-    Initialize the application, load configuration, and set the target world.
-    """
+    """Initialize the application, load configuration, and set the target world."""
     setup_logging(logging.INFO)
 
     try:
@@ -76,11 +74,11 @@ def main_callback(
         if config_file:
             os.environ["DAM_CONFIG_FILE"] = str(config_file)
 
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         is_db_command = ctx.invoked_subcommand and "db" in ctx.invoked_subcommand
         if not ctx.resilient_parsing and not is_db_command:
             typer.secho("Error: Configuration file not found.", fg=typer.colors.RED)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
     except Exception as e:
         typer.secho(f"Critical error loading configuration: {e}", fg=typer.colors.RED)
         typer.secho(traceback.format_exc(), fg=typer.colors.RED)
@@ -93,9 +91,9 @@ def main_callback(
     # Validate that a world is specified for commands that require it.
     # `db` commands and `list-worlds` are exempt.
     requires_world = not (
-        ctx.invoked_subcommand is None or
-        (ctx.invoked_subcommand and "db" in ctx.invoked_subcommand) or
-        ctx.invoked_subcommand == "list-worlds"
+        ctx.invoked_subcommand is None
+        or (ctx.invoked_subcommand and "db" in ctx.invoked_subcommand)
+        or ctx.invoked_subcommand == "list-worlds"
     )
 
     if requires_world:
@@ -107,9 +105,8 @@ def main_callback(
             raise typer.Exit(1)
         # The first access will trigger the lazy load
         if not global_state.get_current_world():
-             typer.secho(f"Error: Failed to instantiate world '{world}'.", fg=typer.colors.RED)
-             raise typer.Exit(1)
-
+            typer.secho(f"Error: Failed to instantiate world '{world}'.", fg=typer.colors.RED)
+            raise typer.Exit(1)
 
     if ctx.invoked_subcommand is None:
         typer.echo("Welcome to the DAM CLI. Use --help to see available commands.")
