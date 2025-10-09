@@ -28,11 +28,13 @@ async def test_discover_fs_path_siblings(
     file_1 = tmp_path / "file_1.txt"
     file_1.write_text("content 1")
     entity_id_1 = await world.dispatch_command(RegisterLocalFileCommand(file_path=file_1)).get_one_value()
+    assert entity_id_1 is not None
     entity_ids.append(entity_id_1)
 
     file_2 = tmp_path / "file_2.txt"
     file_2.write_text("content 2")
     entity_id_2 = await world.dispatch_command(RegisterLocalFileCommand(file_path=file_2)).get_one_value()
+    assert entity_id_2 is not None
     entity_ids.append(entity_id_2)
 
     # Create a file in a subdirectory to ensure it's NOT found
@@ -41,6 +43,7 @@ async def test_discover_fs_path_siblings(
     other_file = sub_dir / "other.txt"
     other_file.write_text("other content")
     other_entity_id = await world.dispatch_command(RegisterLocalFileCommand(file_path=other_file)).get_one_value()
+    assert other_entity_id is not None
 
     # 2. Action: Run discovery on the first entity
     discover_cmd = DiscoverPathSiblingsCommand(entity_id=entity_id_1)

@@ -169,7 +169,7 @@ class WorldScheduler:
         self.system_metadata = SYSTEM_METADATA
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def _validate_command_handler_signature(
+    def _validate_command_handler_signature(  # noqa: PLR0912
         self, system_func: Callable[..., Any], reg_command: type["BaseCommand[Any, Any]"]
     ) -> None:
         """Validate the signature of a command handler against the command definition."""
@@ -200,17 +200,38 @@ class WorldScheduler:
                         command_event_type,
                     )
         elif command_result_type is not None and command_result_type is not Any:
-            normalized_command_type = get_origin(command_result_type) or command_result_type
-            normalized_handler_type = get_origin(handler_return_type) or handler_return_type
-            if normalized_handler_type is None:
-                normalized_handler_type = type(None)
-            if normalized_command_type != normalized_handler_type:
-                self.logger.warning(
-                    "Potential return type mismatch for command '%s'. Handler '%s' is annotated to return '%s' but command expects '%s'.",
-                    reg_command.__name__,
-                    system_func.__name__,
-                    handler_return_type,
-                    command_result_type,
+            # The handler's return type should be a subtype of the command's expected result type.
+            mismatch = False
+            # Before calling issubclass, we must ensure both types are actual classes.
+            # Otherwise, it will raise a TypeError for generics, unions, etc.
+            # Normalize `None` to `NoneType` for consistent comparison.
+            normalized_handler_return_type = type(None) if handler_return_type is None else handler_return_type
+            normalized_command_result_type = type(None) if command_result_type is None else command_result_type
+
+            mismatch = False
+            # Before calling issubclass, we must ensure both types are actual classes.
+            # Otherwise, it will raise a TypeError for generics, unions, etc.
+            is_class_check = inspect.isclass(normalized_handler_return_type) and inspect.isclass(
+                normalized_command_result_type
+            )
+
+            if is_class_check:
+                # Both are classes, so we can safely check for subclass relationship.
+                # We cast to reassure the static type checker.
+                if not issubclass(
+                    cast(type, normalized_handler_return_type), cast(type, normalized_command_result_type)
+                ):
+                    mismatch = True
+            # One or both are not simple classes (e.g., list[int], Union[str, None]).
+            # For these complex types, we require an exact match.
+            elif normalized_handler_return_type != normalized_command_result_type:
+                mismatch = True
+
+            if mismatch:
+                raise TypeError(
+                    f"Return type mismatch for command '{reg_command.__name__}'. "
+                    f"Handler '{system_func.__name__}' is annotated to return '{handler_return_type}' "
+                    f"but command expects '{command_result_type}'."
                 )
 
     def _register_command_handler(

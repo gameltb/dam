@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import pytest
-from _pytest.logging import LogCaptureFixture
 
 from dam.commands.core import BaseCommand
 from dam.core.systems import system
@@ -236,18 +235,11 @@ async def test_unified_streaming_handler(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_return_type_mismatch_warning(test_world_alpha: World, caplog: LogCaptureFixture) -> None:
-    """Test that a warning is logged when a handler's return type annotation does not match the command's expected result type."""
+async def test_return_type_mismatch_raises_error(test_world_alpha: World) -> None:
+    """Test that a TypeError is raised when a handler's return type annotation does not match the command's expected result type."""
     world = test_world_alpha
-    with caplog.at_level("WARNING"):
+    with pytest.raises(TypeError, match="Return type mismatch for command 'MismatchCommand'"):
         world.register_system(system_func=mismatch_handler)
-
-    assert len(caplog.records) == 1
-    assert "Potential return type mismatch" in caplog.text
-    assert "command 'MismatchCommand'" in caplog.text
-    assert "Handler 'mismatch_handler'" in caplog.text
-    assert "expects '<class 'int'>'" in caplog.text
-    assert "annotated to return '<class 'str'>'" in caplog.text
 
 
 @pytest.mark.asyncio

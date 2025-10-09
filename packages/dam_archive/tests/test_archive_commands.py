@@ -45,6 +45,7 @@ async def test_bind_split_archive_command_workflow(
         part_file.write_text(f"content of part {i}")
         register_cmd = RegisterLocalFileCommand(file_path=part_file)
         entity_id = await world.dispatch_command(register_cmd).get_one_value()
+        assert entity_id is not None
         entity_ids.append(entity_id)
 
     # 2. Action: Run the binding command on the first part
@@ -93,6 +94,7 @@ async def test_bind_split_archive_operation_workflow(
         part_file.write_text(f"content of part {i}")
         register_cmd = RegisterLocalFileCommand(file_path=part_file)
         entity_id = await world.dispatch_command(register_cmd).get_one_value()
+        assert entity_id is not None
         entity_ids.append(entity_id)
 
     # 2. Get the AssetOperation

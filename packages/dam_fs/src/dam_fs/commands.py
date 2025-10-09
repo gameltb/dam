@@ -54,11 +54,11 @@ class FindEntityByFilePropertiesCommand(BaseCommand[int | None, BaseSystemEvent]
 
 
 @dataclass
-class RegisterLocalFileCommand(BaseCommand[int, BaseSystemEvent]):
+class RegisterLocalFileCommand(BaseCommand[int | None, BaseSystemEvent]):
     """
     Command to register a local file, creating an entity if needed.
 
-    Returns the entity ID.
+    Returns the entity ID, or None if the file does not exist.
     """
 
     file_path: Path
