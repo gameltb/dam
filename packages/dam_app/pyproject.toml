@@ -36,6 +36,8 @@ dependencies = [
     "dam_sire",
     "sire",
     "aiofiles",
+    "pydantic",
+    "tomli",
 ]
 
 [project.optional-dependencies]
@@ -57,7 +59,12 @@ dam-cli = "dam_app.main:app"
 
 [tool.ruff]
 extend = "../../pyproject.toml"
-exclude = ["build", "dist"]
+exclude = [
+    "build",
+    "dist",
+    "src/dam_app/alembic",
+    "src/dam_app/alembic_template",
+]
 include = ["src/**", "tests/**"]
 
 [tool.pyright]
@@ -80,6 +87,7 @@ markers = [
 include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
+run = "dam-cli"
 mypy = "mypy --config-file ../../pyproject.toml src tests"
 
 [tool.deptry.per_rule_ignores]
