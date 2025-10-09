@@ -24,6 +24,7 @@ class WorldDefinition(BaseModel):
     """
     db: DatabaseConfig
     plugins: PluginConfig
+    paths: dict[str, Path] = Field(default_factory=dict)
 
 
 # --- Top-level Configuration Model ---

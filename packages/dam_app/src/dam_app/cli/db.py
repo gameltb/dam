@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 from rich.console import Console
 
-from dam_app.config import load_config
+from dam_app.config import Config, load_config
 
 # --- Typer App Definition ---
 app = typer.Typer(
@@ -22,15 +22,23 @@ console = Console()
 
 # --- Helper Functions ---
 
-DAM_HOME = Path.home() / ".dam"
-WORLDS_DIR = DAM_HOME / "worlds"
 # This points to the directory containing our alembic templates (env.py, etc.)
 ALEMBIC_TEMPLATE_DIR = Path(__file__).parent.parent / "alembic"
 
 
-def get_world_dir(world_name: str) -> Path:
-    """Returns the root directory for a given world's migrations."""
-    return WORLDS_DIR / world_name
+def get_alembic_dir_for_world(world_name: str, config: Config) -> Path:
+    """
+    Determines the Alembic directory for a given world.
+
+    Uses the 'alembic' path from the world's [paths] configuration if available,
+    otherwise defaults to ~/.dam/worlds/<world_name>.
+    """
+    world_def = config.worlds.get(world_name)
+    if world_def and "alembic" in world_def.paths:
+        return world_def.paths["alembic"].resolve()
+
+    # Fallback to the default path
+    return Path.home() / ".dam" / "worlds" / world_name
 
 
 def setup_alembic_env(world_name: str, world_dir: Path) -> Path:
@@ -119,7 +127,7 @@ def _run_alembic_command(world_name: str, command: list[str]):
         console.print(f"[bold red]Error:[/] Configuration file not found.")
         raise typer.Exit(1)
 
-    world_dir = get_world_dir(world_name)
+    world_dir = get_alembic_dir_for_world(world_name, config)
     alembic_ini_path = setup_alembic_env(world_name, world_dir)
 
     # Set environment variables for the subprocess
@@ -154,9 +162,22 @@ def init(
 ):
     """Initializes the migration environment for a specific world."""
     console.print(f"Initializing migration environment for world: [bold cyan]{world}[/bold cyan]")
-    world_dir = get_world_dir(world)
+    try:
+        config_path_str = os.getenv("DAM_CONFIG_FILE")
+        config_path = Path(config_path_str) if config_path_str else None
+        config = load_config(config_path)
+        if world not in config.worlds:
+            console.print(f"[bold red]Error:[/] World '{world}' not found in configuration.")
+            raise typer.Exit(1)
+    except FileNotFoundError:
+        # For init, it's okay if the config doesn't exist, we'll use the default path.
+        # However, we need a dummy config object to pass to the helper.
+        from dam_app.config import Config
+        config = Config()
+
+    world_dir = get_alembic_dir_for_world(world, config)
     setup_alembic_env(world, world_dir)
-    console.print(f"[green]Successfully initialized.[/green] Migration files are in: {world_dir}")
+    console.print(f"[green]Successfully initialized.[/green] Migration files will be stored in: {world_dir}")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
