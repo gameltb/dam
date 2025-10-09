@@ -13,18 +13,17 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider
 from dam.models.metadata.exiftool_metadata_component import ExiftoolMetadataComponent
 from dam_fs.models.file_location_component import FileLocationComponent
-from pytest_mock import MockerFixture
+from pytest_mock import MockerFixture, MockType
 
 from dam_app.commands import ExtractExifMetadataCommand
 from dam_app.systems.metadata_systems import (
     ExifTool,
-    exiftool_instance,
     extract_metadata_command_handler,
 )
 
 
 @pytest.fixture
-def mock_transaction(mocker: MockerFixture) -> Any:
+def mock_transaction(mocker: MockerFixture) -> MockType:
     """Fixture for a mocked WorldTransaction."""
     transaction = mocker.MagicMock(spec=WorldTransaction)
     transaction.get_components = mocker.AsyncMock(return_value=[])
@@ -33,7 +32,7 @@ def mock_transaction(mocker: MockerFixture) -> Any:
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_file(mock_transaction: Any, mocker: MockerFixture):
+async def test_extract_metadata_from_file(mock_transaction: MockType, mocker: MockerFixture):
     """
     Test that metadata extraction from a file uses a persistent exiftool process.
 
@@ -60,7 +59,7 @@ async def test_extract_metadata_from_file(mock_transaction: Any, mocker: MockerF
 
             await extract_metadata_command_handler(command, mock_transaction, mock_world)
 
-            mock_get_metadata.assert_called_once_with(filepath=temp_file)
+            mock_get_metadata.assert_called_once_with(filepath=temp_file)  # type: ignore
             assert mock_transaction.add_or_update_component.call_args is not None
             added_component = mock_transaction.add_or_update_component.call_args[0][1]
             assert isinstance(added_component, ExiftoolMetadataComponent)
@@ -69,7 +68,7 @@ async def test_extract_metadata_from_file(mock_transaction: Any, mocker: MockerF
 
 
 @pytest.mark.asyncio
-async def test_extract_metadata_from_stream(mock_transaction: Any, mocker: MockerFixture):
+async def test_extract_metadata_from_stream(mock_transaction: MockType, mocker: MockerFixture):
     """
     Test that metadata extraction from a stream uses a persistent exiftool process.
 
@@ -95,7 +94,7 @@ async def test_extract_metadata_from_stream(mock_transaction: Any, mocker: Mocke
 
         await extract_metadata_command_handler(command, mock_transaction, mock_world)
 
-        assert mock_get_metadata.call_count == 1
+        assert mock_get_metadata.call_count == 1  # type: ignore
         assert read_content == stream_content
         assert mock_transaction.add_or_update_component.call_args is not None
         added_component = mock_transaction.add_or_update_component.call_args[0][1]
