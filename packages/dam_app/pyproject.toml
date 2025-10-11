@@ -36,8 +36,6 @@ dependencies = [
     "dam_sire",
     "sire",
     "aiofiles",
-    "pydantic",
-    "tomli",
 ]
 
 [project.optional-dependencies]

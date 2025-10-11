@@ -21,6 +21,7 @@ from dam.core.world_manager import create_world, world_manager
 from dam.models.core.base_class import Base
 from PIL import Image
 from psycopg import sql
+from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 MOCK_TRANSFORMER_EMBEDDING_DIM = 3
@@ -209,4 +210,18 @@ def sample_text_file(tmp_path: Path) -> Path:
     """Create a sample text file."""
     file_path = tmp_path / "sample_doc.txt"
     file_path.write_text("This is a common test document.")
+    return file_path
+
+
+@pytest.fixture
+def sample_wav_file(tmp_path: Path) -> Path:
+    """Create a sample WAV file."""
+    file_path = tmp_path / "sample.wav"
+    samplerate = 48000
+    duration = 1
+    frequency = 440
+    t = np.linspace(0.0, duration, int(samplerate * duration))
+    amplitude = np.iinfo(np.int16).max * 0.5
+    data = amplitude * np.sin(2.0 * np.pi * frequency * t)
+    write_wav(file_path, samplerate, data.astype(np.int16))
     return file_path
