@@ -1,223 +1,185 @@
-"""Configuration management for the DAM system."""
+"""Defines the Pydantic models and loading functions for the dam.toml config."""
 
-import json
-import logging
-import os
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, model_validator
+import tomli
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+# --- Plugin Settings Models ---
 
 
-class WorldConfig(BaseSettings):
-    """Configuration for a single ECS world."""
+class PluginSettings(BaseSettings):
+    """
+    Base class for plugin-specific settings.
 
-    name: str  # Name of the world, will be set from the key in the parent Settings.worlds dict
-    DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/default_dam")
+    Plugins should subclass this to define their own settings, which will be
+    loaded from the `[worlds.<world_name>.plugin_settings.<plugin_name>]`
+    section of the `dam.toml` file.
+    """
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+
+# --- Configuration Models ---
+# These are Pydantic models for parsing and validating the .toml file.
+# They are not database components themselves.
+
+
+class PluginConfig(BaseModel):
+    """Define the plugin configuration for a world."""
+
+    names: list[str] = Field(default_factory=list)
+
+
+class DatabaseConfig(BaseModel):
+    """Define the database configuration for a world."""
+
+    url: str
+
+
+class WorldDefinition(BaseModel):
+    """Define the complete configuration for a single world instance."""
+
+    db: DatabaseConfig
+    plugins: PluginConfig
+    paths: dict[str, Path] = Field(default_factory=dict)
     plugin_settings: dict[str, Any] = Field(default_factory=dict)
-    # Add other world-specific configurations here as needed
-    # e.g., specific API keys, function endpoints for this world
-
-    model_config = SettingsConfigDict(extra="ignore")
 
 
-_DEFAULT_WORLD_CONFIG_JSON = (
-    '{"default": {"DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/dam", "plugin_settings": {}}}'
-)
+# --- Top-level Configuration Model ---
 
 
-class Settings(BaseSettings):
+class DamToolConfig(BaseModel):
     """
-    Application settings.
+    Model for the `[tool.dam]` section in `pyproject.toml`.
 
-    Values are loaded from environment variables and/or a .env file.
-    Manages configurations for multiple ECS worlds.
+    This can be used for project-wide settings that are not world-specific.
     """
 
-    DAM_WORLDS_CONFIG: str = Field(
-        default=_DEFAULT_WORLD_CONFIG_JSON,
-        description="Path to a JSON file or a JSON string defining world configurations.",
-    )
+    # Add any project-level configurations here in the future.
+    # For now, it's a placeholder.
+    pass
 
-    worlds: dict[str, WorldConfig] = Field(default_factory=dict, description="Dictionary of configured worlds.")
 
-    DEFAULT_WORLD_NAME: str | None = Field(
-        default="default",
-        validation_alias="DAM_DEFAULT_WORLD_NAME",
-        description="The name of the world to use by default if not specified.",
-    )
+class Config(BaseModel):
+    """Root model for the application's configuration file (`dam.toml`)."""
 
-    TRANSCODING_TEMP_DIR: str = Field(  # Changed to str, Path will be constructed in code
-        default="temp/dam_transcodes",
-        validation_alias="DAM_TRANSCODING_TEMP_DIR",
-        description="Temporary directory for transcoding operations before ingestion.",
-    )
+    worlds: dict[str, WorldDefinition] = Field(default_factory=dict)
+    """A mapping from world names to their configurations."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-    @model_validator(mode="before")
+    @field_validator("worlds", mode="before")
     @classmethod
-    def _load_and_process_worlds_config(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Load, validate, and process world configurations."""
-        config_source, values = cls._get_config_source(values)
-        raw_world_configs = cls._load_raw_configs(config_source, values)
-        final_worlds_dict = cls._create_world_config_objects(raw_world_configs)
-        values["worlds"] = final_worlds_dict
-        values["DEFAULT_WORLD_NAME"] = cls._determine_default_world(final_worlds_dict, values)
-        logger.debug("Final processed worlds: %s", list(values["worlds"].keys()))
-        logger.debug("Default world name set to: %s", values["DEFAULT_WORLD_NAME"])
-        return values
+    def ensure_worlds_are_present(cls, value: Any) -> dict[str, Any]:
+        """Ensure the configuration contains at least one world definition."""
+        if not isinstance(value, dict) or not value:
+            raise ValueError("Configuration must contain at least one `[worlds.<name>]` table.")
+        return value
 
-    @classmethod
-    def _get_config_source(cls, values: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-        """Determine the source of the world configurations."""
-        config_source = values.get("DAM_WORLDS_CONFIG", values.get("dam_worlds_config"))
-        if not config_source:
-            logger.warning("DAM_WORLDS_CONFIG not set, using default world configuration.")
-            config_source = _DEFAULT_WORLD_CONFIG_JSON
-            if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
-                values["DEFAULT_WORLD_NAME"] = "default"
-        return config_source, values
 
-    @classmethod
-    def _load_raw_configs(cls, config_source: str, values: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        """Load raw world configurations from a file or JSON string."""
-        config_path = Path(config_source)
-        raw_world_configs: dict[str, dict[str, Any]] = {}
-        if config_path.exists():
-            try:
-                with config_path.open() as f:
-                    raw_world_configs = json.load(f)
-                logger.info("Loaded world configurations from file: %s", config_source)
-            except (OSError, json.JSONDecodeError) as e:
-                raise ValueError(f"Error reading or parsing worlds config file {config_source}: {e}") from e
-        else:
-            try:
-                raw_world_configs = json.loads(config_source)
-                logger.info("Loaded world configurations from JSON string.")
-            except json.JSONDecodeError as e:
-                logger.warning(
-                    "DAM_WORLDS_CONFIG_SOURCE '%s' is not a valid file path or JSON string. Attempting default. Error: %s",
-                    config_source,
-                    e,
-                )
-                raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
-                if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
-                    values["DEFAULT_WORLD_NAME"] = "default"
+# --- Loading Function ---
 
-        if not isinstance(raw_world_configs, dict):
-            raise ValueError("Worlds configuration must be a JSON object.")
-        if not raw_world_configs:
-            logger.warning("No worlds found in configuration source. Adding a default world.")
-            raw_world_configs = json.loads(_DEFAULT_WORLD_CONFIG_JSON)
-            if not values.get("DEFAULT_WORLD_NAME", values.get("default_world_name")):
-                values["DEFAULT_WORLD_NAME"] = "default"
-        return raw_world_configs
 
-    @classmethod
-    def _create_world_config_objects(cls, raw_world_configs: dict[str, dict[str, Any]]) -> dict[str, WorldConfig]:
-        """Create WorldConfig objects from raw configuration data."""
-        final_worlds_dict: dict[str, WorldConfig] = {}
-        for name, config_data in raw_world_configs.items():
-            if not isinstance(config_data, dict):
-                raise ValueError(f"Configuration for world '{name}' must be a dictionary.")
-            config_data_with_name: dict[str, Any] = {"name": name, **config_data}
-            final_worlds_dict[name] = WorldConfig(**config_data_with_name)
-        return final_worlds_dict
+class DamToml:
+    """A helper class to find and parse the `dam.toml` file."""
 
-    @classmethod
-    def _determine_default_world(cls, final_worlds_dict: dict[str, WorldConfig], values: dict[str, Any]) -> str | None:
-        """Determine and validate the default world name."""
-        env_default_world = os.environ.get("DAM_DEFAULT_WORLD_NAME")
-        default_world_name_val = env_default_world or values.get("DEFAULT_WORLD_NAME", values.get("default_world_name"))
+    def __init__(self, start_dir: Path | None = None, filename: str = "dam.toml"):
+        """Initialize the DamToml helper."""
+        self.start_dir = start_dir or Path.cwd()
+        self.filename = filename
+        self._config: Config | None = None
+        self._config_path: Path | None = None
+        self._tool_config: DamToolConfig | None = None
 
-        if not final_worlds_dict:
-            logger.error("No worlds configured after processing. This is unexpected.")
-            return None
-
-        if default_world_name_val:
-            if default_world_name_val not in final_worlds_dict:
-                raise ValueError(
-                    f"DEFAULT_WORLD_NAME '{default_world_name_val}' is set but not found in the configured worlds: {list(final_worlds_dict.keys())}"
-                )
-            return default_world_name_val
-        if "default" in final_worlds_dict:
-            logger.info("DEFAULT_WORLD_NAME not explicitly set, using 'default' world.")
-            return "default"
-
-        first_world_by_name = sorted(final_worlds_dict.keys())[0]
-        logger.info(
-            "DEFAULT_WORLD_NAME not set and 'default' world not found. Using first available world: '%s'.",
-            first_world_by_name,
-        )
-        return first_world_by_name
-
-    def get_world_config(self, world_name: str | None = None) -> WorldConfig:
+    def find(self) -> Path | None:
         """
-        Retrieve the configuration for a specific world.
+        Find the configuration file by searching up from the start directory.
 
-        If world_name is None, returns the configuration for the default world.
-        Raises ValueError if the specified or default world is not found.
+        Returns:
+            The path to the found configuration file, or None if not found.
+
         """
-        target_world_name = world_name or self.DEFAULT_WORLD_NAME
+        if self._config_path:
+            return self._config_path
 
-        if not target_world_name:
-            # This case should ideally be prevented by the validator ensuring a default world exists if any worlds are configured.
-            if not self.worlds:
-                raise ValueError("No worlds are configured, and no world name was specified.")
-            raise ValueError("Cannot determine world: No world name provided and no default world name is set.")
+        search_dir = self.start_dir
+        while search_dir != search_dir.parent:
+            for fname in [self.filename, f".{self.filename}"]:
+                p = search_dir / fname
+                if p.is_file():
+                    self._config_path = p
+                    return p
+            search_dir = search_dir.parent
+        return None
 
-        if target_world_name not in self.worlds:
-            available_worlds = list(self.worlds.keys())
-            error_message = (
-                f"World '{target_world_name}' not found in configuration. "
-                f"Requested: '{target_world_name}' (explicitly: '{world_name}', default: '{self.DEFAULT_WORLD_NAME}'). "
-                f"Available worlds: {available_worlds}"
-            )
-            logger.error(error_message)
-            raise ValueError(error_message)
+    def parse(self, config_path: Path | None = None) -> Config:
+        """
+        Load, validate, and cache the configuration from a TOML file.
 
-        return self.worlds[target_world_name]
+        Args:
+            config_path: An optional, explicit path to the configuration file.
+                If not provided, the file will be searched for.
 
-    def get_all_world_names(self) -> list[str]:
-        """Return a list of names of all configured worlds."""
-        return list(self.worlds.keys())
+        Returns:
+            The loaded and validated configuration object.
+
+        Raises:
+            FileNotFoundError: If no configuration file can be found.
+
+        """
+        if self._config and not config_path:
+            return self._config
+
+        path_to_load = config_path or self.find()
+        if not path_to_load or not path_to_load.is_file():
+            raise FileNotFoundError(f"Configuration file '{self.filename}' not found.")
+
+        with path_to_load.open("rb") as f:
+            data = tomli.load(f)
+
+        self._config = Config.model_validate(data)
+        self._config_path = path_to_load
+        return self._config
+
+    def get_tool_config(self) -> DamToolConfig:
+        """
+        Find and parse the `[tool.dam]` section from `pyproject.toml`.
+
+        Returns:
+            The loaded and validated tool configuration object.
+
+        """
+        if self._tool_config:
+            return self._tool_config
+
+        pyproject_path = self.find_pyproject_toml()
+        if not pyproject_path:
+            # Return a default config if pyproject.toml is not found
+            self._tool_config = DamToolConfig()
+            return self._tool_config
+
+        with pyproject_path.open("rb") as f:
+            pyproject_data = tomli.load(f)
+
+        tool_dam_data = pyproject_data.get("tool", {}).get("dam", {})
+        self._tool_config = DamToolConfig.model_validate(tool_dam_data)
+        return self._tool_config
+
+    def find_pyproject_toml(self) -> Path | None:
+        """Find the `pyproject.toml` file."""
+        search_dir = self.start_dir
+        while search_dir != search_dir.parent:
+            p = search_dir / "pyproject.toml"
+            if p.is_file():
+                return p
+            search_dir = search_dir.parent
+        return None
 
 
-# Global settings instance, initialized when this module is imported.
-# Applications should import this instance.
-settings = Settings()
+_dam_toml_cache = DamToml()
 
-# Example .env entries:
-# DAM_WORLDS_CONFIG='{"main_db": {"DATABASE_URL": "postgresql://user:pass@host:port/main", "ASSET_STORAGE_PATH": "/mnt/assets/main"}, "archive_db": {"DATABASE_URL": "sqlite:///./archive.db", "ASSET_STORAGE_PATH": "./archive_storage"}}'
-# DAM_DEFAULT_WORLD_NAME="main_db"
-#
-# Or using a file (recommended for complex setups):
-# DAM_WORLDS_CONFIG="/path/to/my_worlds_config.json"
-#
-# Content of /path/to/my_worlds_config.json:
-# {
-#   "main_processing": {
-#     "DATABASE_URL": "postgresql://user:pass@host:port/main_db",
-#     "ASSET_STORAGE_PATH": "/srv/dam/assets_main"
-#   },
-#   "archive_cold_storage": {
-#     "DATABASE_URL": "sqlite:///./archive.sqlite.db",
-#     "ASSET_STORAGE_PATH": "/mnt/archive/dam_assets_cold"
-#   },
-#   "testing_world": {
-#     "DATABASE_URL": "sqlite:///:memory:",
-#     "ASSET_STORAGE_PATH": "/tmp/dam_test_assets"
-#   }
-# }
-#
-# If DAM_WORLDS_CONFIG is not set, it defaults to a single world named "default":
-# {"default": {"DATABASE_URL": "sqlite:///./dam.db", "ASSET_STORAGE_PATH": "./dam_storage"}}
-# and DAM_DEFAULT_WORLD_NAME will be "default".
+
+def get_dam_toml() -> DamToml:
+    """Get the singleton instance of the DamToml helper."""
+    return _dam_toml_cache
