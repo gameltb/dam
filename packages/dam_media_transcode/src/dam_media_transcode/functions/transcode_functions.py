@@ -5,7 +5,6 @@ import logging
 import uuid
 from pathlib import Path
 
-from dam.core.config import settings
 from dam.core.stages import SystemStage
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -22,6 +21,7 @@ from sqlalchemy.future import select
 
 from ..models.conceptual.transcode_profile_component import TranscodeProfileComponent
 from ..models.conceptual.transcoded_variant_component import TranscodedVariantComponent
+from ..settings import TranscodePluginSettings
 from ..utils.media_utils import TranscodeError, transcode_media
 
 logger = logging.getLogger(__name__)
@@ -174,7 +174,11 @@ async def apply_transcode_profile(
 
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
-        temp_transcode_dir = Path(settings.TRANSCODING_TEMP_DIR)
+        settings = world.get_resource(TranscodePluginSettings)
+        if not settings:
+            raise TranscodeFunctionsError("TranscodePluginSettings not found in world resources.")
+
+        temp_transcode_dir = settings.TRANSCODING_TEMP_DIR
         temp_transcode_dir.mkdir(parents=True, exist_ok=True)
 
         final_output_dir_base = output_parent_dir or temp_transcode_dir

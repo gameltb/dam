@@ -1,7 +1,7 @@
 """Defines the Pydantic models and loading functions for the dam.toml config."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import tomli
 from pydantic import BaseModel, Field, field_validator
@@ -75,7 +75,7 @@ class Config(BaseModel):
         """Ensure the configuration contains at least one world definition."""
         if not isinstance(value, dict) or not value:
             raise ValueError("Configuration must contain at least one `[worlds.<name>]` table.")
-        return value
+        return cast(dict[str, Any], value)
 
 
 # --- Loading Function ---
