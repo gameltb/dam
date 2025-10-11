@@ -6,7 +6,7 @@ from typing import Any, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.contexts import ContextProvider
-from dam.core.config import WorldConfig
+from dam.core.config import WorldDefinition
 from dam.core.executor import SystemExecutor
 from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
@@ -32,13 +32,13 @@ class World:
     potentially different settings, data stores, and behaviors.
     """
 
-    def __init__(self, world_config: WorldConfig):
+    def __init__(self, name: str, definition: WorldDefinition):
         """Initialize the World."""
-        if not isinstance(world_config, WorldConfig):
-            raise TypeError(f"world_config must be an instance of WorldConfig, got {type(world_config)}")
+        if not isinstance(definition, WorldDefinition):
+            raise TypeError(f"definition must be an instance of WorldDefinition, got {type(definition)}")
 
-        self.name: str = world_config.name
-        self.config: WorldConfig = world_config
+        self.name: str = name
+        self.definition: WorldDefinition = definition
         self.logger = logging.getLogger(f"{__name__}.{self.name}")
         self.logger.info("Creating minimal World instance: %s", self.name)
 
@@ -47,8 +47,12 @@ class World:
         self._registered_plugin_types: set[type[Plugin]] = set()
         self.asset_operations: dict[str, AssetOperation] = {}
         self.context_providers: dict[type[Any], ContextProvider[Any]] = {}
+
+        # Add the world and its definition as a resource so systems can access it
         self.add_resource(self)
-        self.logger.info("Minimal World '%s' instance created. Base resources to be populated externally.", self.name)
+        self.add_resource(definition)
+
+        self.logger.info("Minimal World '%s' instance created.", self.name)
 
     def register_asset_operation(self, operation: AssetOperation) -> None:
         """Register an asset operation with the world."""
@@ -180,7 +184,4 @@ class World:
 
     def __repr__(self) -> str:
         """Return a string representation of the World."""
-        return f"<World name='{self.name}' config='{self.config!r}'>"
-
-
-# This space is intentionally left blank.
+        return f"<World name='{self.name}'>"

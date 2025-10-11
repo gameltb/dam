@@ -30,6 +30,7 @@ dependencies = [
     "pydantic-settings", # For settings management
     "psycopg[binary]", # For PostgreSQL connection using Psycopg 3
     "pgvector", # For vector support in SQLAlchemy
+    "tomli",
 ]
 
 [project.optional-dependencies]

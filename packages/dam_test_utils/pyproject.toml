@@ -26,10 +26,11 @@ dependencies = [
     "pytest-asyncio",
     "psycopg[binary]",
     "Pillow",
-    "scipy",
     "torch",
     "numpy",
     "sqlalchemy",
+    "tomli-w",
+    "scipy",
 ]
 
 [tool.ruff]

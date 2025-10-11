@@ -24,23 +24,20 @@ class CorePlugin(Plugin):
 
     def build(self, world: World) -> None:
         """Build the core plugin."""
-        # Logic from initialize_world_resources
         if not world:
             raise ValueError("A valid World instance must be provided.")
 
-        world_config = world.config
+        world_def = world.definition
         resource_manager = world.resource_manager
-        world_name = world_config.name
+        world_name = world.name
 
         world.logger.info("Populating base resources for World '%s'...", world_name)
 
-        resource_manager.add_resource(world_config, world_config.__class__)
-        world.logger.debug("Added WorldConfig resource for World '%s'.", world_name)
-
         db_manager = DatabaseManager(
-            world_config=world_config,
+            db_url=world_def.db.url,
+            world_name=world_name,
         )
-        resource_manager.add_resource(db_manager, DatabaseManager)
+        resource_manager.add_resource(db_manager)
         world.logger.debug("Added DatabaseManager resource for World '%s'.", world_name)
 
         # Register core context providers
@@ -50,9 +47,8 @@ class CorePlugin(Plugin):
         world.logger.debug("Core context providers registered for World '%s'.", world_name)
 
         world.logger.info(
-            "Base resources populated for World '%s'. Current resources: %s",
+            "Base resources populated for World '%s'.",
             world_name,
-            list(resource_manager.get_all_resource_types()),
         )
 
         # Logic from register_core_systems
