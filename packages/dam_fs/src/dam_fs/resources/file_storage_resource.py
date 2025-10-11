@@ -2,9 +2,8 @@
 
 from pathlib import Path
 
-from dam.core.config import WorldConfig
-
 from ..functions import file_storage  # Import the module with functions
+from ..settings import FsPluginSettings
 
 
 class FileStorageResource:
@@ -14,28 +13,19 @@ class FileStorageResource:
     It wraps the functional implementation in `dam_fs.functions.file_storage`.
     """
 
-    def __init__(self, world_config: WorldConfig):
+    def __init__(self, settings: FsPluginSettings):
         """
         Initialize the FileStorageResource.
 
         Args:
-            world_config: The configuration of the world.
+            settings: The FsPluginSettings for the world.
 
         """
-        self.world_config = world_config
+        self.settings = settings
 
     def get_world_asset_storage_path(self) -> Path:
-        """
-        Return the root asset storage path for the current world.
-
-        It looks for a 'storage_path' under the [plugin_settings.dam-fs]
-        section of the world's config. Falls back to './default_dam_storage'
-        if not specified.
-        """
-        # Safely access nested dictionaries
-        fs_settings = self.world_config.plugin_settings.get("dam-fs", {})
-        storage_path = fs_settings.get("storage_path", "./default_dam_storage")
-        return Path(storage_path)
+        """Return the root asset storage path for the current world."""
+        return self.settings.storage_path
 
     def store_file(self, file_content: bytes, original_filename: str | None = None) -> tuple[str, str]:
         """

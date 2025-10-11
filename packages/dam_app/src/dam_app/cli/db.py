@@ -8,9 +8,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from dam.core.config import Config, get_dam_toml
 from rich.console import Console
-
-from dam_app.config import Config, load_config
 
 # --- Typer App Definition ---
 app = typer.Typer(
@@ -50,7 +49,7 @@ def _run_alembic_command(world_name: str, command: list[str]):
     try:
         config_path_str = os.getenv("DAM_CONFIG_FILE")
         config_path = Path(config_path_str) if config_path_str else None
-        config = load_config(config_path)
+        config = get_dam_toml().parse(config_path)
         if world_name not in config.worlds:
             console.print(f"[bold red]Error:[/] World '{world_name}' not found in configuration.")
             raise typer.Exit(1)
@@ -103,7 +102,7 @@ def init(
     try:
         config_path_str = os.getenv("DAM_CONFIG_FILE")
         config_path = Path(config_path_str) if config_path_str else None
-        config = load_config(config_path)
+        config = get_dam_toml().parse(config_path)
         if world not in config.worlds:
             console.print(f"[bold red]Error:[/] World '{world}' not found in configuration.")
             raise typer.Exit(1)

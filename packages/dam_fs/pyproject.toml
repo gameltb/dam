@@ -42,3 +42,6 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
+
+[project.entry-points."dam.plugin_settings"]
+dam-fs = "dam_fs.settings:FsPluginSettings"

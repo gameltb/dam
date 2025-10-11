@@ -10,7 +10,6 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
-from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import FileStreamProvider
@@ -56,14 +55,14 @@ async def add_file_properties_handler(
 async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: WorldTransaction,
-    world_config: WorldConfig,
+    world: Annotated[World, "Resource"],
 ) -> dict[str, Any] | None:
     """Handle the FindEntityByHashCommand to find an entity by its content hash."""
     logger.info(
         "System handling FindEntityByHashCommand for hash: %s (type: %s) in world '%s' (Req ID: %s)",
         cmd.hash_value,
         cmd.hash_type,
-        world_config.name,
+        world.name,
         cmd.request_id,
     )
     try:
