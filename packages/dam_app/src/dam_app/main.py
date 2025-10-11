@@ -1,13 +1,15 @@
 """Main CLI entry point for the DAM application."""
 
 import logging
+import os
 import traceback
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from dam.core.config import get_dam_toml
+
 from dam_app.cli import assets, db, report, verify
+from dam_app.config import load_config
 from dam_app.logging_config import setup_logging
 from dam_app.state import global_state
 
@@ -69,16 +71,14 @@ def main_callback(
     setup_logging(logging.INFO)
 
     try:
-        # Use the new DamToml helper from the core package
-        dam_toml = get_dam_toml()
-        global_state.config = dam_toml.parse(config_file)
-        # We don't need to set the env var anymore as the helper handles discovery
+        global_state.config = load_config(config_file)
+        if config_file:
+            os.environ["DAM_CONFIG_FILE"] = str(config_file)
 
     except FileNotFoundError as e:
-        # The db init command should not fail if the config doesn't exist yet
-        is_db_init = ctx.invoked_subcommand and "db" in ctx.invoked_subcommand and "init" in ctx.invoked_subcommand
-        if not ctx.resilient_parsing and not is_db_init:
-            typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        is_db_command = ctx.invoked_subcommand and "db" in ctx.invoked_subcommand
+        if not ctx.resilient_parsing and not is_db_command:
+            typer.secho("Error: Configuration file not found.", fg=typer.colors.RED)
             raise typer.Exit(1) from e
     except Exception as e:
         typer.secho(f"Critical error loading configuration: {e}", fg=typer.colors.RED)

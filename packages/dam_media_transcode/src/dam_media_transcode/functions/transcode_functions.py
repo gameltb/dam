@@ -5,7 +5,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from dam.core.config import get_dam_toml
+from dam.core.config import settings
 from dam.core.stages import SystemStage
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -174,7 +174,7 @@ async def apply_transcode_profile(
 
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
-        temp_transcode_dir = get_dam_toml().get_tool_config().TRANSCODING_TEMP_DIR
+        temp_transcode_dir = Path(settings.TRANSCODING_TEMP_DIR)
         temp_transcode_dir.mkdir(parents=True, exist_ok=True)
 
         final_output_dir_base = output_parent_dir or temp_transcode_dir

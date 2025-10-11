@@ -4,10 +4,11 @@ import importlib
 import logging
 from typing import TYPE_CHECKING
 
-from dam.core.config import Config, WorldDefinition
+from dam import world_manager
+from dam.core.config import WorldConfig
 from dam.core.world import World
-from dam.core.world_manager import create_world, world_manager
 
+from dam_app.config import Config, WorldDefinition
 from dam_app.plugin import AppPlugin
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class GlobalState:
         """Initialize the GlobalState."""
         self.config: Config | None = None
         self.world_name: str | None = None
+        self._instantiated_worlds: set[str] = set()
 
     def get_current_world_def(self) -> WorldDefinition | None:
         """Retrieve the configuration definition for the currently active world."""
@@ -60,33 +62,29 @@ class GlobalState:
             return None
 
     def _instantiate_and_configure_world(self, world_name: str) -> World | None:
-        """Create a new World instance using the core factory and add app-level plugins."""
-        if not self.config:
-            logger.error("Configuration is not loaded, cannot instantiate world.")
-            return None
-
+        """Create a new World instance and configure it with plugins."""
         world_def = self.get_current_world_def()
         if not world_def:
             logger.error("World definition for '%s' not found.", world_name)
             return None
 
         logger.info("Lazily instantiating and configuring world: '%s'", world_name)
-        try:
-            # Use the new core function to create the base world
-            world_instance = create_world(world_name, self.config)
-        except (ValueError, FileNotFoundError) as e:
-            logger.error("Failed to create world '%s'. Reason: %s", world_name, e)
-            return None
+        world_config = WorldConfig(
+            name=world_name,
+            DATABASE_URL=world_def.db.url,
+            plugin_settings=world_def.model_dump(mode="python").get("plugin_settings", {}),
+        )
+        world_instance = World(world_config=world_config)
 
-        # Load all application-level plugins for this world
+        # Load all configured plugins for this world
         world_instance.add_plugin(AppPlugin())
         for plugin_name in world_def.plugins.names:
             plugin = self._load_plugin(plugin_name, world_name)
             if plugin:
                 world_instance.add_plugin(plugin)
 
-        # Register the fully configured world
         world_manager.register_world(world_instance)
+        self._instantiated_worlds.add(world_name)
         return world_instance
 
     def get_current_world(self) -> World | None:
@@ -99,10 +97,12 @@ class GlobalState:
         if not self.world_name:
             return None
 
+        # Check if the world is already registered in the central manager
         world = world_manager.get_world(self.world_name)
         if world:
             return world
 
+        # If not, instantiate it, which also registers it.
         return self._instantiate_and_configure_world(self.world_name)
 
 

@@ -3,8 +3,8 @@
 from typing import Any
 
 import pytest
-from dam.core.config import Config, DatabaseConfig, PluginConfig, WorldDefinition
 
+from dam_app.config import Config, DatabaseConfig, PluginConfig, WorldDefinition
 from dam_app.main import cli_list_worlds
 from dam_app.state import global_state
 
