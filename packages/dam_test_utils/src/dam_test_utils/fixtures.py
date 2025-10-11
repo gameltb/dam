@@ -1,8 +1,9 @@
 """Fixtures for DAM tests."""
 
+import json
 import os
 import uuid
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import (
     Any,
@@ -12,19 +13,30 @@ import numpy as np
 import psycopg
 import pytest
 import pytest_asyncio
-import tomli_w
 import torch
-from dam.core.config import Config, DamToml
+from dam import world_manager
+from dam.contexts.transaction_manager import TransactionManager
+from dam.core.config import Settings
+from dam.core.config import settings as global_settings
 from dam.core.database import DatabaseManager
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
-from dam.core.world_manager import create_world, world_manager
 from dam.models.core.base_class import Base
 from PIL import Image
 from psycopg import sql
 from scipy.io.wavfile import write as write_wav  # type: ignore[import]
 from sqlalchemy.ext.asyncio import AsyncSession
 
+_original_settings_values: dict[str, Any] = {}
 MOCK_TRANSFORMER_EMBEDDING_DIM = 3
+
+
+@pytest.fixture(scope="session", autouse=True)
+def backup_original_settings() -> None:
+    """Backup the original settings before tests run."""
+    _original_settings_values["DAM_WORLDS_CONFIG"] = global_settings.DAM_WORLDS_CONFIG
+    _original_settings_values["worlds"] = global_settings.worlds.copy()
+    _original_settings_values["DEFAULT_WORLD_NAME"] = global_settings.DEFAULT_WORLD_NAME
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -36,47 +48,54 @@ async def test_db() -> AsyncGenerator[str, None]:
     db_port = os.environ.get("POSTGRES_PORT", "5432")
     db_name = f"test_db_{uuid.uuid4().hex}"
 
-    conn = psycopg.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    conn = await psycopg.AsyncConnection.connect(
+        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
+    )
     try:
-        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+        await conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
     finally:
-        conn.close()
+        await conn.close()
 
     db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     yield db_url
 
-    conn = psycopg.connect(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True)
+    conn = await psycopg.AsyncConnection.connect(
+        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
+    )
     try:
-        conn.execute(sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"), (db_name,))
-        conn.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name)))
+        # Need to terminate all connections before dropping the database
+        await conn.execute(
+            sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"), (db_name,)
+        )
+        await conn.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name)))
     except psycopg.errors.InvalidCatalogName:
-        pass
+        pass  # Database does not exist
     finally:
-        conn.close()
+        await conn.close()
 
 
-@pytest.fixture
-def test_config(test_db: str, tmp_path: Path) -> Generator[Config, None, None]:
-    """Creates a temporary dam.toml and returns a parsed Config object."""
+@pytest_asyncio.fixture(scope="function")
+async def settings_override(test_db: str, monkeypatch: Any, tmp_path: Path) -> AsyncGenerator[Settings, None]:
+    """Override settings for testing."""
 
     def _factory() -> dict[str, dict[str, str]]:
         return {
             "test_world_alpha": {"DATABASE_URL": test_db},
             "test_world_beta": {"DATABASE_URL": test_db},
             "test_world_gamma": {"DATABASE_URL": test_db},
+            "test_world_alpha_del_split": {"DATABASE_URL": test_db},
+            "test_world_beta_del_split": {"DATABASE_URL": test_db},
+            "test_world_gamma_del_split": {"DATABASE_URL": test_db},
         }
 
     raw_world_configs = _factory()
-    worlds_config_dict: dict[str, Any] = {}
+    updated_test_worlds_config: dict[str, Any] = {}
 
     for world_name, config_template in raw_world_configs.items():
         asset_temp_dir = tmp_path / f"assets_{world_name}"
         asset_temp_dir.mkdir(parents=True, exist_ok=True)
-
-        worlds_config_dict[world_name] = {
-            "db": {"url": config_template["DATABASE_URL"]},
-            "plugins": {"names": ["dam-fs"]},
-            "paths": {},
+        updated_test_worlds_config[world_name] = {
+            **config_template,
             "plugin_settings": {
                 "dam-fs": {
                     "storage_path": str(asset_temp_dir),
@@ -84,27 +103,32 @@ def test_config(test_db: str, tmp_path: Path) -> Generator[Config, None, None]:
             },
         }
 
-    final_toml_dict = {"worlds": worlds_config_dict}
+    default_test_world_name = "test_world_alpha"
+    new_settings = Settings(
+        DAM_WORLDS_CONFIG=json.dumps(updated_test_worlds_config),
+        DEFAULT_WORLD_NAME=default_test_world_name,
+    )
 
-    toml_path = tmp_path / "dam.toml"
-    with toml_path.open("wb") as f:
-        tomli_w.dump(final_toml_dict, f)
-
-    config_loader = DamToml(start_dir=tmp_path)
-    config = config_loader.parse()
+    monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", new_settings.DAM_WORLDS_CONFIG)
+    monkeypatch.setattr(global_settings, "worlds", new_settings.worlds)
+    monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", new_settings.DEFAULT_WORLD_NAME)
 
     world_manager.clear_world_registry()
-    yield config
+    yield new_settings
+    monkeypatch.setattr(global_settings, "DAM_WORLDS_CONFIG", _original_settings_values["DAM_WORLDS_CONFIG"])
+    monkeypatch.setattr(global_settings, "worlds", _original_settings_values["worlds"])
+    monkeypatch.setattr(global_settings, "DEFAULT_WORLD_NAME", _original_settings_values["DEFAULT_WORLD_NAME"])
     world_manager.clear_world_registry()
 
 
-async def _setup_world(world_name: str, test_config_fixture: Config, plugins: list[Any] | None = None) -> World:
+async def _setup_world(world_name: str, settings_override_fixture: Settings, plugins: list[Any] | None = None) -> World:
     """Set up a dam world, with optional plugins."""
-    world = create_world(world_name, config=test_config_fixture)
-    world_manager.register_world(world)
+    world = world_manager.create_and_register_world(world_name, app_settings=settings_override_fixture)
+    world.add_resource(world, World)
 
-    db_manager = world.get_resource(DatabaseManager)
-    await db_manager.create_db_and_tables()
+    transaction_manager = world.get_context(WorldTransaction)
+    assert isinstance(transaction_manager, TransactionManager)
+    await transaction_manager.create_db_and_tables()
 
     if plugins:
         for plugin in plugins:
@@ -114,8 +138,10 @@ async def _setup_world(world_name: str, test_config_fixture: Config, plugins: li
 
 
 async def _teardown_world_async(world: World) -> None:
-    if world and world.has_resource(DatabaseManager):
-        db_mngr = world.get_resource(DatabaseManager)
+    if world and world.has_context(WorldTransaction):
+        transaction_manager = world.get_context(WorldTransaction)
+        assert isinstance(transaction_manager, TransactionManager)
+        db_mngr = transaction_manager.db_manager
         if db_mngr and db_mngr.engine:
             async with db_mngr.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.drop_all)
@@ -123,9 +149,9 @@ async def _teardown_world_async(world: World) -> None:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_world_alpha(test_config: Config) -> AsyncGenerator[World, None]:
+async def test_world_alpha(settings_override: Settings) -> AsyncGenerator[World, None]:
     """Create a test world named 'alpha'."""
-    world = await _setup_world("test_world_alpha", test_config, plugins=None)
+    world = await _setup_world("test_world_alpha", settings_override, plugins=None)
     yield world
     await _teardown_world_async(world)
 
@@ -145,36 +171,66 @@ class MockSentenceTransformer(torch.nn.Module):
         """Initialize the mock sentence transformer."""
         super().__init__()  # type: ignore
         self.model_name = model_name_or_path
-        self.dim = 384
+        if model_name_or_path and "clip" in model_name_or_path.lower():
+            self.dim = 512
+        elif model_name_or_path and "MiniLM-L6-v2" in model_name_or_path:
+            self.dim = 384
+        else:
+            self.dim = 384
 
-    def encode(self, sentences: str | list[str], **_kwargs: Any) -> np.ndarray:
+    def forward(self, features: Any) -> Any:
+        """Perform a forward pass."""
+        return features
+
+    def encode(
+        self, sentences: str | list[str], convert_to_numpy: bool = True, **_kwargs: Any
+    ) -> np.ndarray | list[list[float]]:
         """Encode sentences into embeddings."""
-        is_single = isinstance(sentences, str)
-        if is_single:
-            sentences = [sentences]  # pyright: ignore[reportUnnecessaryComparison]
-
-        embeddings: list[np.ndarray] = []
+        original_sentences_type = type(sentences)
+        if isinstance(sentences, str):
+            sentences = [sentences]
+        embeddings: list[Any] = []
         for s in sentences:
+            if not s or not s.strip():
+                embeddings.append(np.zeros(self.dim, dtype=np.float32))
+                continue
             sum_ords = sum(ord(c) for c in s)
-            vec = np.full(self.dim, float(sum_ords % 1000), dtype=np.float32)
+            model_ord_sum = sum(ord(c) for c in (self.model_name or "default"))
+            vec_elements = [sum_ords % 100, len(s) % 100, model_ord_sum % 100]
+            if self.dim >= MOCK_TRANSFORMER_EMBEDDING_DIM:
+                vec = np.array(
+                    vec_elements[: self.dim] + [0.0] * (self.dim - min(MOCK_TRANSFORMER_EMBEDDING_DIM, self.dim)),
+                    dtype=np.float32,
+                )
+            elif self.dim > 0:
+                vec = np.array(vec_elements[: self.dim], dtype=np.float32)
+            else:
+                vec = np.array([], dtype=np.float32)
+            if vec.shape[0] != self.dim and self.dim > 0:
+                padding = np.zeros(self.dim - vec.shape[0], dtype=np.float32)
+                vec = np.concatenate((vec, padding))
+            elif vec.shape[0] != self.dim and self.dim == 0:
+                vec = np.array([], dtype=np.float32)
             embeddings.append(vec)
-
-        result = np.array(embeddings, dtype=np.float32)
-        return result[0] if is_single else result
+        if not convert_to_numpy:
+            embeddings = [e.tolist() for e in embeddings]
+        if original_sentences_type is str:
+            return embeddings[0] if embeddings else np.array([])
+        return np.array(embeddings) if convert_to_numpy else embeddings
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_world_beta(test_config: Config) -> AsyncGenerator[World, None]:
+async def test_world_beta(settings_override: Settings) -> AsyncGenerator[World, None]:
     """Create a test world named 'beta'."""
-    world = await _setup_world("test_world_beta", test_config)
+    world = await _setup_world("test_world_beta", settings_override)
     yield world
     await _teardown_world_async(world)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_world_gamma(test_config: Config) -> AsyncGenerator[World, None]:
+async def test_world_gamma(settings_override: Settings) -> AsyncGenerator[World, None]:
     """Create a test world named 'gamma'."""
-    world = await _setup_world("test_world_gamma", test_config)
+    world = await _setup_world("test_world_gamma", settings_override)
     yield world
     await _teardown_world_async(world)
 
@@ -210,6 +266,38 @@ def sample_text_file(tmp_path: Path) -> Path:
     """Create a sample text file."""
     file_path = tmp_path / "sample_doc.txt"
     file_path.write_text("This is a common test document.")
+    return file_path
+
+
+@pytest.fixture
+def sample_video_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder video file."""
+    file_path = tmp_path / "sample_video_placeholder.mp4"
+    # A minimal mp4 file
+    file_path.write_bytes(b"\x00\x00\x00\x18ftypisom\x00\x00\x00\x00isomiso2avc1mp41")
+    return file_path
+
+
+@pytest.fixture
+def sample_audio_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder audio file."""
+    file_path = tmp_path / "sample_audio_placeholder.wav"
+    samplerate = 44100
+    duration = 1
+    frequency = 440
+    t = np.linspace(0.0, duration, int(samplerate * duration))
+    amplitude = np.iinfo(np.int16).max * 0.5
+    data = amplitude * np.sin(2.0 * np.pi * frequency * t)
+    write_wav(file_path, samplerate, data.astype(np.int16))
+    return file_path
+
+
+@pytest.fixture
+def sample_gif_file_placeholder(tmp_path: Path) -> Path:
+    """Create a placeholder GIF file."""
+    file_path = tmp_path / "sample_gif_placeholder.gif"
+    img = Image.new("RGB", (1, 1), color=(255, 255, 255))
+    img.save(file_path)
     return file_path
 
 

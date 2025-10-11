@@ -3,8 +3,8 @@
 import logging
 from typing import TYPE_CHECKING
 
-from dam.core.config import Config
-from dam.core.plugin import discover_plugin_settings
+from dam.core.config import Settings
+from dam.core.config import settings as global_app_settings
 
 if TYPE_CHECKING:
     from dam.core.world import World
@@ -35,6 +35,13 @@ class WorldManager:
         """Get a world instance by name."""
         return self._worlds.get(world_name)
 
+    def get_default_world(self) -> "World | None":
+        """Get the default world instance."""
+        default_name = global_app_settings.DEFAULT_WORLD_NAME
+        if default_name:
+            return self.get_world(default_name)
+        return None
+
     def get_all_registered_worlds(self) -> list["World"]:
         """Return a list of all registered world instances."""
         return list(self._worlds.values())
@@ -54,63 +61,51 @@ class WorldManager:
         self._worlds.clear()
         logger.info("Cleared %d worlds from the registry.", count)
 
+    def create_and_register_world(self, world_name: str, app_settings: Settings | None = None) -> "World":
+        """Create a new world instance and register it."""
+        from dam.core.world import World  # noqa: PLC0415
 
-def create_world(world_name: str, config: Config) -> "World":
-    """
-    Create a new World instance from a configuration definition.
-
-    This function is the central point for instantiating a world. It handles:
-    - Retrieving the world's configuration definition.
-    - Discovering all available plugin settings classes.
-    - Validating the plugin settings from the config against the discovered classes.
-    - Instantiating the World object.
-    - Adding the validated plugin settings as ECS resources.
-    - Adding the core plugin.
-
-    Args:
-        world_name: The name of the world to create.
-        config: The loaded application configuration.
-
-    Returns:
-        A newly created (but not yet registered) World instance.
-
-    Raises:
-        ValueError: If the world is not defined in the configuration.
-
-    """
-    from dam.core.world import World  # noqa: PLC0415
-    from dam.plugins.core import CorePlugin  # noqa: PLC0415
-
-    world_def = config.worlds.get(world_name)
-    if not world_def:
-        raise ValueError(f"World '{world_name}' not defined in the configuration.")
-
-    logger.info("Creating world '%s' from definition.", world_name)
-
-    # Instantiate the world with its core definition
-    world = World(name=world_name, definition=world_def)
-
-    # Discover and process plugin settings
-    discovered_settings = discover_plugin_settings()
-    raw_settings = world_def.plugin_settings
-
-    for name, settings_class in discovered_settings.items():
-        settings_data = raw_settings.get(name, {})
+        current_settings = app_settings or global_app_settings
+        logger.info(
+            "Attempting to create and register world: %s using settings: %s",
+            world_name,
+            "provided" if app_settings else "global",
+        )
         try:
-            # Validate the settings and add as a resource
-            validated_settings = settings_class.model_validate(settings_data)
-            world.add_resource(validated_settings)
-            logger.debug("Validated and added settings for plugin '%s' to world '%s'.", name, world_name)
-        except Exception:
-            logger.exception("Failed to validate settings for plugin '%s' in world '%s'.", name, world_name)
+            world_cfg = current_settings.get_world_config(world_name)
+        except ValueError as e:
+            logger.error("Failed to get configuration for world '%s': %s", world_name, e)
             raise
 
-    # Add the core plugin, which populates essential resources like the DB manager
-    world.add_plugin(CorePlugin())
+        world = World(world_config=world_cfg)
 
-    logger.info("World '%s' created and core plugin loaded.", world_name)
-    return world
+        from dam.plugins.core import CorePlugin  # noqa: PLC0415
 
+        world.add_plugin(CorePlugin())
 
-# Global world manager instance
-world_manager = WorldManager()
+        world.scheduler.resource_manager = world.resource_manager
+
+        world.logger.info("World '%s' resources populated and scheduler updated.", world.name)
+
+        self.register_world(world)
+        return world
+
+    def create_and_register_all_worlds_from_settings(self, app_settings: Settings | None = None) -> list["World"]:
+        """Create and register all worlds defined in the application settings."""
+        current_settings = app_settings or global_app_settings
+        created_worlds: list[World] = []
+        world_names = current_settings.get_all_world_names()
+        logger.info(
+            "Found %d worlds in settings to create and register: %s (using %s settings)",
+            len(world_names),
+            world_names,
+            "provided" if app_settings else "global",
+        )
+
+        for name in world_names:
+            try:
+                world = self.create_and_register_world(name, app_settings=current_settings)
+                created_worlds.append(world)
+            except Exception:
+                logger.exception("Failed to create or register world '%s'", name)
+        return created_worlds

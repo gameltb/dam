@@ -9,8 +9,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from dam.core.config import get_dam_toml
 from dam.models import Base
+from dam_app.config import load_config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -30,7 +30,7 @@ if not WORLD_NAME:
 # It uses DAM_CONFIG_FILE env var if set, which our CLI does.
 config_path_str = os.getenv("DAM_CONFIG_FILE")
 config_path = Path(config_path_str) if config_path_str else None
-app_config = get_dam_toml().parse(config_path)
+app_config = load_config(config_path)
 
 world_definition = app_config.worlds.get(WORLD_NAME)
 

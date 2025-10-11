@@ -144,6 +144,3 @@ markers = [
     "serial: mark a test as serial",
 ]
 
-[tool.dam]
-# This section is reserved for project-wide settings for the DAM framework.
-# For example, you might configure default logging levels or paths here.
