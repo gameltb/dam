@@ -1,5 +1,6 @@
 """Tests for the `report` CLI command."""
 
+import csv
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -87,3 +88,40 @@ plugins = ["dam.core", "dam.fs", "dam.archive", "dam.psp"]
     assert "Total wasted space: 5 bytes" in result.stdout
     assert "Filesystem" in result.stdout
     assert "Archive" in result.stdout
+
+    # Test CSV output
+    csv_path = tmp_path / "duplicates.csv"
+    result = runner.invoke(
+        app,
+        [
+            "--config",
+            str(config_path),
+            "--world",
+            "test_world",
+            "report",
+            "duplicates",
+            "--csv",
+            str(csv_path),
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert csv_path.exists()
+
+    with csv_path.open("r") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        assert header == [
+            "Entity ID",
+            "SHA256",
+            "Size (bytes)",
+            "Locations",
+            "Wasted Space (bytes)",
+            "Paths",
+        ]
+        rows = list(reader)
+        assert len(rows) == 1
+        assert rows[0][2] == "5"  # Size
+        assert rows[0][3] == "2"  # Locations
+        assert rows[0][4] == "5"  # Wasted space
