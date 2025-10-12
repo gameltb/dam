@@ -22,6 +22,9 @@ dev = [
     "dam_test_utils",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-media-audio = "dam_media_audio.plugin:AudioPlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]

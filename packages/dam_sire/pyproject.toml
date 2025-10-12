@@ -18,6 +18,8 @@ dev = [
     "pytest-mock",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-sire = "dam_sire.plugin:SirePlugin"
 
 [tool.ruff]
 extend = "../../pyproject.toml"

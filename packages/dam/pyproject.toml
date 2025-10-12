@@ -42,6 +42,9 @@ dev = [
     "dam_test_utils",
 ]
 
+[project.entry-points."dam.plugins"]
+core = "dam.plugins.core:CorePlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
