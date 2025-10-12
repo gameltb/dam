@@ -16,6 +16,9 @@ dev = [
     "pytest-cov",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-source = "dam_source.plugin:SourcePlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]

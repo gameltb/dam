@@ -20,6 +20,9 @@ dev = [
     "pytest-cov",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-media-image = "dam_media_image.plugin:ImagePlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]

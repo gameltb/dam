@@ -19,6 +19,9 @@ dev = [
     "dam_media_audio",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-fs = "dam_fs.plugin:FsPlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]

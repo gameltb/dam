@@ -30,6 +30,9 @@ dependencies = [
     "dam_fs",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-archive = "dam_archive.plugin:ArchivePlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist", "tests/test_assets"]

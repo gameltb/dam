@@ -1,6 +1,6 @@
 """Utility functions for discovering and loading plugins."""
 
-import importlib
+import importlib.metadata
 import logging
 from typing import TYPE_CHECKING
 
@@ -9,36 +9,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# A mapping from plugin package names to their main Plugin class names.
-# This will eventually be replaced by an automatic discovery mechanism.
-PLUGIN_CLASS_MAP: dict[str, str] = {
-    "core": "CorePlugin",  # Add core plugin here
-    "dam-fs": "FsPlugin",
-    "dam-source": "SourcePlugin",
-    "dam-archive": "ArchivePlugin",
-    "dam-media-image": "ImagePlugin",
-    "dam-media-audio": "AudioPlugin",
-    "dam-media-transcode": "TranscodePlugin",
-    "dam-psp": "PspPlugin",
-    "dam-semantic": "SemanticPlugin",
-    "dam-sire": "SirePlugin",
-}
-
 
 def load_plugin(plugin_name: str) -> "Plugin | None":
     """Dynamically load a plugin instance by its package name."""
-    if plugin_name not in PLUGIN_CLASS_MAP:
-        logger.warning("Unknown plugin '%s' defined in config. Skipping.", plugin_name)
-        return None
     try:
-        module_path = "dam.plugins.core" if plugin_name == "core" else plugin_name.replace("-", "_") + ".plugin"
+        eps = importlib.metadata.entry_points(group="dam.plugins", name=plugin_name)
+        try:
+            ep = next(iter(eps))
+        except StopIteration:
+            logger.warning("Unknown plugin '%s' not found.", plugin_name)
+            return None
 
-        class_name = PLUGIN_CLASS_MAP[plugin_name]
-        plugin_module = importlib.import_module(module_path)
-        plugin_class: type[Plugin] = getattr(plugin_module, class_name)
+        plugin_class = ep.load()
         logger.info("Loaded plugin '%s'.", plugin_name)
         return plugin_class()
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         logger.warning("Could not load plugin '%s'. Reason: %s.", plugin_name, e)
         return None
 
@@ -46,8 +31,17 @@ def load_plugin(plugin_name: str) -> "Plugin | None":
 def get_all_plugins() -> dict[str, "Plugin"]:
     """Load and return all known plugins."""
     plugins: dict[str, Plugin] = {}
-    for name in PLUGIN_CLASS_MAP:
-        plugin = load_plugin(name)
-        if plugin:
-            plugins[name] = plugin
+    try:
+        entry_points = importlib.metadata.entry_points(group="dam.plugins")
+        for ep in entry_points:
+            try:
+                plugin_class = ep.load()
+                plugin_instance = plugin_class()
+                plugins[ep.name] = plugin_instance
+                logger.info("Loaded plugin '%s'.", ep.name)
+            except Exception as e:
+                logger.warning("Could not load plugin '%s'. Reason: %s.", ep.name, e)
+    except Exception as e:
+        logger.error("Error discovering plugins for dam.plugins group: %s", e)
+
     return plugins

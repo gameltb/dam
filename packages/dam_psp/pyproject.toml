@@ -32,6 +32,9 @@ dev = [
     "aiofiles>=23.2.1",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-psp = "dam_psp:PspPlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]

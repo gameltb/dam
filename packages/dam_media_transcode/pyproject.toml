@@ -17,6 +17,9 @@ dev = [
     "pytest-cov",
 ]
 
+[project.entry-points."dam.plugins"]
+dam-media-transcode = "dam_media_transcode.plugin:TranscodePlugin"
+
 [tool.ruff]
 extend = "../../pyproject.toml"
 exclude = ["build", "dist"]
