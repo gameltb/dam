@@ -74,10 +74,11 @@ def test_toml_config(test_db: str, tmp_path: Path) -> Path:
         asset_storage_path = (tmp_path / f"assets_{name}").as_posix().replace("\\", "/")
         worlds_config += f"""
 [worlds.{name}.plugin_settings.core]
-DATABASE_URL = "{test_db}"
+database_url = "{test_db}"
+alembic_path = "{tmp_path.joinpath("alembic", name).as_posix()}"
 
 [worlds.{name}.plugin_settings."dam-fs"]
-ASSET_STORAGE_PATH = "{asset_storage_path}"
+asset_storage_path = "{asset_storage_path}"
 """
 
     toml_path = tmp_path / "dam.toml"
@@ -142,7 +143,7 @@ class MockSentenceTransformer(torch.nn.Module):
 
     def __init__(self, model_name_or_path: str | None = None, **_kwargs: Any) -> None:
         """Initialize the mock sentence transformer."""
-        super().__init__()
+        super().__init__()  # type: ignore
         self.model_name = model_name_or_path
         self.dim = 384
 

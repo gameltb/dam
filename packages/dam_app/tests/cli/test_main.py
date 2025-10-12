@@ -4,28 +4,17 @@ from typing import Any
 
 import pytest
 
-from dam_app.config import Config, DatabaseConfig, PluginConfig, WorldDefinition
 from dam_app.main import cli_list_worlds
 from dam_app.state import global_state
 
 
 def test_cli_list_worlds(capsys: pytest.CaptureFixture[Any]):
     """Test the list-worlds command."""
-    # 1. Setup: Manually populate the global state to simulate a loaded config.
-    global_state.config = Config(
-        worlds={
-            "test_world_alpha": WorldDefinition(
-                db=DatabaseConfig(url="..."),
-                plugins=PluginConfig(names=[]),
-                paths={},
-            ),
-            "test_world_beta": WorldDefinition(
-                db=DatabaseConfig(url="..."),
-                plugins=PluginConfig(names=[]),
-                paths={},
-            ),
-        }
-    )
+    # 1. Setup: Manually populate the global state to simulate loaded components.
+    global_state.loaded_components = {
+        "test_world_alpha": {},  # The values can be empty dicts for this test
+        "test_world_beta": {},
+    }
     global_state.world_name = "test_world_alpha"  # Set an active world
 
     # 2. Execute
@@ -37,5 +26,5 @@ def test_cli_list_worlds(capsys: pytest.CaptureFixture[Any]):
     assert "test_world_beta" in captured.out
 
     # 4. Teardown
-    global_state.config = None
+    global_state.loaded_components = {}
     global_state.world_name = None

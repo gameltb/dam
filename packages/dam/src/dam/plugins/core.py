@@ -2,6 +2,7 @@
 
 import logging
 
+from pydantic import Field
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,14 +30,16 @@ logger = logging.getLogger(__name__)
 class CoreSettingsModel(SettingsModel):
     """Pydantic model for validating core plugin settings from dam.toml."""
 
-    DATABASE_URL: str
+    database_url: str
+    alembic_path: str = Field(..., description="Path to the Alembic migrations directory for this world.")
 
 
 class CoreSettingsComponent(ConfigComponent):
     """ECS component holding the core settings for a world."""
 
     __tablename__ = "core_settings"
-    DATABASE_URL: Mapped[str] = mapped_column(String, nullable=False)
+    database_url: Mapped[str] = mapped_column(String, nullable=False)
+    alembic_path: Mapped[str] = mapped_column(String, nullable=False)
 
 
 # --- Plugin ---
@@ -66,7 +69,7 @@ class CorePlugin(Plugin):
 
         world.logger.info("Populating base resources for World '%s'...", world_name)
 
-        db_manager = DatabaseManager(database_url=settings.DATABASE_URL)
+        db_manager = DatabaseManager(database_url=settings.database_url)
         resource_manager.add_resource(db_manager, DatabaseManager)
         world.logger.debug("Added DatabaseManager resource for World '%s'.", world_name)
 

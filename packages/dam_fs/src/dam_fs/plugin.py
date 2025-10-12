@@ -51,7 +51,8 @@ class FsPlugin(Plugin):
 
         """
         # Add FileStorageResource
-        file_storage_svc = FileStorageResource()
+        settings = world.get_resource(FsSettingsComponent)
+        file_storage_svc = FileStorageResource(settings)
         world.add_resource(file_storage_svc, FileStorageResource)
         world.logger.debug("Added FileStorageResource resource for World '%s'.", world.name)
 

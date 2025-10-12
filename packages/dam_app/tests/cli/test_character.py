@@ -74,7 +74,6 @@ async def test_cli_character_create(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("sample_text_file")
 async def test_cli_character_apply_list_find(test_world_alpha: World):
     """Test applying, listing, and finding characters on assets via the service layer."""
     # 1. Create a character by directly calling the service
@@ -167,7 +166,7 @@ async def test_cli_character_apply_list_find(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_cli_character_apply_with_identifiers(test_world_alpha: World, sample_image_a: Path):
+async def test_cli_character_apply_with_identifiers(test_world_alpha: World, temp_image_file: Path):
     """Test applying characters to assets using different identifiers (name, hash)."""
     # This test uses asset SHA256 hash and character name for identification
 
@@ -192,7 +191,7 @@ async def test_cli_character_apply_with_identifiers(test_world_alpha: World, sam
     # The stdout assertions have been removed from it in a previous step.
 
     # 1. Add an asset via service calls to ensure it's properly ingested with hashes
-    add_command = RegisterLocalFileCommand(file_path=sample_image_a)
+    add_command = RegisterLocalFileCommand(file_path=temp_image_file)
     await test_world_alpha.dispatch_command(add_command).get_all_results()
     # No add_result or exit_code to check here, assume success if no exceptions
 
@@ -202,7 +201,7 @@ async def test_cli_character_apply_with_identifiers(test_world_alpha: World, sam
     async with test_world_alpha.get_context(WorldTransaction)() as tx:
         session = tx.session
         entities = await ecs_service.find_entities_by_component_attribute_value(
-            session, FilenameComponent, "filename", sample_image_a.name
+            session, FilenameComponent, "filename", temp_image_file.name
         )
         assert len(entities) == 1
         asset_entity = entities[0]

@@ -243,7 +243,7 @@ This section outlines the roles and interactions of Functions, Systems, Commands
 -   **Structure**: Function modules should be designed as **stateless modules of functions**. They should produce the same result for the same input parameters and not rely on internal instance state that persists across calls.
 -   **Interaction**:
     *   Functions operate on Entities and Components, typically by using the `AsyncSession` passed to them or by calling other fine-grained functions (like `ecs_functions` for direct component manipulation).
-    *   If a function needs to interact with a stateful resource (e.g., `ModelExecutionManager` for ML models, `FileStorageResource` for world-specific storage, or future remote API clients), that resource instance **must be passed as an argument** to the function.
+    *   If a function needs to interact with a stateful resource (e.g., `ModelExecutionManager` for ML models, `FileStorageResource` for configured storage, or future remote API clients), that resource instance **must be passed as an argument** to the function.
     *   Functions should **not** use global accessors like `get_default_world()` or similar service locators to find their dependencies.
     *   They are called by Systems (which act as command or event handlers).
 
@@ -312,7 +312,7 @@ It is important to distinguish between Events and Commands to maintain a clean a
 -   **Definition and Purpose**: Resources are shared objects that provide access to external utilities, manage global or world-specific state, or encapsulate connections to infrastructure.
 -   **Types**:
     *   **Global Resources**: Singleton instances shared across all worlds if applicable (e.g., `ModelExecutionManager`).
-    *   **World-Specific Resources**: Instances specific to a world, often configured by `WorldConfig` (e.g., `FileStorageResource`).
+    *   **World-Specific Resources**: Instances specific to a world, often configured by its `SettingsComponent` (e.g., a database manager). The `FileStorageResource` is a good example of a resource that becomes world-specific through its configuration.
 -   **Lifecycle & Management**:
     *   Managed by the `ResourceManager` (`dam.core.resources.ResourceManager`).
     *   Global resources are typically instantiated once when the application starts.

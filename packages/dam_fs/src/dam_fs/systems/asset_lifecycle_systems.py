@@ -186,7 +186,7 @@ async def store_assets_handler(
             continue  # Cannot store without a hash
 
         content_hash = sha256_comp.hash_value.hex()
-        if storage_resource.has_file(world, content_hash):
+        if storage_resource.has_file(content_hash):
             continue  # Already stored
 
         # Get the asset stream to store it
@@ -200,7 +200,7 @@ async def store_assets_handler(
             try:
                 async with stream_provider.get_stream() as stream:
                     content = stream.read()
-                    storage_resource.store_file(world, content)
+                    storage_resource.store_file(content)
                     stored_count += 1
                     logger.info("Stored entity %s (hash: %s)", entity.id, content_hash)
             except Exception:

@@ -5,12 +5,12 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
+from dam.core.config_loader import load_and_validate_settings
+from dam.models import Base
+from dam.plugins.core import CoreSettingsComponent
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
-
-from dam.models import Base
-from dam_app.config import load_config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -27,31 +27,32 @@ if not WORLD_NAME:
     raise ValueError("DAM_WORLD_NAME environment variable must be set to run migrations.")
 
 # Load the main application configuration to find the world's settings.
-# It uses DAM_CONFIG_FILE env var if set, which our CLI does.
 config_path_str = os.getenv("DAM_CONFIG_FILE")
 config_path = Path(config_path_str) if config_path_str else None
-app_config = load_config(config_path)
+loaded_components = load_and_validate_settings(config_path)
 
-world_definition = app_config.worlds.get(WORLD_NAME)
-
-if not world_definition:
+world_components = loaded_components.get(WORLD_NAME)
+if not world_components:
     raise ValueError(f"World '{WORLD_NAME}' not found in configuration.")
 
+core_settings = next(
+    (comp for comp in world_components.values() if isinstance(comp, CoreSettingsComponent)), None
+)
+if not core_settings:
+    raise ValueError(f"CoreSettingsComponent not found for world '{WORLD_NAME}'.")
 
 # Set the database URL for the current world. Alembic will use this.
-config.set_main_option("sqlalchemy.url", world_definition.db.url)
+config.set_main_option("sqlalchemy.url", core_settings.database_url)
 
 
 def import_plugin_models() -> None:
     """
     Dynamically import the 'models' module from the plugins enabled for the current world.
-
     This populates Base.metadata with the tables required for this specific world instance.
     """
-    # This assertion helps pyright understand that world_definition is not None here.
-    assert world_definition is not None
-    plugin_names_to_load = set(["dam"] + world_definition.plugins.names)
-
+    if not world_components:
+        return
+    plugin_names_to_load = set(world_components.keys())
     print(f"Loading models for world '{WORLD_NAME}' with plugins: {', '.join(sorted(plugin_names_to_load))}")
 
     for plugin_name in plugin_names_to_load:
