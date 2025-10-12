@@ -121,18 +121,14 @@ async def ingest_gallery_dl_asset_async(
         return
 
     # 2. Store file in DAM using FileStorageResource
-    # This assumes FileStorageResource is registered and accessible on the world
     try:
         file_storage_resource = world.get_resource(FileStorageResource)
-        if not file_storage_resource:
-            logger.error("FileStorageResource not found in world. Cannot store file.")
-            return
     except Exception as e:
         logger.error(f"Error getting FileStorageResource: {e}")
         return
 
     content_hash_sha256_hex, physical_storage_path_suffix = file_storage_resource.store_file(
-        file_content, original_filename=actual_filename
+        file_content=file_content, original_filename=actual_filename
     )
     content_hash_sha256_bytes = binascii.unhexlify(content_hash_sha256_hex)
 
@@ -363,10 +359,9 @@ if __name__ == "__main__":
 
     cli_app()
 
-# Ensure FileStorageResource is registered to the world during its setup for this script to work.
-# This typically happens in world_setup.py or similar central registration logic.
-# The `register_core_systems` call in `main` should handle this if FileStorageResource
-# is part of the core resources.
+# Ensure the FsPlugin, which provides the FileStorageResource, is registered with the world
+# during its setup for this script to work. This is typically done in the dam.toml
+# configuration and handled by the world initialization process.
 
 # Also, ensure `dam_source.models.source_info.source_types` is accessible.
 # Add `from dam_source.models.source_info import source_types` to where it's used.

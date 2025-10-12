@@ -11,7 +11,6 @@ This module is responsible for:
    settings data.
 """
 
-import importlib
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +31,7 @@ class WorldDefinition(BaseModel):
 
     @field_validator("plugin_settings", mode="before")
     @classmethod
-    def ensure_core_plugin_settings_exist(cls, value: Any) -> Any:
+    def ensure_core_plugin_settings_exist(cls, value: dict[str, Any]) -> dict[str, Any]:
         """Ensure that the 'core' plugin is configured for every world."""
         if not isinstance(value, dict) or "core" not in value:
             raise ValueError("Each world must have a `[worlds.<name>.plugin_settings.core]` table.")
@@ -46,7 +45,7 @@ class TOMLConfig(BaseModel):
 
     @field_validator("worlds", mode="before")
     @classmethod
-    def ensure_worlds_are_present(cls, value: Any) -> Any:
+    def ensure_worlds_are_present(cls, value: dict[str, Any]) -> dict[str, Any]:
         """Ensure the configuration contains at least one world definition."""
         if not isinstance(value, dict) or not value:
             raise ValueError("Configuration must contain at least one `[worlds.<name>]` table.")
@@ -60,7 +59,7 @@ def _validate_and_create_components(
     toml_config: TOMLConfig,
 ) -> dict[str, dict[str, ConfigComponent]]:
     """
-    Validates plugin settings and creates ConfigComponent instances.
+    Validate plugin settings and create ConfigComponent instances.
 
     Iterates through the worlds and plugins defined in the TOML config,
     validates their settings using the appropriate SettingsModel, applies
@@ -85,7 +84,7 @@ def _validate_and_create_components(
 
             # Dynamically create a pydantic-settings class to handle env vars
             env_prefix = f"DAM_WORLDS_{world_name.upper()}_PLUGIN_SETTINGS_{plugin_name.upper()}_"
-            DynamicSettings = type(
+            dynamic_settings = type(
                 f"{plugin_name}RuntimeSettings",
                 (settings_model_class, BaseSettings),
                 {
@@ -98,7 +97,7 @@ def _validate_and_create_components(
             )
 
             # Instantiate with data from TOML, which will be overridden by env vars
-            validated_settings = DynamicSettings(**settings_data)
+            validated_settings = dynamic_settings(**settings_data)
 
             # Now, create and populate the corresponding ConfigComponent
             component_class = _get_component_class_for_plugin(plugin)
@@ -111,8 +110,9 @@ def _validate_and_create_components(
 
 def _get_component_class_for_plugin(plugin: "plugin_loader.Plugin") -> type[ConfigComponent] | None:
     """
-    Finds the ConfigComponent subclass associated with a plugin by looking for
-    a `SettingsComponent` attribute on the plugin class.
+    Find the ConfigComponent subclass associated with a plugin.
+
+    This is done by looking for a `SettingsComponent` attribute on the plugin class.
     """
     component_class = getattr(plugin, "SettingsComponent", None)
     if component_class and issubclass(component_class, ConfigComponent):

@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
     "dam",
     "numpy",
-    "dam_test_utils",
     "dam_semantic",
     "dam_sire",
     "sire",
@@ -20,6 +19,7 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-cov",
+    "dam_test_utils",
 ]
 
 [tool.ruff]

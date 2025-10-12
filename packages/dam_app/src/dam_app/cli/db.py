@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from dam.plugins.core import CoreSettingsComponent
 from rich.console import Console
 
-from dam_app.config import Config, load_config
+from dam_app.state import global_state
 
 # --- Typer App Definition ---
 app = typer.Typer(
@@ -28,47 +29,34 @@ console = Console()
 ALEMBIC_TEMPLATE_DIR = Path(__file__).parent.parent / "alembic_template"
 
 
-def get_alembic_ini_path(world_name: str, config: Config) -> Path:
-    """
-    Get the path to the alembic.ini file for a given world.
+def get_alembic_ini_path(world_name: str) -> Path:
+    """Get the path to the alembic.ini file for a given world."""
+    if not global_state.loaded_components or world_name not in global_state.loaded_components:
+        console.print(f"[bold red]Error:[/] World '{world_name}' not found in configuration.")
+        raise typer.Exit(1)
 
-    This function relies on the mandatory `paths.alembic` configuration.
-    """
-    world_def = config.worlds.get(world_name)
-    if not world_def or "alembic" not in world_def.paths:
+    world_components = global_state.loaded_components[world_name]
+    core_settings = next((comp for comp in world_components.values() if isinstance(comp, CoreSettingsComponent)), None)
+
+    if not core_settings or not hasattr(core_settings, "alembic_path"):
         console.print(
-            f"[bold red]Error:[/] The `[worlds.{world_name}.paths]` table with an 'alembic' key is not defined in your dam.toml."
+            f"[bold red]Error:[/] The 'alembic_path' is not configured in the CoreSettingsComponent for world '{world_name}'."
         )
         raise typer.Exit(1)
 
-    return world_def.paths["alembic"].resolve() / "alembic.ini"
+    return Path(core_settings.alembic_path).resolve() / "alembic.ini"
 
 
 def _run_alembic_command(world_name: str, command: list[str]):
     """Set up the environment and run an Alembic command."""
-    # First, load the config and find the alembic.ini path.
-    try:
-        config_path_str = os.getenv("DAM_CONFIG_FILE")
-        config_path = Path(config_path_str) if config_path_str else None
-        config = load_config(config_path)
-        if world_name not in config.worlds:
-            console.print(f"[bold red]Error:[/] World '{world_name}' not found in configuration.")
-            raise typer.Exit(1)
+    alembic_ini_path = get_alembic_ini_path(world_name)
+    if not alembic_ini_path.is_file():
+        console.print(f"[bold red]Error:[/] alembic.ini not found at configured path: {alembic_ini_path}")
+        console.print(f"Please run `dam-cli db init --world {world_name}` first.")
+        raise typer.Exit(1)
 
-        alembic_ini_path = get_alembic_ini_path(world_name, config)
-        if not alembic_ini_path.is_file():
-            console.print(f"[bold red]Error:[/] alembic.ini not found at configured path: {alembic_ini_path}")
-            console.print(f"Please run `dam-cli db init --world {world_name}` first.")
-            raise typer.Exit(1)
-
-    except FileNotFoundError as e:
-        console.print("[bold red]Error:[/] Configuration file not found.")
-        raise typer.Exit(1) from e
-
-    # Set environment variables for the subprocess
     env = os.environ.copy()
     env["DAM_WORLD_NAME"] = world_name
-    # Ensure the project root is in PYTHONPATH so alembic's env.py can import `dam_app`
     project_root = Path(__file__).parent.parent.parent.parent.parent
     env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
 
@@ -76,7 +64,6 @@ def _run_alembic_command(world_name: str, command: list[str]):
     console.print(f"[dim]Running command: {' '.join(full_command)}[/dim]")
 
     try:
-        # Use subprocess.run without capturing output to stream directly to console
         result = subprocess.run(full_command, check=True, env=env, text=True)
         if result.stdout:
             console.print(result.stdout)
@@ -100,30 +87,16 @@ def init(
 ):
     """Initialize the migration environment for a specific world."""
     console.print(f"Initializing migration environment for world: [bold cyan]{world}[/bold cyan]")
-    try:
-        config_path_str = os.getenv("DAM_CONFIG_FILE")
-        config_path = Path(config_path_str) if config_path_str else None
-        config = load_config(config_path)
-        if world not in config.worlds:
-            console.print(f"[bold red]Error:[/] World '{world}' not found in configuration.")
-            raise typer.Exit(1)
+    alembic_ini_path = get_alembic_ini_path(world)
+    alembic_dir = alembic_ini_path.parent
+    alembic_dir.mkdir(parents=True, exist_ok=True)
 
-        # get_alembic_ini_path also validates the path is configured
-        alembic_ini_path = get_alembic_ini_path(world, config)
-        alembic_dir = alembic_ini_path.parent
-        alembic_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "alembic.ini", alembic_dir / "alembic.ini")
+    shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "env.py", alembic_dir / "env.py")
+    shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "script.py.mako", alembic_dir / "script.py.mako")
+    (alembic_dir / "versions").mkdir(exist_ok=True)
 
-        # Copy the template files
-        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "alembic.ini", alembic_dir / "alembic.ini")
-        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "env.py", alembic_dir / "env.py")
-        shutil.copyfile(ALEMBIC_TEMPLATE_DIR / "script.py.mako", alembic_dir / "script.py.mako")
-        (alembic_dir / "versions").mkdir(exist_ok=True)
-
-        console.print(f"[green]Successfully initialized.[/green] Migration files will be stored in: {alembic_dir}")
-
-    except FileNotFoundError as e:
-        console.print("[bold red]Error:[/] Configuration file not found.")
-        raise typer.Exit(1) from e
+    console.print(f"[green]Successfully initialized.[/green] Migration files will be stored in: {alembic_dir}")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

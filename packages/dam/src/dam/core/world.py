@@ -178,7 +178,7 @@ class World:
 
     def __repr__(self) -> str:
         """Return a string representation of the World."""
-        return f"<World name='{self.name}' config='{self.config!r}'>"
+        return f"<World name='{self.name}'>"
 
 
 # This space is intentionally left blank.

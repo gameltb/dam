@@ -944,6 +944,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "sqlalchemy" },
+    { name = "tomli" },
 ]
 
 [package.optional-dependencies]
@@ -968,6 +969,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "sqlalchemy" },
+    { name = "tomli" },
 ]
 provides-extras = ["dev"]
 
@@ -983,12 +985,10 @@ dependencies = [
     { name = "dam-fs" },
     { name = "dam-sire" },
     { name = "dam-source" },
-    { name = "pydantic" },
     { name = "python-magic" },
     { name = "rich" },
     { name = "sire" },
     { name = "sqlalchemy" },
-    { name = "tomli" },
     { name = "tqdm" },
     { name = "typer" },
     { name = "typing-extensions" },
@@ -1037,12 +1037,10 @@ requires-dist = [
     { name = "dam-semantic", marker = "extra == 'semantic'", editable = "packages/dam_semantic" },
     { name = "dam-sire", editable = "packages/dam_sire" },
     { name = "dam-source", editable = "packages/dam_source" },
-    { name = "pydantic" },
     { name = "python-magic" },
     { name = "rich" },
     { name = "sire", editable = "packages/sire" },
     { name = "sqlalchemy" },
-    { name = "tomli" },
     { name = "tqdm" },
     { name = "typer" },
     { name = "typing-extensions" },
@@ -1111,7 +1109,6 @@ dependencies = [
     { name = "dam-fs" },
     { name = "dam-semantic" },
     { name = "dam-sire" },
-    { name = "dam-test-utils" },
     { name = "numpy" },
     { name = "sire" },
     { name = "sqlalchemy" },
@@ -1119,6 +1116,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "dam-test-utils" },
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
@@ -1129,7 +1127,7 @@ requires-dist = [
     { name = "dam-fs", editable = "packages/dam_fs" },
     { name = "dam-semantic", editable = "packages/dam_semantic" },
     { name = "dam-sire", editable = "packages/dam_sire" },
-    { name = "dam-test-utils", editable = "packages/dam_test_utils" },
+    { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
     { name = "numpy" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
@@ -1310,7 +1308,6 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "scipy" },
     { name = "sqlalchemy" },
     { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.8.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
@@ -1324,7 +1321,6 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "scipy" },
     { name = "sqlalchemy" },
     { name = "torch" },
 ]

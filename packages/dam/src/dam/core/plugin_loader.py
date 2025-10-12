@@ -31,10 +31,7 @@ def load_plugin(plugin_name: str) -> "Plugin | None":
         logger.warning("Unknown plugin '%s' defined in config. Skipping.", plugin_name)
         return None
     try:
-        if plugin_name == "core":
-            module_path = "dam.plugins.core"
-        else:
-            module_path = plugin_name.replace("-", "_") + ".plugin"
+        module_path = "dam.plugins.core" if plugin_name == "core" else plugin_name.replace("-", "_") + ".plugin"
 
         class_name = PLUGIN_CLASS_MAP[plugin_name]
         plugin_module = importlib.import_module(module_path)
@@ -48,7 +45,7 @@ def load_plugin(plugin_name: str) -> "Plugin | None":
 
 def get_all_plugins() -> dict[str, "Plugin"]:
     """Load and return all known plugins."""
-    plugins = {}
+    plugins: dict[str, Plugin] = {}
     for name in PLUGIN_CLASS_MAP:
         plugin = load_plugin(name)
         if plugin:

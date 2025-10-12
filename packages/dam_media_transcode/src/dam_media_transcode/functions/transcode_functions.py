@@ -175,7 +175,7 @@ async def apply_transcode_profile(
         source_filepath = await _get_source_asset_filepath(world, source_asset_entity_id, session)
 
         settings = world.get_resource(TranscodeSettingsComponent)
-        temp_transcode_dir = Path(settings.TRANSCODING_TEMP_DIR)
+        temp_transcode_dir = Path(settings.transcoding_temp_dir)
         temp_transcode_dir.mkdir(parents=True, exist_ok=True)
 
         final_output_dir_base = output_parent_dir or temp_transcode_dir

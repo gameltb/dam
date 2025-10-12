@@ -11,7 +11,7 @@ from dam.models.config import ConfigComponent
 from dam_app.plugin import AppPlugin
 
 if TYPE_CHECKING:
-    from dam.core.plugin import Plugin
+    pass
 
 
 logger = logging.getLogger(__name__)

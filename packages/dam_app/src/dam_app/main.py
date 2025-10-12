@@ -102,7 +102,7 @@ def main_callback(
         if not world:
             typer.secho("Error: A world must be specified with --world or DAM_CURRENT_WORLD.", fg=typer.colors.RED)
             raise typer.Exit(1)
-        if world not in global_state.loaded_components:
+        if not global_state.loaded_components or world not in global_state.loaded_components:
             typer.secho(f"Error: World '{world}' is not defined in the configuration.", fg=typer.colors.RED)
             raise typer.Exit(1)
         # The first access will trigger the lazy load
