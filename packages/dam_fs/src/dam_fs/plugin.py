@@ -19,6 +19,7 @@ from .commands import (
 )
 from .resources.file_operations_resource import FileOperationsResource
 from .resources.file_storage_resource import FileStorageResource
+from .settings import FsSettingsComponent, FsSettingsModel
 from .systems.asset_lifecycle_systems import (
     add_file_properties_handler,
     find_entity_by_file_properties_handler,
@@ -38,6 +39,9 @@ from .systems.stream_handler_system import get_asset_stream_handler
 class FsPlugin(Plugin):
     """A plugin that provides filesystem-related functionalities."""
 
+    Settings = FsSettingsModel
+    SettingsComponent = FsSettingsComponent
+
     def build(self, world: "World") -> None:
         """
         Build the plugin by adding resources and systems to the world.
@@ -47,7 +51,7 @@ class FsPlugin(Plugin):
 
         """
         # Add FileStorageResource
-        file_storage_svc = FileStorageResource(world_config=world.config)
+        file_storage_svc = FileStorageResource()
         world.add_resource(file_storage_svc, FileStorageResource)
         world.logger.debug("Added FileStorageResource resource for World '%s'.", world.name)
 

@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from dam.core.config_loader import load_and_validate_settings
 
 from dam_app.cli import assets, db, report, verify
-from dam_app.config import load_config
 from dam_app.logging_config import setup_logging
 from dam_app.state import global_state
 
@@ -30,12 +30,12 @@ app.add_typer(report.app, name="report", help="Commands for generating reports."
 @app.command(name="list-worlds")
 def cli_list_worlds():
     """List all worlds defined in the configuration file."""
-    if not global_state.config or not global_state.config.worlds:
+    if not global_state.loaded_components:
         typer.secho("No worlds are defined. Please create or specify a configuration file.", fg=typer.colors.YELLOW)
         return
 
     typer.echo("Defined worlds:")
-    for world_name in global_state.config.worlds:
+    for world_name in global_state.loaded_components:
         is_active = world_name == global_state.world_name
         active_marker = " (active)" if is_active else ""
         typer.echo(f"  - {world_name}{active_marker}")
@@ -71,7 +71,8 @@ def main_callback(
     setup_logging(logging.INFO)
 
     try:
-        global_state.config = load_config(config_file)
+        # Use the new centralized configuration loader
+        global_state.loaded_components = load_and_validate_settings(config_file)
         if config_file:
             os.environ["DAM_CONFIG_FILE"] = str(config_file)
 
@@ -101,7 +102,7 @@ def main_callback(
         if not world:
             typer.secho("Error: A world must be specified with --world or DAM_CURRENT_WORLD.", fg=typer.colors.RED)
             raise typer.Exit(1)
-        if not global_state.get_current_world_def():
+        if world not in global_state.loaded_components:
             typer.secho(f"Error: World '{world}' is not defined in the configuration.", fg=typer.colors.RED)
             raise typer.Exit(1)
         # The first access will trigger the lazy load

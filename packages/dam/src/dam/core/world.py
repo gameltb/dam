@@ -6,7 +6,6 @@ from typing import Any, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.contexts import ContextProvider
-from dam.core.config import WorldConfig
 from dam.core.executor import SystemExecutor
 from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
@@ -32,13 +31,12 @@ class World:
     potentially different settings, data stores, and behaviors.
     """
 
-    def __init__(self, world_config: WorldConfig):
+    def __init__(self, name: str):
         """Initialize the World."""
-        if not isinstance(world_config, WorldConfig):
-            raise TypeError(f"world_config must be an instance of WorldConfig, got {type(world_config)}")
+        if not name or not isinstance(name, str):
+            raise ValueError("World must have a valid name.")
 
-        self.name: str = world_config.name
-        self.config: WorldConfig = world_config
+        self.name: str = name
         self.logger = logging.getLogger(f"{__name__}.{self.name}")
         self.logger.info("Creating minimal World instance: %s", self.name)
 

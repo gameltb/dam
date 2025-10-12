@@ -3,11 +3,15 @@
 from dam.core.plugin import Plugin
 from dam.core.world import World
 
+from .settings import TranscodeSettingsComponent, TranscodeSettingsModel
 from .systems.evaluation_systems import execute_evaluation_run
 
 
 class TranscodePlugin(Plugin):
     """A plugin to integrate transcoding-specific systems into the DAM."""
+
+    Settings = TranscodeSettingsModel
+    SettingsComponent = TranscodeSettingsComponent
 
     def build(self, world: World) -> None:
         """Register transcoding-related systems with the world."""

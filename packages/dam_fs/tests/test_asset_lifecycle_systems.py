@@ -201,4 +201,4 @@ async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
 
         storage_resource = world.get_resource(FileStorageResource)
         content_hash = sha256_comp.hash_value.hex()
-        assert storage_resource.has_file(content_hash)
+        assert storage_resource.has_file(world, content_hash)
