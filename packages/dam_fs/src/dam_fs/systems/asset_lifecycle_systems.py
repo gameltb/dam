@@ -10,7 +10,6 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
-from dam.core.config import WorldConfig
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import FileStreamProvider
@@ -56,14 +55,14 @@ async def add_file_properties_handler(
 async def handle_find_entity_by_hash_command(
     cmd: FindEntityByHashCommand,
     transaction: WorldTransaction,
-    world_config: WorldConfig,
+    world: Annotated[World, "Resource"],
 ) -> dict[str, Any] | None:
     """Handle the FindEntityByHashCommand to find an entity by its content hash."""
     logger.info(
         "System handling FindEntityByHashCommand for hash: %s (type: %s) in world '%s' (Req ID: %s)",
         cmd.hash_value,
         cmd.hash_type,
-        world_config.name,
+        world.name,
         cmd.request_id,
     )
     try:
@@ -187,7 +186,7 @@ async def store_assets_handler(
             continue  # Cannot store without a hash
 
         content_hash = sha256_comp.hash_value.hex()
-        if storage_resource.has_file(content_hash):
+        if storage_resource.has_file(world, content_hash):
             continue  # Already stored
 
         # Get the asset stream to store it
@@ -201,7 +200,7 @@ async def store_assets_handler(
             try:
                 async with stream_provider.get_stream() as stream:
                     content = stream.read()
-                    storage_resource.store_file(content)
+                    storage_resource.store_file(world, content)
                     stored_count += 1
                     logger.info("Stored entity %s (hash: %s)", entity.id, content_hash)
             except Exception:

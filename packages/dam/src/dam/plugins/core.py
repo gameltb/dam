@@ -2,6 +2,9 @@
 
 import logging
 
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+
 from dam.contexts.providers import MarkedEntityListProvider
 from dam.contexts.transaction_manager import TransactionManager
 from dam.core.database import DatabaseManager
@@ -9,6 +12,7 @@ from dam.core.markers import MarkedEntityList
 from dam.core.plugin import Plugin
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
+from dam.models.config import ConfigComponent, SettingsModel
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
 from dam.systems.mime_type_system import (
@@ -19,27 +23,50 @@ from dam.systems.mime_type_system import (
 logger = logging.getLogger(__name__)
 
 
+# --- Settings ---
+
+
+class CoreSettingsModel(SettingsModel):
+    """Pydantic model for validating core plugin settings from dam.toml."""
+
+    DATABASE_URL: str
+
+
+class CoreSettingsComponent(ConfigComponent):
+    """ECS component holding the core settings for a world."""
+
+    __tablename__ = "core_settings"
+    DATABASE_URL: Mapped[str] = mapped_column(String, nullable=False)
+
+
+# --- Plugin ---
+
+
 class CorePlugin(Plugin):
     """The core plugin for the DAM system."""
 
+    Settings = CoreSettingsModel
+    SettingsComponent = CoreSettingsComponent
+
     def build(self, world: World) -> None:
         """Build the core plugin."""
-        # Logic from initialize_world_resources
         if not world:
             raise ValueError("A valid World instance must be provided.")
 
-        world_config = world.config
+        # Get the validated settings component from world resources
+        settings = world.get_resource(CoreSettingsComponent)
+        if not settings:
+            raise ValueError(
+                "CoreSettingsComponent not found in world resources. "
+                "The application layer must load and inject it before building the plugin."
+            )
+
         resource_manager = world.resource_manager
-        world_name = world_config.name
+        world_name = world.name
 
         world.logger.info("Populating base resources for World '%s'...", world_name)
 
-        resource_manager.add_resource(world_config, world_config.__class__)
-        world.logger.debug("Added WorldConfig resource for World '%s'.", world_name)
-
-        db_manager = DatabaseManager(
-            world_config=world_config,
-        )
+        db_manager = DatabaseManager(database_url=settings.DATABASE_URL)
         resource_manager.add_resource(db_manager, DatabaseManager)
         world.logger.debug("Added DatabaseManager resource for World '%s'.", world_name)
 
