@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import types
 import uuid
 import weakref
 from abc import ABC, abstractmethod
@@ -401,7 +402,12 @@ class CommitObjectProxy[T]:
         """Enter the context manager, applying the commit stack."""
         return self.get_current_object()
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: types.TracebackType | None,
+    ) -> None:
         """Exit the context manager."""
 
 

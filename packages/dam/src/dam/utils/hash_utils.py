@@ -12,7 +12,7 @@ import blake3
 class Hasher(Protocol):
     """A protocol for hash-like objects."""
 
-    def update(self, __data: bytes) -> Any:
+    def update(self, __data: bytes, /) -> Any:
         """Update the hash object with the bytes-like object."""
         ...
 
