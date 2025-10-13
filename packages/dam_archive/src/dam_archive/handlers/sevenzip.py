@@ -7,10 +7,11 @@ import datetime
 import logging
 import lzma
 import threading
+import types
 from collections.abc import Iterable, Iterator
 from pathlib import PurePosixPath
 from queue import Queue
-from typing import BinaryIO, cast
+from typing import BinaryIO, Self, cast
 
 import py7zr
 from py7zr.exceptions import PasswordRequired, UnsupportedCompressionMethodError
@@ -79,10 +80,15 @@ class _SevenZipStreamReader(BinaryIO):
                     break
             self._closed = True
 
-    def __enter__(self) -> _SevenZipStreamReader:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: object | None) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         self.close()
 
     def readline(self, limit: int = -1) -> bytes:
