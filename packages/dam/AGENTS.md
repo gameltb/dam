@@ -40,6 +40,8 @@ The `dam` package is organized as follows:
 *   To run the tests for this package, use the command: `uv run poe test --package dam`
 *   To run tests with coverage: `uv run poe test-cov --package dam`
 
+-   **Testing CLI Commands**: When testing CLI commands, avoid using `CliRunner` or similar tools that test the command-line interface directly. Instead, refactor the core logic of the command into a separate, importable function. Unit tests should then be written to test this function directly. This approach leads to more robust, maintainable, and less brittle tests.
+
 ### Assertion Guideline
 
 Tests **must not** make assertions directly on terminal output (e.g., `stdout`, `stderr`) or log messages. Instead, tests should verify the state of the system, database, or return values of functions.
