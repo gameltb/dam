@@ -26,6 +26,7 @@ from dam.system_events.progress import (
     ProgressStarted,
     ProgressUpdate,
 )
+from dam.system_events.requests import PasswordRequest, PasswordResponse
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -94,42 +95,83 @@ async def _handle_progress_events(  # noqa: PLR0912
     process_entity_callback: Callable[..., Coroutine[Any, Any, None]],
     target_world: World,
     process_map: dict[str, list[str]],
+    passwords: list[str],
 ):
     """Handle progress events from a command stream."""
     sub_pbar: tqdm[Any] | None = None
-    async for event in stream:
-        if isinstance(event, NewEntityCreatedEvent):
-            tqdm.write(f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}")
-            await process_entity_callback(
-                target_world=target_world,
-                entity_id=event.entity_id,
-                depth=depth + 1,
-                pbar=pbar,
-                process_map=process_map,
-                filename=event.filename,
-                stream_provider_from_event=event.stream_provider,
-            )
-        elif isinstance(event, ProgressStarted):
-            sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
-        elif isinstance(event, ProgressUpdate):
-            if sub_pbar:
-                if event.total is not None and sub_pbar.total != event.total:
-                    sub_pbar.total = event.total
-                if event.current is not None:
-                    sub_pbar.update(event.current - sub_pbar.n)
+    stream_iter = stream.__aiter__()
+    try:
+        event = await stream_iter.__anext__()
+        while True:
+            if isinstance(event, NewEntityCreatedEvent):
+                tqdm.write(f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}")
+                await process_entity_callback(
+                    target_world=target_world,
+                    entity_id=event.entity_id,
+                    depth=depth + 1,
+                    pbar=pbar,
+                    process_map=process_map,
+                    filename=event.filename,
+                    stream_provider_from_event=event.stream_provider,
+                    passwords=passwords,
+                )
+                event = await stream_iter.__anext__()
+            elif isinstance(event, PasswordRequest):
+                tqdm.write("Password required for archive.")
+                password_correct = False
+                for password in passwords:
+                    try:
+                        event = await stream_iter.asend(PasswordResponse(password=password))
+                        password_correct = True
+                        break
+                    except StopAsyncIteration:
+                        raise
+                    except Exception:
+                        continue
+
+                if not password_correct:
+                    new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
+                    if not new_password:
+                        tqdm.write("No password provided, skipping archive.")
+                        event = await stream_iter.asend(PasswordResponse(password=None))
+                        continue
+
+                    if new_password not in passwords:
+                        passwords.append(new_password)
+                    event = await stream_iter.asend(PasswordResponse(password=new_password))
+
+            elif isinstance(event, ProgressStarted):
+                sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
+                event = await stream_iter.__anext__()
+            elif isinstance(event, ProgressUpdate):
+                if sub_pbar:
+                    if event.total is not None and sub_pbar.total != event.total:
+                        sub_pbar.total = event.total
+                    if event.current is not None:
+                        sub_pbar.update(event.current - sub_pbar.n)
+                    if event.message:
+                        sub_pbar.set_description(f"  {operation_name}: {event.message}")
+                event = await stream_iter.__anext__()
+            elif isinstance(event, ProgressCompleted):
+                if sub_pbar:
+                    if sub_pbar.total and sub_pbar.n < sub_pbar.total:
+                        sub_pbar.update(sub_pbar.total - sub_pbar.n)
+                    sub_pbar.close()
+                    sub_pbar = None
                 if event.message:
-                    sub_pbar.set_description(f"  {operation_name}: {event.message}")
-        elif isinstance(event, ProgressCompleted):
-            if sub_pbar:
-                if sub_pbar.total and sub_pbar.n < sub_pbar.total:
-                    sub_pbar.update(sub_pbar.total - sub_pbar.n)
-                sub_pbar.close()
-            if event.message:
-                tqdm.write(f"  -> Completed: {event.message}")
-        elif isinstance(event, ProgressError):
-            if sub_pbar:
-                sub_pbar.close()
-            tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
+                    tqdm.write(f"  -> Completed: {event.message}")
+                event = await stream_iter.__anext__()
+            elif isinstance(event, ProgressError):
+                if sub_pbar:
+                    sub_pbar.close()
+                    sub_pbar = None
+                tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
+                event = await stream_iter.__anext__()
+    except StopAsyncIteration:
+        pass
+    finally:
+        if sub_pbar:
+            sub_pbar.close()
 
 
 def _collect_files(paths: list[Path], recursive: bool) -> list[Path]:
@@ -219,6 +261,7 @@ async def add_assets(
     skipped_count = 0
     error_count = 0
     total_size = sum(p.stat().st_size for p in files_to_process)
+    passwords: list[str] = []
 
     with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets", smoothing=0.0) as pbar:
         for file_path in files_to_process:
@@ -240,6 +283,7 @@ async def add_assets(
                         process_map,
                         filename=file_path.name,
                         stream_provider_from_event=None,
+                        passwords=passwords,
                     )
 
             except Exception:
@@ -264,6 +308,7 @@ async def _process_entity(  # noqa: PLR0912
     depth: int,
     pbar: tqdm[Any],
     process_map: dict[str, list[str]],
+    passwords: list[str],
     filename: str | None = None,
     stream_provider_from_event: Any | None = None,
 ):
@@ -335,6 +380,7 @@ async def _process_entity(  # noqa: PLR0912
                 _process_entity,
                 target_world,
                 process_map,
+                passwords,
             )
 
 

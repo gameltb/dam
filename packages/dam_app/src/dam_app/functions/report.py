@@ -14,7 +14,7 @@ from sqlalchemy.engine.row import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-DuplicateRow = Row[tuple[int, int, int | None, bytes, str, str]]
+DuplicateRow = Row[tuple[int, int | None, int | None, bytes, int, str, str]]
 
 
 async def get_duplicates_report(session: AsyncSession, path: Path | None = None) -> Sequence[DuplicateRow]:
@@ -39,12 +39,14 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
     direct_loc = aliased(FileLocationComponent)
     archive_loc = aliased(FileLocationComponent)
     cso_loc = aliased(FileLocationComponent)
+    container_content_length = aliased(ContentLengthComponent)
 
     # Query for direct file locations
     direct_locations_query = (
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
+            literal(None).label("compressed_size_bytes"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
@@ -66,6 +68,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
+            container_content_length.file_size_bytes.label("compressed_size_bytes"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
@@ -80,6 +83,9 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         .join(ArchiveMemberComponent, Entity.id == ArchiveMemberComponent.entity_id)
         .join(archive_loc, ArchiveMemberComponent.archive_entity_id == archive_loc.entity_id)
         .outerjoin(ContentLengthComponent, ContentLengthComponent.entity_id == Entity.id)
+        .outerjoin(
+            container_content_length, container_content_length.entity_id == ArchiveMemberComponent.archive_entity_id
+        )
         .join(ContentHashSHA256Component, ContentHashSHA256Component.entity_id == Entity.id)
     )
 
@@ -88,6 +94,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
+            container_content_length.file_size_bytes.label("compressed_size_bytes"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
@@ -102,6 +109,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         .join(CsoParentIsoComponent, Entity.id == CsoParentIsoComponent.entity_id)
         .join(cso_loc, CsoParentIsoComponent.cso_entity_id == cso_loc.entity_id)
         .outerjoin(ContentLengthComponent, ContentLengthComponent.entity_id == Entity.id)
+        .outerjoin(container_content_length, container_content_length.entity_id == CsoParentIsoComponent.cso_entity_id)
         .join(ContentHashSHA256Component, ContentHashSHA256Component.entity_id == Entity.id)
     )
 
