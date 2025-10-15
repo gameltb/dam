@@ -1,6 +1,7 @@
 """CLI commands for generating reports."""
 
 import csv
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated
@@ -26,6 +27,19 @@ app = AsyncTyper(
     no_args_is_help=True,
     rich_markup_mode="markdown",
 )
+
+
+def _human_readable_size(size_bytes: int | None) -> str:
+    """Return a human-readable size string."""
+    if size_bytes is None:
+        return ""
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = math.floor(math.log(size_bytes, 1024))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_name[i]}"
 
 
 async def _get_paths(session: AsyncSession, entity_id: int) -> list[str]:
@@ -74,6 +88,7 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow], all_pa
                 "Entity ID",
                 "SHA256",
                 "Size (bytes)",
+                "Size (HR)",
                 "Locations",
                 "Wasted Space (bytes)",
                 "Paths",
@@ -92,6 +107,7 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow], all_pa
                     str(entity_id),
                     f"{hash_hex[:16]}...",
                     str(size_bytes),
+                    _human_readable_size(size_bytes),
                     str(total_locations),
                     str(wasted_space),
                     "\n".join(paths),
@@ -105,6 +121,7 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow], all
     table.add_column("Entity ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("SHA256", style="magenta")
     table.add_column("Size (bytes)", justify="right", style="green")
+    table.add_column("Size (HR)", justify="right", style="green")
     table.add_column("Locations", justify="right", style="red")
     table.add_column("Wasted Space (bytes)", justify="right", style="yellow")
     table.add_column("Paths", style="blue")
@@ -123,6 +140,7 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow], all
             str(entity_id),
             f"{hash_hex[:16]}...",
             str(size_bytes),
+            _human_readable_size(size_bytes),
             str(total_locations),
             str(wasted_space),
             "\n".join(paths),
@@ -143,6 +161,16 @@ async def report_duplicates(
             resolve_path=True,
         ),
     ] = None,
+    path: Annotated[
+        Path | None,
+        typer.Option(
+            "--path",
+            "-p",
+            help="Path to filter the report by.",
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = None,
 ):
     """Report on duplicate files in the world."""
     world = get_world()
@@ -153,7 +181,7 @@ async def report_duplicates(
 
     async with world.get_context(WorldTransaction)() as transaction:
         session = transaction.session
-        duplicates = await get_duplicates_report(session)
+        duplicates = await get_duplicates_report(session, path)
 
         if not duplicates:
             console.print("No duplicate files found.")

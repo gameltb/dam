@@ -2,6 +2,7 @@
 
 import hashlib
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -16,27 +17,53 @@ from dam_app.functions.report import get_duplicates_report
 async def test_get_duplicates_report(test_world_alpha: World):
     """Test that the get_duplicates_report function returns the correct duplicate files."""
     async with test_world_alpha.get_context(WorldTransaction)() as transaction:
-        session = transaction.session
         # Create an entity with two locations (a duplicate)
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
         await transaction.add_component_to_entity(entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file1", last_modified_at=datetime.now())
+            entity1.id, FileLocationComponent(url="file:///tmp/file1", last_modified_at=datetime.now())
         )
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file2", last_modified_at=datetime.now())
+            entity1.id, FileLocationComponent(url="file:///tmp/file2", last_modified_at=datetime.now())
         )
         # Create a second entity with only one location (not a duplicate)
         entity2 = await transaction.create_entity()
         hash2 = hashlib.sha256(b"hash2").digest()
         await transaction.add_component_to_entity(entity2.id, ContentHashSHA256Component(hash_value=hash2))
         await transaction.add_component_to_entity(
-            entity2.id, FileLocationComponent(url="file3", last_modified_at=datetime.now())
+            entity2.id, FileLocationComponent(url="file:///tmp/file3", last_modified_at=datetime.now())
         )
 
-        duplicates = await get_duplicates_report(session)
+        duplicates = await get_duplicates_report(transaction.session)
         assert len(duplicates) == 1
         assert duplicates[0].entity_id == entity1.id
         assert duplicates[0].total_locations == 2
         assert duplicates[0].hash_value == hash1
+
+
+@pytest.mark.asyncio
+async def test_get_duplicates_report_with_path_filter(test_world_alpha: World):
+    """Test that the get_duplicates_report function returns the correct duplicate files when a path filter is applied."""
+    async with test_world_alpha.get_context(WorldTransaction)() as transaction:
+        # Create an entity with two locations (a duplicate)
+        entity1 = await transaction.create_entity()
+        hash1 = hashlib.sha256(b"hash1").digest()
+        await transaction.add_component_to_entity(entity1.id, ContentHashSHA256Component(hash_value=hash1))
+        await transaction.add_component_to_entity(
+            entity1.id, FileLocationComponent(url="file:///tmp/file1", last_modified_at=datetime.now())
+        )
+        await transaction.add_component_to_entity(
+            entity1.id, FileLocationComponent(url="file:///data/file2", last_modified_at=datetime.now())
+        )
+        # Create a second entity with only one location (not a duplicate)
+        entity2 = await transaction.create_entity()
+        hash2 = hashlib.sha256(b"hash2").digest()
+        await transaction.add_component_to_entity(entity2.id, ContentHashSHA256Component(hash_value=hash2))
+        await transaction.add_component_to_entity(
+            entity2.id, FileLocationComponent(url="file:///tmp/file3", last_modified_at=datetime.now())
+        )
+
+        duplicates = await get_duplicates_report(transaction.session, Path("/tmp"))
+        assert len(duplicates) == 1
+        assert duplicates[0].entity_id == entity1.id
