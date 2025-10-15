@@ -296,6 +296,7 @@ class SevenZipArchiveHandler(ArchiveHandler):
                                     name=cast(str, member.filename),
                                     size=cast(int, member.uncompressed),
                                     modified_at=cast(datetime.datetime, member.creationtime),
+                                    compressed_size=cast(int, member.compressed),
                                 )
                             )
                     if handler.members:

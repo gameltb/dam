@@ -36,6 +36,8 @@ async def test_open_7z_archive(dummy_7z_file: Path) -> None:
         assert "file1.txt" in file_names
         for f_info in files:
             assert isinstance(f_info.modified_at, datetime.datetime)
+            assert f_info.compressed_size is not None
+            assert f_info.compressed_size > 0
     finally:
         if archive:
             await archive.close()

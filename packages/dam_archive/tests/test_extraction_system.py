@@ -206,6 +206,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         assert len(members_reg_all) == num_files_in_archive
         for member in members_reg_all:
             assert isinstance(member.modified_at, datetime)
+            assert member.compressed_size is not None
+            assert member.compressed_size > 0
 
     # --- Test Protected Archive ---
     # 1. Register the protected archive file
@@ -238,6 +240,8 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
         assert len(members_prot_all) == num_files_in_archive
         for member in members_prot_all:
             assert isinstance(member.modified_at, datetime)
+            assert member.compressed_size is not None
+            assert member.compressed_size > 0
 
 
 @pytest.mark.serial

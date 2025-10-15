@@ -15,3 +15,4 @@ class ArchiveMemberComponent(Component):
     archive_entity_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("entities.id"), nullable=False, index=True)
     path_in_archive: Mapped[str] = mapped_column(String(), nullable=False)
     modified_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    compressed_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

@@ -40,6 +40,9 @@ async def test_open_rar_archive(dummy_rar_file: Path) -> None:
     file_names = [f.name for f in files]
     assert "file1.txt" in file_names
     assert "dir/file2.txt" in file_names
+    for f in files:
+        assert f.compressed_size is not None
+        assert f.compressed_size > 0
 
     member_info, f = archive.open_file("file1.txt")
     with f:
