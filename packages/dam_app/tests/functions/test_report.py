@@ -90,10 +90,10 @@ async def test_get_duplicates_report_with_indirect_path_filter(test_world_alpha:
         await transaction.add_component_to_entity(
             entity1.id,
             ArchiveMemberComponent(
-                    archive_entity_id=archive_entity.id,
-                    path_in_archive="file1",
-                    modified_at=datetime.now(),
-                    compressed_size=None,
+                archive_entity_id=archive_entity.id,
+                path_in_archive="file1",
+                modified_at=datetime.now(),
+                compressed_size=None,
             ),
         )
 
