@@ -9,15 +9,17 @@ from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_psp.models import CsoParentIsoComponent
-from sqlalchemy import func, select
+from sqlalchemy import String, and_, func, literal, or_, select, union_all
 from sqlalchemy.engine.row import Row
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
-DuplicateRow = Row[tuple[int, int, int | None, bytes]]
+DuplicateRow = Row[tuple[int, int, int | None, bytes, str, str]]
 
 
 async def get_duplicates_report(session: AsyncSession, path: Path | None = None) -> Sequence[DuplicateRow]:
     """Get duplicate files from the database."""
+    # Subquery to count the number of locations for each entity
     location_counts_subquery = (
         select(
             Entity.id.label("entity_id"),
@@ -33,36 +35,97 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         .subquery()
     )
 
-    duplicates_query = (
+    # Alias for FileLocationComponent to distinguish between direct and indirect locations
+    direct_loc = aliased(FileLocationComponent)
+    archive_loc = aliased(FileLocationComponent)
+    cso_loc = aliased(FileLocationComponent)
+
+    # Query for direct file locations
+    direct_locations_query = (
         select(
-            location_counts_subquery.c.entity_id,
+            Entity.id.label("entity_id"),
+            ContentLengthComponent.file_size_bytes,
+            ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
                 + location_counts_subquery.c.archive_member_count
                 + location_counts_subquery.c.cso_parent_iso_count
             ).label("total_locations"),
-            ContentLengthComponent.file_size_bytes,
-            ContentHashSHA256Component.hash_value,
+            direct_loc.url.label("path"),
+            literal("Filesystem").label("type"),
         )
         .select_from(Entity)
         .join(location_counts_subquery, location_counts_subquery.c.entity_id == Entity.id)
+        .join(direct_loc, Entity.id == direct_loc.entity_id)
         .outerjoin(ContentLengthComponent, ContentLengthComponent.entity_id == Entity.id)
         .join(ContentHashSHA256Component, ContentHashSHA256Component.entity_id == Entity.id)
-        .where(
+    )
+
+    # Query for archive member locations
+    archive_locations_query = (
+        select(
+            Entity.id.label("entity_id"),
+            ContentLengthComponent.file_size_bytes,
+            ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
                 + location_counts_subquery.c.archive_member_count
                 + location_counts_subquery.c.cso_parent_iso_count
-            )
-            > 1
+            ).label("total_locations"),
+            (archive_loc.url.cast(String) + " -> " + ArchiveMemberComponent.path_in_archive).label("path"),
+            literal("Archive").label("type"),
         )
+        .select_from(Entity)
+        .join(location_counts_subquery, location_counts_subquery.c.entity_id == Entity.id)
+        .join(ArchiveMemberComponent, Entity.id == ArchiveMemberComponent.entity_id)
+        .join(archive_loc, ArchiveMemberComponent.archive_entity_id == archive_loc.entity_id)
+        .outerjoin(ContentLengthComponent, ContentLengthComponent.entity_id == Entity.id)
+        .join(ContentHashSHA256Component, ContentHashSHA256Component.entity_id == Entity.id)
     )
 
-    if path:
-        path_filter_subquery = select(FileLocationComponent.entity_id).where(
-            FileLocationComponent.url.startswith(f"file://{path}")
+    # Query for CSO parent locations
+    cso_locations_query = (
+        select(
+            Entity.id.label("entity_id"),
+            ContentLengthComponent.file_size_bytes,
+            ContentHashSHA256Component.hash_value,
+            (
+                location_counts_subquery.c.file_location_count
+                + location_counts_subquery.c.archive_member_count
+                + location_counts_subquery.c.cso_parent_iso_count
+            ).label("total_locations"),
+            cso_loc.url.label("path"),
+            literal("CSO").label("type"),
         )
-        duplicates_query = duplicates_query.where(location_counts_subquery.c.entity_id.in_(path_filter_subquery))
+        .select_from(Entity)
+        .join(location_counts_subquery, location_counts_subquery.c.entity_id == Entity.id)
+        .join(CsoParentIsoComponent, Entity.id == CsoParentIsoComponent.entity_id)
+        .join(cso_loc, CsoParentIsoComponent.cso_entity_id == cso_loc.entity_id)
+        .outerjoin(ContentLengthComponent, ContentLengthComponent.entity_id == Entity.id)
+        .join(ContentHashSHA256Component, ContentHashSHA256Component.entity_id == Entity.id)
+    )
+
+    # Combine all locations with UNION
+    all_locations_query = union_all(
+        direct_locations_query,
+        archive_locations_query,
+        cso_locations_query,
+    ).subquery()
+
+    # Final query to select duplicates and filter by path if provided
+    duplicates_query = select(all_locations_query).where(all_locations_query.c.total_locations > 1)
+
+    if path:
+        path_filter = f"file://{path}"
+        duplicates_query = duplicates_query.where(
+            or_(
+                all_locations_query.c.path.startswith(path_filter),
+                and_(
+                    all_locations_query.c.type == "Archive",
+                    all_locations_query.c.path.startswith(path_filter),
+                ),
+            )
+        )
 
     result = await session.execute(duplicates_query)
     return result.all()

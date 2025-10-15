@@ -8,13 +8,8 @@ from typing import Annotated
 
 import typer
 from dam.core.transaction import WorldTransaction
-from dam_archive.models import ArchiveMemberComponent
-from dam_fs.models.file_location_component import FileLocationComponent
-from dam_psp.models import CsoParentIsoComponent
 from rich.console import Console
 from rich.table import Table
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from dam_app.functions.report import DuplicateRow, get_duplicates_report
 from dam_app.state import get_world
@@ -42,44 +37,7 @@ def _human_readable_size(size_bytes: int | None) -> str:
     return f"{s} {size_name[i]}"
 
 
-async def _get_paths(session: AsyncSession, entity_id: int) -> list[str]:
-    """Get all paths for a given entity."""
-    paths: list[str] = []
-    file_locations_result = await session.execute(
-        select(FileLocationComponent).where(FileLocationComponent.entity_id == entity_id)
-    )
-    file_locations = file_locations_result.scalars().all()
-    archive_members_result = await session.execute(
-        select(ArchiveMemberComponent).where(ArchiveMemberComponent.entity_id == entity_id)
-    )
-    archive_members = archive_members_result.scalars().all()
-    cso_parents_result = await session.execute(
-        select(CsoParentIsoComponent).where(CsoParentIsoComponent.entity_id == entity_id)
-    )
-    cso_parents = cso_parents_result.scalars().all()
-
-    for loc in file_locations:
-        paths.append(f"Filesystem: {loc.url}")
-
-    for member in archive_members:
-        archive_file_locations_result = await session.execute(
-            select(FileLocationComponent).where(FileLocationComponent.entity_id == member.archive_entity_id)
-        )
-        archive_file_locations = archive_file_locations_result.scalars().all()
-        for archive_loc in archive_file_locations:
-            paths.append(f"Archive: {archive_loc.url} -> {member.path_in_archive}")
-
-    for cso in cso_parents:
-        cso_file_locations_result = await session.execute(
-            select(FileLocationComponent).where(FileLocationComponent.entity_id == cso.cso_entity_id)
-        )
-        cso_file_locations = cso_file_locations_result.scalars().all()
-        for cso_loc in cso_file_locations:
-            paths.append(f"CSO: {cso_loc.url}")
-    return paths
-
-
-def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow], all_paths: dict[int, list[str]]):
+def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow]):
     """Write the duplicate file report to a CSV file."""
     with csv_path.open("w", newline="") as csvfile:
         writer = csv.writer(csvfile)
@@ -91,7 +49,8 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow], all_pa
                 "Size (HR)",
                 "Locations",
                 "Wasted Space (bytes)",
-                "Paths",
+                "Path",
+                "Type",
             ]
         )
         for duplicate in duplicates:
@@ -100,22 +59,24 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow], all_pa
             size_bytes = duplicate.file_size_bytes or 0
             hash_hex = duplicate.hash_value.hex()
             wasted_space = size_bytes * (total_locations - 1)
-            paths = all_paths.get(entity_id, [])
+            path = duplicate.path
+            type = duplicate.type
 
             writer.writerow(
                 [
                     str(entity_id),
-                    f"{hash_hex[:16]}...",
+                    hash_hex,
                     str(size_bytes),
                     _human_readable_size(size_bytes),
                     str(total_locations),
                     str(wasted_space),
-                    "\n".join(paths),
+                    path,
+                    type,
                 ]
             )
 
 
-def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow], all_paths: dict[int, list[str]]):
+def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow]):
     """Print the duplicate file report to the console using rich."""
     table = Table(title="Duplicate Files Report")
     table.add_column("Entity ID", justify="right", style="cyan", no_wrap=True)
@@ -124,17 +85,25 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow], all
     table.add_column("Size (HR)", justify="right", style="green")
     table.add_column("Locations", justify="right", style="red")
     table.add_column("Wasted Space (bytes)", justify="right", style="yellow")
-    table.add_column("Paths", style="blue")
+    table.add_column("Path", style="blue")
+    table.add_column("Type", style="blue")
 
     total_wasted_space = 0
+    processed_entities: set[int] = set()
     for duplicate in duplicates:
         entity_id = duplicate.entity_id
         total_locations = duplicate.total_locations
         size_bytes = duplicate.file_size_bytes or 0
         hash_hex = duplicate.hash_value.hex()
-        wasted_space = size_bytes * (total_locations - 1)
-        total_wasted_space += wasted_space
-        paths = all_paths.get(entity_id, [])
+        if entity_id not in processed_entities:
+            wasted_space = size_bytes * (total_locations - 1)
+            total_wasted_space += wasted_space
+            processed_entities.add(entity_id)
+        else:
+            wasted_space = 0
+
+        path = duplicate.path
+        type = duplicate.type
 
         table.add_row(
             str(entity_id),
@@ -143,7 +112,8 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow], all
             _human_readable_size(size_bytes),
             str(total_locations),
             str(wasted_space),
-            "\n".join(paths),
+            path,
+            type,
         )
     console.print(table)
     console.print(f"\nTotal wasted space: {total_wasted_space} bytes")
@@ -187,12 +157,8 @@ async def report_duplicates(
             console.print("No duplicate files found.")
             return
 
-        all_paths = {}
-        for duplicate in duplicates:
-            all_paths[duplicate.entity_id] = await _get_paths(session, duplicate.entity_id)
-
         if csv_path:
-            _write_csv_report(csv_path, duplicates, all_paths)
+            _write_csv_report(csv_path, duplicates)
             console.print(f"Report written to {csv_path}")
         else:
-            _print_rich_report(console, duplicates, all_paths)
+            _print_rich_report(console, duplicates)
