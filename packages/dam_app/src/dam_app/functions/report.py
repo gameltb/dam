@@ -1,6 +1,7 @@
 """Functions for generating reports."""
 
 from collections.abc import Sequence
+from pathlib import Path
 
 from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 DuplicateRow = Row[tuple[int, int, int | None, bytes]]
 
 
-async def get_duplicates_report(session: AsyncSession) -> Sequence[DuplicateRow]:
+async def get_duplicates_report(session: AsyncSession, path: Path | None = None) -> Sequence[DuplicateRow]:
     """Get duplicate files from the database."""
     location_counts_subquery = (
         select(
@@ -56,6 +57,12 @@ async def get_duplicates_report(session: AsyncSession) -> Sequence[DuplicateRow]
             > 1
         )
     )
+
+    if path:
+        path_filter_subquery = select(FileLocationComponent.entity_id).where(
+            FileLocationComponent.url.startswith(f"file://{path}")
+        )
+        duplicates_query = duplicates_query.where(location_counts_subquery.c.entity_id.in_(path_filter_subquery))
 
     result = await session.execute(duplicates_query)
     return result.all()
