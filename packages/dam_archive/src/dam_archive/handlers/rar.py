@@ -86,6 +86,7 @@ class RarArchiveHandler(ArchiveHandler):
                         name=f.filename,  # type: ignore
                         size=f.file_size,  # type: ignore
                         modified_at=mtime,
+                        compressed_size=f.compress_size,  # type: ignore
                     )
                 )
         return files
@@ -105,6 +106,7 @@ class RarArchiveHandler(ArchiveHandler):
                 name=f.filename,  # type: ignore
                 size=f.file_size,  # type: ignore
                 modified_at=mtime,
+                compressed_size=f.compress_size,  # type: ignore
             )
             try:
                 yield member_info, self.rar_file.open(f)  # type: ignore
@@ -127,6 +129,7 @@ class RarArchiveHandler(ArchiveHandler):
                     name=f.filename,  # type: ignore
                     size=f.file_size,  # type: ignore
                     modified_at=mtime,
+                    compressed_size=f.compress_size,  # type: ignore
                 )
                 try:
                     return member_info, self.rar_file.open(f)  # type: ignore

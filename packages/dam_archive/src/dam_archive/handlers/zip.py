@@ -50,7 +50,14 @@ class ZipArchiveHandler(ArchiveHandler):
                 decoded_name: str = handler._decode_zip_filename(f)
                 handler.filename_map[decoded_name] = original_name
                 modified_at = datetime(*f.date_time)
-                handler.members.append(ArchiveMemberInfo(name=decoded_name, size=f.file_size, modified_at=modified_at))
+                handler.members.append(
+                    ArchiveMemberInfo(
+                        name=decoded_name,
+                        size=f.file_size,
+                        modified_at=modified_at,
+                        compressed_size=f.compress_size,
+                    )
+                )
 
             if password:
                 if len(handler.zip_file.infolist()) == 0:
@@ -117,7 +124,12 @@ class ZipArchiveHandler(ArchiveHandler):
             if f.is_dir():
                 continue
             decoded_name = self._decode_zip_filename(f)
-            member_info = ArchiveMemberInfo(name=decoded_name, size=f.file_size, modified_at=datetime(*f.date_time))
+            member_info = ArchiveMemberInfo(
+                name=decoded_name,
+                size=f.file_size,
+                modified_at=datetime(*f.date_time),
+                compressed_size=f.compress_size,
+            )
             try:
                 pwd = self.password.encode() if self.password else None
                 yield member_info, cast(BinaryIO, self.zip_file.open(f, pwd=pwd))
@@ -136,7 +148,12 @@ class ZipArchiveHandler(ArchiveHandler):
             raise OSError(f"File not found in zip: {file_name}")
         for f in self.zip_file.infolist():
             if f.filename == original_name:
-                member_info = ArchiveMemberInfo(name=file_name, size=f.file_size, modified_at=datetime(*f.date_time))
+                member_info = ArchiveMemberInfo(
+                    name=file_name,
+                    size=f.file_size,
+                    modified_at=datetime(*f.date_time),
+                    compressed_size=f.compress_size,
+                )
                 try:
                     pwd = self.password.encode() if self.password else None
                     return member_info, cast(BinaryIO, self.zip_file.open(f, pwd=pwd))

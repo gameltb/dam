@@ -24,7 +24,10 @@ async def test_clear_archive_components_handler(mocker: MockerFixture):
     member_components: list[ArchiveMemberComponent] = []
     for eid in member_entity_ids:
         comp = ArchiveMemberComponent(
-            archive_entity_id=archive_entity_id, path_in_archive=f"file_{eid}.txt", modified_at=None
+            archive_entity_id=archive_entity_id,
+            path_in_archive=f"file_{eid}.txt",
+            modified_at=None,
+            compressed_size=None,
         )
         # Manually set entity_id for the test, as it's not part of the constructor
         comp.entity_id = eid

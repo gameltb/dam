@@ -420,6 +420,7 @@ async def _process_member(
             archive_entity_id=entity_id,
             path_in_archive=member_info.name,
             modified_at=member_mod_times.get(member_info.name),
+            compressed_size=member_info.compressed_size,
         )
         await transaction.add_component_to_entity(member_entity_id, member_comp)
 

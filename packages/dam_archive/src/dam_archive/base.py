@@ -56,6 +56,7 @@ class ArchiveMemberInfo:
     name: str
     size: int
     modified_at: datetime | None
+    compressed_size: int | None = None
 
 
 class ArchiveHandler(ABC):
