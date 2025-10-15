@@ -37,7 +37,7 @@ class CoreSettingsModel(SettingsModel):
 class CoreSettingsComponent(ConfigComponent):
     """ECS component holding the core settings for a world."""
 
-    __tablename__ = "core_settings"
+    __tablename__ = "dam_core_config"
     database_url: Mapped[str] = mapped_column(String, nullable=False)
     alembic_path: Mapped[str] = mapped_column(String, nullable=False)
 

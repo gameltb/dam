@@ -25,3 +25,10 @@ class PasswordRequest(InformationRequest[str | None]):
     """A specific information request for a password."""
 
     message: str = "Password required"
+
+
+@dataclass
+class PasswordResponse(BaseSystemEvent):
+    """Event sent in response to a PasswordRequest, providing the password."""
+
+    password: str | None

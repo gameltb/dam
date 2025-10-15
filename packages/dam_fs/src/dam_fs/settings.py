@@ -16,5 +16,5 @@ class FsSettingsModel(SettingsModel):
 class FsSettingsComponent(ConfigComponent):
     """ECS component holding the dam_fs settings."""
 
-    __tablename__ = "fs_settings"
+    __tablename__ = "dam_fs_config"
     asset_storage_path: Mapped[str] = mapped_column(String, nullable=False)
