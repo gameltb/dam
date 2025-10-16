@@ -46,7 +46,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
-            literal(None).label("compressed_size_bytes"),
+            ContentLengthComponent.file_size_bytes.label("size_on_disk"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
@@ -68,7 +68,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
-            container_content_length.file_size_bytes.label("compressed_size_bytes"),
+            ArchiveMemberComponent.compressed_size.label("size_on_disk"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
@@ -94,7 +94,7 @@ async def get_duplicates_report(session: AsyncSession, path: Path | None = None)
         select(
             Entity.id.label("entity_id"),
             ContentLengthComponent.file_size_bytes,
-            container_content_length.file_size_bytes.label("compressed_size_bytes"),
+            container_content_length.file_size_bytes.label("size_on_disk"),
             ContentHashSHA256Component.hash_value,
             (
                 location_counts_subquery.c.file_location_count
