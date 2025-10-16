@@ -47,8 +47,8 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow]):
                 "SHA256",
                 "Size (bytes)",
                 "Size (HR)",
-                "Compressed Size (bytes)",
-                "Compressed Size (HR)",
+                "Size on Disk (bytes)",
+                "Size on Disk (HR)",
                 "Locations",
                 "Wasted Space (bytes)",
                 "Path",
@@ -59,7 +59,7 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow]):
             entity_id = duplicate.entity_id
             total_locations = duplicate.total_locations
             size_bytes = duplicate.file_size_bytes or 0
-            compressed_size_bytes = duplicate.compressed_size_bytes
+            size_on_disk_bytes = duplicate.size_on_disk
             hash_hex = duplicate.hash_value.hex()
             wasted_space = size_bytes * (total_locations - 1)
             path = duplicate.path
@@ -71,8 +71,8 @@ def _write_csv_report(csv_path: Path, duplicates: Sequence[DuplicateRow]):
                     hash_hex,
                     str(size_bytes),
                     _human_readable_size(size_bytes),
-                    str(compressed_size_bytes),
-                    _human_readable_size(compressed_size_bytes),
+                    str(size_on_disk_bytes),
+                    _human_readable_size(size_on_disk_bytes),
                     str(total_locations),
                     str(wasted_space),
                     path,
@@ -88,8 +88,8 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow]):
     table.add_column("SHA256", style="magenta")
     table.add_column("Size (bytes)", justify="right", style="green")
     table.add_column("Size (HR)", justify="right", style="green")
-    table.add_column("Compressed Size (bytes)", justify="right", style="green")
-    table.add_column("Compressed Size (HR)", justify="right", style="green")
+    table.add_column("Size on Disk (bytes)", justify="right", style="green")
+    table.add_column("Size on Disk (HR)", justify="right", style="green")
     table.add_column("Locations", justify="right", style="red")
     table.add_column("Wasted Space (bytes)", justify="right", style="yellow")
     table.add_column("Path", style="blue")
@@ -101,7 +101,7 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow]):
         entity_id = duplicate.entity_id
         total_locations = duplicate.total_locations
         size_bytes = duplicate.file_size_bytes or 0
-        compressed_size_bytes = duplicate.compressed_size_bytes
+        size_on_disk_bytes = duplicate.size_on_disk
         hash_hex = duplicate.hash_value.hex()
         if entity_id not in processed_entities:
             wasted_space = size_bytes * (total_locations - 1)
@@ -118,8 +118,8 @@ def _print_rich_report(console: Console, duplicates: Sequence[DuplicateRow]):
             f"{hash_hex[:16]}...",
             str(size_bytes),
             _human_readable_size(size_bytes),
-            str(compressed_size_bytes),
-            _human_readable_size(compressed_size_bytes),
+            str(size_on_disk_bytes),
+            _human_readable_size(size_on_disk_bytes),
             str(total_locations),
             str(wasted_space),
             path,
