@@ -1,4 +1,3 @@
-import asyncio
 import importlib
 import os
 from logging.config import fileConfig
@@ -8,9 +7,7 @@ from alembic import context
 from dam.core.config_loader import load_and_validate_settings
 from dam.models import Base
 from dam.plugins.core import CoreSettingsComponent
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -72,48 +69,52 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        version_table=f"alembic_version_{WORLD_NAME}",
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
 
-def do_run_migrations(connection: Connection) -> None:
-    """Run the migrations."""
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        version_table=f"alembic_version_{WORLD_NAME}",
-    )
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
 
-    with context.begin_transaction():
-        context.run_migrations()
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
 
-
-async def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    url = config.get_main_option("sqlalchemy.url")
-    assert url, "sqlalchemy.url must be set in alembic.ini or via config"
-    connectable = create_async_engine(
-        url,
+    """
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection, target_metadata=target_metadata
+        )
 
-    await connectable.dispose()
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()

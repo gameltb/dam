@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 from dam.core.config_loader import load_and_validate_settings
 
-from dam_app.cli import assets, db, report, temp, verify
+from dam_app.cli import assets, db, report, verify
 from dam_app.logging_config import setup_logging
 from dam_app.state import global_state
 
@@ -25,7 +25,6 @@ app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
 app.add_typer(verify.app, name="verify", help="Commands for verifying asset integrity.")
 app.add_typer(db.app, name="db", help="Commands for database schema management.")
 app.add_typer(report.app, name="report", help="Commands for generating reports.")
-app.add_typer(temp.app, name="temp", help="Temporary commands.")
 
 
 @app.command(name="list-worlds")

@@ -49,10 +49,6 @@ class GlobalState:
         # determined by the keys of the loaded settings dictionary.
         world_instance.add_plugin(AppPlugin())
         for plugin_name in world_settings:
-            # We skip 'core' because it's not a plugin that needs to be added;
-            # its settings are used directly by the core systems.
-            if plugin_name == "core":
-                continue
 
             plugin = plugin_loader.load_plugin(plugin_name)
             if plugin:

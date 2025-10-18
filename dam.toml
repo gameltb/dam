@@ -3,24 +3,11 @@
 # --- Filesystem World ---
 # This world will store its migrations in a custom local directory.
 [worlds.fs_world]
-[worlds.fs_world.db]
-url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
 
-[worlds.fs_world.plugins]
-names = ["dam-fs", "dam-source"]
 
-[worlds.fs_world.paths]
-alembic = "./fs_world_migrations"
+[worlds.fs_world.plugin_settings.core]
+database_url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
+alembic_path = "./dam_storage/fs_world_migrations"
 
-# --- Archive World ---
-# This world will use a custom storage path for the dam-fs plugin
-# and the default location for its Alembic migrations (~/.dam/worlds/archive_world).
-[worlds.archive_world]
-[worlds.archive_world.db]
-url = "postgresql+psycopg://postgres:postgres@localhost:5432/dam"
-
-[worlds.archive_world.plugins]
-names = ["dam-fs", "dam-source", "dam-archive"]
-
-[worlds.archive_world.plugin_settings."dam-fs"]
-storage_path = "./archive_world_storage"
+[worlds.fs_world.plugin_settings."dam-fs"]
+asset_storage_path = "./dam_storage/fs_world_asset_storage"
