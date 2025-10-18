@@ -28,12 +28,23 @@ def load_plugin(plugin_name: str) -> "Plugin | None":
         return None
 
 
-def get_all_plugins() -> dict[str, "Plugin"]:
-    """Load and return all known plugins."""
+def get_all_plugins(
+    enabled_plugins: list[str] | None = None,
+) -> dict[str, "Plugin"]:
+    """
+    Load and return a dictionary of plugins.
+
+    If `enabled_plugins` is provided, only plugins from that list will be loaded.
+    Otherwise, all discoverable plugins will be loaded.
+    """
     plugins: dict[str, Plugin] = {}
     try:
         entry_points = importlib.metadata.entry_points(group="dam.plugins")
         for ep in entry_points:
+            # If a whitelist is provided, only load plugins that are in it.
+            if enabled_plugins is not None and ep.name not in enabled_plugins:
+                continue
+
             try:
                 plugin_class = ep.load()
                 plugin_instance = plugin_class()
