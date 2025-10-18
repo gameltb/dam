@@ -27,6 +27,7 @@ from dam.models.config import ConfigComponent, SettingsModel
 class WorldDefinition(BaseModel):
     """Defines the configuration for a single world instance in dam.toml."""
 
+    enabled_plugins: list[str] | None = None
     plugin_settings: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("plugin_settings", mode="before")
@@ -65,18 +66,28 @@ def _validate_and_create_components(
     validates their settings using the appropriate SettingsModel, applies
     environment variable overrides, and creates the corresponding ConfigComponent.
     """
-    all_plugins = plugin_loader.get_all_plugins()
     world_components: dict[str, dict[str, ConfigComponent]] = {}
 
     for world_name, world_def in toml_config.worlds.items():
         world_components[world_name] = {}
-        for plugin_name, settings_data in world_def.plugin_settings.items():
+
+        # If enabled_plugins is specified, load only those plugins.
+        # Otherwise, load all available plugins.
+        all_plugins = plugin_loader.get_all_plugins(world_def.enabled_plugins)
+
+        # Determine the list of plugins to iterate over for settings validation.
+        # If enabled_plugins is defined, we only care about settings for those.
+        # Otherwise, we iterate over all loaded plugins.
+        plugins_to_validate = world_def.enabled_plugins or all_plugins.keys()
+
+        for plugin_name in plugins_to_validate:
             plugin = all_plugins.get(plugin_name)
             if not plugin:
                 # This might happen if a plugin is configured in toml but not installed
                 # or discoverable. The plugin_loader already logs a warning.
                 continue
 
+            settings_data = world_def.plugin_settings.get(plugin_name, {})
             settings_model_class = getattr(plugin, "Settings", None)
             if not settings_model_class or not issubclass(settings_model_class, SettingsModel):
                 # Plugin exists but doesn't define a SettingsModel, so no config is expected.

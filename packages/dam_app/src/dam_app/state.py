@@ -49,7 +49,6 @@ class GlobalState:
         # determined by the keys of the loaded settings dictionary.
         world_instance.add_plugin(AppPlugin())
         for plugin_name in world_settings:
-
             plugin = plugin_loader.load_plugin(plugin_name)
             if plugin:
                 world_instance.add_plugin(plugin)
