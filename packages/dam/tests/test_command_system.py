@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import pytest
+import pytest_asyncio
+from dam_test_utils.types import WorldFactory
 
 from dam.commands.core import BaseCommand
 from dam.core.systems import system
@@ -125,11 +127,18 @@ def legacy_handler(_cmd: Annotated[LegacyCommand, "Command"]) -> str:
     return "Handled legacy command"
 
 
+@pytest_asyncio.fixture
+async def test_world(world_factory: WorldFactory) -> AsyncGenerator[World, None]:
+    """Create a new world for a test."""
+    world: World = await world_factory("test_world", [])
+    yield world
+
+
 # Tests
 @pytest.mark.asyncio
-async def test_get_one_value_success(test_world_alpha: World) -> None:
+async def test_get_one_value_success(test_world: World) -> None:
     """Test CommandStream.get_one_value() for a single handler."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=another_handler)
     command = AnotherCommand(value=10)
     result = await world.dispatch_command(command).get_one_value()
@@ -137,9 +146,9 @@ async def test_get_one_value_success(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_all_results_flat(test_world_alpha: World) -> None:
+async def test_get_all_results_flat(test_world: World) -> None:
     """Test the get_all_results_flat method."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=list_handler_one)
     world.register_system(system_func=list_handler_two)
     command = ListCommand()
@@ -149,9 +158,9 @@ async def test_get_all_results_flat(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_one_value_failure(test_world_alpha: World) -> None:
+async def test_get_one_value_failure(test_world: World) -> None:
     """Test that CommandStream.get_one_value() fails for multiple handlers."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=simple_handler_one)
     world.register_system(system_func=simple_handler_two)
     command = SimpleCommand(data="test")
@@ -160,9 +169,9 @@ async def test_get_one_value_failure(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_all_results(test_world_alpha: World) -> None:
+async def test_get_all_results(test_world: World) -> None:
     """Test CommandStream.get_all_results() for multiple handlers."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=simple_handler_one)
     world.register_system(system_func=simple_handler_two)
     command = SimpleCommand(data="test")
@@ -173,18 +182,18 @@ async def test_get_all_results(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_command_with_no_handlers(test_world_alpha: World) -> None:
+async def test_dispatch_command_with_no_handlers(test_world: World) -> None:
     """Test that dispatching a command with no handlers returns an empty result."""
-    world = test_world_alpha
+    world = test_world
     command = SimpleCommand(data="unhandled")
     results = await world.dispatch_command(command).get_all_results()
     assert len(results) == 0
 
 
 @pytest.mark.asyncio
-async def test_command_handler_failure_propagates(test_world_alpha: World) -> None:
+async def test_command_handler_failure_propagates(test_world: World) -> None:
     """Test that if a handler raises an exception, it propagates."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=failing_handler)
     command = FailingCommand()
     with pytest.raises(ValueError, match=r"This handler is designed to fail."):
@@ -192,9 +201,9 @@ async def test_command_handler_failure_propagates(test_world_alpha: World) -> No
 
 
 @pytest.mark.asyncio
-async def test_dispatch_different_commands(test_world_alpha: World) -> None:
+async def test_dispatch_different_commands(test_world: World) -> None:
     """Test that the dispatcher correctly routes commands to their handlers."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=simple_handler_one)
     world.register_system(system_func=another_handler)
 
@@ -206,9 +215,9 @@ async def test_dispatch_different_commands(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_return_values(test_world_alpha: World) -> None:
+async def test_list_return_values(test_world: World) -> None:
     """Test that handlers returning lists are correctly handled."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=list_handler_one)
     world.register_system(system_func=list_handler_two)
     command = ListCommand()
@@ -219,9 +228,9 @@ async def test_list_return_values(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_unified_streaming_handler(test_world_alpha: World) -> None:
+async def test_unified_streaming_handler(test_world: World) -> None:
     """Test that a handler that is an AsyncGenerator works with the unified dispatch_command function."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=streaming_handler)
 
     command = StreamingCommand()
@@ -235,17 +244,17 @@ async def test_unified_streaming_handler(test_world_alpha: World) -> None:
 
 
 @pytest.mark.asyncio
-async def test_return_type_mismatch_raises_error(test_world_alpha: World) -> None:
+async def test_return_type_mismatch_raises_error(test_world: World) -> None:
     """Test that a TypeError is raised when a handler's return type annotation does not match the command's expected result type."""
-    world = test_world_alpha
+    world = test_world
     with pytest.raises(TypeError, match="Return type mismatch for command 'MismatchCommand'"):
         world.register_system(system_func=mismatch_handler)
 
 
 @pytest.mark.asyncio
-async def test_string_identity_backward_compatibility(test_world_alpha: World) -> None:
+async def test_string_identity_backward_compatibility(test_world: World) -> None:
     """Test that string-based identities for command injection still work."""
-    world = test_world_alpha
+    world = test_world
     world.register_system(system_func=legacy_handler)
     command = LegacyCommand()
     result = await world.dispatch_command(command).get_one_value()

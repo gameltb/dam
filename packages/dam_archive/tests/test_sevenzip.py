@@ -24,6 +24,58 @@ def dummy_7z_file(tmp_path: Path) -> Path:
     return file_path
 
 
+@pytest.fixture
+def protected_7z_file(tmp_path: Path) -> Path:
+    """Create a password-protected 7z file."""
+    file_path = tmp_path / "protected.7z"
+    with py7zr.SevenZipFile(file_path, "w", password="password") as z:
+        z.writestr(CONTENT1, "file1.txt")
+    return file_path
+
+
+@pytest.fixture
+def nested_7z_file(tmp_path: Path) -> Path:
+    """Create a 7z file with a nested file."""
+    file_path = tmp_path / "nested.7z"
+    with py7zr.SevenZipFile(file_path, "w") as z:
+        z.writestr(NESTED_CONTENT, "folder/nested_file.txt")
+    return file_path
+
+
+@pytest.fixture
+def regular_7z_archive(tmp_path: Path) -> Path:
+    """Create a regular 7z archive for testing."""
+    archive_path = tmp_path / "regular.7z"
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("This is a test file for 7z archives.\n")
+    with py7zr.SevenZipFile(archive_path, "w") as z:
+        z.write(file_path, "file.txt")
+    return archive_path
+
+
+@pytest.fixture
+def protected_7z_archive(tmp_path: Path) -> Path:
+    """Create a protected 7z archive for testing."""
+    archive_path = tmp_path / "protected.7z"
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("This is a test file for 7z archives.\n")
+    with py7zr.SevenZipFile(archive_path, "w", password="password") as z:
+        z.write(file_path, "file.txt")
+    return archive_path
+
+
+@pytest.fixture
+def bcj2_7z_archive(tmp_path: Path) -> Path:
+    """Create a 7z archive with a BCJ2 filter for testing."""
+    archive_path = tmp_path / "bcj2.7z"
+    file_path = tmp_path / "hello_x86"
+    file_path.write_bytes(b"\xe8\x00\x00\x00\x00")
+    filters = [{"id": py7zr.FILTER_X86}]
+    with py7zr.SevenZipFile(archive_path, "w", filters=filters) as z:
+        z.write(file_path, "hello_x86")
+    return archive_path
+
+
 @pytest.mark.asyncio
 async def test_open_7z_archive(dummy_7z_file: Path) -> None:
     """Test opening a simple 7z archive."""
@@ -52,15 +104,6 @@ async def test_unsupported_bcj2_archive_raises_error(bcj2_7z_archive: Path):
         await SevenZipArchiveHandler.create(stream_provider)
 
 
-@pytest.fixture
-def protected_7z_file(tmp_path: Path) -> Path:
-    """Create a password-protected 7z file."""
-    file_path = tmp_path / "protected.7z"
-    with py7zr.SevenZipFile(file_path, "w", password="password") as z:
-        z.writestr(CONTENT1, "file1.txt")
-    return file_path
-
-
 @pytest.mark.asyncio
 async def test_open_protected_7z_with_correct_password(protected_7z_file: Path) -> None:
     """Test opening a protected 7z archive with the correct password."""
@@ -87,15 +130,6 @@ async def test_open_protected_7z_with_incorrect_password(protected_7z_file: Path
     finally:
         if archive:
             await archive.close()
-
-
-@pytest.fixture
-def nested_7z_file(tmp_path: Path) -> Path:
-    """Create a 7z file with a nested file."""
-    file_path = tmp_path / "nested.7z"
-    with py7zr.SevenZipFile(file_path, "w") as z:
-        z.writestr(NESTED_CONTENT, "folder/nested_file.txt")
-    return file_path
 
 
 @pytest.mark.asyncio

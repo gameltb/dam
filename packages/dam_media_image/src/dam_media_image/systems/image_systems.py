@@ -19,7 +19,6 @@ from sqlalchemy import select as sql_select
 from dam_media_image.commands import FindSimilarImagesCommand
 from dam_media_image.events import ImageAssetDetected
 from dam_media_image.functions import image_hashing_functions as image_hashing_service
-from dam_media_image.types import SimilarityResult
 from dam_media_image.models.hashes.base_image_perceptual_hash_component import (
     BaseImagePerceptualHashComponent,
 )
@@ -35,6 +34,7 @@ from dam_media_image.models.hashes.image_perceptual_hash_phash_component import 
 from dam_media_image.models.properties.image_dimensions_component import (
     ImageDimensionsComponent,
 )
+from dam_media_image.types import SimilarityResult
 
 if TYPE_CHECKING:
     import imagehash

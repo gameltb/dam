@@ -1,18 +1,31 @@
 """Tests for the discovery system in the `dam_fs` package."""
 
 from pathlib import Path
-from typing import Annotated
 
 import pytest
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.world import World
+from dam_test_utils.types import WorldFactory
 
 from dam_fs.commands import RegisterLocalFileCommand
+from dam_fs.settings import FsSettingsComponent
+
+
+@pytest.fixture
+def fs_settings(tmp_path: Path) -> FsSettingsComponent:
+    """Create a FsSettingsComponent for testing."""
+    asset_storage_path = tmp_path / "asset_storage"
+    asset_storage_path.mkdir()
+    return FsSettingsComponent(
+        plugin_name="dam-fs",
+        asset_storage_path=str(asset_storage_path),
+    )
 
 
 @pytest.mark.asyncio
 async def test_discover_fs_path_siblings(
-    test_world_alpha: Annotated[World, "Resource"],
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
     tmp_path: Path,
 ):
     """
@@ -21,7 +34,7 @@ async def test_discover_fs_path_siblings(
     It should correctly find entities in the same filesystem directory and
     return them as PathSibling objects.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings])
     entity_ids: list[int] = []
 
     # 1. Setup: Register two files in the same directory

@@ -1,12 +1,26 @@
 """Tests for character functions."""
 
+from collections.abc import AsyncGenerator
+
 import pytest
-from sqlalchemy import select  # Added import for select
+import pytest_asyncio
+from dam_test_utils.types import WorldFactory
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dam.core.transaction import WorldTransaction
+from dam.core.world import World
 from dam.functions import character_functions as character_service
 from dam.functions import ecs_functions as ecs_service
 from dam.models.conceptual import CharacterConceptComponent, EntityCharacterLinkComponent
+
+
+@pytest_asyncio.fixture
+async def db_session(world_factory: WorldFactory) -> AsyncGenerator[AsyncSession, None]:
+    """Create a new database session for a test."""
+    world: World = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as tx:
+        yield tx.session
 
 
 @pytest.mark.asyncio
@@ -221,7 +235,6 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) 
         db_session, asset1.id, char_entity.id, role="Protagonist"
     )
     assert remove_success1
-    await db_session.commit()  # Commit the deletion
 
     # Explicitly try to fetch the supposedly deleted component to confirm deletion
     deleted_link_check_stmt = select(EntityCharacterLinkComponent).where(
@@ -242,7 +255,6 @@ async def test_apply_and_remove_character_from_entity(db_session: AsyncSession) 
         db_session, asset1.id, char_entity.id, role=None
     )
     assert remove_success2
-    await db_session.commit()  # Commit this deletion as well
 
     chars_on_asset1_final = await character_service.get_characters_for_entity(db_session, asset1.id)
     assert len(chars_on_asset1_final) == 0

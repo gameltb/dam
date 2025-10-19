@@ -1346,7 +1346,6 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "sqlalchemy" },
     { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.8.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
 ]
@@ -1354,12 +1353,12 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
+    { name = "dam-test-utils", editable = "packages/dam_test_utils" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "psycopg", extras = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "sqlalchemy" },
     { name = "torch" },
 ]
 

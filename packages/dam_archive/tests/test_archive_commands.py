@@ -3,7 +3,6 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
 
 import pytest
 from dam.core.transaction import WorldTransaction
@@ -11,6 +10,8 @@ from dam.core.world import World
 from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.models.filename_component import FilenameComponent
+from dam_fs.settings import FsSettingsComponent
+from dam_test_utils.types import WorldFactory
 from sqlalchemy import select
 
 from dam_archive.commands.split_archives import (
@@ -22,12 +23,32 @@ from dam_archive.models import (
     SplitArchiveManifestComponent,
     SplitArchivePartInfoComponent,
 )
+from dam_archive.settings import ArchiveSettingsComponent
+
+
+@pytest.fixture
+def fs_settings(tmp_path: Path) -> FsSettingsComponent:
+    """Create a FsSettingsComponent for testing."""
+    asset_storage_path = tmp_path / "asset_storage"
+    asset_storage_path.mkdir()
+    return FsSettingsComponent(
+        plugin_name="dam-fs",
+        asset_storage_path=str(asset_storage_path),
+    )
+
+
+@pytest.fixture
+def archive_settings() -> ArchiveSettingsComponent:
+    """Create an ArchiveSettingsComponent for testing."""
+    return ArchiveSettingsComponent(plugin_name="dam-archive")
 
 
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_bind_split_archive_command_workflow(
-    test_world_alpha: Annotated[World, "Resource"],
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
     tmp_path: Path,
 ):
     """
@@ -35,7 +56,7 @@ async def test_bind_split_archive_command_workflow(
 
     This test checks the workflow when the command is triggered from a single part entity.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     base_name = "test_bind_command"
     entity_ids: list[int] = []
 
@@ -75,7 +96,9 @@ async def test_bind_split_archive_command_workflow(
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_bind_split_archive_operation_workflow(
-    test_world_alpha: Annotated[World, "Resource"],
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
     tmp_path: Path,
 ):
     """
@@ -83,7 +106,7 @@ async def test_bind_split_archive_operation_workflow(
 
     This test covers the add, check, and remove commands of the operation.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     base_name = "test_operation"
     entity_ids: list[int] = []
     tm = world.get_context(WorldTransaction)
@@ -151,10 +174,12 @@ async def test_bind_split_archive_operation_workflow(
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_manual_create_and_unbind_workflow(
-    test_world_alpha: Annotated[World, "Resource"],
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
 ):
     """Test that manual creation and unbinding of a master archive works."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     entity_ids: list[int] = []
 
     # 1. Setup: Manually create part entities

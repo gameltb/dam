@@ -22,13 +22,13 @@ classifiers = [
 
 dependencies = [
     "dam",
+    "dam_test_utils",
     "pytest",
     "pytest-asyncio",
     "psycopg[binary]",
     "Pillow",
     "torch",
     "numpy",
-    "sqlalchemy",
 ]
 
 [tool.ruff]
