@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from dam.core.world import World
+    from dam.models.config import ConfigComponent
 
 
 logger = logging.getLogger(__name__)
@@ -50,3 +51,37 @@ class WorldManager:
         count = len(self._worlds)
         self._worlds.clear()
         logger.info("Cleared %d worlds from the registry.", count)
+
+
+def create_world_from_components(world_name: str, components: list["ConfigComponent"]) -> "World":
+    """
+    Create, configure, and register a new World instance from a list of ConfigComponents.
+
+    Args:
+        world_name: The name for the new world.
+        components: A list of ConfigComponent instances that define the world's configuration.
+
+    Returns:
+        The newly created and registered World instance.
+
+    """
+    from dam import world_manager  # noqa: PLC0415
+    from dam.core import plugin_loader  # noqa: PLC0415
+    from dam.core.world import World  # noqa: PLC0415
+
+    # Determine which plugins to load based on the provided components.
+    plugin_names_to_load = [comp.plugin_name for comp in components]
+    loaded_plugins = plugin_loader.get_all_plugins(plugin_names_to_load)
+
+    # Create and configure the world instance.
+    world = World(name=world_name)
+    world.add_resource(world, World)
+
+    for component in components:
+        world.add_resource(component, component.__class__)
+
+    for plugin in loaded_plugins.values():
+        world.add_plugin(plugin)
+
+    world_manager.register_world(world)
+    return world

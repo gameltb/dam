@@ -41,6 +41,19 @@ The system is built upon the Entity-Component-System (ECS) pattern, which promot
     *   The core `dam` package discovers and loads plugins registered under the `"dam.plugins"` entry point group.
     *   Plugins can depend on other plugins. The `world.add_plugin()` method prevents duplicate registration.
 
+### 2.6. Dynamic World Instantiation
+
+The DAM system supports two primary ways of defining and creating `World` instances:
+
+1.  **From `dam.toml` (Static Worlds)**: The `dam-cli` application can instantiate worlds defined in a `dam.toml` configuration file. This is the standard approach for defining persistent, long-running worlds. The CLI handles the loading and parsing of this file on-demand when a world is requested via the `--world` flag.
+
+2.  **From Entity Components (Dynamic Worlds)**: It is also possible to define a world's entire configuration by attaching multiple `ConfigComponent` instances to a single entity in an existing world. This allows for dynamic, data-driven creation of new, isolated `World` instances. A dedicated system can then be used to:
+    -   Query an entity for all its attached `ConfigComponent`s.
+    -   Pass this list of components to the `dam.core.world_manager.create_world_from_components` factory function.
+    -   This factory will load the corresponding plugins, configure the new world with the component data, and register it for use.
+
+This powerful feature enables scenarios where world configurations are stored and managed within the DAM itself, rather than in static configuration files.
+
 ## 3. Project Structure
 
 A brief overview of the key packages:
@@ -73,12 +86,35 @@ This section details the steps to create and register a new plugin.
 
     class MyPlugin(Plugin):
         """A plugin for my new functionality."""
+
+        # All plugins MUST define a Settings and SettingsComponent class.
+        # If the plugin has no settings, these can be empty.
+        Settings = MyPluginSettingsModel
+        SettingsComponent = MyPluginSettingsComponent
+
         def build(self, world: World) -> None:
             world.register_system(my_system)
             # Register other components, resources, etc.
     ```
 
-3.  **Register the Plugin via Entry Point**:
+3.  **Define Settings and Configuration Component (Mandatory)**:
+    -   Every plugin **must** define a `SettingsModel` and a `SettingsComponent` class, even if the plugin has no configurable settings. This is crucial for the system's dynamic world instantiation capabilities.
+    -   Create a `settings.py` file in your plugin's source directory.
+
+    *Example (`packages/dam_my_plugin/src/dam_my_plugin/settings.py`):*
+    ```python
+    from dam.models.config import ConfigComponent, SettingsModel
+
+    class MyPluginSettingsModel(SettingsModel):
+        """Pydantic model for MyPlugin. Can be empty if no settings."""
+        pass
+
+    class MyPluginSettingsComponent(ConfigComponent):
+        """ECS component for MyPlugin settings. Can be empty."""
+        __tablename__ = "dam_my_plugin_config" # Must be unique
+    ```
+
+4.  **Register the Plugin via Entry Point**:
     -   In your plugin's `pyproject.toml` file, add a new section for the `dam.plugins` entry point.
     -   Create a key for your plugin (this is the name it will be known by) and set the value to the import path of your plugin class.
 

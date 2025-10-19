@@ -26,11 +26,14 @@ if not WORLD_NAME:
 # Load the main application configuration to find the world's settings.
 config_path_str = os.getenv("DAM_CONFIG_FILE")
 config_path = Path(config_path_str) if config_path_str else None
-loaded_components = load_and_validate_settings(config_path)
+world_configs = load_and_validate_settings(config_path)
 
-world_components = loaded_components.get(WORLD_NAME)
-if not world_components:
+world_config = world_configs.get(WORLD_NAME)
+if not world_config:
     raise ValueError(f"World '{WORLD_NAME}' not found in configuration.")
+
+# Unpack the tuple of (plugins, components)
+loaded_plugins, world_components = world_config
 
 core_settings = next(
     (comp for comp in world_components.values() if isinstance(comp, CoreSettingsComponent)), None
@@ -47,9 +50,7 @@ def import_plugin_models() -> None:
     Dynamically import the 'models' module from the plugins enabled for the current world.
     This populates Base.metadata with the tables required for this specific world instance.
     """
-    if not world_components:
-        return
-    plugin_names_to_load = set(world_components.keys())
+    plugin_names_to_load = set(loaded_plugins.keys())
     print(f"Loading models for world '{WORLD_NAME}' with plugins: {', '.join(sorted(plugin_names_to_load))}")
 
     for plugin_name in plugin_names_to_load:

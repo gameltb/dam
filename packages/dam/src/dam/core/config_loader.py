@@ -55,22 +55,27 @@ class TOMLConfig(BaseModel):
 
 # --- Loading and Validation Logic ---
 
+# Define a type alias for the new return structure for clarity.
+WorldConfig = tuple[dict[str, "plugin_loader.Plugin"], dict[str, ConfigComponent]]
+
 
 def _validate_and_create_components(
     toml_config: TOMLConfig,
-) -> dict[str, dict[str, ConfigComponent]]:
+) -> dict[str, WorldConfig]:
     """
     Validate plugin settings and create ConfigComponent instances.
 
     Iterates through the worlds and plugins defined in the TOML config,
     validates their settings using the appropriate SettingsModel, applies
     environment variable overrides, and creates the corresponding ConfigComponent.
+
+    Returns a dictionary mapping world names to a tuple containing:
+    - A dictionary of the loaded Plugin instances.
+    - A dictionary of the created ConfigComponent instances.
     """
-    world_components: dict[str, dict[str, ConfigComponent]] = {}
+    world_configs: dict[str, WorldConfig] = {}
 
     for world_name, world_def in toml_config.worlds.items():
-        world_components[world_name] = {}
-
         # If enabled_plugins is specified, load only those plugins.
         # Otherwise, load all available plugins.
         all_plugins = plugin_loader.get_all_plugins(world_def.enabled_plugins)
@@ -80,6 +85,7 @@ def _validate_and_create_components(
         # Otherwise, we iterate over all loaded plugins.
         plugins_to_validate = world_def.enabled_plugins or all_plugins.keys()
 
+        world_components: dict[str, ConfigComponent] = {}
         for plugin_name in plugins_to_validate:
             plugin = all_plugins.get(plugin_name)
             if not plugin:
@@ -113,10 +119,14 @@ def _validate_and_create_components(
             # Now, create and populate the corresponding ConfigComponent
             component_class = _get_component_class_for_plugin(plugin)
             if component_class:
-                component_instance = component_class(**validated_settings.model_dump())
-                world_components[world_name][plugin_name] = component_instance
+                component_data = validated_settings.model_dump()
+                component_data["plugin_name"] = plugin_name
+                component_instance = component_class(**component_data)
+                world_components[plugin_name] = component_instance
 
-    return world_components
+        world_configs[world_name] = (all_plugins, world_components)
+
+    return world_configs
 
 
 def _get_component_class_for_plugin(plugin: "plugin_loader.Plugin") -> type[ConfigComponent] | None:
@@ -133,7 +143,7 @@ def _get_component_class_for_plugin(plugin: "plugin_loader.Plugin") -> type[Conf
 
 def load_and_validate_settings(
     config_path: Path | None = None,
-) -> dict[str, dict[str, ConfigComponent]]:
+) -> dict[str, WorldConfig]:
     """
     Load, validate, and process the application configuration from a TOML file.
 
@@ -142,7 +152,7 @@ def load_and_validate_settings(
     validating each plugin's settings, resulting in a dictionary of
     ConfigComponent instances for each world.
     """
-    found_path = config_path or _find_config_file()
+    found_path = config_path or find_config_file()
     if not found_path:
         raise FileNotFoundError(
             "Configuration file 'dam.toml' or '.dam.toml' not found in current or parent directories."
@@ -158,7 +168,7 @@ def load_and_validate_settings(
     return _validate_and_create_components(toml_config)
 
 
-def _find_config_file() -> Path | None:
+def find_config_file() -> Path | None:
     """Search for dam.toml or .dam.toml in the current dir and parents."""
     search_dir = Path.cwd()
     # Search up to the root directory

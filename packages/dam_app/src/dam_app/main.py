@@ -2,14 +2,14 @@
 
 import logging
 import os
-import traceback
 from pathlib import Path
 from typing import Annotated
 
+import tomli
 import typer
-from dam.core.config_loader import load_and_validate_settings
+from dam.core.config_loader import TOMLConfig, find_config_file
 
-from dam_app.cli import assets, db, report, verify
+from dam_app.cli import assets, db, report, verify, worlds
 from dam_app.logging_config import setup_logging
 from dam_app.state import global_state
 
@@ -25,20 +25,35 @@ app.add_typer(assets.app, name="assets", help="Commands for managing assets.")
 app.add_typer(verify.app, name="verify", help="Commands for verifying asset integrity.")
 app.add_typer(db.app, name="db", help="Commands for database schema management.")
 app.add_typer(report.app, name="report", help="Commands for generating reports.")
+app.add_typer(worlds.app, name="world", help="Commands for dynamic world management.")
 
 
 @app.command(name="list-worlds")
 def cli_list_worlds():
     """List all worlds defined in the configuration file."""
-    if not global_state.loaded_components:
-        typer.secho("No worlds are defined. Please create or specify a configuration file.", fg=typer.colors.YELLOW)
-        return
+    try:
+        config_path = find_config_file()
+        if not config_path:
+            typer.secho("Configuration file 'dam.toml' not found.", fg=typer.colors.YELLOW)
+            return
 
-    typer.echo("Defined worlds:")
-    for world_name in global_state.loaded_components:
-        is_active = world_name == global_state.world_name
-        active_marker = " (active)" if is_active else ""
-        typer.echo(f"  - {world_name}{active_marker}")
+        with config_path.open("rb") as f:
+            toml_data = tomli.load(f)
+
+        toml_config = TOMLConfig.model_validate(toml_data)
+        if not toml_config.worlds:
+            typer.secho("No worlds are defined in the configuration.", fg=typer.colors.YELLOW)
+            return
+
+        typer.echo("Defined worlds:")
+        for world_name in toml_config.worlds:
+            is_active = world_name == global_state.world_name
+            active_marker = " (active)" if is_active else ""
+            typer.echo(f"  - {world_name}{active_marker}")
+
+    except Exception as e:
+        typer.secho(f"Error reading configuration: {e}", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
 
 
 @app.callback(invoke_without_command=True)
@@ -70,21 +85,9 @@ def main_callback(
     """Initialize the application, load configuration, and set the target world."""
     setup_logging(logging.INFO)
 
-    try:
-        # Use the new centralized configuration loader
-        global_state.loaded_components = load_and_validate_settings(config_file)
-        if config_file:
-            os.environ["DAM_CONFIG_FILE"] = str(config_file)
-
-    except FileNotFoundError as e:
-        is_db_command = ctx.invoked_subcommand and "db" in ctx.invoked_subcommand
-        if not ctx.resilient_parsing and not is_db_command:
-            typer.secho("Error: Configuration file not found.", fg=typer.colors.RED)
-            raise typer.Exit(1) from e
-    except Exception as e:
-        typer.secho(f"Critical error loading configuration: {e}", fg=typer.colors.RED)
-        typer.secho(traceback.format_exc(), fg=typer.colors.RED)
-        raise typer.Exit(code=1) from e
+    # Store the config file path if provided, so it can be found by on-demand loaders.
+    if config_file:
+        os.environ["DAM_CONFIG_FILE"] = str(config_file)
 
     # Set the active world name. The actual World object will be instantiated
     # on-demand by get_world() when a command needs it.
@@ -102,12 +105,13 @@ def main_callback(
         if not world:
             typer.secho("Error: A world must be specified with --world or DAM_CURRENT_WORLD.", fg=typer.colors.RED)
             raise typer.Exit(1)
-        if not global_state.loaded_components or world not in global_state.loaded_components:
-            typer.secho(f"Error: World '{world}' is not defined in the configuration.", fg=typer.colors.RED)
-            raise typer.Exit(1)
-        # The first access will trigger the lazy load
-        if not global_state.get_current_world():
-            typer.secho(f"Error: Failed to instantiate world '{world}'.", fg=typer.colors.RED)
+
+        # The first access will trigger the lazy load and validation.
+        active_world = global_state.get_current_world()
+        if not active_world:
+            typer.secho(
+                f"Error: Failed to instantiate world '{world}'. Check configuration and logs.", fg=typer.colors.RED
+            )
             raise typer.Exit(1)
 
     if ctx.invoked_subcommand is None:

@@ -19,6 +19,7 @@ from sqlalchemy import select as sql_select
 from dam_media_image.commands import FindSimilarImagesCommand
 from dam_media_image.events import ImageAssetDetected
 from dam_media_image.functions import image_hashing_functions as image_hashing_service
+from dam_media_image.types import SimilarityResult
 from dam_media_image.models.hashes.base_image_perceptual_hash_component import (
     BaseImagePerceptualHashComponent,
 )
@@ -123,7 +124,7 @@ def _consolidate_matches(potential_matches: list[dict[str, Any]]) -> list[dict[s
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: WorldTransaction,
-) -> list[dict[str, Any]] | None:
+) -> SimilarityResult:
     """Handle the command to find similar images based on perceptual hashes."""
     logger.info("System handling FindSimilarImagesCommand for image: %s (Req ID: %s)", cmd.image_path, cmd.request_id)
     try:

@@ -1,6 +1,8 @@
 """Base classes for configuration components and models in the DAM system."""
 
 from pydantic import BaseModel
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from dam.models.core.base_component import BaseComponent as DamBaseComponent
 
@@ -30,3 +32,5 @@ class ConfigComponent(DamBaseComponent):
     """
 
     __abstract__ = True
+
+    plugin_name: Mapped[str] = mapped_column(String, nullable=False)

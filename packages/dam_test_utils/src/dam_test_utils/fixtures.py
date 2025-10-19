@@ -14,7 +14,6 @@ import pytest
 import pytest_asyncio
 import torch
 from dam import world_manager
-from dam.core import plugin_loader
 from dam.core.config_loader import load_and_validate_settings
 from dam.core.database import DatabaseManager
 from dam.core.world import World
@@ -88,19 +87,21 @@ asset_storage_path = "{asset_storage_path}"
 
 async def _setup_world(world_name: str, test_toml_config: Path, plugins: list[Any] | None = None) -> World:
     """Set up a dam world, with optional plugins."""
-    loaded_components = load_and_validate_settings(test_toml_config)
+    world_configs = load_and_validate_settings(test_toml_config)
+    world_config = world_configs.get(world_name)
+    if not world_config:
+        raise ValueError(f"World '{world_name}' not found in test configuration.")
+
+    loaded_plugins, world_components = world_config
 
     world = World(name=world_name)
     world.add_resource(world, World)
 
-    world_settings = loaded_components.get(world_name, {})
-    for component in world_settings.values():
+    for component in world_components.values():
         world.add_resource(component, component.__class__)
 
-    for plugin_name in world_settings:
-        plugin = plugin_loader.load_plugin(plugin_name)
-        if plugin:
-            world.add_plugin(plugin)
+    for plugin in loaded_plugins.values():
+        world.add_plugin(plugin)
 
     if plugins:
         for plugin in plugins:

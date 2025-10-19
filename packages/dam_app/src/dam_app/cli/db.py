@@ -7,11 +7,10 @@ import sys
 from pathlib import Path
 from typing import Annotated
 
+import tomli
 import typer
-from dam.plugins.core import CoreSettingsComponent
+from dam.core.config_loader import TOMLConfig, find_config_file
 from rich.console import Console
-
-from dam_app.state import global_state
 
 # --- Typer App Definition ---
 app = typer.Typer(
@@ -31,20 +30,29 @@ ALEMBIC_TEMPLATE_DIR = Path(__file__).parent.parent / "alembic_template"
 
 def get_alembic_ini_path(world_name: str) -> Path:
     """Get the path to the alembic.ini file for a given world."""
-    if not global_state.loaded_components or world_name not in global_state.loaded_components:
-        console.print(f"[bold red]Error:[/] World '{world_name}' not found in configuration.")
-        raise typer.Exit(1)
+    try:
+        config_path = find_config_file()
+        if not config_path:
+            raise FileNotFoundError("Configuration file 'dam.toml' not found.")
 
-    world_components = global_state.loaded_components[world_name]
-    core_settings = next((comp for comp in world_components.values() if isinstance(comp, CoreSettingsComponent)), None)
+        with config_path.open("rb") as f:
+            toml_data = tomli.load(f)
 
-    if not core_settings or not hasattr(core_settings, "alembic_path"):
-        console.print(
-            f"[bold red]Error:[/] The 'alembic_path' is not configured in the CoreSettingsComponent for world '{world_name}'."
-        )
-        raise typer.Exit(1)
+        toml_config = TOMLConfig.model_validate(toml_data)
+        world_def = toml_config.worlds.get(world_name)
 
-    return Path(core_settings.alembic_path).resolve() / "alembic.ini"
+        if not world_def:
+            raise ValueError(f"World '{world_name}' not found in {config_path}.")
+
+        alembic_path_str = world_def.plugin_settings.get("core", {}).get("alembic_path")
+        if not alembic_path_str:
+            raise ValueError(f"'alembic_path' not configured for world '{world_name}'.")
+
+        return Path(alembic_path_str).resolve() / "alembic.ini"
+
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[bold red]Error:[/] {e}")
+        raise typer.Exit(1) from e
 
 
 def _run_alembic_command(world_name: str, command: list[str]):

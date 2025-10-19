@@ -4,11 +4,15 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .commands import ExtractAudioMetadataCommand
+from .settings import AudioSettingsComponent, AudioSettingsModel
 from .systems.audio_systems import add_audio_components_system
 
 
 class AudioPlugin(Plugin):
     """A plugin that provides audio-related functionalities."""
+
+    Settings = AudioSettingsModel
+    SettingsComponent = AudioSettingsComponent
 
     def build(self, world: World) -> None:
         """

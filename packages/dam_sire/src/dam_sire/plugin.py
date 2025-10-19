@@ -4,10 +4,14 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .resource import SireResource
+from .settings import SireSettingsComponent, SireSettingsModel
 
 
 class SirePlugin(Plugin):
     """A plugin that provides Sire integration."""
+
+    Settings = SireSettingsModel
+    SettingsComponent = SireSettingsComponent
 
     def build(self, world: "World") -> None:
         """

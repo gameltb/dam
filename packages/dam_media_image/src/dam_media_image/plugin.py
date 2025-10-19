@@ -4,6 +4,7 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .resources import ImageHashingServiceResource
+from .settings import ImageSettingsComponent, ImageSettingsModel
 from .systems.image_systems import (
     handle_find_similar_images_command,
     process_image_metadata_system,
@@ -12,6 +13,9 @@ from .systems.image_systems import (
 
 class ImagePlugin(Plugin):
     """A plugin to integrate image-specific systems and resources into the DAM."""
+
+    Settings = ImageSettingsModel
+    SettingsComponent = ImageSettingsComponent
 
     def build(self, world: World) -> None:
         """Register image-related resources and systems with the world."""

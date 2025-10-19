@@ -3,9 +3,11 @@
 import logging
 from typing import TYPE_CHECKING
 
+import tomli
 from dam import world_manager
-from dam.core import plugin_loader
+from dam.core.config_loader import TOMLConfig, find_config_file
 from dam.core.world import World
+from dam.core.world_manager import create_world_from_components
 from dam.models.config import ConfigComponent
 
 from dam_app.plugin import AppPlugin
@@ -22,48 +24,15 @@ class GlobalState:
 
     def __init__(self) -> None:
         """Initialize the GlobalState."""
-        self.loaded_components: dict[str, dict[str, ConfigComponent]] | None = None
         self.world_name: str | None = None
-        self._instantiated_worlds: set[str] = set()
-
-    def _instantiate_and_configure_world(self, world_name: str) -> World | None:
-        """Create a new World instance and configure it with plugins and settings."""
-        if not self.loaded_components or world_name not in self.loaded_components:
-            logger.error("Configuration components for world '%s' not loaded.", world_name)
-            return None
-
-        logger.info("Lazily instantiating and configuring world: '%s'", world_name)
-
-        # Create a world instance without the old config object.
-        world_instance = World(name=world_name)
-
-        # Get the loaded components for the current world.
-        world_settings = self.loaded_components[world_name]
-
-        # Inject each loaded ConfigComponent as a resource in the world.
-        for component in world_settings.values():
-            world_instance.add_resource(component, component.__class__)
-        logger.debug("Injected all settings components as resources for world '%s'.", world_name)
-
-        # Load all configured plugins for this world. The list of plugins is
-        # determined by the keys of the loaded settings dictionary.
-        world_instance.add_plugin(AppPlugin())
-        for plugin_name in world_settings:
-            plugin = plugin_loader.load_plugin(plugin_name)
-            if plugin:
-                world_instance.add_plugin(plugin)
-
-        world_manager.register_world(world_instance)
-        self._instantiated_worlds.add(world_name)
-        return world_instance
+        # Note: _instantiated_worlds is removed as world_manager now tracks this.
 
     def get_current_world(self) -> World | None:
         """
         Lazily instantiate and return the currently active World object.
 
-        Uses the global `world_manager` to get the world, and if it doesn't
-        exist, it instantiates and configures it on-demand using the pre-loaded
-        configuration components.
+        If the world is not already registered, this function will find the dam.toml,
+        parse the configuration for the current world, and build it on-demand.
         """
         if not self.world_name:
             return None
@@ -73,8 +42,69 @@ class GlobalState:
         if world:
             return world
 
-        # If not, instantiate it, which also registers it.
-        return self._instantiate_and_configure_world(self.world_name)
+        # --- On-demand world instantiation from dam.toml ---
+        logger.info("Lazily instantiating world '%s' from configuration file.", self.world_name)
+        try:
+            config_path = find_config_file()
+            if not config_path:
+                raise FileNotFoundError("Configuration file 'dam.toml' not found.")
+
+            with config_path.open("rb") as f:
+                toml_data = tomli.load(f)
+
+            # Validate the full TOML structure to get our world's definition
+            toml_config = TOMLConfig.model_validate(toml_data)
+            world_def = toml_config.worlds.get(self.world_name)
+
+            if not world_def:
+                raise ValueError(f"World '{self.world_name}' not found in {config_path}.")
+
+            # This is a simplified version of the logic from the old `_validate_and_create_components`
+            # It's scoped to just the world we need to build.
+            # A more robust solution might involve a dedicated factory function.
+            from dam.core import plugin_loader  # noqa: PLC0415
+            from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: PLC0415
+
+            all_plugins = plugin_loader.get_all_plugins(world_def.enabled_plugins)
+            plugins_to_validate = world_def.enabled_plugins or all_plugins.keys()
+
+            config_components: list[ConfigComponent] = []
+            for plugin_name in plugins_to_validate:
+                plugin = all_plugins.get(plugin_name)
+                if not plugin:
+                    continue
+
+                settings_data = world_def.plugin_settings.get(plugin_name, {})
+                settings_model_class = getattr(plugin, "Settings", None)
+                component_class = getattr(plugin, "SettingsComponent", None)
+
+                if not settings_model_class or not component_class:
+                    continue
+
+                # Perform validation and environment variable overrides
+                env_prefix = f"DAM_WORLDS_{self.world_name.upper()}_PLUGIN_SETTINGS_{plugin_name.upper()}_"
+                dynamic_settings = type(
+                    f"{plugin_name}RuntimeSettings",
+                    (settings_model_class, BaseSettings),
+                    {"model_config": SettingsConfigDict(env_prefix=env_prefix, env_nested_delimiter="__")},
+                )
+                validated_settings = dynamic_settings(**settings_data)
+
+                # Create the component instance
+                component_data = validated_settings.model_dump()
+                component_data["plugin_name"] = plugin_name
+                config_components.append(component_class(**component_data))
+
+            # Use the core factory to create the world
+            new_world = create_world_from_components(self.world_name, config_components)
+            # Add the app-specific plugin
+            new_world.add_plugin(AppPlugin())
+
+            return new_world
+
+        except Exception:
+            logger.exception("Failed to instantiate world '%s'", self.world_name)
+            return None
 
 
 global_state = GlobalState()
