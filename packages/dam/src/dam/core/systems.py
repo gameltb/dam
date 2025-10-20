@@ -427,13 +427,11 @@ class WorldScheduler:
 
                 try:
                     if inspect.isasyncgen(result):
-                        value_to_send = None
-                        while True:
-                            item = await result.asend(value_to_send)
+                        async for item in result:
                             if isinstance(item, BaseSystemEvent):
-                                value_to_send = yield item
+                                yield item
                             else:
-                                value_to_send = yield SystemResultEvent(result=item)
+                                yield SystemResultEvent(result=item)
                     else:
                         yield SystemResultEvent(result=result)
                 except StopAsyncIteration:

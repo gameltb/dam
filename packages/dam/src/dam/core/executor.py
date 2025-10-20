@@ -48,50 +48,25 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
                 raise ValueError(f"Unknown execution strategy: {self._strategy}")
         return self._iterator
 
-    async def _run_serial(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
-        """Execute generators one by one, handling InformationRequests."""
+    async def _run_serial(self) -> AsyncGenerator[EventType | InformationRequest[Any], None]:
+        """Execute generators one by one."""
         for gen in self._generators:
-            value_to_send: Any = None
-            while True:
-                try:
-                    # The first asend() must be with None.
-                    event = await gen.asend(value_to_send)
-                    # Yield the event and receive the next value to send from the consumer.
-                    value_to_send = yield event
-                except StopAsyncIteration:
-                    break
+            async for event in gen:
+                yield event
 
-    async def _run_parallel(self) -> AsyncGenerator[EventType | InformationRequest[Any], Any]:
+    async def _run_parallel(self) -> AsyncGenerator[EventType | InformationRequest[Any], None]:
         """Execute generators concurrently, yielding events as they become available."""
         # A queue for events and requests from drainers to the main loop.
         q: asyncio.Queue[EventType | Exception | InformationRequest[Any]] = asyncio.Queue()
-        # A single queue for responses from the main loop back to the waiting drainer.
-        response_q: asyncio.Queue[Any] = asyncio.Queue(maxsize=1)
-        # A lock to ensure only one drainer can issue a request and wait for a response at a time.
-        response_lock = asyncio.Lock()
 
         async def drain(gen: AsyncGenerator[EventType, Any]) -> None:
-            """Drains a generator's items into a queue, handling requests."""
-            value_to_send: Any = None
-            while True:
-                try:
-                    event = await gen.asend(value_to_send)
-                    if isinstance(event, InformationRequest):
-                        # This drainer needs to make a request.
-                        async with response_lock:
-                            await q.put(event)
-                            # Wait for the response from the main loop.
-                            value_to_send = await response_q.get()
-                            response_q.task_done()
-                    else:
-                        await q.put(event)
-                        value_to_send = None  # Reset for next iteration
-                except StopAsyncIteration:
-                    break
-                except Exception as e:
-                    # If a generator fails, put the exception in the queue to be re-raised.
-                    await q.put(e)
-                    break
+            """Drains a generator's items into a queue."""
+            try:
+                async for event in gen:
+                    await q.put(event)
+            except Exception as e:
+                # If a generator fails, put the exception in the queue to be re-raised.
+                await q.put(e)
 
         # Start tasks to drain all generators into the queue.
         drain_tasks = [asyncio.create_task(drain(gen)) for gen in self._generators]
@@ -111,15 +86,7 @@ class SystemExecutor[ResultType, EventType: BaseSystemEvent]:
                 await asyncio.gather(*drain_tasks, return_exceptions=True)
                 raise item
 
-            if isinstance(item, InformationRequest):
-                # Yield the request up to the main consumer.
-                response = yield item
-                # Put the response on the queue for the waiting drainer.
-                await response_q.put(response)
-            else:
-                # It's a regular event. The value sent back by the consumer will be
-                # received by `yield item` here, but we don't need to do anything with it.
-                yield item
+            yield item
 
             # Check for finished tasks.
             finished_tasks = sum(1 for task in drain_tasks if task.done())
