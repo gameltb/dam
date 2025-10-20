@@ -1,4 +1,5 @@
 """System events for requesting information from the user."""
+
 import asyncio
 from dataclasses import dataclass, field
 from typing import TypeVar
@@ -17,7 +18,11 @@ class InformationRequest[T](BaseSystemEvent):
     and then resume with the provided data.
     """
 
-    future: asyncio.Future[T] = field(default_factory=asyncio.Future)
+    future: asyncio.Future[T] = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Initialize the future with the correct type."""
+        self.future = asyncio.Future()
 
 
 @dataclass
@@ -25,10 +30,3 @@ class PasswordRequest(InformationRequest[str | None]):
     """A specific information request for a password."""
 
     message: str = "Password required"
-
-
-@dataclass
-class PasswordResponse(BaseSystemEvent):
-    """Event sent in response to a PasswordRequest, providing the password."""
-
-    password: str | None
