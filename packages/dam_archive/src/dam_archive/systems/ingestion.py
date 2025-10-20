@@ -20,7 +20,6 @@ from dam.commands.asset_commands import (
     GetAssetStreamCommand,
     GetOrCreateEntityFromStreamCommand,
 )
-from dam.core.itertools import asend_wrapper
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
@@ -451,18 +450,19 @@ async def _process_archive(
     # --- Password Resolution ---
     archive: ArchiveHandler | None = None
     correct_password: str | None = None
-    password_gen = asend_wrapper(
-        _resolve_password_and_open_archive(cmd, archive_stream_provider, transaction, mime_type)
-    )
-    async for event in password_gen:
-        if isinstance(event, tuple):
-            archive, correct_password = event
-            break
-        response = yield event
-        try:
-            await password_gen.asend(response)
-        except StopAsyncIteration:
-            break
+    password_gen = _resolve_password_and_open_archive(cmd, archive_stream_provider, transaction, mime_type)
+
+    try:
+        event = await anext(password_gen)
+        while True:
+            if isinstance(event, tuple):
+                archive, correct_password = event
+                break
+            response = yield event
+            event = await password_gen.asend(response)
+
+    except StopAsyncIteration:
+        pass
 
     if not archive:
         return
@@ -536,13 +536,14 @@ async def ingest_archive_members_handler(
 
     # The `_process_archive` generator can now make requests, so we need to
     # yield its events and pipe back any values sent to this generator.
-    process_gen = asend_wrapper(_process_archive(cmd, archive_stream_provider, world, transaction))
-    async for event in process_gen:
-        response = yield event
-        try:
-            await process_gen.asend(response)
-        except StopAsyncIteration:
-            break
+    process_gen = _process_archive(cmd, archive_stream_provider, world, transaction)
+    try:
+        event = await anext(process_gen)
+        while True:
+            response = yield event
+            event = await process_gen.asend(response)
+    except StopAsyncIteration:
+        pass
 
 
 @system(on_command=ClearArchiveComponentsCommand)

@@ -14,7 +14,6 @@ from dam.commands.asset_commands import (
     GetMimeTypeCommand,
 )
 from dam.core.executor import SystemExecutor
-from dam.core.itertools import asend_wrapper
 from dam.core.operations import AssetOperation
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
@@ -100,9 +99,10 @@ async def _handle_progress_events(  # noqa: PLR0912
 ):
     """Handle progress events from a command stream."""
     sub_pbar: tqdm[Any] | None = None
-    stream_iter = asend_wrapper(stream.__aiter__())
+    stream_iter = stream.__aiter__()
     try:
-        async for event in stream_iter:
+        event = await anext(stream_iter)
+        while True:
             if isinstance(event, NewEntityCreatedEvent):
                 tqdm.write(f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}")
                 await process_entity_callback(
@@ -120,7 +120,7 @@ async def _handle_progress_events(  # noqa: PLR0912
                 password_correct = False
                 for password in passwords:
                     try:
-                        await stream_iter.asend(PasswordResponse(password=password))
+                        event = await stream_iter.asend(PasswordResponse(password=password))
                         password_correct = True
                         break
                     except StopAsyncIteration:
@@ -128,16 +128,19 @@ async def _handle_progress_events(  # noqa: PLR0912
                     except Exception:
                         continue
 
-                if not password_correct:
-                    new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
-                    if not new_password:
-                        tqdm.write("No password provided, skipping archive.")
-                        await stream_iter.asend(PasswordResponse(password=None))
-                        continue
+                if password_correct:
+                    continue
 
-                    if new_password not in passwords:
-                        passwords.append(new_password)
-                    await stream_iter.asend(PasswordResponse(password=new_password))
+                new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
+                if not new_password:
+                    tqdm.write("No password provided, skipping archive.")
+                    event = await stream_iter.asend(PasswordResponse(password=None))
+                    continue
+
+                if new_password not in passwords:
+                    passwords.append(new_password)
+                event = await stream_iter.asend(PasswordResponse(password=new_password))
+                continue
 
             elif isinstance(event, ProgressStarted):
                 sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
@@ -164,6 +167,8 @@ async def _handle_progress_events(  # noqa: PLR0912
                 tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
             elif isinstance(event, SystemResultEvent):
                 break
+
+            event = await anext(stream_iter)
     except StopAsyncIteration:
         pass
     finally:
