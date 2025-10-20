@@ -228,10 +228,10 @@ For complex operations that require two-way communication with the caller (e.g.,
     *Example (`packages/my_plugin/commands.py`):*
     ```python
     from dam.commands.core import BaseCommand
-    from dam.system_events.requests import PasswordRequest, PasswordResponse
+    from dam.system_events.requests import PasswordRequest
 
     @dataclass
-    class ProcessProtectedArchive(BaseCommand[None, Union[PasswordRequest, PasswordResponse]]):
+    class ProcessProtectedArchive(BaseCommand[None, PasswordRequest]):
         """A command that may require a password."""
         entity_id: int
     ```
@@ -243,20 +243,20 @@ For complex operations that require two-way communication with the caller (e.g.,
     *Example (`packages/my_plugin/systems/asset_systems.py`):*
     ```python
     from typing import AsyncGenerator, Union
-    from dam.system_events.requests import PasswordRequest, PasswordResponse
+    from dam.system_events.requests import PasswordRequest
 
     @system(on_command=ProcessProtectedArchive)
     async def handle_protected_archive(
         cmd: ProcessProtectedArchive,
-    ) -> AsyncGenerator[Union[PasswordRequest, PasswordResponse], PasswordResponse]:
+    ) -> AsyncGenerator[PasswordRequest, str | None]:
         password: str | None = None
         while not password:
             response = yield PasswordRequest(message="Password required")
-            if response and response.password:
+            if response:
                 # ... try to open archive with password ...
                 is_correct = True # Placeholder
                 if is_correct:
-                    password = response.password
+                    password = response
                     print("Archive unlocked!")
                 else:
                     print("Incorrect password.")
@@ -279,7 +279,7 @@ For complex operations that require two-way communication with the caller (e.g.,
             if isinstance(event, PasswordRequest):
                 print(f"System requested password: {event.message}")
                 password_input = "my-secret-password"
-                event = await executor.asend(PasswordResponse(password=password_input))
+                event = await executor.asend(password_input)
     except StopAsyncIteration:
         pass
     ```

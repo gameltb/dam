@@ -6,6 +6,7 @@ import io
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import (
     Annotated,
     Any,
@@ -25,6 +26,7 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
 from dam.core.world import World
 from dam.functions.mime_type_functions import get_content_mime_type
+from dam.system_events.base import SystemResultEvent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -36,19 +38,8 @@ from dam.system_events.progress import (
 from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.utils.stream_utils import ChainedStream
 from sqlalchemy import select
-from dataclasses import dataclass
-
 
 from ..base import ArchiveHandler, ArchiveMemberInfo
-from dam.system_events.base import SystemResultEvent
-
-@dataclass
-class _ArchiveOpened(SystemResultEvent):
-    """Internal event to signal that an archive has been successfully opened."""
-
-    result: tuple[ArchiveHandler, str | None]
-
-
 from ..commands.ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
@@ -65,6 +56,14 @@ from ..models import (
     SplitArchiveManifestComponent,
     SplitArchivePartInfoComponent,
 )
+
+
+@dataclass
+class _ArchiveOpened(SystemResultEvent[tuple[ArchiveHandler, str | None]]):
+    """Internal event to signal that an archive has been successfully opened."""
+
+    result: tuple[ArchiveHandler, str | None]
+
 
 logger = logging.getLogger(__name__)
 
