@@ -18,7 +18,7 @@ from dam.core.operations import AssetOperation
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam.system_events.base import BaseSystemEvent
+from dam.system_events.base import BaseSystemEvent,SystemResultEvent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -167,6 +167,8 @@ async def _handle_progress_events(  # noqa: PLR0912
                     sub_pbar = None
                 tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
                 event = await stream_iter.__anext__()
+            elif isinstance(event, SystemResultEvent):
+                break
     except StopAsyncIteration:
         pass
     finally:
