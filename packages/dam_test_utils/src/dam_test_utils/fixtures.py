@@ -14,128 +14,94 @@ import pytest
 import pytest_asyncio
 import torch
 from dam import world_manager
-from dam.core import plugin_loader
-from dam.core.config_loader import load_and_validate_settings
 from dam.core.database import DatabaseManager
 from dam.core.world import World
-from dam.models.core.base_class import Base
+from dam.core.world_manager import create_world_from_components
+from dam.models.config import ConfigComponent
+from dam.plugins.core import CoreSettingsComponent
 from PIL import Image
 from psycopg import sql
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from dam_test_utils.teardown import teardown_world_async
+from dam_test_utils.types import WorldFactory
 
 MOCK_TRANSFORMER_EMBEDDING_DIM = 3
 
 
-@pytest_asyncio.fixture(scope="function")
-async def test_db() -> AsyncGenerator[str, None]:
-    """Create a temporary database for testing."""
-    db_user = os.environ.get("POSTGRES_USER", "postgres")
-    db_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
-    db_host = os.environ.get("POSTGRES_HOST", "localhost")
-    db_port = os.environ.get("POSTGRES_PORT", "5432")
-    db_name = f"test_db_{uuid.uuid4().hex}"
+@pytest.fixture(scope="session")
+def test_db_factory() -> Any:
+    """Factory for creating temporary databases for testing."""
 
-    conn = await psycopg.AsyncConnection.connect(
-        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
-    )
-    try:
-        await conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
-    finally:
-        await conn.close()
+    async def _test_db_factory(db_name_prefix: str) -> AsyncGenerator[str, None]:
+        db_user = os.environ.get("POSTGRES_USER", "postgres")
+        db_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+        db_host = os.environ.get("POSTGRES_HOST", "localhost")
+        db_port = os.environ.get("POSTGRES_PORT", "5432")
+        db_name = f"{db_name_prefix}_{uuid.uuid4().hex}"
 
-    db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    yield db_url
-
-    conn = await psycopg.AsyncConnection.connect(
-        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
-    )
-    try:
-        await conn.execute(
-            sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"), (db_name,)
+        conn = await psycopg.AsyncConnection.connect(
+            f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
         )
-        await conn.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name)))
-    except psycopg.errors.InvalidCatalogName:
-        pass
-    finally:
-        await conn.close()
+        try:
+            await conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+        finally:
+            await conn.close()
+
+        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        yield db_url
+
+        conn = await psycopg.AsyncConnection.connect(
+            f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
+        )
+        try:
+            # Terminate all connections to the database to allow it to be dropped.
+            await conn.execute(
+                sql.SQL("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s"), (db_name,)
+            )
+            await conn.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name)))
+        except psycopg.errors.InvalidCatalogName:
+            pass  # Database already dropped
+        finally:
+            await conn.close()
+
+    return _test_db_factory
 
 
-@pytest.fixture
-def test_toml_config(test_db: str, tmp_path: Path) -> Path:
-    """Creates a temporary dam.toml file for testing."""
-    worlds_config = ""
-    world_names = [
-        "test_world_alpha",
-        "test_world_beta",
-        "test_world_gamma",
-    ]
+@pytest_asyncio.fixture
+async def world_factory(test_db_factory: Any, tmp_path_factory: Any) -> AsyncGenerator[WorldFactory, None]:
+    """Pytest fixture that provides a factory for creating isolated World instances."""
+    created_worlds: list[str] = []
 
-    for name in world_names:
-        asset_storage_path = (tmp_path / f"assets_{name}").as_posix().replace("\\", "/")
-        worlds_config += f"""
-[worlds.{name}.plugin_settings.core]
-database_url = "{test_db}"
-alembic_path = "{tmp_path.joinpath("alembic", name).as_posix()}"
+    async def _create_world(world_name: str, components: list[ConfigComponent]) -> World:
+        """Create a world with the given name and components."""
+        # Ensure a core settings component with a unique DB is present.
+        if not any(isinstance(c, CoreSettingsComponent) for c in components):
+            temp_db_url_generator = test_db_factory(f"db_{world_name}")
+            temp_db_url = await temp_db_url_generator.__anext__()
+            temp_alembic_path = tmp_path_factory.mktemp(f"alembic_{world_name}")
+            components.append(
+                CoreSettingsComponent(
+                    plugin_name="core",
+                    database_url=temp_db_url,
+                    alembic_path=str(temp_alembic_path),
+                )
+            )
 
-[worlds.{name}.plugin_settings."dam-fs"]
-asset_storage_path = "{asset_storage_path}"
-"""
+        # Create the world using the core factory function
+        world = create_world_from_components(world_name, components)
+        await world.get_resource(DatabaseManager).create_db_and_tables()
 
-    toml_path = tmp_path / "dam.toml"
-    toml_path.write_text(worlds_config)
-    return toml_path
+        created_worlds.append(world.name)
+        return world
 
+    yield _create_world
 
-async def _setup_world(world_name: str, test_toml_config: Path, plugins: list[Any] | None = None) -> World:
-    """Set up a dam world, with optional plugins."""
-    loaded_components = load_and_validate_settings(test_toml_config)
-
-    world = World(name=world_name)
-    world.add_resource(world, World)
-
-    world_settings = loaded_components.get(world_name, {})
-    for component in world_settings.values():
-        world.add_resource(component, component.__class__)
-
-    for plugin_name in world_settings:
-        plugin = plugin_loader.load_plugin(plugin_name)
-        if plugin:
-            world.add_plugin(plugin)
-
-    if plugins:
-        for plugin in plugins:
-            world.add_plugin(plugin)
-
-    db_manager = world.get_resource(DatabaseManager)
-    await db_manager.create_db_and_tables()
-
-    world_manager.register_world(world)
-    return world
-
-
-async def _teardown_world_async(world: World) -> None:
-    if world and world.has_resource(DatabaseManager):
-        db_mngr = world.get_resource(DatabaseManager)
-        if db_mngr and db_mngr.engine:
-            async with db_mngr.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.drop_all)
-            await db_mngr.engine.dispose()
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_world_alpha(test_toml_config: Path) -> AsyncGenerator[World, None]:
-    """Create a test world named 'alpha'."""
-    world = await _setup_world("test_world_alpha", test_toml_config, plugins=None)
-    yield world
-    await _teardown_world_async(world)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(test_world_alpha: World) -> AsyncGenerator[AsyncSession, None]:
-    """Create a new database session for a test."""
-    db_mngr = test_world_alpha.get_resource(DatabaseManager)
-    async with db_mngr.session_local() as session:
-        yield session
+    # Teardown: Unregister all worlds created by this factory
+    for name in created_worlds:
+        world = world_manager.get_world(name)
+        if world:
+            await teardown_world_async(world)
+        world_manager.unregister_world(name)
 
 
 class MockSentenceTransformer(torch.nn.Module):
@@ -152,22 +118,6 @@ class MockSentenceTransformer(torch.nn.Module):
         if isinstance(sentences, str):
             return np.zeros(self.dim, dtype=np.float32)
         return np.zeros((len(sentences), self.dim), dtype=np.float32)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_world_beta(test_toml_config: Path) -> AsyncGenerator[World, None]:
-    """Create a test world named 'beta'."""
-    world = await _setup_world("test_world_beta", test_toml_config)
-    yield world
-    await _teardown_world_async(world)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_world_gamma(test_toml_config: Path) -> AsyncGenerator[World, None]:
-    """Create a test world named 'gamma'."""
-    world = await _setup_world("test_world_gamma", test_toml_config)
-    yield world
-    await _teardown_world_async(world)
 
 
 @pytest.fixture

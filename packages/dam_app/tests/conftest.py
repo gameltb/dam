@@ -1,18 +1,18 @@
-"""Pytest configuration and fixtures for the DAM application tests."""
+"""Configuration for DAM application tests."""
 
-import pytest
-from dam.core.world import World
-from dam_archive.plugin import ArchivePlugin
-from dam_fs.plugin import FsPlugin
+from collections.abc import AsyncGenerator
 
-from dam_app.plugin import AppPlugin
+import pytest_asyncio
+from dam.core import DBSession
+from dam.core.database import DatabaseManager
+from dam_test_utils.types import WorldFactory
 
 pytest_plugins = ["dam_test_utils.fixtures"]
 
 
-@pytest.fixture(autouse=True)
-def setup_world_with_plugins(test_world_alpha: World):
-    """Automatically set up the test world with all necessary plugins."""
-    test_world_alpha.add_plugin(FsPlugin())
-    test_world_alpha.add_plugin(AppPlugin())
-    test_world_alpha.add_plugin(ArchivePlugin())
+@pytest_asyncio.fixture
+async def db_session(world_factory: WorldFactory) -> AsyncGenerator[DBSession, None]:
+    """Provide a database session for tests."""
+    world = await world_factory("test_world", [])
+    async with world.get_resource(DatabaseManager).get_db_session() as session:
+        yield session

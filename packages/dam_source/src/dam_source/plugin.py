@@ -4,11 +4,15 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .commands import IngestWebAssetCommand
+from .settings import SourceSettingsComponent, SourceSettingsModel
 from .systems.web_asset_systems import handle_ingest_web_asset_command
 
 
 class SourcePlugin(Plugin):
     """A plugin that provides asset source tracking functionalities."""
+
+    Settings = SourceSettingsModel
+    SettingsComponent = SourceSettingsComponent
 
     def build(self, world: "World") -> None:
         """

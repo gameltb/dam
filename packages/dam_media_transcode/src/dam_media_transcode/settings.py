@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class TranscodeSettingsModel(SettingsModel):
     """Pydantic model for validating dam_media_transcode plugin settings."""
 
-    transcoding_temp_dir: Path
+    transcoding_temp_dir: Path = Path("/tmp/dam_transcode")
 
 
 class TranscodeSettingsComponent(ConfigComponent):

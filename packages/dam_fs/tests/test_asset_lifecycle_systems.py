@@ -13,6 +13,7 @@ from dam.core.world import World
 from dam.functions import ecs_functions
 from dam.models.hashes import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
+from dam_test_utils.types import WorldFactory
 
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
@@ -22,13 +23,25 @@ from dam_fs.commands import (
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_fs.models.filename_component import FilenameComponent
 from dam_fs.resources.file_storage_resource import FileStorageResource
+from dam_fs.settings import FsSettingsComponent
+
+
+@pytest.fixture
+def fs_settings(tmp_path: Path) -> FsSettingsComponent:
+    """Create a FsSettingsComponent for testing."""
+    asset_storage_path = tmp_path / "asset_storage"
+    asset_storage_path.mkdir()
+    return FsSettingsComponent(
+        plugin_name="dam-fs",
+        asset_storage_path=str(asset_storage_path),
+    )
 
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path):
+async def test_register_and_find(world_factory: WorldFactory, fs_settings: FsSettingsComponent, temp_asset_file: Path):
     """Tests the full flow of registering a new file and then finding it by its properties."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings])
     mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.UTC)
 
     # 1. Register a new file
@@ -86,13 +99,13 @@ async def test_register_and_find(test_world_alpha: World, temp_asset_file: Path)
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
+async def test_first_seen_at_logic(world_factory: WorldFactory, fs_settings: FsSettingsComponent, tmp_path: Path):
     """
     Test that the first_seen_at timestamp is correctly updated.
 
     It should be updated to the earliest known time.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings])
 
     # 1. Create and register a file with a recent timestamp
     recent_file = tmp_path / "test_file.txt"
@@ -139,13 +152,15 @@ async def test_first_seen_at_logic(test_world_alpha: World, tmp_path: Path):
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file: Path):
+async def test_reregister_modified_file(
+    world_factory: WorldFactory, fs_settings: FsSettingsComponent, temp_asset_file: Path
+):
     """
     Test that re-registering a modified file updates its timestamp.
 
     The last_modified_at timestamp should be updated.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings])
 
     # 1. Register the file for the first time
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
@@ -180,9 +195,9 @@ async def test_reregister_modified_file(test_world_alpha: World, temp_asset_file
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_store_asset(test_world_alpha: World, temp_asset_file: Path):
+async def test_store_asset(world_factory: WorldFactory, fs_settings: FsSettingsComponent, temp_asset_file: Path):
     """Tests the store_assets_handler system."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings])
 
     # 1. Register a local file first
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)

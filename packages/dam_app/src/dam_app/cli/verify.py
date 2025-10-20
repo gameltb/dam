@@ -16,6 +16,7 @@ import aiofiles
 import typer
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.core.transaction import WorldTransaction
+from dam.core.world import World
 from dam.functions import ecs_functions as dam_ecs_functions
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.system_events.base import BaseSystemEvent
@@ -173,8 +174,71 @@ def _update_counts(results: list[dict[str, Any]]) -> tuple[int, int, int]:
     return success, failed, skipped
 
 
+async def verify_assets_logic(
+    world: World,
+    paths: list[Path],
+    recursive: bool,
+    process_map: dict[str, list[str]],
+    stop_on_error: bool,
+    pbar: tqdm[Any] | None = None,
+) -> tuple[list[dict[str, Any]], int, int, int, int]:
+    """Core logic for verifying assets."""
+    files_to_process: list[Path] = []
+    for path in paths:
+        if path.is_file():
+            files_to_process.append(path)
+        elif path.is_dir():
+            pattern = "**/*" if recursive else "*"
+            files_to_process.extend(p for p in path.glob(pattern) if p.is_file())
+
+    all_results: list[dict[str, Any]] = []
+    success_count, failed_count, skipped_count, error_count = 0, 0, 0, 0
+
+    if not files_to_process:
+        return all_results, success_count, failed_count, skipped_count, error_count
+
+    if pbar:
+        pbar.total = len(files_to_process)
+
+    async with world.get_context(WorldTransaction)() as tx:
+        session = tx.session
+        for file_path in files_to_process:
+            if pbar:
+                pbar.set_postfix_str(file_path.name)
+            try:
+                stmt = select(FileLocationComponent.entity_id).where(FileLocationComponent.url == file_path.as_uri())
+                result = await session.execute(stmt)
+                entity_id = result.scalar_one_or_none()
+
+                if not entity_id:
+                    typer.secho(f"SKIP: Asset not found in DAM for {file_path.name}", fg=typer.colors.YELLOW)
+                    all_results.append({"file_path": file_path.as_posix(), "status": "SKIPPED (Not Found)"})
+                    skipped_count += 1
+                    continue
+
+                entity_results = await _process_entity(session, entity_id, file_path, process_map)
+                all_results.extend(entity_results)
+                s, f, sk = _update_counts(entity_results)
+                success_count += s
+                failed_count += f
+                skipped_count += sk
+            except Exception:
+                error_count += 1
+                console = Console()
+                tqdm.write(f"Error processing file {file_path.name}")
+                console.print(Traceback())
+                all_results.append({"file_path": file_path.as_posix(), "status": "ERROR"})
+                if stop_on_error:
+                    raise
+            finally:
+                if pbar:
+                    pbar.update(1)
+
+    return all_results, success_count, failed_count, skipped_count, error_count
+
+
 @app.command(name="verify")
-async def verify_assets(  # noqa: PLR0912
+async def verify_assets(
     paths: Annotated[
         list[Path],
         typer.Argument(
@@ -231,47 +295,15 @@ async def verify_assets(  # noqa: PLR0912
 
     typer.echo(f"Found {len(files_to_process)} file(s) to process.")
 
-    all_results: list[dict[str, Any]] = []
-    success_count = 0
-    failed_count = 0
-    skipped_count = 0
-    error_count = 0
-
     with tqdm(total=len(files_to_process), desc="Verifying assets", unit="file") as pbar:
-        async with target_world.get_context(WorldTransaction)() as tx:
-            session = tx.session
-            for file_path in files_to_process:
-                pbar.set_postfix_str(file_path.name)
-                try:
-                    stmt = select(FileLocationComponent.entity_id).where(
-                        FileLocationComponent.url == file_path.as_uri()
-                    )
-                    result = await session.execute(stmt)
-                    entity_id = result.scalar_one_or_none()
-
-                    if not entity_id:
-                        typer.secho(f"SKIP: Asset not found in DAM for {file_path.name}", fg=typer.colors.YELLOW)
-                        all_results.append({"file_path": file_path.as_posix(), "status": "SKIPPED (Not Found)"})
-                        skipped_count += 1
-                        continue
-
-                    entity_results = await _process_entity(session, entity_id, file_path, process_map)
-                    all_results.extend(entity_results)
-                    s, f, sk = _update_counts(entity_results)
-                    success_count += s
-                    failed_count += f
-                    skipped_count += sk
-
-                except Exception:
-                    error_count += 1
-                    console = Console()
-                    tqdm.write(f"Error processing file {file_path.name}")
-                    console.print(Traceback())
-                    all_results.append({"file_path": file_path.as_posix(), "status": "ERROR"})
-                    if stop_on_error:
-                        raise
-                finally:
-                    pbar.update(1)
+        all_results, success_count, failed_count, skipped_count, error_count = await verify_assets_logic(
+            world=target_world,
+            paths=paths,
+            recursive=recursive,
+            process_map=process_map,
+            stop_on_error=stop_on_error,
+            pbar=pbar,
+        )
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     report_filename = f"verification_report_{timestamp}.csv"

@@ -4,6 +4,7 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 
 from .operations import extract_exif_operation
+from .settings import AppSettingsComponent, AppSettingsModel
 from .systems.auto_tagging_system import auto_tag_entity_command_handler
 from .systems.ingestion_systems import asset_dispatcher_system
 from .systems.metadata_systems import (
@@ -16,6 +17,9 @@ from .systems.metadata_systems import (
 
 class AppPlugin(Plugin):
     """The main plugin for the DAM application."""
+
+    Settings = AppSettingsModel
+    SettingsComponent = AppSettingsComponent
 
     def build(self, world: "World") -> None:
         """Register all systems, commands, and event listeners for the app plugin."""

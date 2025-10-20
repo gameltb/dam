@@ -30,6 +30,7 @@ from .operations import (
     ingest_archive_operation,
     set_archive_password_operation,
 )
+from .settings import ArchiveSettingsComponent, ArchiveSettingsModel
 from .systems.discovery import discover_archive_path_siblings_handler
 from .systems.ingestion import (
     check_archive_handler,
@@ -54,6 +55,9 @@ from .systems.split_archives import (
 
 class ArchivePlugin(Plugin):
     """A plugin for handling archives."""
+
+    Settings = ArchiveSettingsModel
+    SettingsComponent = ArchiveSettingsComponent
 
     def build(self, world: World) -> None:
         """Build the archive plugin."""

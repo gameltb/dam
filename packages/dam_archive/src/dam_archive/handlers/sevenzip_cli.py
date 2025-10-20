@@ -112,7 +112,9 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                 raise InvalidPasswordError("Invalid password for 7z archive.") from e
             raise
 
-    def _run_7z(self, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    @staticmethod
+    def run_7z_static(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+        """Run the 7z command-line tool."""
         command = ["7z", *args]
         try:
             return subprocess.run(
@@ -130,8 +132,11 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             if "wrong password" in stderr or "data error in encrypted file" in stderr:
                 raise InvalidPasswordError("Invalid password for 7z archive.") from e
             if "can not open the file as archive" in stderr:
-                raise ArchiveError(f"File is not a valid 7z archive or is corrupted: {self.file_path}") from e
+                raise ArchiveError("File is not a valid 7z archive or is corrupted.") from e
             raise ArchiveError(f"7z command failed with exit code {e.returncode}: {e.stderr}") from e
+
+    def _run_7z(self, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+        return self.run_7z_static(args, check)
 
     def _list_files_and_populate_members(self) -> None:
         args = ["l", "-ba", self.file_path]

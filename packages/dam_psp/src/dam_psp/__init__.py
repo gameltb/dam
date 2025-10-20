@@ -17,6 +17,7 @@ from .commands import (
     RemovePSPMetadataCommand,
 )
 from .operations import decompress_cso_operation, extract_psp_metadata_operation
+from .settings import PspSettingsComponent, PspSettingsModel
 from .systems import (
     check_cso_ingestion_handler,
     check_psp_metadata_handler,
@@ -31,6 +32,9 @@ from .systems import (
 
 class PspPlugin(Plugin):
     """A plugin for handling PSP ISOs."""
+
+    Settings = PspSettingsModel
+    SettingsComponent = PspSettingsComponent
 
     def build(self, world: World) -> None:
         """Build the PSP plugin by registering its systems and operations."""

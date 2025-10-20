@@ -306,8 +306,10 @@ class SevenZipArchiveHandler(ArchiveHandler):
 
         except UnsupportedCompressionMethodError as e:
             raise UnsupportedArchiveError(f"Unsupported 7z archive: {e}") from e
-        except (lzma.LZMAError, py7zr.Bad7zFile, PasswordRequired) as e:
+        except (py7zr.Bad7zFile, PasswordRequired) as e:
             raise InvalidPasswordError("Invalid password or corrupted 7z file.") from e
+        except lzma.LZMAError as e:
+            raise UnsupportedArchiveError(f"Unsupported 7z archive: {e}") from e
 
         return handler
 

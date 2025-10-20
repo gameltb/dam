@@ -9,7 +9,9 @@ from dam.models.core.base_class import Base  # Corrected import for Base
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["Base", "DatabaseManager"]
+DBSession = AsyncSession
+
+__all__ = ["Base", "DBSession", "DatabaseManager"]
 
 
 class DatabaseManager:

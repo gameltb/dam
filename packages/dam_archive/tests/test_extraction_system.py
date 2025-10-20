@@ -16,6 +16,8 @@ from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import ProgressCompleted
 from dam.utils.stream_utils import ChainedStream
 from dam_fs.commands import RegisterLocalFileCommand
+from dam_fs.settings import FsSettingsComponent
+from dam_test_utils.types import WorldFactory
 from pytest_mock import MockerFixture
 from sqlalchemy import select
 
@@ -24,15 +26,58 @@ from dam_archive.commands.ingestion import (
     ReissueArchiveMemberEventsCommand,
 )
 from dam_archive.models import ArchiveInfoComponent, ArchiveMemberComponent
+from dam_archive.settings import ArchiveSettingsComponent
+
+
+@pytest.fixture
+def fs_settings(tmp_path: Path) -> FsSettingsComponent:
+    """Create a FsSettingsComponent for testing."""
+    asset_storage_path = tmp_path / "asset_storage"
+    asset_storage_path.mkdir()
+    return FsSettingsComponent(
+        plugin_name="dam-fs",
+        asset_storage_path=str(asset_storage_path),
+    )
+
+
+@pytest.fixture
+def archive_settings() -> ArchiveSettingsComponent:
+    """Create an ArchiveSettingsComponent for testing."""
+    return ArchiveSettingsComponent(plugin_name="dam-archive")
+
+
+@pytest.fixture
+def test_archives(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a regular and a password-protected zip file for testing."""
+    # Create regular archive
+    regular_archive_path = tmp_path / "regular.zip"
+    with zipfile.ZipFile(regular_archive_path, "w") as zf:
+        zf.writestr("file1.txt", b"file one")
+        zf.writestr("file2.txt", b"file two")
+        zf.comment = b"regular archive comment"
+
+    # Create protected archive
+    protected_archive_path = tmp_path / "protected.zip"
+    with zipfile.ZipFile(protected_archive_path, "w") as zf:
+        zf.setpassword(b"password")
+        zf.writestr("file1.txt", b"file one", compress_type=zipfile.ZIP_DEFLATED)
+        zf.writestr("file2.txt", b"file two", compress_type=zipfile.ZIP_DEFLATED)
+        zf.comment = b"protected archive comment"
+
+    return regular_archive_path, protected_archive_path
 
 
 @pytest.mark.serial
 @pytest.mark.asyncio
 async def test_ingestion_with_memory_limit_and_filename(
-    test_world_alpha: World, tmp_path: Path, mocker: MockerFixture
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
+    tmp_path: Path,
+    mocker: MockerFixture,
 ) -> None:
     """Test the ingestion logic with memory constraints and verifies the filename event field."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
 
     # 1. Create a test archive with a single file
     file_content = b"a" * (1024 * 1024)  # 1 MB
@@ -128,9 +173,15 @@ async def _run_ingestion_without_memory_limit(
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Path, mocker: MockerFixture) -> None:
+async def test_ingestion_with_memory_limit(
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
+    tmp_path: Path,
+    mocker: MockerFixture,
+) -> None:
     """Test the ingestion logic with memory constraints."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     file_content = b"a" * (1024 * 1024)  # 1 MB
     archive_path = tmp_path / "large_archive.zip"
     with zipfile.ZipFile(archive_path, "w") as zf:
@@ -168,9 +219,14 @@ async def test_ingestion_with_memory_limit(test_world_alpha: World, tmp_path: Pa
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
+async def test_extract_archives(
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
+    test_archives: tuple[Path, Path],
+) -> None:
     """Test extracting both regular and protected archives using the new fixture."""
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     regular_archive_path, protected_archive_path = test_archives
     num_files_in_archive = 2
 
@@ -246,13 +302,18 @@ async def test_extract_archives(test_world_alpha: World, test_archives: tuple[Pa
 
 @pytest.mark.serial
 @pytest.mark.asyncio
-async def test_reingest_already_extracted_archive(test_world_alpha: World, test_archives: tuple[Path, Path]) -> None:
+async def test_reingest_already_extracted_archive(
+    world_factory: WorldFactory,
+    fs_settings: FsSettingsComponent,
+    archive_settings: ArchiveSettingsComponent,
+    test_archives: tuple[Path, Path],
+) -> None:
     """
     Test that IngestArchiveCommand re-issues events for already processed archives.
 
     This test uses the refactored _process_archive function.
     """
-    world = test_world_alpha
+    world: World = await world_factory("test_world", [fs_settings, archive_settings])
     regular_archive_path, _ = test_archives
     num_files_in_archive = 2
 

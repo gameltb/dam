@@ -64,7 +64,7 @@ def _parse_ffprobe_output_and_create_component(metadata: dict[str, Any]) -> Audi
 async def add_audio_components_system(
     cmd: ExtractAudioMetadataCommand,
     transaction: WorldTransaction,
-) -> None:
+) -> bool:
     """
     Extract metadata from an audio file and add it as components to the entity.
 
@@ -76,7 +76,7 @@ async def add_audio_components_system(
     entity = cmd.entity
     all_locations = await transaction.get_components(entity.id, FileLocationComponent)
     if not all_locations:
-        return
+        return False
 
     filepath_on_disk = None
     for loc in all_locations:
@@ -90,12 +90,12 @@ async def add_audio_components_system(
             continue
 
     if not filepath_on_disk:
-        return
+        return False
 
     mime_type = await file_operations.get_mime_type_async(filepath_on_disk)
     logger.info("MIME type for %s: %s", filepath_on_disk, mime_type)
     if not mime_type.startswith("audio/"):
-        return
+        return False
 
     try:
         ffprobe_cmd = [
@@ -112,18 +112,20 @@ async def add_audio_components_system(
         metadata = json.loads(result.stdout)
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
         logger.warning("ffprobe failed for %s: %s", filepath_on_disk, e)
-        return
+        return False
 
     if await transaction.get_components(entity.id, AudioPropertiesComponent):
-        return
+        return False
 
     audio_comp = _parse_ffprobe_output_and_create_component(metadata)
 
     if not audio_comp:
         logger.warning("No audio stream found in %s", filepath_on_disk)
-        return
+        return False
 
     await transaction.add_component_to_entity(entity.id, audio_comp)
     logger.info("Added AudioPropertiesComponent for standalone audio Entity ID %s", entity.id)
 
     await transaction.flush()
+
+    return True

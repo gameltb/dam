@@ -34,6 +34,7 @@ from dam_media_image.models.hashes.image_perceptual_hash_phash_component import 
 from dam_media_image.models.properties.image_dimensions_component import (
     ImageDimensionsComponent,
 )
+from dam_media_image.types import SimilarityResult
 
 if TYPE_CHECKING:
     import imagehash
@@ -123,7 +124,7 @@ def _consolidate_matches(potential_matches: list[dict[str, Any]]) -> list[dict[s
 async def handle_find_similar_images_command(
     cmd: FindSimilarImagesCommand,
     transaction: WorldTransaction,
-) -> list[dict[str, Any]] | None:
+) -> SimilarityResult:
     """Handle the command to find similar images based on perceptual hashes."""
     logger.info("System handling FindSimilarImagesCommand for image: %s (Req ID: %s)", cmd.image_path, cmd.request_id)
     try:

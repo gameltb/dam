@@ -9,6 +9,7 @@ from dam_media_audio.commands import AudioSearchCommand
 
 from . import systems
 from .commands import SemanticSearchCommand
+from .settings import SemanticSettingsComponent, SemanticSettingsModel
 
 if TYPE_CHECKING:
     from dam.core.world import World
@@ -33,6 +34,9 @@ except ImportError:
 
 class SemanticPlugin(Plugin):
     """A plugin for handling semantic search."""
+
+    Settings = SemanticSettingsModel
+    SettingsComponent = SemanticSettingsComponent
 
     def build(self, world: World) -> None:
         """

@@ -4,6 +4,8 @@ import hashlib
 from io import BytesIO
 
 import pytest
+import pytest_asyncio
+from dam_test_utils.types import WorldFactory
 
 from dam.commands.hashing_commands import AddHashesFromStreamCommand
 from dam.core.transaction import WorldTransaction
@@ -18,10 +20,17 @@ from dam.systems.hashing_systems import HashMismatchError
 from dam.utils.hash_utils import HashAlgorithm
 
 
+@pytest_asyncio.fixture
+async def test_world(world_factory: WorldFactory) -> World:
+    """Create a new world for a test."""
+    world: World = await world_factory("test_world", [])
+    return world
+
+
 @pytest.mark.asyncio
-async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
+async def test_add_hashes_from_stream_system(test_world: World) -> None:
     """Tests that the add_hashes_from_stream_system correctly adds hash components."""
-    world = test_world_alpha
+    world = test_world
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         entity = await ecs_functions.create_entity(transaction.session)
@@ -50,10 +59,10 @@ async def test_add_hashes_from_stream_system(test_world_alpha: World) -> None:
 
 @pytest.mark.asyncio
 async def test_add_hashes_from_stream_system_propagates_mismatch_error(
-    test_world_alpha: World,
+    test_world: World,
 ) -> None:
     """Tests that the system propagates a HashMismatchError if a hash already exists and does not match."""
-    world = test_world_alpha
+    world = test_world
     tm = world.get_context(WorldTransaction)
     async with tm() as transaction:
         entity = await ecs_functions.create_entity(transaction.session)
