@@ -213,6 +213,84 @@ The Command pattern is used for imperative actions where the caller requests a s
         print(f"Dominant color for entity {cmd.entity_id} set to {dominant_color_hex}")
     ```
 
+### 5.5. Interactive Command Handlers with Async Generators
+
+For complex operations that require two-way communication with the caller (e.g., requesting user input, handling passwords), command handlers can be implemented as **async generators**.
+
+-   **Yielding Events**: Instead of returning a single value, the handler can `yield` events (like `PasswordRequest`).
+-   **Receiving Responses**: The `SystemExecutor` running the handler can send responses back into the generator using the `asend()` method.
+
+To simplify this pattern, the framework provides the `dam.core.itertools.asend_wrapper`.
+
+1.  **Define a Command with Request/Response Types**:
+    - Use `BaseCommand[ResultType, EventType]` to define the types.
+    - `EventType` should be a `Union` of all events the handler might `yield`.
+    - `ResultType` is the final return type (often `None` for interactive commands).
+
+    *Example (`packages/my_plugin/commands.py`):*
+    ```python
+    from dam.commands.core import BaseCommand
+    from dam.system_events.requests import PasswordRequest, PasswordResponse
+
+    @dataclass
+    class ProcessProtectedArchive(BaseCommand[None, Union[PasswordRequest, PasswordResponse]]):
+        """A command that may require a password."""
+        entity_id: int
+    ```
+
+2.  **Create the Interactive Handler**:
+    - The handler's return type hint should be `AsyncGenerator[EventType, ResponseType]`.
+    - `yield` events to the caller. The value sent back via `asend()` will be the result of the `yield` expression.
+
+    *Example (`packages/my_plugin/systems/asset_systems.py`):*
+    ```python
+    from typing import AsyncGenerator, Union
+    from dam.system_events.requests import PasswordRequest, PasswordResponse
+
+    @system(on_command=ProcessProtectedArchive)
+    async def handle_protected_archive(
+        cmd: ProcessProtectedArchive,
+    ) -> AsyncGenerator[Union[PasswordRequest, PasswordResponse], PasswordResponse]:
+        password: str | None = None
+        while not password:
+            response = yield PasswordRequest(message="Password required")
+            if response and response.password:
+                # ... try to open archive with password ...
+                is_correct = True # Placeholder
+                if is_correct:
+                    password = response.password
+                    print("Archive unlocked!")
+                else:
+                    print("Incorrect password.")
+            else:
+                print("No password provided. Aborting.")
+                break # Exit the loop
+    ```
+
+3.  **Dispatch and Interact with the Command**:
+    - Use the `asend_wrapper` to simplify the interaction loop.
+
+    *Example:*
+    ```python
+    from dam.core.itertools import asend_wrapper
+
+    command = ProcessProtectedArchive(entity_id=456)
+    executor = world.dispatch_command(command)
+    wrapped_stream = asend_wrapper(executor) # executor is an AsyncIterator
+
+    async for event in wrapped_stream:
+        if isinstance(event, PasswordRequest):
+            # In a real app, you would prompt the user.
+            print(f"System requested password: {event.message}")
+            password_input = "my-secret-password"
+            try:
+                # Send the response back into the handler
+                await wrapped_stream.asend(PasswordResponse(password=password_input))
+            except StopAsyncIteration:
+                # The generator may finish after a response is sent.
+                break
+    ```
+
 3.  **Dispatch the Command:**
     - From anywhere in the application that has access to a `World` object, you can dispatch the command.
     - The `dispatch_command` method returns a `SystemExecutor` object, which you can use to get the results.
