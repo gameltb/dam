@@ -1,6 +1,6 @@
 """System events for requesting information from the user."""
-
-from dataclasses import dataclass
+import asyncio
+from dataclasses import dataclass, field
 from typing import TypeVar
 
 from dam.system_events.base import BaseSystemEvent
@@ -17,7 +17,7 @@ class InformationRequest[T](BaseSystemEvent):
     and then resume with the provided data.
     """
 
-    pass
+    future: asyncio.Future[T] = field(default_factory=asyncio.Future)
 
 
 @dataclass

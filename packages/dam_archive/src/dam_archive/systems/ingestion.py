@@ -36,8 +36,19 @@ from dam.system_events.progress import (
 from dam.system_events.requests import InformationRequest, PasswordRequest
 from dam.utils.stream_utils import ChainedStream
 from sqlalchemy import select
+from dataclasses import dataclass
+
 
 from ..base import ArchiveHandler, ArchiveMemberInfo
+from dam.system_events.base import SystemResultEvent
+
+@dataclass
+class _ArchiveOpened(SystemResultEvent):
+    """Internal event to signal that an archive has been successfully opened."""
+
+    result: tuple[ArchiveHandler, str | None]
+
+
 from ..commands.ingestion import (
     CheckArchiveCommand,
     ClearArchiveComponentsCommand,
@@ -303,13 +314,12 @@ async def _resolve_password_and_open_archive(
     archive_stream_provider: StreamProvider,
     transaction: WorldTransaction,
     mime_type: str,
-) -> AsyncGenerator[SystemProgressEvent | InformationRequest[Any] | tuple["ArchiveHandler", str | None], Any]:
+) -> AsyncGenerator[SystemProgressEvent | InformationRequest[Any] | _ArchiveOpened, None]:
     """
     Handle password resolution and opens the archive.
 
     This is an async generator that yields ProgressError or PasswordRequest events.
-    If successful, it yields a tuple of (ArchiveHandler, correct_password) as its
-    final event before stopping.
+    If successful, it yields an _ArchiveOpened event and then stops.
     """
     entity_id = cmd.entity_id
 
@@ -335,14 +345,16 @@ async def _resolve_password_and_open_archive(
             return
         if opened_archive:
             logger.info("Successfully opened archive %s with password: %s", entity_id, "yes" if pwd else "no")
-            yield (opened_archive, pwd)
+            yield _ArchiveOpened(result=(opened_archive, pwd))
             return
 
     # Interactive loop if passwords failed
     is_first_request = True
     while True:
         message = "Invalid password." if not is_first_request else f"Password required for archive {entity_id}."
-        new_password = yield PasswordRequest(message=message)
+        request = PasswordRequest(message=message)
+        yield request
+        new_password = await request.future
         is_first_request = False
 
         if new_password is None:
@@ -358,7 +370,7 @@ async def _resolve_password_and_open_archive(
             return
         if opened_archive:
             logger.info("Successfully opened archive %s with provided password.", entity_id)
-            yield (opened_archive, new_password)
+            yield _ArchiveOpened(result=(opened_archive, new_password))
             return
         else:
             logger.info("Invalid password provided for archive %s.", entity_id)
@@ -451,18 +463,12 @@ async def _process_archive(
     archive: ArchiveHandler | None = None
     correct_password: str | None = None
     password_gen = _resolve_password_and_open_archive(cmd, archive_stream_provider, transaction, mime_type)
-
-    try:
-        event = await anext(password_gen)
-        while True:
-            if isinstance(event, tuple):
-                archive, correct_password = event
-                break
-            response = yield event
-            event = await password_gen.asend(response)
-
-    except StopAsyncIteration:
-        pass
+    async for event in password_gen:
+        if isinstance(event, _ArchiveOpened):
+            archive, correct_password = event.result
+            break
+        else:
+            yield event
 
     if not archive:
         return
@@ -537,13 +543,8 @@ async def ingest_archive_members_handler(
     # The `_process_archive` generator can now make requests, so we need to
     # yield its events and pipe back any values sent to this generator.
     process_gen = _process_archive(cmd, archive_stream_provider, world, transaction)
-    try:
-        event = await anext(process_gen)
-        while True:
-            response = yield event
-            event = await process_gen.asend(response)
-    except StopAsyncIteration:
-        pass
+    async for event in process_gen:
+        yield event
 
 
 @system(on_command=ClearArchiveComponentsCommand)

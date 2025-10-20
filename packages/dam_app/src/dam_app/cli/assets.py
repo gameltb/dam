@@ -117,30 +117,14 @@ async def _handle_progress_events(  # noqa: PLR0912
                 )
             elif isinstance(event, PasswordRequest):
                 tqdm.write("Password required for archive.")
-                password_correct = False
-                for password in passwords:
-                    try:
-                        event = await stream_iter.asend(PasswordResponse(password=password))
-                        password_correct = True
-                        break
-                    except StopAsyncIteration:
-                        raise
-                    except Exception:
-                        continue
-
-                if password_correct:
-                    continue
-
                 new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
                 if not new_password:
                     tqdm.write("No password provided, skipping archive.")
-                    event = await stream_iter.asend(PasswordResponse(password=None))
-                    continue
-
-                if new_password not in passwords:
-                    passwords.append(new_password)
-                event = await stream_iter.asend(PasswordResponse(password=new_password))
-                continue
+                    event.future.set_result(None)
+                else:
+                    if new_password not in passwords:
+                        passwords.append(new_password)
+                    event.future.set_result(new_password)
 
             elif isinstance(event, ProgressStarted):
                 sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
