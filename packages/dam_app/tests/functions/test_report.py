@@ -6,18 +6,19 @@ from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
-from dam.core.world import World
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
+from dam_test_utils.types import WorldFactory
 
 from dam_app.functions.report import get_duplicates_report
 
 
 @pytest.mark.asyncio
-async def test_get_duplicates_report(test_world_alpha: World):
+async def test_get_duplicates_report(world_factory: WorldFactory):
     """Test that the get_duplicates_report function returns the correct duplicate files."""
-    async with test_world_alpha.get_context(WorldTransaction)() as transaction:
+    world = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as transaction:
         # Create an entity with two locations (a duplicate)
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
@@ -47,9 +48,10 @@ async def test_get_duplicates_report(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_get_duplicates_report_with_path_filter(test_world_alpha: World):
+async def test_get_duplicates_report_with_path_filter(world_factory: WorldFactory):
     """Test that the get_duplicates_report function returns the correct duplicate files when a path filter is applied."""
-    async with test_world_alpha.get_context(WorldTransaction)() as transaction:
+    world = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as transaction:
         # Create an entity with two locations (a duplicate)
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
@@ -74,9 +76,10 @@ async def test_get_duplicates_report_with_path_filter(test_world_alpha: World):
 
 
 @pytest.mark.asyncio
-async def test_get_duplicates_report_with_indirect_path_filter(test_world_alpha: World):
+async def test_get_duplicates_report_with_indirect_path_filter(world_factory: WorldFactory):
     """Test that the get_duplicates_report function returns the correct duplicate files when an indirect path filter is applied."""
-    async with test_world_alpha.get_context(WorldTransaction)() as transaction:
+    world = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as transaction:
         # Create an entity that represents the content of the duplicate files
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()

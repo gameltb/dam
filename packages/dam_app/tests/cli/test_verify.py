@@ -12,9 +12,11 @@ from pathlib import Path
 import aiofiles
 import pytest
 from dam.commands.analysis_commands import AutoSetMimeTypeCommand
-from dam.core.world import World
 from dam_archive.commands import IngestArchiveCommand
+from dam_archive.settings import ArchiveSettingsComponent
 from dam_fs.commands import RegisterLocalFileCommand
+from dam_fs.settings import FsSettingsComponent
+from dam_test_utils.types import WorldFactory
 from pytest_mock import MockerFixture
 
 from dam_app.cli.verify import verify_assets
@@ -35,12 +37,22 @@ async def _get_sha256(file_path: Path) -> str:
 @pytest.mark.asyncio
 async def test_verify_single_file_ok(
     tmp_path: Path,
-    test_world_alpha: World,
+    world_factory: WorldFactory,
     mocker: MockerFixture,
 ):
     """Test that a single, unmodified file passes verification."""
-    # Patch the get_world function to return our test world
-    mocker.patch("dam_app.cli.verify.get_world", return_value=test_world_alpha)
+    # Create a test world
+    world = await world_factory(
+        "test_world",
+        [
+            FsSettingsComponent(
+                plugin_name="dam-fs",
+                asset_storage_path=str(tmp_path),
+            ),
+            ArchiveSettingsComponent(plugin_name="dam-archive"),
+        ],
+    )
+    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Setup a test file
     test_file = tmp_path / "test.txt"
@@ -49,7 +61,7 @@ async def test_verify_single_file_ok(
 
     # Add file to DAM programmatically
     cmd = RegisterLocalFileCommand(file_path=test_file)
-    await test_world_alpha.dispatch_command(cmd).get_one_value()
+    await world.dispatch_command(cmd).get_one_value()
 
     # Run verification
     os.chdir(tmp_path)
@@ -77,12 +89,21 @@ async def test_verify_single_file_ok(
 @pytest.mark.asyncio
 async def test_verify_single_file_fail(
     tmp_path: Path,
-    test_world_alpha: World,
+    world_factory: WorldFactory,
     mocker: MockerFixture,
 ):
     """Test that a single, modified file fails verification."""
-    # Patch the get_world function to return our test world
-    mocker.patch("dam_app.cli.verify.get_world", return_value=test_world_alpha)
+    # Create a test world
+    world = await world_factory(
+        "test_world",
+        [
+            FsSettingsComponent(
+                plugin_name="dam-fs",
+                asset_storage_path=str(tmp_path),
+            )
+        ],
+    )
+    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Setup a test file
     test_file = tmp_path / "test.txt"
@@ -90,7 +111,7 @@ async def test_verify_single_file_fail(
 
     # Add file to DAM programmatically
     cmd = RegisterLocalFileCommand(file_path=test_file)
-    await test_world_alpha.dispatch_command(cmd).get_one_value()
+    await world.dispatch_command(cmd).get_one_value()
 
     # Modify the file
     test_file.write_text("world")
@@ -120,12 +141,21 @@ async def test_verify_single_file_fail(
 @pytest.mark.asyncio
 async def test_verify_archive_ok(
     tmp_path: Path,
-    test_world_alpha: World,
+    world_factory: WorldFactory,
     mocker: MockerFixture,
 ):
     """Test that an unmodified archive and its contents pass verification."""
-    # Patch the get_world function to return our test world
-    mocker.patch("dam_app.cli.verify.get_world", return_value=test_world_alpha)
+    # Create a test world
+    world = await world_factory(
+        "test_world",
+        [
+            FsSettingsComponent(
+                plugin_name="dam-fs",
+                asset_storage_path=str(tmp_path),
+            )
+        ],
+    )
+    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Create a zip file
     zip_path = tmp_path / "test.zip"
@@ -140,15 +170,15 @@ async def test_verify_archive_ok(
 
     # Add archive to DAM and process it
     register_cmd = RegisterLocalFileCommand(file_path=zip_path)
-    entity_id = await test_world_alpha.dispatch_command(register_cmd).get_one_value()
+    entity_id = await world.dispatch_command(register_cmd).get_one_value()
     assert entity_id is not None
 
     # Set MIME type before ingestion
     set_mime_cmd = AutoSetMimeTypeCommand(entity_id=entity_id)
-    await test_world_alpha.dispatch_command(set_mime_cmd).get_all_results()
+    await world.dispatch_command(set_mime_cmd).get_all_results()
 
     ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
-    await test_world_alpha.dispatch_command(ingest_cmd).get_all_results()
+    await world.dispatch_command(ingest_cmd).get_all_results()
 
     # Run verification
     os.chdir(tmp_path)

@@ -1,7 +1,7 @@
 """Fundamental building blocks of the DAM ECS framework."""
 # Core exports for the DAM system
 
-from .database import Base, DatabaseManager
+from .database import Base, DatabaseManager, DBSession
 from .exceptions import EventHandlingError, StageExecutionError
 from .resources import ResourceManager, ResourceNotFoundError
 from .stages import SystemStage
@@ -10,19 +10,14 @@ from .world import World
 
 __all__ = [
     "Base",
-    # Database
+    "DBSession",
     "DatabaseManager",
-    # Exceptions
     "EventHandlingError",
-    # Resources
     "ResourceManager",
     "ResourceNotFoundError",
     "StageExecutionError",
-    # Stages
     "SystemStage",
-    # World
     "World",
-    # Systems
     "WorldScheduler",
     "system",
 ]

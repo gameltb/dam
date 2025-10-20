@@ -28,25 +28,33 @@ app.add_typer(report.app, name="report", help="Commands for generating reports."
 app.add_typer(worlds.app, name="world", help="Commands for dynamic world management.")
 
 
+def list_worlds() -> list[str]:
+    """List all worlds defined in the configuration file."""
+    config_path = find_config_file()
+    if not config_path:
+        return []
+
+    with config_path.open("rb") as f:
+        toml_data = tomli.load(f)
+
+    toml_config = TOMLConfig.model_validate(toml_data)
+    if not toml_config.worlds:
+        return []
+
+    return list(toml_config.worlds.keys())
+
+
 @app.command(name="list-worlds")
 def cli_list_worlds():
     """List all worlds defined in the configuration file."""
     try:
-        config_path = find_config_file()
-        if not config_path:
-            typer.secho("Configuration file 'dam.toml' not found.", fg=typer.colors.YELLOW)
-            return
-
-        with config_path.open("rb") as f:
-            toml_data = tomli.load(f)
-
-        toml_config = TOMLConfig.model_validate(toml_data)
-        if not toml_config.worlds:
+        worlds = list_worlds()
+        if not worlds:
             typer.secho("No worlds are defined in the configuration.", fg=typer.colors.YELLOW)
             return
 
         typer.echo("Defined worlds:")
-        for world_name in toml_config.worlds:
+        for world_name in worlds:
             is_active = world_name == global_state.world_name
             active_marker = " (active)" if is_active else ""
             typer.echo(f"  - {world_name}{active_marker}")
@@ -120,6 +128,23 @@ def main_callback(
             typer.echo(f"Current world context: [bold cyan]{global_state.world_name}[/bold cyan]")
         else:
             typer.echo("No world context set. Use --world <name> for world-specific commands.")
+
+
+def validate_world_and_config(ctx: typer.Context, world: str | None):
+    """Validate that a world is specified and can be instantiated."""
+    requires_world = not (
+        ctx.invoked_subcommand is None
+        or (ctx.invoked_subcommand and "db" in ctx.invoked_subcommand)
+        or ctx.invoked_subcommand == "list-worlds"
+    )
+
+    if requires_world:
+        if not world:
+            raise typer.Exit(1)
+
+        active_world = global_state.get_current_world()
+        if not active_world:
+            raise typer.Exit(1)
 
 
 def run_cli_directly():

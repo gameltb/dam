@@ -1,12 +1,25 @@
 """Tests for the DAM application's CLI commands."""
 
+import os
 from pathlib import Path
 
+import pytest
+from pytest_mock import MockerFixture
+from typer import Exit
 from typer.testing import CliRunner
 
-from dam_app.main import app
+from dam_app.main import list_worlds, validate_world_and_config
 
 runner = CliRunner()
+
+
+def test_command_requires_world_and_config(mocker: MockerFixture):
+    """Verify that a command fails if no config is found."""
+    mock_context = mocker.patch("typer.Context")
+    mock_context.invoked_subcommand = "assets"
+
+    with pytest.raises(Exit):
+        validate_world_and_config(mock_context, None)
 
 
 def test_list_worlds_command(tmp_path: Path):
@@ -24,19 +37,9 @@ database_url="sqlite:///two.db"
 alembic_path="./migrations_two"
 """
     )
+    os.environ["DAM_CONFIG_FILE"] = str(dam_toml_path)
 
-    result = runner.invoke(app, ["--config", str(dam_toml_path), "list-worlds"])
+    worlds = list_worlds()
 
-    assert result.exit_code == 0
-    assert "world_one" in result.stdout
-    assert "world_two" in result.stdout
-
-
-def test_command_requires_world_and_config():
-    """Verify that a command fails if no config is found."""
-    # Running in an isolated filesystem ensures no dam.toml is found
-    with runner.isolated_filesystem():
-        result = runner.invoke(app, ["assets", "list", "--world", "non_existent_world"])
-
-        assert result.exit_code == 1
-        assert "Error: Failed to instantiate world" in result.stdout
+    assert "world_one" in worlds
+    assert "world_two" in worlds

@@ -11,6 +11,7 @@ This module is responsible for:
    settings data.
 """
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -169,13 +170,28 @@ def load_and_validate_settings(
 
 
 def find_config_file() -> Path | None:
-    """Search for dam.toml or .dam.toml in the current dir and parents."""
+    """
+    Search for a configuration file.
+
+    The search order is:
+    1. The path specified by the DAM_CONFIG_FILE environment variable.
+    2. `dam.toml` in the current working directory.
+    3. `.dam.toml` in the current working directory.
+    4. Search parent directories for `dam.toml` or `.dam.toml`.
+    """
+    # 1. Check DAM_CONFIG_FILE environment variable
+    if config_path_str := os.environ.get("DAM_CONFIG_FILE"):
+        config_path = Path(config_path_str)
+        if config_path.is_file():
+            return config_path
+
+    # 2. & 3. Search in the current directory and then parent directories
     search_dir = Path.cwd()
-    # Search up to the root directory
     while search_dir != search_dir.parent:
         for filename in ["dam.toml", ".dam.toml"]:
             p = search_dir / filename
             if p.is_file():
                 return p
         search_dir = search_dir.parent
+
     return None
