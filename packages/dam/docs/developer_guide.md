@@ -220,8 +220,6 @@ For complex operations that require two-way communication with the caller (e.g.,
 -   **Yielding Events**: Instead of returning a single value, the handler can `yield` events (like `PasswordRequest`).
 -   **Receiving Responses**: The `SystemExecutor` running the handler can send responses back into the generator using the `asend()` method.
 
-To simplify this pattern, the framework provides the `dam.core.itertools.asend_wrapper`.
-
 1.  **Define a Command with Request/Response Types**:
     - Use `BaseCommand[ResultType, EventType]` to define the types.
     - `EventType` should be a `Union` of all events the handler might `yield`.
@@ -268,27 +266,22 @@ To simplify this pattern, the framework provides the `dam.core.itertools.asend_w
     ```
 
 3.  **Dispatch and Interact with the Command**:
-    - Use the `asend_wrapper` to simplify the interaction loop.
+    - To interact with the command, you can use a `try...except StopAsyncIteration` block to handle the generator's lifecycle.
 
     *Example:*
     ```python
-    from dam.core.itertools import asend_wrapper
-
     command = ProcessProtectedArchive(entity_id=456)
     executor = world.dispatch_command(command)
-    wrapped_stream = asend_wrapper(executor) # executor is an AsyncIterator
 
-    async for event in wrapped_stream:
-        if isinstance(event, PasswordRequest):
-            # In a real app, you would prompt the user.
-            print(f"System requested password: {event.message}")
-            password_input = "my-secret-password"
-            try:
-                # Send the response back into the handler
-                await wrapped_stream.asend(PasswordResponse(password=password_input))
-            except StopAsyncIteration:
-                # The generator may finish after a response is sent.
-                break
+    try:
+        event = await anext(executor)
+        while True:
+            if isinstance(event, PasswordRequest):
+                print(f"System requested password: {event.message}")
+                password_input = "my-secret-password"
+                event = await executor.asend(PasswordResponse(password=password_input))
+    except StopAsyncIteration:
+        pass
     ```
 
 3.  **Dispatch the Command:**
