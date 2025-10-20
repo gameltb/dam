@@ -14,11 +14,12 @@ from dam.commands.asset_commands import (
     GetMimeTypeCommand,
 )
 from dam.core.executor import SystemExecutor
+from dam.core.itertools import asend_wrapper
 from dam.core.operations import AssetOperation
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions as dam_ecs_functions
-from dam.system_events.base import BaseSystemEvent,SystemResultEvent
+from dam.system_events.base import BaseSystemEvent, SystemResultEvent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
     ProgressCompleted,
@@ -99,10 +100,9 @@ async def _handle_progress_events(  # noqa: PLR0912
 ):
     """Handle progress events from a command stream."""
     sub_pbar: tqdm[Any] | None = None
-    stream_iter = stream.__aiter__()
+    stream_iter = asend_wrapper(stream.__aiter__())
     try:
-        event = await stream_iter.__anext__()
-        while True:
+        async for event in stream_iter:
             if isinstance(event, NewEntityCreatedEvent):
                 tqdm.write(f"  -> New entity {event.entity_id} ({event.filename or ''}) created from {entity_id}")
                 await process_entity_callback(
@@ -115,13 +115,12 @@ async def _handle_progress_events(  # noqa: PLR0912
                     stream_provider_from_event=event.stream_provider,
                     passwords=passwords,
                 )
-                event = await stream_iter.__anext__()
             elif isinstance(event, PasswordRequest):
                 tqdm.write("Password required for archive.")
                 password_correct = False
                 for password in passwords:
                     try:
-                        event = await stream_iter.asend(PasswordResponse(password=password))
+                        await stream_iter.asend(PasswordResponse(password=password))
                         password_correct = True
                         break
                     except StopAsyncIteration:
@@ -133,16 +132,15 @@ async def _handle_progress_events(  # noqa: PLR0912
                     new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
                     if not new_password:
                         tqdm.write("No password provided, skipping archive.")
-                        event = await stream_iter.asend(PasswordResponse(password=None))
+                        await stream_iter.asend(PasswordResponse(password=None))
                         continue
 
                     if new_password not in passwords:
                         passwords.append(new_password)
-                    event = await stream_iter.asend(PasswordResponse(password=new_password))
+                    await stream_iter.asend(PasswordResponse(password=new_password))
 
             elif isinstance(event, ProgressStarted):
                 sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
-                event = await stream_iter.__anext__()
             elif isinstance(event, ProgressUpdate):
                 if sub_pbar:
                     if event.total is not None and sub_pbar.total != event.total:
@@ -151,7 +149,6 @@ async def _handle_progress_events(  # noqa: PLR0912
                         sub_pbar.update(event.current - sub_pbar.n)
                     if event.message:
                         sub_pbar.set_description(f"  {operation_name}: {event.message}")
-                event = await stream_iter.__anext__()
             elif isinstance(event, ProgressCompleted):
                 if sub_pbar:
                     if sub_pbar.total and sub_pbar.n < sub_pbar.total:
@@ -160,13 +157,11 @@ async def _handle_progress_events(  # noqa: PLR0912
                     sub_pbar = None
                 if event.message:
                     tqdm.write(f"  -> Completed: {event.message}")
-                event = await stream_iter.__anext__()
             elif isinstance(event, ProgressError):
                 if sub_pbar:
                     sub_pbar.close()
                     sub_pbar = None
                 tqdm.write(f"  -> Error processing {entity_id}: {event.message or str(event.exception)}")
-                event = await stream_iter.__anext__()
             elif isinstance(event, SystemResultEvent):
                 break
     except StopAsyncIteration:

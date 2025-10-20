@@ -398,7 +398,7 @@ class WorldScheduler:
         event_object: BaseEvent | None = None,
         command_object: Optional["BaseCommand[Any, Any]"] = None,
         **additional_kwargs: Any,
-    ) -> AsyncGenerator[BaseSystemEvent, None]:
+    ) -> AsyncGenerator[BaseSystemEvent, Any]:
         """Prepare and execute a system function, resolving all its dependencies."""
         metadata = self.system_metadata.get(system_func) or SystemMetadata(
             func=system_func,
@@ -427,10 +427,17 @@ class WorldScheduler:
 
                 try:
                     if inspect.isasyncgen(result):
-                        async for item in result:
-                            yield item
+                        value_to_send = None
+                        while True:
+                            item = await result.asend(value_to_send)
+                            if isinstance(item, BaseSystemEvent):
+                                value_to_send = yield item
+                            else:
+                                value_to_send = yield SystemResultEvent(result=item)
                     else:
                         yield SystemResultEvent(result=result)
+                except StopAsyncIteration:
+                    pass
                 except GeneratorExit:
                     gexit_raised = True
         finally:

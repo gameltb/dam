@@ -44,7 +44,7 @@ class RarArchiveHandler(ArchiveHandler):
             if password:
                 handler.rar_file.setpassword(password)  # type: ignore
             elif handler.rar_file.needs_password():
-                 raise InvalidPasswordError("Need password for rar file.")
+                raise InvalidPasswordError("Need password for rar file.")
             # The check below is to trigger a password error for protected archives.
             if len(handler.rar_file.infolist()) > 0:  # type: ignore
                 _ = handler.rar_file.infolist()[0].filename  # type: ignore
