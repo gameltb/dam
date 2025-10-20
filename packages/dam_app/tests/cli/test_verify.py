@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import csv
 import hashlib
-import io
-import os
 import zipfile
 from pathlib import Path
 
@@ -17,9 +14,8 @@ from dam_archive.settings import ArchiveSettingsComponent
 from dam_fs.commands import RegisterLocalFileCommand
 from dam_fs.settings import FsSettingsComponent
 from dam_test_utils.types import WorldFactory
-from pytest_mock import MockerFixture
 
-from dam_app.cli.verify import verify_assets
+from dam_app.cli import verify_assets_logic
 
 
 async def _get_sha256(file_path: Path) -> str:
@@ -38,7 +34,6 @@ async def _get_sha256(file_path: Path) -> str:
 async def test_verify_single_file_ok(
     tmp_path: Path,
     world_factory: WorldFactory,
-    mocker: MockerFixture,
 ):
     """Test that a single, unmodified file passes verification."""
     # Create a test world
@@ -52,7 +47,6 @@ async def test_verify_single_file_ok(
             ArchiveSettingsComponent(plugin_name="dam-archive"),
         ],
     )
-    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Setup a test file
     test_file = tmp_path / "test.txt"
@@ -64,33 +58,26 @@ async def test_verify_single_file_ok(
     await world.dispatch_command(cmd).get_one_value()
 
     # Run verification
-    os.chdir(tmp_path)
-    await verify_assets(paths=[test_file], recursive=False, process=None, stop_on_error=True)
+    results, _, _, _, _ = await verify_assets_logic(
+        world=world,
+        paths=[test_file],
+        recursive=False,
+        process_map={},
+        stop_on_error=True,
+    )
 
     # Check report
-    report_files = list(tmp_path.glob("verification_report_*.csv"))
-    try:
-        assert len(report_files) == 1
-        async with aiofiles.open(report_files[0]) as f:
-            content = await f.read()
-        string_io = io.StringIO(content)
-        reader = csv.DictReader(string_io)
-        rows = list(reader)
-        assert len(rows) == 1
-        assert rows[0]["file_path"] == test_file.name
-        assert rows[0]["calculated_hash"] == file_hash
-        assert rows[0]["dam_hash"] == file_hash
-        assert rows[0]["status"] == "VERIFIED"
-    finally:
-        for f in report_files:
-            f.unlink()
+    assert len(results) == 1
+    assert results[0]["file_path"] == test_file.name
+    assert results[0]["calculated_hash"] == file_hash
+    assert results[0]["dam_hash"] == file_hash
+    assert results[0]["status"] == "VERIFIED"
 
 
 @pytest.mark.asyncio
 async def test_verify_single_file_fail(
     tmp_path: Path,
     world_factory: WorldFactory,
-    mocker: MockerFixture,
 ):
     """Test that a single, modified file fails verification."""
     # Create a test world
@@ -100,10 +87,10 @@ async def test_verify_single_file_fail(
             FsSettingsComponent(
                 plugin_name="dam-fs",
                 asset_storage_path=str(tmp_path),
-            )
+            ),
+            ArchiveSettingsComponent(plugin_name="dam-archive"),
         ],
     )
-    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Setup a test file
     test_file = tmp_path / "test.txt"
@@ -118,31 +105,24 @@ async def test_verify_single_file_fail(
     new_hash = await _get_sha256(test_file)
 
     # Run verification
-    os.chdir(tmp_path)
-    await verify_assets(paths=[test_file], recursive=False, process=None, stop_on_error=True)
+    results, _, _, _, _ = await verify_assets_logic(
+        world=world,
+        paths=[test_file],
+        recursive=False,
+        process_map={},
+        stop_on_error=True,
+    )
 
     # Check report
-    report_files = list(tmp_path.glob("verification_report_*.csv"))
-    try:
-        assert len(report_files) == 1
-        async with aiofiles.open(report_files[0]) as f:
-            content = await f.read()
-        string_io = io.StringIO(content)
-        reader = csv.DictReader(string_io)
-        rows = list(reader)
-        assert len(rows) == 1
-        assert rows[0]["status"] == "FAILED"
-        assert rows[0]["calculated_hash"] == new_hash
-    finally:
-        for f in report_files:
-            f.unlink()
+    assert len(results) == 1
+    assert results[0]["status"] == "FAILED"
+    assert results[0]["calculated_hash"] == new_hash
 
 
 @pytest.mark.asyncio
 async def test_verify_archive_ok(
     tmp_path: Path,
     world_factory: WorldFactory,
-    mocker: MockerFixture,
 ):
     """Test that an unmodified archive and its contents pass verification."""
     # Create a test world
@@ -152,10 +132,10 @@ async def test_verify_archive_ok(
             FsSettingsComponent(
                 plugin_name="dam-fs",
                 asset_storage_path=str(tmp_path),
-            )
+            ),
+            ArchiveSettingsComponent(plugin_name="dam-archive"),
         ],
     )
-    mocker.patch("dam_app.cli.verify.get_world", return_value=world)
 
     # Create a zip file
     zip_path = tmp_path / "test.zip"
@@ -181,24 +161,16 @@ async def test_verify_archive_ok(
     await world.dispatch_command(ingest_cmd).get_all_results()
 
     # Run verification
-    os.chdir(tmp_path)
-    await verify_assets(
-        paths=[zip_path], recursive=False, process=[".zip:VerifyArchiveContentsCommand"], stop_on_error=True
+    results, _, _, _, _ = await verify_assets_logic(
+        world=world,
+        paths=[zip_path],
+        recursive=False,
+        process_map={".zip": ["VerifyArchiveContentsCommand"]},
+        stop_on_error=True,
     )
 
     # Check report
-    report_files = list(tmp_path.glob("verification_report_*.csv"))
-    try:
-        assert len(report_files) == 1
-        async with aiofiles.open(report_files[0]) as f:
-            content = await f.read()
-        string_io = io.StringIO(content)
-        reader = csv.DictReader(string_io)
-        rows = list(reader)
-        assert len(rows) == 3
-        assert rows[0]["status"] == "VERIFIED"
-        assert rows[1]["status"] == "VERIFIED"
-        assert rows[2]["status"] == "VERIFIED"
-    finally:
-        for f in report_files:
-            f.unlink()
+    assert len(results) == 3
+    assert results[0]["status"] == "VERIFIED"
+    assert results[1]["status"] == "VERIFIED"
+    assert results[2]["status"] == "VERIFIED"
