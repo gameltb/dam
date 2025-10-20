@@ -96,6 +96,7 @@ async def _handle_progress_events(  # noqa: PLR0912
     target_world: World,
     process_map: dict[str, list[str]],
     passwords: list[str],
+    password_attempts: dict[int, int],
 ):
     """Handle progress events from a command stream."""
     sub_pbar: tqdm[Any] | None = None
@@ -112,17 +113,28 @@ async def _handle_progress_events(  # noqa: PLR0912
                     filename=event.filename,
                     stream_provider_from_event=event.stream_provider,
                     passwords=passwords,
+                    password_attempts=password_attempts,
                 )
             elif isinstance(event, PasswordRequest):
-                tqdm.write("Password required for archive.")
-                new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
-                if not new_password:
-                    tqdm.write("No password provided, skipping archive.")
-                    event.future.set_result(None)
+                password_attempts.setdefault(entity_id, 0)
+                attempt_count = password_attempts[entity_id]
+
+                if attempt_count < len(passwords):
+                    password_to_try = passwords[attempt_count]
+                    tqdm.write(f"Attempting password {attempt_count + 1} for archive.")
+                    event.future.set_result(password_to_try)
                 else:
-                    if new_password not in passwords:
-                        passwords.append(new_password)
-                    event.future.set_result(new_password)
+                    tqdm.write("Password required for archive.")
+                    new_password = typer.prompt("Enter password", hide_input=True, default="").strip()
+                    if not new_password:
+                        tqdm.write("No password provided, skipping archive.")
+                        event.future.set_result(None)
+                    else:
+                        if new_password not in passwords:
+                            passwords.append(new_password)
+                        event.future.set_result(new_password)
+
+                password_attempts[entity_id] += 1
 
             elif isinstance(event, ProgressStarted):
                 sub_pbar = tqdm(total=0, desc=f"  {operation_name}", unit="B", unit_scale=True, leave=False)
@@ -242,6 +254,7 @@ async def add_assets(
     error_count = 0
     total_size = sum(p.stat().st_size for p in files_to_process)
     passwords: list[str] = []
+    password_attempts: dict[int, int] = {}
 
     with tqdm(total=total_size, unit="B", unit_scale=True, desc="Registering assets", smoothing=0.0) as pbar:
         for file_path in files_to_process:
@@ -264,6 +277,7 @@ async def add_assets(
                         filename=file_path.name,
                         stream_provider_from_event=None,
                         passwords=passwords,
+                        password_attempts=password_attempts,
                     )
 
             except Exception:
@@ -289,6 +303,7 @@ async def _process_entity(  # noqa: PLR0912
     pbar: tqdm[Any],
     process_map: dict[str, list[str]],
     passwords: list[str],
+    password_attempts: dict[int, int],
     filename: str | None = None,
     stream_provider_from_event: Any | None = None,
 ):
@@ -361,6 +376,7 @@ async def _process_entity(  # noqa: PLR0912
                 target_world,
                 process_map,
                 passwords,
+                password_attempts,
             )
 
 
