@@ -14,6 +14,15 @@ Furthermore, this design introduces a crucial feedback loop: an **Execution Obse
 
 A Trait is a data-carrying object that represents a specific characteristic or capability.
 
+### Trait Identifiers
+
+Each trait is uniquely identified by a `TraitIdentifier`, which is a structured, dot-separated string (e.g., `asset.content.readable`). This identifier must adhere to the following rules:
+- It must consist of one or more parts separated by dots.
+- Each part must contain only lowercase letters, numbers, and underscores.
+- Trait identifiers must be unique across the entire system. The `TraitManager` will raise an error if a duplicate identifier is registered.
+
+This system allows for clear namespacing and prevents conflicts between different plugins. To find a trait, you can use `world.trait_manager.get_trait_by_id("my.trait.identifier")`.
+
 ### 2.1. Component Traits: Describing "What"
 
 A Component Trait describes a capability that an entity possesses due to its components.
@@ -85,10 +94,11 @@ First, we define the `AssetContentReadable` trait. This class acts as a namespac
 ```python
 # in dam.traits.asset_content
 from dam.commands.core import EntityCommand
+from dam.traits import TraitIdentifier
 
 class AssetContentReadable(Trait):
     """A trait for components that represent asset content that can be read as a stream of bytes."""
-    name = "asset.content.readable"
+    identifier = TraitIdentifier.from_string("asset.content.readable")
     description = "Provides a way to read the raw content of an asset."
 
     @dataclass

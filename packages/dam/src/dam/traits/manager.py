@@ -25,6 +25,7 @@ class TraitManager:
         self._implementations: dict[
             type[BaseComponent] | tuple[type[BaseComponent], ...], list[TraitImplementation]
         ] = defaultdict(list)
+        self._trait_map: dict[str, type[Trait]] = {}
 
     def register(
         self,
@@ -32,6 +33,11 @@ class TraitManager:
         implementation: TraitImplementation,
     ) -> None:
         """Register a trait implementation for a component type."""
+        identifier = str(implementation.trait.identifier)
+        if identifier in self._trait_map and self._trait_map[identifier] is not implementation.trait:
+            raise ValueError(f"Trait with identifier '{identifier}' already registered.")
+
+        self._trait_map[identifier] = implementation.trait
         self._implementations[component_type].append(implementation)
 
     def get_implementations_for_components(
@@ -54,3 +60,7 @@ class TraitManager:
         for impl in implementations:
             handlers.update(impl.handlers)
         return handlers
+
+    def get_trait_by_id(self, identifier: str) -> type[Trait] | None:
+        """Get a trait by its identifier."""
+        return self._trait_map.get(identifier)

@@ -13,6 +13,7 @@ from dam.core.world import World
 from dam.models import BaseComponent
 from dam.system_events.base import BaseSystemEvent
 from dam.traits import Trait, TraitImplementation
+from dam.traits.identifier import TraitIdentifier
 
 
 class ComponentA(BaseComponent):
@@ -27,10 +28,12 @@ class ComponentB(BaseComponent):
     __tablename__ = "component_b"
 
 
+
+
 class ReadableTrait(Trait):
     """A sample readable trait."""
 
-    name = "readable"
+    identifier = TraitIdentifier(parts=("readable",))
 
     @dataclass
     class Read(EntityCommand[StreamProvider, BaseSystemEvent]):
@@ -73,6 +76,29 @@ def test_trait_manager_get_trait_handlers(world: World):
     trait_manager.register(ComponentA, implementation)
     handlers = trait_manager.get_trait_handlers({ComponentA})
     assert handlers[ReadableTrait.Read] == read_handler
+
+
+def test_trait_manager_get_trait_by_id(world: World):
+    """Test that a trait can be retrieved by its identifier."""
+    trait_manager = world.trait_manager
+    implementation = TraitImplementation(trait=ReadableTrait, handlers={ReadableTrait.Read: read_handler})
+    trait_manager.register(ComponentA, implementation)
+    trait = trait_manager.get_trait_by_id("readable")
+    assert trait is ReadableTrait
+
+
+def test_trait_manager_uniqueness(world: World):
+    """Test that trait identifiers must be unique."""
+    trait_manager = world.trait_manager
+    implementation = TraitImplementation(trait=ReadableTrait, handlers={ReadableTrait.Read: read_handler})
+    trait_manager.register(ComponentA, implementation)
+
+    class DuplicateTrait(Trait):
+        identifier = TraitIdentifier(parts=("readable",))
+
+    implementation2 = TraitImplementation(trait=DuplicateTrait, handlers={})
+    with pytest.raises(ValueError, match="already registered"):
+        trait_manager.register(ComponentB, implementation2)
 
 
 @pytest.mark.asyncio
