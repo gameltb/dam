@@ -83,7 +83,7 @@ To make the concept of Component Traits concrete, this section provides a full, 
 First, we define the `AssetContentReadable` trait. This class acts as a namespace for its abstract commands.
 
 ```python
-# in dam.core.traits.asset_content
+# in dam.traits.asset_content
 from dam.commands.core import EntityCommand
 
 class AssetContentReadable(Trait):
@@ -92,7 +92,7 @@ class AssetContentReadable(Trait):
     description = "Provides a way to read the raw content of an asset."
 
     @dataclass
-    class GetStream(EntityCommand[AsyncIterator[bytes], None]):
+    class GetStream(EntityCommand[StreamProvider, None]):
         """Abstract command to get the content as a stream."""
 
     @dataclass
@@ -116,15 +116,13 @@ from .components import FileLocationComponent # The component this system works 
 async def get_stream_from_file(
     cmd: AssetContentReadable.GetStream,
     world: World
-) -> AsyncIterator[bytes]:
+) -> StreamProvider | None:
     """Handles the GetStream command for entities with a FileLocationComponent."""
     file_loc = await world.db.get_component(cmd.entity_id, FileLocationComponent)
     if not file_loc or not os.path.exists(file_loc.path):
-        return
+        return None
 
-    async with aiofiles.open(file_loc.path, 'rb') as f:
-        while chunk := await f.read(8192):
-            yield chunk
+    return FileStreamProvider(file_loc.path)
 
 @system(on_command=AssetContentReadable.GetSize)
 async def get_size_from_file(
@@ -146,8 +144,8 @@ The plugin's `build` method connects the trait, the component, and the system im
 # in packages/dam-fs/src/dam_fs/plugin.py
 from dam.core.plugin import Plugin
 from dam.core.world import World
-from dam.core.traits import TraitImplementation
-from dam.core.traits.asset_content import AssetContentReadable
+from dam.traits import TraitImplementation
+from dam.traits.asset_content import AssetContentReadable
 from .components import FileLocationComponent
 from .systems import get_stream_from_file, get_size_from_file
 

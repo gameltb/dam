@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import Annotated
 
 from dam.commands.asset_commands import GetAssetStreamCommand
@@ -67,10 +66,14 @@ async def get_stream_from_file(
     """Handle the GetStream command for entities with a FileLocationComponent."""
     db = world.get_resource(DatabaseManager)
     file_loc = await db.get_component(cmd.entity_id, FileLocationComponent)
-    if not file_loc or not Path(file_loc.url).exists():
+    if not file_loc:
         return None
 
-    return FileStreamProvider(Path(file_loc.url))
+    path = get_local_path_for_url(file_loc.url)
+    if not path or not path.exists():
+        return None
+
+    return FileStreamProvider(path)
 
 
 @system(on_command=AssetContentReadable.GetSize)
@@ -81,6 +84,10 @@ async def get_size_from_file(
     """Handle the GetSize command for entities with a FileLocationComponent."""
     db = world.get_resource(DatabaseManager)
     file_loc = await db.get_component(cmd.entity_id, FileLocationComponent)
-    if not file_loc or not Path(file_loc.url).exists():
+    if not file_loc:
         return 0
-    return Path(file_loc.url).stat().st_size
+
+    path = get_local_path_for_url(file_loc.url)
+    if not path or not path.exists():
+        return 0
+    return path.stat().st_size
