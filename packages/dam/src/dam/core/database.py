@@ -1,11 +1,15 @@
 """Database management for DAM worlds."""
 
 import logging
+from typing import TypeVar
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
+from dam.models import BaseComponent
 from dam.models.core.base_class import Base  # Corrected import for Base
+
+T = TypeVar("T", bound=BaseComponent)
 
 logger = logging.getLogger(__name__)
 
@@ -94,3 +98,14 @@ class DatabaseManager:
         except Exception:
             logger.exception("Error creating tables.")
             raise
+
+    async def get_component(self, entity_id: int, component_type: type[T]) -> T | None:
+        """Get a component for a given entity."""
+        async with self.get_db_session() as session:
+            return await session.get(component_type, entity_id)
+
+    async def get_component_types_for_entity(self, entity_id: int) -> set[type[BaseComponent]]:
+        """Get all component types for a given entity."""
+        async with self.get_db_session() as session:
+            result = await session.execute(select(BaseComponent).where(BaseComponent.entity_id == entity_id))
+            return {type(row[0]) for row in result}
