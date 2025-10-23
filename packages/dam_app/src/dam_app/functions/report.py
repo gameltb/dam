@@ -95,7 +95,9 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
     source_results = (await session.execute(source_query)).all()
     target_results = (await session.execute(target_query)).all()
 
-    source_map = {row.hash_value: row for row in source_results}
+    source_map: dict[bytes, list[EntryRow]] = {}
+    for row in source_results:
+        source_map.setdefault(row.hash_value, []).append(row)
 
     delete_plan_items: dict[str, DeletePlanRow] = {}
     target_archives: dict[str, list[EntryRow]] = {}
@@ -105,7 +107,7 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
             if row.member_path:  # This is a member of an archive
                 target_archives.setdefault(row.path, []).append(row)
             else:  # This is a direct file
-                source_row = source_map[row.hash_value]
+                source_row = source_map[row.hash_value][0]  # Pick the first one
                 source_path_str = format_path(source_row)
                 target_path_str = format_path(row)
                 delete_plan_items[target_path_str] = DeletePlanRow(
@@ -143,7 +145,7 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
             if archive_info:
                 details_list: list[str] = []
                 for member_row in members:
-                    source_row = source_map[member_row.hash_value]
+                    source_row = source_map[member_row.hash_value][0]  # Pick the first one
                     details_list.append(f"'{format_path(member_row)}' is a duplicate of '{format_path(source_row)}'")
                 details_str = "; ".join(details_list)
 
