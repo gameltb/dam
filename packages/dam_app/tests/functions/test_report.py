@@ -145,9 +145,19 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         source_entity2 = await transaction.create_entity()
         hash2 = hashlib.sha256(b"hash2").digest()
         await transaction.add_component_to_entity(source_entity2.id, ContentHashSHA256Component(hash_value=hash2))
+        source_archive_entity = await transaction.create_entity()
+        await transaction.add_component_to_entity(
+            source_archive_entity.id,
+            FileLocationComponent(url="file:///tmp/source/archive.zip", last_modified_at=datetime.now()),
+        )
         await transaction.add_component_to_entity(
             source_entity2.id,
-            FileLocationComponent(url="file:///tmp/source/file2", last_modified_at=datetime.now()),
+            ArchiveMemberComponent(
+                archive_entity_id=source_archive_entity.id,
+                path_in_archive="member2",
+                modified_at=datetime.now(),
+                compressed_size=None,
+            ),
         )
 
         # Target files
@@ -158,31 +168,28 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         )
 
         # An archive in the target directory where all members are duplicates of source files
-        archive_entity = await transaction.create_entity()
+        target_archive_entity = await transaction.create_entity()
         archive_hash = hashlib.sha256(b"archive_hash").digest()
         await transaction.add_component_to_entity(
-            archive_entity.id, ContentHashSHA256Component(hash_value=archive_hash)
+            target_archive_entity.id, ContentHashSHA256Component(hash_value=archive_hash)
         )
         await transaction.add_component_to_entity(
-            archive_entity.id,
+            target_archive_entity.id,
             FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
         )
-
-        # Member 1 (duplicate of source_entity1)
         await transaction.add_component_to_entity(
             source_entity1.id,
             ArchiveMemberComponent(
-                archive_entity_id=archive_entity.id,
+                archive_entity_id=target_archive_entity.id,
                 path_in_archive="member1",
                 modified_at=datetime.now(),
                 compressed_size=None,
             ),
         )
-        # Member 2 (duplicate of source_entity2)
         await transaction.add_component_to_entity(
             source_entity2.id,
             ArchiveMemberComponent(
-                archive_entity_id=archive_entity.id,
+                archive_entity_id=target_archive_entity.id,
                 path_in_archive="member2",
                 modified_at=datetime.now(),
                 compressed_size=None,
@@ -204,12 +211,21 @@ async def test_create_delete_plan(world_factory: WorldFactory):
 
         assert len(delete_plan) == 2
 
+        plan_map = {p.target_path: p for p in delete_plan}
+
         # Check for the direct duplicate file
-        direct_dup_found = any(p.target_path == "/tmp/target/file1_dup" and p.hash == hash1.hex() for p in delete_plan)
-        assert direct_dup_found
+        direct_dup_plan = plan_map.get("/tmp/target/file1_dup")
+        assert direct_dup_plan is not None
+        assert direct_dup_plan.source_path == "/tmp/source/file1"
+        assert direct_dup_plan.hash == hash1.hex()
+        assert direct_dup_plan.details == "Duplicate of /tmp/source/file1"
 
         # Check for the archive file to be deleted
-        archive_dup_found = any(
-            p.target_path == "/tmp/target/archive.zip" and p.hash == archive_hash.hex() for p in delete_plan
+        archive_dup_plan = plan_map.get("/tmp/target/archive.zip")
+        assert archive_dup_plan is not None
+        assert archive_dup_plan.hash == archive_hash.hex()
+        assert "'/tmp/target/archive.zip -> member1' is a duplicate of '/tmp/source/file1'" in archive_dup_plan.details
+        assert (
+            "'/tmp/target/archive.zip -> member2' is a duplicate of '/tmp/source/archive.zip -> member2'"
+            in archive_dup_plan.details
         )
-        assert archive_dup_found

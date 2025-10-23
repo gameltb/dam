@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 DuplicateRow = Row[tuple[int, int | None, int | None, bytes, int, str, str]]
+type EntryRow = Row[tuple[bytes, int | None, str, str | None]]
 
 
 @dataclass
@@ -37,11 +38,10 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
         direct_loc = aliased(FileLocationComponent)
         direct_locations_query = (
             select(
-                direct_loc.entity_id,
                 ContentHashSHA256Component.hash_value,
                 ContentLengthComponent.file_size_bytes,
                 direct_loc.url.label("path"),
-                literal(None, type_=String).label("archive_path"),
+                literal(None, type_=String).label("member_path"),
             )
             .select_from(direct_loc)
             .join(
@@ -57,11 +57,10 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
         archive_loc = aliased(FileLocationComponent)
         archive_locations_query = (
             select(
-                ArchiveMemberComponent.entity_id,
                 ContentHashSHA256Component.hash_value,
                 ContentLengthComponent.file_size_bytes,
-                ArchiveMemberComponent.path_in_archive.label("path"),
-                archive_loc.url.label("archive_path"),
+                archive_loc.url.label("path"),
+                ArchiveMemberComponent.path_in_archive.label("member_path"),
             )
             .select_from(ArchiveMemberComponent)
             .join(
@@ -79,52 +78,54 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
         )
         return union_all(direct_locations_query, archive_locations_query)
 
+    def format_path(row: EntryRow) -> str:
+        path: str = row.path.replace("file://", "")
+        if row.member_path:
+            return f"{path} -> {row.member_path}"
+        return path
+
     all_entries = get_all_entries_query().subquery()
 
     source_path_filter = f"file://{source_dir.resolve()}"
     target_path_filter = f"file://{target_dir.resolve()}"
 
-    source_query = select(all_entries).where(
-        all_entries.c.path.startswith(source_path_filter)
-        | (all_entries.c.archive_path.is_not(None) & all_entries.c.archive_path.startswith(source_path_filter))
-    )
-    target_query = select(all_entries).where(
-        all_entries.c.path.startswith(target_path_filter)
-        | (all_entries.c.archive_path.is_not(None) & all_entries.c.archive_path.startswith(target_path_filter))
-    )
+    source_query = select(all_entries).where(all_entries.c.path.startswith(source_path_filter))
+    target_query = select(all_entries).where(all_entries.c.path.startswith(target_path_filter))
 
     source_results = (await session.execute(source_query)).all()
     target_results = (await session.execute(target_query)).all()
 
-    source_hashes = {row.hash_value for row in source_results}
     source_map = {row.hash_value: row for row in source_results}
 
     delete_plan_items: dict[str, DeletePlanRow] = {}
-    target_archives: dict[str, list[bytes]] = {}
-    target_archive_member_duplicates: dict[str, list[bytes]] = {}
+    target_archives: dict[str, list[EntryRow]] = {}
 
     for row in target_results:
-        if row.archive_path:
-            target_archives.setdefault(row.archive_path, []).append(row.hash_value)
-
-        if row.hash_value in source_hashes:
-            if row.archive_path:
-                target_archive_member_duplicates.setdefault(row.archive_path, []).append(row.hash_value)
-            else:
+        if row.hash_value in source_map:
+            if row.member_path:  # This is a member of an archive
+                target_archives.setdefault(row.path, []).append(row)
+            else:  # This is a direct file
                 source_row = source_map[row.hash_value]
-                delete_plan_items[row.path] = DeletePlanRow(
-                    source_path=source_row.path.replace("file://", ""),
-                    target_path=row.path.replace("file://", ""),
+                source_path_str = format_path(source_row)
+                target_path_str = format_path(row)
+                delete_plan_items[target_path_str] = DeletePlanRow(
+                    source_path=source_path_str,
+                    target_path=target_path_str,
                     hash=row.hash_value.hex(),
                     size=row.file_size_bytes or 0,
-                    details=f"Duplicate of {source_row.path.replace('file://', '')}",
+                    details=f"Duplicate of {source_path_str}",
                 )
 
+    # Process archives in the target directory
     for archive_path, members in target_archives.items():
-        duplicate_members = target_archive_member_duplicates.get(archive_path, [])
-        if len(members) == len(duplicate_members):
+        # Check if ALL members of this archive are duplicates
+        all_members_in_archive_query = select(all_entries).where(
+            and_(all_entries.c.path == archive_path, all_entries.c.member_path.is_not(None))
+        )
+        all_members = (await session.execute(all_members_in_archive_query)).all()
+
+        if len(all_members) == len(members):
             # All members are duplicates, so delete the whole archive.
-            # We need to get the archive file's own hash and size.
             archive_file_info_query = (
                 select(
                     ContentHashSHA256Component.hash_value,
@@ -140,12 +141,19 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
             archive_info = (await session.execute(archive_file_info_query)).one_or_none()
 
             if archive_info:
-                delete_plan_items[archive_path] = DeletePlanRow(
+                details_list: list[str] = []
+                for member_row in members:
+                    source_row = source_map[member_row.hash_value]
+                    details_list.append(f"'{format_path(member_row)}' is a duplicate of '{format_path(source_row)}'")
+                details_str = "; ".join(details_list)
+
+                target_path_str = archive_path.replace("file://", "")
+                delete_plan_items[target_path_str] = DeletePlanRow(
                     source_path="Multiple files in source directory",
-                    target_path=archive_path.replace("file://", ""),
+                    target_path=target_path_str,
                     hash=archive_info.hash_value.hex(),
                     size=archive_info.file_size_bytes or 0,
-                    details="All members are duplicates found in the source directory.",
+                    details=f"All members are duplicates: [{details_str}]",
                 )
 
     return list(delete_plan_items.values())
