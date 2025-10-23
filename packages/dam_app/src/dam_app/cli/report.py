@@ -1,17 +1,30 @@
 """CLI commands for generating reports."""
 
 import csv
+import hashlib
 import math
+import tempfile
+import zipfile
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from dam.core.transaction import WorldTransaction
+from dam.core.world import World
+from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam_archive.models import ArchiveMemberComponent
+from dam_fs.models.file_location_component import FileLocationComponent
 from rich.console import Console
 from rich.table import Table
+from sqlalchemy import select
 
-from dam_app.functions.report import DuplicateRow, get_duplicates_report
+from dam_app.functions.report import (
+    DeletePlanRow,
+    DuplicateRow,
+    create_delete_plan,
+    get_duplicates_report,
+)
 from dam_app.state import get_world
 from dam_app.utils.async_typer import AsyncTyper
 
@@ -172,3 +185,217 @@ async def report_duplicates(
             console.print(f"Report written to {csv_path}")
         else:
             _print_rich_report(console, duplicates)
+
+
+def _write_delete_plan_csv_report(csv_path: Path, delete_plan: Sequence[DeletePlanRow]):
+    """Write the delete plan report to a CSV file."""
+    with csv_path.open("w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(
+            [
+                "source_path",
+                "target_path",
+                "hash",
+                "size",
+                "details",
+            ]
+        )
+        for row in delete_plan:
+            writer.writerow(
+                [
+                    row.source_path,
+                    row.target_path,
+                    row.hash,
+                    str(row.size),
+                    row.details,
+                ]
+            )
+
+
+@app.command("create-delete-report")
+async def create_delete_report(
+    source_dir: Annotated[
+        Path,
+        typer.Option(
+            "--source-dir",
+            "-s",
+            help="Path to the source directory.",
+            dir_okay=True,
+            resolve_path=True,
+            exists=True,
+        ),
+    ],
+    target_dir: Annotated[
+        Path,
+        typer.Option(
+            "--target-dir",
+            "-t",
+            help="Path to the target directory.",
+            dir_okay=True,
+            resolve_path=True,
+            exists=True,
+        ),
+    ],
+    csv_path: Annotated[
+        Path,
+        typer.Option(
+            "--csv-path",
+            "-c",
+            help="Path to the CSV file to write the report to.",
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ],
+):
+    """Create a report of files to delete from the target directory."""
+    world = get_world()
+    if not world:
+        return
+
+    console = Console()
+
+    async with world.get_context(WorldTransaction)() as transaction:
+        session = transaction.session
+        delete_plan = await create_delete_plan(session, source_dir, target_dir)
+
+        if not delete_plan:
+            console.print("No duplicate files found to delete.")
+            return
+
+        _write_delete_plan_csv_report(csv_path, delete_plan)
+        console.print(f"Delete plan report written to {csv_path}")
+
+
+def _calculate_file_sha256(file_path: Path) -> str:
+    """Calculate the SHA256 hash of a file."""
+    sha256 = hashlib.sha256()
+    with file_path.open("rb") as f:
+        while chunk := f.read(8192):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
+async def verify_archive_members(world: World, archive_path: Path, console: Console) -> bool:
+    """Verify that the members of an archive match the hashes in the database."""
+    try:
+        async with world.get_context(WorldTransaction)() as transaction:
+            # Get the entity ID for the archive path
+            archive_entity_id_query = select(FileLocationComponent.entity_id).where(
+                FileLocationComponent.url == f"file://{archive_path.resolve()}"
+            )
+            archive_entity_id = (await transaction.session.execute(archive_entity_id_query)).scalar_one_or_none()
+            if not archive_entity_id:
+                console.print(f"[red]Could not find entity for archive: {archive_path}[/red]")
+                return False
+
+            # Get the expected hashes of all members from the database
+            member_hashes_query = (
+                select(ArchiveMemberComponent.path_in_archive, ContentHashSHA256Component.hash_value)
+                .join(
+                    ContentHashSHA256Component,
+                    ContentHashSHA256Component.entity_id == ArchiveMemberComponent.entity_id,
+                )
+                .where(ArchiveMemberComponent.archive_entity_id == archive_entity_id)
+            )
+            expected_hashes = {
+                path: hash_value.hex() for path, hash_value in (await transaction.session.execute(member_hashes_query))
+            }
+
+        if not expected_hashes:
+            console.print(f"[yellow]No members found in database for archive: {archive_path}[/yellow]")
+            # If the archive is empty and we expect it to be, it's valid.
+            return True
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            with zipfile.ZipFile(archive_path, "r") as zip_ref:
+                zip_ref.extractall(temp_path)
+
+            for member_path, expected_hash in expected_hashes.items():
+                actual_file_path = temp_path / member_path
+                if not actual_file_path.is_file():
+                    console.print(f"[red]Member file not found in archive: {member_path}[/red]")
+                    return False
+
+                actual_hash = _calculate_file_sha256(actual_file_path)
+                if actual_hash != expected_hash:
+                    console.print(f"[red]Hash mismatch for member {member_path} in {archive_path}[/red]")
+                    return False
+
+        return True
+
+    except Exception as e:
+        console.print(f"[red]Error verifying archive {archive_path}: {e}[/red]")
+        return False
+
+
+@app.command("execute-delete-report")
+async def execute_delete_report(
+    csv_path: Annotated[
+        Path,
+        typer.Option(
+            "--csv-path",
+            "-c",
+            help="Path to the CSV file with the delete plan.",
+            dir_okay=False,
+            resolve_path=True,
+            exists=True,
+        ),
+    ],
+):
+    """Execute the delete plan from a CSV report."""
+    console = Console()
+    world = get_world()
+    if not world:
+        console.print("[red]Error: Could not get world object.[/red]")
+        return
+
+    deleted_count = 0
+    skipped_count = 0
+
+    with csv_path.open("r", newline="") as csvfile:
+        reader = csv.reader(csvfile)
+        header = next(reader)
+        if header != ["source_path", "target_path", "hash", "size", "details"]:
+            console.print("[red]Error: Invalid CSV file format.[/red]")
+            return
+
+        for row in reader:
+            target_path_str = row[1]
+            expected_hash = row[2]
+            details = row[4]
+
+            target_path = Path(target_path_str)
+
+            if not target_path.is_file():
+                console.print(f"[yellow]Skipping (not a file): {target_path}[/yellow]")
+                skipped_count += 1
+                continue
+
+            is_archive = "All members are duplicates" in details
+            verification_passed = False
+            if is_archive:
+                verification_passed = await verify_archive_members(world, target_path, console)
+            else:
+                actual_hash = _calculate_file_sha256(target_path)
+                if actual_hash != expected_hash:
+                    console.print(f"[yellow]Skipping (hash mismatch): {target_path}[/yellow]")
+                    skipped_count += 1
+                    continue
+                verification_passed = True
+
+            if verification_passed:
+                try:
+                    target_path.unlink()
+                    console.print(f"[green]Deleted: {target_path}[/green]")
+                    deleted_count += 1
+                except OSError as e:
+                    console.print(f"[red]Error deleting {target_path}: {e}[/red]")
+                    skipped_count += 1
+            else:
+                console.print(f"[yellow]Skipping (verification failed): {target_path}[/yellow]")
+                skipped_count += 1
+
+    console.print("\n--- Summary ---")
+    console.print(f"Files deleted: {deleted_count}")
+    console.print(f"Files skipped: {skipped_count}")

@@ -11,7 +11,7 @@ from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_test_utils.types import WorldFactory
 
-from dam_app.functions.report import get_duplicates_report
+from dam_app.functions.report import create_delete_plan, get_duplicates_report
 
 
 @pytest.mark.asyncio
@@ -126,3 +126,90 @@ async def test_get_duplicates_report_with_indirect_path_filter(world_factory: Wo
         assert len(duplicates) == 1
         assert duplicates[0].entity_id == entity1.id
         assert duplicates[0].path == "file:///tmp/archive.zip -> file1"
+
+
+@pytest.mark.asyncio
+async def test_create_delete_plan(world_factory: WorldFactory):
+    """Test that the create_delete_plan function returns the correct delete plan."""
+    world = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as transaction:
+        # Source files
+        source_entity1 = await transaction.create_entity()
+        hash1 = hashlib.sha256(b"hash1").digest()
+        await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
+        await transaction.add_component_to_entity(
+            source_entity1.id,
+            FileLocationComponent(url="file:///tmp/source/file1", last_modified_at=datetime.now()),
+        )
+
+        source_entity2 = await transaction.create_entity()
+        hash2 = hashlib.sha256(b"hash2").digest()
+        await transaction.add_component_to_entity(source_entity2.id, ContentHashSHA256Component(hash_value=hash2))
+        await transaction.add_component_to_entity(
+            source_entity2.id,
+            FileLocationComponent(url="file:///tmp/source/file2", last_modified_at=datetime.now()),
+        )
+
+        # Target files
+        # A duplicate of source_entity1
+        await transaction.add_component_to_entity(
+            source_entity1.id,
+            FileLocationComponent(url="file:///tmp/target/file1_dup", last_modified_at=datetime.now()),
+        )
+
+        # An archive in the target directory where all members are duplicates of source files
+        archive_entity = await transaction.create_entity()
+        archive_hash = hashlib.sha256(b"archive_hash").digest()
+        await transaction.add_component_to_entity(
+            archive_entity.id, ContentHashSHA256Component(hash_value=archive_hash)
+        )
+        await transaction.add_component_to_entity(
+            archive_entity.id,
+            FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
+        )
+
+        # Member 1 (duplicate of source_entity1)
+        await transaction.add_component_to_entity(
+            source_entity1.id,
+            ArchiveMemberComponent(
+                archive_entity_id=archive_entity.id,
+                path_in_archive="member1",
+                modified_at=datetime.now(),
+                compressed_size=None,
+            ),
+        )
+        # Member 2 (duplicate of source_entity2)
+        await transaction.add_component_to_entity(
+            source_entity2.id,
+            ArchiveMemberComponent(
+                archive_entity_id=archive_entity.id,
+                path_in_archive="member2",
+                modified_at=datetime.now(),
+                compressed_size=None,
+            ),
+        )
+
+        # A file that is not a duplicate
+        non_dup_entity = await transaction.create_entity()
+        non_dup_hash = hashlib.sha256(b"non_dup").digest()
+        await transaction.add_component_to_entity(
+            non_dup_entity.id, ContentHashSHA256Component(hash_value=non_dup_hash)
+        )
+        await transaction.add_component_to_entity(
+            non_dup_entity.id,
+            FileLocationComponent(url="file:///tmp/target/unique_file", last_modified_at=datetime.now()),
+        )
+
+        delete_plan = await create_delete_plan(transaction.session, Path("/tmp/source"), Path("/tmp/target"))
+
+        assert len(delete_plan) == 2
+
+        # Check for the direct duplicate file
+        direct_dup_found = any(p.target_path == "/tmp/target/file1_dup" and p.hash == hash1.hex() for p in delete_plan)
+        assert direct_dup_found
+
+        # Check for the archive file to be deleted
+        archive_dup_found = any(
+            p.target_path == "/tmp/target/archive.zip" and p.hash == archive_hash.hex() for p in delete_plan
+        )
+        assert archive_dup_found

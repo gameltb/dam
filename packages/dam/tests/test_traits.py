@@ -28,8 +28,6 @@ class ComponentB(BaseComponent):
     __tablename__ = "component_b"
 
 
-
-
 class ReadableTrait(Trait):
     """A sample readable trait."""
 

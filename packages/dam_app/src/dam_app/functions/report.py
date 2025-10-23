@@ -1,6 +1,7 @@
 """Functions for generating reports."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from dam.models.core import Entity
@@ -15,6 +16,139 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 DuplicateRow = Row[tuple[int, int | None, int | None, bytes, int, str, str]]
+
+
+@dataclass
+class DeletePlanRow:
+    """Represents a row in the delete plan."""
+
+    source_path: str
+    target_path: str
+    hash: str
+    size: int
+    details: str
+
+
+async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir: Path) -> Sequence[DeletePlanRow]:
+    """Create a plan to delete duplicate files from the target directory."""
+
+    def get_all_entries_query():
+        """Create a query to get all file-like entries (direct files and archive members)."""
+        direct_loc = aliased(FileLocationComponent)
+        direct_locations_query = (
+            select(
+                direct_loc.entity_id,
+                ContentHashSHA256Component.hash_value,
+                ContentLengthComponent.file_size_bytes,
+                direct_loc.url.label("path"),
+                literal(None, type_=String).label("archive_path"),
+            )
+            .select_from(direct_loc)
+            .join(
+                ContentHashSHA256Component,
+                ContentHashSHA256Component.entity_id == direct_loc.entity_id,
+            )
+            .outerjoin(
+                ContentLengthComponent,
+                ContentLengthComponent.entity_id == direct_loc.entity_id,
+            )
+        )
+
+        archive_loc = aliased(FileLocationComponent)
+        archive_locations_query = (
+            select(
+                ArchiveMemberComponent.entity_id,
+                ContentHashSHA256Component.hash_value,
+                ContentLengthComponent.file_size_bytes,
+                ArchiveMemberComponent.path_in_archive.label("path"),
+                archive_loc.url.label("archive_path"),
+            )
+            .select_from(ArchiveMemberComponent)
+            .join(
+                ContentHashSHA256Component,
+                ContentHashSHA256Component.entity_id == ArchiveMemberComponent.entity_id,
+            )
+            .join(
+                archive_loc,
+                ArchiveMemberComponent.archive_entity_id == archive_loc.entity_id,
+            )
+            .outerjoin(
+                ContentLengthComponent,
+                ContentLengthComponent.entity_id == ArchiveMemberComponent.entity_id,
+            )
+        )
+        return union_all(direct_locations_query, archive_locations_query)
+
+    all_entries = get_all_entries_query().subquery()
+
+    source_path_filter = f"file://{source_dir.resolve()}"
+    target_path_filter = f"file://{target_dir.resolve()}"
+
+    source_query = select(all_entries).where(
+        all_entries.c.path.startswith(source_path_filter)
+        | (all_entries.c.archive_path.is_not(None) & all_entries.c.archive_path.startswith(source_path_filter))
+    )
+    target_query = select(all_entries).where(
+        all_entries.c.path.startswith(target_path_filter)
+        | (all_entries.c.archive_path.is_not(None) & all_entries.c.archive_path.startswith(target_path_filter))
+    )
+
+    source_results = (await session.execute(source_query)).all()
+    target_results = (await session.execute(target_query)).all()
+
+    source_hashes = {row.hash_value for row in source_results}
+    source_map = {row.hash_value: row for row in source_results}
+
+    delete_plan_items: dict[str, DeletePlanRow] = {}
+    target_archives: dict[str, list[bytes]] = {}
+    target_archive_member_duplicates: dict[str, list[bytes]] = {}
+
+    for row in target_results:
+        if row.archive_path:
+            target_archives.setdefault(row.archive_path, []).append(row.hash_value)
+
+        if row.hash_value in source_hashes:
+            if row.archive_path:
+                target_archive_member_duplicates.setdefault(row.archive_path, []).append(row.hash_value)
+            else:
+                source_row = source_map[row.hash_value]
+                delete_plan_items[row.path] = DeletePlanRow(
+                    source_path=source_row.path.replace("file://", ""),
+                    target_path=row.path.replace("file://", ""),
+                    hash=row.hash_value.hex(),
+                    size=row.file_size_bytes or 0,
+                    details=f"Duplicate of {source_row.path.replace('file://', '')}",
+                )
+
+    for archive_path, members in target_archives.items():
+        duplicate_members = target_archive_member_duplicates.get(archive_path, [])
+        if len(members) == len(duplicate_members):
+            # All members are duplicates, so delete the whole archive.
+            # We need to get the archive file's own hash and size.
+            archive_file_info_query = (
+                select(
+                    ContentHashSHA256Component.hash_value,
+                    ContentLengthComponent.file_size_bytes,
+                )
+                .join(FileLocationComponent, FileLocationComponent.entity_id == ContentHashSHA256Component.entity_id)
+                .outerjoin(
+                    ContentLengthComponent,
+                    ContentLengthComponent.entity_id == ContentHashSHA256Component.entity_id,
+                )
+                .where(FileLocationComponent.url == archive_path)
+            )
+            archive_info = (await session.execute(archive_file_info_query)).one_or_none()
+
+            if archive_info:
+                delete_plan_items[archive_path] = DeletePlanRow(
+                    source_path="Multiple files in source directory",
+                    target_path=archive_path.replace("file://", ""),
+                    hash=archive_info.hash_value.hex(),
+                    size=archive_info.file_size_bytes or 0,
+                    details="All members are duplicates found in the source directory.",
+                )
+
+    return list(delete_plan_items.values())
 
 
 async def get_duplicates_report(session: AsyncSession, path: Path | None = None) -> Sequence[DuplicateRow]:
