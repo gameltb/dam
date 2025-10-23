@@ -32,10 +32,12 @@ from dam_fs.commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
+from dam_fs.models.file_location_component import FileLocationComponent
 from rich import print_json
 from rich.console import Console
 from rich.table import Table
 from rich.traceback import Traceback
+from sqlalchemy import select
 from tqdm import tqdm
 
 from dam_app.state import get_world
@@ -561,3 +563,50 @@ async def list_processes():
 
     console = Console()
     console.print(table)
+
+
+async def cleanup_deleted_files_logic(world: World, path: Path | None, console: Console) -> int:
+    """Remove FileLocationComponent for files that have been deleted."""
+    removed_count = 0
+    async with world.get_context(WorldTransaction)() as tx:
+        session = tx.session
+        query = select(FileLocationComponent)
+        if path:
+            path_url = path.as_uri()
+            query = query.where(FileLocationComponent.url.startswith(path_url))
+
+        file_location_components = (await session.execute(query)).scalars().all()
+
+        for component in file_location_components:
+            component_path = Path(component.url.replace("file://", ""))
+            if not component_path.exists():
+                console.print(
+                    f"Removed FileLocationComponent from entity {component.entity_id} (path: {component_path})"
+                )
+                await session.delete(component)
+                removed_count += 1
+    return removed_count
+
+
+@app.command(name="cleanup-deleted-files")
+async def cleanup_deleted_files(
+    path: Annotated[
+        Path | None,
+        typer.Option(
+            "--path",
+            "-p",
+            help="Path to the directory to check for deleted files.",
+            dir_okay=True,
+            resolve_path=True,
+            exists=True,
+        ),
+    ] = None,
+):
+    """Remove FileLocationComponent for files that have been deleted."""
+    target_world = get_world()
+    if not target_world:
+        raise typer.Exit(code=1)
+
+    console = Console()
+    removed_count = await cleanup_deleted_files_logic(target_world, path, console)
+    console.print(f"\nTotal components removed: {removed_count}")
