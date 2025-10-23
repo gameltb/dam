@@ -33,6 +33,7 @@ from dam_fs.commands import (
     StoreAssetsCommand,
 )
 from dam_fs.models.file_location_component import FileLocationComponent
+from dam_fs.utils.url_utils import get_local_path_for_url
 from rich import print_json
 from rich.console import Console
 from rich.table import Table
@@ -578,7 +579,7 @@ async def cleanup_deleted_files_logic(world: World, path: Path | None, console: 
         file_location_components = (await session.execute(query)).scalars().all()
 
         for component in file_location_components:
-            component_path = Path(component.url.replace("file://", ""))
+            component_path = get_local_path_for_url(component.url)
             if not component_path.exists():
                 console.print(
                     f"Removed FileLocationComponent from entity {component.entity_id} (path: {component_path})"

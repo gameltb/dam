@@ -9,6 +9,7 @@ from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Com
 from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
+from dam_fs.utils.url_utils import get_local_path_for_url
 from dam_psp.models import CsoParentIsoComponent
 from sqlalchemy import String, and_, func, literal, or_, select, union_all
 from sqlalchemy.engine.row import Row
@@ -79,15 +80,15 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
         return union_all(direct_locations_query, archive_locations_query)
 
     def format_path(row: EntryRow) -> str:
-        path: str = row.path.replace("file://", "")
+        path: str = str(get_local_path_for_url(row.path))
         if row.member_path:
             return f"{path} -> {row.member_path}"
         return path
 
     all_entries = get_all_entries_query().subquery()
 
-    source_path_filter = f"file://{source_dir.resolve()}"
-    target_path_filter = f"file://{target_dir.resolve()}"
+    source_path_filter = source_dir.as_uri() + "/" if source_dir.is_dir() else ""
+    target_path_filter = target_dir.as_uri() + "/" if source_dir.is_dir() else ""
 
     source_query = select(all_entries).where(all_entries.c.path.startswith(source_path_filter))
     target_query = select(all_entries).where(all_entries.c.path.startswith(target_path_filter))
@@ -149,7 +150,7 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
                     details_list.append(f"'{format_path(member_row)}' is a duplicate of '{format_path(source_row)}'")
                 details_str = "; ".join(details_list)
 
-                target_path_str = archive_path.replace("file://", "")
+                target_path_str = str(get_local_path_for_url(archive_path))
                 delete_plan_items[target_path_str] = DeletePlanRow(
                     source_path="Multiple files in source directory",
                     target_path=target_path_str,
