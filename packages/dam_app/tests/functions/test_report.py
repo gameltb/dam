@@ -229,3 +229,7 @@ async def test_create_delete_plan(world_factory: WorldFactory):
             "'/tmp/target/archive.zip -> member2' is a duplicate of '/tmp/source/archive.zip -> member2'"
             in archive_dup_plan.details
         )
+
+        # Ensure all target paths are in the target directory
+        for plan_item in delete_plan:
+            assert plan_item.target_path.startswith("/tmp/target")
