@@ -5,10 +5,12 @@ import logging
 from typing import Annotated
 
 from dam.commands.asset_commands import GetAssetStreamCommand
+from dam.core.database import DatabaseManager
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
 from dam.core.types import FileStreamProvider, StreamProvider
 from dam.core.world import World
+from dam.traits.asset_content import AssetContentReadable
 
 from ..models.file_location_component import FileLocationComponent
 from ..utils.url_utils import get_local_path_for_url
@@ -54,3 +56,38 @@ async def get_asset_stream_handler(
 
     # No valid local file found.
     return None
+
+
+@system(on_command=AssetContentReadable.GetStream)
+async def get_stream_from_file(
+    cmd: AssetContentReadable.GetStream,
+    world: World,
+) -> StreamProvider | None:
+    """Handle the GetStream command for entities with a FileLocationComponent."""
+    db = world.get_resource(DatabaseManager)
+    file_loc = await db.get_component(cmd.entity_id, FileLocationComponent)
+    if not file_loc:
+        return None
+
+    path = get_local_path_for_url(file_loc.url)
+    if not path or not path.exists():
+        return None
+
+    return FileStreamProvider(path)
+
+
+@system(on_command=AssetContentReadable.GetSize)
+async def get_size_from_file(
+    cmd: AssetContentReadable.GetSize,
+    world: World,
+) -> int:
+    """Handle the GetSize command for entities with a FileLocationComponent."""
+    db = world.get_resource(DatabaseManager)
+    file_loc = await db.get_component(cmd.entity_id, FileLocationComponent)
+    if not file_loc:
+        return 0
+
+    path = get_local_path_for_url(file_loc.url)
+    if not path or not path.exists():
+        return 0
+    return path.stat().st_size

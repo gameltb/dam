@@ -6,6 +6,7 @@ from typing import Any, TypeVar, cast
 
 from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.contexts import ContextProvider
+from dam.core.database import DatabaseManager
 from dam.core.executor import SystemExecutor
 from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
@@ -14,6 +15,7 @@ from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
 from dam.events import BaseEvent
 from dam.system_events.base import SystemResultEvent
+from dam.traits import Trait, TraitManager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,7 @@ class World:
 
         self.resource_manager: ResourceManager = ResourceManager()
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
+        self.trait_manager: TraitManager = TraitManager()
         self._registered_plugin_types: set[type[Plugin]] = set()
         self.asset_operations: dict[str, AssetOperation] = {}
         self.context_providers: dict[type[Any], ContextProvider[Any]] = {}
@@ -179,6 +182,13 @@ class World:
     def __repr__(self) -> str:
         """Return a string representation of the World."""
         return f"<World name='{self.name}'>"
+
+    async def get_available_traits_for_entity(self, entity_id: int) -> list[Trait]:
+        """Return a list of available traits for a given entity."""
+        db = self.get_resource(DatabaseManager)
+        component_types = await db.get_component_types_for_entity(entity_id)
+        implementations = self.trait_manager.get_implementations_for_components(component_types)
+        return [impl.trait() for impl in implementations]
 
 
 # This space is intentionally left blank.

@@ -9,6 +9,8 @@ from dam.commands.asset_commands import (
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
+from dam.traits import TraitImplementation
+from dam.traits.asset_content import AssetContentReadable
 
 from .commands import (
     AddFilePropertiesCommand,
@@ -17,6 +19,7 @@ from .commands import (
     RegisterLocalFileCommand,
     StoreAssetsCommand,
 )
+from .models.file_location_component import FileLocationComponent
 from .resources.file_operations_resource import FileOperationsResource
 from .resources.file_storage_resource import FileStorageResource
 from .settings import FsSettingsComponent, FsSettingsModel
@@ -33,7 +36,7 @@ from .systems.mime_type_system import (
     auto_set_mime_type_from_filename_system,
     set_mime_type_from_buffer_system,
 )
-from .systems.stream_handler_system import get_asset_stream_handler
+from .systems.stream_handler_system import get_asset_stream_handler, get_size_from_file, get_stream_from_file
 
 
 class FsPlugin(Plugin):
@@ -91,3 +94,12 @@ class FsPlugin(Plugin):
             discover_fs_path_siblings_handler,
             command_type=DiscoverPathSiblingsCommand,
         )
+
+        readable_impl = TraitImplementation(
+            trait=AssetContentReadable,
+            handlers={
+                AssetContentReadable.GetStream: get_stream_from_file,
+                AssetContentReadable.GetSize: get_size_from_file,
+            },
+        )
+        world.trait_manager.register(FileLocationComponent, readable_impl)

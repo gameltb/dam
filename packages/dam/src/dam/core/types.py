@@ -4,7 +4,12 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
+
+from dam.commands.core import BaseCommand, EventType, ResultType
+
+AnySystem = Callable[..., Any]
+CommandHandler = Callable[[BaseCommand[ResultType, EventType]], ResultType | AsyncIterator[EventType]]
 
 
 class StreamProvider(ABC):

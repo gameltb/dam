@@ -78,7 +78,7 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "Q", "I", "ASYNC", "LOG", "G", "PT", "RET", "SIM", "ARG", "PTH", "N",  "RUF", "PL", "UP", "D", "TID251", "T20", "PLC0415", "PYI"]
-ignore = ["E501", "D212", "D203"]
+ignore = ["E501", "D212", "D203", "D100"]
 unfixable = ["TID251"]
 
 [tool.ruff.lint.pylint]
