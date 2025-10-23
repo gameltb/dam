@@ -14,12 +14,18 @@ from dam.core.plugin import Plugin
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.models.config import ConfigComponent, SettingsModel
+from dam.models.metadata.content_component import ContentComponent
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
 from dam.systems.mime_type_system import (
+    check_mime_type_system,
     get_mime_type_system,
+    remove_mime_type_system,
     set_mime_type_system,
 )
+from dam.traits.asset_operation import AssetOperationTrait
+from dam.traits.identifier import TraitImplementationIdentifier
+from dam.traits.traits import TraitImplementation
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +97,17 @@ class CorePlugin(Plugin):
         world.register_system(set_mime_type_system)
         world.register_system(get_mime_type_system)
         logger.info("Core system registration complete for world: %s", world.name)
+
+        # Register core traits
+        set_mime_type_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: set_mime_type_system,
+                AssetOperationTrait.Check: check_mime_type_system,
+                AssetOperationTrait.Remove: remove_mime_type_system,
+            },
+            identifier=TraitImplementationIdentifier.from_string("asset.operation.set_mime_type|ContentComponent"),
+            name="core.set_mime_type",
+            description="Sets the mime type for an asset.",
+        )
+        world.trait_manager.register(ContentComponent, set_mime_type_implementation)

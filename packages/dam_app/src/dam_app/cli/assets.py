@@ -14,7 +14,6 @@ from dam.commands.asset_commands import (
     GetMimeTypeCommand,
 )
 from dam.core.executor import SystemExecutor
-from dam.core.operations import AssetOperation
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions as dam_ecs_functions
@@ -27,6 +26,8 @@ from dam.system_events.progress import (
     ProgressUpdate,
 )
 from dam.system_events.requests import PasswordRequest
+from dam.traits.asset_operation import AssetOperationTrait
+from dam.traits.traits import TraitImplementation
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -63,26 +64,27 @@ def _parse_process_options(process: list[str] | None, target_world: World) -> di
                 raise ValueError(f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'") from e
         else:
             operation_name = p
-            operation = target_world.get_asset_operation(operation_name)
+            operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+            operation = next((op for op in operations if op.name == operation_name), None)
 
             if not operation:
                 raise ValueError(f"Unknown operation '{operation_name}' specified.")
 
-            supported_types = operation.get_supported_types()
-            if not supported_types.get("mimetypes") and not supported_types.get("extensions"):
-                typer.secho(
-                    f"Operation '{operation_name}' does not support automatic type resolution.",
-                    fg=typer.colors.YELLOW,
-                )
-                continue
-            for mime_type in supported_types.get("mimetypes", []):
-                if mime_type not in process_map:
-                    process_map[mime_type] = []
-                process_map[mime_type].append(operation_name)
-            for extension in supported_types.get("extensions", []):
-                if extension not in process_map:
-                    process_map[extension] = []
-                process_map[extension].append(operation_name)
+            # supported_types = operation.get_supported_types()
+            # if not supported_types.get("mimetypes") and not supported_types.get("extensions"):
+            #     typer.secho(
+            #         f"Operation '{operation_name}' does not support automatic type resolution.",
+            #         fg=typer.colors.YELLOW,
+            #     )
+            #     continue
+            # for mime_type in supported_types.get("mimetypes", []):
+            #     if mime_type not in process_map:
+            #         process_map[mime_type] = []
+            #     process_map[mime_type].append(operation_name)
+            # for extension in supported_types.get("extensions", []):
+            #     if extension not in process_map:
+            #         process_map[extension] = []
+            #     process_map[extension].append(operation_name)
     return process_map
 
 
@@ -192,14 +194,14 @@ async def _get_or_register_entity(target_world: World, file_path: Path) -> tuple
     return entity_id, False
 
 
-async def _get_action_for_operation(target_world: World, operation: AssetOperation, entity_id: int) -> str:
+async def _get_action_for_operation(target_world: World, operation: TraitImplementation, entity_id: int) -> str:
     """Determine the action to take for a given operation and entity."""
-    if operation.check_command_class:
-        check_cmd = operation.check_command_class(entity_id=entity_id)
+    if AssetOperationTrait.Check in operation.handlers:
+        check_cmd = AssetOperationTrait.Check(entity_id=entity_id)
         async with target_world.get_context(WorldTransaction)():
             already_exists = await target_world.dispatch_command(check_cmd).get_one_value()
         if already_exists:
-            return "reprocess" if operation.reprocess_derived_command_class else "skip"
+            return "reprocess" if AssetOperationTrait.Add in operation.handlers else "skip"
     return "add"
 
 
@@ -337,7 +339,8 @@ async def _process_entity(  # noqa: PLR0912
         return
 
     for operation_name in set(commands_to_run):
-        operation = target_world.get_asset_operation(operation_name)
+        operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+        operation = next((op for op in operations if op.name == operation_name), None)
         if not operation:
             tqdm.write(f"Warning: Operation '{operation_name}' not found.")
             continue
@@ -345,17 +348,17 @@ async def _process_entity(  # noqa: PLR0912
         action = await _get_action_for_operation(target_world, operation, entity_id)
 
         processing_cmd = None
-        if action == "add" and operation.add_command_class:
+        if action == "add" and AssetOperationTrait.Add in operation.handlers:
             tqdm.write(f"Running {operation_name} on entity {entity_id} at depth {depth}")
-            processing_cmd = operation.add_command_class(
+            processing_cmd = AssetOperationTrait.Add(
                 entity_id=entity_id,
                 stream_provider=stream_provider_from_event,  # type: ignore [call-arg]
             )
-        elif action == "reprocess" and operation.reprocess_derived_command_class:
+        elif action == "reprocess" and AssetOperationTrait.Add in operation.handlers:
             tqdm.write(
                 f"Data for '{operation_name}' exists, reprocessing derived for entity {entity_id} at depth {depth}"
             )
-            processing_cmd = operation.reprocess_derived_command_class(entity_id=entity_id)
+            processing_cmd = AssetOperationTrait.Add(entity_id=entity_id)
         elif action == "skip":
             tqdm.write(f"Skipping operation '{operation_name}' for entity {entity_id}: data already exists.")
             continue
@@ -432,18 +435,18 @@ async def process_entities(
     if not target_world:
         raise typer.Exit(code=1)
 
-    operation = target_world.get_asset_operation(operation_name)
+    operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+    operation = next((op for op in operations if op.name == operation_name), None)
     if not operation:
         typer.secho(f"Unknown operation '{operation_name}' specified.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    command_class = operation.add_command_class
     typer.echo(f"Executing operation '{operation_name}' on {len(entity_ids)} entities...")
 
     for entity_id in entity_ids:
         typer.echo(f"Processing entity {entity_id}...")
         try:
-            processing_cmd = command_class(entity_id=entity_id, stream_provider=None)  # type: ignore [call-arg]
+            processing_cmd = AssetOperationTrait.Add(entity_id=entity_id, stream_provider=None)  # type: ignore [call-arg]
             async with target_world.get_context(WorldTransaction)():
                 stream = target_world.dispatch_command(processing_cmd)
                 async for event in stream:
@@ -469,22 +472,22 @@ async def remove_data(
     if not target_world:
         raise typer.Exit(code=1)
 
-    operation = target_world.get_asset_operation(operation_name)
+    operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+    operation = next((op for op in operations if op.name == operation_name), None)
     if not operation:
         typer.secho(f"Unknown operation '{operation_name}' specified.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    if not operation.remove_command_class:
+    if AssetOperationTrait.Remove not in operation.handlers:
         typer.secho(f"Operation '{operation_name}' does not support removing data.", fg=typer.colors.YELLOW)
         raise typer.Exit(code=1)
 
-    command_class = operation.remove_command_class
     typer.echo(f"Executing remove data for '{operation_name}' on {len(entity_ids)} entities...")
 
     for entity_id in entity_ids:
         typer.echo(f"Processing entity {entity_id}...")
         try:
-            processing_cmd = command_class(entity_id=entity_id)
+            processing_cmd = AssetOperationTrait.Remove(entity_id=entity_id)
             async with target_world.get_context(WorldTransaction)():
                 await target_world.dispatch_command(processing_cmd).get_all_results()
             typer.secho(f"  -> Data removed for entity {entity_id}.", fg=typer.colors.GREEN)
@@ -505,21 +508,21 @@ async def check_data(
     if not target_world:
         raise typer.Exit(code=1)
 
-    operation = target_world.get_asset_operation(operation_name)
+    operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+    operation = next((op for op in operations if op.name == operation_name), None)
     if not operation:
         typer.secho(f"Unknown operation '{operation_name}' specified.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    if not operation.check_command_class:
+    if AssetOperationTrait.Check not in operation.handlers:
         typer.secho(f"Operation '{operation_name}' does not support checking data.", fg=typer.colors.YELLOW)
         raise typer.Exit(code=1)
 
-    command_class = operation.check_command_class
     typer.echo(f"Executing check data for '{operation_name}' on {len(entity_ids)} entities...")
 
     for entity_id in entity_ids:
         try:
-            processing_cmd = command_class(entity_id=entity_id)
+            processing_cmd = AssetOperationTrait.Check(entity_id=entity_id)
             async with target_world.get_context(WorldTransaction)():
                 result = await target_world.dispatch_command(processing_cmd).get_one_value()
 
@@ -541,7 +544,7 @@ async def list_processes():
     if not target_world:
         raise typer.Exit(code=1)
 
-    operations = target_world.get_all_asset_operations()
+    operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
 
     if not operations:
         typer.secho("No asset processing operations found.", fg=typer.colors.YELLOW)
@@ -554,9 +557,9 @@ async def list_processes():
     table.add_column("Supported Extensions", style="blue")
 
     for op in sorted(operations, key=lambda x: x.name):
-        supported_types = op.get_supported_types()
-        mimetypes = ", ".join(supported_types.get("mimetypes", []))
-        extensions = ", ".join(supported_types.get("extensions", []))
+        # supported_types = op.get_supported_types()
+        mimetypes = ", ".join([])
+        extensions = ", ".join([])
         table.add_row(op.name, op.description, mimetypes, extensions)
 
     console = Console()

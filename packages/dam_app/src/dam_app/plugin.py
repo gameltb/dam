@@ -1,9 +1,15 @@
 """Defines the DAM application plugin and its lifecycle hooks."""
 
-from dam.core.plugin import Plugin
-from dam.core.world import World
+from typing import cast
 
-from .operations import extract_exif_operation
+from dam.core.plugin import Plugin
+from dam.core.types import ComponentClass
+from dam.core.world import World
+from dam.models.metadata.content_mime_type_component import ContentMimeTypeComponent
+from dam.traits.asset_operation import AssetOperationTrait
+from dam.traits.identifier import TraitImplementationIdentifier
+from dam.traits.traits import TraitImplementation
+
 from .settings import AppSettingsComponent, AppSettingsModel
 from .systems.auto_tagging_system import auto_tag_entity_command_handler
 from .systems.ingestion_systems import asset_dispatcher_system
@@ -33,7 +39,20 @@ class AppPlugin(Plugin):
         world.register_system(asset_dispatcher_system)
 
         # Register Asset Operations
-        world.register_asset_operation(extract_exif_operation)
+        extract_exif_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: extract_metadata_command_handler,
+                AssetOperationTrait.Check: check_exif_metadata_handler,
+                AssetOperationTrait.Remove: remove_exif_metadata_handler,
+            },
+            identifier=TraitImplementationIdentifier.from_string(
+                "asset.operation.extract_exif|ContentMimeTypeComponent"
+            ),
+            name="extract-exif-metadata",
+            description="Extracts EXIF metadata from image files.",
+        )
+        world.trait_manager.register(cast(ComponentClass, ContentMimeTypeComponent), extract_exif_implementation)
 
     async def on_stop(self, _world: "World"):
         """Stop the persistent exiftool process when the world shuts down."""

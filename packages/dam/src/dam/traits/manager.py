@@ -3,18 +3,10 @@
 from collections import defaultdict
 from typing import Any
 
-from dam.core.types import AnySystem
+from dam.core.types import AnySystem, ComponentClass
 from dam.models import BaseComponent
-from dam.traits.traits import Trait
-
-
-class TraitImplementation:
-    """A concrete implementation of a trait."""
-
-    def __init__(self, trait: type[Trait], handlers: dict[type[Any], AnySystem]):
-        """Initialize the TraitImplementation."""
-        self.trait = trait
-        self.handlers = handlers
+from dam.traits.identifier import TraitImplementationIdentifier
+from dam.traits.traits import Trait, TraitImplementation
 
 
 class TraitManager:
@@ -22,30 +14,32 @@ class TraitManager:
 
     def __init__(self) -> None:
         """Initialize the TraitManager."""
-        self._implementations: dict[
-            type[BaseComponent] | tuple[type[BaseComponent], ...], list[TraitImplementation]
+        self._implementations_by_component: dict[
+            ComponentClass | tuple[ComponentClass, ...], list[TraitImplementation]
         ] = defaultdict(list)
+        self._implementations_by_id: dict[TraitImplementationIdentifier, TraitImplementation] = {}
         self._trait_map: dict[str, type[Trait]] = {}
 
     def register(
         self,
-        component_type: type[BaseComponent] | tuple[type[BaseComponent], ...],
+        component_type: ComponentClass | tuple[ComponentClass, ...],
         implementation: TraitImplementation,
     ) -> None:
         """Register a trait implementation for a component type."""
-        identifier = str(implementation.trait.identifier)
-        if identifier in self._trait_map and self._trait_map[identifier] is not implementation.trait:
-            raise ValueError(f"Trait with identifier '{identifier}' already registered.")
+        trait_id = str(implementation.trait.identifier)
+        if trait_id in self._trait_map and self._trait_map[trait_id] is not implementation.trait:
+            raise ValueError(f"Trait with identifier '{trait_id}' already registered.")
 
-        self._trait_map[identifier] = implementation.trait
-        self._implementations[component_type].append(implementation)
+        self._trait_map[trait_id] = implementation.trait
+        self._implementations_by_component[component_type].append(implementation)
+        self._implementations_by_id[implementation.identifier] = implementation
 
     def get_implementations_for_components(
         self, component_types: set[type[BaseComponent]]
     ) -> list[TraitImplementation]:
         """Get all trait implementations for a set of component types."""
         implementations: list[TraitImplementation] = []
-        for key, impls in self._implementations.items():
+        for key, impls in self._implementations_by_component.items():
             if isinstance(key, tuple):
                 if all(k in component_types for k in key):
                     implementations.extend(impls)
@@ -64,3 +58,11 @@ class TraitManager:
     def get_trait_by_id(self, identifier: str) -> type[Trait] | None:
         """Get a trait by its identifier."""
         return self._trait_map.get(identifier)
+
+    def get_implementation_by_id(self, identifier: TraitImplementationIdentifier) -> TraitImplementation | None:
+        """Get a trait implementation by its identifier."""
+        return self._implementations_by_id.get(identifier)
+
+    def get_implementations_for_trait(self, trait: type[Trait]) -> list[TraitImplementation]:
+        """Get all implementations for a trait."""
+        return [impl for impl in self._implementations_by_id.values() if impl.trait is trait]

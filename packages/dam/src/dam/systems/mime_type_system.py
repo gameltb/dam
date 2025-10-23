@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @system(on_command=CheckContentMimeTypeCommand)
-async def check_content_mime_type_handler(
+async def check_mime_type_system(
     cmd: CheckContentMimeTypeCommand,
     transaction: WorldTransaction,
 ) -> bool:
@@ -30,7 +30,7 @@ async def check_content_mime_type_handler(
 
 
 @system(on_command=RemoveContentMimeTypeCommand)
-async def remove_content_mime_type_handler(
+async def remove_mime_type_system(
     cmd: RemoveContentMimeTypeCommand,
     transaction: WorldTransaction,
 ):

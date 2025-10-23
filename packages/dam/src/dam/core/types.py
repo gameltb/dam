@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 from dam.commands.core import BaseCommand, EventType, ResultType
+from dam.models.core.base_component import BaseComponent
 
 AnySystem = Callable[..., Any]
 CommandHandler = Callable[[BaseCommand[ResultType, EventType]], ResultType | AsyncIterator[EventType]]
+ComponentClass = type[BaseComponent]
 
 
 class StreamProvider(ABC):

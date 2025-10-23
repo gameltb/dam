@@ -5,6 +5,9 @@ from __future__ import annotations
 from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
+from dam.traits.asset_operation import AssetOperationTrait
+from dam.traits.identifier import TraitImplementationIdentifier
+from dam.traits.traits import TraitImplementation
 
 from . import psp_iso_functions
 from .commands import (
@@ -16,7 +19,7 @@ from .commands import (
     ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
-from .operations import decompress_cso_operation, extract_psp_metadata_operation
+from .models import CsoDecompressionComponent, PspMetadataComponent
 from .settings import PspSettingsComponent, PspSettingsModel
 from .systems import (
     check_cso_ingestion_handler,
@@ -51,8 +54,35 @@ class PspPlugin(Plugin):
         world.register_system(reissue_virtual_iso_event_handler, command_type=ReissueVirtualIsoEventCommand)
 
         # Register Asset Operations
-        world.register_asset_operation(extract_psp_metadata_operation)
-        world.register_asset_operation(decompress_cso_operation)
+        extract_psp_metadata_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: psp_iso_metadata_extraction_command_handler_system,
+                AssetOperationTrait.Check: check_psp_metadata_handler,
+                AssetOperationTrait.Remove: remove_psp_metadata_handler,
+            },
+            identifier=TraitImplementationIdentifier.from_string(
+                "asset.operation.extract_psp_metadata|PspMetadataComponent"
+            ),
+            name="extract-psp-metadata",
+            description="Extracts metadata from PSP ISO files.",
+        )
+        world.trait_manager.register(PspMetadataComponent, extract_psp_metadata_implementation)
+
+        decompress_cso_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: ingest_cso_handler,
+                AssetOperationTrait.Check: check_cso_ingestion_handler,
+                AssetOperationTrait.Remove: clear_cso_ingestion_handler,
+            },
+            identifier=TraitImplementationIdentifier.from_string(
+                "asset.operation.decompress_cso|CsoDecompressionComponent"
+            ),
+            name="cso.decompress",
+            description="Decompresses a CSO file into a virtual ISO.",
+        )
+        world.trait_manager.register(CsoDecompressionComponent, decompress_cso_implementation)
 
 
-__all__ = ["PspPlugin", "decompress_cso_operation", "extract_psp_metadata_operation", "psp_iso_functions"]
+__all__ = ["PspPlugin", "psp_iso_functions"]
