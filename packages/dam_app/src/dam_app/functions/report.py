@@ -31,7 +31,9 @@ class DeletePlanRow:
     details: str
 
 
-async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir: Path) -> Sequence[DeletePlanRow]:
+async def create_delete_plan(
+    session: AsyncSession, source_dir: Path, target_dir: Path, min_size_bytes: int
+) -> Sequence[DeletePlanRow]:
     """Create a plan to delete duplicate files from the target directory."""
 
     def get_all_entries_query():
@@ -87,8 +89,8 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
 
     all_entries = get_all_entries_query().subquery()
 
-    source_path_filter = source_dir.as_uri() + "/" if source_dir.is_dir() else ""
-    target_path_filter = target_dir.as_uri() + "/" if source_dir.is_dir() else ""
+    source_path_filter = source_dir.as_uri() + "/"
+    target_path_filter = target_dir.as_uri() + "/"
 
     source_query = select(all_entries).where(all_entries.c.path.startswith(source_path_filter))
     target_query = select(all_entries).where(all_entries.c.path.startswith(target_path_filter))
@@ -121,14 +123,16 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
 
     # Process archives in the target directory
     for archive_path, members in target_archives.items():
-        # Check if ALL members of this archive are duplicates
         all_members_in_archive_query = select(all_entries).where(
             and_(all_entries.c.path == archive_path, all_entries.c.member_path.is_not(None))
         )
         all_members = (await session.execute(all_members_in_archive_query)).all()
 
-        if len(all_members) == len(members):
-            # All members are duplicates, so delete the whole archive.
+        duplicate_members = [m for m in members if m.hash_value in source_map]
+        is_fully_duplicated = len(all_members) == len(duplicate_members) and len(all_members) > 0
+        total_duplicated_size = sum(m.file_size_bytes for m in duplicate_members if m.file_size_bytes)
+
+        if is_fully_duplicated or (duplicate_members and total_duplicated_size >= min_size_bytes):
             archive_file_info_query = (
                 select(
                     ContentHashSHA256Component.hash_value,
@@ -145,18 +149,23 @@ async def create_delete_plan(session: AsyncSession, source_dir: Path, target_dir
 
             if archive_info:
                 details_list: list[str] = []
-                for member_row in members:
-                    source_row = source_map[member_row.hash_value][0]  # Pick the first one
+                for member_row in duplicate_members:
+                    source_row = source_map[member_row.hash_value][0]
                     details_list.append(f"'{format_path(member_row)}' is a duplicate of '{format_path(source_row)}'")
                 details_str = "; ".join(details_list)
 
                 target_path_str = str(get_local_path_for_url(archive_path))
+                details = (
+                    f"All members are duplicates: [{details_str}]"
+                    if is_fully_duplicated
+                    else f"Duplicate members size ({total_duplicated_size} bytes) exceeds threshold: [{details_str}]"
+                )
                 delete_plan_items[target_path_str] = DeletePlanRow(
                     source_path="Multiple files in source directory",
                     target_path=target_path_str,
                     hash=archive_info.hash_value.hex(),
                     size=archive_info.file_size_bytes or 0,
-                    details=f"All members are duplicates: [{details_str}]",
+                    details=details,
                 )
 
     return list(delete_plan_items.values())

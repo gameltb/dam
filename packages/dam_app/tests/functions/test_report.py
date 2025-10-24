@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from dam.core.transaction import WorldTransaction
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
+from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_test_utils.types import WorldFactory
@@ -177,8 +178,15 @@ async def test_create_delete_plan(world_factory: WorldFactory):
             target_archive_entity.id,
             FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
         )
+
+        # Create new entities for the archive members
+        member1_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(
-            source_entity1.id,
+            member1_entity.id,
+            ContentHashSHA256Component(hash_value=hash1),
+        )
+        await transaction.add_component_to_entity(
+            member1_entity.id,
             ArchiveMemberComponent(
                 archive_entity_id=target_archive_entity.id,
                 path_in_archive="member1",
@@ -186,8 +194,13 @@ async def test_create_delete_plan(world_factory: WorldFactory):
                 compressed_size=None,
             ),
         )
+        member2_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(
-            source_entity2.id,
+            member2_entity.id,
+            ContentHashSHA256Component(hash_value=hash2),
+        )
+        await transaction.add_component_to_entity(
+            member2_entity.id,
             ArchiveMemberComponent(
                 archive_entity_id=target_archive_entity.id,
                 path_in_archive="member2",
@@ -207,7 +220,9 @@ async def test_create_delete_plan(world_factory: WorldFactory):
             FileLocationComponent(url="file:///tmp/target/unique_file", last_modified_at=datetime.now()),
         )
 
-        delete_plan = await create_delete_plan(transaction.session, Path("/tmp/source"), Path("/tmp/target"))
+        delete_plan = await create_delete_plan(
+            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=0
+        )
 
         assert len(delete_plan) == 2
 
@@ -233,3 +248,78 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         # Ensure all target paths are in the target directory
         for plan_item in delete_plan:
             assert plan_item.target_path.startswith("/tmp/target")
+
+
+@pytest.mark.asyncio
+async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
+    """Test that the create_delete_plan function returns the correct delete plan when a min size is specified."""
+    world = await world_factory("test_world", [])
+    async with world.get_context(WorldTransaction)() as transaction:
+        # Source files
+        source_entity1 = await transaction.create_entity()
+        hash1 = hashlib.sha256(b"hash1").digest()
+        await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
+        await transaction.add_component_to_entity(
+            source_entity1.id,
+            FileLocationComponent(url="file:///tmp/source/file1", last_modified_at=datetime.now()),
+        )
+        await transaction.add_component_to_entity(
+            source_entity1.id, ContentLengthComponent(file_size_bytes=50 * 1024 * 1024)
+        )
+
+        # Target files
+        # An archive in the target directory with one duplicate member and one unique member
+        target_archive_entity = await transaction.create_entity()
+        archive_hash = hashlib.sha256(b"archive_hash").digest()
+        await transaction.add_component_to_entity(
+            target_archive_entity.id, ContentHashSHA256Component(hash_value=archive_hash)
+        )
+        await transaction.add_component_to_entity(
+            target_archive_entity.id,
+            FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
+        )
+
+        # Create a new entity for the archive member that is a duplicate
+        duplicate_member_entity = await transaction.create_entity()
+        await transaction.add_component_to_entity(
+            duplicate_member_entity.id, ContentHashSHA256Component(hash_value=hash1)
+        )
+        await transaction.add_component_to_entity(
+            duplicate_member_entity.id,
+            ContentLengthComponent(file_size_bytes=50 * 1024 * 1024),
+        )
+        await transaction.add_component_to_entity(
+            duplicate_member_entity.id,
+            ArchiveMemberComponent(
+                archive_entity_id=target_archive_entity.id,
+                path_in_archive="member1",
+                modified_at=datetime.now(),
+                compressed_size=None,
+            ),
+        )
+
+        unique_entity = await transaction.create_entity()
+        unique_hash = hashlib.sha256(b"unique").digest()
+        await transaction.add_component_to_entity(unique_entity.id, ContentHashSHA256Component(hash_value=unique_hash))
+        await transaction.add_component_to_entity(
+            unique_entity.id,
+            ArchiveMemberComponent(
+                archive_entity_id=target_archive_entity.id,
+                path_in_archive="member2",
+                modified_at=datetime.now(),
+                compressed_size=None,
+            ),
+        )
+
+        # Test with min_size below the duplicate size, should return the archive
+        delete_plan = await create_delete_plan(
+            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=40 * 1024 * 1024
+        )
+        assert len(delete_plan) == 1
+        assert delete_plan[0].target_path == "/tmp/target/archive.zip"
+
+        # Test with min_size above the duplicate size, should not return the archive
+        delete_plan = await create_delete_plan(
+            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=60 * 1024 * 1024
+        )
+        assert len(delete_plan) == 0
