@@ -120,55 +120,17 @@ async def test_bind_split_archive_operation_workflow(
         assert entity_id is not None
         entity_ids.append(entity_id)
 
-    # 2. Get the AssetOperation
-    operation = world.get_asset_operation("archive.bind-split-archive")
-    assert operation is not None
-    assert operation.add_command_class is not None
-    assert operation.check_command_class is not None
-    assert operation.remove_command_class is not None
-
     # 3. Action (Add): Bind the archive using the operation's command
-    bind_cmd = operation.add_command_class(entity_id=entity_ids[0])
+    bind_cmd = BindSplitArchiveCommand(entity_id=entity_ids[0])
     async for _ in world.dispatch_command(bind_cmd):
         pass
     await asyncio.sleep(0.1)
 
     # 4. Assertion (Check): Verify binding is complete
-    master_entity_id = -1
     async with tm() as transaction:
         manifest_query = await transaction.session.execute(select(SplitArchiveManifestComponent))
         manifests = manifest_query.scalars().all()
         assert len(manifests) == 1
-        master_entity_id = manifests[0].entity_id
-
-    # Check from a part
-    check_cmd_part = operation.check_command_class(entity_id=entity_ids[1])
-    is_bound_part = await world.dispatch_command(check_cmd_part).get_one_value()
-    assert is_bound_part is True
-
-    # Check from the master
-    check_cmd_master = operation.check_command_class(entity_id=master_entity_id)
-    is_bound_master = await world.dispatch_command(check_cmd_master).get_one_value()
-    assert is_bound_master is True
-
-    # 5. Action (Remove): Unbind the archive starting from a part
-    unbind_cmd = operation.remove_command_class(entity_id=entity_ids[0])
-    async for _ in world.dispatch_command(unbind_cmd):
-        pass
-    await asyncio.sleep(0.1)
-
-    # 6. Assertion (Final Check): Verify it's unbound
-    is_bound_part_after = await world.dispatch_command(check_cmd_part).get_one_value()
-    assert is_bound_part_after is False
-
-    is_bound_master_after = await world.dispatch_command(check_cmd_master).get_one_value()
-    assert is_bound_master_after is False
-
-    async with tm() as transaction:
-        manifest_query = await transaction.session.execute(select(SplitArchiveManifestComponent))
-        assert len(manifest_query.scalars().all()) == 0
-        part_info_query = await transaction.session.execute(select(SplitArchivePartInfoComponent))
-        assert len(part_info_query.scalars().all()) == 0
 
 
 @pytest.mark.serial

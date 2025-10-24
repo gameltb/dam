@@ -7,6 +7,9 @@ from dam.commands.asset_commands import (
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
+from dam.models.metadata import ContentMimeTypeComponent
+from dam.traits.asset_operation import AssetOperationTrait
+from dam.traits.traits import TraitImplementation
 
 from .commands.ingestion import (
     CheckArchiveCommand,
@@ -24,11 +27,6 @@ from .commands.split_archives import (
     CheckSplitArchiveBindingCommand,
     CreateMasterArchiveCommand,
     UnbindSplitArchiveCommand,
-)
-from .operations import (
-    bind_split_archive_operation,
-    ingest_archive_operation,
-    set_archive_password_operation,
 )
 from .settings import ArchiveSettingsComponent, ArchiveSettingsModel
 from .systems.discovery import discover_archive_path_siblings_handler
@@ -82,6 +80,39 @@ class ArchivePlugin(Plugin):
         world.register_system(discover_archive_path_siblings_handler, command_type=DiscoverPathSiblingsCommand)
 
         # Register Asset Operations
-        world.register_asset_operation(ingest_archive_operation)
-        world.register_asset_operation(set_archive_password_operation)
-        world.register_asset_operation(bind_split_archive_operation)
+        bind_split_archive_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: bind_split_archive_handler,
+                AssetOperationTrait.Check: check_split_archive_binding_handler,
+                AssetOperationTrait.Remove: unbind_split_archive_handler,
+            },
+            name="archive.bind-split-archive",
+            description="Finds and binds all parts of a split archive into a single master entity.",
+        )
+        world.trait_manager.register(bind_split_archive_implementation, ContentMimeTypeComponent)
+
+        ingest_archive_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: ingest_archive_members_handler,
+                AssetOperationTrait.Check: check_archive_handler,
+                AssetOperationTrait.Remove: clear_archive_components_handler,
+                AssetOperationTrait.ReprocessDerived: reissue_archive_member_events_handler,
+            },
+            name="archive.ingest",
+            description="Ingests members from an archive file.",
+        )
+        world.trait_manager.register(ingest_archive_implementation, ContentMimeTypeComponent)
+
+        set_archive_password_implementation = TraitImplementation(
+            trait=AssetOperationTrait,
+            handlers={
+                AssetOperationTrait.Add: set_archive_password_handler,
+                AssetOperationTrait.Check: check_archive_password_handler,
+                AssetOperationTrait.Remove: remove_archive_password_handler,
+            },
+            name="archive.set-password",
+            description="Sets the password for an archive.",
+        )
+        world.trait_manager.register(set_archive_password_implementation, ContentMimeTypeComponent)

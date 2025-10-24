@@ -101,5 +101,7 @@ class FsPlugin(Plugin):
                 AssetContentReadable.GetStream: get_stream_from_file,
                 AssetContentReadable.GetSize: get_size_from_file,
             },
+            name="asset.content.readable",
+            description="Provides a way to read the raw content of an asset.",
         )
-        world.trait_manager.register(FileLocationComponent, readable_impl)
+        world.trait_manager.register(readable_impl, component_type=FileLocationComponent)

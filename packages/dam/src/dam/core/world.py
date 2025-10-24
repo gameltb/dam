@@ -8,12 +8,12 @@ from dam.commands.core import BaseCommand, EventType, ResultType
 from dam.contexts import ContextProvider
 from dam.core.database import DatabaseManager
 from dam.core.executor import SystemExecutor
-from dam.core.operations import AssetOperation
 from dam.core.plugin import Plugin
 from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
 from dam.events import BaseEvent
+from dam.models.core.base_component import Component
 from dam.system_events.base import SystemResultEvent
 from dam.traits import Trait, TraitManager
 
@@ -46,25 +46,9 @@ class World:
         self.scheduler: WorldScheduler = WorldScheduler(world=self)
         self.trait_manager: TraitManager = TraitManager()
         self._registered_plugin_types: set[type[Plugin]] = set()
-        self.asset_operations: dict[str, AssetOperation] = {}
         self.context_providers: dict[type[Any], ContextProvider[Any]] = {}
         self.add_resource(self)
         self.logger.info("Minimal World '%s' instance created. Base resources to be populated externally.", self.name)
-
-    def register_asset_operation(self, operation: AssetOperation) -> None:
-        """Register an asset operation with the world."""
-        if operation.name in self.asset_operations:
-            self.logger.warning("Overwriting asset operation for name %s.", operation.name)
-        self.asset_operations[operation.name] = operation
-        self.logger.info("Asset operation '%s' registered in world '%s'.", operation.name, self.name)
-
-    def get_asset_operation(self, name: str) -> AssetOperation | None:
-        """Retrieve a registered asset operation by its name."""
-        return self.asset_operations.get(name)
-
-    def get_all_asset_operations(self) -> list[AssetOperation]:
-        """Return a list of all registered asset operations."""
-        return list(self.asset_operations.values())
 
     def add_resource(self, instance: object, resource_type: type[Any] | None = None) -> None:
         """Add a resource to the world's resource manager."""
@@ -187,7 +171,9 @@ class World:
         """Return a list of available traits for a given entity."""
         db = self.get_resource(DatabaseManager)
         component_types = await db.get_component_types_for_entity(entity_id)
-        implementations = self.trait_manager.get_implementations_for_components(component_types)
+        implementations = self.trait_manager.get_implementations_for_components(
+            cast(set[type[Component]], component_types)
+        )
         return [impl.trait() for impl in implementations]
 
 
