@@ -179,14 +179,9 @@ async def test_create_delete_plan(world_factory: WorldFactory):
             FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
         )
 
-        # Create new entities for the archive members
-        member1_entity = await transaction.create_entity()
+        # Add archive members that are duplicates of the source files
         await transaction.add_component_to_entity(
-            member1_entity.id,
-            ContentHashSHA256Component(hash_value=hash1),
-        )
-        await transaction.add_component_to_entity(
-            member1_entity.id,
+            source_entity1.id,
             ArchiveMemberComponent(
                 archive_entity_id=target_archive_entity.id,
                 path_in_archive="member1",
@@ -194,13 +189,8 @@ async def test_create_delete_plan(world_factory: WorldFactory):
                 compressed_size=None,
             ),
         )
-        member2_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(
-            member2_entity.id,
-            ContentHashSHA256Component(hash_value=hash2),
-        )
-        await transaction.add_component_to_entity(
-            member2_entity.id,
+            source_entity2.id,
             ArchiveMemberComponent(
                 archive_entity_id=target_archive_entity.id,
                 path_in_archive="member2",
@@ -279,17 +269,9 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
             FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
         )
 
-        # Create a new entity for the archive member that is a duplicate
-        duplicate_member_entity = await transaction.create_entity()
+        # An archive member that is a duplicate
         await transaction.add_component_to_entity(
-            duplicate_member_entity.id, ContentHashSHA256Component(hash_value=hash1)
-        )
-        await transaction.add_component_to_entity(
-            duplicate_member_entity.id,
-            ContentLengthComponent(file_size_bytes=50 * 1024 * 1024),
-        )
-        await transaction.add_component_to_entity(
-            duplicate_member_entity.id,
+            source_entity1.id,
             ArchiveMemberComponent(
                 archive_entity_id=target_archive_entity.id,
                 path_in_archive="member1",
