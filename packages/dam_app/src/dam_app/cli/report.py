@@ -246,6 +246,14 @@ async def create_delete_report(
             resolve_path=True,
         ),
     ],
+    min_size: Annotated[
+        int,
+        typer.Option(
+            "--min-size",
+            "-m",
+            help="Minimum size in MB for reporting duplicates in archives.",
+        ),
+    ] = 100,
 ):
     """Create a report of files to delete from the target directory."""
     world = get_world()
@@ -253,10 +261,11 @@ async def create_delete_report(
         return
 
     console = Console()
+    min_size_bytes = min_size * 1024 * 1024
 
     async with world.get_context(WorldTransaction)() as transaction:
         session = transaction.session
-        delete_plan = await create_delete_plan(session, source_dir, target_dir)
+        delete_plan = await create_delete_plan(session, source_dir, target_dir, min_size_bytes)
 
         if not delete_plan:
             console.print("No duplicate files found to delete.")
