@@ -11,7 +11,6 @@ from dam.core.plugin import Plugin
 from dam.core.world import World
 from dam.traits import TraitImplementation
 from dam.traits.asset_content import AssetContentReadable
-from dam.traits.identifier import TraitImplementationIdentifier
 
 from .commands import (
     AddFilePropertiesCommand,
@@ -102,8 +101,7 @@ class FsPlugin(Plugin):
                 AssetContentReadable.GetStream: get_stream_from_file,
                 AssetContentReadable.GetSize: get_size_from_file,
             },
-            identifier=TraitImplementationIdentifier.from_string("asset.content.readable|FileLocationComponent"),
             name="asset.content.readable",
             description="Provides a way to read the raw content of an asset.",
         )
-        world.trait_manager.register(FileLocationComponent, readable_impl)
+        world.trait_manager.register(readable_impl, component_type=FileLocationComponent)

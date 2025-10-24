@@ -8,7 +8,6 @@ from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
 from dam.traits.asset_operation import AssetOperationTrait
-from dam.traits.identifier import TraitImplementationIdentifier
 from dam.traits.traits import TraitImplementation
 
 from .commands.ingestion import (
@@ -28,7 +27,7 @@ from .commands.split_archives import (
     CreateMasterArchiveCommand,
     UnbindSplitArchiveCommand,
 )
-from .models.archive_component import ArchiveComponent
+from .models import ArchiveComponent
 from .settings import ArchiveSettingsComponent, ArchiveSettingsModel
 from .systems.discovery import discover_archive_path_siblings_handler
 from .systems.ingestion import (
@@ -88,11 +87,10 @@ class ArchivePlugin(Plugin):
                 AssetOperationTrait.Check: check_split_archive_binding_handler,
                 AssetOperationTrait.Remove: unbind_split_archive_handler,
             },
-            identifier=TraitImplementationIdentifier.from_string("asset.operation.bind_split_archive|ArchiveComponent"),
             name="archive.bind-split-archive",
             description="Finds and binds all parts of a split archive into a single master entity.",
         )
-        world.trait_manager.register(ArchiveComponent, bind_split_archive_implementation)
+        world.trait_manager.register(bind_split_archive_implementation, ArchiveComponent)
 
         ingest_archive_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -100,12 +98,12 @@ class ArchivePlugin(Plugin):
                 AssetOperationTrait.Add: ingest_archive_members_handler,
                 AssetOperationTrait.Check: check_archive_handler,
                 AssetOperationTrait.Remove: clear_archive_components_handler,
+                AssetOperationTrait.ReprocessDerived: reissue_archive_member_events_handler,
             },
-            identifier=TraitImplementationIdentifier.from_string("asset.operation.ingest_archive|ArchiveComponent"),
             name="archive.ingest",
             description="Ingests members from an archive file.",
         )
-        world.trait_manager.register(ArchiveComponent, ingest_archive_implementation)
+        world.trait_manager.register(ingest_archive_implementation, ArchiveComponent)
 
         set_archive_password_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -114,10 +112,7 @@ class ArchivePlugin(Plugin):
                 AssetOperationTrait.Check: check_archive_password_handler,
                 AssetOperationTrait.Remove: remove_archive_password_handler,
             },
-            identifier=TraitImplementationIdentifier.from_string(
-                "asset.operation.set_archive_password|ArchiveComponent"
-            ),
             name="archive.set-password",
             description="Sets the password for an archive.",
         )
-        world.trait_manager.register(ArchiveComponent, set_archive_password_implementation)
+        world.trait_manager.register(set_archive_password_implementation, ArchiveComponent)

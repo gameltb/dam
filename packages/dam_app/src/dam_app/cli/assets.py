@@ -27,7 +27,7 @@ from dam.system_events.progress import (
 )
 from dam.system_events.requests import PasswordRequest
 from dam.traits.asset_operation import AssetOperationTrait
-from dam.traits.traits import TraitImplementation
+from dam.traits.manager import RegisteredTraitImplementation
 from dam_fs.commands import (
     FindEntityByFilePropertiesCommand,
     RegisterLocalFileCommand,
@@ -47,6 +47,54 @@ app = AsyncTyper()
 MAX_RECURSION_DEPTH = 10
 
 
+def _parse_single_process_option(p: str, target_world: World, process_map: dict[str, list[str]]):
+    """Parse a single --process option string."""
+    if ":" in p:
+        try:
+            key, command_name = p.split(":", 1)
+            if key not in process_map:
+                process_map[key] = []
+            process_map[key].append(command_name)
+        except ValueError as e:
+            raise ValueError(f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'") from e
+    else:
+        operation_name = p
+        operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
+        operation = next((op for op in operations if op.name == operation_name), None)
+
+        if not operation:
+            raise ValueError(f"Unknown operation '{operation_name}' specified.")
+
+        add_handler = operation.handlers.get(AssetOperationTrait.Add)
+        if not add_handler:
+            typer.secho(
+                f"Operation '{operation_name}' does not have an 'Add' handler.",
+                fg=typer.colors.YELLOW,
+            )
+            return
+
+        command_class = next(
+            (v for k, v in add_handler.__annotations__.items() if k != "return"),
+            None,
+        )
+        if not command_class or not hasattr(command_class, "get_supported_types"):
+            typer.secho(
+                f"Operation '{operation_name}' does not support automatic type resolution.",
+                fg=typer.colors.YELLOW,
+            )
+            return
+
+        supported_types = command_class.get_supported_types()
+        for mime_type in supported_types.get("mimetypes", []):
+            if mime_type not in process_map:
+                process_map[mime_type] = []
+            process_map[mime_type].append(operation_name)
+        for extension in supported_types.get("extensions", []):
+            if extension not in process_map:
+                process_map[extension] = []
+            process_map[extension].append(operation_name)
+
+
 def _parse_process_options(process: list[str] | None, target_world: World) -> dict[str, list[str]]:
     """Parse the --process option strings into a map of keys to command names."""
     process_map: dict[str, list[str]] = {}
@@ -54,37 +102,7 @@ def _parse_process_options(process: list[str] | None, target_world: World) -> di
         return process_map
 
     for p in process:
-        if ":" in p:
-            try:
-                key, command_name = p.split(":", 1)
-                if key not in process_map:
-                    process_map[key] = []
-                process_map[key].append(command_name)
-            except ValueError as e:
-                raise ValueError(f"Invalid format for --process option: '{p}'. Must be 'key:CommandName'") from e
-        else:
-            operation_name = p
-            operations = target_world.trait_manager.get_implementations_for_trait(AssetOperationTrait)
-            operation = next((op for op in operations if op.name == operation_name), None)
-
-            if not operation:
-                raise ValueError(f"Unknown operation '{operation_name}' specified.")
-
-            # supported_types = operation.get_supported_types()
-            # if not supported_types.get("mimetypes") and not supported_types.get("extensions"):
-            #     typer.secho(
-            #         f"Operation '{operation_name}' does not support automatic type resolution.",
-            #         fg=typer.colors.YELLOW,
-            #     )
-            #     continue
-            # for mime_type in supported_types.get("mimetypes", []):
-            #     if mime_type not in process_map:
-            #         process_map[mime_type] = []
-            #     process_map[mime_type].append(operation_name)
-            # for extension in supported_types.get("extensions", []):
-            #     if extension not in process_map:
-            #         process_map[extension] = []
-            #     process_map[extension].append(operation_name)
+        _parse_single_process_option(p, target_world, process_map)
     return process_map
 
 
@@ -194,7 +212,9 @@ async def _get_or_register_entity(target_world: World, file_path: Path) -> tuple
     return entity_id, False
 
 
-async def _get_action_for_operation(target_world: World, operation: TraitImplementation, entity_id: int) -> str:
+async def _get_action_for_operation(
+    target_world: World, operation: RegisteredTraitImplementation, entity_id: int
+) -> str:
     """Determine the action to take for a given operation and entity."""
     if AssetOperationTrait.Check in operation.handlers:
         check_cmd = AssetOperationTrait.Check(entity_id=entity_id)
@@ -557,9 +577,22 @@ async def list_processes():
     table.add_column("Supported Extensions", style="blue")
 
     for op in sorted(operations, key=lambda x: x.name):
-        # supported_types = op.get_supported_types()
-        mimetypes = ", ".join([])
-        extensions = ", ".join([])
+        add_handler = op.handlers.get(AssetOperationTrait.Add)
+        if add_handler:
+            command_class = next(
+                (v for k, v in add_handler.__annotations__.items() if k != "return"),
+                None,
+            )
+            if command_class and hasattr(command_class, "get_supported_types"):
+                supported_types = command_class.get_supported_types()
+                mimetypes = ", ".join(supported_types.get("mimetypes", []))
+                extensions = ", ".join(supported_types.get("extensions", []))
+            else:
+                mimetypes = ""
+                extensions = ""
+        else:
+            mimetypes = ""
+            extensions = ""
         table.add_row(op.name, op.description, mimetypes, extensions)
 
     console = Console()

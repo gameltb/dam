@@ -13,6 +13,7 @@ from dam.core.resources import ResourceManager
 from dam.core.stages import SystemStage
 from dam.core.systems import WorldScheduler
 from dam.events import BaseEvent
+from dam.models.core.base_component import Component
 from dam.system_events.base import SystemResultEvent
 from dam.traits import Trait, TraitManager
 
@@ -170,7 +171,9 @@ class World:
         """Return a list of available traits for a given entity."""
         db = self.get_resource(DatabaseManager)
         component_types = await db.get_component_types_for_entity(entity_id)
-        implementations = self.trait_manager.get_implementations_for_components(component_types)
+        implementations = self.trait_manager.get_implementations_for_components(
+            cast(set[type[Component]], component_types)
+        )
         return [impl.trait() for impl in implementations]
 
 

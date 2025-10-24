@@ -6,7 +6,6 @@ from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
 from dam.traits.asset_operation import AssetOperationTrait
-from dam.traits.identifier import TraitImplementationIdentifier
 from dam.traits.traits import TraitImplementation
 
 from . import psp_iso_functions
@@ -61,13 +60,10 @@ class PspPlugin(Plugin):
                 AssetOperationTrait.Check: check_psp_metadata_handler,
                 AssetOperationTrait.Remove: remove_psp_metadata_handler,
             },
-            identifier=TraitImplementationIdentifier.from_string(
-                "asset.operation.extract_psp_metadata|PspMetadataComponent"
-            ),
             name="extract-psp-metadata",
             description="Extracts metadata from PSP ISO files.",
         )
-        world.trait_manager.register(PspMetadataComponent, extract_psp_metadata_implementation)
+        world.trait_manager.register(extract_psp_metadata_implementation, PspMetadataComponent)
 
         decompress_cso_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -76,13 +72,10 @@ class PspPlugin(Plugin):
                 AssetOperationTrait.Check: check_cso_ingestion_handler,
                 AssetOperationTrait.Remove: clear_cso_ingestion_handler,
             },
-            identifier=TraitImplementationIdentifier.from_string(
-                "asset.operation.decompress_cso|CsoDecompressionComponent"
-            ),
             name="cso.decompress",
             description="Decompresses a CSO file into a virtual ISO.",
         )
-        world.trait_manager.register(CsoDecompressionComponent, decompress_cso_implementation)
+        world.trait_manager.register(decompress_cso_implementation, CsoDecompressionComponent)
 
 
 __all__ = ["PspPlugin", "psp_iso_functions"]

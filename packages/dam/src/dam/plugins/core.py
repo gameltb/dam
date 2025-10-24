@@ -24,7 +24,6 @@ from dam.systems.mime_type_system import (
     set_mime_type_system,
 )
 from dam.traits.asset_operation import AssetOperationTrait
-from dam.traits.identifier import TraitImplementationIdentifier
 from dam.traits.traits import TraitImplementation
 
 logger = logging.getLogger(__name__)
@@ -106,8 +105,7 @@ class CorePlugin(Plugin):
                 AssetOperationTrait.Check: check_mime_type_system,
                 AssetOperationTrait.Remove: remove_mime_type_system,
             },
-            identifier=TraitImplementationIdentifier.from_string("asset.operation.set_mime_type|ContentComponent"),
             name="core.set_mime_type",
             description="Sets the mime type for an asset.",
         )
-        world.trait_manager.register(ContentComponent, set_mime_type_implementation)
+        world.trait_manager.register(set_mime_type_implementation, ContentComponent)

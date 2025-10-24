@@ -20,13 +20,12 @@ class TraitImplementation:
         self,
         trait: type[Trait],
         handlers: dict[type[Any], AnySystem],
-        identifier: TraitImplementationIdentifier,
         name: str,
         description: str,
     ):
         """Initialize the TraitImplementation."""
         self.trait = trait
         self.handlers = handlers
-        self.identifier = identifier
         self.name = name
         self.description = description
+        self.identifier: TraitImplementationIdentifier | None = None
