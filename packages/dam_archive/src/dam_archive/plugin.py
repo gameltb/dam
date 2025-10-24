@@ -7,6 +7,7 @@ from dam.commands.asset_commands import (
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
+from dam.models.metadata import ContentMimeTypeComponent
 from dam.traits.asset_operation import AssetOperationTrait
 from dam.traits.traits import TraitImplementation
 
@@ -27,7 +28,6 @@ from .commands.split_archives import (
     CreateMasterArchiveCommand,
     UnbindSplitArchiveCommand,
 )
-from .models import ArchiveComponent
 from .settings import ArchiveSettingsComponent, ArchiveSettingsModel
 from .systems.discovery import discover_archive_path_siblings_handler
 from .systems.ingestion import (
@@ -90,7 +90,7 @@ class ArchivePlugin(Plugin):
             name="archive.bind-split-archive",
             description="Finds and binds all parts of a split archive into a single master entity.",
         )
-        world.trait_manager.register(bind_split_archive_implementation, ArchiveComponent)
+        world.trait_manager.register(bind_split_archive_implementation, ContentMimeTypeComponent)
 
         ingest_archive_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -103,7 +103,7 @@ class ArchivePlugin(Plugin):
             name="archive.ingest",
             description="Ingests members from an archive file.",
         )
-        world.trait_manager.register(ingest_archive_implementation, ArchiveComponent)
+        world.trait_manager.register(ingest_archive_implementation, ContentMimeTypeComponent)
 
         set_archive_password_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -115,4 +115,4 @@ class ArchivePlugin(Plugin):
             name="archive.set-password",
             description="Sets the password for an archive.",
         )
-        world.trait_manager.register(set_archive_password_implementation, ArchiveComponent)
+        world.trait_manager.register(set_archive_password_implementation, ContentMimeTypeComponent)

@@ -14,7 +14,7 @@ from dam.core.plugin import Plugin
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.models.config import ConfigComponent, SettingsModel
-from dam.models.metadata.content_component import ContentComponent
+from dam.models.metadata import ContentMimeTypeComponent
 from dam.systems.entity_systems import get_or_create_entity_from_stream_handler
 from dam.systems.hashing_systems import add_hashes_from_stream_system
 from dam.systems.mime_type_system import (
@@ -108,4 +108,4 @@ class CorePlugin(Plugin):
             name="core.set_mime_type",
             description="Sets the mime type for an asset.",
         )
-        world.trait_manager.register(set_mime_type_implementation, ContentComponent)
+        world.trait_manager.register(set_mime_type_implementation, ContentMimeTypeComponent)

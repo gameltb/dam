@@ -5,6 +5,7 @@ from __future__ import annotations
 from dam.commands.asset_commands import GetAssetStreamCommand
 from dam.core.plugin import Plugin
 from dam.core.world import World
+from dam.models.metadata import ContentMimeTypeComponent
 from dam.traits.asset_operation import AssetOperationTrait
 from dam.traits.traits import TraitImplementation
 
@@ -18,7 +19,6 @@ from .commands import (
     ReissueVirtualIsoEventCommand,
     RemovePSPMetadataCommand,
 )
-from .models import CsoDecompressionComponent, PspMetadataComponent
 from .settings import PspSettingsComponent, PspSettingsModel
 from .systems import (
     check_cso_ingestion_handler,
@@ -63,7 +63,7 @@ class PspPlugin(Plugin):
             name="extract-psp-metadata",
             description="Extracts metadata from PSP ISO files.",
         )
-        world.trait_manager.register(extract_psp_metadata_implementation, PspMetadataComponent)
+        world.trait_manager.register(extract_psp_metadata_implementation, ContentMimeTypeComponent)
 
         decompress_cso_implementation = TraitImplementation(
             trait=AssetOperationTrait,
@@ -75,7 +75,7 @@ class PspPlugin(Plugin):
             name="cso.decompress",
             description="Decompresses a CSO file into a virtual ISO.",
         )
-        world.trait_manager.register(decompress_cso_implementation, CsoDecompressionComponent)
+        world.trait_manager.register(decompress_cso_implementation, ContentMimeTypeComponent)
 
 
 __all__ = ["PspPlugin", "psp_iso_functions"]
