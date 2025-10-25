@@ -148,7 +148,7 @@ async def create_delete_plan(  # noqa: PLR0912
 
     all_entries = get_all_entries_query().subquery()
     for archive_path_str, members_to_delete in archives_to_process.items():
-        archive_path_url = f"file://{archive_path_str}"
+        archive_path_url = Path(archive_path_str).as_uri()
         all_members_in_archive_query = select(all_entries).where(
             and_(all_entries.c.path == archive_path_url, all_entries.c.member_path.is_not(None))
         )
