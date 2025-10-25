@@ -211,7 +211,10 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         )
 
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=0
+            session=transaction.session,
+            min_size_bytes=0,
+            keep_patterns=["*source*"],
+            delete_patterns=["*target*"],
         )
 
         assert len(delete_plan) == 2
@@ -295,13 +298,19 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
 
         # Test with min_size below the duplicate size, should return the archive
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=40 * 1024 * 1024
+            session=transaction.session,
+            min_size_bytes=40 * 1024 * 1024,
+            keep_patterns=["*source*"],
+            delete_patterns=["*target*"],
         )
         assert len(delete_plan) == 1
         assert delete_plan[0].target_path == "/tmp/target/archive.zip"
 
         # Test with min_size above the duplicate size, should not return the archive
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=60 * 1024 * 1024
+            session=transaction.session,
+            min_size_bytes=60 * 1024 * 1024,
+            keep_patterns=["*source*"],
+            delete_patterns=["*target*"],
         )
         assert len(delete_plan) == 0

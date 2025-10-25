@@ -1,5 +1,4 @@
 """Functions for generating reports."""
-
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,8 +30,11 @@ class DeletePlanRow:
     details: str
 
 
-async def create_delete_plan(
-    session: AsyncSession, source_dir: Path, target_dir: Path, min_size_bytes: int
+async def create_delete_plan(  # noqa: PLR0912
+    session: AsyncSession,
+    min_size_bytes: int,
+    keep_patterns: Sequence[str] | None = None,
+    delete_patterns: Sequence[str] | None = None,
 ) -> Sequence[DeletePlanRow]:
     """Create a plan to delete duplicate files from the target directory."""
 
@@ -89,11 +91,17 @@ async def create_delete_plan(
 
     all_entries = get_all_entries_query().subquery()
 
-    source_path_filter = source_dir.as_uri() + "/"
-    target_path_filter = target_dir.as_uri() + "/"
+    source_query = select(all_entries)
+    if keep_patterns:
+        source_query = source_query.where(
+            or_(*[all_entries.c.path.like(p.replace("*", "%")) for p in keep_patterns])
+        )
 
-    source_query = select(all_entries).where(all_entries.c.path.startswith(source_path_filter))
-    target_query = select(all_entries).where(all_entries.c.path.startswith(target_path_filter))
+    target_query = select(all_entries)
+    if delete_patterns:
+        target_query = target_query.where(
+            or_(*[all_entries.c.path.like(p.replace("*", "%")) for p in delete_patterns])
+        )
 
     source_results = (await session.execute(source_query)).all()
     target_results = (await session.execute(target_query)).all()
@@ -106,7 +114,7 @@ async def create_delete_plan(
     target_archives: dict[str, list[EntryRow]] = {}
 
     for row in target_results:
-        if row.hash_value in source_map:
+        if row.hash_value in source_map and row not in source_map.get(row.hash_value, []):
             if row.member_path:  # This is a member of an archive
                 target_archives.setdefault(row.path, []).append(row)
             else:  # This is a direct file

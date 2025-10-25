@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import math
+import re
 import tempfile
 import zipfile
 from collections.abc import Sequence
@@ -214,28 +215,6 @@ def _write_delete_plan_csv_report(csv_path: Path, delete_plan: Sequence[DeletePl
 
 @app.command("create-delete-report")
 async def create_delete_report(
-    source_dir: Annotated[
-        Path,
-        typer.Option(
-            "--source-dir",
-            "-s",
-            help="Path to the source directory.",
-            dir_okay=True,
-            resolve_path=True,
-            exists=True,
-        ),
-    ],
-    target_dir: Annotated[
-        Path,
-        typer.Option(
-            "--target-dir",
-            "-t",
-            help="Path to the target directory.",
-            dir_okay=True,
-            resolve_path=True,
-            exists=True,
-        ),
-    ],
     csv_path: Annotated[
         Path,
         typer.Option(
@@ -246,6 +225,22 @@ async def create_delete_report(
             resolve_path=True,
         ),
     ],
+    keep_patterns: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--keep",
+            "-k",
+            help="File name patterns to keep. Files matching these patterns will not be deleted.",
+        ),
+    ] = None,
+    delete_patterns: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--delete",
+            "-d",
+            help="File name patterns to delete. Files matching these patterns will be prioritized for deletion.",
+        ),
+    ] = None,
     min_size: Annotated[
         int,
         typer.Option(
@@ -255,7 +250,7 @@ async def create_delete_report(
         ),
     ] = 100,
 ):
-    """Create a report of files to delete from the target directory."""
+    """Scan for duplicate files and generate a deletion plan."""
     world = get_world()
     if not world:
         return
@@ -265,7 +260,12 @@ async def create_delete_report(
 
     async with world.get_context(WorldTransaction)() as transaction:
         session = transaction.session
-        delete_plan = await create_delete_plan(session, source_dir, target_dir, min_size_bytes)
+        delete_plan = await create_delete_plan(
+            session=session,
+            min_size_bytes=min_size_bytes,
+            keep_patterns=keep_patterns,
+            delete_patterns=delete_patterns,
+        )
 
         if not delete_plan:
             console.print("No duplicate files found to delete.")
@@ -339,7 +339,7 @@ async def verify_archive_members(world: World, archive_path: Path, console: Cons
 
 
 @app.command("execute-delete-report")
-async def execute_delete_report(
+async def execute_delete_report(  # noqa: PLR0912
     csv_path: Annotated[
         Path,
         typer.Option(
@@ -361,6 +361,7 @@ async def execute_delete_report(
 
     deleted_count = 0
     skipped_count = 0
+    extracted_count = 0
 
     with csv_path.open("r", newline="") as csvfile:
         reader = csv.reader(csvfile)
@@ -381,30 +382,70 @@ async def execute_delete_report(
                 skipped_count += 1
                 continue
 
-            is_archive = "All members are duplicates" in details
-            verification_passed = False
+            is_archive = zipfile.is_zipfile(target_path)
+            is_fully_duplicate_archive = "All members are duplicates" in details
+
             if is_archive:
-                verification_passed = await verify_archive_members(world, target_path, console)
+                if is_fully_duplicate_archive:
+                    if await verify_archive_members(world, target_path, console):
+                        try:
+                            target_path.unlink()
+                            console.print(f"[green]Deleted archive: {target_path}[/green]")
+                            deleted_count += 1
+                        except OSError as e:
+                            console.print(f"[red]Error deleting archive {target_path}: {e}[/red]")
+                            skipped_count += 1
+                    else:
+                        console.print(f"[yellow]Skipping archive (verification failed): {target_path}[/yellow]")
+                        skipped_count += 1
+                else:
+                    # Partial duplicate archive handling
+                    try:
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            temp_path = Path(temp_dir)
+                            with zipfile.ZipFile(target_path, "r") as zip_ref:
+                                zip_ref.extractall(temp_path)
+
+                            # Identify non-duplicate members
+                            duplicate_members = set(re.findall(r"'[^']+\s->\s([^']+)'.*?is a duplicate", details))
+                            all_members = {str(p.relative_to(temp_path)) for p in temp_path.rglob("*") if p.is_file()}
+                            non_duplicate_members = all_members - duplicate_members
+
+                            if non_duplicate_members:
+                                extract_dir = target_path.with_suffix("")
+                                extract_dir.mkdir(exist_ok=True)
+                                console.print(f"Extracting non-duplicate files to {extract_dir}")
+                                for member in non_duplicate_members:
+                                    source = temp_path / member
+                                    destination = extract_dir / member
+                                    destination.parent.mkdir(parents=True, exist_ok=True)
+                                    source.rename(destination)
+                                    console.print(f"  - Extracted: {destination}")
+                                    extracted_count += 1
+
+                        target_path.unlink()
+                        console.print(f"[green]Deleted archive after partial extraction: {target_path}[/green]")
+                        deleted_count += 1
+
+                    except (zipfile.BadZipFile, OSError) as e:
+                        console.print(f"[red]Error processing archive {target_path}: {e}[/red]")
+                        skipped_count += 1
             else:
+                # Regular file deletion
                 actual_hash = _calculate_file_sha256(target_path)
-                if actual_hash != expected_hash:
+                if actual_hash == expected_hash:
+                    try:
+                        target_path.unlink()
+                        console.print(f"[green]Deleted: {target_path}[/green]")
+                        deleted_count += 1
+                    except OSError as e:
+                        console.print(f"[red]Error deleting {target_path}: {e}[/red]")
+                        skipped_count += 1
+                else:
                     console.print(f"[yellow]Skipping (hash mismatch): {target_path}[/yellow]")
                     skipped_count += 1
-                    continue
-                verification_passed = True
-
-            if verification_passed:
-                try:
-                    target_path.unlink()
-                    console.print(f"[green]Deleted: {target_path}[/green]")
-                    deleted_count += 1
-                except OSError as e:
-                    console.print(f"[red]Error deleting {target_path}: {e}[/red]")
-                    skipped_count += 1
-            else:
-                console.print(f"[yellow]Skipping (verification failed): {target_path}[/yellow]")
-                skipped_count += 1
 
     console.print("\n--- Summary ---")
     console.print(f"Files deleted: {deleted_count}")
+    console.print(f"Files extracted: {extracted_count}")
     console.print(f"Files skipped: {skipped_count}")
