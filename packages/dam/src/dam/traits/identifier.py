@@ -46,14 +46,14 @@ class TraitImplementationIdentifier:
 
     def __str__(self) -> str:
         """Return the string representation of the identifier."""
-        return f"{self.trait_id}|{self.component_type}"
+        return f"{self.trait_id}:{self.component_type}"
 
     @classmethod
     def from_string(cls, identifier: str) -> TraitImplementationIdentifier:
         """Create a TraitImplementationIdentifier from a string."""
-        if "|" not in identifier:
-            raise ValueError("Invalid TraitImplementationIdentifier format. Expected 'trait_id|component_type'.")
-        trait_id_str, component_type = identifier.split("|", 1)
+        if ":" not in identifier:
+            raise ValueError("Invalid TraitImplementationIdentifier format. Expected 'trait_id:component_type'.")
+        trait_id_str, component_type = identifier.split(":", 1)
         return cls(
             trait_id=TraitIdentifier.from_string(trait_id_str),
             component_type=component_type,

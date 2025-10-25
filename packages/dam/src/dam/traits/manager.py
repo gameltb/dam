@@ -51,7 +51,7 @@ class TraitManager:
             if isinstance(component_type, tuple)
             else component_type.__name__
         )
-        identifier = TraitImplementationIdentifier.from_string(f"{trait_id}|{component_name}")
+        identifier = TraitImplementationIdentifier.from_string(f"{trait_id}:{component_name}")
         implementation.identifier = identifier
 
         registered_implementation = cast(RegisteredTraitImplementation, implementation)

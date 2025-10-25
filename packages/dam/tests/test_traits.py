@@ -161,7 +161,7 @@ def test_trait_manager_get_implementation_by_id(world: World):
     )
     trait_manager.register(implementation, ComponentA)
     retrieved_implementation = trait_manager.get_implementation_by_id(
-        TraitImplementationIdentifier.from_string("readable|ComponentA")
+        TraitImplementationIdentifier.from_string("readable:ComponentA")
     )
     assert retrieved_implementation is implementation
 
