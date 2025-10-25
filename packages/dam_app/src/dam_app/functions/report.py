@@ -119,6 +119,10 @@ async def create_delete_plan(  # noqa: PLR0912
                 candidates.append(entry)
 
         if not keep_list:
+            # Sort candidates to prioritize keeping archive members over loose files.
+            # The key sorts by whether the entry is a loose file (member_path is None),
+            # then by the formatted path for stability.
+            candidates.sort(key=lambda e: (e.member_path is None, format_path(e)))
             keep_list.append(candidates.pop(0))
 
         for item_to_delete in candidates:
