@@ -130,8 +130,10 @@ async def test_get_duplicates_report_with_indirect_path_filter(world_factory: Wo
 
 
 @pytest.mark.asyncio
-async def test_create_delete_plan(world_factory: WorldFactory):
+async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
     """Test that the create_delete_plan function returns the correct delete plan."""
+    (tmp_path / "source").mkdir()
+    (tmp_path / "target").mkdir()
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
         # Source files
@@ -140,7 +142,7 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url="file:///tmp/source/file1", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'file1'}", last_modified_at=datetime.now()),
         )
 
         source_entity2 = await transaction.create_entity()
@@ -149,7 +151,7 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         source_archive_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(
             source_archive_entity.id,
-            FileLocationComponent(url="file:///tmp/source/archive.zip", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'archive.zip'}", last_modified_at=datetime.now()),
         )
         await transaction.add_component_to_entity(
             source_entity2.id,
@@ -165,7 +167,7 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         # A duplicate of source_entity1
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url="file:///tmp/target/file1_dup", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'file1_dup'}", last_modified_at=datetime.now()),
         )
 
         # An archive in the target directory where all members are duplicates of source files
@@ -176,7 +178,7 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         )
         await transaction.add_component_to_entity(
             target_archive_entity.id,
-            FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'archive.zip'}", last_modified_at=datetime.now()),
         )
 
         # Add archive members that are duplicates of the source files
@@ -207,11 +209,14 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         )
         await transaction.add_component_to_entity(
             non_dup_entity.id,
-            FileLocationComponent(url="file:///tmp/target/unique_file", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'unique_file'}", last_modified_at=datetime.now()),
         )
 
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=0
+            session=transaction.session,
+            min_size_bytes=0,
+            keep_dirs=[tmp_path / "source"],
+            delete_dirs=[tmp_path / "target"],
         )
 
         assert len(delete_plan) == 2
@@ -219,30 +224,35 @@ async def test_create_delete_plan(world_factory: WorldFactory):
         plan_map = {p.target_path: p for p in delete_plan}
 
         # Check for the direct duplicate file
-        direct_dup_plan = plan_map.get("/tmp/target/file1_dup")
+        direct_dup_plan = plan_map.get(str(tmp_path / "target" / "file1_dup"))
         assert direct_dup_plan is not None
-        assert direct_dup_plan.source_path == "/tmp/source/file1"
+        assert direct_dup_plan.source_path == str(tmp_path / "source" / "file1")
         assert direct_dup_plan.hash == hash1.hex()
-        assert direct_dup_plan.details == "Duplicate of /tmp/source/file1"
+        assert direct_dup_plan.details == f"Duplicate of {tmp_path / 'source' / 'file1'}"
 
         # Check for the archive file to be deleted
-        archive_dup_plan = plan_map.get("/tmp/target/archive.zip")
+        archive_dup_plan = plan_map.get(str(tmp_path / "target" / "archive.zip"))
         assert archive_dup_plan is not None
         assert archive_dup_plan.hash == archive_hash.hex()
-        assert "'/tmp/target/archive.zip -> member1' is a duplicate of '/tmp/source/file1'" in archive_dup_plan.details
         assert (
-            "'/tmp/target/archive.zip -> member2' is a duplicate of '/tmp/source/archive.zip -> member2'"
+            f"'{tmp_path / 'target' / 'archive.zip'} -> member1' is a duplicate of '{tmp_path / 'source' / 'file1'}'"
+            in archive_dup_plan.details
+        )
+        assert (
+            f"'{tmp_path / 'target' / 'archive.zip'} -> member2' is a duplicate of '{tmp_path / 'source' / 'archive.zip'} -> member2'"
             in archive_dup_plan.details
         )
 
         # Ensure all target paths are in the target directory
         for plan_item in delete_plan:
-            assert plan_item.target_path.startswith("/tmp/target")
+            assert plan_item.target_path.startswith(str(tmp_path / "target"))
 
 
 @pytest.mark.asyncio
-async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
+async def test_create_delete_plan_with_min_size(world_factory: WorldFactory, tmp_path: Path):
     """Test that the create_delete_plan function returns the correct delete plan when a min size is specified."""
+    (tmp_path / "source").mkdir()
+    (tmp_path / "target").mkdir()
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
         # Source files
@@ -251,7 +261,7 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
         await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url="file:///tmp/source/file1", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'file1'}", last_modified_at=datetime.now()),
         )
         await transaction.add_component_to_entity(
             source_entity1.id, ContentLengthComponent(file_size_bytes=50 * 1024 * 1024)
@@ -266,7 +276,7 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
         )
         await transaction.add_component_to_entity(
             target_archive_entity.id,
-            FileLocationComponent(url="file:///tmp/target/archive.zip", last_modified_at=datetime.now()),
+            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'archive.zip'}", last_modified_at=datetime.now()),
         )
 
         # An archive member that is a duplicate
@@ -295,13 +305,19 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory):
 
         # Test with min_size below the duplicate size, should return the archive
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=40 * 1024 * 1024
+            session=transaction.session,
+            min_size_bytes=40 * 1024 * 1024,
+            keep_dirs=[tmp_path / "source"],
+            delete_dirs=[tmp_path / "target"],
         )
         assert len(delete_plan) == 1
-        assert delete_plan[0].target_path == "/tmp/target/archive.zip"
+        assert delete_plan[0].target_path == str(tmp_path / "target" / "archive.zip")
 
         # Test with min_size above the duplicate size, should not return the archive
         delete_plan = await create_delete_plan(
-            transaction.session, Path("/tmp/source"), Path("/tmp/target"), min_size_bytes=60 * 1024 * 1024
+            session=transaction.session,
+            min_size_bytes=60 * 1024 * 1024,
+            keep_dirs=[tmp_path / "source"],
+            delete_dirs=[tmp_path / "target"],
         )
         assert len(delete_plan) == 0

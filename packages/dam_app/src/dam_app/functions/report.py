@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
@@ -17,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 DuplicateRow = Row[tuple[int, int | None, int | None, bytes, int, str, str]]
-type EntryRow = Row[tuple[bytes, int | None, str, str | None]]
+EntryRow = Any
 
 
 @dataclass
@@ -31,8 +32,11 @@ class DeletePlanRow:
     details: str
 
 
-async def create_delete_plan(
-    session: AsyncSession, source_dir: Path, target_dir: Path, min_size_bytes: int
+async def create_delete_plan(  # noqa: PLR0912
+    session: AsyncSession,
+    min_size_bytes: int,
+    keep_dirs: Sequence[Path] | None = None,
+    delete_dirs: Sequence[Path] | None = None,
 ) -> Sequence[DeletePlanRow]:
     """Create a plan to delete duplicate files from the target directory."""
 
@@ -87,52 +91,73 @@ async def create_delete_plan(
             return f"{path} -> {row.member_path}"
         return path
 
-    all_entries = get_all_entries_query().subquery()
+    all_entries_query = get_all_entries_query()
+    all_results = (await session.execute(all_entries_query)).all()
 
-    source_path_filter = source_dir.as_uri() + "/"
-    target_path_filter = target_dir.as_uri() + "/"
+    entries_by_hash: dict[bytes, list[EntryRow]] = {}
+    for row in all_results:
+        entries_by_hash.setdefault(row.hash_value, []).append(row)
 
-    source_query = select(all_entries).where(all_entries.c.path.startswith(source_path_filter))
-    target_query = select(all_entries).where(all_entries.c.path.startswith(target_path_filter))
+    delete_list: list[DeletePlanRow] = []
 
-    source_results = (await session.execute(source_query)).all()
-    target_results = (await session.execute(target_query)).all()
+    for hash_value, entries in entries_by_hash.items():
+        if len(entries) < 2:  # noqa: PLR2004
+            continue
 
-    source_map: dict[bytes, list[EntryRow]] = {}
-    for row in source_results:
-        source_map.setdefault(row.hash_value, []).append(row)
+        keep_list: list[EntryRow] = []
+        candidates: list[EntryRow] = []
 
-    delete_plan_items: dict[str, DeletePlanRow] = {}
-    target_archives: dict[str, list[EntryRow]] = {}
+        keep_urls = [d.as_uri() for d in keep_dirs] if keep_dirs else []
+        delete_urls = [d.as_uri() for d in delete_dirs] if delete_dirs else []
 
-    for row in target_results:
-        if row.hash_value in source_map:
-            if row.member_path:  # This is a member of an archive
-                target_archives.setdefault(row.path, []).append(row)
-            else:  # This is a direct file
-                source_row = source_map[row.hash_value][0]  # Pick the first one
-                source_path_str = format_path(source_row)
-                target_path_str = format_path(row)
-                delete_plan_items[target_path_str] = DeletePlanRow(
+        for entry in entries:
+            if any(entry.path.startswith(url) for url in keep_urls):
+                keep_list.append(entry)
+            elif any(entry.path.startswith(url) for url in delete_urls):
+                candidates.append(entry)
+            else:
+                candidates.append(entry)
+
+        if not keep_list:
+            keep_list.append(candidates.pop(0))
+
+        for item_to_delete in candidates:
+            source_item = keep_list[0]
+            source_path_str = format_path(source_item)
+            target_path_str = format_path(item_to_delete)
+
+            delete_list.append(
+                DeletePlanRow(
                     source_path=source_path_str,
                     target_path=target_path_str,
-                    hash=row.hash_value.hex(),
-                    size=row.file_size_bytes or 0,
+                    hash=hash_value.hex(),
+                    size=item_to_delete.file_size_bytes or 0,
                     details=f"Duplicate of {source_path_str}",
                 )
+            )
 
-    # Process archives in the target directory
-    for archive_path, members in target_archives.items():
+    # Group archive members by archive path
+    archives_to_process: dict[str, list[DeletePlanRow]] = {}
+    final_delete_plan: list[DeletePlanRow] = []
+    for item in delete_list:
+        if " -> " in item.target_path:
+            archive_path = item.target_path.split(" -> ")[0]
+            archives_to_process.setdefault(archive_path, []).append(item)
+        else:
+            final_delete_plan.append(item)
+
+    all_entries = get_all_entries_query().subquery()
+    for archive_path_str, members_to_delete in archives_to_process.items():
+        archive_path_url = f"file://{archive_path_str}"
         all_members_in_archive_query = select(all_entries).where(
-            and_(all_entries.c.path == archive_path, all_entries.c.member_path.is_not(None))
+            and_(all_entries.c.path == archive_path_url, all_entries.c.member_path.is_not(None))
         )
         all_members = (await session.execute(all_members_in_archive_query)).all()
 
-        duplicate_members = [m for m in members if m.hash_value in source_map]
-        is_fully_duplicated = len(all_members) == len(duplicate_members) and len(all_members) > 0
-        total_duplicated_size = sum(m.file_size_bytes for m in duplicate_members if m.file_size_bytes)
+        is_fully_duplicated = len(all_members) == len(members_to_delete)
+        total_duplicated_size = sum(m.size for m in members_to_delete)
 
-        if is_fully_duplicated or (duplicate_members and total_duplicated_size >= min_size_bytes):
+        if is_fully_duplicated or (members_to_delete and total_duplicated_size >= min_size_bytes):
             archive_file_info_query = (
                 select(
                     ContentHashSHA256Component.hash_value,
@@ -143,32 +168,30 @@ async def create_delete_plan(
                     ContentLengthComponent,
                     ContentLengthComponent.entity_id == ContentHashSHA256Component.entity_id,
                 )
-                .where(FileLocationComponent.url == archive_path)
+                .where(FileLocationComponent.url == archive_path_url)
             )
             archive_info = (await session.execute(archive_file_info_query)).one_or_none()
 
             if archive_info:
-                details_list: list[str] = []
-                for member_row in duplicate_members:
-                    source_row = source_map[member_row.hash_value][0]
-                    details_list.append(f"'{format_path(member_row)}' is a duplicate of '{format_path(source_row)}'")
+                details_list = [f"'{m.target_path}' is a duplicate of '{m.source_path}'" for m in members_to_delete]
                 details_str = "; ".join(details_list)
 
-                target_path_str = str(get_local_path_for_url(archive_path))
                 details = (
                     f"All members are duplicates: [{details_str}]"
                     if is_fully_duplicated
                     else f"Duplicate members size ({total_duplicated_size} bytes) exceeds threshold: [{details_str}]"
                 )
-                delete_plan_items[target_path_str] = DeletePlanRow(
-                    source_path="Multiple files in source directory",
-                    target_path=target_path_str,
-                    hash=archive_info.hash_value.hex(),
-                    size=archive_info.file_size_bytes or 0,
-                    details=details,
+                final_delete_plan.append(
+                    DeletePlanRow(
+                        source_path="Multiple files",
+                        target_path=archive_path_str,
+                        hash=archive_info.hash_value.hex(),
+                        size=archive_info.file_size_bytes or 0,
+                        details=details,
+                    )
                 )
 
-    return list(delete_plan_items.values())
+    return final_delete_plan
 
 
 async def get_duplicates_report(session: AsyncSession, path: Path | None = None) -> Sequence[DuplicateRow]:
