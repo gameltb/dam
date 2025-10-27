@@ -24,8 +24,3 @@ class ContentHashSHA256Component(UniqueComponent):
         ),  # Hash values themselves are unique across all components
         CheckConstraint("length(hash_value) = 32", name="cc_content_hash_sha256_hash_value_length"),
     )
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        hex_hash = self.hash_value.hex() if isinstance(self.hash_value, bytes) else "N/A"
-        return f"ContentHashSHA256Component(entity_id={self.entity_id}, hash_value(hex)='{hex_hash[:10]}...')"

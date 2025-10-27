@@ -35,9 +35,3 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent):
         "polymorphic_identity": "transcode_profile",
     }
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"<TranscodeProfileComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"profile_name='{self.profile_name}', tool='{self.tool_name}', format='{self.output_format}')>"
-        )

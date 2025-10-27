@@ -16,6 +16,3 @@ class ArchiveInfoComponent(Component):
 
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"ArchiveInfoComponent(entity_id={self.entity_id}, comment={self.comment})"

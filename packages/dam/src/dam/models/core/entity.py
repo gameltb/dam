@@ -17,7 +17,3 @@ class Entity(Base):
     __tablename__ = "entities"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, init=False)
-
-    def __repr__(self) -> str:
-        """Return a string representation of the entity."""
-        return f"Entity(id={self.id})"

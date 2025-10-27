@@ -19,15 +19,3 @@ class AudioPropertiesComponent(BaseComponent):
     channels: Mapped[int | None] = mapped_column(nullable=True, default=None)
     bit_rate_kbps: Mapped[int | None] = mapped_column(nullable=True, default=None)  # e.g., 128, 192, 320
 
-    # entity_id is inherited
-
-    # Relationship to Entity is inherited from BaseComponent
-    # entity: Mapped["Entity"] = relationship(back_populates="audio_properties_components")
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"<AudioPropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"duration={self.duration_seconds}s, codec='{self.codec_name}', "
-            f"sample_rate={self.sample_rate_hz}Hz, channels={self.channels})>"
-        )

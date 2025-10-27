@@ -47,15 +47,6 @@ class BaseVariantInfoComponent(BaseComponent):
             init=False,  # Prevent 'conceptual_asset' from being an __init__ parameter
         )
 
-    # Removed fields that will go into concrete subclasses:
-    # variant_type, variant_name, is_primary_variant, order_key
-    # Also removed UniqueConstraints as they were based on the removed fields
-    # and specific subclasses might need different constraints.
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
-
 
 class UniqueBaseVariantInfoComponent(UniqueComponent):
     """
@@ -82,10 +73,4 @@ class UniqueBaseVariantInfoComponent(UniqueComponent):
             foreign_keys=[self.conceptual_entity_id],  # type: ignore
             repr=False,
             init=False,
-        )
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"{self.__class__.__name__}(entity_id={self.entity_id}, conceptual_entity_id={self.conceptual_entity_id})"
         )

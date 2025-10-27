@@ -52,10 +52,3 @@ class ComicBookConceptComponent(UniqueBaseConceptualInfoComponent):
     # volume_number: Mapped[int | None]
     # story_arc_title: Mapped[str | None]
     # summary: Mapped[str | None] # Kept as Text in SQLAlchemy
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"ComicBookConceptComponent(entity_id={self.entity_id}, "
-            f"comic_title='{self.comic_title}', issue='{self.issue_number}', year={self.publication_year})"
-        )

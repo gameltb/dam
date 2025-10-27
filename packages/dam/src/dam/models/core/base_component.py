@@ -67,12 +67,6 @@ class BaseComponent(Component):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, init=False)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"{self.__class__.__name__}(id={self.id}, entity_id={self.entity_id})"
-
-    # __init_subclass__ is now handled by the parent Component class.
-
 
 class UniqueComponent(Component):
     """
@@ -85,8 +79,3 @@ class UniqueComponent(Component):
 
     entity_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("entities.id"), primary_key=True, init=False)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"{self.__class__.__name__}(entity_id={self.entity_id})"
-
-    # __init_subclass__ is now handled by the parent Component class.

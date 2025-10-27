@@ -11,7 +11,3 @@ class IngestedCsoComponent(UniqueComponent):
     """
 
     __tablename__ = "component_ingested_cso"
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"IngestedCsoComponent(entity_id={self.entity_id})"

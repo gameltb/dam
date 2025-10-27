@@ -28,9 +28,3 @@ class FilenameComponent(BaseComponent):
         UniqueConstraint("entity_id", name="uq_filename_entity_id"),
     )
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"FilenameComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"filename='{self.filename}', first_seen_at='{self.first_seen_at}')"
-        )

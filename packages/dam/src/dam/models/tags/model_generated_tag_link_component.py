@@ -39,17 +39,3 @@ class ModelGeneratedTagLinkComponent(BaseComponent):
             name="uq_entity_tag_concept_model",
         ),
     )
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"ModelGeneratedTagLinkComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"tag_concept_id={self.tag_concept_id}, source_model_name='{self.source_model_name}', "
-            f"confidence={self.confidence:.4f})"
-        )
-
-
-# Note: For relationships to work uncommented, forward references might need
-# 'Entity' and 'TagConceptComponent' to be imported or defined if not using strings,
-# and back_populates attributes would need to be defined on the related models.
-# For now, keeping them commented as direct FKs are sufficient for service layer.

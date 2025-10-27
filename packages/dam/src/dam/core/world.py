@@ -163,10 +163,6 @@ class World:
                 return cast(SystemResultEvent[Any], event).result
         return None
 
-    def __repr__(self) -> str:
-        """Return a string representation of the World."""
-        return f"<World name='{self.name}'>"
-
     async def get_available_traits_for_entity(self, entity_id: int) -> list[Trait]:
         """Return a list of available traits for a given entity."""
         db = self.get_resource(DatabaseManager)

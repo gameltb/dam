@@ -57,10 +57,3 @@ class EvaluationResultComponent(BaseComponent):
     # Notes or comments specific to this evaluation result
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"<EvaluationResultComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"run_id={self.evaluation_run_entity_id}, original_id={self.original_asset_entity_id}, "
-            f"profile_id={self.transcode_profile_entity_id}, size={self.file_size_bytes}, vmaf={self.vmaf_score})>"
-        )

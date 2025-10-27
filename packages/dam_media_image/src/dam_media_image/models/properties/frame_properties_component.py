@@ -18,10 +18,3 @@ class FramePropertiesComponent(BaseComponent):
     nominal_frame_rate: Mapped[float | None] = mapped_column(nullable=True, default=None)  # Frames per second
     animation_duration_seconds: Mapped[float | None] = mapped_column(nullable=True, default=None)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"<FramePropertiesComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"frames={self.frame_count}, duration_sec={self.animation_duration_seconds}, "
-            f"fps={self.nominal_frame_rate})>"
-        )

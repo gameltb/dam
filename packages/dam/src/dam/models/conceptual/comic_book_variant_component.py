@@ -56,10 +56,3 @@ class ComicBookVariantComponent(UniqueBaseVariantInfoComponent):
         ),
     )
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"ComicBookVariantComponent(entity_id={self.entity_id}, "
-            f"conceptual_entity_id={self.conceptual_entity_id}, "
-            f"lang='{self.language}', format='{self.format}', primary={self.is_primary_variant})"
-        )

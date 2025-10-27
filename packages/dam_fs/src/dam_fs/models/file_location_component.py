@@ -22,6 +22,3 @@ class FileLocationComponent(BaseComponent):
     url: Mapped[str] = mapped_column(String(), nullable=False, unique=True)
     last_modified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"FileLocationComponent(id={self.id}, entity_id={self.entity_id}, url='{self.url}')"

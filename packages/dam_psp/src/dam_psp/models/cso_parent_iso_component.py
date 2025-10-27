@@ -18,6 +18,3 @@ class CsoParentIsoComponent(BaseComponent):
         nullable=False,
     )
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"CsoParentIsoComponent(entity_id={self.entity_id}, cso_entity_id={self.cso_entity_id})"

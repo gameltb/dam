@@ -65,7 +65,3 @@ class TagConceptComponent(BaseConceptualInfoComponent):
         # this constraint would need to be more complex or handled at service layer.
         # For now, assuming tag_name is globally unique for simplicity of definition.
     )
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"<TagConceptComponent id={self.id} entity_id={self.entity_id} name='{self.tag_name}' scope='{self.tag_scope_type}'>"

@@ -29,11 +29,3 @@ class TranscodedVariantComponent(BaseComponent):
     quality_metric_ssim: Mapped[float | None] = mapped_column(Float, nullable=True)
     custom_metrics_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"<TranscodedVariantComponent(id={self.id}, entity_id={self.entity_id}, "
-            f"original_entity_id={self.original_asset_entity_id}, "
-            f"profile_entity_id={self.transcode_profile_entity_id}, "
-            f"size_bytes={self.transcoded_file_size_bytes})>"
-        )

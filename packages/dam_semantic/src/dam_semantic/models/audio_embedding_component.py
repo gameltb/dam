@@ -37,9 +37,6 @@ class AudioEmbeddingVggishDim128Component(BaseSpecificAudioEmbeddingComponent):
     __tablename__ = "component_audio_embedding_vggish_d128"
     # model_name is already a field in the base class, will be set to "vggish"
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"AudioEmbeddingVggishD128Component(id={self.id}, {super().__repr_base__()})"
 
 
 class AudioEmbeddingPannsCnn14Dim2048Component(BaseSpecificAudioEmbeddingComponent):
@@ -48,9 +45,6 @@ class AudioEmbeddingPannsCnn14Dim2048Component(BaseSpecificAudioEmbeddingCompone
     __tablename__ = "component_audio_embedding_panns_cnn14_d2048"
     # model_name is already a field in the base class, will be set to "panns_cnn14"
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"AudioEmbeddingPannsCnn14D2048Component(id={self.id}, {super().__repr_base__()})"
 
 
 # --- Registry for Audio Embedding Models ---

@@ -49,6 +49,3 @@ class WebsiteProfileComponent(BaseComponent):
     # Unique constraint on entity_id ensures one profile per website entity.
     __table_args__ = (UniqueConstraint("entity_id", name="uq_website_profile_entity_id"),)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"WebsiteProfileComponent(id={self.id}, entity_id={self.entity_id}, name='{self.name}', main_url='{self.main_url}')"

@@ -18,9 +18,5 @@ class SystemResultEvent[T](BaseSystemEvent):
         """Initialize the event with the result."""
         self.result = result
 
-    def __repr__(self) -> str:
-        """Return a string representation of the event."""
-        return f"SystemResultEvent(result={self.result!r})"
-
 
 __all__ = ["BaseSystemEvent", "SystemResultEvent"]

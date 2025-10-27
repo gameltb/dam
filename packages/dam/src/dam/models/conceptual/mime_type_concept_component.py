@@ -24,7 +24,3 @@ class MimeTypeConceptComponent(BaseConceptualInfoComponent):
     )
 
     __table_args__ = (UniqueConstraint("mime_type", name="uq_mime_type_concept_mime_type"),)
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"<MimeTypeConceptComponent id={self.id} entity_id={self.entity_id} mime_type='{self.mime_type}'>"

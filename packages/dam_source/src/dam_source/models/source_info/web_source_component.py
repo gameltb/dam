@@ -92,10 +92,6 @@ class WebSourceComponent(BaseComponent):
     # Consider adding a 'downloaded_at' timestamp if the file is fetched later.
     # Consider a 'last_checked_at' timestamp for link validation.
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"WebSourceComponent(id={self.id}, entity_id={self.entity_id}, website_entity_id={self.website_entity_id}, source_url='{self.source_url[:50]}...')"
-
     # Potential __table_args__:
     # Could add a UniqueConstraint on (entity_id) if an entity can only have one web source.
     # Or UniqueConstraint on (source_url) if source_urls should be unique across all web-sourced components (might be too restrictive).

@@ -17,9 +17,4 @@ class CharacterConceptComponent(UniqueBaseConceptualInfoComponent):
     # species: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     # abilities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return (
-            f"CharacterConceptComponent(entity_id={self.entity_id}, "
-            f"name='{self.concept_name}', description='{self.concept_description[:50] if self.concept_description else ''}...')"
-        )
+

@@ -63,6 +63,3 @@ class PageLink(Base):
         UniqueConstraint("owner_entity_id", "page_image_entity_id", name="uq_owner_page_image"),
     )
 
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"<PageLink owner_id={self.owner_entity_id} page_id={self.page_image_entity_id} page_num={self.page_number}>"

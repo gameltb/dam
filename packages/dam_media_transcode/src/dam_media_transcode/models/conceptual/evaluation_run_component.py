@@ -22,17 +22,3 @@ class EvaluationRunComponent(BaseConceptualInfoComponent):  # Removed BaseCompon
     id: Mapped[int] = mapped_column(ForeignKey("entities.id"), primary_key=True)
 
     run_name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
-    # concept_name from BaseConceptualInfoComponent will be the run_name
-
-    # concept_description from BaseConceptualInfoComponent can be used for a general description
-    # For more detailed information, like the list of source assets or profiles used,
-    # it's better to store them in related EvaluationResultComponents or a serialized field if necessary.
-    # For now, we'll rely on querying EvaluationResultComponents linked to this run.
-
-    # Fields from BaseConceptualInfoComponent:
-    # concept_name: Mapped[str] (will be run_name)
-    # concept_description: Mapped[str | None] (can be used for general description)
-
-    def __repr__(self) -> str:
-        """Return a string representation of the component."""
-        return f"<EvaluationRunComponent(id={self.id}, entity_id={self.entity_id}, run_name='{self.run_name}')>"
