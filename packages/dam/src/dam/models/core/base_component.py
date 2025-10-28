@@ -78,4 +78,3 @@ class UniqueComponent(Component):
     __abstract__ = True
 
     entity_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("entities.id"), primary_key=True, init=False)
-

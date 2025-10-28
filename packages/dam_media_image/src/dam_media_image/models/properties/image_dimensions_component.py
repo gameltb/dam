@@ -22,4 +22,3 @@ class ImageDimensionsComponent(BaseComponent):
         # An entity should generally have only one primary dimensions component.
         UniqueConstraint("entity_id", name="uq_image_dimensions_entity_id"),
     )
-

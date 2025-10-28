@@ -21,4 +21,3 @@ class ContentHashBLAKE3Component(UniqueComponent):
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_blake3_entity_hash"),
         CheckConstraint("length(hash_value) = 32", name="cc_content_hash_blake3_hash_value_length"),
     )
-

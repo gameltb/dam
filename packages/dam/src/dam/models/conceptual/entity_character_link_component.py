@@ -46,4 +46,3 @@ class EntityCharacterLinkComponent(BaseComponent):
             name="uq_entity_character_role",
         ),
     )
-

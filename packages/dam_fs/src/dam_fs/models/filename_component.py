@@ -27,4 +27,3 @@ class FilenameComponent(BaseComponent):
         # An entity should only have one FilenameComponent.
         UniqueConstraint("entity_id", name="uq_filename_entity_id"),
     )
-

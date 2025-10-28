@@ -15,4 +15,3 @@ class ArchiveInfoComponent(Component):
     __tablename__ = "component_archive_info"
 
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-

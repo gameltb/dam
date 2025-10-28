@@ -54,7 +54,6 @@ class TextEmbeddingClipVitB32Dim512Component(BaseSpecificEmbeddingComponent):
     # Corresponds to model_name="clip-ViT-B-32", params={"dimensions": 512} (implicitly)
 
 
-
 # --- Registry for Embedding Models ---
 
 # Define a type for the hyperparameter dictionary for clarity
@@ -137,8 +136,6 @@ class OldTextEmbeddingComponent(BaseComponent):
     model_name: Mapped[str] = mapped_column(String(), nullable=False)  # Kept for old table structure
     source_component_name: Mapped[str | None] = mapped_column(String(), nullable=True)
     source_field_name: Mapped[str | None] = mapped_column(String(), nullable=True)
-
-
 
 
 # Ensure __init__.py in dam/models/semantic/ is updated

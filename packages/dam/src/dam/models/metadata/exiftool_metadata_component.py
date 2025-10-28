@@ -19,4 +19,3 @@ class ExiftoolMetadataComponent(UniqueComponent):
     # The entity_id is already defined in BaseComponent and will be inherited.
 
     raw_exif_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-

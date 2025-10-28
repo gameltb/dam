@@ -28,4 +28,3 @@ class TranscodedVariantComponent(BaseComponent):
     quality_metric_vmaf: Mapped[float | None] = mapped_column(Float, nullable=True)
     quality_metric_ssim: Mapped[float | None] = mapped_column(Float, nullable=True)
     custom_metrics_json: Mapped[str | None] = mapped_column(String, nullable=True)
-

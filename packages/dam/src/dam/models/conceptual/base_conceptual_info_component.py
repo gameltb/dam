@@ -24,7 +24,6 @@ class BaseConceptualInfoComponent(BaseComponent):
     concept_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-
 class UniqueBaseConceptualInfoComponent(UniqueComponent):
     """Abstract base class for unique components that define a 'Conceptual Asset'."""
 
