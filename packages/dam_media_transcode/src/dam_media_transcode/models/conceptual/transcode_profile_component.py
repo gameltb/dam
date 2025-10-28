@@ -34,4 +34,3 @@ class TranscodeProfileComponent(BaseConceptualInfoComponent):
     __mapper_args__: ClassVar[dict[str, str]] = {  # pyright: ignore[reportIncompatibleVariableOverride]
         "polymorphic_identity": "transcode_profile",
     }
-

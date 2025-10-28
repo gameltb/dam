@@ -22,4 +22,3 @@ class ContentHashSHA1Component(UniqueComponent):
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_sha1_entity_hash"),
         CheckConstraint("length(hash_value) = 20", name="cc_content_hash_sha1_hash_value_length"),
     )
-

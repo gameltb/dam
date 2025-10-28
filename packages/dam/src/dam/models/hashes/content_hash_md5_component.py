@@ -22,4 +22,3 @@ class ContentHashMD5Component(UniqueComponent):
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_md5_entity_hash"),
         CheckConstraint("length(hash_value) = 16", name="cc_content_hash_md5_hash_value_length"),
     )
-

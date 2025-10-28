@@ -18,4 +18,3 @@ class AudioPropertiesComponent(BaseComponent):
     sample_rate_hz: Mapped[int | None] = mapped_column(nullable=True, default=None)
     channels: Mapped[int | None] = mapped_column(nullable=True, default=None)
     bit_rate_kbps: Mapped[int | None] = mapped_column(nullable=True, default=None)  # e.g., 128, 192, 320
-

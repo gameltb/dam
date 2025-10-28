@@ -55,4 +55,3 @@ class ComicBookVariantComponent(UniqueBaseVariantInfoComponent):
             name="uq_comic_variant_details_per_concept",
         ),
     )
-

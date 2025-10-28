@@ -40,4 +40,3 @@ class OriginalSourceInfoComponent(BaseComponent):
             f"'{source_types.SOURCE_TYPE_WEB_SOURCE}', '{source_types.SOURCE_TYPE_PRIMARY_FILE}')."
         ),
     )
-

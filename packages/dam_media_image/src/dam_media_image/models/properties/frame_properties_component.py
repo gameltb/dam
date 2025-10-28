@@ -17,4 +17,3 @@ class FramePropertiesComponent(BaseComponent):
     frame_count: Mapped[int | None] = mapped_column(nullable=True, default=None)
     nominal_frame_rate: Mapped[float | None] = mapped_column(nullable=True, default=None)  # Frames per second
     animation_duration_seconds: Mapped[float | None] = mapped_column(nullable=True, default=None)
-

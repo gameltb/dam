@@ -14,4 +14,3 @@ class ContentLengthComponent(UniqueComponent):
     # entity_id is inherited from UniqueComponent
 
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True, default=None)
-

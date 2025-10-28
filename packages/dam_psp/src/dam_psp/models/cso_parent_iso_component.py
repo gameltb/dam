@@ -17,4 +17,3 @@ class CsoParentIsoComponent(BaseComponent):
         unique=True,
         nullable=False,
     )
-

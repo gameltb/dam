@@ -6,7 +6,7 @@ from pathlib import Path
 from dam.core.types import StreamProvider
 
 from .base import ArchiveHandler, to_stream_provider
-from .exceptions import ArchiveError, PasswordRequiredError
+from .exceptions import ArchiveError, InvalidPasswordError, PasswordRequiredError
 from .registry import MIME_TYPE_HANDLERS
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ async def open_archive(
     for handler_class in handler_classes:
         try:
             return await handler_class.create(stream_provider, password=password)
-        except PasswordRequiredError:
+        except (InvalidPasswordError, PasswordRequiredError):
             # Password errors should not be caught and suppressed, as they
             # indicate a fundamental issue that cannot be resolved by trying
             # a different handler.

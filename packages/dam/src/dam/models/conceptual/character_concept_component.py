@@ -16,5 +16,3 @@ class CharacterConceptComponent(UniqueBaseConceptualInfoComponent):
     # Example:
     # species: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     # abilities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-

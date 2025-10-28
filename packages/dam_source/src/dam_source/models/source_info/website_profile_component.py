@@ -48,4 +48,3 @@ class WebsiteProfileComponent(BaseComponent):
     # The entity_id (from BaseComponent) links this profile to that Website Entity.
     # Unique constraint on entity_id ensures one profile per website entity.
     __table_args__ = (UniqueConstraint("entity_id", name="uq_website_profile_entity_id"),)
-

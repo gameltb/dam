@@ -62,4 +62,3 @@ class PageLink(Base):
         # For now, assuming an image is used at most once per owner entity's page list.
         UniqueConstraint("owner_entity_id", "page_image_entity_id", name="uq_owner_page_image"),
     )
-

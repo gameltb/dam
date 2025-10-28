@@ -22,4 +22,3 @@ class ContentHashCRC32Component(UniqueComponent):
         UniqueConstraint("entity_id", "hash_value", name="uq_content_hash_crc32_entity_hash"),
         CheckConstraint("length(hash_value) = 4", name="cc_content_hash_crc32_hash_value_length"),
     )
-

@@ -56,4 +56,3 @@ class EvaluationResultComponent(BaseComponent):
 
     # Notes or comments specific to this evaluation result
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
