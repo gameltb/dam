@@ -8,6 +8,8 @@ import tomli
 import contextlib
 from poethepoet.app import PoeThePoet
 from rich import print
+import time
+import threading
 
 
 def _read_fd(fd: int) -> bytes:
@@ -53,6 +55,25 @@ def run_callable_capture_fds(callable_obj) -> tuple[int, str, str]:
         os.close(write_out)
         os.close(write_err)
 
+        # Start background threads that will read from the pipe read-ends while
+        # the callable runs. This prevents the pipe buffer filling up and
+        # blocking writers (deadlock) when the callable produces lots of output.
+        out_parts: list[bytes] = []
+        err_parts: list[bytes] = []
+
+        def _reader(fd: int, container: list[bytes]) -> None:
+            try:
+                data = _read_fd(fd)
+                container.append(data)
+            except Exception:
+                # Best-effort: if reading fails, ignore and allow callable to run
+                pass
+
+        t_out = threading.Thread(target=_reader, args=(read_out, out_parts), daemon=True)
+        t_err = threading.Thread(target=_reader, args=(read_err, err_parts), daemon=True)
+        t_out.start()
+        t_err.start()
+
         # Call the provided callable which may spawn subprocesses
         result = callable_obj()
 
@@ -70,9 +91,22 @@ def run_callable_capture_fds(callable_obj) -> tuple[int, str, str]:
         os.close(saved_stdout)
         os.close(saved_stderr)
 
-    # Close write ends on our side (they were dup'd onto 1/2), then read from read ends
-    out_bytes = _read_fd(read_out)
-    err_bytes = _read_fd(read_err)
+    # At this point we've restored the original stdout/stderr fds in the
+    # finally block above; that operation closes the previous fd 1/2 which
+    # were the pipe write-ends and will cause the reader threads to see EOF.
+    # Wait for the threads to finish reading their data, then collect bytes.
+    try:
+        # t_out/t_err exist only if threads were started; join them if present
+        t_out.join()
+        t_err.join()
+    except NameError:
+        # Threads were not created (shouldn't happen), fall back to direct read
+        out_bytes = _read_fd(read_out)
+        err_bytes = _read_fd(read_err)
+    else:
+        out_bytes = b"".join(out_parts)
+        err_bytes = b"".join(err_parts)
+
     os.close(read_out)
     os.close(read_err)
 
@@ -123,6 +157,31 @@ def extract_poe_tasks(file: Path) -> set[str]:
             tasks = tasks.union(extract_poe_tasks(include_file))
 
     return tasks
+
+
+def _print_task_summary(
+    project: Path,
+    task_name: str,
+    task_args: List[str],
+    out: str,
+    err: str,
+    result: int,
+    duration: float,
+) -> None:
+    """Print stdout/stderr (if present) and a Finished task summary including duration.
+
+    This helper centralizes duplicate printing logic used for both success (long-running)
+    and failure cases.
+    """
+    if out:
+        print(f"--- stdout for {('failed ' if result else '')}{task_name} in {project} ---")
+        print(out)
+    if err:
+        print(f"--- stderr for {('failed ' if result else '')}{task_name} in {project} ---")
+        print(err)
+    print(
+        f"Finished task {task_name} in {project} with args {task_args} with exit code {result} (took {duration:.2f}s)"
+    )
 
 
 def main() -> None:
@@ -179,20 +238,24 @@ def main() -> None:
         if task_name in tasks:
             # print(f"Running task {task_name} in {project} with args {task_args}")
             app = PoeThePoet(cwd=project)
+            # threshold for printing long-running task summary (seconds)
+            notify_threshold = float(os.environ.get("RUN_TASK_NOTIFY_THRESHOLD", "8.0"))
 
             def _call(app=app) -> int:
                 return app(cli_args=poe_cli_args)
 
+            start = time.perf_counter()
             result, out, err = run_callable_capture_fds(_call)
+            duration = time.perf_counter() - start
+
+            # On failure: always print details and exit.
             if result:
-                if out:
-                    print(f"--- stdout for failed task {task_name} in {project} ---")
-                    print(out)
-                if err:
-                    print(f"--- stderr for failed task {task_name} in {project} ---")
-                    print(err)
-                print(f"Finished task {task_name} in {project} with args {task_args} with exit code {result}")
+                _print_task_summary(project, task_name, task_args, out, err, result, duration)
                 sys.exit(result)
+
+            # On success: only print summary when task ran longer than threshold
+            if duration > notify_threshold:
+                _print_task_summary(project, task_name, task_args, out, err, result, duration)
         else:
             # This is not an error, some packages might not have all tasks
             pass
