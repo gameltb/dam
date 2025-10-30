@@ -7,7 +7,6 @@ extra-index-url = [
 
 [tool.uv.workspace]
 members = ["packages/*"]
-exclude = ["packages/__pycache__"]
 
 [tool.uv.sources]
 dam = { workspace = true }
