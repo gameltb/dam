@@ -8,11 +8,9 @@ from typing import (
     Any,
 )
 
-import numpy as np
 import psycopg
 import pytest
 import pytest_asyncio
-import torch
 from dam import world_manager
 from dam.core.database import DatabaseManager
 from dam.core.world import World
@@ -102,22 +100,6 @@ async def world_factory(test_db_factory: Any, tmp_path_factory: Any) -> AsyncGen
         if world:
             await teardown_world_async(world)
         world_manager.unregister_world(name)
-
-
-class MockSentenceTransformer(torch.nn.Module):
-    """A mock sentence transformer for testing."""
-
-    def __init__(self, model_name_or_path: str | None = None, **_kwargs: Any) -> None:
-        """Initialize the mock sentence transformer."""
-        super().__init__()  # type: ignore
-        self.model_name = model_name_or_path
-        self.dim = 384
-
-    def encode(self, sentences: str | list[str], **_kwargs: Any) -> np.ndarray:
-        """Encode sentences into embeddings."""
-        if isinstance(sentences, str):
-            return np.zeros(self.dim, dtype=np.float32)
-        return np.zeros((len(sentences), self.dim), dtype=np.float32)
 
 
 @pytest.fixture

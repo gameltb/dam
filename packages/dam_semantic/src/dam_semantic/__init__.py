@@ -18,18 +18,14 @@ if TYPE_CHECKING:
 from dam_media_image.plugin import ImagePlugin
 
 if TYPE_CHECKING:
-    from dam_sire.resource import SireResource
-    from sentence_transformers import SentenceTransformer
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
+    pass
 
+sire_installed = False
 try:
-    from dam_sire.resource import SireResource
-    from sentence_transformers import SentenceTransformer
-    from sire.core.runtime_resource_user.pytorch_module import TorchModuleWrapper
-
+    __import__("dam_sire.resource")
     sire_installed = True
 except ImportError:
-    sire_installed = False
+    pass
 
 
 class SemanticPlugin(Plugin):
@@ -56,11 +52,9 @@ class SemanticPlugin(Plugin):
         world.register_system(systems.handle_audio_search_command, command_type=AudioSearchCommand)
         world.register_system(systems.generate_embeddings_system)
 
-        # Register the SentenceTransformer model type with the SireResource
-        if sire_installed:
-            sire_resource = world.get_resource(SireResource)
-            if sire_resource:
-                sire_resource.register_model_type(SentenceTransformer, TorchModuleWrapper)
+        # No need to register the model type with SireResource, as it handles
+        # torch.nn.Module subclasses by default, and transformers models are
+        # torch.nn.Module subclasses.
 
 
 __all__ = ["SemanticPlugin"]
