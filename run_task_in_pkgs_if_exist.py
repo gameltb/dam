@@ -5,8 +5,81 @@ from pathlib import Path
 from typing import List
 
 import tomli
+import contextlib
 from poethepoet.app import PoeThePoet
 from rich import print
+
+
+def _read_fd(fd: int) -> bytes:
+    # Read all available bytes from an fd until EOF
+    chunks: list[bytes] = []
+    try:
+        while True:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+    except OSError:
+        # If reading fails, return what we have
+        pass
+    return b"".join(chunks)
+
+
+def run_callable_capture_fds(callable_obj) -> tuple[int, str, str]:
+    """Run callable_obj() while capturing low-level FD 1 and 2 (stdout/stderr).
+
+    Returns (exit_code, stdout_text, stderr_text).
+
+    This captures output from subprocesses and C-level writes that Python-level
+    redirect_stdout() won't catch.
+    """
+    # Flush Python-level buffers first
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    read_out, write_out = os.pipe()
+    read_err, write_err = os.pipe()
+
+    # Save original fds
+    saved_stdout = os.dup(1)
+    saved_stderr = os.dup(2)
+
+    try:
+        # Replace stdout/stderr with our write ends
+        os.dup2(write_out, 1)
+        os.dup2(write_err, 2)
+
+        # Close original write fds in parent — the fd 1/2 now point to the pipe
+        os.close(write_out)
+        os.close(write_err)
+
+        # Call the provided callable which may spawn subprocesses
+        result = callable_obj()
+
+        # Flush again to ensure data is written to the pipes
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+
+    finally:
+        # Restore original stdout/stderr fds
+        os.dup2(saved_stdout, 1)
+        os.dup2(saved_stderr, 2)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
+
+    # Close write ends on our side (they were dup'd onto 1/2), then read from read ends
+    out_bytes = _read_fd(read_out)
+    err_bytes = _read_fd(read_err)
+    os.close(read_out)
+    os.close(read_err)
+
+    out_text = out_bytes.decode(errors="replace")
+    err_text = err_bytes.decode(errors="replace")
+
+    return result, out_text, err_text
 
 
 def discover_projects(workspace_pyproject_file: Path) -> List[Path]:
@@ -106,8 +179,18 @@ def main() -> None:
         if task_name in tasks:
             # print(f"Running task {task_name} in {project} with args {task_args}")
             app = PoeThePoet(cwd=project)
-            result = app(cli_args=poe_cli_args)
+
+            def _call(app=app) -> int:
+                return app(cli_args=poe_cli_args)
+
+            result, out, err = run_callable_capture_fds(_call)
             if result:
+                if out:
+                    print(f"--- stdout for failed task {task_name} in {project} ---")
+                    print(out)
+                if err:
+                    print(f"--- stderr for failed task {task_name} in {project} ---")
+                    print(err)
                 print(f"Finished task {task_name} in {project} with args {task_args} with exit code {result}")
                 sys.exit(result)
         else:
