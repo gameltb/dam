@@ -15,6 +15,7 @@ from .systems.metadata_systems import (
     extract_metadata_command_handler,
     remove_exif_metadata_handler,
 )
+from .systems.migration_system import migrate_paths_handler
 
 
 class AppPlugin(Plugin):
@@ -30,6 +31,7 @@ class AppPlugin(Plugin):
         world.register_system(extract_metadata_command_handler)
         world.register_system(check_exif_metadata_handler)
         world.register_system(remove_exif_metadata_handler)
+        world.register_system(migrate_paths_handler)
 
         # Register Event Listeners
         world.register_system(asset_dispatcher_system)

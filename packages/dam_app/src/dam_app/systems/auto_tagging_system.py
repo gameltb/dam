@@ -25,7 +25,11 @@ async def auto_tag_entity_command_handler(
 ) -> None:
     """Handle the command to auto-tag a single entity."""
     session = transaction.session
-    entity = cmd.entity
+    entity = await transaction.get_entity(cmd.entity_id)
+    if not entity:
+        logger.warning("Could not find entity with ID %d. Skipping auto-tagging.", cmd.entity_id)
+        return
+
     logger.info("Handling AutoTagEntityCommand for entity %d", entity.id)
 
     image_path = await file_operations_module.get_file_path_for_entity(world, transaction, entity.id)

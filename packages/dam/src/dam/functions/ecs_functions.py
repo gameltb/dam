@@ -310,6 +310,13 @@ async def get_components_by_value[T: Component](  # Made async
     return list(result.scalars().all())
 
 
+async def get_unique_component[T: Component](session: AsyncSession, component_type: type[T], **kwargs: Any) -> T | None:
+    """Get a unique component by its attributes."""
+    stmt = select(component_type).filter_by(**kwargs)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+
 async def find_entity_by_content_hash(
     session: AsyncSession, hash_value: bytes, hash_type: str = "sha256"
 ) -> Entity | None:  # Made async

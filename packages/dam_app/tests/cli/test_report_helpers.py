@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam_archive.models import ArchiveMemberComponent
 from dam_fs.models.file_location_component import FileLocationComponent
@@ -34,13 +35,22 @@ async def test_verify_archive_members_success(world_factory: WorldFactory, tmp_p
     async with world.get_context(WorldTransaction)() as transaction:
         # Create entities for the archive and its members
         archive_entity = await transaction.create_entity()
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(
+            transaction, archive_path.resolve(), "filesystem"
+        )
         await transaction.add_component_to_entity(
             archive_entity.id,
-            FileLocationComponent(url=f"file://{archive_path.resolve()}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{archive_path.resolve()}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
 
         member1_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(member1_entity.id, ContentHashSHA256Component(hash_value=hash1))
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, "member1.txt", "archive")
         await transaction.add_component_to_entity(
             member1_entity.id,
             ArchiveMemberComponent(
@@ -48,11 +58,14 @@ async def test_verify_archive_members_success(world_factory: WorldFactory, tmp_p
                 path_in_archive="member1.txt",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
             ),
         )
 
         member2_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(member2_entity.id, ContentHashSHA256Component(hash_value=hash2))
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, "member2.txt", "archive")
         await transaction.add_component_to_entity(
             member2_entity.id,
             ArchiveMemberComponent(
@@ -60,6 +73,8 @@ async def test_verify_archive_members_success(world_factory: WorldFactory, tmp_p
                 path_in_archive="member2.txt",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
             ),
         )
 
@@ -81,13 +96,22 @@ async def test_verify_archive_members_hash_mismatch(world_factory: WorldFactory,
 
     async with world.get_context(WorldTransaction)() as transaction:
         archive_entity = await transaction.create_entity()
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(
+            transaction, archive_path.resolve(), "filesystem"
+        )
         await transaction.add_component_to_entity(
             archive_entity.id,
-            FileLocationComponent(url=f"file://{archive_path.resolve()}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{archive_path.resolve()}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
 
         member1_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(member1_entity.id, ContentHashSHA256Component(hash_value=wrong_hash))
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, "member1.txt", "archive")
         await transaction.add_component_to_entity(
             member1_entity.id,
             ArchiveMemberComponent(
@@ -95,6 +119,8 @@ async def test_verify_archive_members_hash_mismatch(world_factory: WorldFactory,
                 path_in_archive="member1.txt",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
             ),
         )
 
@@ -117,13 +143,22 @@ async def test_verify_archive_members_file_not_found(world_factory: WorldFactory
 
     async with world.get_context(WorldTransaction)() as transaction:
         archive_entity = await transaction.create_entity()
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(
+            transaction, archive_path.resolve(), "filesystem"
+        )
         await transaction.add_component_to_entity(
             archive_entity.id,
-            FileLocationComponent(url=f"file://{archive_path.resolve()}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{archive_path.resolve()}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
 
         member1_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(member1_entity.id, ContentHashSHA256Component(hash_value=hash1))
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, "member1.txt", "archive")
         await transaction.add_component_to_entity(
             member1_entity.id,
             ArchiveMemberComponent(
@@ -131,6 +166,8 @@ async def test_verify_archive_members_file_not_found(world_factory: WorldFactory
                 path_in_archive="member1.txt",  # This file does not exist in the zip
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
             ),
         )
 

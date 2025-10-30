@@ -8,29 +8,21 @@ from typing import ClassVar
 
 from dam.commands.analysis_commands import AnalysisCommand
 from dam.commands.core import BaseCommand, EntityCommand
-from dam.models.core.entity import Entity
 from dam.system_events.base import BaseSystemEvent
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class AutoTagEntityCommand(BaseCommand[None, BaseSystemEvent]):
-    """A command to trigger auto-tagging for an entity."""
-
-    entity: Entity
-
-
-@dataclass
-class CheckExifMetadataCommand(EntityCommand[bool, BaseSystemEvent]):
-    """A command to check if EXIF metadata has been extracted for an entity."""
+class AnalyzeEntityCommand(EntityCommand[None, BaseSystemEvent]):
+    """A command to analyze an entity."""
 
     pass
 
 
 @dataclass
-class RemoveExifMetadataCommand(EntityCommand[None, BaseSystemEvent]):
-    """A command to remove the extracted EXIF metadata from an entity."""
+class AutoTagEntityCommand(EntityCommand[None, BaseSystemEvent]):
+    """A command to automatically tag an entity."""
 
     pass
 
@@ -84,3 +76,31 @@ class ExtractExifMetadataCommand(AnalysisCommand[None, BaseSystemEvent]):
             cls._cached_extensions = []
 
         return {"mimetypes": [], "extensions": cls._cached_extensions}
+
+
+@dataclass
+class CheckExifMetadataCommand(EntityCommand[bool, BaseSystemEvent]):
+    """A command to check if an entity has extracted EXIF metadata."""
+
+    pass
+
+
+@dataclass
+class RemoveExifMetadataCommand(EntityCommand[None, BaseSystemEvent]):
+    """A command to remove the extracted EXIF metadata from an entity."""
+
+    pass
+
+
+@dataclass
+class ExportDbCommand(BaseCommand[None, BaseSystemEvent]):
+    """A command to export the database to a file."""
+
+    pass
+
+
+@dataclass
+class MigratePathsCommand(BaseCommand[None, BaseSystemEvent]):
+    """A command to migrate existing file paths to the new path tree structure."""
+
+    pass

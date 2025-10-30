@@ -1,12 +1,12 @@
 """Discovery system for the archive plugin."""
 
 import logging
-from pathlib import Path
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
-from sqlalchemy import select
+from dam.models.paths import PathNode
+from sqlalchemy import and_, select
 
 from ..models import ArchiveMemberComponent
 
@@ -23,33 +23,71 @@ async def discover_archive_path_siblings_handler(
 
     # 1. Get the ArchiveMemberComponent for the starting entity
     member_comp = await transaction.get_component(cmd.entity_id, ArchiveMemberComponent)
-    if not member_comp or not member_comp.path_in_archive:
-        logger.debug("Entity %s is not an archive member. Skipping archive discovery.", cmd.entity_id)
+    if not member_comp or not member_comp.tree_entity_id or not member_comp.node_id:
+        logger.debug("Entity %s is not an archive member with a path tree. Skipping archive discovery.", cmd.entity_id)
         return None
 
-    # 2. Determine the parent archive and the directory within it
-    parent_archive_id = member_comp.archive_entity_id
-    internal_dir = Path(member_comp.path_in_archive).parent
-
-    # 3. Find all members of the same parent archive first.
-    stmt = select(ArchiveMemberComponent).where(ArchiveMemberComponent.archive_entity_id == parent_archive_id)
+    # 2. Get the PathNode for the entity
+    stmt = select(PathNode).where(
+        and_(PathNode.entity_id == member_comp.tree_entity_id, PathNode.id == member_comp.node_id)
+    )
     result = await transaction.session.execute(stmt)
-    all_members = result.scalars().all()
+    file_node = result.scalar_one_or_none()
+    if not file_node:
+        logger.debug(
+            "PathNode with id %s not found for entity %s. Skipping archive discovery.",
+            member_comp.node_id,
+            cmd.entity_id,
+        )
+        return None
 
-    # 4. Filter them by directory and create PathSibling objects
-    siblings = [
-        PathSibling(entity_id=m.entity_id, path=m.path_in_archive)
-        for m in all_members
-        if m.path_in_archive and Path(m.path_in_archive).parent == internal_dir
-    ]
+    # 3. Find all nodes with the same parent
+    stmt = select(PathNode).where(PathNode.parent_id == file_node.parent_id)
+    result = await transaction.session.execute(stmt)
+    sibling_nodes = result.scalars().all()
+
+    # 4. Find the corresponding entities and construct the path
+    siblings: list[PathSibling] = []
+    for node in sibling_nodes:
+        # Find the entity that references this node
+        stmt = select(ArchiveMemberComponent.entity_id).where(ArchiveMemberComponent.node_id == node.id)
+        result = await transaction.session.execute(stmt)
+        entity_id = result.scalar_one_or_none()
+
+        if entity_id:
+            # Reconstruct the path
+            path_segments: list[str] = []
+            current_node = node
+            while True:
+                path_segments.insert(0, current_node.segment)
+                if current_node.parent_id is None:
+                    break
+
+                stmt = select(PathNode).where(
+                    and_(
+                        PathNode.entity_id == member_comp.tree_entity_id,
+                        PathNode.id == current_node.parent_id,
+                    )
+                )
+                result = await transaction.session.execute(stmt)
+                parent_node = result.scalar_one_or_none()
+
+                if not parent_node:
+                    path_segments = []
+                    break
+                current_node = parent_node
+
+            if not path_segments:
+                continue
+
+            path = "/".join(path_segments)
+            siblings.append(PathSibling(entity_id=entity_id, path=path))
 
     if siblings:
         logger.info(
-            "Found %s archive siblings for entity %s in archive %s:%s.",
+            "Found %s archive siblings for entity %s.",
             len(siblings),
             cmd.entity_id,
-            parent_archive_id,
-            internal_dir,
         )
         return siblings
 

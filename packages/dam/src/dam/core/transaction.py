@@ -52,6 +52,10 @@ class WorldTransaction:
         """Get all components of a specific type for an entity."""
         return await ecs_functions.get_components(self.session, entity_id, component_type)
 
+    async def get_unique_component(self, component_type: type[T], **kwargs: Any) -> T | None:
+        """Get a unique component by its attributes."""
+        return await ecs_functions.get_unique_component(self.session, component_type, **kwargs)
+
     async def get_all_components_for_entity(self, entity_id: int) -> list[Component]:
         """Get all component instances associated with a given entity."""
         return await ecs_functions.get_all_components_for_entity(self.session, entity_id)

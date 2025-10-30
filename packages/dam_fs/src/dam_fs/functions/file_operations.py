@@ -10,6 +10,7 @@ from pathlib import Path
 from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam.models.core.entity import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
@@ -131,9 +132,12 @@ async def create_entity_with_file(transaction: WorldTransaction, file_path: str)
 
     # Add FileLocationComponent
     file_url = p_file_path.as_uri()
+    tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, p_file_path, "filesystem")
     location_component = FileLocationComponent(
         url=file_url,
         last_modified_at=mod_time,
+        tree_entity_id=tree_entity_id,
+        node_id=node_id,
     )
     await ecs_functions.add_component_to_entity(transaction.session, entity.id, location_component)
 
