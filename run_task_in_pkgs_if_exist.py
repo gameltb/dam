@@ -1,15 +1,13 @@
 import glob
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import List
 
 import tomli
-import contextlib
 from poethepoet.app import PoeThePoet
-from rich import print
-import time
-import threading
 
 
 def _read_fd(fd: int) -> bytes:
