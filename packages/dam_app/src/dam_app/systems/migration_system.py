@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from dam.core.systems import system
+from dam.core.transaction import WorldTransaction
 from dam.core.world import World
 from dam.functions.paths import get_or_create_path_tree_from_path
 from dam_archive.models import ArchiveMemberComponent
@@ -34,7 +35,7 @@ async def migrate_paths_handler(
 
 async def _migrate_filesystem_paths(world: World) -> None:
     logger.info("Migrating filesystem paths.")
-    async with world.transaction() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         stmt = select(FileLocationComponent)
         result = await tx.session.execute(stmt)
         file_locations = result.scalars().all()
@@ -55,7 +56,7 @@ async def _migrate_filesystem_paths(world: World) -> None:
 
 async def _migrate_archive_paths(world: World) -> None:
     logger.info("Migrating archive paths.")
-    async with world.transaction() as tx:
+    async with world.get_context(WorldTransaction)() as tx:
         stmt = select(ArchiveMemberComponent)
         result = await tx.session.execute(stmt)
         archive_members = result.scalars().all()

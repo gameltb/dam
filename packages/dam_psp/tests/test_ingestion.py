@@ -125,7 +125,12 @@ async def test_psp_iso_metadata_extraction_system(mocker: MockerFixture) -> None
                 return None
             if component_type == ArchiveMemberComponent:
                 return ArchiveMemberComponent(
-                    archive_entity_id=99, path_in_archive="game.iso", modified_at=None, compressed_size=None
+                    archive_entity_id=99,
+                    path_in_archive="game.iso",
+                    modified_at=None,
+                    compressed_size=None,
+                    tree_entity_id=None,
+                    node_id=None,
                 )
         elif entity_id == non_iso_entity_id:
             if component_type == PSPSFOMetadataComponent:

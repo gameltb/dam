@@ -104,11 +104,11 @@ def main() -> None:
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
         if task_name in tasks:
-            print(f"Running task {task_name} in {project} with args {task_args}")
+            # print(f"Running task {task_name} in {project} with args {task_args}")
             app = PoeThePoet(cwd=project)
             result = app(cli_args=poe_cli_args)
-            print(f"Finished task {task_name} in {project} with exit code {result}")
             if result:
+                print(f"Finished task {task_name} in {project} with args {task_args} with exit code {result}")
                 sys.exit(result)
         else:
             # This is not an error, some packages might not have all tasks
