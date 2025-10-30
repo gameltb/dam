@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam_fs.models.file_location_component import FileLocationComponent
 from dam_test_utils.types import WorldFactory
 from rich.console import Console
@@ -22,10 +23,16 @@ async def test_cleanup_deleted_files_removes_component_for_deleted_file(world_fa
     file_path.touch()
 
     async with world.get_context(WorldTransaction)() as tx:
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(tx, file_path, "filesystem")
         entity = await tx.create_entity()
         await tx.add_component_to_entity(
             entity.id,
-            FileLocationComponent(url=file_path.as_uri(), last_modified_at=datetime.datetime.now()),
+            FileLocationComponent(
+                url=file_path.as_uri(),
+                last_modified_at=datetime.datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
 
     file_path.unlink()  # Delete the file
@@ -50,10 +57,16 @@ async def test_cleanup_deleted_files_keeps_component_for_existing_file(world_fac
     file_path.touch()
 
     async with world.get_context(WorldTransaction)() as tx:
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(tx, file_path, "filesystem")
         entity = await tx.create_entity()
         await tx.add_component_to_entity(
             entity.id,
-            FileLocationComponent(url=file_path.as_uri(), last_modified_at=datetime.datetime.now()),
+            FileLocationComponent(
+                url=file_path.as_uri(),
+                last_modified_at=datetime.datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
 
     removed_count = await cleanup_deleted_files_logic(world, None, console)
@@ -77,10 +90,16 @@ async def test_cleanup_deleted_files_respects_path_filter(world_factory: WorldFa
     file_to_delete = tmp_path / "delete_me.txt"
     file_to_delete.touch()
     async with world.get_context(WorldTransaction)() as tx:
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(tx, file_to_delete, "filesystem")
         entity1 = await tx.create_entity()
         await tx.add_component_to_entity(
             entity1.id,
-            FileLocationComponent(url=file_to_delete.as_uri(), last_modified_at=datetime.datetime.now()),
+            FileLocationComponent(
+                url=file_to_delete.as_uri(),
+                last_modified_at=datetime.datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
     file_to_delete.unlink()
 
@@ -90,10 +109,16 @@ async def test_cleanup_deleted_files_respects_path_filter(world_factory: WorldFa
     other_file_to_delete = other_dir / "delete_me_too.txt"
     other_file_to_delete.touch()
     async with world.get_context(WorldTransaction)() as tx:
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(tx, other_file_to_delete, "filesystem")
         entity2 = await tx.create_entity()
         await tx.add_component_to_entity(
             entity2.id,
-            FileLocationComponent(url=other_file_to_delete.as_uri(), last_modified_at=datetime.datetime.now()),
+            FileLocationComponent(
+                url=other_file_to_delete.as_uri(),
+                last_modified_at=datetime.datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            ),
         )
     other_file_to_delete.unlink()
 

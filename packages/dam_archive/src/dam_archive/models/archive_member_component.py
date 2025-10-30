@@ -16,3 +16,6 @@ class ArchiveMemberComponent(Component):
     path_in_archive: Mapped[str] = mapped_column(String(), nullable=False)
     modified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     compressed_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    tree_entity_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("entities.id"), nullable=True)
+    node_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("component_path_node.id"), nullable=True)

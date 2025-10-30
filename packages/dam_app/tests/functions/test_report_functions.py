@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from dam.core.transaction import WorldTransaction
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
 from dam_archive.models import ArchiveMemberComponent
@@ -20,22 +21,45 @@ async def test_get_duplicates_report(world_factory: WorldFactory):
     """Test that the get_duplicates_report function returns the correct duplicate files."""
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
+        # Create path data
+        tree_entity_id, node_id_1 = await get_or_create_path_tree_from_path(transaction, "/tmp/file1", "filesystem")
+        _, node_id_2 = await get_or_create_path_tree_from_path(transaction, "/tmp/file2", "filesystem")
+        _, node_id_3 = await get_or_create_path_tree_from_path(transaction, "/tmp/file3", "filesystem")
+
         # Create an entity with two locations (a duplicate)
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
         await transaction.add_component_to_entity(entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file:///tmp/file1", last_modified_at=datetime.now())
+            entity1.id,
+            FileLocationComponent(
+                url="file:///tmp/file1",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_1,
+            ),
         )
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file:///tmp/file2", last_modified_at=datetime.now())
+            entity1.id,
+            FileLocationComponent(
+                url="file:///tmp/file2",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_2,
+            ),
         )
         # Create a second entity with only one location (not a duplicate)
         entity2 = await transaction.create_entity()
         hash2 = hashlib.sha256(b"hash2").digest()
         await transaction.add_component_to_entity(entity2.id, ContentHashSHA256Component(hash_value=hash2))
         await transaction.add_component_to_entity(
-            entity2.id, FileLocationComponent(url="file:///tmp/file3", last_modified_at=datetime.now())
+            entity2.id,
+            FileLocationComponent(
+                url="file:///tmp/file3",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_3,
+            ),
         )
 
         duplicates = await get_duplicates_report(transaction.session)
@@ -53,22 +77,45 @@ async def test_get_duplicates_report_with_path_filter(world_factory: WorldFactor
     """Test that the get_duplicates_report function returns the correct duplicate files when a path filter is applied."""
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
+        # Create path data
+        tree_entity_id, node_id_1 = await get_or_create_path_tree_from_path(transaction, "/tmp/file1", "filesystem")
+        _, node_id_2 = await get_or_create_path_tree_from_path(transaction, "/data/file2", "filesystem")
+        _, node_id_3 = await get_or_create_path_tree_from_path(transaction, "/tmp/file3", "filesystem")
+
         # Create an entity with two locations (a duplicate)
         entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
         await transaction.add_component_to_entity(entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file:///tmp/file1", last_modified_at=datetime.now())
+            entity1.id,
+            FileLocationComponent(
+                url="file:///tmp/file1",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_1,
+            ),
         )
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file:///data/file2", last_modified_at=datetime.now())
+            entity1.id,
+            FileLocationComponent(
+                url="file:///data/file2",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_2,
+            ),
         )
         # Create a second entity with only one location (not a duplicate)
         entity2 = await transaction.create_entity()
         hash2 = hashlib.sha256(b"hash2").digest()
         await transaction.add_component_to_entity(entity2.id, ContentHashSHA256Component(hash_value=hash2))
         await transaction.add_component_to_entity(
-            entity2.id, FileLocationComponent(url="file:///tmp/file3", last_modified_at=datetime.now())
+            entity2.id,
+            FileLocationComponent(
+                url="file:///tmp/file3",
+                last_modified_at=datetime.now(),
+                tree_entity_id=tree_entity_id,
+                node_id=node_id_3,
+            ),
         )
 
         duplicates = await get_duplicates_report(transaction.session, Path("/tmp"))
@@ -88,9 +135,21 @@ async def test_get_duplicates_report_with_indirect_path_filter(world_factory: Wo
 
         # Location 1: Inside an archive at /tmp/archive.zip
         archive_entity = await transaction.create_entity()
-        await transaction.add_component_to_entity(
-            archive_entity.id, FileLocationComponent(url="file:///tmp/archive.zip", last_modified_at=datetime.now())
+
+        archive_tree_id, archive_node_id = await get_or_create_path_tree_from_path(
+            transaction, "/tmp/archive.zip", "filesystem"
         )
+        await transaction.add_component_to_entity(
+            archive_entity.id,
+            FileLocationComponent(
+                url="file:///tmp/archive.zip",
+                last_modified_at=datetime.now(),
+                tree_entity_id=archive_tree_id,
+                node_id=archive_node_id,
+            ),
+        )
+
+        member_tree_id, member_node_id = await get_or_create_path_tree_from_path(transaction, "file1", "archive")
         await transaction.add_component_to_entity(
             entity1.id,
             ArchiveMemberComponent(
@@ -98,20 +157,39 @@ async def test_get_duplicates_report_with_indirect_path_filter(world_factory: Wo
                 path_in_archive="file1",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=member_tree_id,
+                node_id=member_node_id,
             ),
         )
 
         # Location 2: A direct file location not under /tmp
+        direct_tree_id, direct_node_id = await get_or_create_path_tree_from_path(
+            transaction, "/data/file2", "filesystem"
+        )
         await transaction.add_component_to_entity(
-            entity1.id, FileLocationComponent(url="file:///data/file2", last_modified_at=datetime.now())
+            entity1.id,
+            FileLocationComponent(
+                url="file:///data/file2",
+                last_modified_at=datetime.now(),
+                tree_entity_id=direct_tree_id,
+                node_id=direct_node_id,
+            ),
         )
 
         # Create another non-duplicate entity to ensure it's not picked up
         entity2 = await transaction.create_entity()
         hash2 = hashlib.sha256(b"hash2").digest()
         await transaction.add_component_to_entity(entity2.id, ContentHashSHA256Component(hash_value=hash2))
+
+        other_tree_id, other_node_id = await get_or_create_path_tree_from_path(transaction, "/tmp/file3", "filesystem")
         await transaction.add_component_to_entity(
-            entity2.id, FileLocationComponent(url="file:///tmp/file3", last_modified_at=datetime.now())
+            entity2.id,
+            FileLocationComponent(
+                url="file:///tmp/file3",
+                last_modified_at=datetime.now(),
+                tree_entity_id=other_tree_id,
+                node_id=other_node_id,
+            ),
         )
 
         # Since entity1 has two locations, it is a duplicate.
@@ -136,13 +214,40 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
     (tmp_path / "target").mkdir()
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
+        # Create path data
+        fs_tree_id, source_file1_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "source" / "file1", "filesystem"
+        )
+        _, source_archive_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "source" / "archive.zip", "filesystem"
+        )
+        archive_tree_id, member2_node_id = await get_or_create_path_tree_from_path(transaction, "member2", "archive")
+        _, target_dup_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "target" / "file1_dup", "filesystem"
+        )
+        _, target_archive_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "target" / "archive.zip", "filesystem"
+        )
+        target_archive_tree_id, target_member1_node_id = await get_or_create_path_tree_from_path(
+            transaction, "member1", "archive"
+        )
+        _, target_member2_node_id = await get_or_create_path_tree_from_path(transaction, "member2", "archive")
+        _, unique_file_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "target" / "unique_file", "filesystem"
+        )
+
         # Source files
         source_entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
         await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'file1'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'source' / 'file1'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=source_file1_node_id,
+            ),
         )
 
         source_entity2 = await transaction.create_entity()
@@ -151,7 +256,12 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
         source_archive_entity = await transaction.create_entity()
         await transaction.add_component_to_entity(
             source_archive_entity.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'archive.zip'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'source' / 'archive.zip'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=source_archive_node_id,
+            ),
         )
         await transaction.add_component_to_entity(
             source_entity2.id,
@@ -160,6 +270,8 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
                 path_in_archive="member2",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=archive_tree_id,
+                node_id=member2_node_id,
             ),
         )
 
@@ -167,7 +279,12 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
         # A duplicate of source_entity1
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'file1_dup'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'target' / 'file1_dup'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=target_dup_node_id,
+            ),
         )
 
         # An archive in the target directory where all members are duplicates of source files
@@ -178,7 +295,12 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
         )
         await transaction.add_component_to_entity(
             target_archive_entity.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'archive.zip'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'target' / 'archive.zip'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=target_archive_node_id,
+            ),
         )
 
         # Add archive members that are duplicates of the source files
@@ -189,6 +311,8 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
                 path_in_archive="member1",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=target_archive_tree_id,
+                node_id=target_member1_node_id,
             ),
         )
         await transaction.add_component_to_entity(
@@ -198,6 +322,8 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
                 path_in_archive="member2",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=target_archive_tree_id,
+                node_id=target_member2_node_id,
             ),
         )
 
@@ -209,7 +335,12 @@ async def test_create_delete_plan(world_factory: WorldFactory, tmp_path: Path):
         )
         await transaction.add_component_to_entity(
             non_dup_entity.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'unique_file'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'target' / 'unique_file'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=unique_file_node_id,
+            ),
         )
 
         delete_plan = await create_delete_plan(
@@ -255,13 +386,28 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory, tmp
     (tmp_path / "target").mkdir()
     world = await world_factory("test_world", [])
     async with world.get_context(WorldTransaction)() as transaction:
+        # Create path data
+        fs_tree_id, source_file1_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "source" / "file1", "filesystem"
+        )
+        _, target_archive_node_id = await get_or_create_path_tree_from_path(
+            transaction, tmp_path / "target" / "archive.zip", "filesystem"
+        )
+        archive_tree_id, member1_node_id = await get_or_create_path_tree_from_path(transaction, "member1", "archive")
+        _, member2_node_id = await get_or_create_path_tree_from_path(transaction, "member2", "archive")
+
         # Source files
         source_entity1 = await transaction.create_entity()
         hash1 = hashlib.sha256(b"hash1").digest()
         await transaction.add_component_to_entity(source_entity1.id, ContentHashSHA256Component(hash_value=hash1))
         await transaction.add_component_to_entity(
             source_entity1.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'source' / 'file1'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'source' / 'file1'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=source_file1_node_id,
+            ),
         )
         await transaction.add_component_to_entity(
             source_entity1.id, ContentLengthComponent(file_size_bytes=50 * 1024 * 1024)
@@ -276,7 +422,12 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory, tmp
         )
         await transaction.add_component_to_entity(
             target_archive_entity.id,
-            FileLocationComponent(url=f"file://{tmp_path / 'target' / 'archive.zip'}", last_modified_at=datetime.now()),
+            FileLocationComponent(
+                url=f"file://{tmp_path / 'target' / 'archive.zip'}",
+                last_modified_at=datetime.now(),
+                tree_entity_id=fs_tree_id,
+                node_id=target_archive_node_id,
+            ),
         )
 
         # An archive member that is a duplicate
@@ -287,6 +438,8 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory, tmp
                 path_in_archive="member1",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=archive_tree_id,
+                node_id=member1_node_id,
             ),
         )
 
@@ -300,6 +453,8 @@ async def test_create_delete_plan_with_min_size(world_factory: WorldFactory, tmp
                 path_in_archive="member2",
                 modified_at=datetime.now(),
                 compressed_size=None,
+                tree_entity_id=archive_tree_id,
+                node_id=member2_node_id,
             ),
         )
 

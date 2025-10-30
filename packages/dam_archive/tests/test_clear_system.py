@@ -28,6 +28,8 @@ async def test_clear_archive_components_handler(mocker: MockerFixture):
             path_in_archive=f"file_{eid}.txt",
             modified_at=None,
             compressed_size=None,
+            tree_entity_id=1,
+            node_id=eid,
         )
         # Manually set entity_id for the test, as it's not part of the constructor
         comp.entity_id = eid

@@ -26,6 +26,7 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import CallableStreamProvider, StreamProvider
 from dam.core.world import World
 from dam.functions.mime_type_functions import get_content_mime_type
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam.system_events.base import SystemResultEvent
 from dam.system_events.entity_events import NewEntityCreatedEvent
 from dam.system_events.progress import (
@@ -426,12 +427,17 @@ async def _process_member(
         member_entity, _ = member_entity_tuple
         member_entity_id = member_entity.id
 
+        # Create path tree
+        tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, member_info.name, "archive")
+
         # Add ArchiveMemberComponent
         member_comp = ArchiveMemberComponent(
             archive_entity_id=entity_id,
             path_in_archive=member_info.name,
             modified_at=member_mod_times.get(member_info.name),
             compressed_size=member_info.compressed_size,
+            tree_entity_id=tree_entity_id,
+            node_id=node_id,
         )
         await transaction.add_component_to_entity(member_entity_id, member_comp)
 

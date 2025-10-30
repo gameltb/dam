@@ -17,7 +17,12 @@ async def test_get_archive_asset_filenames_handler_with_filename(mocker: MockerF
     mock_transaction = mocker.AsyncMock()
     mock_transaction.get_components.return_value = [
         ArchiveMemberComponent(
-            archive_entity_id=99, path_in_archive=path_in_archive, modified_at=None, compressed_size=None
+            archive_entity_id=99,
+            path_in_archive=path_in_archive,
+            modified_at=None,
+            compressed_size=None,
+            tree_entity_id=1,
+            node_id=1,
         )
     ]
 
@@ -52,7 +57,14 @@ async def test_get_archive_asset_filenames_handler_no_filename(mocker: MockerFix
 
     mock_transaction = mocker.AsyncMock()
     mock_transaction.get_components.return_value = [
-        ArchiveMemberComponent(archive_entity_id=99, path_in_archive="", modified_at=None, compressed_size=None)
+        ArchiveMemberComponent(
+            archive_entity_id=99,
+            path_in_archive="",
+            modified_at=None,
+            compressed_size=None,
+            tree_entity_id=1,
+            node_id=1,
+        )
     ]
 
     command = GetAssetFilenamesCommand(entity_id=entity_id)

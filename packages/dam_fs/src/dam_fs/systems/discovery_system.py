@@ -2,12 +2,12 @@
 
 import logging
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 from dam.commands.discovery_commands import DiscoverPathSiblingsCommand, PathSibling
 from dam.core.systems import system
 from dam.core.transaction import WorldTransaction
-from sqlalchemy import select
+from dam.models.paths import PathNode
+from sqlalchemy import and_, select
 
 from ..models.file_location_component import FileLocationComponent
 
@@ -24,52 +24,62 @@ async def discover_fs_path_siblings_handler(
 
     # 1. Get the FileLocationComponent for the starting entity
     flc = await transaction.get_component(cmd.entity_id, FileLocationComponent)
-    if not flc or not flc.url:
-        logger.debug("Entity %s has no FileLocationComponent with a URL. Skipping fs discovery.", cmd.entity_id)
+    if not flc or not flc.tree_entity_id or not flc.node_id:
+        logger.debug("Entity %s has no FileLocationComponent with a path tree. Skipping fs discovery.", cmd.entity_id)
         return None
 
-    # 2. Determine the directory from the URL
-    try:
-        parsed_url = urlparse(flc.url)
-        if parsed_url.scheme != "file":
-            logger.debug("URL scheme for entity %s is not 'file'. Skipping fs discovery.", cmd.entity_id)
-            return None
-
-        directory_path_str = Path(unquote(parsed_url.path)).parent
-        # Ensure the directory path is absolute and normalized for the OS
-        directory_path = Path(directory_path_str).resolve()
-        directory_uri_prefix = directory_path.as_uri()
-
-    except Exception as e:
-        logger.error("Could not parse directory from URL '%s': %s", flc.url, e)
-        return None
-
-    # 3. Find all candidate entities in or below the directory
-    stmt = select(FileLocationComponent).where(FileLocationComponent.url.like(f"{directory_uri_prefix}%"))
+    # 2. Get the PathNode for the entity
+    stmt = select(PathNode).where(and_(PathNode.entity_id == flc.tree_entity_id, PathNode.id == flc.node_id))
     result = await transaction.session.execute(stmt)
-    all_candidates = result.scalars().all()
+    file_node = result.scalar_one_or_none()
+    if not file_node:
+        logger.debug("PathNode with id %s not found for entity %s. Skipping fs discovery.", flc.node_id, cmd.entity_id)
+        return None
 
-    # 4. Filter to include only direct children of the directory
+    # 3. Find all nodes with the same parent
+    stmt = select(PathNode).where(PathNode.parent_id == file_node.parent_id)
+    result = await transaction.session.execute(stmt)
+    sibling_nodes = result.scalars().all()
+
+    # 4. Find the corresponding entities and construct the path
     siblings: list[PathSibling] = []
-    for component in all_candidates:
-        if not component.url:
-            continue
-        try:
-            parsed_url = urlparse(component.url)
-            candidate_path = Path(unquote(parsed_url.path)).resolve()
-            # Check if the candidate's parent directory is the same as the target directory
-            if candidate_path.parent == directory_path:
-                siblings.append(PathSibling(entity_id=component.entity_id, path=str(candidate_path)))
-        except Exception:
-            # Ignore candidates with malformed URLs or paths
-            continue
+    for node in sibling_nodes:
+        # Find the entity that references this node
+        stmt = select(FileLocationComponent.entity_id).where(FileLocationComponent.node_id == node.id)
+        result = await transaction.session.execute(stmt)
+        entity_id = result.scalar_one_or_none()
+
+        if entity_id:
+            # Reconstruct the path
+            path_segments: list[str] = []
+            current_node = node
+            while True:
+                path_segments.insert(0, current_node.segment)
+                if current_node.parent_id is None:
+                    break
+
+                stmt = select(PathNode).where(
+                    and_(PathNode.entity_id == flc.tree_entity_id, PathNode.id == current_node.parent_id)
+                )
+                result = await transaction.session.execute(stmt)
+                parent_node = result.scalar_one_or_none()
+
+                if not parent_node:
+                    path_segments = []
+                    break
+                current_node = parent_node
+
+            if not path_segments:
+                continue
+
+            path = str(Path(*path_segments))
+            siblings.append(PathSibling(entity_id=entity_id, path=path))
 
     if siblings:
         logger.info(
-            "Found %s filesystem siblings for entity %s in '%s'.",
+            "Found %s filesystem siblings for entity %s.",
             len(siblings),
             cmd.entity_id,
-            directory_path,
         )
         return siblings
 

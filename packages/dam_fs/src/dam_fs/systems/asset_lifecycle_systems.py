@@ -15,6 +15,7 @@ from dam.core.transaction import WorldTransaction
 from dam.core.types import FileStreamProvider
 from dam.core.world import World
 from dam.functions import ecs_functions
+from dam.functions.paths import get_or_create_path_tree_from_path
 from dam.models.core import Entity
 from dam.models.hashes.content_hash_sha256_component import ContentHashSHA256Component
 from dam.models.metadata.content_length_component import ContentLengthComponent
@@ -119,12 +120,24 @@ async def register_local_file_handler(
     result_tuple = await world.dispatch_command(get_or_create_cmd).get_one_value()
     entity, _ = result_tuple
 
+    # Create path tree
+    tree_entity_id, node_id = await get_or_create_path_tree_from_path(transaction, file_path, "filesystem")
+
     async with transaction.session.begin_nested():
-        # Update FileLocationComponent
+        # Update or create FileLocationComponent
+        flc: FileLocationComponent
         if existing_flc:
-            existing_flc.last_modified_at = current_mtime
+            flc = existing_flc
+            flc.last_modified_at = current_mtime
+            flc.tree_entity_id = tree_entity_id
+            flc.node_id = node_id
         else:
-            flc = FileLocationComponent(url=file_uri, last_modified_at=current_mtime)
+            flc = FileLocationComponent(
+                url=file_uri,
+                last_modified_at=current_mtime,
+                tree_entity_id=tree_entity_id,
+                node_id=node_id,
+            )
             await transaction.add_component_to_entity(entity.id, flc)
 
         # Add ContentLengthComponent if it doesn't exist

@@ -47,7 +47,13 @@ async def test_extract_metadata_from_file(mock_transaction: MockType, mocker: Mo
         temp_file = Path(temp_dir) / "test.txt"
         temp_file.write_text("This is a test file.")
 
-        file_location = FileLocationComponent(url=temp_file.as_uri(), last_modified_at=datetime.now())
+        tree_entity_id, node_id = 1, 1  # Dummy values for the test
+        file_location = FileLocationComponent(
+            url=temp_file.as_uri(),
+            last_modified_at=datetime.now(),
+            tree_entity_id=tree_entity_id,
+            node_id=node_id,
+        )
         mock_transaction.get_components.return_value = [file_location]
 
         command = ExtractExifMetadataCommand(entity_id=1)
