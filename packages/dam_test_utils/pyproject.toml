@@ -27,8 +27,6 @@ dependencies = [
     "pytest-asyncio",
     "psycopg[binary]",
     "Pillow",
-    "torch",
-    "numpy",
 ]
 
 [tool.ruff]
