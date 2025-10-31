@@ -1281,8 +1281,9 @@ dependencies = [
     { name = "dam-media-image" },
     { name = "dam-sire" },
     { name = "numpy" },
-    { name = "sire" },
     { name = "sqlalchemy" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
     { name = "transformers" },
 ]
 
@@ -1293,8 +1294,8 @@ requires-dist = [
     { name = "dam-media-image", editable = "packages/dam_media_image" },
     { name = "dam-sire", editable = "packages/dam_sire" },
     { name = "numpy" },
-    { name = "sire", editable = "packages/sire" },
     { name = "sqlalchemy" },
+    { name = "torch" },
     { name = "transformers" },
 ]
 
@@ -1356,25 +1357,20 @@ version = "0.1.0"
 source = { editable = "packages/dam_test_utils" }
 dependencies = [
     { name = "dam" },
-    { name = "numpy" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dam", editable = "packages/dam" },
     { name = "dam-test-utils", editable = "packages/dam_test_utils" },
-    { name = "numpy" },
     { name = "pillow" },
     { name = "psycopg", extras = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "torch" },
 ]
 
 [[package]]

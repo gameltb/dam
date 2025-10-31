@@ -66,25 +66,25 @@ async def generate_embedding(
     if not text or not text.strip():
         return None
     try:
-        tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained(model_name)  # type: ignore
-        model: AutoModel = AutoModel.from_pretrained(model_name, **(params or {}))  # type: ignore
+        tokenizer = AutoTokenizer.from_pretrained(model_name)  # type: ignore
+        model = AutoModel.from_pretrained(model_name, **(params or {}))  # type: ignore
 
-        async with sire_resource.auto_manage(model) as managed_model_wrapper:
-            managed_model: AutoModel = managed_model_wrapper.get_manage_object()
+        with sire_resource.auto_manage(model) as managed_model_wrapper:  # type: ignore
+            managed_model = managed_model_wrapper.get_manage_object()  # type: ignore
             if managed_model is None:
                 logger.error("Managed model is None, cannot encode text.")
                 return None
 
-            encoded_input = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+            encoded_input = tokenizer(text, padding=True, truncation=True, return_tensors="pt")  # type: ignore
 
-            device = next(iter(managed_model.parameters())).device
-            encoded_input = {k: v.to(device) for k, v in encoded_input.items()}
+            device = next(iter(managed_model.parameters())).device  # type: ignore
+            encoded_input = {k: v.to(device) for k, v in encoded_input.items()}  # type: ignore
 
             with torch.no_grad():
-                model_output = managed_model(**encoded_input)
+                model_output = managed_model(**encoded_input)  # type: ignore
 
-            sentence_embeddings: np.ndarray = mean_pooling(model_output, encoded_input["attention_mask"])  # type: ignore
-            return sentence_embeddings.cpu().numpy().flatten()
+            sentence_embeddings = mean_pooling(model_output, encoded_input["attention_mask"])  # type: ignore
+            return sentence_embeddings.cpu().numpy().flatten()  # type: ignore
 
     except Exception:
         logger.exception("Error generating embedding")

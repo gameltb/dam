@@ -28,7 +28,7 @@ dependencies = [
     "transformers",
     "numpy",
     "dam_sire",
-    "sire",
+    "torch",
     "sqlalchemy",
 ]
 

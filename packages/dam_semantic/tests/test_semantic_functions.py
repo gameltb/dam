@@ -27,6 +27,39 @@ def test_mean_pooling() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_embedding_happy_path(
+    mock_transformer_model: Any,
+    mocker: MockerFixture,
+) -> None:
+    """Test the happy path of the generate_embedding function."""
+    mock_model, _ = mock_transformer_model
+    mock_model.return_value.parameters.return_value = [torch.nn.Parameter(torch.randn(1, 1))]
+    mock_mean_pooling = mocker.patch("dam_semantic.semantic_functions.mean_pooling")
+    mock_mean_pooling.return_value = torch.randn(1, 384)
+    mocker.patch("dam_semantic.semantic_functions.torch.no_grad")
+
+    # Mock the auto_manage context manager
+    mock_managed_model_wrapper = mocker.MagicMock()
+    mock_managed_model_wrapper.get_manage_object.return_value = mock_model.return_value
+
+    magic_mock = mocker.MagicMock()
+    magic_mock.__enter__.return_value = mock_managed_model_wrapper
+    mocker.patch("dam_sire.resource.SireResource.auto_manage", return_value=magic_mock)
+
+    sire_resource = SireResource()
+    text = "Hello world"
+    embedding_minilm_np = await semantic_functions.generate_embedding(
+        sire_resource,
+        text,
+        model_name=TEST_MODEL_MINILM,
+        params=TEST_PARAMS_MINILM,
+    )
+
+    assert embedding_minilm_np is not None
+    assert isinstance(embedding_minilm_np, np.ndarray)
+
+
+@pytest.mark.asyncio
 async def test_generate_embedding_and_conversion(
     mock_transformer_model: Any,
     mocker: MockerFixture,
@@ -42,9 +75,9 @@ async def test_generate_embedding_and_conversion(
     mock_managed_model_wrapper = mocker.MagicMock()
     mock_managed_model_wrapper.get_manage_object.return_value = mock_model.return_value
 
-    async_magic_mock = mocker.AsyncMock()
-    async_magic_mock.__aenter__.return_value = mock_managed_model_wrapper
-    mocker.patch("dam_sire.resource.SireResource.auto_manage", return_value=async_magic_mock)
+    magic_mock = mocker.MagicMock()
+    magic_mock.__enter__.return_value = mock_managed_model_wrapper
+    mocker.patch("dam_sire.resource.SireResource.auto_manage", return_value=magic_mock)
 
     sire_resource = SireResource()
     text = "Hello world"
