@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llama_server_launcher"
+version = "0.1.0"
+dependencies = [
+    "toml",
+    "huggingface-hub",
+    "gguf",
+    "PySide6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.entry-points."gui_scripts"]
+llama-server-launcher = "llama_server_launcher.main:main"
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+include = ["src/**", "tests/**"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["src", "tests"]
+exclude = []
+reportDeprecated = true
+reportMissingImports = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportAttributeAccessIssue = false
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+markers = [
+    "serial",
+]
+
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+mypy = "mypy --config-file ../../pyproject.toml src tests"
