@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 # GGUF magic number
-GGUF_MAGIC = 0x47475546
+GGUF_MAGIC = 0x46554747
 
 
 class GGUFValueType(IntEnum):

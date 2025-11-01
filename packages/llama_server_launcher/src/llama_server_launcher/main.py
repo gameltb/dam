@@ -468,22 +468,13 @@ class LlamaServerLauncher(QMainWindow):
                 "vision_model.mmproj_model_file",
             ]
 
-            mmproj_filename = None
-
             for key in fields_to_show:
                 value = reader.get_field(key)
                 if value is not None:
                     info.append(f"{key:<30}: {value}")
-                    if key == "vision_model.mmproj_model_file":
-                        mmproj_filename = value
 
             info.append(f"\nTotal Tensors: {reader.get_tensor_count()}")
             self.model_info_box.setText("\n".join(info))
-
-            if mmproj_filename:
-                self.select_mmproj_by_filename(mmproj_filename)
-            else:
-                self.mmproj_combo.setCurrentIndex(0)
 
         except Exception as e:
             self.model_info_box.setText(f"Could not read GGUF metadata:\n{e}")
