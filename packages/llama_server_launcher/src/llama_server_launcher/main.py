@@ -66,7 +66,7 @@ class Preset:
 
     model: ModelInfo | None = None
     mmproj: ModelInfo | None = None
-    extra_args: list[str] = field(default_factory=list)
+    extra_args: list[str] | None = None
     override: str | None = None
 
 
@@ -214,7 +214,7 @@ class LlamaServerLauncher(QMainWindow):
                     presets[name] = Preset(
                         model=model,
                         mmproj=mmproj,
-                        extra_args=preset_data.get("extra_args", []),  # type: ignore
+                        extra_args=preset_data.get("extra_args"),  # type: ignore
                         override=preset_data.get("override"),  # type: ignore
                     )
         return Config(
@@ -248,7 +248,9 @@ class LlamaServerLauncher(QMainWindow):
             "presets": {},
         }
         for name, preset in self.config.presets.items():
-            preset_data: dict[str, Any] = {"extra_args": preset.extra_args}
+            preset_data: dict[str, Any] = {}
+            if preset.extra_args is not None:
+                preset_data["extra_args"] = preset.extra_args
             if preset.model:
                 preset_data["model"] = {
                     "repo_id": preset.model.repo_id,
@@ -293,8 +295,12 @@ class LlamaServerLauncher(QMainWindow):
             # Create a new merged preset
             merged_model = preset.model or base.model
             merged_mmproj = preset.mmproj or base.mmproj
-            merged_extra_args = preset.extra_args or base.extra_args
-            return Preset(model=merged_model, mmproj=merged_mmproj, extra_args=merged_extra_args)
+            merged_extra_args = preset.extra_args if preset.extra_args is not None else base.extra_args
+            return Preset(
+                model=merged_model,
+                mmproj=merged_mmproj,
+                extra_args=merged_extra_args if merged_extra_args is not None else [],
+            )
         return preset
 
     def scan_cache_and_populate_ui(self):
@@ -372,20 +378,24 @@ class LlamaServerLauncher(QMainWindow):
         elif isinstance(preset_data, Preset):
             preset = preset_data
 
-        if preset:
-            self.args_input.setText("\n".join(preset.extra_args))
-            if preset.model:
-                self.select_gguf_by_model_info(preset.model)
+        self.gguf_list.blockSignals(True)
+        try:
+            if preset:
+                self.args_input.setText("\n".join(preset.extra_args or []))
+                if preset.model:
+                    self.select_gguf_by_model_info(preset.model)
+                else:
+                    self.gguf_list.clearSelection()
+                if preset.mmproj:
+                    self.select_mmproj_by_model_info(preset.mmproj)
+                else:
+                    self.mmproj_combo.setCurrentIndex(0)
             else:
+                self.args_input.clear()
                 self.gguf_list.clearSelection()
-            if preset.mmproj:
-                self.select_mmproj_by_model_info(preset.mmproj)
-            else:
                 self.mmproj_combo.setCurrentIndex(0)
-        else:
-            self.args_input.clear()
-            self.gguf_list.clearSelection()
-            self.mmproj_combo.setCurrentIndex(0)
+        finally:
+            self.gguf_list.blockSignals(False)
 
         selected_items = self.gguf_list.selectedItems()
         if selected_items:
@@ -521,7 +531,7 @@ class LlamaServerLauncher(QMainWindow):
 
         model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
         mmproj_model: ModelFile | None = self.mmproj_combo.currentData()
-        extra_args = self.args_input.toPlainText().split("\n")
+        extra_args: list[str] | None = self.args_input.toPlainText().split("\n")
 
         default_name = f"{model_file.repo_id}/{model_file.relative_path}"
         if mmproj_model:
