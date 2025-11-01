@@ -366,7 +366,7 @@ class LlamaServerLauncher(QMainWindow):
                         mmproj_filename = value
 
             info.append(f"\nTotal Tensors: {reader.get_tensor_count()}")
-            self.model_info_box.setText("\\n".join(info))
+            self.model_info_box.setText("\n".join(info))
 
             if mmproj_filename:
                 self.select_mmproj_by_filename(mmproj_filename)
@@ -374,7 +374,7 @@ class LlamaServerLauncher(QMainWindow):
                 self.mmproj_combo.setCurrentIndex(0)
 
         except Exception as e:
-            self.model_info_box.setText(f"Could not read GGUF metadata:\\n{e}")
+            self.model_info_box.setText(f"Could not read GGUF metadata:\n{e}")
 
     def update_preset(self):
         """Update the current preset with the current settings."""
