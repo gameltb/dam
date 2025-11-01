@@ -141,7 +141,7 @@ class LlamaServerLauncher(QMainWindow):
     def load_config(self):
         """Load and process config.toml, handling preset inheritance."""
         if not CONFIG_FILE.exists():
-            self.log_message(f"Config file not found at {CONFIG_FILE}, creating a default one.\n")
+            # self.log_message(f"Config file not found at {CONFIG_FILE}, creating a default one.\n")
             self.config = {
                 "default_preset": "default",
                 "presets": {
@@ -216,14 +216,14 @@ class LlamaServerLauncher(QMainWindow):
             repo_id = repo.repo_id
             for revision in repo.revisions:
                 for file in revision.files:
-                    if file.path.name.endswith(".gguf"):
-                        all_gguf_files.append(ModelFile(repo_id, file.path))  # pyright: ignore
+                    if file.file_path.suffix.lower() == ".gguf":
+                        all_gguf_files.append(ModelFile(repo_id, file.file_path))  # pyright: ignore
 
         for model_file in all_gguf_files:
             try:
                 reader = gguf.GGUFReader(str(model_file.path))  # pyright: ignore
                 arch_field = reader.get_field("general.architecture")
-                if arch_field and arch_field.get_value() == "clip":
+                if arch_field and arch_field.contents() == "clip":
                     self.mmproj_files.append(model_file)
                 elif "-of-" not in model_file.filename or "-00001-of-" in model_file.filename:
                     self.gguf_files.append(model_file)
@@ -270,13 +270,13 @@ class LlamaServerLauncher(QMainWindow):
 
         if isinstance(preset_data, dict):
             self.args_input.setText("\n".join(preset_data.get("extra_args", [])))  # pyright: ignore
-            model_info = preset_data.get("model")
+            model_info = preset_data.get("model",None)
             if isinstance(model_info, dict):
                 self.select_gguf_by_repo_id(model_info.get("repo_id"))  # pyright: ignore
             else:
                 self.gguf_list.clearSelection()
 
-            mmproj_info = preset_data.get("mmproj")
+            mmproj_info = preset_data.get("mmproj",None)
             if isinstance(mmproj_info, dict):
                 self.select_mmproj_by_repo_id(mmproj_info.get("repo_id"))  # pyright: ignore
             else:
@@ -350,7 +350,7 @@ class LlamaServerLauncher(QMainWindow):
             for key in fields_to_show:
                 field = reader.get_field(key)  # pyright: ignore
                 if field:
-                    value = field.get_value()
+                    value = field.contents()
                     info.append(f"{key:<30}: {value}")
                     if key == "vision_model.mmproj_model_file":
                         mmproj_filename = value
@@ -476,9 +476,7 @@ class LlamaServerLauncher(QMainWindow):
 
     def log_message(self, message: str):
         """Log a message to the log output."""
-        self.log_output.moveCursor(self.log_output.textCursor().End)  # pyright: ignore
         self.log_output.insertPlainText(message)
-        self.log_output.moveCursor(self.log_output.textCursor().End)  # pyright: ignore
 
     def show_error(self, message: str):
         """Show an error message to the user."""
