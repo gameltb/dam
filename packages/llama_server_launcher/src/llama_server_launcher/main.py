@@ -4,6 +4,7 @@ import contextlib
 import shlex
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -33,25 +34,55 @@ from .gguf_reader import GGUFMetadataReader
 CONFIG_FILE = Path("config.toml")
 
 
+@dataclass
 class ModelFile:
     """Stores information about a scanned model file."""
 
-    def __init__(self, repo_id: str, path: Path, relative_path: str):
-        """Initialise the model file."""
-        self.repo_id = repo_id
-        self.path = path
-        self.relative_path = relative_path
-        self.filename = path.name
+    repo_id: str
+    path: Path
+    relative_path: str
+
+    @property
+    def filename(self) -> str:
+        """Return the filename."""
+        return self.path.name
 
     def __repr__(self) -> str:
         """Return the string representation of the model file."""
         return f"{self.repo_id}/{self.relative_path}"
 
 
+@dataclass
+class ModelInfo:
+    """Preset information for a model."""
+
+    repo_id: str
+    filename_pattern: str
+
+
+@dataclass
+class Preset:
+    """A preset for the server."""
+
+    model: ModelInfo | None = None
+    mmproj: ModelInfo | None = None
+    extra_args: list[str] = field(default_factory=list)
+    override: str | None = None
+
+
+@dataclass
+class Config:
+    """Application configuration."""
+
+    llama_server_command: str = "llama-server"
+    default_preset: str = "default"
+    presets: dict[str, Preset] = field(default_factory=lambda: {})
+
+
 class LlamaServerLauncher(QMainWindow):
     """Main application window."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the main window."""
         super().__init__()
         self.setWindowTitle("Llama Server Launcher (Hugging Face Cache)")
@@ -59,7 +90,7 @@ class LlamaServerLauncher(QMainWindow):
 
         self.gguf_files: list[ModelFile] = []
         self.mmproj_files: list[ModelFile] = []
-        self.config: dict[str, Any] = {}
+        self.config = Config()
         self.server_process: QProcess | None = None
 
         self.load_config()
@@ -144,65 +175,126 @@ class LlamaServerLauncher(QMainWindow):
         splitter.addWidget(right_panel)
         splitter.setSizes([500, 600])
 
-    def load_config(self):
+    def load_config(self) -> None:
         """Load and process config.toml, handling preset inheritance."""
         if not CONFIG_FILE.exists():
-            # self.log_message(f"Config file not found at {CONFIG_FILE}, creating a default one.\n")
-            self.config = {
-                "llama_server_command": "llama-server",
-                "default_preset": "default",
-                "presets": {
-                    "default": {"extra_args": ["--host 127.0.0.1", "--port 8080", "-ngl 32", "-c 2048"]},
-                    "Llama-3-8B": {
-                        "override": "default",
-                        "model": {
-                            "repo_id": "NousResearch/Meta-Llama-3-8B-Instruct-GGUF",
-                            "filename_pattern": "*Q4_K_M.gguf",
-                        },
-                        "extra_args": ["-ngl -1", "-c 8192"],
-                    },
-                },
-            }
-            try:
-                with CONFIG_FILE.open("w", encoding="utf-8") as f:
-                    toml.dump(self.config, f)
-            except Exception as e:
-                self.show_error(f"Failed to create default config file: {e}")
+            self.create_default_config()
         else:
             try:
                 with CONFIG_FILE.open(encoding="utf-8") as f:
-                    self.config = toml.load(f)
-                if "llama_server_command" not in self.config:
-                    self.config["llama_server_command"] = "llama-server"
+                    config_data = toml.load(f)
+                self.config = self.config_from_dict(config_data)
             except Exception as e:
                 self.show_error(f"Failed to load {CONFIG_FILE}: {e}")
-                self.config = {"presets": {}}
+                self.config = Config()
 
         self.resolve_presets()
 
-    def resolve_presets(self):
+    def config_from_dict(self, config_data: dict[str, Any]) -> Config:
+        """Create a Config object from a dictionary."""
+        presets: dict[str, Preset] = {}
+        presets_data = config_data.get("presets", {})
+        if isinstance(presets_data, dict):
+            for name, preset_data in presets_data.items():
+                if isinstance(preset_data, dict):
+                    model_data = preset_data.get("model")
+                    model = (
+                        ModelInfo(**model_data)  # type: ignore
+                        if isinstance(model_data, dict)
+                        else None
+                    )
+
+                    mmproj_data = preset_data.get("mmproj")
+                    mmproj = (
+                        ModelInfo(**mmproj_data)  # type: ignore
+                        if isinstance(mmproj_data, dict)
+                        else None
+                    )
+
+                    presets[name] = Preset(
+                        model=model,
+                        mmproj=mmproj,
+                        extra_args=preset_data.get("extra_args", []),  # type: ignore
+                        override=preset_data.get("override"),  # type: ignore
+                    )
+        return Config(
+            llama_server_command=config_data.get("llama_server_command", "llama-server"),
+            default_preset=config_data.get("default_preset", "default"),
+            presets=presets,
+        )
+
+    def create_default_config(self) -> None:
+        """Create and save a default configuration."""
+        self.config = Config(
+            presets={
+                "default": Preset(extra_args=["--host 127.0.0.1", "--port 8080", "-ngl 32", "-c 2048"]),
+                "Llama-3-8B": Preset(
+                    override="default",
+                    model=ModelInfo(
+                        repo_id="NousResearch/Meta-Llama-3-8B-Instruct-GGUF",
+                        filename_pattern="*Q4_K_M.gguf",
+                    ),
+                    extra_args=["-ngl -1", "-c 8192"],
+                ),
+            }
+        )
+        self.save_config()
+
+    def save_config(self) -> None:
+        """Save the current configuration to config.toml."""
+        config_data: dict[str, Any] = {
+            "llama_server_command": self.config.llama_server_command,
+            "default_preset": self.config.default_preset,
+            "presets": {},
+        }
+        for name, preset in self.config.presets.items():
+            preset_data: dict[str, Any] = {"extra_args": preset.extra_args}
+            if preset.model:
+                preset_data["model"] = {
+                    "repo_id": preset.model.repo_id,
+                    "filename_pattern": preset.model.filename_pattern,
+                }
+            if preset.mmproj:
+                preset_data["mmproj"] = {
+                    "repo_id": preset.mmproj.repo_id,
+                    "filename_pattern": preset.mmproj.filename_pattern,
+                }
+            if preset.override:
+                preset_data["override"] = preset.override
+            config_data["presets"][name] = preset_data
+
+        try:
+            with CONFIG_FILE.open("w", encoding="utf-8") as f:
+                toml.dump(config_data, f)
+        except Exception as e:
+            self.show_error(f"Failed to save config file: {e}")
+
+    def resolve_presets(self) -> None:
         """Resolve preset inheritance."""
-        presets = self.config.get("presets", {})
-        resolved = {}
-        for name, _ in presets.items():
+        resolved: dict[str, Preset] = {}
+        for name in self.config.presets:
             try:
-                resolved[name] = self.resolve_single_preset(name, presets, set())
+                resolved[name] = self.resolve_single_preset(name, set())
             except RecursionError:
                 self.show_error(f"Circular dependency detected in preset '{name}'")
-        self.config["presets"] = resolved
+        self.config.presets = resolved
 
-    def resolve_single_preset(self, name: str, presets: dict[str, Any], visited: set[str]) -> dict[str, Any]:
+    def resolve_single_preset(self, name: str, visited: set[str]) -> Preset:
         """Recursively resolve a single preset."""
         if name in visited:
             raise RecursionError(f"Circular dependency detected: {name}")
         visited.add(name)
 
-        preset = presets.get(name, {})
-        if "override" in preset:
-            base = self.resolve_single_preset(preset["override"], presets, visited)
-            merged = base.copy()
-            merged.update(preset)
-            return merged
+        preset = self.config.presets.get(name)
+        if not preset:
+            return Preset()
+        if preset.override:
+            base = self.resolve_single_preset(preset.override, visited)
+            # Create a new merged preset
+            merged_model = preset.model or base.model
+            merged_mmproj = preset.mmproj or base.mmproj
+            merged_extra_args = preset.extra_args or base.extra_args
+            return Preset(model=merged_model, mmproj=merged_mmproj, extra_args=merged_extra_args)
         return preset
 
     def scan_cache_and_populate_ui(self):
@@ -258,72 +350,82 @@ class LlamaServerLauncher(QMainWindow):
         )
         self.populate_presets()
 
-    def populate_presets(self):
+    def populate_presets(self) -> None:
         """Populate the preset dropdown from config.toml."""
         self.preset_combo.blockSignals(True)
         self.preset_combo.clear()
-        default_preset_name = self.config.get("default_preset", "default")
-        self.preset_combo.addItem(f"--- Default ({default_preset_name}) ---", "default")
-        for name, preset in self.config.get("presets", {}).items():
+        self.preset_combo.addItem(f"--- Default ({self.config.default_preset}) ---", "default")
+        for name, preset in self.config.presets.items():
             self.preset_combo.addItem(name, preset)
         self.preset_combo.blockSignals(False)
         self.preset_combo.setCurrentIndex(0)
         self.apply_preset(0)
 
-    def apply_preset(self, index: int):
+    def apply_preset(self, index: int) -> None:
         """Apply a selected preset."""
         self.model_info_box.clear()
         preset_data = self.preset_combo.itemData(index)
 
+        preset: Preset | None = None
         if preset_data == "default":
-            default_preset_name = self.config.get("default_preset", "default")
-            preset_data = self.config.get("presets", {}).get(default_preset_name, {})
+            preset = self.config.presets.get(self.config.default_preset)
+        elif isinstance(preset_data, Preset):
+            preset = preset_data
 
-        if isinstance(preset_data, dict):
-            self.args_input.setText("\n".join(preset_data.get("extra_args", [])))  # pyright: ignore
-            model_info = preset_data.get("model", None)
-            if isinstance(model_info, dict):
-                self.select_gguf_by_repo_id(model_info.get("repo_id"))  # pyright: ignore
+        if preset:
+            self.args_input.setText("\n".join(preset.extra_args))
+            if preset.model:
+                self.select_gguf_by_model_info(preset.model)
             else:
                 self.gguf_list.clearSelection()
-
-            mmproj_info = preset_data.get("mmproj", None)
-            if isinstance(mmproj_info, dict):
-                self.select_mmproj_by_repo_id(mmproj_info.get("repo_id"))  # pyright: ignore
+            if preset.mmproj:
+                self.select_mmproj_by_model_info(preset.mmproj)
             else:
                 self.mmproj_combo.setCurrentIndex(0)
+        else:
+            self.args_input.clear()
+            self.gguf_list.clearSelection()
+            self.mmproj_combo.setCurrentIndex(0)
 
         selected_items = self.gguf_list.selectedItems()
         if selected_items:
             self.show_gguf_info(selected_items[0])
 
-    def select_gguf_by_repo_id(self, repo_id: str | None):
-        """Select a GGUF item by repo_id."""
-        if not repo_id:
+    def select_gguf_by_model_info(self, model_info: ModelInfo | None) -> None:
+        """Select a GGUF item by repo_id and filename pattern."""
+        if not model_info:
             self.gguf_list.clearSelection()
             return
         for i in range(self.gguf_list.count()):
             item = self.gguf_list.item(i)
-            model_file: ModelFile = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore
-            if model_file.repo_id == repo_id:
+            model_file: ModelFile = item.data(Qt.ItemDataRole.UserRole)
+            if model_file.repo_id == model_info.repo_id and Path(model_file.path).match(model_info.filename_pattern):
                 item.setSelected(True)
                 self.gguf_list.scrollToItem(item)
                 return
         self.gguf_list.clearSelection()
-        self.log_message(f"Warning: Preset requires {repo_id}, but it was not found in the cache.\n")
+        self.log_message(
+            f"Warning: Preset requires repo '{model_info.repo_id}' with file pattern '{model_info.filename_pattern}', but it was not found in the cache.\n"
+        )
 
-    def select_mmproj_by_repo_id(self, repo_id: str | None):
-        """Select an mmproj item by repo_id."""
-        if not repo_id:
+    def select_mmproj_by_model_info(self, model_info: ModelInfo | None) -> None:
+        """Select an mmproj item by repo_id and filename pattern."""
+        if not model_info:
             self.mmproj_combo.setCurrentIndex(0)
             return
         for i in range(self.mmproj_combo.count()):
-            model_file: ModelFile | None = self.mmproj_combo.itemData(i)  # pyright: ignore
-            if model_file and model_file.repo_id == repo_id:
+            model_file: ModelFile | None = self.mmproj_combo.itemData(i)
+            if (
+                model_file
+                and model_file.repo_id == model_info.repo_id
+                and Path(model_file.path).match(model_info.filename_pattern)
+            ):
                 self.mmproj_combo.setCurrentIndex(i)
                 return
         self.mmproj_combo.setCurrentIndex(0)
-        self.log_message(f"Warning: Preset requires {repo_id} (mmproj), but it was not found in the cache.\n")
+        self.log_message(
+            f"Warning: Preset requires mmproj repo '{model_info.repo_id}' with file pattern '{model_info.filename_pattern}', but it was not found in the cache.\n"
+        )
 
     def on_model_selection_change(self):
         """Handle manual model selection."""
@@ -376,24 +478,31 @@ class LlamaServerLauncher(QMainWindow):
         except Exception as e:
             self.model_info_box.setText(f"Could not read GGUF metadata:\n{e}")
 
-    def update_preset(self):
+    def update_preset(self) -> None:
         """Update the current preset with the current settings."""
         current_preset_name = self.preset_combo.currentText()
-        if self.preset_combo.currentIndex() == 0 or current_preset_name not in self.config["presets"]:
+        if self.preset_combo.currentIndex() == 0 or current_preset_name not in self.config.presets:
             self.show_error("Please select a valid preset to update.")
             return
 
-        extra_args = self.args_input.toPlainText().split("\n")
-        self.config["presets"][current_preset_name]["extra_args"] = extra_args
+        preset = self.config.presets[current_preset_name]
+        preset.extra_args = self.args_input.toPlainText().split("\n")
 
-        try:
-            with CONFIG_FILE.open("w", encoding="utf-8") as f:
-                toml.dump(self.config, f)
-            self.log_message(f"Preset '{current_preset_name}' updated successfully.\n")
-        except Exception as e:
-            self.show_error(f"Failed to update preset: {e}")
+        selected_items = self.gguf_list.selectedItems()
+        if selected_items:
+            model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)  # pyright: ignore
+            preset.model = ModelInfo(repo_id=model_file.repo_id, filename_pattern=model_file.relative_path)
 
-    def select_mmproj_by_filename(self, filename: str):
+        mmproj_model: ModelFile | None = self.mmproj_combo.currentData()  # pyright: ignore
+        if mmproj_model:
+            preset.mmproj = ModelInfo(repo_id=mmproj_model.repo_id, filename_pattern=mmproj_model.relative_path)
+        else:
+            preset.mmproj = None
+
+        self.save_config()
+        self.log_message(f"Preset '{current_preset_name}' updated successfully.\n")
+
+    def select_mmproj_by_filename(self, filename: str) -> None:
         """Select an mmproj item by filename."""
         for i in range(self.mmproj_combo.count()):
             model_file: ModelFile | None = self.mmproj_combo.itemData(i)  # pyright: ignore
@@ -403,47 +512,44 @@ class LlamaServerLauncher(QMainWindow):
         self.mmproj_combo.setCurrentIndex(0)
         self.log_message(f"Warning: Model requires {filename}, but it was not found in the cache.\n")
 
-    def save_preset(self):
+    def save_preset(self) -> None:
         """Save the current settings as a new preset."""
         selected_items = self.gguf_list.selectedItems()
         if not selected_items:
             self.show_error("Please select a GGUF model file first!")
             return
 
-        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)  # pyright: ignore
-        mmproj_model: ModelFile | None = self.mmproj_combo.currentData()  # pyright: ignore
+        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        mmproj_model: ModelFile | None = self.mmproj_combo.currentData()
         extra_args = self.args_input.toPlainText().split("\n")
 
         default_name = f"{model_file.repo_id}/{model_file.relative_path}"
         if mmproj_model:
             default_name += f" + {mmproj_model.repo_id}/{mmproj_model.relative_path}"
-        name, ok = QInputDialog.getText(self, "Save Preset", "Preset Name:", text=default_name)  # pyright: ignore
+        name, ok = QInputDialog.getText(self, "Save Preset", "Preset Name:", text=default_name)
         if ok and name:
-            new_preset = {
-                "model": {"repo_id": model_file.repo_id, "filename_pattern": model_file.filename},
-                "extra_args": extra_args,
-            }
-            if mmproj_model:
-                new_preset["mmproj"] = {"repo_id": mmproj_model.repo_id, "filename_pattern": mmproj_model.filename}
+            model_info = ModelInfo(repo_id=model_file.repo_id, filename_pattern=model_file.relative_path)
+            mmproj_info = (
+                ModelInfo(repo_id=mmproj_model.repo_id, filename_pattern=mmproj_model.relative_path)
+                if mmproj_model
+                else None
+            )
 
-            self.config["presets"][name] = new_preset
-            try:
-                with CONFIG_FILE.open("w", encoding="utf-8") as f:
-                    toml.dump(self.config, f)
-                self.populate_presets()
-                self.preset_combo.setCurrentText(name)
-            except Exception as e:
-                self.show_error(f"Failed to save preset: {e}")
+            new_preset = Preset(model=model_info, mmproj=mmproj_info, extra_args=extra_args)
+            self.config.presets[name] = new_preset
+            self.save_config()
+            self.populate_presets()
+            self.preset_combo.setCurrentText(name)
 
-    def start_server(self):
+    def start_server(self) -> None:
         """Start the llama-server process."""
         selected_items = self.gguf_list.selectedItems()
         if not selected_items:
             self.show_error("Please select a GGUF model file first!")
             return
 
-        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)  # pyright: ignore
-        command_parts = shlex.split(self.config["llama_server_command"])
+        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        command_parts = shlex.split(self.config.llama_server_command)
         command = command_parts[0]
         args = command_parts[1:]
 
