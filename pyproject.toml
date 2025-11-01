@@ -24,6 +24,7 @@ dam_test_utils = { workspace = true }
 domarkx = { workspace = true }
 sire = { workspace = true }
 sire_pipelines = { workspace = true }
+llama_server_launcher = { workspace = true }
 
 [dependency-groups]
 dev = [
