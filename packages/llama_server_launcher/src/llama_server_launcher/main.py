@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import gguf
 import toml
 from huggingface_hub import scan_cache_dir
 from PySide6.QtCore import QProcess, Qt
@@ -29,21 +28,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .gguf_reader import GGUFMetadataReader
+
 CONFIG_FILE = Path("config.toml")
 
 
 class ModelFile:
     """Stores information about a scanned model file."""
 
-    def __init__(self, repo_id: str, path: Path):
+    def __init__(self, repo_id: str, path: Path, relative_path: str):
         """Initialise the model file."""
         self.repo_id = repo_id
         self.path = path
+        self.relative_path = relative_path
         self.filename = path.name
 
     def __repr__(self) -> str:
         """Return the string representation of the model file."""
-        return f"{self.repo_id} ({self.filename})"
+        return f"{self.repo_id}/{self.relative_path}"
 
 
 class LlamaServerLauncher(QMainWindow):
@@ -106,6 +108,10 @@ class LlamaServerLauncher(QMainWindow):
         self.save_preset_button.clicked.connect(self.save_preset)
         left_layout.addWidget(self.save_preset_button)
 
+        self.update_preset_button = QPushButton("Update and Save Current Preset")
+        self.update_preset_button.clicked.connect(self.update_preset)
+        left_layout.addWidget(self.update_preset_button)
+
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
@@ -143,6 +149,7 @@ class LlamaServerLauncher(QMainWindow):
         if not CONFIG_FILE.exists():
             # self.log_message(f"Config file not found at {CONFIG_FILE}, creating a default one.\n")
             self.config = {
+                "llama_server_command": "llama-server",
                 "default_preset": "default",
                 "presets": {
                     "default": {"extra_args": ["--host 127.0.0.1", "--port 8080", "-ngl 32", "-c 2048"]},
@@ -165,6 +172,8 @@ class LlamaServerLauncher(QMainWindow):
             try:
                 with CONFIG_FILE.open(encoding="utf-8") as f:
                     self.config = toml.load(f)
+                if "llama_server_command" not in self.config:
+                    self.config["llama_server_command"] = "llama-server"
             except Exception as e:
                 self.show_error(f"Failed to load {CONFIG_FILE}: {e}")
                 self.config = {"presets": {}}
@@ -215,15 +224,17 @@ class LlamaServerLauncher(QMainWindow):
         for repo in cache_info.repos:  # pyright: ignore
             repo_id = repo.repo_id
             for revision in repo.revisions:
+                revision_path = Path(revision.snapshot_path)
                 for file in revision.files:
                     if file.file_path.suffix.lower() == ".gguf":
-                        all_gguf_files.append(ModelFile(repo_id, file.file_path))  # pyright: ignore
+                        relative_path = file.file_path.relative_to(revision_path).as_posix()
+                        all_gguf_files.append(ModelFile(repo_id, file.file_path, relative_path))  # pyright: ignore
 
         for model_file in all_gguf_files:
             try:
-                reader = gguf.GGUFReader(str(model_file.path))  # pyright: ignore
-                arch_field = reader.get_field("general.architecture")
-                if arch_field and arch_field.contents() == "clip":
+                reader = GGUFMetadataReader(str(model_file.path))
+                arch = reader.get_field("general.architecture")
+                if arch == "clip":
                     self.mmproj_files.append(model_file)
                 elif "-of-" not in model_file.filename or "-00001-of-" in model_file.filename:
                     self.gguf_files.append(model_file)
@@ -270,13 +281,13 @@ class LlamaServerLauncher(QMainWindow):
 
         if isinstance(preset_data, dict):
             self.args_input.setText("\n".join(preset_data.get("extra_args", [])))  # pyright: ignore
-            model_info = preset_data.get("model",None)
+            model_info = preset_data.get("model", None)
             if isinstance(model_info, dict):
                 self.select_gguf_by_repo_id(model_info.get("repo_id"))  # pyright: ignore
             else:
                 self.gguf_list.clearSelection()
 
-            mmproj_info = preset_data.get("mmproj",None)
+            mmproj_info = preset_data.get("mmproj", None)
             if isinstance(mmproj_info, dict):
                 self.select_mmproj_by_repo_id(mmproj_info.get("repo_id"))  # pyright: ignore
             else:
@@ -332,7 +343,7 @@ class LlamaServerLauncher(QMainWindow):
         self.model_info_box.clear()
 
         try:
-            reader = gguf.GGUFReader(str(model_file.path))  # pyright: ignore
+            reader = GGUFMetadataReader(str(model_file.path))
             info = [f"File: {model_file.filename}", f"Repo: {model_file.repo_id}\n", "--- GGUF Metadata ---"]
             fields_to_show = [
                 "general.architecture",
@@ -348,23 +359,39 @@ class LlamaServerLauncher(QMainWindow):
             mmproj_filename = None
 
             for key in fields_to_show:
-                field = reader.get_field(key)  # pyright: ignore
-                if field:
-                    value = field.contents()
+                value = reader.get_field(key)
+                if value is not None:
                     info.append(f"{key:<30}: {value}")
                     if key == "vision_model.mmproj_model_file":
                         mmproj_filename = value
 
-            info.append(f"\\nTotal Tensors: {len(reader.tensors)}")  # pyright: ignore
+            info.append(f"\nTotal Tensors: {reader.get_tensor_count()}")
             self.model_info_box.setText("\\n".join(info))
 
             if mmproj_filename:
-                self.select_mmproj_by_filename(mmproj_filename)  # pyright: ignore
+                self.select_mmproj_by_filename(mmproj_filename)
             else:
                 self.mmproj_combo.setCurrentIndex(0)
 
         except Exception as e:
             self.model_info_box.setText(f"Could not read GGUF metadata:\\n{e}")
+
+    def update_preset(self):
+        """Update the current preset with the current settings."""
+        current_preset_name = self.preset_combo.currentText()
+        if self.preset_combo.currentIndex() == 0 or current_preset_name not in self.config["presets"]:
+            self.show_error("Please select a valid preset to update.")
+            return
+
+        extra_args = self.args_input.toPlainText().split("\n")
+        self.config["presets"][current_preset_name]["extra_args"] = extra_args
+
+        try:
+            with CONFIG_FILE.open("w", encoding="utf-8") as f:
+                toml.dump(self.config, f)
+            self.log_message(f"Preset '{current_preset_name}' updated successfully.\n")
+        except Exception as e:
+            self.show_error(f"Failed to update preset: {e}")
 
     def select_mmproj_by_filename(self, filename: str):
         """Select an mmproj item by filename."""
@@ -387,7 +414,10 @@ class LlamaServerLauncher(QMainWindow):
         mmproj_model: ModelFile | None = self.mmproj_combo.currentData()  # pyright: ignore
         extra_args = self.args_input.toPlainText().split("\n")
 
-        name, ok = QInputDialog.getText(self, "Save Preset", "Preset Name:")  # pyright: ignore
+        default_name = f"{model_file.repo_id}/{model_file.relative_path}"
+        if mmproj_model:
+            default_name += f" + {mmproj_model.repo_id}/{mmproj_model.relative_path}"
+        name, ok = QInputDialog.getText(self, "Save Preset", "Preset Name:", text=default_name)  # pyright: ignore
         if ok and name:
             new_preset = {
                 "model": {"repo_id": model_file.repo_id, "filename_pattern": model_file.filename},
@@ -413,8 +443,11 @@ class LlamaServerLauncher(QMainWindow):
             return
 
         model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)  # pyright: ignore
-        command = "llama-server"
-        args = ["-m", str(model_file.path)]
+        command_parts = shlex.split(self.config["llama_server_command"])
+        command = command_parts[0]
+        args = command_parts[1:]
+
+        args.extend(["-m", str(model_file.path)])
 
         extra_args_str = self.args_input.toPlainText()
         args.extend(shlex.split(extra_args_str))
