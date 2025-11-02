@@ -708,7 +708,10 @@ class LlamaServerLauncher(QMainWindow):
         """Add a new argument."""
         text, ok = QInputDialog.getText(self, "Add Argument", "Argument:")
         if ok and text:
-            arg = Argument(value=text)
+            stripped_text = text.strip()
+            if not stripped_text:
+                return
+            arg = Argument(value=stripped_text)
             item = QListWidgetItem(arg.value)
             item.setData(Qt.ItemDataRole.UserRole, arg)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -724,8 +727,12 @@ class LlamaServerLauncher(QMainWindow):
         arg: Argument = item.data(Qt.ItemDataRole.UserRole)
         new_value, ok = QInputDialog.getText(self, "Edit Argument", "Argument:", text=arg.value)
         if ok and new_value:
-            arg.value = new_value
-            item.setText(new_value)
+            stripped_value = new_value.strip()
+            if stripped_value:
+                arg.value = stripped_value
+                item.setText(stripped_value)
+            else:
+                self.args_list.takeItem(self.args_list.row(item))
 
     def remove_arg(self) -> None:
         """Remove the selected argument."""
