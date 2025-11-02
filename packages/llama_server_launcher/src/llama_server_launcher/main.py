@@ -521,9 +521,6 @@ class LlamaServerLauncher(QMainWindow):
             self.model_info_box.clear()
             return
 
-        if self.preset_combo.currentIndex() != 0:
-            self.preset_combo.setCurrentIndex(0)
-
         self.show_gguf_info(selected_items[0])
 
     def show_gguf_info(self, item: QListWidgetItem):
