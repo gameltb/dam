@@ -42,7 +42,7 @@ def get_cached_gguf_metadata(model_path: Path, cache: dict[str, Any]) -> dict[st
     try:
         stat = model_path.stat()
         if cached_data.get("st_mtime") == stat.st_mtime and cached_data.get("st_size") == stat.st_size:
-            return cached_data.get("metadata")
+            return cast(dict[str, Any] | None, cached_data.get("metadata"))
     except FileNotFoundError:
         pass
     return None
