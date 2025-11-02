@@ -10,8 +10,8 @@ from typing import Any
 
 import toml
 from huggingface_hub import scan_cache_dir
-from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QPoint, QProcess, Qt
+from PySide6.QtGui import QAction, QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSplitter,
@@ -121,7 +122,7 @@ class LlamaServerLauncher(QMainWindow):
         self.init_ui()
         self.scan_cache_and_populate_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         """Initialise all UI components."""
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
@@ -141,6 +142,8 @@ class LlamaServerLauncher(QMainWindow):
 
         left_layout.addWidget(QLabel("2. Select Model"))
         self.gguf_list = QListWidget()
+        self.gguf_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.gguf_list.customContextMenuRequested.connect(self.show_gguf_context_menu)
         self.gguf_list.itemSelectionChanged.connect(self.on_model_selection_change)
         left_layout.addWidget(self.gguf_list)
 
@@ -149,11 +152,8 @@ class LlamaServerLauncher(QMainWindow):
         left_layout.addWidget(self.mmproj_combo)
 
         open_in_fm_layout = QHBoxLayout()
-        self.open_model_dir_button = QPushButton("Open Model Folder")
-        self.open_model_dir_button.clicked.connect(self.open_model_dir)
         self.open_mmproj_dir_button = QPushButton("Open mmproj Folder")
         self.open_mmproj_dir_button.clicked.connect(self.open_mmproj_dir)
-        open_in_fm_layout.addWidget(self.open_model_dir_button)
         open_in_fm_layout.addWidget(self.open_mmproj_dir_button)
         left_layout.addLayout(open_in_fm_layout)
 
@@ -183,19 +183,12 @@ class LlamaServerLauncher(QMainWindow):
 
         self.args_list = QListWidget()
         self.args_list.itemChanged.connect(self.on_arg_item_changed)
+        self.args_list.itemDoubleClicked.connect(self.edit_arg)
         right_layout.addWidget(self.args_list)
 
-        args_button_layout = QHBoxLayout()
-        self.add_arg_button = QPushButton("Add")
+        self.add_arg_button = QPushButton("Add Argument")
         self.add_arg_button.clicked.connect(self.add_arg)
-        self.edit_arg_button = QPushButton("Edit")
-        self.edit_arg_button.clicked.connect(self.edit_arg)
-        self.remove_arg_button = QPushButton("Remove")
-        self.remove_arg_button.clicked.connect(self.remove_arg)
-        args_button_layout.addWidget(self.add_arg_button)
-        args_button_layout.addWidget(self.edit_arg_button)
-        args_button_layout.addWidget(self.remove_arg_button)
-        right_layout.addLayout(args_button_layout)
+        right_layout.addWidget(self.add_arg_button)
 
         button_layout = QHBoxLayout()
         self.start_button = QPushButton("Start Server")
@@ -368,7 +361,7 @@ class LlamaServerLauncher(QMainWindow):
             )
         return preset
 
-    def scan_cache_and_populate_ui(self):
+    def scan_cache_and_populate_ui(self) -> None:
         """Scan the cache using huggingface-hub and populates the UI."""
         self.log_message("Scanning local cache with 'huggingface-hub'...\n")
         self.gguf_files.clear()
@@ -456,7 +449,7 @@ class LlamaServerLauncher(QMainWindow):
                 for arg in preset.extra_args or []:
                     item = QListWidgetItem(arg.value)
                     item.setData(Qt.ItemDataRole.UserRole, arg)
-                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEditable)
                     item.setCheckState(Qt.CheckState.Checked if arg.enabled else Qt.CheckState.Unchecked)
                     self.args_list.addItem(item)
                 if preset.model:
@@ -468,7 +461,6 @@ class LlamaServerLauncher(QMainWindow):
                 else:
                     self.mmproj_combo.setCurrentIndex(0)
             else:
-                self.args_input.clear()
                 self.gguf_list.clearSelection()
                 self.mmproj_combo.setCurrentIndex(0)
         finally:
@@ -514,7 +506,7 @@ class LlamaServerLauncher(QMainWindow):
             f"Warning: Preset requires mmproj repo '{model_info.repo_id}' with file pattern '{model_info.filename_pattern}', but it was not found in the cache.\n"
         )
 
-    def on_model_selection_change(self):
+    def on_model_selection_change(self) -> None:
         """Handle manual model selection."""
         selected_items = self.gguf_list.selectedItems()
         if not selected_items:
@@ -523,7 +515,7 @@ class LlamaServerLauncher(QMainWindow):
 
         self.show_gguf_info(selected_items[0])
 
-    def show_gguf_info(self, item: QListWidgetItem):
+    def show_gguf_info(self, item: QListWidgetItem) -> None:
         """Display GGUF metadata and auto-selects mmproj file if needed."""
         model_file: ModelFile = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore
         self.model_info_box.clear()
@@ -669,13 +661,21 @@ class LlamaServerLauncher(QMainWindow):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
 
-    def open_model_dir(self) -> None:
-        """Open the directory of the selected model file."""
-        selected_items = self.gguf_list.selectedItems()
-        if not selected_items:
-            self.show_error("Please select a GGUF model file first!")
+    def show_gguf_context_menu(self, pos: QPoint) -> None:
+        """Show the context menu for the GGUF list."""
+        item = self.gguf_list.itemAt(pos)
+        if not item:
             return
-        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
+
+        context_menu = QMenu(self)
+        open_action = QAction("Open Model Folder", self)
+        open_action.triggered.connect(lambda: self.open_model_dir_for_item(item))
+        context_menu.addAction(open_action)
+        context_menu.exec(self.gguf_list.mapToGlobal(pos))
+
+    def open_model_dir_for_item(self, item: QListWidgetItem) -> None:
+        """Open the directory of the given model file item."""
+        model_file: ModelFile = item.data(Qt.ItemDataRole.UserRole)
         self._open_directory(model_file.path.parent)
 
     def open_mmproj_dir(self) -> None:
@@ -697,49 +697,32 @@ class LlamaServerLauncher(QMainWindow):
             self.show_error(f"Failed to open file manager: {e}")
 
     def on_arg_item_changed(self, item: QListWidgetItem) -> None:
-        """Handle when an argument item is changed (e.g., checkbox)."""
+        """Handle when an argument item is changed (e.g., checkbox or text)."""
         arg: Argument = item.data(Qt.ItemDataRole.UserRole)
         arg.enabled = item.checkState() == Qt.CheckState.Checked
+        new_text = item.text().strip()
+        if not new_text:
+            self.args_list.takeItem(self.args_list.row(item))
+        else:
+            arg.value = new_text
+            item.setText(new_text)
 
     def add_arg(self) -> None:
         """Add a new argument."""
-        text, ok = QInputDialog.getText(self, "Add Argument", "Argument:")
-        if ok and text:
-            stripped_text = text.strip()
-            if not stripped_text:
-                return
-            arg = Argument(value=stripped_text)
-            item = QListWidgetItem(arg.value)
-            item.setData(Qt.ItemDataRole.UserRole, arg)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked)
-            self.args_list.addItem(item)
+        arg = Argument(value="--new-argument")
+        item = QListWidgetItem(arg.value)
+        item.setData(Qt.ItemDataRole.UserRole, arg)
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEditable)
+        item.setCheckState(Qt.CheckState.Checked)
+        self.args_list.addItem(item)
+        self.args_list.editItem(item)
 
-    def edit_arg(self) -> None:
+    def edit_arg(self, item: QListWidgetItem) -> None:
         """Edit the selected argument."""
-        selected_items = self.args_list.selectedItems()
-        if not selected_items:
-            return
-        item = selected_items[0]
-        arg: Argument = item.data(Qt.ItemDataRole.UserRole)
-        new_value, ok = QInputDialog.getText(self, "Edit Argument", "Argument:", text=arg.value)
-        if ok and new_value:
-            stripped_value = new_value.strip()
-            if stripped_value:
-                arg.value = stripped_value
-                item.setText(stripped_value)
-            else:
-                self.args_list.takeItem(self.args_list.row(item))
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+        self.args_list.editItem(item)
 
-    def remove_arg(self) -> None:
-        """Remove the selected argument."""
-        selected_items = self.args_list.selectedItems()
-        if not selected_items:
-            return
-        for item in selected_items:
-            self.args_list.takeItem(self.args_list.row(item))
-
-    def stop_server(self):
+    def stop_server(self) -> None:
         """Stop the server process."""
         if self.server_process:
             self.log_message("\nStopping server...\n")
@@ -748,41 +731,41 @@ class LlamaServerLauncher(QMainWindow):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
-    def handle_stdout(self):
+    def handle_stdout(self) -> None:
         """Handle stdout from the server process."""
         if self.server_process:
             data = self.server_process.readAllStandardOutput()
-            self.log_message(data.data().decode("utf-8", errors="ignore"))  # pyright: ignore
+            self.log_message(data.data().decode("utf-8", errors="ignore"))  # type: ignore
 
-    def handle_stderr(self):
+    def handle_stderr(self) -> None:
         """Handle stderr from the server process."""
         if self.server_process:
             data = self.server_process.readAllStandardError()
-            self.log_message(f"[STDERR] {data.data().decode('utf-8', errors='ignore')}")
+            self.log_message(f"[STDERR] {data.data().decode('utf-8', errors='ignore')}")  # type: ignore
 
-    def on_server_finished(self):
+    def on_server_finished(self) -> None:
         """Handle the server process finishing."""
         self.log_message("\n--- Server process stopped ---\n")
         self.server_process = None
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
-    def log_message(self, message: str):
+    def log_message(self, message: str) -> None:
         """Log a message to the log output."""
         self.log_output.insertPlainText(message)
 
-    def show_error(self, message: str):
+    def show_error(self, message: str) -> None:
         """Show an error message to the user."""
         self.log_message(f"[ERROR] {message}\n")
         QMessageBox.critical(self, "Error", message)
 
-    def closeEvent(self, event: QCloseEvent):  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Handle the close event."""
         self.stop_server()
         event.accept()
 
 
-def main():
+def main() -> None:
     """Run the application."""
     with contextlib.suppress(FileNotFoundError, subprocess.CalledProcessError):
         subprocess.run(["llama-server", "--version"], capture_output=True, check=True, text=True)
