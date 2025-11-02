@@ -30,6 +30,12 @@ from PySide6.QtWidgets import (
 )
 
 from .gguf_reader import GGUFMetadataReader
+from .metadata_cache import (
+    get_cached_gguf_metadata,
+    load_metadata_cache,
+    save_metadata_cache,
+    update_gguf_metadata_cache,
+)
 
 CONFIG_FILE = Path("config.toml")
 
@@ -61,13 +67,30 @@ class ModelInfo:
 
 
 @dataclass
+class Argument:
+    """A single argument for the server."""
+
+    value: str
+    enabled: bool = True
+
+
+@dataclass
 class Preset:
     """A preset for the server."""
 
     model: ModelInfo | None = None
     mmproj: ModelInfo | None = None
-    extra_args: list[str] | None = None
+    extra_args: list[Argument] | None = None
     override: str | None = None
+
+
+def get_default_file_manager_command() -> str:
+    """Get the default file manager command based on the operating system."""
+    if sys.platform == "win32":
+        return "explorer"
+    if sys.platform == "darwin":
+        return "open"
+    return "xdg-open"
 
 
 @dataclass
@@ -75,6 +98,7 @@ class Config:
     """Application configuration."""
 
     llama_server_command: str = "llama-server"
+    file_manager_command: str = field(default_factory=get_default_file_manager_command)
     default_preset: str = "default"
     presets: dict[str, Preset] = field(default_factory=lambda: {})
 
@@ -124,6 +148,15 @@ class LlamaServerLauncher(QMainWindow):
         self.mmproj_combo = QComboBox()
         left_layout.addWidget(self.mmproj_combo)
 
+        open_in_fm_layout = QHBoxLayout()
+        self.open_model_dir_button = QPushButton("Open Model Folder")
+        self.open_model_dir_button.clicked.connect(self.open_model_dir)
+        self.open_mmproj_dir_button = QPushButton("Open mmproj Folder")
+        self.open_mmproj_dir_button.clicked.connect(self.open_mmproj_dir)
+        open_in_fm_layout.addWidget(self.open_model_dir_button)
+        open_in_fm_layout.addWidget(self.open_mmproj_dir_button)
+        left_layout.addLayout(open_in_fm_layout)
+
         left_layout.addWidget(QLabel("GGUF Model Info (read by gguf-py):"))
         self.model_info_box = QTextEdit()
         self.model_info_box.setReadOnly(True)
@@ -147,9 +180,22 @@ class LlamaServerLauncher(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
 
         right_layout.addWidget(QLabel("4. Check Launch Parameters"))
-        self.args_input = QTextEdit()
-        self.args_input.setFontFamily("Courier")
-        right_layout.addWidget(self.args_input)
+
+        self.args_list = QListWidget()
+        self.args_list.itemChanged.connect(self.on_arg_item_changed)
+        right_layout.addWidget(self.args_list)
+
+        args_button_layout = QHBoxLayout()
+        self.add_arg_button = QPushButton("Add")
+        self.add_arg_button.clicked.connect(self.add_arg)
+        self.edit_arg_button = QPushButton("Edit")
+        self.edit_arg_button.clicked.connect(self.edit_arg)
+        self.remove_arg_button = QPushButton("Remove")
+        self.remove_arg_button.clicked.connect(self.remove_arg)
+        args_button_layout.addWidget(self.add_arg_button)
+        args_button_layout.addWidget(self.edit_arg_button)
+        args_button_layout.addWidget(self.remove_arg_button)
+        right_layout.addLayout(args_button_layout)
 
         button_layout = QHBoxLayout()
         self.start_button = QPushButton("Start Server")
@@ -210,15 +256,26 @@ class LlamaServerLauncher(QMainWindow):
                         if isinstance(mmproj_data, dict)
                         else None
                     )
+                    extra_args_data = preset_data.get("extra_args", [])
+                    extra_args: list[Argument] = []
+                    if isinstance(extra_args_data, list):
+                        for arg_data in extra_args_data:
+                            if isinstance(arg_data, dict):
+                                extra_args.append(Argument(**arg_data))  # type: ignore
+                            else:
+                                extra_args.append(Argument(value=str(arg_data)))  # type: ignore
+                    elif isinstance(extra_args_data, str):
+                        extra_args.append(Argument(value=extra_args_data))
 
                     presets[name] = Preset(
                         model=model,
                         mmproj=mmproj,
-                        extra_args=preset_data.get("extra_args"),  # type: ignore
+                        extra_args=extra_args,
                         override=preset_data.get("override"),  # type: ignore
                     )
         return Config(
             llama_server_command=config_data.get("llama_server_command", "llama-server"),
+            file_manager_command=config_data.get("file_manager_command", get_default_file_manager_command()),
             default_preset=config_data.get("default_preset", "default"),
             presets=presets,
         )
@@ -227,14 +284,21 @@ class LlamaServerLauncher(QMainWindow):
         """Create and save a default configuration."""
         self.config = Config(
             presets={
-                "default": Preset(extra_args=["--host 127.0.0.1", "--port 8080", "-ngl 32", "-c 2048"]),
+                "default": Preset(
+                    extra_args=[
+                        Argument("--host 127.0.0.1"),
+                        Argument("--port 8080"),
+                        Argument("-ngl 32"),
+                        Argument("-c 2048"),
+                    ]
+                ),
                 "Llama-3-8B": Preset(
                     override="default",
                     model=ModelInfo(
                         repo_id="NousResearch/Meta-Llama-3-8B-Instruct-GGUF",
                         filename_pattern="*Q4_K_M.gguf",
                     ),
-                    extra_args=["-ngl -1", "-c 8192"],
+                    extra_args=[Argument("-ngl -1"), Argument("-c 8192")],
                 ),
             }
         )
@@ -244,13 +308,14 @@ class LlamaServerLauncher(QMainWindow):
         """Save the current configuration to config.toml."""
         config_data: dict[str, Any] = {
             "llama_server_command": self.config.llama_server_command,
+            "file_manager_command": self.config.file_manager_command,
             "default_preset": self.config.default_preset,
             "presets": {},
         }
         for name, preset in self.config.presets.items():
             preset_data: dict[str, Any] = {}
             if preset.extra_args is not None:
-                preset_data["extra_args"] = preset.extra_args
+                preset_data["extra_args"] = [{"value": arg.value, "enabled": arg.enabled} for arg in preset.extra_args]
             if preset.model:
                 preset_data["model"] = {
                     "repo_id": preset.model.repo_id,
@@ -299,7 +364,7 @@ class LlamaServerLauncher(QMainWindow):
             return Preset(
                 model=merged_model,
                 mmproj=merged_mmproj,
-                extra_args=merged_extra_args if merged_extra_args is not None else [],
+                extra_args=merged_extra_args,
             )
         return preset
 
@@ -319,27 +384,33 @@ class LlamaServerLauncher(QMainWindow):
             return
 
         all_gguf_files: list[ModelFile] = []
-        for repo in cache_info.repos:  # pyright: ignore
+        for repo in cache_info.repos:
             repo_id = repo.repo_id
             for revision in repo.revisions:
                 revision_path = Path(revision.snapshot_path)
                 for file in revision.files:
                     if file.file_path.suffix.lower() == ".gguf":
                         relative_path = file.file_path.relative_to(revision_path).as_posix()
-                        all_gguf_files.append(ModelFile(repo_id, file.file_path, relative_path))  # pyright: ignore
+                        all_gguf_files.append(ModelFile(repo_id, file.file_path, relative_path))
 
+        metadata_cache = load_metadata_cache()
         for model_file in all_gguf_files:
-            try:
-                reader = GGUFMetadataReader(str(model_file.path))
-                arch = reader.get_field("general.architecture")
-                if arch == "clip":
-                    self.mmproj_files.append(model_file)
-                elif "-of-" not in model_file.filename or "-00001-of-" in model_file.filename:
-                    self.gguf_files.append(model_file)
-            except Exception:
-                # Ignore files that can't be read
-                pass
+            metadata = get_cached_gguf_metadata(model_file.path, metadata_cache)
+            if metadata is None:
+                try:
+                    reader = GGUFMetadataReader(str(model_file.path))
+                    metadata = {"architecture": reader.get_field("general.architecture")}
+                    update_gguf_metadata_cache(model_file.path, metadata, metadata_cache)
+                except Exception:
+                    # Ignore files that can't be read
+                    continue
+            arch = metadata.get("architecture")
+            if arch == "clip":
+                self.mmproj_files.append(model_file)
+            elif "-of-" not in model_file.filename or "-00001-of-" in model_file.filename:
+                self.gguf_files.append(model_file)
 
+        save_metadata_cache(metadata_cache)
         self.gguf_files.sort(key=lambda x: (x.repo_id, x.filename))
         for model_file in self.gguf_files:
             item = QListWidgetItem(str(model_file))
@@ -379,9 +450,15 @@ class LlamaServerLauncher(QMainWindow):
             preset = preset_data
 
         self.gguf_list.blockSignals(True)
+        self.args_list.clear()
         try:
             if preset:
-                self.args_input.setText("\n".join(preset.extra_args or []))
+                for arg in preset.extra_args or []:
+                    item = QListWidgetItem(arg.value)
+                    item.setData(Qt.ItemDataRole.UserRole, arg)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(Qt.CheckState.Checked if arg.enabled else Qt.CheckState.Unchecked)
+                    self.args_list.addItem(item)
                 if preset.model:
                     self.select_gguf_by_model_info(preset.model)
                 else:
@@ -456,7 +533,11 @@ class LlamaServerLauncher(QMainWindow):
 
         try:
             reader = GGUFMetadataReader(str(model_file.path))
-            info = [f"File: {model_file.filename}", f"Repo: {model_file.repo_id}\n", "--- GGUF Metadata ---"]
+            info = [
+                f"File: {model_file.relative_path}",
+                f"Repo: {model_file.repo_id}\n",
+                "--- GGUF Metadata ---",
+            ]
             fields_to_show = [
                 "general.architecture",
                 "general.name",
@@ -487,7 +568,9 @@ class LlamaServerLauncher(QMainWindow):
             return
 
         preset = self.config.presets[current_preset_name]
-        preset.extra_args = self.args_input.toPlainText().split("\n")
+        preset.extra_args = [
+            self.args_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.args_list.count())
+        ]
 
         selected_items = self.gguf_list.selectedItems()
         if selected_items:
@@ -522,7 +605,7 @@ class LlamaServerLauncher(QMainWindow):
 
         model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
         mmproj_model: ModelFile | None = self.mmproj_combo.currentData()
-        extra_args: list[str] | None = self.args_input.toPlainText().split("\n")
+        extra_args = [self.args_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.args_list.count())]
 
         default_name = f"{model_file.repo_id}/{model_file.relative_path}"
         if mmproj_model:
@@ -556,8 +639,11 @@ class LlamaServerLauncher(QMainWindow):
 
         args.extend(["-m", str(model_file.path)])
 
-        extra_args_str = self.args_input.toPlainText()
-        args.extend(shlex.split(extra_args_str))
+        for i in range(self.args_list.count()):
+            item = self.args_list.item(i)
+            if item.checkState() == Qt.CheckState.Checked:
+                arg: Argument = item.data(Qt.ItemDataRole.UserRole)
+                args.extend(shlex.split(arg.value))
 
         mmproj_model: ModelFile | None = self.mmproj_combo.currentData()  # pyright: ignore
         if mmproj_model:
@@ -585,6 +671,69 @@ class LlamaServerLauncher(QMainWindow):
 
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+
+    def open_model_dir(self) -> None:
+        """Open the directory of the selected model file."""
+        selected_items = self.gguf_list.selectedItems()
+        if not selected_items:
+            self.show_error("Please select a GGUF model file first!")
+            return
+        model_file: ModelFile = selected_items[0].data(Qt.ItemDataRole.UserRole)
+        self._open_directory(model_file.path.parent)
+
+    def open_mmproj_dir(self) -> None:
+        """Open the directory of the selected mmproj file."""
+        mmproj_model: ModelFile | None = self.mmproj_combo.currentData()
+        if not mmproj_model:
+            self.show_error("Please select an mmproj file first!")
+            return
+        self._open_directory(mmproj_model.path.parent)
+
+    def _open_directory(self, path: Path) -> None:
+        """Open a directory in the default file manager."""
+        command = self.config.file_manager_command
+        try:
+            subprocess.run([command, str(path)], check=True)
+        except FileNotFoundError:
+            self.show_error(f"File manager command not found: '{command}'. Please configure it in config.toml.")
+        except subprocess.CalledProcessError as e:
+            self.show_error(f"Failed to open file manager: {e}")
+
+    def on_arg_item_changed(self, item: QListWidgetItem) -> None:
+        """Handle when an argument item is changed (e.g., checkbox)."""
+        arg: Argument = item.data(Qt.ItemDataRole.UserRole)
+        arg.enabled = item.checkState() == Qt.CheckState.Checked
+
+    def add_arg(self) -> None:
+        """Add a new argument."""
+        text, ok = QInputDialog.getText(self, "Add Argument", "Argument:")
+        if ok and text:
+            arg = Argument(value=text)
+            item = QListWidgetItem(arg.value)
+            item.setData(Qt.ItemDataRole.UserRole, arg)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)
+            self.args_list.addItem(item)
+
+    def edit_arg(self) -> None:
+        """Edit the selected argument."""
+        selected_items = self.args_list.selectedItems()
+        if not selected_items:
+            return
+        item = selected_items[0]
+        arg: Argument = item.data(Qt.ItemDataRole.UserRole)
+        new_value, ok = QInputDialog.getText(self, "Edit Argument", "Argument:", text=arg.value)
+        if ok and new_value:
+            arg.value = new_value
+            item.setText(new_value)
+
+    def remove_arg(self) -> None:
+        """Remove the selected argument."""
+        selected_items = self.args_list.selectedItems()
+        if not selected_items:
+            return
+        for item in selected_items:
+            self.args_list.takeItem(self.args_list.row(item))
 
     def stop_server(self):
         """Stop the server process."""
