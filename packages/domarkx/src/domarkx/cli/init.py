@@ -36,9 +36,17 @@ def init_project(
 
     # Add template handling
     if template_path_str:
-        template_path = pathlib.Path(template_path_str)
+        template_path = pathlib.Path(template_path_str).resolve()
         logger.info("Initializing project from template: %s", template_path)
-        # TODO: Implement custom template copying
+        if not template_path.exists():
+            logger.error("Template path does not exist: %s", template_path)
+            raise typer.Exit(1)
+        for item_path in template_path.iterdir():
+            dest_path = project_path / item_path.name
+            if item_path.is_dir():
+                shutil.copytree(item_path, dest_path, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item_path, dest_path)
     else:
         logger.info("Initializing project with default template.")
         default_template_path = pathlib.Path(__file__).parent / ".." / "templates" / "default"

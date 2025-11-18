@@ -29,7 +29,8 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "pygments",
-    "aiofiles>=23.2.1",
+    "mistune",
+    "docker",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +54,9 @@ extends = "../../pyproject.toml"
 include = ["src", "tests"]
 exclude = []
 reportDeprecated = true
+ignore = [
+    "src/domarkx/data/models.py", # Ignore forward reference issue for now
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
