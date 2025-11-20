@@ -29,9 +29,24 @@ class Settings(BaseSettings):
     )
 
     @property
-    def project_path(self) -> str:
+    def project_path(self) -> pathlib.Path:
         """Return the resolved absolute path to the project."""
-        return str(pathlib.Path(self.DOMARKX_PROJECT_PATH).resolve())
+        return pathlib.Path(self.DOMARKX_PROJECT_PATH).resolve()
+
+    @property
+    def domarkx_dir(self) -> pathlib.Path:
+        """Return the path to the .domarkx directory."""
+        return self.project_path / ".domarkx"
+
+    @property
+    def snapshots_dir(self) -> pathlib.Path:
+        """Return the path to the snapshots directory."""
+        return self.domarkx_dir / "snapshots"
+
+    @property
+    def git_repo_path(self) -> pathlib.Path:
+        """Return the path to the git repository for session storage."""
+        return self.project_path / ".domarkx" / "git_store"
 
 
 # Global settings instance, initialized when this module is imported.

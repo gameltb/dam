@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from domarkx.config import settings
-from domarkx.macro_expander import MacroExpander
+from domarkx.parsing.macros import MacroExpander
 from domarkx.tools.tool_factory import tool_handler
 
 
@@ -42,13 +42,17 @@ def create_session(template_name: str, session_name: str, parameters: dict[str, 
 
     template_content = template_path.read_text(encoding="utf-8")
 
-    expander = MacroExpander(base_dir=str(project_path / "templates"))
+    expander = MacroExpander()
 
     override_parameters: dict[str, dict[str, Any]] = {}
     for key, value in parameters.items():
         override_parameters[key] = {"value": value}
 
-    expanded_content = expander.expand(template_content, override_parameters=override_parameters)
+    expanded_content = expander.expand(
+        template_content,
+        base_dir=project_path / "templates",
+        override_parameters=override_parameters,
+    )
 
     session_path.write_text(expanded_content, encoding="utf-8")
 

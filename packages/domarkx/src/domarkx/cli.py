@@ -55,17 +55,17 @@ cli_app = typer.Typer()
 
 def load_actions(settings: Any) -> None:
     """
-    Dynamically load and register actions from the 'action' directory.
+    Dynamically load and register actions from the 'cli' directory.
 
     Args:
         settings (Any): The application settings.
 
     """
-    actions_dir = pathlib.Path(__file__).parent / "action"
+    actions_dir = pathlib.Path(__file__).parent / "cli"
     for file_path in actions_dir.iterdir():
         if file_path.suffix == ".py" and not file_path.name.startswith("__"):
             module_name = file_path.stem
-            module = importlib.import_module(f"domarkx.action.{module_name}")
+            module = importlib.import_module(f"domarkx.cli.{module_name}")
             if hasattr(module, "register"):
                 module.register(cli_app, settings)
 
