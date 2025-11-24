@@ -1,20 +1,19 @@
 import pytest
-from dam.core.world import World
-from domarkx.managers.workspace_manager import WorkspaceManager
-from dam_domarkx.models.domarkx import Workspace, Session
-from dam_domarkx.models.git import Branch, Commit, Tag
-from dam_test_utils.fixtures import world_factory, test_db_factory
 from dam.core.database import DatabaseManager
-from dam_domarkx.models.config import DomarkxSettingsComponent
+from dam.system_events.base import SystemResultEvent
+from dam_test_utils.types import WorldFactory
+from domarkx.managers.workspace_manager import WorkspaceManager
 from sqlalchemy.future import select
+
 from dam_domarkx import DomarkxPlugin
 from dam_domarkx.commands import CreateTag, GetTags
-from dam.models.core.entity import Entity
-from dam.system_events.base import SystemResultEvent
+from dam_domarkx.models.config import DomarkxSettingsComponent
+from dam_domarkx.models.git import Commit, Tag
 
 
 @pytest.mark.asyncio
-async def test_create_tag(world_factory, test_db_factory):
+async def test_create_tag(world_factory: WorldFactory):
+    """Tests that a tag can be created."""
     world = await world_factory("test_world", [DomarkxSettingsComponent()])
     world.add_plugin(DomarkxPlugin())
     db = world.get_resource(DatabaseManager)
@@ -41,7 +40,8 @@ async def test_create_tag(world_factory, test_db_factory):
 
 
 @pytest.mark.asyncio
-async def test_get_tags(world_factory, test_db_factory):
+async def test_get_tags(world_factory: WorldFactory):
+    """Tests that tags can be retrieved."""
     world = await world_factory("test_world", [DomarkxSettingsComponent()])
     world.add_plugin(DomarkxPlugin())
     db = world.get_resource(DatabaseManager)
@@ -54,7 +54,7 @@ async def test_get_tags(world_factory, test_db_factory):
         commit = result.scalars().first()
 
         create_tag_cmd = CreateTag(workspace_id=workspace.workspace_id, name="test_tag", commit_id=commit.commit_id)
-        async for event in world.dispatch_command(create_tag_cmd):
+        async for _ in world.dispatch_command(create_tag_cmd):
             pass
 
         get_tags_cmd = GetTags(workspace_id=workspace.workspace_id)

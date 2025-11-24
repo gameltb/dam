@@ -1,14 +1,15 @@
-from dam.core.systems import system
-from dam.core.world import World
 from dam.core.database import DatabaseManager
-from dam_domarkx.commands import ForkSession, CreateSession
-from dam_domarkx.models.domarkx import Session, Message
+from dam.core.systems import system
 from dam.models.core.entity import Entity
 from sqlalchemy.future import select
 
+from dam_domarkx.commands import CreateSession, ForkSession
+from dam_domarkx.models.domarkx import Message, Session
+
 
 @system(on_command=CreateSession)
-async def create_session(cmd: CreateSession, world: World, db: DatabaseManager) -> Entity:
+async def create_session(cmd: CreateSession, db: DatabaseManager) -> Entity:
+    """Create a new session."""
     async with db.get_db_session() as session:
         new_session_entity = Entity()
         new_session = Session(
@@ -22,7 +23,8 @@ async def create_session(cmd: CreateSession, world: World, db: DatabaseManager) 
 
 
 @system(on_command=ForkSession)
-async def fork_session(cmd: ForkSession, world: World, db: DatabaseManager) -> Entity:
+async def fork_session(cmd: ForkSession, db: DatabaseManager) -> Entity:
+    """Fork a session."""
     async with db.get_db_session() as session:
         result = await session.execute(select(Session).where(Session.session_id == cmd.session_id))
         parent_session = result.scalars().first()

@@ -1,14 +1,14 @@
 import hashlib
 import json
+
 from dam.core.database import DatabaseManager
-from dam_domarkx.models.domarkx import Workspace, Resource
 from sqlalchemy.future import select
+
+from dam_domarkx.models.domarkx import Resource, Workspace
 
 
 async def hash_workspace(workspace: Workspace, db: DatabaseManager) -> str:
-    """
-    Hashes the workspace and its resources to generate a stable, content-based hash.
-    """
+    """Hashes the workspace and its resources to generate a stable, content-based hash."""
     hasher = hashlib.sha1()
     hasher.update(workspace.name.encode())
 
