@@ -13,6 +13,7 @@ members = [
     "dam",
     "dam-app",
     "dam-archive",
+    "dam-domarkx",
     "dam-fs",
     "dam-media-audio",
     "dam-media-image",
@@ -1123,6 +1124,38 @@ requires-dist = [
     { name = "rarfile" },
     { name = "sqlalchemy" },
 ]
+
+[[package]]
+name = "dam-domarkx"
+version = "0.1.0"
+source = { editable = "packages/dam_domarkx" }
+dependencies = [
+    { name = "dam" },
+    { name = "domarkx" },
+    { name = "sqlalchemy" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "aiofiles" },
+    { name = "dam-test-utils" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiofiles", marker = "extra == 'dev'", specifier = ">=23.2.1" },
+    { name = "dam", editable = "packages/dam" },
+    { name = "dam-test-utils", marker = "extra == 'dev'", editable = "packages/dam_test_utils" },
+    { name = "domarkx", editable = "packages/domarkx" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "sqlalchemy" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "dam-fs"

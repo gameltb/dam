@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dam_domarkx"
+version = "0.1.0"
+description = "A plugin for the DAM system to handle domarkx persistence."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "AI Agent", email = "ai.agent@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "dam",
+    "domarkx",
+    "sqlalchemy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "aiofiles>=23.2.1",
+    "dam_test_utils",
+    "pytest",
+    "pytest-asyncio",
+    "psycopg[binary]",
+]
+
+[project.entry-points."dam.plugins"]
+dam_domarkx = "dam_domarkx:DomarkxPlugin"
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+include = ["src/**", "tests/**"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["src", "tests"]
+exclude = []
+reportDeprecated = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+
+[tool.poe]
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+mypy = "mypy --config-file ../../pyproject.toml src tests"

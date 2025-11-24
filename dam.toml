@@ -11,3 +11,5 @@ alembic_path = "./dam_storage/fs_world_migrations"
 
 [worlds.fs_world.plugin_settings."dam-fs"]
 asset_storage_path = "./dam_storage/fs_world_asset_storage"
+
+[worlds.fs_world.plugin_settings."dam-domarkx"]
