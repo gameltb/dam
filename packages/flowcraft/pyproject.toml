@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowcraft"
+version = "0.1.0"
+description = "A node-based UI with real-time synchronization."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "websockets",
+    "uvicorn",
+    "dam",
+    "aiosqlite",
+    "psycopg",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio"
+]
+
+[tool.setuptools]
+packages = ["flowcraft"]
+
+[tool.poe.tasks]
+dev = "uvicorn flowcraft.main:app --reload"
+test = "pytest"
