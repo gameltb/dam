@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "flowcraft"
@@ -8,6 +8,18 @@ version = "0.1.0"
 description = "A node-based UI with real-time synchronization."
 readme = "README.md"
 requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "AI Agent", email = "ai.agent@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "fastapi",
     "websockets",
@@ -19,16 +31,31 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "ruff",
-    "mypy",
     "pytest",
-    "pytest-asyncio"
+    "pytest-asyncio",
 ]
 
-[tool.setuptools]
-packages = ["flowcraft"]
+[tool.ruff]
+extend = "../../pyproject.toml"
+exclude = ["build", "dist"]
+include = ["src/**", "tests/**"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+include = ["src", "tests"]
+exclude = []
+reportDeprecated = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+
+[tool.poe]
+include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
-dev = "uvicorn flowcraft.main:app --reload"
-test = "pytest"
+mypy = "mypy --config-file ../../pyproject.toml src tests"
+dev = "uvicorn flowcraft.main:app --reload --app-dir src"
+
+[tool.deptry]
+known_first_party = ["flowcraft"]

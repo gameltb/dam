@@ -1,22 +1,23 @@
-from fastapi.testclient import TestClient
-from dam.functions.ecs_functions import create_entity, add_component_to_entity
-from dam.models.hashes import ContentHashMD5Component
-from dam.core.database import DatabaseManager
-import pytest
+"""Tests for the DAM API."""
+
 import hashlib
 import uuid
 
-# Since the app is defined in another test file, we can't import it here.
-# Instead, we'll create a new TestClient instance in the test function.
-# This is not ideal, but it's the simplest solution for now.
+import pytest
+from dam.core.database import DatabaseManager
+from dam.functions.ecs_functions import add_component_to_entity, create_entity
+from dam.models.hashes import ContentHashMD5Component
+from fastapi.testclient import TestClient
+
+from flowcraft.main import app, lifespan
+
 
 @pytest.mark.asyncio
 async def test_get_entity_components():
-    from flowcraft.main import app, lifespan  # Import here to avoid circular dependencies
-
+    """Test getting all components for an entity."""
     db_name = f"test_db_{uuid.uuid4().hex}"
     async with lifespan(app, db_name=db_name):
-        from flowcraft.main import world # world is now available
+        world = app.state.world
         client = TestClient(app)
 
         db_manager = world.get_resource(DatabaseManager)
