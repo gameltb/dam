@@ -22,11 +22,9 @@ classifiers = [
 ]
 dependencies = [
     "fastapi",
-    "websockets",
-    "uvicorn",
     "dam",
-    "aiosqlite",
     "psycopg",
+    "pydantic",
 ]
 
 [project.optional-dependencies]
