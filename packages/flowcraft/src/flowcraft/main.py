@@ -1,19 +1,20 @@
-from fastapi import FastAPI, WebSocket, HTTPException
-from pydantic import BaseModel
-import asyncio
-from typing import List, Dict, Any
-from contextlib import asynccontextmanager
+"""Main application file for Flowcraft."""
+
 import os
 import uuid
-import psycopg
-from psycopg import sql
+from contextlib import asynccontextmanager
+from typing import Any
 
-from dam.core.world_manager import create_world_from_components
-from dam.models.config import ConfigComponent
-from dam.plugins.core import CoreSettingsComponent
+import psycopg
 from dam.core.database import DatabaseManager
+from dam.core.world import World
+from dam.core.world_manager import create_world_from_components
 from dam.functions.ecs_functions import get_all_components_for_entity_as_dict
 from dam.models.core.base_class import Base
+from dam.plugins.core import CoreSettingsComponent
+from fastapi import FastAPI, HTTPException, Request, WebSocket
+from psycopg import sql
+from pydantic import BaseModel
 
 #
 # Database setup
@@ -23,7 +24,9 @@ db_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
 db_host = os.environ.get("POSTGRES_HOST", "localhost")
 db_port = os.environ.get("POSTGRES_PORT", "5432")
 
+
 async def create_temp_db(db_name: str):
+    """Create a temporary database for the application."""
     conn = await psycopg.AsyncConnection.connect(
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
     )
@@ -32,7 +35,9 @@ async def create_temp_db(db_name: str):
     finally:
         await conn.close()
 
+
 async def drop_temp_db(db_name: str):
+    """Drop the temporary database."""
     conn = await psycopg.AsyncConnection.connect(
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres", autocommit=True
     )
@@ -47,12 +52,10 @@ async def drop_temp_db(db_name: str):
     finally:
         await conn.close()
 
-world = None
-app = FastAPI() # Create app instance here
 
 @asynccontextmanager
-async def lifespan(app: FastAPI, db_name: str = f"flowcraft_db_{uuid.uuid4().hex}"):
-    global world
+async def lifespan(_app: FastAPI, db_name: str = f"flowcraft_db_{uuid.uuid4().hex}"):
+    """Manage the application's lifespan."""
     db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
     # Setup DAM world
@@ -62,6 +65,7 @@ async def lifespan(app: FastAPI, db_name: str = f"flowcraft_db_{uuid.uuid4().hex
         alembic_path="",
     )
     world = create_world_from_components("flowcraft_world", [core_settings])
+    app.state.world = world
 
     await create_temp_db(db_name)
     db_manager = world.get_resource(DatabaseManager)
@@ -73,52 +77,76 @@ async def lifespan(app: FastAPI, db_name: str = f"flowcraft_db_{uuid.uuid4().hex
         await db_manager.engine.dispose()
     await drop_temp_db(db_name)
 
-# This is a bit of a hack to make the lifespan function work with the tests
-app.router.lifespan_context = lifespan
+
+app = FastAPI(lifespan=lifespan)
+
 
 class Node(BaseModel):
+    """A node in the graph."""
+
     id: str
     type: str
-    position: Dict[str, float]
-    data: Dict
+    position: dict[str, float]
+    data: dict[str, Any]
+
 
 class Edge(BaseModel):
+    """An edge in the graph."""
+
     id: str
     source: str
     target: str
 
+
 class Graph(BaseModel):
-    nodes: List[Node]
-    edges: List[Edge]
+    """The graph."""
 
-# In-memory store for the graph
-graph_store = Graph(nodes=[], edges=[])
+    nodes: list[Node]
+    edges: list[Edge]
 
-# List of active WebSocket connections
-connections: List[WebSocket] = []
+
+class AppState:
+    """The application state."""
+
+    def __init__(self):
+        """Initialize the application state."""
+        self.graph_store = Graph(nodes=[], edges=[])
+        self.connections: list[WebSocket] = []
+
+
+app_state = AppState()
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global graph_store
+    """Manage the websocket endpoint."""
     await websocket.accept()
-    connections.append(websocket)
+    app_state.connections.append(websocket)
     try:
         # Send the initial graph state to the newly connected client
-        await websocket.send_json(graph_store.model_dump())
+        await websocket.send_json(app_state.graph_store.model_dump())
         while True:
             data = await websocket.receive_json()
             # Update the in-memory store with the new graph state.
-            graph_store = Graph.parse_obj(data)
+            app_state.graph_store = Graph.model_validate(data)
             # Broadcast the updated data to all clients
-            for connection in connections:
-                await connection.send_json(graph_store.model_dump())
-    except Exception as e:
-        print(f"WebSocket error: {e}")
+            for connection in app_state.connections:
+                await connection.send_json(app_state.graph_store.model_dump())
+    except Exception:
+        pass
     finally:
-        connections.remove(websocket)
+        app_state.connections.remove(websocket)
 
-@app.get("/entity/{entity_id}", response_model=Dict[str, List[Dict[str, Any]]])
-async def get_entity_components(entity_id: int):
+
+def get_world(request: Request) -> World:
+    """Get the world."""
+    return request.app.state.world
+
+
+@app.get("/entity/{entity_id}", response_model=dict[str, list[dict[str, Any]]])
+async def get_entity_components(entity_id: int, request: Request):
+    """Get all components for an entity."""
+    world = get_world(request)
     db_manager = world.get_resource(DatabaseManager)
     async with db_manager.get_db_session() as session:
         components = await get_all_components_for_entity_as_dict(session, entity_id)
