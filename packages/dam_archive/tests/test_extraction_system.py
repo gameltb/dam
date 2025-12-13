@@ -101,18 +101,18 @@ async def test_ingestion_with_memory_limit_and_filename(
     mock_memory = mocker.MagicMock()
     mock_memory.available = 2 * 1024 * 1024  # 2 MB, more than the file size
 
-    with mocker.patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory):
-        ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
-        stream = world.dispatch_command(ingest_cmd)
-        events = [event async for event in stream]
+    mocker.patch("dam_archive.systems.ingestion.psutil.virtual_memory", return_value=mock_memory)
+    ingest_cmd = IngestArchiveCommand(entity_id=entity_id)
+    stream = world.dispatch_command(ingest_cmd)
+    events = [event async for event in stream]
 
-        # Verify NewEntityCreatedEvent
-        new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
-        assert new_entity_event is not None
-        assert new_entity_event.stream_provider is not None
-        async with new_entity_event.stream_provider.get_stream() as stream:
-            assert stream is not None
-        assert new_entity_event.filename == file_name_in_archive
+    # Verify NewEntityCreatedEvent
+    new_entity_event = next((e for e in events if isinstance(e, NewEntityCreatedEvent)), None)
+    assert new_entity_event is not None
+    assert new_entity_event.stream_provider is not None
+    async with new_entity_event.stream_provider.get_stream() as stream:
+        assert stream is not None
+    assert new_entity_event.filename == file_name_in_archive
 
 
 async def _run_ingestion_with_memory_limit(
