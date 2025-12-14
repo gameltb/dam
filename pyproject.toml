@@ -185,6 +185,7 @@ check-ci = { sequence = [
     { name = "package", help = "The package to run checks on" },
 ] }
 run = "python run_task_in_pkgs_if_exist.py run"
+check-frontend = "python run_task_in_pkgs_if_exist.py check-frontend --package flowcraft"
 
 [tool.pytest.ini_options]
 addopts = "-p no:serial"
