@@ -1,5 +1,3 @@
-import React from 'react';
-
 type ContextMenuProps = {
   x: number;
   y: number;

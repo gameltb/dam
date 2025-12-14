@@ -103,3 +103,4 @@ Tests **must not** make assertions directly on terminal output (e.g., `stdout`, 
 
 *   **`packages/dam`**: For more specific instructions on the `dam` package, please refer to its [AGENTS.md](packages/dam/AGENTS.md).
 *   **`packages/domarkx`**: This package does not have any special instructions at this time.
+*   **`packages/flowcraft`**: This package contains a frontend application. To run all checks for the frontend, use the following command: `uv run poe check-frontend`.

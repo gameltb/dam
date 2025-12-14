@@ -1,12 +1,13 @@
-import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 
-type ImageNodeData = {
+export type ImageNodeData = {
   url: string;
   onChange: (id: string, data: { url: string }) => void;
 };
 
-export function ImageNode({ id, data }: NodeProps<ImageNodeData>) {
+export type ImageNodeType = Node<ImageNodeData, 'image'>;
+
+export function ImageNode({ id, data }: NodeProps<ImageNodeType>) {
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     data.onChange(id, { url: event.target.value });
   };

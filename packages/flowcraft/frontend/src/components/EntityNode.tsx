@@ -1,13 +1,21 @@
-import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
-type EntityNodeData = {
+export type EntityNodeData = {
   entityId: string;
 };
 
-export function EntityNode({ data }: NodeProps<EntityNodeData>) {
+export type EntityNodeType = Node<EntityNodeData, 'entity'>;
+
+export function EntityNode({ data }: NodeProps<EntityNodeType>) {
   return (
-    <div style={{ padding: 10, border: '1px solid #ddd', borderRadius: 5, background: '#f0f0f0' }}>
+    <div
+      style={{
+        padding: 10,
+        border: "1px solid #ddd",
+        borderRadius: 5,
+        background: "#f0f0f0",
+      }}
+    >
       <strong>Entity:</strong> {data.entityId}
       <Handle type="source" position={Position.Right} />
     </div>
