@@ -5,7 +5,7 @@ export type ComponentNodeData = {
   json: string;
 };
 
-export type ComponentNodeType = Node<ComponentNodeData, 'component'>;
+export type ComponentNodeType = Node<ComponentNodeData, "component">;
 
 export function ComponentNode({ data }: NodeProps<ComponentNodeType>) {
   return (

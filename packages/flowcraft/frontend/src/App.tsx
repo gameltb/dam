@@ -10,8 +10,8 @@ import {
   type OnConnect,
   type Node,
   type Edge,
-  type NodeProps,
   BackgroundVariant,
+  type NodeTypes,
 } from "@xyflow/react";
 import useWebSocket from "react-use-websocket";
 import { v4 as uuidv4 } from "uuid";
@@ -36,8 +36,8 @@ type NodeData =
 type AppNode = TextNodeType | ImageNodeType | EntityNodeType | ComponentNodeType;
 
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode[]>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -54,38 +54,44 @@ function App() {
     (nodeId: string, data: Partial<NodeData>) => {
       setNodes((prevNodes) =>
         prevNodes.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n,
+          n.id === nodeId
+            ? ({ ...n, data: { ...n.data, ...data } } as AppNode)
+            : n,
         ),
       );
     },
     [setNodes],
   );
 
-  const memoizedNodeTypes = useMemo(() => {
-    const createNode =
-      (
-        Component:
-          | typeof TextNode
-          | typeof ImageNode
-          | typeof EntityNode
-          | typeof ComponentNode,
-      ) =>
-      (props: NodeProps<AppNode>) => {
-        const { data, ...rest } = props;
-        const ComponentData = {
-          ...data,
-          onChange: handleNodeDataChange,
-        };
-        return <Component {...rest} data={ComponentData as never} />;
-      };
-
-    return {
-      text: createNode(TextNode),
-      image: createNode(ImageNode),
-      entity: createNode(EntityNode),
-      component: createNode(ComponentNode),
-    };
-  }, [handleNodeDataChange]);
+  const memoizedNodeTypes: NodeTypes = useMemo(
+    () => ({
+      text: (props) => (
+        <TextNode
+          {...props}
+          data={{ ...props.data, onChange: handleNodeDataChange }}
+        />
+      ),
+      image: (props) => (
+        <ImageNode
+          {...props}
+          data={{ ...props.data, onChange: handleNodeDataChange }}
+        />
+      ),
+      entity: (props) => (
+        <EntityNode
+          {...props}
+          data={{ ...props.data, onChange: handleNodeDataChange }}
+        />
+      ),
+      component: (props) => (
+        <ComponentNode
+          {...props}
+          data={{ ...props.data, onChange: handleNodeDataChange }}
+        />
+      ),
+    }),
+    [handleNodeDataChange],
+  );
 
   useEffect(() => {
     if (lastJsonMessage) {
@@ -100,7 +106,10 @@ function App() {
 
   const onConnect: OnConnect = useCallback(
     (params) => {
-      const newEdge = { ...params, id: `e${params.source}-${params.target}` };
+      const newEdge = {
+        ...params,
+        id: `e${params.source}-${params.target}`,
+      } as Edge;
       setEdges((prevEdges) => addEdge(newEdge, prevEdges));
     },
     [setEdges],
@@ -110,15 +119,15 @@ function App() {
     type: "text" | "image" | "entity" | "component",
     data: NodeData,
     position: { x: number; y: number },
-  ) => {
-    const newNode: AppNode = {
+  ): AppNode => {
+    const newNode = {
       id: uuidv4(),
       type,
       position,
       data,
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-    return newNode;
+    setNodes((prevNodes) => [...prevNodes, newNode as AppNode]);
+    return newNode as AppNode;
   };
 
   const onNodeContextMenu = useCallback(
@@ -237,7 +246,7 @@ function App() {
       }));
 
       setEdges((prevEdges) => [...prevEdges, ...newEdges]);
-    } catch (error) => {
+    } catch (error) {
       alert(`Error fetching entity: ${error}`);
     }
   };

@@ -4,7 +4,7 @@ export type EntityNodeData = {
   entityId: string;
 };
 
-export type EntityNodeType = Node<EntityNodeData, 'entity'>;
+export type EntityNodeType = Node<EntityNodeData, "entity">;
 
 export function EntityNode({ data }: NodeProps<EntityNodeType>) {
   return (
