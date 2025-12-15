@@ -9,15 +9,7 @@ export type ComponentNodeType = Node<ComponentNodeData, "component">;
 
 export function ComponentNode({ data }: NodeProps<ComponentNodeType>) {
   return (
-    <div
-      style={{
-        padding: 10,
-        border: "1px solid #ddd",
-        borderRadius: 5,
-        background: "white",
-        width: 300,
-      }}
-    >
+    <div className="custom-node" style={{ width: 300 }}>
       <Handle type="target" position={Position.Left} />
       <strong>{data.componentName}</strong>
       <pre

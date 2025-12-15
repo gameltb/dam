@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, memo } from "react";
+import { useTheme } from "./ThemeContext";
 import {
   ReactFlow,
   MiniMap,
@@ -45,21 +46,11 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    nodeId: string;
+    nodeId?: string;
   } | null>(null);
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
-  const [theme, setTheme] = useState("dark");
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
-  };
+  const { theme, toggleTheme } = useTheme();
 
   const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
     share: true,
@@ -144,6 +135,20 @@ function App() {
     setNodes((prevNodes) => [...prevNodes, newNode as AppNode]);
     return newNode as AppNode;
   };
+
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      const pane = (event.target as Element).closest('.react-flow__pane');
+      if (pane) {
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }
+    },
+    [setContextMenu],
+  );
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -272,37 +277,11 @@ function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
-      <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
-        {!isFocusView ? (
-          <>
-            <button
-              onClick={() =>
-                addNode(
-                  "text",
-                  { label: "New Text Node", onChange: handleNodeDataChange },
-                  { x: Math.random() * 250, y: Math.random() * 250 },
-                )
-              }
-              style={{ marginRight: 5 }}
-            >
-              Add Text Node
-            </button>
-            <button
-              onClick={() =>
-                addNode(
-                  "image",
-                  { url: "", onChange: handleNodeDataChange },
-                  { x: Math.random() * 250, y: Math.random() * 250 },
-                )
-              }
-            >
-              Add Image Node
-            </button>
-          </>
-        ) : (
+      {isFocusView && (
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
           <button onClick={exitFocusView}>Back to Global View</button>
-        )}
-      </div>
+        </div>
+      )}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -310,6 +289,7 @@ function App() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeContextMenu={onNodeContextMenu}
+        onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
         nodeTypes={memoizedNodeTypes}
         fitView
@@ -318,19 +298,30 @@ function App() {
         <MiniMap />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
-      <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 4 }}>
-        <button onClick={toggleTheme}>
-          Switch to {theme === "light" ? "Dark" : "Light"} Mode
-        </button>
-      </div>
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onDelete={handleDelete}
-          onFocus={handleFocus}
-          onShowDamEntity={onShowDamEntity}
+          onDelete={contextMenu.nodeId ? handleDelete : undefined}
+          onFocus={contextMenu.nodeId ? handleFocus : undefined}
+          onShowDamEntity={contextMenu.nodeId ? onShowDamEntity : undefined}
+          onToggleTheme={toggleTheme}
+          onAddTextNode={() =>
+            addNode(
+              "text",
+              { label: "New Text Node", onChange: handleNodeDataChange },
+              { x: contextMenu.x, y: contextMenu.y },
+            )
+          }
+          onAddImageNode={() =>
+            addNode(
+              "image",
+              { url: "", onChange: handleNodeDataChange },
+              { x: contextMenu.x, y: contextMenu.y },
+            )
+          }
+          isPaneMenu={!contextMenu.nodeId}
         />
       )}
     </div>
