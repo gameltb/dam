@@ -25,8 +25,8 @@ import {
   ComponentNode,
   type ComponentNodeType,
 } from "./components/ComponentNode";
-
-const WS_URL = "ws://127.0.0.1:8000/ws";
+import { StatusPanel } from "./components/StatusPanel";
+import { EditUrlModal } from "./components/EditUrlModal";
 
 type NodeData =
   | TextNodeType["data"]
@@ -51,10 +51,19 @@ function App() {
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
   const { theme, toggleTheme } = useTheme();
+  const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
+  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(wsUrl, {
     share: true,
   });
+
+  const connectionStatus = {
+    [0]: 'Connecting',
+    [1]: 'Connected',
+    [2]: 'Closing',
+    [3]: 'Disconnected',
+  }[readyState];
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, data: Partial<NodeData>) => {
@@ -293,6 +302,7 @@ function App() {
         onPaneClick={onPaneClick}
         nodeTypes={memoizedNodeTypes}
         fitView
+        proOptions={{ hideAttribution: true }}
       >
         <Controls />
         <MiniMap />
@@ -322,6 +332,14 @@ function App() {
             )
           }
           isPaneMenu={!contextMenu.nodeId}
+        />
+      )}
+      <StatusPanel status={connectionStatus} url={wsUrl} onClick={() => setIsModalOpen(true)} />
+      {isModalOpen && (
+        <EditUrlModal
+          currentUrl={wsUrl}
+          onClose={() => setIsModalOpen(false)}
+          onSave={(newUrl) => setWsUrl(newUrl)}
         />
       )}
     </div>
