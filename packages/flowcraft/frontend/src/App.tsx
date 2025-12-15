@@ -33,7 +33,11 @@ type NodeData =
   | EntityNodeType["data"]
   | ComponentNodeType["data"];
 
-type AppNode = TextNodeType | ImageNodeType | EntityNodeType | ComponentNodeType;
+type AppNode =
+  | TextNodeType
+  | ImageNodeType
+  | EntityNodeType
+  | ComponentNodeType;
 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
@@ -45,6 +49,17 @@ function App() {
   } | null>(null);
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
+  const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
 
   const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
     share: true,
@@ -303,6 +318,11 @@ function App() {
         <MiniMap />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
+      <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 4 }}>
+        <button onClick={toggleTheme}>
+          Switch to {theme === "light" ? "Dark" : "Light"} Mode
+        </button>
+      </div>
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
