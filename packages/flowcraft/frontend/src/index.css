@@ -74,3 +74,44 @@ button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
+
+:root.dark button:focus,
+:root.dark button:focus-visible {
+  outline: 4px solid #747bff;
+}
+
+.custom-node {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+/* React Flow Dark Mode Styles */
+:root.dark .custom-node {
+  background-color: #2a2a2a;
+  color: #f0f0f0;
+  border-color: #444;
+}
+
+:root.light .custom-node {
+  background-color: white;
+  color: #213547;
+  border-color: #ddd;
+}
+
+:root.dark .react-flow__controls button {
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #444;
+}
+
+:root.dark .react-flow__controls button:hover {
+  background-color: #3a3a3a;
+}
+
+:root.dark .react-flow__minimap {
+  background-color: #2a2a2a;
+}
+
+:root.dark .react-flow__edge-text {
+  fill: #f0f0f0;
+}

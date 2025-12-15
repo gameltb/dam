@@ -13,14 +13,7 @@ export function TextNode({ id, data }: NodeProps<TextNodeType>) {
   };
 
   return (
-    <div
-      style={{
-        padding: 10,
-        border: "1px solid #ddd",
-        borderRadius: 5,
-        background: "white",
-      }}
-    >
+    <div className="custom-node">
       <Handle type="target" position={Position.Left} />
       <textarea
         value={data.label}
