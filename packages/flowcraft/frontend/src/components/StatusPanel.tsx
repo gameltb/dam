@@ -13,8 +13,8 @@ export const StatusPanel = ({ status, url, onClick }: StatusPanelProps) => {
 
   const panelStyle: React.CSSProperties = {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
+    bottom: 5,
+    left: 5,
     zIndex: 10,
     cursor: 'pointer',
     fontSize: '12px',
