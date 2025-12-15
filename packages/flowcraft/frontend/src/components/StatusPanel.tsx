@@ -15,23 +15,19 @@ export const StatusPanel = ({ status, url, onClick }: StatusPanelProps) => {
     position: 'absolute',
     bottom: 10,
     left: 10,
-    padding: '8px 12px',
-    backgroundColor: theme === 'dark' ? '#2a2a2a' : '#f0f0f0',
-    color: theme === 'dark' ? '#f0f0f0' : '#213547',
-    border: `1px solid ${theme === 'dark' ? '#444' : '#ddd'}`,
-    borderRadius: 5,
     zIndex: 10,
     cursor: 'pointer',
-    fontSize: '0.9em',
+    fontSize: '12px',
+    color: theme === 'dark' ? 'rgba(240, 240, 240, 0.5)' : 'rgba(33, 53, 71, 0.5)',
   };
 
   const statusIndicatorStyle: React.CSSProperties = {
     display: 'inline-block',
-    width: 10,
-    height: 10,
+    width: 8,
+    height: 8,
     borderRadius: '50%',
-    marginRight: 8,
-    backgroundColor: status === 'Connected' ? 'green' : 'red',
+    marginRight: 6,
+    backgroundColor: status === 'Connected' ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)',
   };
 
   return (
