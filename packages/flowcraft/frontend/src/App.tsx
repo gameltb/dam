@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, memo } from "react";
-import { useTheme } from "./ThemeContext";
+import { useTheme } from "./hooks/useTheme";
 import {
   ReactFlow,
   MiniMap,
@@ -34,6 +34,17 @@ type NodeData =
   | EntityNodeType["data"]
   | ComponentNodeType["data"];
 
+interface TypedNodeData {
+  inputType?: string;
+  outputType?: string;
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function isTypedNodeData(data: any): data is TypedNodeData {
+  return "inputType" in data || "outputType" in data;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 type AppNode =
   | TextNodeType
   | ImageNodeType
@@ -50,7 +61,7 @@ function App() {
   } | null>(null);
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
-  const { theme, toggleTheme } = useTheme();
+  const { toggleTheme } = useTheme();
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -58,12 +69,18 @@ function App() {
     share: true,
   });
 
-  const connectionStatus = {
-    [0]: 'Connecting',
-    [1]: 'Connected',
-    [2]: 'Closing',
-    [3]: 'Disconnected',
-  }[readyState];
+  const connectionStatusMap: { [key: number]: string } = {
+    0: "Connecting",
+    1: "Connected",
+    2: "Closing",
+    3: "Disconnected",
+  };
+  const connectionStatus = Object.prototype.hasOwnProperty.call(
+    connectionStatusMap,
+    readyState,
+  )
+    ? connectionStatusMap[readyState]
+    : "Unknown";
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, data: Partial<NodeData>) => {
@@ -121,13 +138,36 @@ function App() {
 
   const onConnect: OnConnect = useCallback(
     (params) => {
-      const newEdge = {
-        ...params,
-        id: `e${params.source}-${params.target}`,
-      } as Edge;
-      setEdges((prevEdges) => addEdge(newEdge, prevEdges));
+      const sourceNode = nodes.find((node) => node.id === params.source);
+      const targetNode = nodes.find((node) => node.id === params.target);
+
+      if (sourceNode && targetNode) {
+        if (
+          isTypedNodeData(sourceNode.data) &&
+          isTypedNodeData(targetNode.data)
+        ) {
+          const sourceHandleType: string = sourceNode.data.outputType as string;
+          const targetHandleType: string = targetNode.data.inputType as string;
+
+          if (
+            sourceHandleType === targetHandleType ||
+            sourceHandleType === "any" ||
+            targetHandleType === "any"
+          ) {
+            const newEdge = {
+              ...params,
+              id: `e${params.source}-${params.target}`,
+            } as Edge;
+            setEdges((prevEdges) => addEdge(newEdge, prevEdges));
+          } else {
+            alert(
+              `Type mismatch: Cannot connect ${sourceHandleType} to ${targetHandleType}`,
+            );
+          }
+        }
+      }
     },
-    [setEdges],
+    [nodes, setEdges],
   );
 
   const addNode = (
@@ -146,9 +186,9 @@ function App() {
   };
 
   const onPaneContextMenu = useCallback(
-    (event: React.MouseEvent) => {
+    (event: React.MouseEvent | MouseEvent) => {
       event.preventDefault();
-      const pane = (event.target as Element).closest('.react-flow__pane');
+      const pane = (event.target as Element).closest(".react-flow__pane");
       if (pane) {
         setContextMenu({
           x: event.clientX,
@@ -320,21 +360,35 @@ function App() {
           onAddTextNode={() =>
             addNode(
               "text",
-              { label: "New Text Node", onChange: handleNodeDataChange },
+              {
+                label: "New Text Node",
+                onChange: handleNodeDataChange,
+                outputType: "text",
+                inputType: "any",
+              },
               { x: contextMenu.x, y: contextMenu.y },
             )
           }
           onAddImageNode={() =>
             addNode(
               "image",
-              { url: "", onChange: handleNodeDataChange },
+              {
+                url: "",
+                onChange: handleNodeDataChange,
+                outputType: "image",
+                inputType: "any",
+              },
               { x: contextMenu.x, y: contextMenu.y },
             )
           }
           isPaneMenu={!contextMenu.nodeId}
         />
       )}
-      <StatusPanel status={connectionStatus} url={wsUrl} onClick={() => setIsModalOpen(true)} />
+      <StatusPanel
+        status={connectionStatus}
+        url={wsUrl}
+        onClick={() => setIsModalOpen(true)}
+      />
       {isModalOpen && (
         <EditUrlModal
           currentUrl={wsUrl}
