@@ -284,8 +284,8 @@ function App() {
       {isFocusView && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
           <button onClick={exitFocusView}>Back to Global View</button>
-          <button onClick={undo}>Undo</button>
-          <button onClick={redo}>Redo</button>
+          <button onClick={() => undo()}>Undo</button>
+          <button onClick={() => redo()}>Redo</button>
         </div>
       )}
       <ReactFlow

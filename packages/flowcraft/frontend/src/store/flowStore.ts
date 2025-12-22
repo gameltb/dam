@@ -1,5 +1,5 @@
-import { create, type StoreApi, type UseBoundStore } from "zustand";
-import { temporal } from "zundo";
+import { create } from "zustand";
+import { temporal, type TemporalState } from "zundo";
 import type {
   Connection,
   Edge,
@@ -10,6 +10,7 @@ import type {
 } from "@xyflow/react";
 import { addEdge, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import { isTypedNodeData, type AppNode } from "../types";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 export interface RFState {
   nodes: AppNode[];
@@ -98,21 +99,15 @@ const useStore = create(
 
 export const useFlowStore = useStore;
 
-interface TemporalState {
-  pastStates: RFState[];
-  futureStates: RFState[];
-  undo: () => void;
-  redo: () => void;
-  clear: () => void;
-  isTracking: boolean;
-  pause: () => void;
-  resume: () => void;
+export function useTemporalStore<T>(
+  selector: (state: TemporalState<RFState>) => T,
+  equality?: (a: T, b: T) => boolean,
+): T {
+  const store = useStore.temporal;
+  if (!store) {
+    throw new Error(
+      "Temporal store not found. Make sure you have wrapped your store with temporal middleware",
+    );
+  }
+  return useStoreWithEqualityFn(store, selector, equality);
 }
-
-export const useTemporalStore = <T>(
-  selector: (state: TemporalState) => T,
-): T => {
-  return (
-    useStore as unknown as { temporal: UseBoundStore<StoreApi<TemporalState>> }
-  ).temporal(selector);
-};
