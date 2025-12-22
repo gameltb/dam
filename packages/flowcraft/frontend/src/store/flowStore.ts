@@ -23,8 +23,8 @@ export interface RFState {
   addNode: (node: AppNode) => void;
 }
 
-const useStore = create<RFState>()(
-  temporal((set, get) => ({
+const useStore = create(
+  temporal<RFState>((set, get) => ({
     nodes: [],
     edges: [],
     version: 0,
