@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { AppNode } from "../types";
+import type { AppNode, NodeData } from "../types";
 import type { Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
 
@@ -38,8 +38,7 @@ const mockServerState = {
 export const useMockSocket = () => {
   const { nodes, handleNodeDataChange } = useFlowStore((state) => ({
     nodes: state.nodes,
-    handleNodeDataChange: (nodeId: string, data: Partial<any>) => {
-      // eslint-disable-line @typescript-eslint/no-explicit-any
+    handleNodeDataChange: (nodeId: string, data: Partial<NodeData>) => {
       const { setNodes } = useFlowStore.getState();
       setNodes(
         state.nodes.map((n) =>
