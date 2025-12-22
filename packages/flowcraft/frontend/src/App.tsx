@@ -5,55 +5,40 @@ import {
   MiniMap,
   Controls,
   Background,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  type OnConnect,
   type Node,
-  type Edge,
   BackgroundVariant,
   type NodeTypes,
 } from "@xyflow/react";
-import useWebSocket from "react-use-websocket";
+import { useFlowStore, useTemporalStore } from "./store/flowStore";
 import { v4 as uuidv4 } from "uuid";
 import "@xyflow/react/dist/style.css";
-import { TextNode, type TextNodeType } from "./components/TextNode";
-import { ImageNode, type ImageNodeType } from "./components/ImageNode";
+import { useMockSocket } from "./hooks/useMockSocket";
+import { TextNode } from "./components/TextNode";
+import { ImageNode } from "./components/ImageNode";
 import { ContextMenu } from "./components/ContextMenu";
-import { EntityNode, type EntityNodeType } from "./components/EntityNode";
-import {
-  ComponentNode,
-  type ComponentNodeType,
-} from "./components/ComponentNode";
+import { EntityNode } from "./components/EntityNode";
+import { ComponentNode } from "./components/ComponentNode";
 import { StatusPanel } from "./components/StatusPanel";
 import { EditUrlModal } from "./components/EditUrlModal";
-
-type NodeData =
-  | TextNodeType["data"]
-  | ImageNodeType["data"]
-  | EntityNodeType["data"]
-  | ComponentNodeType["data"];
-
-interface TypedNodeData {
-  inputType?: string;
-  outputType?: string;
-}
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function isTypedNodeData(data: any): data is TypedNodeData {
-  return "inputType" in data || "outputType" in data;
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
-type AppNode =
-  | TextNodeType
-  | ImageNodeType
-  | EntityNodeType
-  | ComponentNodeType;
+import { type NodeData, type AppNode } from "./types";
 
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    setNodes,
+    setEdges,
+    addNode: addNodeToStore,
+    version: clientVersion,
+  } = useFlowStore();
+  const { undo, redo } = useTemporalStore((state) => ({
+    undo: state.undo,
+    redo: state.redo,
+  }));
+  const { sendJsonMessage, lastJsonMessage, mockServerState } = useMockSocket();
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -62,37 +47,22 @@ function App() {
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
   const { toggleTheme } = useTheme();
-  const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws");
+  const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(wsUrl, {
-    share: true,
-  });
-
-  const connectionStatusMap: { [key: number]: string } = {
-    0: "Connecting",
-    1: "Connected",
-    2: "Closing",
-    3: "Disconnected",
-  };
-  const connectionStatus = Object.prototype.hasOwnProperty.call(
-    connectionStatusMap,
-    readyState,
-  )
-    ? connectionStatusMap[readyState]
-    : "Unknown";
+  const connectionStatus = "Connected (Mock)";
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, data: Partial<NodeData>) => {
-      setNodes((prevNodes) =>
-        prevNodes.map((n) =>
+      setNodes(
+        nodes.map((n) =>
           n.id === nodeId
             ? ({ ...n, data: { ...n.data, ...data } } as AppNode)
             : n,
         ),
       );
     },
-    [setNodes],
+    [nodes, setNodes],
   );
 
   const memoizedNodeTypes: NodeTypes = useMemo(
@@ -126,63 +96,38 @@ function App() {
   );
 
   useEffect(() => {
-    if (lastJsonMessage) {
-      const graph = lastJsonMessage as {
-        nodes: AppNode[];
-        edges: Edge[];
-      };
-      setNodes(graph.nodes);
-      setEdges(graph.edges);
-    }
-  }, [lastJsonMessage, setNodes, setEdges]);
+    if (!lastJsonMessage) return;
 
-  const onConnect: OnConnect = useCallback(
-    (params) => {
-      const sourceNode = nodes.find((node) => node.id === params.source);
-      const targetNode = nodes.find((node) => node.id === params.target);
-
-      if (sourceNode && targetNode) {
-        if (
-          isTypedNodeData(sourceNode.data) &&
-          isTypedNodeData(targetNode.data)
-        ) {
-          const sourceHandleType: string = sourceNode.data.outputType as string;
-          const targetHandleType: string = targetNode.data.inputType as string;
-
-          if (
-            sourceHandleType === targetHandleType ||
-            sourceHandleType === "any" ||
-            targetHandleType === "any"
-          ) {
-            const newEdge = {
-              ...params,
-              id: `e${params.source}-${params.target}`,
-            } as Edge;
-            setEdges((prevEdges) => addEdge(newEdge, prevEdges));
-          } else {
-            alert(
-              `Type mismatch: Cannot connect ${sourceHandleType} to ${targetHandleType}`,
-            );
-          }
-        }
+    if (lastJsonMessage.type === "sync_graph") {
+      const { graph, version } = lastJsonMessage.payload;
+      if (lastJsonMessage.error === "version_mismatch") {
+        alert(
+          "Your graph is out of sync with the server. Your changes will be overwritten.",
+        );
+        setNodes(graph.nodes);
+        setEdges(graph.edges);
+        mockServerState.version = version;
       }
-    },
-    [nodes, setEdges],
-  );
+    } else if (lastJsonMessage.type === "apply_changes") {
+      const { add = [] } = lastJsonMessage.payload;
+      add.forEach((node: AppNode) => addNodeToStore(node));
+      // In a real app, you would handle updates here
+    }
+  }, [lastJsonMessage, setNodes, setEdges, addNodeToStore, mockServerState]);
 
   const addNode = (
     type: "text" | "image" | "entity" | "component",
     data: NodeData,
     position: { x: number; y: number },
   ): AppNode => {
-    const newNode = {
+    const newNode: AppNode = {
       id: uuidv4(),
       type,
       position,
       data,
-    };
-    setNodes((prevNodes) => [...prevNodes, newNode as AppNode]);
-    return newNode as AppNode;
+    } as AppNode;
+    addNodeToStore(newNode);
+    return newNode;
   };
 
   const onPaneContextMenu = useCallback(
@@ -211,11 +156,9 @@ function App() {
 
   const handleDelete = () => {
     if (!contextMenu) return;
-    setNodes((prevNodes) =>
-      prevNodes.filter((n) => n.id !== contextMenu.nodeId),
-    );
-    setEdges((prevEdges) =>
-      prevEdges.filter(
+    setNodes(nodes.filter((n) => n.id !== contextMenu.nodeId));
+    setEdges(
+      edges.filter(
         (e) =>
           e.source !== contextMenu.nodeId && e.target !== contextMenu.nodeId,
       ),
@@ -269,7 +212,13 @@ function App() {
         return originalNode;
       });
       setNodes(updatedOriginalNodes);
-      sendJsonMessage({ nodes: updatedOriginalNodes, edges });
+      sendJsonMessage({
+        type: "sync_graph",
+        payload: {
+          version: clientVersion,
+          graph: { nodes: updatedOriginalNodes, edges },
+        },
+      });
     }
     setFocusView(false);
     setOriginalNodes(null);
@@ -314,21 +263,29 @@ function App() {
         target: compNode.id,
       }));
 
-      setEdges((prevEdges) => [...prevEdges, ...newEdges]);
+      setEdges([...edges, ...newEdges]);
     } catch (error) {
       alert(`Error fetching entity: ${error}`);
     }
   };
 
   useEffect(() => {
-    sendJsonMessage({ nodes, edges });
-  }, [nodes, edges, sendJsonMessage]);
+    sendJsonMessage({
+      type: "sync_graph",
+      payload: {
+        version: clientVersion,
+        graph: { nodes, edges },
+      },
+    });
+  }, [nodes, edges, clientVersion, sendJsonMessage]);
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       {isFocusView && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
           <button onClick={exitFocusView}>Back to Global View</button>
+          <button onClick={undo}>Undo</button>
+          <button onClick={redo}>Redo</button>
         </div>
       )}
       <ReactFlow
@@ -356,6 +313,22 @@ function App() {
           onDelete={contextMenu.nodeId ? handleDelete : undefined}
           onFocus={contextMenu.nodeId ? handleFocus : undefined}
           onShowDamEntity={contextMenu.nodeId ? onShowDamEntity : undefined}
+          dynamicActions={
+            contextMenu.nodeId &&
+            nodes.find((n) => n.id === contextMenu.nodeId)?.type === "text"
+              ? mockServerState.availableActions.text.map((action) => ({
+                  ...action,
+                  onClick: () =>
+                    sendJsonMessage({
+                      type: "execute_action",
+                      payload: {
+                        actionId: action.id,
+                        nodeId: contextMenu.nodeId,
+                      },
+                    }),
+                }))
+              : []
+          }
           onToggleTheme={toggleTheme}
           onAddTextNode={() =>
             addNode(

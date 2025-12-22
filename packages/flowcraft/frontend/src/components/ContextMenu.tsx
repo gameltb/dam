@@ -11,6 +11,7 @@ type ContextMenuProps = {
   onAddTextNode?: () => void;
   onAddImageNode?: () => void;
   isPaneMenu?: boolean;
+  dynamicActions?: { id: string; name: string; onClick: () => void }[];
 };
 
 export function ContextMenu({
@@ -24,6 +25,7 @@ export function ContextMenu({
   onAddTextNode,
   onAddImageNode,
   isPaneMenu = false,
+  dynamicActions = [],
 }: ContextMenuProps) {
   const { theme } = useTheme();
 
@@ -67,6 +69,13 @@ export function ContextMenu({
             显示DAM实体
           </li>
         )}
+
+        {dynamicActions.length > 0 && <div style={separatorStyle} />}
+        {dynamicActions.map((action) => (
+          <li key={action.id} onClick={action.onClick} style={menuItemStyle}>
+            {action.name}
+          </li>
+        ))}
 
         {(onToggleTheme || onAddTextNode || onAddImageNode) && (
           <div style={separatorStyle} />
