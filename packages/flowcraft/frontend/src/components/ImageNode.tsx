@@ -1,31 +1,41 @@
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+// src/components/ImageNode.tsx
+
+import {
+  withNodeHandlers,
+  type NodeRendererProps,
+} from "./hocs/withNodeHandlers";
+import { type Node } from "@xyflow/react";
+import { ImageRenderer } from "./media/ImageRenderer";
+import { TextField } from "./widgets/TextField";
+import { WidgetWrapper } from "./widgets/WidgetWrapper";
 
 export type ImageNodeData = {
   url: string;
   onChange: (id: string, data: { url: string }) => void;
+  outputType: "image";
+  inputType: "any";
 };
 
 export type ImageNodeType = Node<ImageNodeData, "image">;
 
-export function ImageNode({ id, data }: NodeProps<ImageNodeType>) {
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    data.onChange(id, { url: event.target.value });
-  };
+const renderMedia = ({ data }: NodeRendererProps<ImageNodeType>) => (
+  <ImageRenderer url={data.url} />
+);
 
-  return (
-    <div className="custom-node">
-      <Handle type="target" position={Position.Left} />
-      <input
-        type="text"
-        value={data.url}
-        onChange={handleChange}
-        placeholder="Image URL"
-        style={{ width: "100%", marginBottom: 5, boxSizing: "border-box" }}
-      />
-      {data.url && (
-        <img src={data.url} alt="Node content" style={{ maxWidth: "100%" }} />
-      )}
-      <Handle type="source" position={Position.Right} />
-    </div>
-  );
-}
+const renderWidgets = (
+  { id, data }: NodeRendererProps<ImageNodeType>,
+  onToggleMode: () => void,
+) => (
+  <WidgetWrapper isSwitchable={true} onToggleMode={onToggleMode}>
+    <TextField
+      value={data.url}
+      onChange={(url) => data.onChange(id, { url })}
+      placeholder="Image URL"
+    />
+  </WidgetWrapper>
+);
+
+export const ImageNode = withNodeHandlers<ImageNodeType>(
+  renderMedia,
+  renderWidgets,
+);

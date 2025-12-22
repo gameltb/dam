@@ -1,5 +1,4 @@
-
-import { useTheme } from "../ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 
 type ContextMenuProps = {
   x: number;
@@ -12,6 +11,7 @@ type ContextMenuProps = {
   onAddTextNode?: () => void;
   onAddImageNode?: () => void;
   isPaneMenu?: boolean;
+  dynamicActions?: { id: string; name: string; onClick: () => void }[];
 };
 
 export function ContextMenu({
@@ -25,6 +25,7 @@ export function ContextMenu({
   onAddTextNode,
   onAddImageNode,
   isPaneMenu = false,
+  dynamicActions = [],
 }: ContextMenuProps) {
   const { theme } = useTheme();
 
@@ -32,9 +33,9 @@ export function ContextMenu({
     position: "absolute",
     top: y,
     left: x,
-    backgroundColor: theme === 'dark' ? '#2a2a2a' : 'white',
-    color: theme === 'dark' ? '#f0f0f0' : '#213547',
-    border: `1px solid ${theme === 'dark' ? '#444' : '#ddd'}`,
+    backgroundColor: theme === "dark" ? "#2a2a2a" : "white",
+    color: theme === "dark" ? "#f0f0f0" : "#213547",
+    border: `1px solid ${theme === "dark" ? "#444" : "#ddd"}`,
     borderRadius: 5,
     zIndex: 1000,
     boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
@@ -46,9 +47,9 @@ export function ContextMenu({
   };
 
   const separatorStyle: React.CSSProperties = {
-    borderTop: `1px solid ${theme === 'dark' ? '#444' : '#ddd'}`,
-    margin: '4px 0',
-  }
+    borderTop: `1px solid ${theme === "dark" ? "#444" : "#ddd"}`,
+    margin: "4px 0",
+  };
 
   return (
     <div style={menuStyle} onClick={onClose}>
@@ -69,9 +70,20 @@ export function ContextMenu({
           </li>
         )}
 
-        {(onToggleTheme || onAddTextNode || onAddImageNode) && <div style={separatorStyle} />}
+        {dynamicActions.length > 0 && <div style={separatorStyle} />}
+        {dynamicActions.map((action) => (
+          <li key={action.id} onClick={action.onClick} style={menuItemStyle}>
+            {action.name}
+          </li>
+        ))}
 
-        <div style={{ padding: "5px 10px", fontSize: '0.8em', color: '#888' }}>Debug</div>
+        {(onToggleTheme || onAddTextNode || onAddImageNode) && (
+          <div style={separatorStyle} />
+        )}
+
+        <div style={{ padding: "5px 10px", fontSize: "0.8em", color: "#888" }}>
+          Debug
+        </div>
 
         {onToggleTheme && (
           <li onClick={onToggleTheme} style={menuItemStyle}>

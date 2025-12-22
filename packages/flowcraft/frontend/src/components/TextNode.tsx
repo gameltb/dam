@@ -1,32 +1,36 @@
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+// src/components/TextNode.tsx
+
+import {
+  withNodeHandlers,
+  type NodeRendererProps,
+} from "./hocs/withNodeHandlers";
+import { type Node } from "@xyflow/react";
+import { TextField } from "./widgets/TextField";
+import { WidgetWrapper } from "./widgets/WidgetWrapper";
 
 export type TextNodeData = {
   label: string;
   onChange: (id: string, data: { label: string }) => void;
+  outputType: "text";
+  inputType: "any";
 };
 
 export type TextNodeType = Node<TextNodeData, "text">;
 
-export function TextNode({ id, data }: NodeProps<TextNodeType>) {
-  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    data.onChange(id, { label: event.target.value });
-  };
+const renderWidgets = (
+  { id, data }: NodeRendererProps<TextNodeType>,
+  onToggleMode: () => void,
+) => (
+  <WidgetWrapper isSwitchable={false} onToggleMode={onToggleMode}>
+    <TextField
+      value={data.label}
+      onChange={(label) => data.onChange(id, { label })}
+      placeholder="Enter text..."
+    />
+  </WidgetWrapper>
+);
 
-  return (
-    <div className="custom-node">
-      <Handle type="target" position={Position.Left} />
-      <textarea
-        value={data.label}
-        onChange={handleChange}
-        style={{
-          width: "100%",
-          border: "none",
-          background: "transparent",
-          resize: "none",
-        }}
-        rows={3}
-      />
-      <Handle type="source" position={Position.Right} />
-    </div>
-  );
-}
+export const TextNode = withNodeHandlers<TextNodeType>(
+  () => null, // No media view for text nodes
+  renderWidgets,
+);
