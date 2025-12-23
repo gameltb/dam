@@ -22,6 +22,7 @@ export interface RFState {
   setNodes: (nodes: AppNode[]) => void;
   setEdges: (edges: Edge[]) => void;
   addNode: (node: AppNode) => void;
+  setVersion: (version: number) => void;
 }
 
 const useStore = create(
@@ -93,6 +94,9 @@ const useStore = create(
         nodes: [...state.nodes, node],
         version: state.version + 1,
       }));
+    },
+    setVersion: (version: number) => {
+      set({ version });
     },
   })),
 );
