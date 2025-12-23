@@ -37,7 +37,7 @@ function App() {
     setEdges,
     addNode: addNodeToStore,
     version: clientVersion,
-    setVersion,
+    setGraph,
   } = useFlowStore();
   const { undo, redo } = useTemporalStore((state) => ({
     undo: state.undo,
@@ -111,9 +111,7 @@ function App() {
           "Your graph is out of sync with the server. Your changes will be overwritten.";
         toast.error(message);
         addNotification({ message, type: "error" });
-        setNodes(graph.nodes);
-        setEdges(graph.edges);
-        setVersion(version);
+        setGraph(graph, version);
       }
     } else if (lastJsonMessage.type === "apply_changes") {
       const { add = [] } = lastJsonMessage.payload;
@@ -127,7 +125,7 @@ function App() {
     addNodeToStore,
     mockServerState,
     addNotification,
-    setVersion,
+    setGraph,
   ]);
 
   const addNode = (
