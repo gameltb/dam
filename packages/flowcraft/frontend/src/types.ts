@@ -1,3 +1,4 @@
+import type { Edge } from "@xyflow/react";
 import type { TextNodeType } from "./components/TextNode";
 import type { ImageNodeType } from "./components/ImageNode";
 import type { EntityNodeType } from "./components/EntityNode";
@@ -25,3 +26,11 @@ export type AppNode =
   | ImageNodeType
   | EntityNodeType
   | ComponentNodeType;
+
+export type GraphState = {
+  graph: {
+    nodes: AppNode[];
+    edges: Edge[];
+  };
+  version: number;
+};

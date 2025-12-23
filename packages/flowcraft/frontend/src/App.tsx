@@ -22,7 +22,7 @@ import { EntityNode } from "./components/EntityNode";
 import { ComponentNode } from "./components/ComponentNode";
 import { StatusPanel } from "./components/StatusPanel";
 import { EditUrlModal } from "./components/EditUrlModal";
-import { type NodeData, type AppNode } from "./types";
+import { type NodeData, type AppNode, type GraphState } from "./types";
 import { Toaster } from "react-hot-toast";
 import { Notifications } from "./components/Notifications";
 
@@ -53,6 +53,10 @@ function App() {
   const [isFocusView, setFocusView] = useState(false);
   const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
   const { toggleTheme } = useTheme();
+  const [isOutOfSync, setIsOutOfSync] = useState(false);
+  const [serverGraphState, setServerGraphState] = useState<GraphState | null>(
+    null,
+  );
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -101,17 +105,29 @@ function App() {
     [handleNodeDataChange],
   );
 
+  const handleManualSync = () => {
+    if (serverGraphState) {
+      setGraph(serverGraphState.graph, serverGraphState.version);
+      setIsOutOfSync(false);
+      setServerGraphState(null);
+      const message = "Graph successfully synced with the server.";
+      toast.success(message);
+      addNotification({ message, type: "success" });
+    }
+  };
+
   useEffect(() => {
     if (!lastJsonMessage) return;
 
     if (lastJsonMessage.type === "sync_graph") {
       const { graph, version } = lastJsonMessage.payload;
       if (lastJsonMessage.error === "version_mismatch") {
+        setIsOutOfSync(true);
+        setServerGraphState({ graph, version });
         const message =
-          "Your graph is out of sync with the server. Your changes will be overwritten.";
+          "Your graph is out of sync. Click the status panel to update.";
         toast.error(message);
         addNotification({ message, type: "error" });
-        setGraph(graph, version);
       }
     } else if (lastJsonMessage.type === "apply_changes") {
       const { add = [] } = lastJsonMessage.payload;
@@ -375,9 +391,12 @@ function App() {
         />
       )}
       <StatusPanel
-        status={connectionStatus}
+        status={
+          isOutOfSync ? "Out of Sync. Click to update." : connectionStatus
+        }
         url={wsUrl}
-        onClick={() => setIsModalOpen(true)}
+        isOutOfSync={isOutOfSync}
+        onClick={isOutOfSync ? handleManualSync : () => setIsModalOpen(true)}
       />
       {isModalOpen && (
         <EditUrlModal
