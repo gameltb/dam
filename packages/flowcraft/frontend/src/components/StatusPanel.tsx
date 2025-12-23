@@ -5,9 +5,15 @@ type StatusPanelProps = {
   status: string;
   url: string;
   onClick: () => void;
+  isOutOfSync?: boolean;
 };
 
-export const StatusPanel = ({ status, url, onClick }: StatusPanelProps) => {
+export const StatusPanel = ({
+  status,
+  url,
+  onClick,
+  isOutOfSync,
+}: StatusPanelProps) => {
   const { theme } = useTheme();
 
   const panelStyle: React.CSSProperties = {
@@ -19,6 +25,9 @@ export const StatusPanel = ({ status, url, onClick }: StatusPanelProps) => {
     fontSize: "12px",
     color:
       theme === "dark" ? "rgba(240, 240, 240, 0.5)" : "rgba(33, 53, 71, 0.5)",
+    backgroundColor: isOutOfSync ? "rgba(255, 0, 0, 0.2)" : "transparent",
+    padding: isOutOfSync ? "5px" : "0",
+    borderRadius: isOutOfSync ? "5px" : "0",
   };
 
   const statusIndicatorStyle: React.CSSProperties = {
@@ -28,7 +37,11 @@ export const StatusPanel = ({ status, url, onClick }: StatusPanelProps) => {
     borderRadius: "50%",
     marginRight: 6,
     backgroundColor:
-      status === "Connected" ? "rgba(0, 255, 0, 0.7)" : "rgba(255, 0, 0, 0.7)",
+      status === "Connected"
+        ? isOutOfSync
+          ? "orange"
+          : "rgba(0, 255, 0, 0.7)"
+        : "rgba(255, 0, 0, 0.7)",
   };
 
   return (
