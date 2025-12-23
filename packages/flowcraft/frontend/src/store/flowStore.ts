@@ -23,6 +23,10 @@ export interface RFState {
   setEdges: (edges: Edge[]) => void;
   addNode: (node: AppNode) => void;
   setVersion: (version: number) => void;
+  setGraph: (
+    graph: { nodes: AppNode[]; edges: Edge[] },
+    version: number,
+  ) => void;
 }
 
 const useStore = create(
@@ -97,6 +101,9 @@ const useStore = create(
     },
     setVersion: (version: number) => {
       set({ version });
+    },
+    setGraph: (graph: { nodes: AppNode[]; edges: Edge[] }, version: number) => {
+      set({ nodes: graph.nodes, edges: graph.edges, version });
     },
   })),
 );
