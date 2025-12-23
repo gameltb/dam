@@ -10,6 +10,8 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import { useFlowStore, useTemporalStore } from "./store/flowStore";
+import { useNotificationStore } from "./store/notificationStore";
+import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import "@xyflow/react/dist/style.css";
 import { useMockSocket } from "./hooks/useMockSocket";
@@ -21,6 +23,8 @@ import { ComponentNode } from "./components/ComponentNode";
 import { StatusPanel } from "./components/StatusPanel";
 import { EditUrlModal } from "./components/EditUrlModal";
 import { type NodeData, type AppNode } from "./types";
+import { Toaster } from "react-hot-toast";
+import { Notifications } from "./components/Notifications";
 
 function App() {
   const {
@@ -33,11 +37,13 @@ function App() {
     setEdges,
     addNode: addNodeToStore,
     version: clientVersion,
+    setVersion,
   } = useFlowStore();
   const { undo, redo } = useTemporalStore((state) => ({
     undo: state.undo,
     redo: state.redo,
   }));
+  const { addNotification } = useNotificationStore();
   const { sendJsonMessage, lastJsonMessage, mockServerState } = useMockSocket();
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -101,19 +107,28 @@ function App() {
     if (lastJsonMessage.type === "sync_graph") {
       const { graph, version } = lastJsonMessage.payload;
       if (lastJsonMessage.error === "version_mismatch") {
-        alert(
-          "Your graph is out of sync with the server. Your changes will be overwritten.",
-        );
+        const message =
+          "Your graph is out of sync with the server. Your changes will be overwritten.";
+        toast.error(message);
+        addNotification({ message, type: "error" });
         setNodes(graph.nodes);
         setEdges(graph.edges);
-        mockServerState.version = version;
+        setVersion(version);
       }
     } else if (lastJsonMessage.type === "apply_changes") {
       const { add = [] } = lastJsonMessage.payload;
       add.forEach((node: AppNode) => addNodeToStore(node));
       // In a real app, you would handle updates here
     }
-  }, [lastJsonMessage, setNodes, setEdges, addNodeToStore, mockServerState]);
+  }, [
+    lastJsonMessage,
+    setNodes,
+    setEdges,
+    addNodeToStore,
+    mockServerState,
+    addNotification,
+    setVersion,
+  ]);
 
   const addNode = (
     type: "text" | "image" | "entity" | "component",
@@ -265,7 +280,9 @@ function App() {
 
       setEdges([...edges, ...newEdges]);
     } catch (error) {
-      alert(`Error fetching entity: ${error}`);
+      const message = `Error fetching entity: ${error}`;
+      toast.error(message);
+      addNotification({ message, type: "error" });
     }
   };
 
@@ -281,6 +298,8 @@ function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
+      <Toaster />
+      <Notifications />
       {isFocusView && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
           <button onClick={exitFocusView}>Back to Global View</button>
