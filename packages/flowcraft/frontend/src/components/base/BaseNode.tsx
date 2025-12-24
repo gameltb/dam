@@ -1,44 +1,83 @@
 import { useState } from "react";
-import type { Node, NodeProps } from "@xyflow/react";
+import { type Node } from "@xyflow/react";
+import { type DynamicNodeData } from "../../types";
 
 // Define the rendering modes
-export type RenderMode = "media" | "widgets";
+export type RenderMode = "media" | "widgets" | "markdown";
 
 // Define the props for the BaseNode component
-export interface BaseNodeProps<T extends Node> extends NodeProps<T> {
+
+export interface BaseNodeProps<T extends Node> {
+  id: string;
+  data: T["data"];
+  selected?: boolean;
+  style?: React.CSSProperties;
   // The initial rendering mode for the node
   initialMode?: RenderMode;
-  // A function that renders the media view of the node
-  renderMedia?: (data: T["data"]) => React.ReactNode;
-  // A function that renders the widgets view of the node
-  renderWidgets?: (
-    data: T["data"],
-    onToggleMode: () => void,
-  ) => React.ReactNode;
+  // Components to render
+  renderMedia?: React.ComponentType<{
+    id: string;
+    data: T["data"];
+    [key: string]: unknown;
+  }>;
+  renderWidgets?: React.ComponentType<{
+    id: string;
+    data: T["data"];
+    onToggleMode: () => void;
+    [key: string]: unknown;
+  }>;
 }
 
 export function BaseNode<
   T extends Node<Record<string, unknown>, string | undefined>,
 >({
+  id,
   data,
   initialMode = "widgets",
-  renderMedia,
-  renderWidgets,
+  renderMedia: RenderMedia,
+  renderWidgets: RenderWidgets,
+  ...rest
 }: BaseNodeProps<T>) {
-  const [mode, setMode] = useState<RenderMode>(initialMode);
+  const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
+
+  // Use data.activeMode if provided, otherwise fallback to internal state
+  const mode = (data.activeMode as RenderMode) || internalMode;
 
   // Function to toggle the rendering mode
   const toggleMode = () => {
-    setMode((prevMode) => (prevMode === "widgets" ? "media" : "widgets"));
+    const nextMode = mode === "widgets" ? "media" : "widgets";
+    const dynamicData = data as unknown as DynamicNodeData;
+    if (typeof dynamicData.onChange === "function") {
+      dynamicData.onChange(id, { activeMode: nextMode });
+    } else {
+      setInternalMode(nextMode);
+    }
   };
 
-  // Determine which view to render based on the current mode
-  const content =
-    mode === "media" && renderMedia
-      ? renderMedia(data)
-      : renderWidgets
-        ? renderWidgets(data, toggleMode)
-        : null;
+  const isMedia = mode === "media";
 
-  return <div className="base-node">{content}</div>;
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        padding: isMedia ? 0 : 12,
+        overflow: "visible",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        borderRadius: "inherit",
+      }}
+    >
+      {isMedia && RenderMedia && <RenderMedia id={id} data={data} {...rest} />}
+      {!isMedia && RenderWidgets && (
+        <RenderWidgets
+          id={id}
+          data={data}
+          {...rest}
+          onToggleMode={toggleMode}
+        />
+      )}
+    </div>
+  );
 }

@@ -4,10 +4,20 @@ import "./index.css";
 import App from "./App.tsx";
 import ThemeProvider from "./ThemeProvider.tsx";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
-  </StrictMode>,
-);
+async function enableMocking() {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+  const { worker } = await import("./mocks/browser");
+  return worker.start();
+}
+
+enableMocking().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </StrictMode>,
+  );
+});
