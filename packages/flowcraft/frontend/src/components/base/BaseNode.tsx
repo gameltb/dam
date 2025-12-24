@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { type Node } from "@xyflow/react";
 import { type DynamicNodeData } from "../../types";
 
@@ -15,17 +15,11 @@ export interface BaseNodeProps<T extends Node> {
   // The initial rendering mode for the node
   initialMode?: RenderMode;
   // Components to render
-  renderMedia?: React.ComponentType<{
-    id: string;
-    data: T["data"];
-    [key: string]: unknown;
-  }>;
-  renderWidgets?: React.ComponentType<{
-    id: string;
-    data: T["data"];
-    onToggleMode: () => void;
-    [key: string]: unknown;
-  }>;
+  renderMedia?: React.ComponentType<React.ComponentProps<any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  renderWidgets?: React.ComponentType<React.ComponentProps<any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  handles?: React.ReactNode;
+  wrapperStyle?: React.CSSProperties;
+  onOverflowChange?: (overflow: "visible" | "hidden") => void;
 }
 
 export function BaseNode<
@@ -36,9 +30,13 @@ export function BaseNode<
   initialMode = "widgets",
   renderMedia: RenderMedia,
   renderWidgets: RenderWidgets,
+  handles,
+  wrapperStyle,
+  onOverflowChange,
   ...rest
 }: BaseNodeProps<T>) {
   const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
+  const [overflow, setOverflow] = useState<"visible" | "hidden">("hidden");
 
   // Use data.activeMode if provided, otherwise fallback to internal state
   const mode = (data.activeMode as RenderMode) || internalMode;
@@ -54,30 +52,46 @@ export function BaseNode<
     }
   };
 
+  const handleOverflowChange = (newOverflow: "visible" | "hidden") => {
+    setOverflow(newOverflow);
+    onOverflowChange?.(newOverflow);
+  };
+
   const isMedia = mode === "media";
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: isMedia ? 0 : 12,
-        overflow: "visible",
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-        borderRadius: "inherit",
-      }}
-    >
-      {isMedia && RenderMedia && <RenderMedia id={id} data={data} {...rest} />}
-      {!isMedia && RenderWidgets && (
-        <RenderWidgets
-          id={id}
-          data={data}
-          {...rest}
-          onToggleMode={toggleMode}
-        />
-      )}
-    </div>
+    <>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          padding: isMedia ? 0 : 12,
+          overflow: overflow,
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+          borderRadius: "inherit",
+          ...wrapperStyle,
+        }}
+      >
+        {isMedia && RenderMedia && (
+          <RenderMedia
+            id={id}
+            data={data}
+            {...rest}
+            onOverflowChange={handleOverflowChange}
+          />
+        )}
+        {!isMedia && RenderWidgets && (
+          <RenderWidgets
+            id={id}
+            data={data}
+            {...rest}
+            onToggleMode={toggleMode}
+          />
+        )}
+      </div>
+      {handles}
+    </>
   );
 }

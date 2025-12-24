@@ -82,6 +82,22 @@ const nodeTemplates: NodeTemplate[] = [
       outputType: "any",
     },
   },
+  {
+    id: "tpl-audio",
+    label: "Audio Player",
+    path: ["Basic", "Display"],
+    defaultData: {
+      label: "Audio Player",
+      modes: ["media"],
+      activeMode: "media",
+      media: {
+        type: "audio",
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      },
+      inputType: "any",
+      outputType: "audio",
+    },
+  },
 ];
 
 // --- In-Memory Database ---
@@ -194,6 +210,25 @@ let serverGraph: { nodes: AppNode[]; edges: Edge[]; viewport?: Viewport } = {
         ],
         inputType: "any",
         outputType: "any",
+        onChange: () => {},
+      },
+    },
+    // 6. Audio Node
+    {
+      id: "node-audio",
+      type: "dynamic",
+      position: { x: 750, y: 100 },
+      style: { width: 300, height: 120 },
+      data: {
+        label: "Audio Sample",
+        modes: ["media"],
+        activeMode: "media",
+        media: {
+          type: "audio",
+          url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        },
+        inputType: "any",
+        outputType: "audio",
         onChange: () => {},
       },
     },

@@ -33,7 +33,8 @@ export interface DynamicNodeData extends Record<string, unknown> {
   onWidgetClick?: (nodeId: string, widgetId: string) => void;
   onGalleryItemContext?: (
     nodeId: string,
-    imageUrl: string,
+    url: string,
+    mediaType: MediaDef["type"],
     x: number,
     y: number,
   ) => void;

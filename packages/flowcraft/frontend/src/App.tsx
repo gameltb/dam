@@ -30,6 +30,7 @@ import { MediaPreview } from "./components/media/MediaPreview";
 import { EditorPlaceholder } from "./components/media/EditorPlaceholder";
 
 import { useShallow } from "zustand/react/shallow";
+import { v4 as uuidv4 } from "uuid";
 import { SelectionMode } from "@xyflow/react";
 
 function App() {
@@ -134,13 +135,20 @@ function App() {
     lastProcessedEventTimeRef.current = lastNodeEvent.timestamp;
 
     if (lastNodeEvent.type === "gallery-context") {
-      const { x, y, nodeId, url } = lastNodeEvent.payload as {
+      const { x, y, nodeId, url, mediaType } = lastNodeEvent.payload as {
         x: number;
         y: number;
         nodeId: string;
         url: string;
+        mediaType: string;
       };
-      setContextMenu({ x, y, nodeId, galleryItemUrl: url });
+      setContextMenu({
+        x,
+        y,
+        nodeId,
+        galleryItemUrl: url,
+        galleryItemType: mediaType,
+      });
     } else if (lastNodeEvent.type === "open-preview") {
       setTimeout(
         () =>
@@ -220,10 +228,14 @@ function App() {
             .getState()
             .dispatchNodeEvent("widget-click", { nodeId, widgetId });
         },
-        onGalleryItemContext: (nodeId, url, x, y) => {
-          useFlowStore
-            .getState()
-            .dispatchNodeEvent("gallery-context", { nodeId, url, x, y });
+        onGalleryItemContext: (nodeId, url, mediaType, x, y) => {
+          useFlowStore.getState().dispatchNodeEvent("gallery-context", {
+            nodeId,
+            url,
+            mediaType,
+            x,
+            y,
+          });
         },
       } as AppNode["data"],
       position,
@@ -233,24 +245,97 @@ function App() {
   const handleCreateFromGallery = (url: string) => {
     if (!rfInstanceRef.current || !contextMenu) return;
 
+    // Use a small offset to avoid exact overlap if needed, but screenToFlowPosition is usually fine
+
     const position = rfInstanceRef.current.screenToFlowPosition({
       x: contextMenu.x,
+
       y: contextMenu.y,
     });
 
-    addNode(
-      "dynamic",
-      {
-        label: "Extracted Image",
-        modes: ["media"],
-        activeMode: "media",
-        media: { type: "image", url, aspectRatio: 1 },
-        inputType: "any",
-        outputType: "image",
-        onChange: (id, data) => updateNodeData(id, data),
-      } as AppNode["data"],
+    const mediaType = (contextMenu.galleryItemType || "image") as string;
+
+    const newNodeId = uuidv4();
+
+    const newNode: AppNode = {
+      id: newNodeId,
+
+      type: "dynamic",
+
       position,
-    );
+
+      draggable: true,
+
+      selectable: true,
+
+      deletable: true,
+
+      style: {
+        width: mediaType === "audio" ? 300 : 240,
+
+        height: mediaType === "audio" ? 120 : 180,
+      },
+
+      data: {
+        label: `Extracted ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`,
+
+        modes: ["media"],
+
+        activeMode: "media",
+
+        media: { type: mediaType, url, aspectRatio: 1 },
+
+        inputType: "any",
+
+        outputType: mediaType,
+
+        onChange: (id, data) => updateNodeData(id, data),
+
+        onWidgetClick: (nodeId, widgetId) => {
+          useFlowStore
+
+            .getState()
+
+            .dispatchNodeEvent("widget-click", { nodeId, widgetId });
+        },
+
+        onGalleryItemContext: (nodeId, url, mediaType, x, y) => {
+          useFlowStore
+
+            .getState()
+
+            .dispatchNodeEvent("gallery-context", {
+              nodeId,
+
+              url,
+
+              mediaType,
+
+              x,
+
+              y,
+            });
+        },
+      },
+    } as AppNode;
+
+    addNodeToStore(newNode);
+
+    closeContextMenu();
+
+    // Force selection of the new node to make it clear it was created
+
+    setTimeout(() => {
+      const currentNodes = useFlowStore.getState().nodes;
+
+      const selectedNodes = currentNodes.map((n) => ({
+        ...n,
+
+        selected: n.id === newNodeId,
+      }));
+
+      setNodes(selectedNodes as AppNode[]);
+    }, 0);
   };
 
   useEffect(() => {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useFlowStore } from "../../store/flowStore";
 
 interface GalleryWrapperProps {
   id: string;
@@ -6,13 +7,16 @@ interface GalleryWrapperProps {
   nodeHeight: number;
   mainContent: React.ReactNode;
   gallery: string[];
+  mediaType: string;
   renderItem: (url: string) => React.ReactNode;
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
+    mediaType: string,
     x: number,
     y: number,
   ) => void;
+  onExpand?: (expanded: boolean) => void;
 }
 
 export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
@@ -21,23 +25,42 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   nodeHeight,
   mainContent,
   gallery,
+  mediaType,
   renderItem,
   onGalleryItemContext,
+  onExpand,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const lastNodeEvent = useFlowStore((state) => state.lastNodeEvent);
+  const lastProcessedTimestamp = useRef(0);
 
   useEffect(() => {
-    if (!isExpanded) return;
-    const handleClickOutside = () => setIsExpanded(false);
-    window.addEventListener("click", handleClickOutside);
-    return () => window.removeEventListener("click", handleClickOutside);
-  }, [isExpanded]);
+    if (!isExpanded || !lastNodeEvent) return;
+
+    // Only collapse if it's a NEW pane-click event that happened after we opened
+    if (
+      lastNodeEvent.type === "pane-click" &&
+      lastNodeEvent.timestamp > lastProcessedTimestamp.current
+    ) {
+      setIsExpanded(false); // eslint-disable-line react-hooks/set-state-in-effect
+      onExpand?.(false);
+      lastProcessedTimestamp.current = lastNodeEvent.timestamp;
+    }
+  }, [lastNodeEvent, isExpanded, onExpand]);
 
   const hasGallery = gallery.length > 0;
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    const next = !isExpanded;
+
+    // When opening, we mark the CURRENT event as processed so we only close on FUTURE events
+    if (next && lastNodeEvent) {
+      lastProcessedTimestamp.current = lastNodeEvent.timestamp;
+    }
+
+    setIsExpanded(next);
+    onExpand?.(next);
   };
 
   const getGalleryRows = () => {
@@ -101,18 +124,23 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
             position: "absolute",
             top: "5px",
             right: "5px",
-            backgroundColor: "rgba(0,0,0,0.6)",
+            backgroundColor: isExpanded
+              ? "rgba(255, 59, 48, 0.9)"
+              : "rgba(0,0,0,0.6)",
             color: "white",
             borderRadius: "12px",
             padding: "2px 8px",
             fontSize: "10px",
             cursor: "pointer",
-            zIndex: 10,
+            zIndex: 110, // Higher than expanded items (100)
             backdropFilter: "blur(4px)",
             border: "1px solid rgba(255,255,255,0.2)",
+            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: isExpanded ? "0 4px 12px rgba(0,0,0,0.3)" : "none",
           }}
+          title={isExpanded ? "Collapse Gallery" : "Expand Gallery"}
         >
-          +{gallery.length}
+          {isExpanded ? "✕" : `+${gallery.length}`}
         </div>
       )}
 
@@ -147,7 +175,13 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onGalleryItemContext?.(id, url, e.clientX, e.clientY);
+                    onGalleryItemContext?.(
+                      id,
+                      url,
+                      mediaType,
+                      e.clientX,
+                      e.clientY,
+                    );
                   }}
                   style={{
                     width: `${nodeWidth}px`,

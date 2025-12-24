@@ -23,6 +23,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
         </label>
       )}
       <select
+        className="nodrag"
         value={String(value)}
         onChange={(e) => onChange(e.target.value)}
         style={{

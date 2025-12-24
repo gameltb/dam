@@ -22,6 +22,14 @@ export function withNodeHandlers<
     const [isHovered, setIsHovered] = useState(false);
 
     const isMedia = data.activeMode === "media";
+    const isAudio = isMedia && data.media?.type === "audio";
+
+    const minWidth = isMedia ? 50 : 180;
+    const minHeight = isAudio
+      ? 110
+      : isMedia
+        ? 50
+        : Math.max(80, (data.widgets?.length || 0) * 55 + 32);
 
     return (
       <div
@@ -47,8 +55,8 @@ export function withNodeHandlers<
       >
         <NodeResizer
           isVisible={selected}
-          minWidth={isMedia ? 50 : 150}
-          minHeight={isMedia ? 50 : 80}
+          minWidth={minWidth}
+          minHeight={minHeight}
           keepAspectRatio={isMedia}
           lineStyle={{
             border: isResizing ? "1px solid #646cff" : "none",
@@ -64,33 +72,41 @@ export function withNodeHandlers<
           onResizeEnd={() => setIsResizing(false)}
         />
 
-        {/* User Handles (Visible, Centered) */}
-        <Handle type="target" position={Position.Left} id="default-target" />
-
         <BaseNode<T>
           {...props}
-          renderMedia={(baseProps) => <RenderMedia {...props} {...baseProps} />}
-          renderWidgets={(baseProps) => (
-            <RenderWidgets {...props} {...baseProps} />
-          )}
-        />
+          renderMedia={RenderMedia}
+          renderWidgets={RenderWidgets}
+          handles={
+            <>
+              {/* User Handles (Visible, Centered) */}
+              <Handle
+                type="target"
+                position={Position.Left}
+                id="default-target"
+              />
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="default-source"
+              />
 
-        <Handle type="source" position={Position.Right} id="default-source" />
-
-        {/* System Handles (Hidden, Top-Left/Top-Right, Code-only) */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="system-target"
-          isConnectable={false}
-          style={{ top: 15, opacity: 0, pointerEvents: "none" }}
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="system-source"
-          isConnectable={false}
-          style={{ top: 15, opacity: 0, pointerEvents: "none" }}
+              {/* System Handles (Hidden, Top-Left/Top-Right, Code-only) */}
+              <Handle
+                type="target"
+                position={Position.Left}
+                id="system-target"
+                isConnectable={false}
+                style={{ top: 15, opacity: 0, pointerEvents: "none" }}
+              />
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="system-source"
+                isConnectable={false}
+                style={{ top: 15, opacity: 0, pointerEvents: "none" }}
+              />
+            </>
+          }
         />
       </div>
     );

@@ -15,6 +15,7 @@ import { CheckboxField } from "./widgets/CheckboxField";
 import { SliderField } from "./widgets/SliderField";
 import { ImageRenderer } from "./media/ImageRenderer";
 import { VideoRenderer } from "./media/VideoRenderer";
+import { AudioRenderer } from "./media/AudioRenderer";
 import { MarkdownRenderer } from "./media/MarkdownRenderer";
 import { GalleryWrapper } from "./media/GalleryWrapper";
 import { useFlowStore } from "../store/flowStore";
@@ -67,7 +68,11 @@ const WidgetRenderer: React.FC<{
       break;
     case "button":
       component = (
-        <button onClick={onClick} style={{ width: "100%", padding: "4px" }}>
+        <button
+          className="nodrag"
+          onClick={onClick}
+          style={{ width: "100%", padding: "4px" }}
+        >
           {widget.label}
         </button>
       );
@@ -79,8 +84,12 @@ const WidgetRenderer: React.FC<{
   return <div>{component}</div>;
 };
 
-const RenderMedia: React.FC<NodeRendererProps<DynamicNodeType>> = (props) => {
-  const { id, data } = props;
+const RenderMedia: React.FC<
+  NodeRendererProps<DynamicNodeType> & {
+    onOverflowChange?: (o: "visible" | "hidden") => void;
+  }
+> = (props) => {
+  const { id, data, onOverflowChange } = props;
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
   if (!data.media) return null;
@@ -127,6 +136,15 @@ const RenderMedia: React.FC<NodeRendererProps<DynamicNodeType>> = (props) => {
             <VideoRenderer url={url} autoPlay />
           </div>
         );
+      case "audio":
+        return (
+          <div
+            onDoubleClick={() => handleOpenPreview(index)}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <AudioRenderer url={url} />
+          </div>
+        );
       default:
         return (
           <div style={{ padding: "20px", textAlign: "center" }}>
@@ -156,10 +174,16 @@ const RenderMedia: React.FC<NodeRendererProps<DynamicNodeType>> = (props) => {
       nodeHeight={nodeHeight}
       mainContent={renderContent(data.media.url || "", data.media.type, 0)}
       gallery={gallery}
+      mediaType={data.media.type}
       renderItem={(url) =>
         renderContent(url, data.media!.type, gallery.indexOf(url) + 1)
       }
-      onGalleryItemContext={data.onGalleryItemContext}
+      onGalleryItemContext={(nodeId, url, mediaType, x, y) => {
+        data.onGalleryItemContext?.(nodeId, url, mediaType as any, x, y); // eslint-disable-line @typescript-eslint/no-explicit-any
+      }}
+      onExpand={(expanded) =>
+        onOverflowChange?.(expanded ? "visible" : "hidden")
+      }
     />
   );
 };
@@ -177,6 +201,8 @@ const RenderWidgets: React.FC<
         flexDirection: "column",
         gap: "8px",
         minWidth: "150px",
+        flex: 1,
+        overflowY: "auto",
       }}
     >
       {data.widgets?.map((w) => (

@@ -11,6 +11,7 @@ export function hydrateNode(
     onGalleryItemContext?: (
       nodeId: string,
       url: string,
+      mediaType: string,
       x: number,
       y: number,
     ) => void;
@@ -41,6 +42,7 @@ export function hydrateNodes(
     onGalleryItemContext?: (
       nodeId: string,
       url: string,
+      mediaType: string,
       x: number,
       y: number,
     ) => void;

@@ -42,10 +42,11 @@ export const useMockSocket = () => {
       onGalleryItemContext: (
         nodeId: string,
         url: string,
+        mediaType: string,
         x: number,
         y: number,
       ) => {
-        dispatchNodeEvent("gallery-context", { nodeId, url, x, y });
+        dispatchNodeEvent("gallery-context", { nodeId, url, mediaType, x, y });
       },
     }),
     [updateNodeData, dispatchNodeEvent],

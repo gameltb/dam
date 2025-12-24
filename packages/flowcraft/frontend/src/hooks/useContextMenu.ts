@@ -1,14 +1,17 @@
 import { useCallback, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Node, Edge } from "@xyflow/react";
+import { useFlowStore } from "../store/flowStore";
 
 export const useContextMenu = () => {
+  const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     nodeId?: string;
     edgeId?: string;
     galleryItemUrl?: string;
+    galleryItemType?: string;
   } | null>(null);
 
   const onPaneContextMenu = useCallback(
@@ -46,7 +49,10 @@ export const useContextMenu = () => {
     });
   }, []);
 
-  const onPaneClick = useCallback(() => setContextMenu(null), []);
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+    dispatchNodeEvent("pane-click", {});
+  }, [dispatchNodeEvent]);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 

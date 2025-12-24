@@ -18,6 +18,7 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({
     >
       <input
         type="checkbox"
+        className="nodrag"
         checked={value}
         onChange={(e) => onChange(e.target.checked)}
       />

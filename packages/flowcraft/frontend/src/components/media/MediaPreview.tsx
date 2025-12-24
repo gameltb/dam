@@ -280,7 +280,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               }}
               alt="Preview"
             />
-          ) : (
+          ) : media.type === "video" ? (
             <video
               key={currentUrl}
               src={currentUrl}
@@ -289,6 +289,43 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               autoPlay
               style={{ maxWidth: "100%", maxHeight: "85vh" }}
             />
+          ) : (
+            <div
+              style={{
+                width: "400px",
+                padding: "40px",
+                backgroundColor: "#1a1a1a",
+                borderRadius: "20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "30px",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <div
+                style={{
+                  width: "80px",
+                  height: "80px",
+                  borderRadius: "50%",
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "40px",
+                }}
+              >
+                🎵
+              </div>
+              <audio
+                key={currentUrl}
+                src={currentUrl}
+                onLoadedData={() => setIsLoading(false)}
+                controls
+                autoPlay
+                style={{ width: "100%" }}
+              />
+            </div>
           )}
         </div>
 

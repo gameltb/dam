@@ -68,7 +68,7 @@ export function ContextMenu({
   }, [templates]);
 
   const menuStyle: React.CSSProperties = {
-    position: "absolute",
+    position: "fixed",
     top: y,
     left: x,
     backgroundColor: isDark ? "#2a2a2a" : "white",
@@ -97,11 +97,7 @@ export function ContextMenu({
   };
 
   return (
-    <div
-      style={menuStyle}
-      onMouseLeave={onClose}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div style={menuStyle} onClick={(e) => e.stopPropagation()}>
       <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {galleryItemUrl && onGalleryAction && (
           <li
@@ -112,7 +108,7 @@ export function ContextMenu({
             style={{ ...menuItemStyle, fontWeight: "bold", color: "#646cff" }}
             className="menu-item"
           >
-            ✨ Create Node from Image
+            ✨ Extract to New Node
           </li>
         )}
         {onDeleteEdge && (
