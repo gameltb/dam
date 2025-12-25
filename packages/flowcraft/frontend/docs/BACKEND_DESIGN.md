@@ -15,24 +15,43 @@ The "Server" state is held in `src/mocks/handlers.ts`:
 
 ## Protocol & Endpoints
 
-### 1. Node Creation System
+The system uses a hybrid communication strategy:
 
-The backend defines what can be created via the `GET /api/node-templates` endpoint.
+1.  **REST/HTTP**: For resource fetching (templates).
+2.  **Protobuf/RPC** (Logical): For strict graph synchronization and commands.
+3.  **Streaming**: For AI generation and long-running tasks.
 
-- **Templates**: Define the default data (widgets, media, types) and the **Menu Path** (hierarchy).
-- This allows the backend to reorganize the frontend's creation menu without any frontend code changes.
+### 1. Protobuf Schema (`flowcraft.proto`)
+
+All data structures are strictly defined in `schema/flowcraft.proto`. This acts as the contract between frontend and backend.
+Key Definitions:
+
+- `Graph`: The full snapshot state.
+- `NodeData`: The schema-driven definition of a node's capabilities (modes, media, widgets).
+- `TaskRequest` / `TaskUpdate`: The standard envelope for job execution.
 
 ### 2. Synchronization (`/api/graph`)
 
-- **GET**: Used for polling. Returns the full graph state and version.
-- **POST**: Used by the client to push changes. Increments the version upon success.
+- **GET**: Polling for full graph state (proto-compliant JSON).
+- **POST**: Pushing changes.
 
-### 3. Server Actions (`/api/action`)
+### 3. Widget Interaction Service
 
-- Simulates server-side logic like child generation.
-- Instead of returning a full graph, it returns a **Diff** (nodes and edges to add/update), which the frontend merges using `Incremental Layout`.
+- **Real-time Updates**: `/api/widget/update` for lightweight value syncing (e.g., slider dragging).
+- **Dynamic Options**: `/api/widget/options` allows Select widgets to fetch data from the server (e.g., listing available AI models).
 
-## Node Definitions (JSON)
+### 4. Task Execution System (`/api/task/*`)
+
+For long-running operations (like "Analyze Data" or "Generate Image"), we use a Job System:
+
+1.  **Execute** (`POST /api/task/execute`):
+    - Client sends `TaskRequest` (Task Type + Params).
+    - Server responds with a **Chunked Stream** (application/x-ndjson or text/event-stream).
+    - Client receives `TaskUpdate` events (status: PENDING -> PROCESSING -> COMPLETED).
+2.  **Cancel** (`POST /api/task/cancel`):
+    - Client can abort a running task by ID.
+
+## Node Definitions (JSON/Proto)
 
 Nodes are defined dynamically. A typical node definition includes:
 

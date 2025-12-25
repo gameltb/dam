@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package flowcraft.v1;
+
+message Position {
+  double x = 1;
+  double y = 2;
+}
+
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message Viewport {
+  double x = 1;
+  double y = 2;
+  double zoom = 3;
+}
+
+enum PortStyle {
+  PORT_STYLE_CIRCLE = 0;
+  PORT_STYLE_SQUARE = 1;
+  PORT_STYLE_DIAMOND = 2;
+  PORT_STYLE_DASH = 3; 
+}
+
+message PortType {
+  string main_type = 1;    
+  string item_type = 2;    
+  bool is_generic = 3;     
+}
+
+message Port {
+  string id = 1;
+  string label = 2;
+  PortType type = 3;
+  PortStyle style = 4;
+  string color = 5;        
+  string description = 6; // 新增：后端定义的简介
+}
+
+message Edge {
+  string id = 1;
+  string source = 2;
+  string target = 3;
+  string source_handle = 4;
+  string target_handle = 5;
+  map<string, string> metadata = 6; 
+}

@@ -1,7 +1,47 @@
 import type { Edge, Viewport, Node } from "@xyflow/react";
 import type { GroupNodeType } from "./components/GroupNode";
+import { flowcraft as _flowcraft } from "./generated/flowcraft";
 
-export type WidgetType = "text" | "select" | "checkbox" | "slider" | "button";
+// The data structure for a processing node
+export interface ProcessingNodeData extends Record<string, unknown> {
+  taskId: string;
+  label: string;
+  onCancel?: (taskId: string) => void;
+}
+
+// Export the generated flowcraft namespace types
+export type { _flowcraft as flowcraft };
+
+// Re-export core types for other modules
+export type { Edge, Viewport, Node };
+
+export type ProcessingNodeType = Node<ProcessingNodeData, "processing">;
+
+// Re-export Enums from Protobuf
+export const WidgetType = _flowcraft.v1.WidgetType;
+export type WidgetType = _flowcraft.v1.WidgetType;
+
+export const RenderMode = _flowcraft.v1.RenderMode;
+export type RenderMode = _flowcraft.v1.RenderMode;
+
+export const MediaType = _flowcraft.v1.MediaType;
+export type MediaType = _flowcraft.v1.MediaType;
+
+export const ActionExecutionStrategy = _flowcraft.v1.ActionExecutionStrategy;
+export type ActionExecutionStrategy = _flowcraft.v1.ActionExecutionStrategy;
+
+export const PortStyle = _flowcraft.v1.PortStyle;
+export type PortStyle = _flowcraft.v1.PortStyle;
+
+// Manually define TaskStatus due to generation issues
+export const TaskStatus = {
+  TASK_PENDING: 0,
+  TASK_PROCESSING: 1,
+  TASK_COMPLETED: 2,
+  TASK_FAILED: 3,
+  TASK_CANCELLED: 4,
+} as const;
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
 
 export interface WidgetDef {
   id: string;
@@ -10,16 +50,15 @@ export interface WidgetDef {
   value: unknown;
   options?: { label: string; value: unknown }[]; // For select
   config?: Record<string, unknown>; // min/max for slider, etc.
+  inputPortId?: string; // New field
 }
 
 export interface MediaDef {
-  type: "image" | "video" | "audio" | "markdown";
+  type: MediaType;
   url?: string;
   content?: string; // For markdown
-  gallery?: string[]; // Array of additional media URLs (same type as main)
+  galleryUrls?: string[]; // Array of additional media URLs (same type as main)
 }
-
-export type RenderMode = "media" | "widgets" | "markdown";
 
 export interface DynamicNodeData extends Record<string, unknown> {
   label: string;
@@ -27,14 +66,17 @@ export interface DynamicNodeData extends Record<string, unknown> {
   activeMode?: RenderMode;
   media?: MediaDef & { aspectRatio?: number };
   widgets?: WidgetDef[];
-  inputType: string;
-  outputType: string;
+
+  // New Port definitions
+  inputPorts?: _flowcraft.v1.IPort[];
+  outputPorts?: _flowcraft.v1.IPort[];
+
   onChange: (id: string, data: Partial<DynamicNodeData>) => void;
   onWidgetClick?: (nodeId: string, widgetId: string) => void;
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
-    mediaType: MediaDef["type"],
+    mediaType: MediaType,
     x: number,
     y: number,
   ) => void;
@@ -66,7 +108,51 @@ export function isTypedNodeData(data: any): data is TypedNodeData {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type AppNode = GroupNodeType | DynamicNodeType;
+// --- Protocol Definitions ---
+
+export interface WidgetUpdatePayload {
+  nodeId: string;
+  widgetId: string;
+  value: unknown;
+}
+
+export interface WidgetOptionsRequest {
+  nodeId: string;
+  widgetId: string;
+  context?: Record<string, unknown>;
+}
+
+export interface StreamChunk {
+  nodeId: string;
+  widgetId: string;
+  chunk: string;
+  isDone: boolean;
+}
+
+// --- Task / Job System Definitions ---
+
+export interface TaskDefinition {
+  taskId: string;
+  type: string;
+  params: Record<string, unknown>;
+  initiatedBy: string; // userId or clientId
+  createdAt: number;
+}
+
+export interface TaskUpdatePayload {
+  taskId: string;
+  status: TaskStatus;
+  progress?: number; // 0-100
+  message?: string;
+  result?: unknown; // The final data (e.g., new node config)
+}
+
+export interface TaskCancelRequest {
+  taskId: string;
+  reason?: string;
+}
+
+export type AppNode = GroupNodeType | DynamicNodeType | ProcessingNodeType;
 
 export type GraphState = {
   graph: {

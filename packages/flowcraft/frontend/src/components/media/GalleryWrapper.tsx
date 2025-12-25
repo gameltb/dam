@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFlowStore } from "../../store/flowStore";
+import { MediaType } from "../../types";
 
 interface GalleryWrapperProps {
   id: string;
@@ -7,12 +8,12 @@ interface GalleryWrapperProps {
   nodeHeight: number;
   mainContent: React.ReactNode;
   gallery: string[];
-  mediaType: string;
+  mediaType: MediaType;
   renderItem: (url: string) => React.ReactNode;
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
-    mediaType: string,
+    mediaType: MediaType,
     x: number,
     y: number,
   ) => void;

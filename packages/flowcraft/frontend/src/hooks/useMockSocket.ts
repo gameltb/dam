@@ -1,48 +1,43 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import type { AppNode, NodeTemplate } from "../types";
-import type { Edge } from "@xyflow/react";
+import { flowcraft } from "../generated/flowcraft";
+import type { NodeTemplate, AppNode } from "../types";
+import { MediaType } from "../types";
 import { useFlowStore } from "../store/flowStore";
 import { hydrateNodes } from "../utils/nodeUtils";
-
-// --- Types ---
-
-interface SyncGraphPayload {
-  version: number;
-  graph: {
-    nodes: AppNode[];
-    edges: Edge[];
-  };
-}
+import { useTaskStore } from "../store/taskStore";
+import { v4 as uuidv4 } from "uuid";
+import type { Edge } from "@xyflow/react";
 
 export interface WebSocketMessage {
-  type: "sync_graph" | "execute_action" | "apply_changes";
-  payload: SyncGraphPayload | any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  error?: string;
+  type: string;
+  payload: unknown;
 }
 
-// --- Custom Hook (Refactored to use MSW via HTTP Polling) ---
+export const useMockSocket = (config?: { disablePolling?: boolean }) => {
+  const { updateNodeData, dispatchNodeEvent, applyMutations, setGraph } =
+    useFlowStore((state) => ({
+      updateNodeData: state.updateNodeData,
+      dispatchNodeEvent: state.dispatchNodeEvent,
+      applyMutations: state.applyMutations,
+      setGraph: state.setGraph,
+    }));
 
-export const useMockSocket = () => {
-  const { updateNodeData, dispatchNodeEvent } = useFlowStore((state) => ({
-    updateNodeData: state.updateNodeData,
-    dispatchNodeEvent: state.dispatchNodeEvent,
-  }));
-
-  const [lastJsonMessage, setLastJsonMessage] =
-    useState<WebSocketMessage | null>(null);
+  const { updateTask } = useTaskStore();
   const [templates, setTemplates] = useState<NodeTemplate[]>([]);
+  const [streamHandlers, setStreamHandlers] = useState<
+    Record<string, (chunk: string) => void>
+  >({});
 
   const nodeHandlers = useMemo(
     () => ({
       onChange: (id: string, d: Record<string, unknown>) =>
         updateNodeData(id, d),
-      onWidgetClick: (nodeId: string, widgetId: string) => {
-        dispatchNodeEvent("widget-click", { nodeId, widgetId });
-      },
+      onWidgetClick: (nodeId: string, widgetId: string) =>
+        dispatchNodeEvent("widget-click", { nodeId, widgetId }),
       onGalleryItemContext: (
         nodeId: string,
         url: string,
-        mediaType: string,
+        mediaType: MediaType,
         x: number,
         y: number,
       ) => {
@@ -52,90 +47,173 @@ export const useMockSocket = () => {
     [updateNodeData, dispatchNodeEvent],
   );
 
-  // Fetch templates on load
-  useEffect(() => {
-    fetch("/api/node-templates")
-      .then((res) => res.json())
-      .then(setTemplates)
-      .catch((err) => console.error("Template fetch error:", err));
-  }, []);
+  // Unified Message Sender
+  const sendFlowMessage = useCallback(
+    async (payload: flowcraft.v1.IFlowMessage) => {
+      const message: flowcraft.v1.IFlowMessage = {
+        messageId: uuidv4(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        timestamp: Date.now() as any,
+        ...payload,
+      };
 
-  // Poll for updates (Simulation of WebSocket push)
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch("/api/graph");
-        if (response.ok) {
-          const data = await response.json();
+        const response = await fetch("/api/ws", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(message),
+        });
 
-          if (data.type === "sync_graph" && data.payload.graph.nodes) {
-            data.payload.graph.nodes = hydrateNodes(
-              data.payload.graph.nodes,
-              nodeHandlers,
-            );
+        if (!response.ok) return;
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) return;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n").filter((l) => l.trim());
+
+          for (const line of lines) {
+            const serverMsg = JSON.parse(line) as flowcraft.v1.IFlowMessage;
+
+            if (serverMsg.snapshot) {
+              setGraph(
+                serverMsg.snapshot as unknown as {
+                  nodes: AppNode[];
+                  edges: Edge[];
+                },
+                serverMsg.snapshot.version as unknown as number,
+              );
+            } else if (serverMsg.mutations) {
+              const processed = serverMsg.mutations.mutations?.map((m) => {
+                if (m.addNode?.node)
+                  m.addNode.node = hydrateNodes(
+                    [m.addNode.node as unknown as AppNode],
+                    nodeHandlers,
+                  )[0] as unknown as flowcraft.v1.INode;
+                return m;
+              });
+              applyMutations(processed || []);
+            } else if (serverMsg.taskUpdate) {
+              updateTask(
+                serverMsg.taskUpdate.taskId!,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serverMsg.taskUpdate as any,
+              );
+            } else if (serverMsg.streamChunk) {
+              const handlerKey = `${serverMsg.streamChunk.nodeId}-${serverMsg.streamChunk.widgetId}`;
+              streamHandlers[handlerKey]?.(serverMsg.streamChunk.chunkData!);
+            }
           }
-
-          setLastJsonMessage(data);
         }
-      } catch (error) {
-        console.error("Polling error:", error);
-      }
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [nodeHandlers]);
-
-  const sendJsonMessage = useCallback(
-    async (message: WebSocketMessage) => {
-      const { type, payload } = message;
-
-      if (type === "sync_graph") {
-        try {
-          const response = await fetch("/api/graph", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await response.json();
-          setLastJsonMessage(data);
-        } catch (error) {
-          console.error("Sync error:", error);
-        }
-      } else if (type === "execute_action") {
-        try {
-          const response = await fetch("/api/action", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await response.json();
-
-          if (data.type === "apply_changes" && data.payload.add) {
-            data.payload.add = hydrateNodes(data.payload.add, nodeHandlers);
-          }
-          setLastJsonMessage(data);
-        } catch (error) {
-          console.error("Action error:", error);
-        }
+      } catch (e) {
+        console.error("WS error:", e);
       }
     },
-    [nodeHandlers],
+    [setGraph, applyMutations, updateTask, streamHandlers, nodeHandlers],
   );
 
-  const mockServerState = useMemo(
-    () => ({
-      availableActions: {
-        text: [{ id: "generate-children", name: "Generate Children" }],
+  // Initial Fetch
+  useEffect(() => {
+    if (config?.disablePolling) return;
+    fetch("/api/node-templates")
+      .then((r) => r.json())
+      .then((data) => setTemplates(data));
+
+    // Defer initial sync to avoid effect cascading render warning
+    const t = setTimeout(() => {
+      sendFlowMessage({ syncRequest: { graphId: "main" } });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [config?.disablePolling, sendFlowMessage]);
+
+  // Public API Mapping
+  const sendNodeUpdate = (nodeId: string, data: Partial<AppNode["data"]>) =>
+    sendFlowMessage({ nodeUpdate: { nodeId, data: data as any } }); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const sendWidgetUpdate = (nodeId: string, widgetId: string, value: unknown) =>
+    sendFlowMessage({
+      widgetUpdate: { nodeId, widgetId, valueJson: JSON.stringify(value) },
+    });
+
+  const fetchWidgetOptions = async (nodeId: string, widgetId: string) => {
+    try {
+      const res = await fetch("/api/widget/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId, widgetId }),
+      });
+      return await res.json();
+    } catch {
+      return [];
+    }
+  };
+
+  const executeAction = async (actionId: string, sourceNodeId: string) => {
+    await sendFlowMessage({ actionExecute: { actionId, sourceNodeId } });
+    return { type: "immediate" };
+  };
+
+  const streamAction = (
+    nodeId: string,
+    widgetId: string,
+    onChunk: (c: string) => void,
+  ) => {
+    setStreamHandlers((prev) => ({
+      ...prev,
+      [`${nodeId}-${widgetId}`]: onChunk,
+    }));
+    sendFlowMessage({
+      actionExecute: { actionId: "stream", sourceNodeId: nodeId },
+    });
+  };
+
+  const executeTask = (
+    taskId: string,
+    type: string,
+    params: { sourceNodeId: string },
+  ) => {
+    sendFlowMessage({
+      actionExecute: {
+        actionId: type,
+        sourceNodeId: params.sourceNodeId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        paramsJson: JSON.stringify({ taskId }) as any,
       },
-    }),
-    [],
-  );
+    });
+  };
+
+  const cancelTask = (taskId: string) =>
+    sendFlowMessage({ taskCancel: { taskId } });
+
+  const discoverActions = async (nodeId?: string) => {
+    try {
+      const res = await fetch("/api/actions/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId }),
+      });
+      const data = await res.json();
+      return data.actions as flowcraft.v1.IActionTemplate[];
+    } catch {
+      return [];
+    }
+  };
 
   return {
-    sendJsonMessage,
-    lastJsonMessage,
+    sendNodeUpdate,
+    sendWidgetUpdate,
+    fetchWidgetOptions,
+    executeAction,
+    streamAction,
+    executeTask,
+    cancelTask,
+    discoverActions,
     templates,
-    readyState: 1, // Mock connected state
-    mockServerState, // Static config
+    readyState: 1,
+    mockServerState: { availableActions: { text: [] } },
   };
 };

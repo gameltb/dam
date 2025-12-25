@@ -1,8 +1,7 @@
-import { useMemo } from "react";
-import { useTheme } from "../hooks/useTheme";
+import React, { memo } from "react";
 import { type NodeTemplate } from "../types";
 
-type ContextMenuProps = {
+export interface ContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
@@ -10,26 +9,22 @@ type ContextMenuProps = {
   onDeleteEdge?: () => void;
   onFocus?: () => void;
   onOpenEditor?: () => void;
-  onToggleTheme?: () => void;
-  templates?: NodeTemplate[];
-  onAddNode?: (template: NodeTemplate) => void;
-  onAutoLayout?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onDuplicate?: () => void;
+  dynamicActions?: { id: string; name: string; onClick: () => void }[];
+  onToggleTheme: () => void;
+  templates: NodeTemplate[];
+  onAddNode: (template: NodeTemplate) => void;
+  onAutoLayout: () => void;
   onGroupSelected?: () => void;
   onLayoutGroup?: () => void;
   onGalleryAction?: (url: string) => void;
   galleryItemUrl?: string;
   isPaneMenu?: boolean;
-  dynamicActions?: { id: string; name: string; onClick: () => void }[];
-};
-
-interface MenuTree {
-  [key: string]: {
-    template?: NodeTemplate;
-    children?: MenuTree;
-  };
 }
 
-export function ContextMenu({
+export const ContextMenu: React.FC<ContextMenuProps> = ({
   x,
   y,
   onClose,
@@ -37,288 +32,272 @@ export function ContextMenu({
   onDeleteEdge,
   onFocus,
   onOpenEditor,
+  onCopy,
+  onPaste,
+  onDuplicate,
+  dynamicActions = [],
   onToggleTheme,
-  templates = [],
+  templates,
   onAddNode,
   onAutoLayout,
   onGroupSelected,
   onLayoutGroup,
   onGalleryAction,
   galleryItemUrl,
-  isPaneMenu = false,
-  dynamicActions = [],
-}: ContextMenuProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-
-  // Build the hierarchical tree from flat templates
-  const templateTree = useMemo(() => {
-    const tree: MenuTree = {};
-    templates.forEach((tpl) => {
-      let current = tree;
-      tpl.path.forEach((part) => {
-        if (!current[part]) {
-          current[part] = { children: {} };
-        }
-        current = current[part].children!;
-      });
-      current[tpl.label] = { template: tpl };
-    });
-    return tree;
-  }, [templates]);
-
-  const menuStyle: React.CSSProperties = {
-    position: "fixed",
-    top: y,
-    left: x,
-    backgroundColor: isDark ? "#2a2a2a" : "white",
-    color: isDark ? "#f0f0f0" : "#213547",
-    border: `1px solid ${isDark ? "#444" : "#ddd"}`,
-    borderRadius: 5,
-    zIndex: 1000,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-    minWidth: "180px",
-    padding: "5px 0",
-  };
-
-  const menuItemStyle: React.CSSProperties = {
-    padding: "8px 16px",
+  isPaneMenu,
+}) => {
+  const itemStyle: React.CSSProperties = {
+    padding: "8px 12px",
     cursor: "pointer",
+    fontSize: "12px",
+    color: "var(--text-color)",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    fontSize: "13px",
-    position: "relative",
+    gap: "8px",
+    transition: "background 0.2s",
   };
 
-  const separatorStyle: React.CSSProperties = {
-    borderTop: `1px solid ${isDark ? "#444" : "#ddd"}`,
-    margin: "4px 0",
+  const sectionStyle: React.CSSProperties = {
+    borderBottom: "1px solid var(--node-border)",
+    paddingBottom: "4px",
+    marginBottom: "4px",
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).style.backgroundColor =
+      "rgba(100, 108, 255, 0.15)";
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
   };
 
   return (
-    <div style={menuStyle} onClick={(e) => e.stopPropagation()}>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-        {galleryItemUrl && onGalleryAction && (
-          <li
+    <div
+      style={{
+        position: "fixed",
+        top: y,
+        left: x,
+        backgroundColor: "var(--panel-bg)",
+        border: "1px solid var(--node-border)",
+        borderRadius: "8px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+        zIndex: 1000,
+        minWidth: "160px",
+        padding: "4px 0",
+        animation: "fade-in 0.1s ease-out",
+        backdropFilter: "blur(10px)",
+      }}
+      onMouseLeave={onClose}
+    >
+      <style>{`
+        @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
+
+      {/* --- Node/Edge Specific Actions --- */}
+      {(onDelete ||
+        onDeleteEdge ||
+        onFocus ||
+        onOpenEditor ||
+        onCopy ||
+        onDuplicate) && (
+        <div style={sectionStyle}>
+          {onFocus && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={onFocus}
+            >
+              🔍 Focus View
+            </div>
+          )}
+          {onOpenEditor && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={onOpenEditor}
+            >
+              🎨 Open Editor
+            </div>
+          )}
+          {onCopy && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => {
+                onCopy();
+                onClose();
+              }}
+            >
+              📋 Copy (Ctrl+C)
+            </div>
+          )}
+          {onDuplicate && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => {
+                onDuplicate();
+                onClose();
+              }}
+            >
+              👯 Duplicate (Ctrl+D)
+            </div>
+          )}
+          {(onDelete || onDeleteEdge) && (
+            <div
+              style={{ ...itemStyle, color: "#f87171" }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={onDelete || onDeleteEdge}
+            >
+              🗑️ Delete
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- Global/Pane Actions --- */}
+      {isPaneMenu && (
+        <div style={sectionStyle}>
+          {onPaste && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => {
+                onPaste();
+                onClose();
+              }}
+            >
+              📥 Paste (Ctrl+V)
+            </div>
+          )}
+          <div
+            style={itemStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={onAutoLayout}
+          >
+            🪄 Auto Layout
+          </div>
+          {onGroupSelected && (
+            <div
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={onGroupSelected}
+            >
+              📦 Group Selected
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- Subgraph Actions --- */}
+      {onLayoutGroup && (
+        <div style={sectionStyle}>
+          <div
+            style={itemStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={onLayoutGroup}
+          >
+            📐 Layout Group
+          </div>
+        </div>
+      )}
+
+      {/* --- Add Node Submenu --- */}
+      {isPaneMenu && (
+        <div style={sectionStyle}>
+          <div
+            style={{
+              ...itemStyle,
+              cursor: "default",
+              color: "var(--sub-text)",
+            }}
+          >
+            ADD NODE
+          </div>
+          {templates.map((tpl) => (
+            <div
+              key={tpl.id}
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => {
+                onAddNode(tpl);
+                onClose();
+              }}
+            >
+              + {tpl.label}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* --- Gallery Item Actions --- */}
+      {galleryItemUrl && onGalleryAction && (
+        <div style={sectionStyle}>
+          <div
+            style={itemStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onClick={() => {
               onGalleryAction(galleryItemUrl);
               onClose();
             }}
-            style={{ ...menuItemStyle, fontWeight: "bold", color: "#646cff" }}
-            className="menu-item"
           >
-            ✨ Extract to New Node
-          </li>
-        )}
-        {onDeleteEdge && (
-          <li
-            onClick={() => {
-              onDeleteEdge();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Disconnect
-          </li>
-        )}
-        {!isPaneMenu && onDelete && (
-          <li
-            onClick={() => {
-              onDelete();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Delete
-          </li>
-        )}
-        {!isPaneMenu && onFocus && (
-          <li
-            onClick={() => {
-              onFocus();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Focus
-          </li>
-        )}
-        {!isPaneMenu && onOpenEditor && (
-          <li
-            onClick={() => {
-              onOpenEditor();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Open Editor
-          </li>
-        )}
+            ✨ Extract Item to Node
+          </div>
+        </div>
+      )}
 
-        {dynamicActions.length > 0 && <div style={separatorStyle} />}
-        {dynamicActions.map((action) => (
-          <li
-            key={action.id}
-            onClick={() => {
-              action.onClick();
-              onClose();
+      {/* --- Server Actions --- */}
+      {dynamicActions.length > 0 && (
+        <div style={sectionStyle}>
+          <div
+            style={{
+              ...itemStyle,
+              cursor: "default",
+              color: "var(--sub-text)",
             }}
-            style={menuItemStyle}
-            className="menu-item"
           >
-            {action.name}
-          </li>
-        ))}
+            SERVER ACTIONS
+          </div>
+          {dynamicActions.map((action) => (
+            <div
+              key={action.id}
+              style={itemStyle}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={action.onClick}
+            >
+              ⚡ {action.name}
+            </div>
+          ))}
+        </div>
+      )}
 
-        {(onAutoLayout || onGroupSelected || onLayoutGroup) && (
-          <div style={separatorStyle} />
-        )}
-        {onAutoLayout && (
-          <li
-            onClick={() => {
-              onAutoLayout();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Auto Layout
-          </li>
-        )}
-        {onGroupSelected && (
-          <li
-            onClick={() => {
-              onGroupSelected();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Group Selected
-          </li>
-        )}
-        {onLayoutGroup && (
-          <li
-            onClick={() => {
-              onLayoutGroup();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Layout Group
-          </li>
-        )}
-
-        <div style={separatorStyle} />
-
-        <li style={{ ...menuItemStyle, cursor: "default", opacity: 0.6 }}>
-          Add Node
-        </li>
-
-        <RecursiveMenu
-          tree={templateTree}
-          onAddNode={(tpl) => {
-            onAddNode?.(tpl);
-            onClose();
-          }}
-          isDark={isDark}
-        />
-
-        <div style={separatorStyle} />
-
-        {onToggleTheme && (
-          <li
-            onClick={() => {
-              onToggleTheme();
-              onClose();
-            }}
-            style={menuItemStyle}
-            className="menu-item"
-          >
-            Switch Theme
-          </li>
-        )}
-      </ul>
-      <style>{`
-        .menu-item:hover { background-color: ${isDark ? "#3a3a3a" : "#f5f5f5"}; }
-        .menu-parent:hover > .submenu { display: block !important; }
-      `}</style>
+      {/* --- Bottom Helpers --- */}
+      <div
+        style={itemStyle}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={() => {
+          onToggleTheme();
+          onClose();
+        }}
+      >
+        🌓 Switch Theme
+      </div>
     </div>
   );
-}
+};
 
-function RecursiveMenu({
-  tree,
-  onAddNode,
-  isDark,
-}: {
-  tree: MenuTree;
-  onAddNode: (tpl: NodeTemplate) => void;
-  isDark: boolean;
-}) {
-  return (
-    <>
-      {Object.entries(tree).map(([key, value]) => {
-        const hasChildren =
-          value.children && Object.keys(value.children).length > 0;
-
-        return (
-          <li
-            key={key}
-            style={{
-              padding: "8px 16px",
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "13px",
-              position: "relative",
-            }}
-            className={hasChildren ? "menu-parent" : "menu-item"}
-            onClick={() => {
-              if (value.template) {
-                onAddNode(value.template);
-              }
-            }}
-          >
-            <span>{hasChildren ? `📁 ${key}` : `📄 ${key}`}</span>
-            {hasChildren && <span>▶</span>}
-
-            {hasChildren && (
-              <div
-                className="submenu"
-                style={{
-                  display: "none",
-                  position: "absolute",
-                  top: 0,
-                  left: "100%",
-                  backgroundColor: isDark ? "#2a2a2a" : "white",
-                  border: `1px solid ${isDark ? "#444" : "#ddd"}`,
-                  borderRadius: 5,
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-                  minWidth: "160px",
-                  padding: "5px 0",
-                  zIndex: 1001,
-                }}
-              >
-                <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                  <RecursiveMenu
-                    tree={value.children!}
-                    onAddNode={onAddNode}
-                    isDark={isDark}
-                  />
-                </ul>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </>
-  );
-}
+export default memo(ContextMenu);

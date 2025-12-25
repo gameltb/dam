@@ -1,12 +1,13 @@
-// src/components/widgets/WidgetWrapper.tsx
-
 import React, { useState } from "react";
+import { useStore } from "@xyflow/react";
 
 export interface WidgetWrapperProps {
   children: React.ReactNode;
   isSwitchable: boolean;
   onToggleMode: () => void;
   onClick?: () => void;
+  inputPortId?: string; // 如果设置了，将监听连线状态
+  nodeId?: string;
 }
 
 export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
@@ -14,12 +15,22 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   isSwitchable,
   onToggleMode,
   onClick,
+  inputPortId,
+  nodeId,
 }) => {
   const [isSelected, setIsSelected] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
+
+  // 监听是否有连线连接到该隐式端口
+  const isConnected = useStore((s) => {
+    if (!inputPortId || !nodeId) return false;
+    return s.edges.some(
+      (e) => e.target === nodeId && e.targetHandle === inputPortId,
+    );
+  });
 
   const handleSelect = () => {
     setIsSelected(true);
@@ -45,6 +56,9 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
     padding: "5px",
     border: isSelected ? "1px solid #777" : "1px solid transparent",
     borderRadius: "4px",
+    opacity: isConnected ? 0.5 : 1,
+    pointerEvents: isConnected ? "none" : "auto", // 连线后禁用交互
+    transition: "opacity 0.2s",
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -72,8 +86,22 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
       }}
       onBlur={handleDeselect}
       onContextMenu={handleContextMenu}
-      tabIndex={0} // Make it focusable
+      tabIndex={0}
     >
+      {isConnected && (
+        <div
+          style={{
+            position: "absolute",
+            left: -15,
+            top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: "10px",
+            color: "#646cff",
+          }}
+        >
+          ➔
+        </div>
+      )}
       {children}
       {isSelected && isSwitchable && (
         <button style={buttonStyle} onClick={onToggleMode} title="Switch mode">

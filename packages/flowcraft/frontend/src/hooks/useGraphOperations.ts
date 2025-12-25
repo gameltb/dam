@@ -1,431 +1,208 @@
-import { useState, useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
-import toast from "react-hot-toast";
-import type { AppNode, NodeData } from "../types";
+import { useCallback } from "react";
 import { useFlowStore } from "../store/flowStore";
+import { v4 as uuidv4 } from "uuid";
+import type { AppNode } from "../types";
+import type { XYPosition, Edge } from "@xyflow/react";
 import dagre from "dagre";
-import { type Edge } from "@xyflow/react";
+import { flowcraft } from "../generated/flowcraft";
 
-interface UseGraphOperationsProps {
+interface GraphOpsProps {
   clientVersion: number;
-  sendJsonMessage: (message: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
-export const useGraphOperations = ({
-  clientVersion,
-  sendJsonMessage,
-}: UseGraphOperationsProps) => {
-  const {
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    addNode: addNodeToStore,
-  } = useFlowStore();
-
-  const [isFocusView, setFocusView] = useState(false);
-  const [originalNodes, setOriginalNodes] = useState<AppNode[] | null>(null);
-
-  const incrementalLayout = useCallback(
-    (currentNodes: AppNode[], currentEdges: Edge[], newNodesIds: string[]) => {
-      const updatedNodes = [...currentNodes];
-
-      newNodesIds.forEach((newNodeId) => {
-        const nodeIdx = updatedNodes.findIndex((n) => n.id === newNodeId);
-        if (nodeIdx === -1) return;
-
-        const newNode = updatedNodes[nodeIdx];
-
-        // Get dimensions
-        const nodeWidth =
-          newNode.measured?.width || (newNode.style?.width as number) || 250;
-        const nodeHeight =
-          newNode.measured?.height || (newNode.style?.height as number) || 150;
-        const PADDING_X = 100;
-        const PADDING_Y = 50;
-
-        // Find incoming edges to this new node
-        const incomingEdges = currentEdges.filter(
-          (e) => e.target === newNodeId,
-        );
-        const sourceNodes = incomingEdges
-          .map((e) => updatedNodes.find((n) => n.id === e.source))
-          .filter(Boolean) as AppNode[];
-
-        let targetX = newNode.position.x;
-        let targetY = newNode.position.y;
-
-        if (sourceNodes.length > 0) {
-          // Position to the right of the sources
-          const maxX = Math.max(
-            ...sourceNodes.map((s) => {
-              const sw = s.measured?.width || (s.style?.width as number) || 200;
-              return s.position.x + sw;
-            }),
-          );
-          const avgY =
-            sourceNodes.reduce((sum, s) => sum + s.position.y, 0) /
-            sourceNodes.length;
-
-          targetX = maxX + PADDING_X;
-          targetY = avgY;
-        } else {
-          targetX = 100;
-          targetY = 100;
-        }
-
-        const initialTargetY = targetY;
-        let foundSpot = false;
-
-        // Search offsets: 0, +1, -1, +2, -2, +3, -3
-        const searchOffsets = [0, 1, -1, 2, -2, 3, -3];
-
-        for (const offsetMultiplier of searchOffsets) {
-          const candidateY =
-            initialTargetY + offsetMultiplier * (nodeHeight + PADDING_Y);
-
-          const collision = updatedNodes.some((otherNode) => {
-            if (otherNode.id === newNodeId) return false;
-            const ow =
-              otherNode.measured?.width ||
-              (otherNode.style?.width as number) ||
-              200;
-            const oh =
-              otherNode.measured?.height ||
-              (otherNode.style?.height as number) ||
-              100;
-
-            return (
-              targetX < otherNode.position.x + ow &&
-              targetX + nodeWidth > otherNode.position.x &&
-              candidateY < otherNode.position.y + oh &&
-              candidateY + nodeHeight > otherNode.position.y
-            );
-          });
-
-          if (!collision) {
-            targetY = candidateY;
-            foundSpot = true;
-            break;
-          }
-        }
-
-        if (!foundSpot) {
-          targetY = initialTargetY;
-        }
-
-        updatedNodes[nodeIdx] = {
-          ...newNode,
-          position: { x: targetX, y: targetY },
-        };
-      });
-
-      setNodes(updatedNodes);
-      return updatedNodes;
-    },
-    [setNodes],
-  );
-
-  const groupSelectedNodes = useCallback(() => {
-    const selectedNodes = nodes.filter((n) => n.selected);
-    if (selectedNodes.length < 2) {
-      toast.error("Please select at least 2 nodes to group.");
-      return;
-    }
-
-    const minX = Math.min(...selectedNodes.map((n) => n.position.x));
-    const minY = Math.min(...selectedNodes.map((n) => n.position.y));
-    const maxX = Math.max(
-      ...selectedNodes.map((n) => n.position.x + (n.measured?.width || 200)),
-    );
-    const maxY = Math.max(
-      ...selectedNodes.map((n) => n.position.y + (n.measured?.height || 100)),
-    );
-
-    const padding = 40;
-    const groupId = uuidv4();
-
-    const groupNode: AppNode = {
-      id: groupId,
-      type: "groupNode",
-      position: { x: minX - padding, y: minY - padding },
-      style: {
-        width: maxX - minX + padding * 2,
-        height: maxY - minY + padding * 2,
-      },
-      data: { label: "New Group" },
-    } as AppNode;
-
-    const updatedNodes = nodes.map((node) => {
-      if (node.selected) {
-        return {
-          ...node,
-          parentId: groupId,
-          extent: "parent" as const,
-          position: {
-            x: node.position.x - (minX - padding),
-            y: node.position.y - (minY - padding),
-          },
-          selected: false,
-        };
-      }
-      return node;
-    });
-
-    setNodes([groupNode, ...updatedNodes]);
-  }, [nodes, setNodes]);
-
-  const layoutGroup = useCallback(
-    (groupId: string) => {
-      const childNodes = nodes.filter((n) => n.parentId === groupId);
-      if (childNodes.length === 0) return;
-
-      const dagreGraph = new dagre.graphlib.Graph();
-      dagreGraph.setDefaultEdgeLabel(() => ({}));
-      dagreGraph.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 70 });
-
-      childNodes.forEach((node) => {
-        dagreGraph.setNode(node.id, {
-          width: node.measured?.width || 200,
-          height: node.measured?.height || 100,
-        });
-      });
-
-      // Only consider edges between children of this group
-      const childIds = new Set(childNodes.map((n) => n.id));
-      const groupEdges = edges.filter(
-        (e) => childIds.has(e.source) && childIds.has(e.target),
-      );
-
-      groupEdges.forEach((edge) => {
-        dagreGraph.setEdge(edge.source, edge.target);
-      });
-
-      dagre.layout(dagreGraph);
-
-      const padding = 40;
-      const layoutedNodes = nodes.map((node) => {
-        if (node.parentId === groupId) {
-          const nodeWithPosition = dagreGraph.node(node.id);
-          return {
-            ...node,
-            position: {
-              x:
-                nodeWithPosition.x -
-                (node.measured?.width || 200) / 2 +
-                padding,
-              y:
-                nodeWithPosition.y -
-                (node.measured?.height || 100) / 2 +
-                padding,
-            },
-          };
-        }
-        return node;
-      });
-
-      // Adjust group size
-      const groupMaxX = Math.max(
-        ...layoutedNodes
-          .filter((n) => n.parentId === groupId)
-          .map((n) => n.position.x + (n.measured?.width || 200)),
-      );
-      const groupMaxY = Math.max(
-        ...layoutedNodes
-          .filter((n) => n.parentId === groupId)
-          .map((n) => n.position.y + (n.measured?.height || 100)),
-      );
-
-      const finalNodes = layoutedNodes.map((node) => {
-        if (node.id === groupId) {
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              width: groupMaxX + padding,
-              height: groupMaxY + padding,
-            },
-          };
-        }
-        return node;
-      });
-
-      setNodes(finalNodes);
-    },
-    [nodes, edges, setNodes],
-  );
-
-  const autoLayout = useCallback(
-    (currentNodes: AppNode[] = nodes, currentEdges: Edge[] = edges) => {
-      const dagreGraph = new dagre.graphlib.Graph();
-
-      dagreGraph.setDefaultEdgeLabel(() => ({}));
-
-      // Set graph direction to Left-to-Right
-
-      dagreGraph.setGraph({ rankdir: "LR", nodesep: 70, ranksep: 100 });
-
-      // Filter: Only include top-level nodes and group nodes themselves
-
-      const topLevelNodes = currentNodes.filter((node) => !node.parentId);
-
-      topLevelNodes.forEach((node) => {
-        const nw = node.measured?.width || (node.style?.width as number) || 200;
-
-        const nh =
-          node.measured?.height || (node.style?.height as number) || 100;
-
-        dagreGraph.setNode(node.id, { width: nw, height: nh });
-      });
-
-      // Filter edges: Only include edges where both source and target are in our top-level set
-
-      const topLevelNodeIds = new Set(topLevelNodes.map((n) => n.id));
-
-      currentEdges.forEach((edge) => {
-        if (
-          topLevelNodeIds.has(edge.source) &&
-          topLevelNodeIds.has(edge.target)
-        ) {
-          dagreGraph.setEdge(edge.source, edge.target);
-        }
-      });
-
-      dagre.layout(dagreGraph);
-
-      const layoutedNodes = currentNodes.map((node) => {
-        // If it's a child node, we don't change its internal relative position
-
-        if (node.parentId) return node;
-
-        const nodeWithPosition = dagreGraph.node(node.id);
-
-        const nw = node.measured?.width || (node.style?.width as number) || 200;
-
-        const nh =
-          node.measured?.height || (node.style?.height as number) || 100;
-
-        return {
-          ...node,
-
-          position: {
-            x: nodeWithPosition.x - nw / 2, // Accurate center alignment
-
-            y: nodeWithPosition.y - nh / 2,
-          },
-        };
-      });
-
-      setNodes(layoutedNodes);
-
-      return layoutedNodes;
-    },
-
-    [nodes, edges, setNodes],
-  );
+export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
+  const { nodes, edges, setNodes, applyMutations, clipboard, setClipboard } =
+    useFlowStore();
 
   const addNode = useCallback(
-    (
-      type: string,
-      data: NodeData,
-      position: { x: number; y: number },
-    ): AppNode => {
+    (type: string, data: Partial<AppNode["data"]>, position: XYPosition) => {
       const newNode: AppNode = {
         id: uuidv4(),
         type,
         position,
         data,
       } as AppNode;
-      addNodeToStore(newNode);
-      return newNode;
+      applyMutations([
+        { addNode: { node: newNode as unknown as flowcraft.v1.INode } },
+      ]);
     },
-    [addNodeToStore],
-  );
-
-  const deleteEdge = useCallback(
-    (edgeId: string) => {
-      setEdges(edges.filter((e) => e.id !== edgeId));
-    },
-    [edges, setEdges],
+    [applyMutations],
   );
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      setNodes(nodes.filter((n) => n.id !== nodeId));
-      setEdges(edges.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      applyMutations([{ removeNode: { id: nodeId } }]);
     },
-    [nodes, edges, setNodes, setEdges],
+    [applyMutations],
   );
 
-  const focusNode = useCallback(
-    (nodeId: string) => {
-      setOriginalNodes(nodes);
-      const focusedNode = nodes.find((n) => n.id === nodeId);
-      if (!focusedNode) return;
+  const deleteEdge = useCallback(
+    (edgeId: string) => {
+      applyMutations([{ removeEdge: { id: edgeId } }]);
+    },
+    [applyMutations],
+  );
 
-      const connectedEdges = edges.filter(
-        (e) => e.source === focusedNode.id || e.target === focusedNode.id,
-      );
-      const neighborIds = new Set(
-        connectedEdges.flatMap((e) => [e.source, e.target]),
-      );
-      const focusNodes = nodes.filter((n) => neighborIds.has(n.id));
+  // --- Copy / Paste Logic ---
 
-      const center = { x: 250, y: 250 };
-      const radius = 200;
-      const arrangedNodes = focusNodes.map((node, i) => {
-        if (node.id === focusedNode.id) {
-          return { ...node, position: center };
-        }
-        const angle = (i / (focusNodes.length - 1)) * 2 * Math.PI;
+  const copySelected = useCallback(() => {
+    const selectedNodes = nodes.filter((n) => n.selected);
+    const selectedEdges = edges.filter((e) => {
+      const isSourceSelected = selectedNodes.some((n) => n.id === e.source);
+      const isTargetSelected = selectedNodes.some((n) => n.id === e.target);
+      return isSourceSelected && isTargetSelected;
+    });
+
+    if (selectedNodes.length > 0) {
+      setClipboard({
+        nodes: JSON.parse(JSON.stringify(selectedNodes)),
+        edges: JSON.parse(JSON.stringify(selectedEdges)),
+      });
+    }
+  }, [nodes, edges, setClipboard]);
+
+  const paste = useCallback(
+    (targetPosition?: XYPosition) => {
+      if (!clipboard) return;
+
+      const idMap: Record<string, string> = {};
+      const firstNodePos = clipboard.nodes[0]?.position || { x: 0, y: 0 };
+      const offset = targetPosition
+        ? {
+            x: targetPosition.x - firstNodePos.x,
+            y: targetPosition.y - firstNodePos.y,
+          }
+        : { x: 40, y: 40 };
+
+      const newNodes = clipboard.nodes.map((node) => {
+        const newId = uuidv4();
+        idMap[node.id] = newId;
         return {
           ...node,
+          id: newId,
           position: {
-            x: center.x + radius * Math.cos(angle),
-            y: center.y + radius * Math.sin(angle),
+            x: node.position.x + offset.x,
+            y: node.position.y + offset.y,
           },
+          selected: true,
         };
       });
 
-      setNodes(arrangedNodes);
-      setFocusView(true);
+      const newEdges = clipboard.edges.map((edge) => ({
+        ...edge,
+        id: uuidv4(),
+        source: idMap[edge.source] || edge.source,
+        target: idMap[edge.target] || edge.target,
+        selected: true,
+      }));
+
+      const deselectedNodes = nodes.map((n) => ({ ...n, selected: false }));
+      setNodes(deselectedNodes as AppNode[]);
+
+      applyMutations([
+        {
+          addSubgraph: {
+            nodes: newNodes as unknown as flowcraft.v1.INode[],
+            edges: newEdges as unknown as flowcraft.v1.IEdge[],
+          },
+        },
+      ]);
     },
-    [nodes, edges, setNodes],
+    [clipboard, nodes, applyMutations, setNodes],
   );
 
-  const exitFocusView = useCallback(() => {
-    if (originalNodes) {
-      const focusedNodeIds = new Set(nodes.map((n) => n.id));
-      const updatedOriginalNodes = originalNodes.map((originalNode) => {
-        if (focusedNodeIds.has(originalNode.id)) {
-          const focusedNode = nodes.find((n) => n.id === originalNode.id);
-          return focusedNode || originalNode;
-        }
-        return originalNode;
-      });
-      setNodes(updatedOriginalNodes);
-      sendJsonMessage({
-        type: "sync_graph",
-        payload: {
-          version: clientVersion,
-          graph: { nodes: updatedOriginalNodes, edges },
+  const duplicateSelected = useCallback(() => {
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length === 0) return;
+
+    const selectedEdges = edges.filter((e) => {
+      const isSourceSelected = selectedNodes.some((n) => n.id === e.source);
+      const isTargetSelected = selectedNodes.some((n) => n.id === e.target);
+      return isSourceSelected && isTargetSelected;
+    });
+
+    const tempClipboard = {
+      nodes: JSON.parse(JSON.stringify(selectedNodes)),
+      edges: JSON.parse(JSON.stringify(selectedEdges)),
+    };
+
+    const idMap: Record<string, string> = {};
+    const newNodes = tempClipboard.nodes.map((n: AppNode) => {
+      const newId = uuidv4();
+      idMap[n.id] = newId;
+      return {
+        ...n,
+        id: newId,
+        position: { x: n.position.x + 40, y: n.position.y + 40 },
+        selected: true,
+      };
+    });
+    const newEdges = tempClipboard.edges.map((e: Edge) => ({
+      ...e,
+      id: uuidv4(),
+      source: idMap[e.source],
+      target: idMap[e.target],
+      selected: true,
+    }));
+
+    const deselectedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    setNodes(deselectedNodes as AppNode[]);
+
+    applyMutations([
+      {
+        addSubgraph: {
+          nodes: newNodes as unknown as flowcraft.v1.INode[],
+          edges: newEdges as unknown as flowcraft.v1.IEdge[],
         },
+      },
+    ]);
+  }, [nodes, edges, applyMutations, setNodes]);
+
+  // --- Auto Layout (Dagre) ---
+
+  const autoLayout = useCallback(() => {
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100 });
+    g.setDefaultEdgeLabel(() => ({}));
+
+    nodes.forEach((node) => {
+      g.setNode(node.id, {
+        width: node.measured?.width || 300,
+        height: node.measured?.height || 200,
       });
-    }
-    setFocusView(false);
-    setOriginalNodes(null);
-  }, [nodes, edges, originalNodes, clientVersion, sendJsonMessage, setNodes]);
+    });
+
+    edges.forEach((edge) => {
+      g.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(g);
+
+    const mutations: flowcraft.v1.IGraphMutation[] = nodes.map((node) => {
+      const nodeWithPos = g.node(node.id);
+      return {
+        updateNode: {
+          id: node.id,
+          position: {
+            x: nodeWithPos.x - (node.measured?.width || 300) / 2,
+            y: nodeWithPos.y - (node.measured?.height || 200) / 2,
+          },
+          data: node.data as flowcraft.v1.INodeData,
+        },
+      };
+    });
+
+    applyMutations(mutations);
+  }, [nodes, edges, applyMutations]);
 
   return {
     addNode,
     deleteNode,
     deleteEdge,
-    focusNode,
-    exitFocusView,
+    copySelected,
+    paste,
+    duplicateSelected,
     autoLayout,
-    incrementalLayout,
-    groupSelectedNodes,
-    layoutGroup,
-    isFocusView,
+    clientVersion,
   };
 };

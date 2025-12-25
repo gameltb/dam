@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { type AppNode } from "../../types";
+import { MediaType, type AppNode } from "../../types";
 
 interface MediaPreviewProps {
   node: AppNode;
@@ -18,7 +18,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   const media = node.type === "dynamic" ? node.data.media : null;
   const items = useMemo(() => {
     if (!media) return [];
-    return [media.url, ...(media.gallery || [])].filter(Boolean) as string[];
+    return [media.url, ...(media.galleryUrls || [])].filter(
+      Boolean,
+    ) as string[];
   }, [media]);
 
   const currentUrl = items[activeIndex];
@@ -40,7 +42,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
     (newIndex: number) => {
       const url = items[newIndex];
       // For images, we can check if they are already in cache
-      if (media?.type === "image") {
+      if (media?.type === MediaType.MEDIA_IMAGE) {
         const img = new Image();
         img.src = url;
         if (!img.complete) {
@@ -269,7 +271,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             transition: "opacity 0.2s",
           }}
         >
-          {media.type === "image" ? (
+          {media.type === MediaType.MEDIA_IMAGE ? (
             <img
               src={currentUrl}
               onLoad={() => setIsLoading(false)}
@@ -280,7 +282,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               }}
               alt="Preview"
             />
-          ) : media.type === "video" ? (
+          ) : media.type === MediaType.MEDIA_VIDEO ? (
             <video
               key={currentUrl}
               src={currentUrl}

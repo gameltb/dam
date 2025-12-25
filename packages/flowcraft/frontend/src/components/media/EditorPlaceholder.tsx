@@ -1,5 +1,5 @@
 import React from "react";
-import { type AppNode, isDynamicNode } from "../../types";
+import { type AppNode, isDynamicNode, MediaType } from "../../types";
 
 interface EditorPlaceholderProps {
   node: AppNode;
@@ -41,7 +41,7 @@ export const EditorPlaceholder: React.FC<EditorPlaceholderProps> = ({
       >
         <div style={{ fontSize: "48px", marginBottom: "20px" }}>🎨</div>
         <h2 style={{ margin: "0 0 10px 0" }}>
-          {media?.type === "video" ? "Video" : "Image"} Editor
+          {media?.type === MediaType.MEDIA_VIDEO ? "Video" : "Image"} Editor
         </h2>
         <p style={{ opacity: 0.6, lineHeight: "1.5" }}>
           This is a placeholder for the advanced web-based {media?.type} editor.

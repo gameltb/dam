@@ -1,22 +1,15 @@
 import React, { useState } from "react";
 import { type Node } from "@xyflow/react";
-import { type DynamicNodeData } from "../../types";
-
-// Define the rendering modes
-export type RenderMode = "media" | "widgets" | "markdown";
-
-// Define the props for the BaseNode component
+import { type DynamicNodeData, RenderMode } from "../../types";
 
 export interface BaseNodeProps<T extends Node> {
   id: string;
   data: T["data"];
   selected?: boolean;
   style?: React.CSSProperties;
-  // The initial rendering mode for the node
   initialMode?: RenderMode;
-  // Components to render
-  renderMedia?: React.ComponentType<React.ComponentProps<any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  renderWidgets?: React.ComponentType<React.ComponentProps<any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  renderMedia?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  renderWidgets?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   handles?: React.ReactNode;
   wrapperStyle?: React.CSSProperties;
   onOverflowChange?: (overflow: "visible" | "hidden") => void;
@@ -27,7 +20,7 @@ export function BaseNode<
 >({
   id,
   data,
-  initialMode = "widgets",
+  initialMode = RenderMode.MODE_WIDGETS,
   renderMedia: RenderMedia,
   renderWidgets: RenderWidgets,
   handles,
@@ -36,14 +29,16 @@ export function BaseNode<
   ...rest
 }: BaseNodeProps<T>) {
   const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
-  const [overflow, setOverflow] = useState<"visible" | "hidden">("hidden");
+  // Default to visible so handles are never cut off
+  const [overflow, setOverflow] = useState<"visible" | "hidden">("visible");
 
-  // Use data.activeMode if provided, otherwise fallback to internal state
   const mode = (data.activeMode as RenderMode) || internalMode;
 
-  // Function to toggle the rendering mode
   const toggleMode = () => {
-    const nextMode = mode === "widgets" ? "media" : "widgets";
+    const nextMode =
+      mode === RenderMode.MODE_WIDGETS
+        ? RenderMode.MODE_MEDIA
+        : RenderMode.MODE_WIDGETS;
     const dynamicData = data as unknown as DynamicNodeData;
     if (typeof dynamicData.onChange === "function") {
       dynamicData.onChange(id, { activeMode: nextMode });
@@ -57,7 +52,7 @@ export function BaseNode<
     onOverflowChange?.(newOverflow);
   };
 
-  const isMedia = mode === "media";
+  const isMedia = mode === RenderMode.MODE_MEDIA;
 
   return (
     <>
@@ -65,7 +60,9 @@ export function BaseNode<
         style={{
           width: "100%",
           height: "100%",
-          padding: isMedia ? 0 : 12,
+          // Remove horizontal padding from here, move it to sub-components
+          paddingTop: isMedia ? 0 : 0,
+          paddingBottom: isMedia ? 0 : 0,
           overflow: overflow,
           display: "flex",
           flexDirection: "column",
@@ -77,7 +74,7 @@ export function BaseNode<
         {isMedia && RenderMedia && (
           <RenderMedia
             id={id}
-            data={data}
+            data={data as DynamicNodeData}
             {...rest}
             onOverflowChange={handleOverflowChange}
           />
@@ -85,7 +82,7 @@ export function BaseNode<
         {!isMedia && RenderWidgets && (
           <RenderWidgets
             id={id}
-            data={data}
+            data={data as DynamicNodeData}
             {...rest}
             onToggleMode={toggleMode}
           />

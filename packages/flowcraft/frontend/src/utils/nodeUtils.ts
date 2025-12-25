@@ -1,4 +1,4 @@
-import { type AppNode, isDynamicNode } from "../types";
+import { type AppNode, isDynamicNode, MediaType } from "../types";
 
 /**
  * Hydrates a node with client-side handlers that cannot be sent over the wire (JSON).
@@ -11,7 +11,7 @@ export function hydrateNode(
     onGalleryItemContext?: (
       nodeId: string,
       url: string,
-      mediaType: string,
+      mediaType: MediaType,
       x: number,
       y: number,
     ) => void;
@@ -42,7 +42,7 @@ export function hydrateNodes(
     onGalleryItemContext?: (
       nodeId: string,
       url: string,
-      mediaType: string,
+      mediaType: MediaType,
       x: number,
       y: number,
     ) => void;

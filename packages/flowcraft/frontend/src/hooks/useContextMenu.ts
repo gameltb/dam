@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
+import { MediaType } from "../types";
 
 export const useContextMenu = () => {
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
@@ -11,7 +12,7 @@ export const useContextMenu = () => {
     nodeId?: string;
     edgeId?: string;
     galleryItemUrl?: string;
-    galleryItemType?: string;
+    galleryItemType?: MediaType;
   } | null>(null);
 
   const onPaneContextMenu = useCallback(

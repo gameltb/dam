@@ -30,40 +30,47 @@ The core is a dynamic node-based editor built with `@xyflow/react` using a decou
 Nodes are driven by backend JSON and rendered using a modular architecture.
 
 - **`BaseNode`**: Manages the core container, padding, and the switching logic between modes. Enforces `border-radius: 8px` and ensures content clipping.
-- **Modular Renderers**: Specific logic for different media types is encapsulated in standalone components:
-  - `ImageRenderer`: Standard image display.
-  - `VideoRenderer`: Supports auto-play, muting, and full controls.
-  - `MarkdownRenderer`: Supports rich-text preview and double-click-to-edit inline mode.
+- **Modular Renderers**: Specific logic for different media types is encapsulated in standalone components (Image, Video, Markdown, etc.).
 - **`GalleryWrapper`**: A reusable container that provides the "Pyramid" expansion logic and right-click context menus for both image and video galleries.
-- **`withNodeHandlers` HOC**: Wraps nodes to provide standard handles, resizers, and event-bus integration.
+- **`withNodeHandlers` HOC**: Wraps nodes to provide standard handles and resizers.
+  - **Selected Visuals**: Uses a fixed `1px` border and a soft blue outer glow (`box-shadow`) to indicate selection without causing layout shifts.
+  - **Dynamic Min-Height**: Automatically calculates the required height based on port counts and widget lists to prevent clipping during resize.
 
-### Rendering Modes
+### Port & Connection Logic
 
-1.  **Media Mode**:
-    - Optimized for images/videos/markdown.
-    - **Interactive Preview**: Double-clicking a media node enters full-screen preview.
-    - **Gallery**: Supports stable triangular expansion. Right-click extraction allows turning any gallery item into a standalone node.
-2.  **Widgets Mode**:
-    - Vertical stack of interactive elements (`TextField`, `SelectField`, `CheckboxField`, `SliderField`, `Button`).
-    - **Two-way Binding**: Changes are synced back to the server state immediately.
+The system implements a strict, semantic port system.
+
+- **Port Validators**: Connection rules are decoupled into strategies:
+  - `StandardValidator`: Single-input, exact type match.
+  - `CollectionValidator`: Multiple-inputs, supports "Auto-boxing" (connecting a single element to a List/Set port).
+  - `AnyValidator`: Single-input, accepts any data type.
+- **Dynamic Guarding**: Real-time feedback during connection dragging:
+  - Incompatible ports (wrong type, same side, or full capacity) are dimmed (opacity `0.15`) and grayscale-filtered.
+  - `pointer-events` and `isConnectable` are disabled for invalid targets to prevent accidental snapping.
 
 ## Communication & State
 
+### Unified Protocol (Protobuf)
+
+The frontend communicates with the backend via a single unified "Envelope" protocol (`FlowMessage`):
+
+- **Incremental Mutations**: Updates are sent as atomic operations (`addNode`, `updateNode`, `removeNode`, `addEdge`).
+- **State Hydration**: Uses `nodeUtils.ts` to re-attach complex client-side behavior to raw Protobuf data objects.
+
 ### Event Bus (Zustand)
 
-Instead of deep prop drilling or global DOM events, the system uses a centralized event bus in `flowStore`:
+Centeralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. Uses a `timestamp` approach to prevent cascading renders in React 19.
 
-- **`dispatchNodeEvent`**: Used by nodes to signal intents (e.g., `open-preview`, `open-editor`).
-- **`lastNodeEvent`**: A state tracked with a `timestamp` to allow components to respond precisely once to user actions without cascading renders.
+### Task System & Optimistic UI
+
+Tracks the lifecycle of long-running operations (`pending` -> `processing` -> `completed`). Uses streaming updates to drive a live progress bar in `ProcessingNode`.
 
 ### Layout Engines
 
-- **Global Auto Layout**: Uses `dagre`. Refined to treat **GroupNodes** as single atomic units, preserving the internal relative layout of children.
-- **Incremental Layout**: Positions new nodes using collision detection to find nearby empty space without disturbing manual arrangements.
-- **Internal Group Layout**: Manually triggerable layout for nodes strictly inside a specific container.
+- **Global Auto Layout**: Uses `dagre` with a Left-to-Right (`LR`) orientation.
+- **Copy/Paste/Duplicate**: Supports subgraph cloning with ID remapping and relative position offsetting.
 
 ## Persistence & Quality
 
-- **Zundo**: Provides undo/redo with version-based frame skipping for performance.
-- **Node Hydration**: Centralized utility (`nodeUtils.ts`) to re-attach client-side handlers to server-provided JSON nodes.
-- **Code Quality**: Strict ESLint rules, Prettier formatting, and comprehensive TypeScript typing (avoiding `any` in favor of `unknown` and generics).
+- **Zundo**: Provides high-performance undo/redo.
+- **Code Quality**: Strict ESLint rules, Prettier formatting, and full TypeScript integration with Protobuf-generated types (zero `any` goal).

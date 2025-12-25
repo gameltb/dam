@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package flowcraft.v1;
+
+import "base.proto";
+
+message Node {
+  string id = 1;
+  string type = 2;
+  Position position = 3;
+  NodeData data = 4;
+  double width = 5;
+  double height = 6;
+  bool selected = 7;
+  string parent_id = 8;
+}
+
+message NodeData {
+  string label = 1;
+  repeated RenderMode available_modes = 2;
+  RenderMode active_mode = 3;
+  MediaContent media = 4;
+  repeated Widget widgets = 5;
+  
+  repeated Port input_ports = 6;
+  repeated Port output_ports = 7;
+  
+  map<string, string> metadata = 8;
+}
+
+enum RenderMode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MEDIA = 1;
+  MODE_WIDGETS = 2;
+  MODE_MARKDOWN = 3;
+}
+
+message MediaContent {
+  MediaType type = 1;
+  string url = 2;
+  string content = 3;
+  double aspect_ratio = 4;
+  repeated string gallery_urls = 5;
+}
+
+enum MediaType {
+  MEDIA_UNSPECIFIED = 0;
+  MEDIA_IMAGE = 1;
+  MEDIA_VIDEO = 2;
+  MEDIA_AUDIO = 3;
+  MEDIA_MARKDOWN = 4;
+}
+
+enum WidgetType {
+  WIDGET_UNSPECIFIED = 0;
+  WIDGET_TEXT = 1;
+  WIDGET_SELECT = 2;
+  WIDGET_CHECKBOX = 3;
+  WIDGET_SLIDER = 4;
+  WIDGET_BUTTON = 5;
+}
+
+message WidgetOption {
+  string label = 1;
+  string value = 2;
+  string description = 3;
+}
+
+message WidgetConfig {
+  string placeholder = 1;
+  double min = 2;
+  double max = 3;
+  double step = 4;
+  bool dynamic_options = 5;
+  string action_target = 6;
+}
+
+message Widget {
+  string id = 1;
+  WidgetType type = 2;
+  string label = 3;
+  string value_json = 4; 
+  WidgetConfig config = 5;
+  repeated WidgetOption options = 6;
+  bool is_readonly = 7;
+  bool is_loading = 8;
+  string input_port_id = 9; 
+}

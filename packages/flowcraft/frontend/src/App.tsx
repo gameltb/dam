@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, memo, useRef } from "react";
+import { useEffect, useMemo, useState, memo, useRef, useCallback } from "react";
 import { useTheme } from "./hooks/useTheme";
+import { flowcraft } from "./generated/flowcraft";
 import {
   ReactFlow,
   MiniMap,
@@ -9,23 +10,30 @@ import {
   type NodeTypes,
   type ReactFlowInstance,
   type Edge,
+  type OnConnectStartParams,
 } from "@xyflow/react";
 import { useFlowStore, useTemporalStore } from "./store/flowStore";
-import { useNotificationStore } from "./store/notificationStore";
-import toast from "react-hot-toast";
+import { useTaskStore } from "./store/taskStore";
 import "@xyflow/react/dist/style.css";
-import { useMockSocket, type WebSocketMessage } from "./hooks/useMockSocket";
+import { useMockSocket } from "./hooks/useMockSocket";
 import GroupNode from "./components/GroupNode";
 import { DynamicNode } from "./components/DynamicNode";
+import ProcessingNode from "./components/ProcessingNode";
 import { ContextMenu } from "./components/ContextMenu";
 import { StatusPanel } from "./components/StatusPanel";
 import { EditUrlModal } from "./components/EditUrlModal";
-import { type AppNode, type GraphState, type NodeTemplate } from "./types";
+import {
+  type AppNode,
+  type NodeTemplate,
+  MediaType,
+  RenderMode,
+} from "./types";
 import { Toaster } from "react-hot-toast";
 import { Notifications } from "./components/Notifications";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useGraphOperations } from "./hooks/useGraphOperations";
 import SystemEdge from "./components/edges/SystemEdge";
+import { BaseFlowEdge } from "./components/edges/BaseFlowEdge";
 import { MediaPreview } from "./components/media/MediaPreview";
 import { EditorPlaceholder } from "./components/media/EditorPlaceholder";
 
@@ -40,13 +48,11 @@ function App() {
     onNodesChange,
     onEdgesChange,
     onConnect,
-    setNodes,
-    setEdges,
     addNode: addNodeToStore,
     version: clientVersion,
-    setGraph,
     updateNodeData,
     lastNodeEvent,
+    setConnectionStartHandle,
   } = useFlowStore(
     useShallow((state) => ({
       nodes: state.nodes,
@@ -54,13 +60,11 @@ function App() {
       onNodesChange: state.onNodesChange,
       onEdgesChange: state.onEdgesChange,
       onConnect: state.onConnect,
-      setNodes: state.setNodes,
-      setEdges: state.setEdges,
       addNode: state.addNode,
       version: state.version,
-      setGraph: state.setGraph,
       updateNodeData: state.updateNodeData,
       lastNodeEvent: state.lastNodeEvent,
+      setConnectionStartHandle: state.setConnectionStartHandle,
     })),
   );
 
@@ -69,51 +73,26 @@ function App() {
     redo: state.redo,
   }));
 
-  const { addNotification } = useNotificationStore();
-  const { sendJsonMessage, lastJsonMessage, templates, mockServerState } =
+  const { templates, discoverActions, executeAction, executeTask, cancelTask } =
     useMockSocket();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
-  const [isOutOfSync, setIsOutOfSync] = useState(false);
-  const [serverGraphState, setServerGraphState] = useState<GraphState | null>(
-    null,
-  );
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Modal states
+  const [availableActions, setAvailableActions] = useState<
+    flowcraft.v1.IActionTemplate[]
+  >([]);
+
   const [previewData, setPreviewData] = useState<{
     nodeId: string;
     index: number;
   } | null>(null);
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
 
-  const lastProcessedMessageRef = useRef<WebSocketMessage | null>(null);
   const lastProcessedEventTimeRef = useRef<number>(0);
   const rfInstanceRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
-  const isInitialLoadRef = useRef(true);
 
-  const connectionStatus = "Connected (Mock)";
-
-  // Keyboard Shortcuts for Undo/Redo
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
-        if (event.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-      } else if ((event.ctrlKey || event.metaKey) && event.key === "y") {
-        redo();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
-
-  // Custom Hooks
   const {
     contextMenu,
     onPaneContextMenu,
@@ -125,66 +104,145 @@ function App() {
     setContextMenu,
   } = useContextMenu();
 
+  const {
+    addNode,
+    deleteNode,
+    deleteEdge,
+    autoLayout,
+    copySelected,
+    paste,
+    duplicateSelected,
+  } = useGraphOperations({ clientVersion });
+
+  const onConnectStart = useCallback(
+    (_: unknown, { nodeId, handleId, handleType }: OnConnectStartParams) => {
+      // Defer to avoid render warning
+      setTimeout(() => {
+        if (nodeId && handleId && handleType) {
+          setConnectionStartHandle({ nodeId, handleId, type: handleType });
+        }
+      }, 0);
+    },
+    [setConnectionStartHandle],
+  );
+
+  const onConnectEnd = useCallback(() => {
+    setTimeout(() => {
+      setConnectionStartHandle(null);
+    }, 0);
+  }, [setConnectionStartHandle]);
+
+  const handleNodeContextMenu = useCallback(
+    async (event: React.MouseEvent, node: AppNode) => {
+      onNodeContextMenu(event, node);
+      const actions = await discoverActions(node.id);
+      setAvailableActions(actions);
+    },
+    [onNodeContextMenu, discoverActions],
+  );
+
+  const handleExecuteAction = async (action: flowcraft.v1.IActionTemplate) => {
+    if (!contextMenu?.nodeId) return;
+    const nodeId = contextMenu.nodeId;
+
+    const result = await executeAction(action.id!, nodeId);
+
+    if (
+      result &&
+      result.type === "task" &&
+      (result as unknown as { taskId: string }).taskId
+    ) {
+      const taskId = (result as unknown as { taskId: string }).taskId;
+      const parentNode = nodes.find((n) => n.id === nodeId);
+      const position = parentNode
+        ? { x: parentNode.position.x + 300, y: parentNode.position.y }
+        : { x: 0, y: 0 };
+
+      const placeholderNode: AppNode = {
+        id: `task-${taskId}`,
+        type: "processing",
+        position,
+        data: {
+          label: `Running ${action.label}...`,
+          taskId,
+          onCancel: (tid: string) => cancelTask(tid),
+        },
+      };
+      addNodeToStore(placeholderNode);
+      useTaskStore.getState().registerTask(taskId);
+      executeTask(taskId, action.id!, { sourceNodeId: nodeId });
+    }
+    closeContextMenu();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      )
+        return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        if (event.shiftKey) redo();
+        else undo();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+        redo();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === "c") {
+        event.preventDefault();
+        copySelected();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === "v") {
+        event.preventDefault();
+        paste();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === "d") {
+        event.preventDefault();
+        duplicateSelected();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo, copySelected, paste, duplicateSelected]);
+
   useEffect(() => {
     if (
       !lastNodeEvent ||
       lastNodeEvent.timestamp <= lastProcessedEventTimeRef.current
     )
       return;
-
     lastProcessedEventTimeRef.current = lastNodeEvent.timestamp;
 
     if (lastNodeEvent.type === "gallery-context") {
-      const { x, y, nodeId, url, mediaType } = lastNodeEvent.payload as {
+      const payload = lastNodeEvent.payload as {
         x: number;
         y: number;
         nodeId: string;
         url: string;
-        mediaType: string;
+        mediaType: MediaType;
       };
       setContextMenu({
-        x,
-        y,
-        nodeId,
-        galleryItemUrl: url,
-        galleryItemType: mediaType,
+        x: payload.x,
+        y: payload.y,
+        nodeId: payload.nodeId,
+        galleryItemUrl: payload.url,
+        galleryItemType: payload.mediaType,
       });
     } else if (lastNodeEvent.type === "open-preview") {
-      setTimeout(
-        () =>
-          setPreviewData(
-            lastNodeEvent.payload as { nodeId: string; index: number },
-          ),
-        0,
-      );
+      const payload = lastNodeEvent.payload as {
+        nodeId: string;
+        index: number;
+      };
+      setTimeout(() => setPreviewData(payload), 0);
     } else if (lastNodeEvent.type === "open-editor") {
-      setTimeout(
-        () =>
-          setActiveEditorId(
-            (lastNodeEvent.payload as { nodeId: string }).nodeId,
-          ),
-        0,
-      );
+      const payload = lastNodeEvent.payload as { nodeId: string };
+      setTimeout(() => setActiveEditorId(payload.nodeId), 0);
     }
   }, [lastNodeEvent, setContextMenu]);
-
-  const {
-    addNode,
-    deleteNode,
-    deleteEdge,
-    focusNode,
-    exitFocusView,
-    autoLayout,
-    incrementalLayout,
-    groupSelectedNodes,
-    layoutGroup,
-    isFocusView,
-  } = useGraphOperations({ clientVersion, sendJsonMessage });
 
   const memoizedNodeTypes: NodeTypes = useMemo(
     () => ({
       groupNode: GroupNode,
       dynamic: DynamicNode,
+      processing: ProcessingNode,
     }),
     [],
   );
@@ -192,230 +250,66 @@ function App() {
   const memoizedEdgeTypes = useMemo(
     () => ({
       system: SystemEdge,
+      default: BaseFlowEdge,
     }),
     [],
   );
 
-  const handleManualSync = () => {
-    if (serverGraphState) {
-      setGraph(serverGraphState.graph, serverGraphState.version);
-      if (serverGraphState.graph.viewport && rfInstanceRef.current) {
-        rfInstanceRef.current.setViewport(serverGraphState.graph.viewport);
-      }
-      setIsOutOfSync(false);
-      setServerGraphState(null);
-      const message = "Graph successfully synced with the server.";
-      toast.success(message);
-      addNotification({ message, type: "success" });
-    }
-  };
-
   const handleAddNodeFromTemplate = (template: NodeTemplate) => {
     if (!rfInstanceRef.current || !contextMenu) return;
-
     const position = rfInstanceRef.current.screenToFlowPosition({
       x: contextMenu.x,
       y: contextMenu.y,
     });
-
     addNode(
       "dynamic",
       {
         ...template.defaultData,
-        onChange: (id, data) => updateNodeData(id, data),
-        onWidgetClick: (nodeId, widgetId) => {
-          useFlowStore
-            .getState()
-            .dispatchNodeEvent("widget-click", { nodeId, widgetId });
-        },
-        onGalleryItemContext: (nodeId, url, mediaType, x, y) => {
-          useFlowStore.getState().dispatchNodeEvent("gallery-context", {
-            nodeId,
-            url,
-            mediaType,
-            x,
-            y,
-          });
-        },
-      } as AppNode["data"],
+        onChange: (id: string, data: Partial<AppNode["data"]>) =>
+          updateNodeData(id, data),
+      },
       position,
     );
   };
 
   const handleCreateFromGallery = (url: string) => {
     if (!rfInstanceRef.current || !contextMenu) return;
-
-    // Use a small offset to avoid exact overlap if needed, but screenToFlowPosition is usually fine
-
     const position = rfInstanceRef.current.screenToFlowPosition({
       x: contextMenu.x,
-
       y: contextMenu.y,
     });
-
-    const mediaType = (contextMenu.galleryItemType || "image") as string;
-
+    const mediaType = contextMenu.galleryItemType || MediaType.MEDIA_IMAGE;
     const newNodeId = uuidv4();
-
     const newNode: AppNode = {
       id: newNodeId,
-
       type: "dynamic",
-
       position,
-
-      draggable: true,
-
-      selectable: true,
-
-      deletable: true,
-
-      style: {
-        width: mediaType === "audio" ? 300 : 240,
-
-        height: mediaType === "audio" ? 120 : 180,
-      },
-
       data: {
-        label: `Extracted ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`,
-
-        modes: ["media"],
-
-        activeMode: "media",
-
-        media: { type: mediaType, url, aspectRatio: 1 },
-
-        inputType: "any",
-
-        outputType: mediaType,
-
-        onChange: (id, data) => updateNodeData(id, data),
-
-        onWidgetClick: (nodeId, widgetId) => {
-          useFlowStore
-
-            .getState()
-
-            .dispatchNodeEvent("widget-click", { nodeId, widgetId });
-        },
-
-        onGalleryItemContext: (nodeId, url, mediaType, x, y) => {
-          useFlowStore
-
-            .getState()
-
-            .dispatchNodeEvent("gallery-context", {
-              nodeId,
-
-              url,
-
-              mediaType,
-
-              x,
-
-              y,
-            });
-        },
+        label: "Extracted Media",
+        modes: [RenderMode.MODE_MEDIA],
+        activeMode: RenderMode.MODE_MEDIA,
+        media: { type: mediaType, url, aspectRatio: 1, galleryUrls: [] },
+        onChange: (id: string, data: Partial<AppNode["data"]>) =>
+          updateNodeData(id, data),
       },
     } as AppNode;
-
     addNodeToStore(newNode);
-
     closeContextMenu();
-
-    // Force selection of the new node to make it clear it was created
-
-    setTimeout(() => {
-      const currentNodes = useFlowStore.getState().nodes;
-
-      const selectedNodes = currentNodes.map((n) => ({
-        ...n,
-
-        selected: n.id === newNodeId,
-      }));
-
-      setNodes(selectedNodes as AppNode[]);
-    }, 0);
   };
-
-  useEffect(() => {
-    if (!lastJsonMessage || lastJsonMessage === lastProcessedMessageRef.current)
-      return;
-
-    lastProcessedMessageRef.current = lastJsonMessage;
-
-    if (lastJsonMessage.type === "sync_graph") {
-      const { graph, version } = lastJsonMessage.payload;
-      if (lastJsonMessage.error === "version_mismatch") {
-        setIsOutOfSync(true); // eslint-disable-line react-hooks/set-state-in-effect
-        setServerGraphState({ graph, version });
-        const message =
-          "Your graph is out of sync. Click the status panel to update.";
-        toast.error(message);
-        addNotification({ message, type: "error" });
-      } else {
-        // Successful sync or initial load
-        if (isInitialLoadRef.current) {
-          setGraph(graph, version);
-          if (graph.viewport && rfInstanceRef.current) {
-            rfInstanceRef.current.setViewport(graph.viewport);
-          }
-          isInitialLoadRef.current = false;
-        } else if (version > clientVersion) {
-          // Background sync: update state only if server has a NEWER version
-          setGraph(graph, version);
-        }
-      }
-    } else if (lastJsonMessage.type === "apply_changes") {
-      const { add = [], addEdges = [] } = lastJsonMessage.payload;
-
-      const updatedNodes = [...nodes, ...add];
-      const updatedEdges = [...edges, ...addEdges];
-      const newNodeIds = add.map((n: AppNode) => n.id);
-
-      // Update store with new elements first
-      setNodes(updatedNodes);
-      setEdges(updatedEdges);
-
-      // Perform incremental layout on the new nodes only
-      setTimeout(
-        () => incrementalLayout(updatedNodes, updatedEdges, newNodeIds),
-        0,
-      );
-    }
-  }, [
-    lastJsonMessage,
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    addNodeToStore,
-    mockServerState,
-    addNotification,
-    setGraph,
-    autoLayout,
-    incrementalLayout,
-    clientVersion,
-  ]);
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Toaster />
       <Notifications />
-      {isFocusView && (
-        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 4 }}>
-          <button onClick={exitFocusView}>Back to Global View</button>
-          <button onClick={() => undo()}>Undo</button>
-          <button onClick={() => redo()}>Redo</button>
-        </div>
-      )}
       <ReactFlow<AppNode, Edge>
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeContextMenu={onNodeContextMenu}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        onNodeContextMenu={handleNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
         onSelectionContextMenu={onSelectionContextMenu}
@@ -430,6 +324,7 @@ function App() {
         selectionMode={SelectionMode.Partial}
         multiSelectionKeyCode="Control"
         proOptions={{ hideAttribution: true }}
+        colorMode={theme}
       >
         <Controls />
         <MiniMap />
@@ -456,49 +351,22 @@ function App() {
                 }
               : undefined
           }
-          onFocus={
-            contextMenu.nodeId
-              ? () => {
-                  focusNode(contextMenu.nodeId!);
-                  closeContextMenu();
-                }
-              : undefined
-          }
-          onOpenEditor={
-            contextMenu.nodeId
-              ? () => {
-                  useFlowStore.getState().dispatchNodeEvent("open-editor", {
-                    nodeId: contextMenu.nodeId,
-                  });
-                  closeContextMenu();
-                }
-              : undefined
-          }
-          dynamicActions={
-            contextMenu.nodeId &&
-            nodes.find((n) => n.id === contextMenu.nodeId)?.type === "dynamic"
-              ? mockServerState.availableActions.text.map((action) => ({
-                  ...action,
-                  onClick: async () => {
-                    const viewport = rfInstanceRef.current?.getViewport();
-                    await sendJsonMessage({
-                      type: "sync_graph",
-                      payload: {
-                        version: clientVersion,
-                        graph: { nodes, edges, viewport },
-                      },
-                    });
-                    sendJsonMessage({
-                      type: "execute_action",
-                      payload: {
-                        actionId: action.id,
-                        nodeId: contextMenu.nodeId,
-                      },
-                    });
-                  },
-                }))
-              : []
-          }
+          onCopy={copySelected}
+          onPaste={() => {
+            paste(
+              rfInstanceRef.current?.screenToFlowPosition({
+                x: contextMenu.x,
+                y: contextMenu.y,
+              }),
+            );
+            closeContextMenu();
+          }}
+          onDuplicate={duplicateSelected}
+          dynamicActions={availableActions.map((action) => ({
+            id: action.id!,
+            name: action.label!,
+            onClick: () => handleExecuteAction(action),
+          }))}
           onToggleTheme={toggleTheme}
           templates={templates}
           onAddNode={handleAddNodeFromTemplate}
@@ -506,35 +374,15 @@ function App() {
             autoLayout();
             closeContextMenu();
           }}
-          onGroupSelected={
-            nodes.filter((n) => n.selected).length > 1
-              ? () => {
-                  groupSelectedNodes();
-                  closeContextMenu();
-                }
-              : undefined
-          }
-          onLayoutGroup={
-            contextMenu.nodeId &&
-            nodes.find((n) => n.id === contextMenu.nodeId)?.type === "groupNode"
-              ? () => {
-                  layoutGroup(contextMenu.nodeId!);
-                  closeContextMenu();
-                }
-              : undefined
-          }
           onGalleryAction={handleCreateFromGallery}
           galleryItemUrl={contextMenu.galleryItemUrl}
           isPaneMenu={!contextMenu.nodeId && !contextMenu.edgeId}
         />
       )}
       <StatusPanel
-        status={
-          isOutOfSync ? "Out of Sync. Click to update." : connectionStatus
-        }
+        status={`Connected (Mock WS) - ${theme}`}
         url={wsUrl}
-        isOutOfSync={isOutOfSync}
-        onClick={isOutOfSync ? handleManualSync : () => setIsModalOpen(true)}
+        onClick={() => setIsModalOpen(true)}
       />
       {isModalOpen && (
         <EditUrlModal
@@ -543,8 +391,6 @@ function App() {
           onSave={(newUrl) => setWsUrl(newUrl)}
         />
       )}
-
-      {/* Preview Modal */}
       {previewData && (
         <MediaPreview
           node={nodes.find((n) => n.id === previewData.nodeId)!}
@@ -552,8 +398,6 @@ function App() {
           onClose={() => setPreviewData(null)}
         />
       )}
-
-      {/* Editor Placeholder Modal */}
       {activeEditorId && (
         <EditorPlaceholder
           node={nodes.find((n) => n.id === activeEditorId)!}
