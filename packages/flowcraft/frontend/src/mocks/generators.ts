@@ -6,6 +6,7 @@ export const createNode = (
   label: string,
   x: number,
   y: number,
+  typeId?: string,
 ): AppNode =>
   ({
     id,
@@ -13,6 +14,7 @@ export const createNode = (
     position: { x, y },
     style: { width: 350, height: 300 },
     data: {
+      typeId: typeId || "base-node",
       label,
       onChange: () => {},
       inputPorts: [],
@@ -38,6 +40,7 @@ export const generateGallery = () => {
     "1. All Widgets Matrix",
     x,
     y,
+    "widget-matrix",
   );
   wShowcase.style = { width: 350, height: 550 };
   wShowcase.data.widgets = [
@@ -92,6 +95,7 @@ export const generateGallery = () => {
     "2. Port Semantic & Styles",
     x,
     y,
+    "port-showcase",
   );
   portNode.style = { width: 350, height: 450 };
   portNode.data.inputPorts = [
@@ -149,6 +153,7 @@ export const generateGallery = () => {
     "3. Implicit Port Binding",
     x,
     y,
+    "implicit-binding",
   );
   implicitNode.data.widgets = [
     {
@@ -173,7 +178,13 @@ export const generateGallery = () => {
   // 4. Media
   x = 50;
   y += rowGap;
-  const imgNode = createNode("gallery-img", "4. Image & Gallery", x, y);
+  const imgNode = createNode(
+    "gallery-img",
+    "4. Image & Gallery",
+    x,
+    y,
+    "media-gallery",
+  );
   imgNode.data.modes = [RenderMode.MODE_MEDIA];
   imgNode.data.activeMode = RenderMode.MODE_MEDIA;
   imgNode.data.media = {

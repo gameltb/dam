@@ -25,6 +25,7 @@ import { EditUrlModal } from "./components/EditUrlModal";
 import {
   type AppNode,
   type NodeTemplate,
+  type WidgetDef,
   MediaType,
   RenderMode,
 } from "./types";
@@ -36,6 +37,7 @@ import SystemEdge from "./components/edges/SystemEdge";
 import { BaseFlowEdge } from "./components/edges/BaseFlowEdge";
 import { MediaPreview } from "./components/media/MediaPreview";
 import { EditorPlaceholder } from "./components/media/EditorPlaceholder";
+import { TaskHistoryDrawer } from "./components/TaskHistoryDrawer";
 
 import { useShallow } from "zustand/react/shallow";
 import { v4 as uuidv4 } from "uuid";
@@ -73,8 +75,14 @@ function App() {
     redo: state.redo,
   }));
 
-  const { templates, discoverActions, executeAction, executeTask, cancelTask } =
-    useMockSocket();
+  const {
+    templates,
+    discoverActions,
+    executeAction,
+    executeTask,
+    cancelTask,
+    streamAction,
+  } = useMockSocket();
   const { theme, toggleTheme } = useTheme();
 
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
@@ -235,8 +243,69 @@ function App() {
     } else if (lastNodeEvent.type === "open-editor") {
       const payload = lastNodeEvent.payload as { nodeId: string };
       setTimeout(() => setActiveEditorId(payload.nodeId), 0);
+    } else if (lastNodeEvent.type === "widget-click") {
+      const { nodeId, widgetId } = lastNodeEvent.payload as {
+        nodeId: string;
+        widgetId: string;
+      };
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node && node.type === "dynamic" && node.data.widgets) {
+        const widget = node.data.widgets.find((w) => w.id === widgetId);
+        if (widget && typeof widget.value === "string") {
+          const val = widget.value;
+          if (val.startsWith("stream-to:")) {
+            const targetWidgetId = val.split(":")[1];
+            let currentBuffer = "";
+            streamAction(nodeId, widgetId, (chunk) => {
+              currentBuffer += chunk;
+              const store = useFlowStore.getState();
+              const currentNode = store.nodes.find((n) => n.id === nodeId);
+              if (
+                currentNode &&
+                currentNode.type === "dynamic" &&
+                currentNode.data.widgets
+              ) {
+                const updatedWidgets = (
+                  currentNode.data.widgets as WidgetDef[]
+                ).map((w) =>
+                  w.id === targetWidgetId ? { ...w, value: currentBuffer } : w,
+                );
+                store.updateNodeData(nodeId, { widgets: updatedWidgets });
+              }
+            });
+          } else if (val.startsWith("task:")) {
+            const taskType = val.split(":")[1];
+            const taskId = uuidv4();
+            const position = {
+              x: node.position.x + 300,
+              y: node.position.y,
+            };
+            const placeholderNode: AppNode = {
+              id: `task-${taskId}`,
+              type: "processing",
+              position,
+              data: {
+                label: `Running ${taskType}...`,
+                taskId,
+                onCancel: (tid: string) => cancelTask(tid),
+              },
+            } as AppNode;
+            addNodeToStore(placeholderNode);
+            useTaskStore.getState().registerTask(taskId);
+            executeTask(taskId, taskType, { sourceNodeId: nodeId });
+          }
+        }
+      }
     }
-  }, [lastNodeEvent, setContextMenu]);
+  }, [
+    lastNodeEvent,
+    setContextMenu,
+    nodes,
+    streamAction,
+    addNodeToStore,
+    cancelTask,
+    executeTask,
+  ]);
 
   const memoizedNodeTypes: NodeTypes = useMemo(
     () => ({
@@ -265,6 +334,7 @@ function App() {
       "dynamic",
       {
         ...template.defaultData,
+        typeId: template.id,
         onChange: (id: string, data: Partial<AppNode["data"]>) =>
           updateNodeData(id, data),
       },
@@ -404,8 +474,10 @@ function App() {
           onClose={() => setActiveEditorId(null)}
         />
       )}
+      <TaskHistoryDrawer />
     </div>
   );
 }
 
-export default memo(App);
+const MemoizedApp = memo(App);
+export default MemoizedApp;

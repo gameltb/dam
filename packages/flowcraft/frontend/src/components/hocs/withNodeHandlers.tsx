@@ -84,7 +84,7 @@ export function withNodeHandlers<
                 borderBottom: "none",
               }}
             >
-              TYPE: {String(type).toUpperCase()}
+              TYPE: {String(data.typeId || type).toUpperCase()}
             </div>
             <div
               style={{

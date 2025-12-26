@@ -1,6 +1,6 @@
 import { flowcraft } from "../generated/flowcraft";
 import type { AppNode, DynamicNodeData, WidgetDef, MediaDef } from "../types";
-import { RenderMode } from "../types";
+import { RenderMode, MediaType, WidgetType } from "../types";
 import type { Edge } from "@xyflow/react";
 
 /**
@@ -82,17 +82,97 @@ export class ProtoAdapter {
     nodes: AppNode[];
     edges: Edge[];
   } {
-    if (!protoGraph.nodes) return { nodes: [], edges: [] };
+    const nodes: AppNode[] = (protoGraph.nodes || []).map(
+      ProtoAdapter.fromProtoNode,
+    );
+    const edges: Edge[] = (protoGraph.edges || []).map((e) => ({
+      id: e.id!,
+      source: e.source!,
+      target: e.target!,
+      sourceHandle: e.sourceHandle || undefined,
+      targetHandle: e.targetHandle || undefined,
+      data: e.metadata || {},
+    }));
 
-    const nodes: AppNode[] = protoGraph.nodes.map((n) => {
-      return {
-        id: n.id!,
-        position: { x: n.position?.x || 0, y: n.position?.y || 0 },
-        data: {} as DynamicNodeData,
-        type: "dynamic",
-      } as AppNode;
-    });
+    return { nodes, edges };
+  }
 
-    return { nodes, edges: [] };
+  static fromProtoNode(n: flowcraft.v1.INode): AppNode {
+    const rawType = n.type || "dynamic";
+    const isStandardSpecial =
+      rawType === "groupNode" || rawType === "processing";
+    const reactFlowType = isStandardSpecial ? rawType : "dynamic";
+
+    const node: AppNode = {
+      id: n.id!,
+      type: reactFlowType,
+      position: { x: n.position?.x || 0, y: n.position?.y || 0 },
+      selected: !!n.selected,
+      parentId: n.parentId || undefined,
+      data: n.data
+        ? ProtoAdapter.fromProtoNodeData(n.data)
+        : ({} as DynamicNodeData),
+    } as AppNode;
+
+    if (!isStandardSpecial && node.type === "dynamic") {
+      (node.data as DynamicNodeData).typeId = rawType;
+    }
+
+    if (n.width && n.height) {
+      node.measured = { width: n.width, height: n.height };
+    }
+
+    return node;
+  }
+
+  static fromProtoNodeData(data: flowcraft.v1.INodeData): DynamicNodeData {
+    return {
+      label: data.label || "",
+      modes: (data.availableModes || []) as unknown as RenderMode[],
+      activeMode: (data.activeMode ||
+        RenderMode.MODE_WIDGETS) as unknown as RenderMode,
+      media: data.media ? ProtoAdapter.fromProtoMedia(data.media) : undefined,
+      widgets: (data.widgets || []).map(ProtoAdapter.fromProtoWidget),
+      inputPorts: (data.inputPorts || []) as flowcraft.v1.IPort[],
+      outputPorts: (data.outputPorts || []) as flowcraft.v1.IPort[],
+      // Handlers will be attached during hydration
+      onChange: () => {},
+    };
+  }
+
+  static fromProtoMedia(media: flowcraft.v1.IMediaContent): MediaDef {
+    return {
+      type: media.type as unknown as MediaType,
+      url: media.url || undefined,
+      content: media.content || undefined,
+      galleryUrls: media.galleryUrls || [],
+    };
+  }
+
+  static fromProtoWidget(widget: flowcraft.v1.IWidget): WidgetDef {
+    let value: unknown = undefined;
+    try {
+      value = widget.valueJson ? JSON.parse(widget.valueJson) : undefined;
+    } catch (e) {
+      console.error("Failed to parse widget valueJson", e);
+    }
+
+    return {
+      id: widget.id!,
+      type: widget.type as unknown as WidgetType,
+      label: widget.label || "",
+      value: value,
+      options: (widget.options || []).map((o) => ({
+        label: o.label || "",
+        value: o.value || "",
+      })),
+      config: {
+        min: widget.config?.min ?? undefined,
+        max: widget.config?.max ?? undefined,
+        step: widget.config?.step ?? undefined,
+        dynamicOptions: !!widget.config?.dynamicOptions,
+      },
+      inputPortId: widget.inputPortId || undefined,
+    };
   }
 }

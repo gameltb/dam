@@ -1,6 +1,11 @@
 import React from "react";
 import { Handle as ReactFlowHandle, Position, useStore } from "@xyflow/react";
-import { PortStyle, isDynamicNode, type flowcraft, type AppNode } from "../../types";
+import {
+  PortStyle,
+  isDynamicNode,
+  type flowcraft,
+  type AppNode,
+} from "../../types";
 import { getValidator } from "../../utils/portValidators";
 import { useFlowStore } from "../../store/flowStore";
 
@@ -18,7 +23,7 @@ interface PortHandleProps {
   sideOffset?: number;
 }
 
-const PortIcon: React.FC<{ 
+const PortIcon: React.FC<{
   style: PortStyle;
   mainType?: string;
   color: string;
@@ -110,7 +115,7 @@ const PortIcon: React.FC<{
   }
 };
 
-export const PortHandle: React.FC<PortHandleProps> = ({ 
+export const PortHandle: React.FC<PortHandleProps> = ({
   nodeId,
   portId,
   type,
@@ -156,7 +161,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
       const sourceNode = nodes.find((n) => n.id === activeConnection.nodeId);
       if (sourceNode && isDynamicNode(sourceNode as AppNode)) {
         const data = (sourceNode as AppNode).data as flowcraft.v1.INodeData;
-        const sourcePort = 
+        const sourcePort =
           data.outputPorts?.find((p) => p.id === activeConnection.handleId) ||
           data.inputPorts?.find((p) => p.id === activeConnection.handleId);
 

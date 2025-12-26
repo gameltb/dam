@@ -1,29 +1,33 @@
 import { create } from "zustand";
-import { temporal, type TemporalState } from "zundo";
-import type {
-  Connection,
-  Edge,
-  EdgeChange,
-  NodeChange,
-  OnNodesChange,
-  OnEdgesChange,
-} from "@xyflow/react";
-import { addEdge, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
+import { temporal } from "zundo";
 import {
-  type AppNode,
-  isDynamicNode,
-  PortStyle,
-  type DynamicNodeData,
-} from "../types";
-import { useStoreWithEqualityFn } from "zustand/traditional";
+  type Connection,
+  type Edge,
+  type EdgeChange,
+  type NodeChange,
+  applyNodeChanges,
+  applyEdgeChanges,
+} from "@xyflow/react";
+import { type AppNode, MutationSource } from "../types";
 import { flowcraft } from "../generated/flowcraft";
-import { validateConnection } from "../utils/portValidators";
+import { useTaskStore } from "./taskStore";
+import * as Y from "yjs";
+
+export interface MutationContext {
+  taskId?: string;
+  source?: MutationSource;
+  description?: string;
+}
 
 export interface RFState {
   nodes: AppNode[];
   edges: Edge[];
   version: number;
-  // Node Events
+
+  ydoc: Y.Doc;
+  yNodes: Y.Map<unknown>;
+  yEdges: Y.Map<unknown>;
+
   lastNodeEvent: {
     type: string;
     payload: Record<string, unknown>;
@@ -31,40 +35,38 @@ export interface RFState {
   } | null;
   dispatchNodeEvent: (type: string, payload: Record<string, unknown>) => void;
 
-  onNodesChange: OnNodesChange;
-  onEdgesChange: OnEdgesChange;
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
-  setNodes: (nodes: AppNode[]) => void;
-  setEdges: (edges: Edge[]) => void;
-  addNode: (node: AppNode) => void;
-  updateNodeData: (nodeId: string, data: Record<string, unknown>) => void;
-  setVersion: (version: number) => void;
+
   setGraph: (
     graph: { nodes: AppNode[]; edges: Edge[] },
     version: number,
   ) => void;
+  applyMutations: (
+    mutations: flowcraft.v1.IGraphMutation[],
+    context?: MutationContext,
+  ) => void;
+  applyYjsUpdate: (update: Uint8Array) => void;
+  syncFromYjs: () => void;
+  resetStore: () => void;
 
-  // Mutation API
-  applyMutations: (mutations: flowcraft.v1.IGraphMutation[]) => void;
-
-  // Clipboard
   clipboard: { nodes: AppNode[]; edges: Edge[] } | null;
   setClipboard: (data: { nodes: AppNode[]; edges: Edge[] } | null) => void;
-
-  // Active Connection Attempt
   connectionStartHandle: {
     nodeId: string;
     handleId: string;
     type: "source" | "target";
   } | null;
   setConnectionStartHandle: (
-    handle: {
-      nodeId: string;
-      handleId: string;
-      type: "source" | "target";
-    } | null,
+    h: { nodeId: string; handleId: string; type: "source" | "target" } | null,
   ) => void;
 }
+
+// Fixed references to ensure hooks never lose the context
+const _ydoc = new Y.Doc();
+const _yNodes = _ydoc.getMap("nodes");
+const _yEdges = _ydoc.getMap("edges");
 
 const useStore = create(
   temporal<RFState>(
@@ -72,194 +74,149 @@ const useStore = create(
       nodes: [],
       edges: [],
       version: 0,
+      ydoc: _ydoc,
+      yNodes: _yNodes,
+      yEdges: _yEdges,
       lastNodeEvent: null,
-
       dispatchNodeEvent: (type, payload) => {
         set({ lastNodeEvent: { type, payload, timestamp: Date.now() } });
       },
+      syncFromYjs: () => {
+        const nodes: AppNode[] = [];
+        _yNodes.forEach((v) => nodes.push(v as AppNode));
+        const edges: Edge[] = [];
+        _yEdges.forEach((v) => edges.push(v as Edge));
+        set({ nodes, edges, version: get().version + 1 });
+      },
+      applyYjsUpdate: (update) => {
+        Y.applyUpdate(_ydoc, update, "remote");
+        get().syncFromYjs();
+      },
+      applyMutations: (mutations, context) => {
+        const taskId = context?.taskId || "manual-interaction";
+        if (!useTaskStore.getState().tasks[taskId]) {
+          useTaskStore.getState().registerTask({
+            taskId,
+            label: context?.description || "Action",
+            source: context?.source || MutationSource.USER,
+          });
+        }
+        useTaskStore.getState().logMutation({
+          taskId,
+          source: context?.source || MutationSource.USER,
+          description: context?.description || "Applied",
+          mutations,
+        });
 
-      applyMutations: (mutations) => {
-        set((state) => {
-          let newNodes = [...state.nodes];
-          let newEdges = [...state.edges];
-
+        _ydoc.transact(() => {
           mutations.forEach((mut) => {
             if (mut.addNode?.node) {
-              newNodes.push(mut.addNode.node as unknown as AppNode);
-            } else if (mut.updateNode) {
-              newNodes = newNodes.map((n) => {
-                if (n.id === mut.updateNode!.id) {
-                  const updated = { ...n } as AppNode;
-                  if (mut.updateNode!.position) {
-                    updated.position = {
-                      x: mut.updateNode!.position.x ?? updated.position.x,
-                      y: mut.updateNode!.position.y ?? updated.position.y,
-                    };
-                  }
-                  if (mut.updateNode!.data) {
-                    // Manual merge to keep internal types consistent
-                    updated.data = {
-                      ...updated.data,
-                      ...(mut.updateNode!.data as unknown as DynamicNodeData),
-                    };
-                  }
-                  return updated;
-                }
-                return n;
-              });
-            } else if (mut.removeNode) {
-              newNodes = newNodes.filter((n) => n.id !== mut.removeNode!.id);
-              newEdges = newEdges.filter(
-                (e) =>
-                  e.source !== mut.removeNode!.id &&
-                  e.target !== mut.removeNode!.id,
+              _yNodes.set(
+                mut.addNode.node.id!,
+                mut.addNode.node as flowcraft.v1.INode,
               );
+            } else if (mut.updateNode) {
+              const id = mut.updateNode.id!;
+              const existing = _yNodes.get(id) as AppNode;
+              if (existing) {
+                const updated = { ...existing };
+                if (mut.updateNode.position) {
+                  updated.position = {
+                    x: mut.updateNode.position.x ?? updated.position.x,
+                    y: mut.updateNode.position.y ?? updated.position.y,
+                  };
+                }
+                if (mut.updateNode.width || mut.updateNode.height) {
+                  updated.measured = {
+                    width: mut.updateNode.width ?? updated.measured?.width ?? 0,
+                    height:
+                      mut.updateNode.height ?? updated.measured?.height ?? 0,
+                  };
+                }
+                if (mut.updateNode.data) {
+                  updated.data = {
+                    ...updated.data,
+                    ...(mut.updateNode.data as Record<string, unknown>),
+                  };
+                }
+                _yNodes.set(id, updated);
+              }
+            } else if (mut.removeNode) {
+              _yNodes.delete(mut.removeNode.id!);
             } else if (mut.addEdge?.edge) {
-              newEdges.push(mut.addEdge.edge as unknown as Edge);
+              _yEdges.set(mut.addEdge.edge.id!, mut.addEdge.edge as Edge);
             } else if (mut.removeEdge) {
-              newEdges = newEdges.filter((e) => e.id !== mut.removeEdge!.id);
+              _yEdges.delete(mut.removeEdge.id!);
             } else if (mut.addSubgraph) {
-              if (mut.addSubgraph.nodes)
-                newNodes.push(
-                  ...(mut.addSubgraph.nodes as unknown as AppNode[]),
-                );
-              if (mut.addSubgraph.edges)
-                newEdges.push(...(mut.addSubgraph.edges as unknown as Edge[]));
+              mut.addSubgraph.nodes?.forEach((n) => {
+                if (n.id) _yNodes.set(n.id, JSON.parse(JSON.stringify(n)));
+              });
+              mut.addSubgraph.edges?.forEach((e) => {
+                if (e.id) _yEdges.set(e.id, JSON.parse(JSON.stringify(e)));
+              });
             } else if (mut.clearGraph) {
-              newNodes = [];
-              newEdges = [];
+              _yNodes.clear();
+              _yEdges.clear();
             }
           });
-
-          return {
-            nodes: newNodes,
-            edges: newEdges,
-            version: state.version + 1,
-          };
         });
+        get().syncFromYjs();
       },
-
-      onNodesChange: (changes: NodeChange[]) => {
-        const isDragging = changes.some(
-          (c) =>
-            c.type === "position" && (c as { dragging?: boolean }).dragging,
-        );
-        set((state) => ({
-          nodes: applyNodeChanges(changes, state.nodes) as AppNode[],
-          version: isDragging ? state.version : state.version + 1,
-        }));
+      onNodesChange: (changes) => {
+        const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
+        _ydoc.transact(() => {
+          changes.forEach((c) => {
+            if (
+              c.type === "position" ||
+              c.type === "dimensions" ||
+              c.type === "select"
+            ) {
+              const n = nextNodes.find((node) => node.id === c.id);
+              if (n) _yNodes.set(n.id, n);
+            } else if (c.type === "remove") _yNodes.delete(c.id);
+          });
+        });
+        get().syncFromYjs();
       },
-
-      onEdgesChange: (changes: EdgeChange[]) => {
-        set((state) => ({
-          edges: applyEdgeChanges(changes, state.edges),
-          version: state.version + 1,
-        }));
-      },
-
-      onConnect: (connection: Connection) => {
-        const { nodes, edges, version } = get();
-        const sourceNode = nodes.find((node) => node.id === connection.source);
-        const targetNode = nodes.find((node) => node.id === connection.target);
-
-        if (
-          sourceNode &&
-          targetNode &&
-          isDynamicNode(sourceNode) &&
-          isDynamicNode(targetNode)
-        ) {
-          const sourcePort = (
-            sourceNode.data as DynamicNodeData
-          ).outputPorts?.find((p) => p.id === connection.sourceHandle);
-          let targetPort = (
-            targetNode.data as DynamicNodeData
-          ).inputPorts?.find((p) => p.id === connection.targetHandle);
-          if (!targetPort) {
-            const widget = (targetNode.data as DynamicNodeData).widgets?.find(
-              (w) => w.inputPortId === connection.targetHandle,
-            );
-            if (widget) {
-              targetPort = (
-                targetNode.data as DynamicNodeData
-              ).inputPorts?.find((p) => p.id === widget.inputPortId);
+      onEdgesChange: (changes) => {
+        const nextEdges = applyEdgeChanges(changes, get().edges);
+        _ydoc.transact(() => {
+          changes.forEach((c) => {
+            if (c.type === "remove") _yEdges.delete(c.id);
+            else if (c.type === "select") {
+              const e = nextEdges.find((edge) => edge.id === c.id);
+              if (e) _yEdges.set(e.id, e);
             }
-          }
-
-          if (sourcePort && targetPort) {
-            const result = validateConnection(
-              {
-                ...(sourcePort as unknown as flowcraft.v1.IPort),
-                nodeId: connection.source!,
-              },
-              {
-                ...(targetPort as unknown as flowcraft.v1.IPort),
-                nodeId: connection.target!,
-              },
-              edges,
-            );
-
-            if (result.canConnect) {
-              const isDash =
-                sourcePort.style === PortStyle.PORT_STYLE_DASH ||
-                targetPort.style === PortStyle.PORT_STYLE_DASH;
-
-              set({
-                edges: addEdge(
-                  {
-                    ...connection,
-                    id: `e${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
-                    type: isDash ? "system" : undefined,
-                  },
-                  edges,
-                ),
-                version: version + 1,
-              });
-            } else {
-              console.warn(result.reason);
-            }
-          }
-        } else {
-          set({ edges: addEdge(connection, edges), version: version + 1 });
-        }
+          });
+        });
+        get().syncFromYjs();
       },
-      setNodes: (nodes: AppNode[]) => {
-        set((state) => ({ nodes, version: state.version + 1 }));
+      onConnect: (connection) => {
+        const newEdge = { ...connection, id: `e${Date.now()}` } as Edge;
+        _yEdges.set(newEdge.id, newEdge);
+        get().syncFromYjs();
       },
-      setEdges: (edges: Edge[]) => {
-        set((state) => ({ edges, version: state.version + 1 }));
-      },
-      addNode: (node: AppNode) => {
-        set((state) => ({
-          nodes: [...state.nodes, node],
-          version: state.version + 1,
-        }));
-      },
-      updateNodeData: (nodeId: string, data: Record<string, unknown>) => {
-        set((state) => ({
-          nodes: state.nodes.map((n) =>
-            n.id === nodeId
-              ? ({ ...n, data: { ...n.data, ...data } } as AppNode)
-              : n,
-          ),
-          version: state.version + 1,
-        }));
-      },
-      setVersion: (version: number) => {
+      setGraph: (graph, version) => {
+        _ydoc.transact(() => {
+          _yNodes.clear();
+          _yEdges.clear();
+          graph.nodes.forEach((n) => _yNodes.set(n.id, n));
+          graph.edges.forEach((e) => _yEdges.set(e.id, e));
+        });
         set({ version });
+        get().syncFromYjs();
       },
-      setGraph: (
-        graph: { nodes: AppNode[]; edges: Edge[] },
-        version: number,
-      ) => {
-        set({ nodes: graph.nodes, edges: graph.edges, version });
+      resetStore: () => {
+        _ydoc.transact(() => {
+          _yNodes.clear();
+          _yEdges.clear();
+        });
+        set({ nodes: [], edges: [], version: 0 });
       },
-
       clipboard: null,
-      setClipboard: (clipboard) => set({ clipboard }),
-
+      setClipboard: (c) => set({ clipboard: c }),
       connectionStartHandle: null,
-      setConnectionStartHandle: (connectionStartHandle) =>
-        set({ connectionStartHandle }),
+      setConnectionStartHandle: (h) => set({ connectionStartHandle: h }),
     }),
     {
       partialize: (state) => {
@@ -271,17 +228,31 @@ const useStore = create(
   ),
 );
 
+// Subscribe to temporal store to sync back to Yjs on undo/redo
+useStore.temporal.subscribe(() => {
+  // If we are performing an undo or redo (state is from the past/future)
+  // We need to sync the restored Zustand state back to Yjs
+  const current = useStore.getState();
+  _ydoc.transact(() => {
+    _yNodes.clear();
+    _yEdges.clear();
+    current.nodes.forEach((n) => _yNodes.set(n.id, n));
+    current.edges.forEach((e) => _yEdges.set(e.id, e));
+  }, "undo-redo");
+});
+
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { type TemporalState } from "zundo";
+
 export const useFlowStore = useStore;
 
 export function useTemporalStore<T>(
-  selector: (state: TemporalState<any>) => T, // eslint-disable-line @typescript-eslint/no-explicit-any
+  selector: (state: TemporalState<RFState>) => T,
   equality?: (a: T, b: T) => boolean,
 ): T {
   const store = useStore.temporal;
   if (!store) {
-    throw new Error(
-      "Temporal store not found. Make sure you have wrapped your store with temporal middleware",
-    );
+    throw new Error("Temporal store not found.");
   }
   return useStoreWithEqualityFn(store, selector, equality);
 }

@@ -15,13 +15,16 @@ message FlowMessage {
   int64 timestamp = 2;
 
   oneof payload {
-    // --- Client -> Server ---
+    // --- Synchronization ---
     SyncRequest sync_request = 10;
-    UpdateNodeRequest node_update = 11;
-    UpdateWidgetRequest widget_update = 12;
-    ActionExecutionRequest action_execute = 13;
-    TaskCancelRequest task_cancel = 14;
-    ViewportUpdate viewport_update = 15;
+    bytes yjs_update = 11; // CRDT incremental update
+
+    // --- Other Client Actions ---
+    UpdateNodeRequest node_update = 12;
+    UpdateWidgetRequest widget_update = 13;
+    ActionExecutionRequest action_execute = 14;
+    TaskCancelRequest task_cancel = 15;
+    ViewportUpdate viewport_update = 16;
 
     // --- Server -> Client ---
     GraphSnapshot snapshot = 20;

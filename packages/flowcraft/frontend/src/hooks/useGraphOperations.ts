@@ -11,8 +11,7 @@ interface GraphOpsProps {
 }
 
 export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
-  const { nodes, edges, setNodes, applyMutations, clipboard, setClipboard } =
-    useFlowStore();
+  const store = useFlowStore();
 
   const addNode = useCallback(
     (type: string, data: Partial<AppNode["data"]>, position: XYPosition) => {
@@ -22,47 +21,48 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         position,
         data,
       } as AppNode;
-      applyMutations([
+      store.applyMutations([
         { addNode: { node: newNode as unknown as flowcraft.v1.INode } },
       ]);
     },
-    [applyMutations],
+    [store],
   );
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      applyMutations([{ removeNode: { id: nodeId } }]);
+      store.applyMutations([{ removeNode: { id: nodeId } }]);
     },
-    [applyMutations],
+    [store],
   );
 
   const deleteEdge = useCallback(
     (edgeId: string) => {
-      applyMutations([{ removeEdge: { id: edgeId } }]);
+      store.applyMutations([{ removeEdge: { id: edgeId } }]);
     },
-    [applyMutations],
+    [store],
   );
 
   // --- Copy / Paste Logic ---
 
   const copySelected = useCallback(() => {
-    const selectedNodes = nodes.filter((n) => n.selected);
-    const selectedEdges = edges.filter((e) => {
+    const selectedNodes = store.nodes.filter((n) => n.selected);
+    const selectedEdges = store.edges.filter((e) => {
       const isSourceSelected = selectedNodes.some((n) => n.id === e.source);
       const isTargetSelected = selectedNodes.some((n) => n.id === e.target);
       return isSourceSelected && isTargetSelected;
     });
 
     if (selectedNodes.length > 0) {
-      setClipboard({
+      store.setClipboard({
         nodes: JSON.parse(JSON.stringify(selectedNodes)),
         edges: JSON.parse(JSON.stringify(selectedEdges)),
       });
     }
-  }, [nodes, edges, setClipboard]);
+  }, [store]);
 
   const paste = useCallback(
     (targetPosition?: XYPosition) => {
+      const { clipboard, applyMutations } = store;
       if (!clipboard) return;
 
       const idMap: Record<string, string> = {};
@@ -96,22 +96,23 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         selected: true,
       }));
 
-      const deselectedNodes = nodes.map((n) => ({ ...n, selected: false }));
-      setNodes(deselectedNodes as AppNode[]);
-
-      applyMutations([
-        {
-          addSubgraph: {
-            nodes: newNodes as unknown as flowcraft.v1.INode[],
-            edges: newEdges as unknown as flowcraft.v1.IEdge[],
+      applyMutations(
+        [
+          {
+            addSubgraph: {
+              nodes: newNodes as unknown as flowcraft.v1.INode[],
+              edges: newEdges as unknown as flowcraft.v1.IEdge[],
+            },
           },
-        },
-      ]);
+        ],
+        { taskId: uuidv4(), description: "Paste Subgraph" },
+      );
     },
-    [clipboard, nodes, applyMutations, setNodes],
+    [store],
   );
 
   const duplicateSelected = useCallback(() => {
+    const { nodes, edges, applyMutations } = store;
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 0) return;
 
@@ -145,22 +146,23 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       selected: true,
     }));
 
-    const deselectedNodes = nodes.map((n) => ({ ...n, selected: false }));
-    setNodes(deselectedNodes as AppNode[]);
-
-    applyMutations([
-      {
-        addSubgraph: {
-          nodes: newNodes as unknown as flowcraft.v1.INode[],
-          edges: newEdges as unknown as flowcraft.v1.IEdge[],
+    applyMutations(
+      [
+        {
+          addSubgraph: {
+            nodes: newNodes as unknown as flowcraft.v1.INode[],
+            edges: newEdges as unknown as flowcraft.v1.IEdge[],
+          },
         },
-      },
-    ]);
-  }, [nodes, edges, applyMutations, setNodes]);
+      ],
+      { taskId: uuidv4(), description: "Duplicate Selected" },
+    );
+  }, [store]);
 
   // --- Auto Layout (Dagre) ---
 
   const autoLayout = useCallback(() => {
+    const { nodes, edges, applyMutations } = store;
     const g = new dagre.graphlib.Graph();
     g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100 });
     g.setDefaultEdgeLabel(() => ({}));
@@ -180,20 +182,24 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     const mutations: flowcraft.v1.IGraphMutation[] = nodes.map((node) => {
       const nodeWithPos = g.node(node.id);
+      const width = node.measured?.width || 300;
+      const height = node.measured?.height || 200;
       return {
         updateNode: {
           id: node.id,
           position: {
-            x: nodeWithPos.x - (node.measured?.width || 300) / 2,
-            y: nodeWithPos.y - (node.measured?.height || 200) / 2,
+            x: nodeWithPos.x - width / 2,
+            y: nodeWithPos.y - height / 2,
           },
+          width,
+          height,
           data: node.data as flowcraft.v1.INodeData,
         },
       };
     });
 
     applyMutations(mutations);
-  }, [nodes, edges, applyMutations]);
+  }, [store]);
 
   return {
     addNode,

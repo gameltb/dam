@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import {
   withNodeHandlers,
   type NodeRendererProps,
@@ -20,26 +20,29 @@ import { MarkdownRenderer } from "./media/MarkdownRenderer";
 import { GalleryWrapper } from "./media/GalleryWrapper";
 import { useFlowStore } from "../store/flowStore";
 import { useMockSocket } from "../hooks/useMockSocket";
-import { useTaskStore } from "../store/taskStore";
-import { v4 as uuidv4 } from "uuid";
-import type { AppNode } from "../types";
-import { WidgetType, MediaType, PortStyle } from "../types";
-import { useStore } from "@xyflow/react";
+import { useNodeConnections } from "@xyflow/react";
 import { PortHandle } from "./base/PortHandle";
 import { flowcraft } from "../generated/flowcraft";
+import { MediaType, PortStyle } from "../types";
+
+const _WidgetType = flowcraft.v1.WidgetType;
 
 const PortLabelRow: React.FC<{
   nodeId: string;
   inputPort?: flowcraft.v1.IPort;
   outputPort?: flowcraft.v1.IPort;
-}> = ({ nodeId, inputPort, outputPort }) => {
-  const edges = useStore((s) => s.edges);
-  const isInputConnected = inputPort
-    ? edges.some((e) => e.target === nodeId && e.targetHandle === inputPort.id)
-    : false;
-  const isOutputConnected = outputPort
-    ? edges.some((e) => e.source === nodeId && e.sourceHandle === outputPort.id)
-    : false;
+}> = memo(({ nodeId, inputPort, outputPort }) => {
+  const inputConnections = useNodeConnections({
+    handleType: "target",
+    handleId: inputPort?.id || undefined,
+  });
+  const outputConnections = useNodeConnections({
+    handleType: "source",
+    handleId: outputPort?.id || undefined,
+  });
+
+  const isInputConnected = inputConnections.length > 0;
+  const isOutputConnected = outputConnections.length > 0;
 
   return (
     <div
@@ -71,7 +74,7 @@ const PortLabelRow: React.FC<{
               nodeId={nodeId}
               portId={inputPort.id!}
               type="target"
-              style={(inputPort.style as PortStyle) || undefined}
+              style={inputPort.style ?? undefined}
               mainType={inputPort.type?.mainType || undefined}
               itemType={inputPort.type?.itemType || undefined}
               isGeneric={!!inputPort.type?.isGeneric}
@@ -128,7 +131,7 @@ const PortLabelRow: React.FC<{
               nodeId={nodeId}
               portId={outputPort.id!}
               type="source"
-              style={(outputPort.style as PortStyle) || undefined}
+              style={outputPort.style ?? undefined}
               mainType={outputPort.type?.mainType || undefined}
               itemType={outputPort.type?.itemType || undefined}
               isGeneric={!!outputPort.type?.isGeneric}
@@ -141,22 +144,15 @@ const PortLabelRow: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 const WidgetRenderer: React.FC<{
   nodeId: string;
   widget: WidgetDef;
   onValueChange: (val: unknown) => void;
   onClick: () => void;
-}> = ({ nodeId, widget, onValueChange, onClick }) => {
-  const {
-    sendWidgetUpdate,
-    fetchWidgetOptions,
-    streamAction,
-    executeTask,
-    cancelTask,
-  } = useMockSocket({ disablePolling: true });
-  const { addNode } = useFlowStore.getState();
+}> = memo(({ nodeId, widget, onValueChange, onClick }) => {
+  const { sendWidgetUpdate } = useMockSocket({ disablePolling: true });
 
   const handleValueChange = (val: unknown) => {
     onValueChange(val);
@@ -165,7 +161,7 @@ const WidgetRenderer: React.FC<{
 
   let component;
   switch (widget.type) {
-    case WidgetType.WIDGET_TEXT:
+    case _WidgetType.WIDGET_TEXT:
       component = (
         <TextField
           value={widget.value as string}
@@ -174,18 +170,18 @@ const WidgetRenderer: React.FC<{
         />
       );
       break;
-    case WidgetType.WIDGET_SELECT:
+    case _WidgetType.WIDGET_SELECT:
       component = (
         <SelectField
           value={widget.value}
           onChange={handleValueChange}
           label={widget.label}
           options={widget.options || []}
-          onFetchOptions={() => fetchWidgetOptions(nodeId, widget.id)}
+          onFetchOptions={async () => []}
         />
       );
       break;
-    case WidgetType.WIDGET_CHECKBOX:
+    case _WidgetType.WIDGET_CHECKBOX:
       component = (
         <CheckboxField
           value={!!widget.value}
@@ -194,7 +190,7 @@ const WidgetRenderer: React.FC<{
         />
       );
       break;
-    case WidgetType.WIDGET_SLIDER:
+    case _WidgetType.WIDGET_SLIDER:
       component = (
         <SliderField
           value={widget.value as number}
@@ -205,55 +201,11 @@ const WidgetRenderer: React.FC<{
         />
       );
       break;
-    case WidgetType.WIDGET_BUTTON:
+    case _WidgetType.WIDGET_BUTTON:
       component = (
         <button
           className="nodrag"
-          onClick={() => {
-            onClick();
-            const val = typeof widget.value === "string" ? widget.value : "";
-            if (val.startsWith("stream-to:")) {
-              const targetWidgetId = val.split(":")[1];
-              let currentBuffer = "";
-              streamAction(nodeId, widget.id, (chunk) => {
-                currentBuffer += chunk;
-                const store = useFlowStore.getState();
-                const node = store.nodes.find((n) => n.id === nodeId);
-                if (node && node.type === "dynamic" && node.data.widgets) {
-                  const updatedWidgets = (node.data.widgets as WidgetDef[]).map(
-                    (w) =>
-                      w.id === targetWidgetId
-                        ? { ...w, value: currentBuffer }
-                        : w,
-                  );
-                  store.updateNodeData(nodeId, { widgets: updatedWidgets });
-                }
-              });
-            }
-            if (val.startsWith("task:")) {
-              const taskType = val.split(":")[1];
-              const taskId = uuidv4();
-              const parentNode = useFlowStore
-                .getState()
-                .nodes.find((n) => n.id === nodeId);
-              const position = parentNode
-                ? { x: parentNode.position.x + 300, y: parentNode.position.y }
-                : { x: 0, y: 0 };
-              const placeholderNode: AppNode = {
-                id: `task-${taskId}`,
-                type: "processing",
-                position,
-                data: {
-                  label: `Running ${taskType}...`,
-                  taskId,
-                  onCancel: (tid: string) => cancelTask(tid),
-                },
-              } as AppNode;
-              addNode(placeholderNode);
-              useTaskStore.getState().registerTask(taskId);
-              executeTask(taskId, taskType, { sourceNodeId: nodeId });
-            }
-          }}
+          onClick={onClick}
           style={{ width: "100%", padding: "4px" }}
         >
           {widget.label}
@@ -264,7 +216,7 @@ const WidgetRenderer: React.FC<{
       return null;
   }
   return <div>{component}</div>;
-};
+});
 
 const RenderMedia: React.FC<
   NodeRendererProps<DynamicNodeType> & {

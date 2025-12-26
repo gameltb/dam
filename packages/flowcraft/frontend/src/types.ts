@@ -61,6 +61,7 @@ export interface MediaDef {
 }
 
 export interface DynamicNodeData extends Record<string, unknown> {
+  typeId?: string; // Original backend type ID
   label: string;
   modes: RenderMode[];
   activeMode?: RenderMode;
@@ -131,20 +132,33 @@ export interface StreamChunk {
 
 // --- Task / Job System Definitions ---
 
+export enum MutationSource {
+  USER = "USER",
+  REMOTE_TASK = "REMOTE_TASK",
+  SYSTEM = "SYSTEM",
+  SYNC = "SYNC",
+}
+
+export interface MutationLogEntry {
+  id: string;
+  taskId: string;
+  source: MutationSource;
+  timestamp: number;
+  description: string;
+  mutations: flowcraft.v1.IGraphMutation[];
+}
+
 export interface TaskDefinition {
   taskId: string;
   type: string;
-  params: Record<string, unknown>;
-  initiatedBy: string; // userId or clientId
-  createdAt: number;
-}
-
-export interface TaskUpdatePayload {
-  taskId: string;
+  label: string;
+  source: MutationSource;
   status: TaskStatus;
-  progress?: number; // 0-100
-  message?: string;
-  result?: unknown; // The final data (e.g., new node config)
+  progress: number;
+  message: string;
+  createdAt: number;
+  updatedAt: number;
+  mutationIds: string[]; // Reference to log entries
 }
 
 export interface TaskCancelRequest {
