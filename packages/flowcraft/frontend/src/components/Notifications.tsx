@@ -91,7 +91,9 @@ export function Notifications() {
     <>
       <button
         style={buttonStyle}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = isDark
             ? "rgba(255, 255, 255, 0.1)"
@@ -124,7 +126,12 @@ export function Notifications() {
         )}
       </button>
 
-      <div style={backdropStyle} onClick={() => setIsOpen(false)} />
+      <div
+        style={backdropStyle}
+        onClick={() => {
+          setIsOpen(false);
+        }}
+      />
 
       <div style={drawerStyle}>
         <div style={headerStyle}>
@@ -146,7 +153,9 @@ export function Notifications() {
               </button>
             )}
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+              }}
               style={{
                 background: "none",
                 border: "none",

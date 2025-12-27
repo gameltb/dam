@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package flowcraft.v1;
+package flowcraft_proto.v1;
 
 import "base.proto";
 

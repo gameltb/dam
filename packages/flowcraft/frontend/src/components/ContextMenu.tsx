@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { type NodeTemplate } from "../types";
 
 export interface ContextMenuProps {
@@ -23,6 +23,141 @@ export interface ContextMenuProps {
   galleryItemUrl?: string;
   isPaneMenu?: boolean;
 }
+
+interface MenuNode {
+  label: string;
+  template?: NodeTemplate;
+  action?: { id: string; name: string; onClick: () => void };
+  children?: MenuNode[];
+}
+
+const GenericSubMenu: React.FC<{
+  label: string;
+  nodes: MenuNode[];
+  onAdd?: (tpl: NodeTemplate) => void;
+  depth?: number;
+}> = ({ label, nodes, onAdd, depth = 0 }) => {
+  const [isOpen, setIsExpanded] = useState(false);
+
+  const itemStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    cursor: "pointer",
+    fontSize: "12px",
+    color: "var(--text-color)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    transition: "background 0.2s",
+    position: "relative",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      style={{ position: "relative", width: "100%" }}
+      onMouseEnter={() => {
+        setIsExpanded(true);
+      }}
+      onMouseLeave={() => {
+        setIsExpanded(false);
+      }}
+    >
+      <div
+        style={{
+          ...itemStyle,
+          backgroundColor: isOpen ? "rgba(100, 108, 255, 0.15)" : "transparent",
+        }}
+      >
+        <span>{label}</span>
+        <span style={{ fontSize: "10px", opacity: 0.5 }}>▶</span>
+      </div>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            left: "100%",
+            top: 0,
+            backgroundColor: "var(--panel-bg)",
+            border: "1px solid var(--node-border)",
+            borderRadius: "8px",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+            minWidth: "160px",
+            padding: "4px 0",
+            backdropFilter: "blur(10px)",
+            zIndex: 1001 + depth,
+          }}
+        >
+          {nodes.map((node, i) => {
+            if (node.children && node.children.length > 0) {
+              return (
+                <GenericSubMenu
+                  key={`${node.label}-${String(i)}`}
+                  label={node.label}
+                  nodes={node.children}
+                  onAdd={onAdd}
+                  depth={depth + 1}
+                />
+              );
+            }
+            if (node.template && onAdd) {
+              const tpl = node.template;
+              return (
+                <div
+                  key={tpl.id}
+                  style={itemStyle}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      "rgba(100, 108, 255, 0.15)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
+                  onClick={() => {
+                    onAdd(tpl);
+                  }}
+                >
+                  + {node.label}
+                </div>
+              );
+            }
+            if (node.action) {
+              const action = node.action;
+              return (
+                <div
+                  key={action.id}
+                  style={itemStyle}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      "rgba(100, 108, 255, 0.15)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
+                  onClick={action.onClick}
+                >
+                  ⚡ {node.label}
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NodeSubMenu: React.FC<{
+  label: string;
+  nodes: MenuNode[];
+  onAdd: (tpl: NodeTemplate) => void;
+  depth?: number;
+}> = ({ label, nodes, onAdd, depth = 0 }) => (
+  <GenericSubMenu label={label} nodes={nodes} onAdd={onAdd} depth={depth} />
+);
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   x,
@@ -72,6 +207,42 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
   };
 
+  // Build node template tree
+  const menuTree: MenuNode[] = [];
+  templates.forEach((tpl) => {
+    let currentLevel = menuTree;
+    tpl.path.forEach((part) => {
+      let node = currentLevel.find((n) => n.label === part);
+      if (!node) {
+        node = { label: part, children: [] };
+        currentLevel.push(node);
+      }
+      currentLevel = node.children ?? [];
+    });
+    currentLevel.push({ label: tpl.label, template: tpl });
+  });
+
+  // Build server action tree
+  const actionTree: MenuNode[] = [];
+  dynamicActions.forEach((action) => {
+    const parts = action.name.split("/");
+    const leafName = parts.pop() ?? "Action";
+    let currentLevel = actionTree;
+
+    parts.forEach((part) => {
+      let node = currentLevel.find((n) => n.label === part);
+      if (!node) {
+        node = { label: part, children: [] };
+        currentLevel.push(node);
+      }
+      currentLevel = node.children ?? [];
+    });
+    currentLevel.push({
+      label: leafName,
+      action: { ...action, name: leafName },
+    });
+  });
+
   return (
     <div
       style={{
@@ -95,11 +266,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       `}</style>
 
       {/* --- Node/Edge Specific Actions --- */}
-      {(onDelete ||
-        onDeleteEdge ||
-        onFocus ||
-        onOpenEditor ||
-        onCopy ||
+      {(onDelete ??
+        onDeleteEdge ??
+        onFocus ??
+        onOpenEditor ??
+        onCopy ??
         onDuplicate) && (
         <div style={sectionStyle}>
           {onFocus && (
@@ -148,12 +319,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               👯 Duplicate (Ctrl+D)
             </div>
           )}
-          {(onDelete || onDeleteEdge) && (
+          {(onDelete ?? onDeleteEdge) && (
             <div
               style={{ ...itemStyle, color: "#f87171" }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              onClick={onDelete || onDeleteEdge}
+              onClick={onDelete ?? onDeleteEdge}
             >
               🗑️ Delete
             </div>
@@ -185,16 +356,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             🪄 Auto Layout
           </div>
-          {onGroupSelected && (
-            <div
-              style={itemStyle}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onClick={onGroupSelected}
-            >
-              📦 Group Selected
-            </div>
-          )}
+        </div>
+      )}
+
+      {onGroupSelected && (
+        <div style={sectionStyle}>
+          <div
+            style={itemStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={() => {
+              onGroupSelected();
+              onClose();
+            }}
+          >
+            📦 Group Selected
+          </div>
         </div>
       )}
 
@@ -224,20 +401,39 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             ADD NODE
           </div>
-          {templates.map((tpl) => (
-            <div
-              key={tpl.id}
-              style={itemStyle}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => {
-                onAddNode(tpl);
-                onClose();
-              }}
-            >
-              + {tpl.label}
-            </div>
-          ))}
+          {menuTree.map((node, i) => {
+            if (node.children && node.children.length > 0) {
+              return (
+                <NodeSubMenu
+                  key={`${node.label}-${String(i)}`}
+                  label={node.label}
+                  nodes={node.children}
+                  onAdd={(tpl) => {
+                    onAddNode(tpl);
+                    onClose();
+                  }}
+                />
+              );
+            }
+            if (node.template) {
+              const tpl = node.template;
+              return (
+                <div
+                  key={tpl.id}
+                  style={itemStyle}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onClick={() => {
+                    onAddNode(tpl);
+                    onClose();
+                  }}
+                >
+                  + {node.label}
+                </div>
+              );
+            }
+            return null;
+          })}
         </div>
       )}
 
@@ -259,7 +455,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       )}
 
       {/* --- Server Actions --- */}
-      {dynamicActions.length > 0 && (
+      {actionTree.length > 0 && (
         <div style={sectionStyle}>
           <div
             style={{
@@ -270,17 +466,32 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             SERVER ACTIONS
           </div>
-          {dynamicActions.map((action) => (
-            <div
-              key={action.id}
-              style={itemStyle}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onClick={action.onClick}
-            >
-              ⚡ {action.name}
-            </div>
-          ))}
+          {actionTree.map((node, i) => {
+            if (node.children && node.children.length > 0) {
+              return (
+                <GenericSubMenu
+                  key={`action-${node.label}-${String(i)}`}
+                  label={node.label}
+                  nodes={node.children}
+                />
+              );
+            }
+            if (node.action) {
+              const action = node.action;
+              return (
+                <div
+                  key={action.id}
+                  style={itemStyle}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onClick={action.onClick}
+                >
+                  ⚡ {node.label}
+                </div>
+              );
+            }
+            return null;
+          })}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, memo, useRef, useCallback } from "react";
 import { useTheme } from "./hooks/useTheme";
-import { flowcraft } from "./generated/flowcraft";
+import { flowcraft_proto } from "./generated/flowcraft_proto";
 import {
   ReactFlow,
   MiniMap,
@@ -9,7 +9,6 @@ import {
   BackgroundVariant,
   type NodeTypes,
   type ReactFlowInstance,
-  type Edge,
   type OnConnectStartParams,
 } from "@xyflow/react";
 import { useFlowStore, useTemporalStore } from "./store/flowStore";
@@ -25,9 +24,9 @@ import { EditUrlModal } from "./components/EditUrlModal";
 import {
   type AppNode,
   type NodeTemplate,
-  type WidgetDef,
   MediaType,
   RenderMode,
+  MutationSource,
 } from "./types";
 import { Toaster } from "react-hot-toast";
 import { Notifications } from "./components/Notifications";
@@ -38,6 +37,7 @@ import { BaseFlowEdge } from "./components/edges/BaseFlowEdge";
 import { MediaPreview } from "./components/media/MediaPreview";
 import { EditorPlaceholder } from "./components/media/EditorPlaceholder";
 import { TaskHistoryDrawer } from "./components/TaskHistoryDrawer";
+import { socketClient } from "./utils/SocketClient";
 
 import { useShallow } from "zustand/react/shallow";
 import { v4 as uuidv4 } from "uuid";
@@ -75,21 +75,15 @@ function App() {
     redo: state.redo,
   }));
 
-  const {
-    templates,
-    discoverActions,
-    executeAction,
-    executeTask,
-    cancelTask,
-    streamAction,
-  } = useMockSocket();
+  const mockSocket = useMockSocket();
+  const { templates, executeTask, cancelTask, streamAction } = mockSocket;
   const { theme, toggleTheme } = useTheme();
 
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [availableActions, setAvailableActions] = useState<
-    flowcraft.v1.IActionTemplate[]
+    flowcraft_proto.v1.IActionTemplate[]
   >([]);
 
   const [previewData, setPreviewData] = useState<{
@@ -99,7 +93,7 @@ function App() {
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
 
   const lastProcessedEventTimeRef = useRef<number>(0);
-  const rfInstanceRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
+  const rfInstanceRef = useRef<ReactFlowInstance<AppNode> | null>(null);
 
   const {
     contextMenu,
@@ -112,11 +106,17 @@ function App() {
     setContextMenu,
   } = useContextMenu();
 
+  const closeContextMenuAndClear = useCallback(() => {
+    closeContextMenu();
+    setAvailableActions([]);
+  }, [closeContextMenu]);
+
   const {
     addNode,
     deleteNode,
     deleteEdge,
     autoLayout,
+    groupSelected,
     copySelected,
     paste,
     duplicateSelected,
@@ -141,47 +141,61 @@ function App() {
   }, [setConnectionStartHandle]);
 
   const handleNodeContextMenu = useCallback(
-    async (event: React.MouseEvent, node: AppNode) => {
+    (event: React.MouseEvent, node: AppNode) => {
       onNodeContextMenu(event, node);
-      const actions = await discoverActions(node.id);
-      setAvailableActions(actions);
+      // Discover actions via Unified Protocol
+      void socketClient
+        .send({
+          actionDiscovery: {
+            nodeId: node.id,
+            selectedNodeIds: nodes.filter((n) => n.selected).map((n) => n.id),
+          },
+        })
+        .catch((e: unknown) => {
+          console.error("Failed to send action discovery", e);
+        });
     },
-    [onNodeContextMenu, discoverActions],
+    [onNodeContextMenu, nodes],
   );
 
-  const handleExecuteAction = async (action: flowcraft.v1.IActionTemplate) => {
-    if (!contextMenu?.nodeId) return;
-    const nodeId = contextMenu.nodeId;
+  const handleExecuteAction = (action: flowcraft_proto.v1.IActionTemplate) => {
+    const nodeId = contextMenu?.nodeId ?? "";
+    const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id);
 
-    const result = await executeAction(action.id!, nodeId);
+    // Track as a task even if backend hasn't replied yet (Optimistic UI)
+    const taskId = uuidv4();
+    useTaskStore.getState().registerTask({
+      taskId,
 
-    if (
-      result &&
-      result.type === "task" &&
-      (result as unknown as { taskId: string }).taskId
-    ) {
-      const taskId = (result as unknown as { taskId: string }).taskId;
-      const parentNode = nodes.find((n) => n.id === nodeId);
-      const position = parentNode
-        ? { x: parentNode.position.x + 300, y: parentNode.position.y }
-        : { x: 0, y: 0 };
+      label: action.label ?? "Backend Action",
+      source: MutationSource.REMOTE_TASK,
+    });
 
-      const placeholderNode: AppNode = {
-        id: `task-${taskId}`,
-        type: "processing",
-        position,
-        data: {
-          label: `Running ${action.label}...`,
-          taskId,
-          onCancel: (tid: string) => cancelTask(tid),
+    void socketClient
+      .send({
+        actionExecute: {
+          actionId: action.id ?? "",
+          sourceNodeId: nodeId,
+          contextNodeIds: selectedIds,
+          paramsJson: JSON.stringify({ taskId }),
         },
-      };
-      addNodeToStore(placeholderNode);
-      useTaskStore.getState().registerTask(taskId);
-      executeTask(taskId, action.id!, { sourceNodeId: nodeId });
-    }
-    closeContextMenu();
+      })
+      .catch((e: unknown) => {
+        console.error("Failed to execute action", e);
+      });
+
+    closeContextMenuAndClear();
   };
+
+  useEffect(() => {
+    const onActions = (actions: flowcraft_proto.v1.IActionTemplate[]) => {
+      setAvailableActions(actions);
+    };
+    socketClient.on("actions", onActions);
+    return () => {
+      socketClient.off("actions", onActions);
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -208,7 +222,9 @@ function App() {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [undo, redo, copySelected, paste, duplicateSelected]);
 
   useEffect(() => {
@@ -239,10 +255,14 @@ function App() {
         nodeId: string;
         index: number;
       };
-      setTimeout(() => setPreviewData(payload), 0);
+      setTimeout(() => {
+        setPreviewData(payload);
+      }, 0);
     } else if (lastNodeEvent.type === "open-editor") {
       const payload = lastNodeEvent.payload as { nodeId: string };
-      setTimeout(() => setActiveEditorId(payload.nodeId), 0);
+      setTimeout(() => {
+        setActiveEditorId(payload.nodeId);
+      }, 0);
     } else if (lastNodeEvent.type === "widget-click") {
       const { nodeId, widgetId } = lastNodeEvent.payload as {
         nodeId: string;
@@ -254,7 +274,7 @@ function App() {
         if (widget && typeof widget.value === "string") {
           const val = widget.value;
           if (val.startsWith("stream-to:")) {
-            const targetWidgetId = val.split(":")[1];
+            const targetWidgetId = val.split(":")[1] ?? "";
             let currentBuffer = "";
             streamAction(nodeId, widgetId, (chunk) => {
               currentBuffer += chunk;
@@ -265,16 +285,14 @@ function App() {
                 currentNode.type === "dynamic" &&
                 currentNode.data.widgets
               ) {
-                const updatedWidgets = (
-                  currentNode.data.widgets as WidgetDef[]
-                ).map((w) =>
+                const updatedWidgets = currentNode.data.widgets.map((w) =>
                   w.id === targetWidgetId ? { ...w, value: currentBuffer } : w,
                 );
                 store.updateNodeData(nodeId, { widgets: updatedWidgets });
               }
             });
           } else if (val.startsWith("task:")) {
-            const taskType = val.split(":")[1];
+            const taskType = val.split(":")[1] ?? "";
             const taskId = uuidv4();
             const position = {
               x: node.position.x + 300,
@@ -285,13 +303,19 @@ function App() {
               type: "processing",
               position,
               data: {
-                label: `Running ${taskType}...`,
+                label: `Running ${taskType ?? ""}...`,
                 taskId,
-                onCancel: (tid: string) => cancelTask(tid),
+                onCancel: (tid: string) => {
+                  cancelTask(tid);
+                },
               },
             } as AppNode;
             addNodeToStore(placeholderNode);
-            useTaskStore.getState().registerTask(taskId);
+            useTaskStore.getState().registerTask({
+              taskId,
+              label: `Running ${taskType ?? ""}...`,
+              source: MutationSource.REMOTE_TASK,
+            });
             executeTask(taskId, taskType, { sourceNodeId: nodeId });
           }
         }
@@ -334,11 +358,12 @@ function App() {
       "dynamic",
       {
         ...template.defaultData,
-        typeId: template.id,
-        onChange: (id: string, data: Partial<AppNode["data"]>) =>
-          updateNodeData(id, data),
+        onChange: (id: string, data: Partial<AppNode["data"]>) => {
+          updateNodeData(id, data);
+        },
       },
       position,
+      template.id,
     );
   };
 
@@ -348,7 +373,7 @@ function App() {
       x: contextMenu.x,
       y: contextMenu.y,
     });
-    const mediaType = contextMenu.galleryItemType || MediaType.MEDIA_IMAGE;
+    const mediaType = contextMenu.galleryItemType ?? MediaType.MEDIA_IMAGE;
     const newNodeId = uuidv4();
     const newNode: AppNode = {
       id: newNodeId,
@@ -359,19 +384,20 @@ function App() {
         modes: [RenderMode.MODE_MEDIA],
         activeMode: RenderMode.MODE_MEDIA,
         media: { type: mediaType, url, aspectRatio: 1, galleryUrls: [] },
-        onChange: (id: string, data: Partial<AppNode["data"]>) =>
-          updateNodeData(id, data),
+        onChange: (id: string, data: Partial<AppNode["data"]>) => {
+          updateNodeData(id, data);
+        },
       },
     } as AppNode;
     addNodeToStore(newNode);
-    closeContextMenu();
+    closeContextMenuAndClear();
   };
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Toaster />
       <Notifications />
-      <ReactFlow<AppNode, Edge>
+      <ReactFlow<AppNode>
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -404,12 +430,12 @@ function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onClose={closeContextMenu}
+          onClose={closeContextMenuAndClear}
           onDelete={
             contextMenu.nodeId
               ? () => {
                   deleteNode(contextMenu.nodeId!);
-                  closeContextMenu();
+                  closeContextMenuAndClear();
                 }
               : undefined
           }
@@ -417,7 +443,7 @@ function App() {
             contextMenu.edgeId
               ? () => {
                   deleteEdge(contextMenu.edgeId!);
-                  closeContextMenu();
+                  closeContextMenuAndClear();
                 }
               : undefined
           }
@@ -429,21 +455,31 @@ function App() {
                 y: contextMenu.y,
               }),
             );
-            closeContextMenu();
+            closeContextMenuAndClear();
           }}
           onDuplicate={duplicateSelected}
           dynamicActions={availableActions.map((action) => ({
-            id: action.id!,
-            name: action.label!,
-            onClick: () => handleExecuteAction(action),
+            id: action.id ?? "",
+            name: action.label ?? "Action",
+            onClick: () => {
+              handleExecuteAction(action);
+            },
           }))}
           onToggleTheme={toggleTheme}
           templates={templates}
           onAddNode={handleAddNodeFromTemplate}
           onAutoLayout={() => {
             autoLayout();
-            closeContextMenu();
+            closeContextMenuAndClear();
           }}
+          onGroupSelected={
+            nodes.filter((n) => n.selected).length >= 2
+              ? () => {
+                  groupSelected();
+                  closeContextMenuAndClear();
+                }
+              : undefined
+          }
           onGalleryAction={handleCreateFromGallery}
           galleryItemUrl={contextMenu.galleryItemUrl}
           isPaneMenu={!contextMenu.nodeId && !contextMenu.edgeId}
@@ -452,26 +488,36 @@ function App() {
       <StatusPanel
         status={`Connected (Mock WS) - ${theme}`}
         url={wsUrl}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          setIsModalOpen(true);
+        }}
       />
       {isModalOpen && (
         <EditUrlModal
           currentUrl={wsUrl}
-          onClose={() => setIsModalOpen(false)}
-          onSave={(newUrl) => setWsUrl(newUrl)}
+          onClose={() => {
+            setIsModalOpen(false);
+          }}
+          onSave={(newUrl) => {
+            setWsUrl(newUrl);
+          }}
         />
       )}
-      {previewData && (
+      {previewData && nodes.find((n) => n.id === previewData.nodeId) && (
         <MediaPreview
-          node={nodes.find((n) => n.id === previewData.nodeId)!}
+          node={nodes.find((n) => n.id === previewData.nodeId) ?? nodes[0]}
           initialIndex={previewData.index}
-          onClose={() => setPreviewData(null)}
+          onClose={() => {
+            setPreviewData(null);
+          }}
         />
       )}
-      {activeEditorId && (
+      {activeEditorId && nodes.find((n) => n.id === activeEditorId) && (
         <EditorPlaceholder
-          node={nodes.find((n) => n.id === activeEditorId)!}
-          onClose={() => setActiveEditorId(null)}
+          node={nodes.find((n) => n.id === activeEditorId) ?? nodes[0]}
+          onClose={() => {
+            setActiveEditorId(null);
+          }}
         />
       )}
       <TaskHistoryDrawer />

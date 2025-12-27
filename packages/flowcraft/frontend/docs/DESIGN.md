@@ -57,9 +57,12 @@ The frontend communicates with the backend via a single unified "Envelope" proto
 - **Incremental Mutations**: Updates are sent as atomic operations (`addNode`, `updateNode`, `removeNode`, `addEdge`).
 - **State Hydration**: Uses `nodeUtils.ts` to re-attach complex client-side behavior to raw Protobuf data objects.
 
-### Event Bus (Zustand)
+### State Management & Synchronization
 
-Centeralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. Uses a `timestamp` approach to prevent cascading renders in React 19.
+- **`flowStore` (Zustand + Yjs)**: The central store that manages both the UI state (React Flow nodes/edges) and the collaborative state (`Y.Doc`).
+  - It handles the synchronization between the local Zustand store and the shared Yjs document.
+  - It directly applies graph mutations to the Yjs document to ensure consistency.
+- **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. Uses a `timestamp` approach to prevent cascading renders in React 19.
 
 ### Task System & Optimistic UI
 

@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
-import { flowcraft } from "../generated/flowcraft";
-import type { NodeTemplate, AppNode, TaskDefinition } from "../types";
-import { MediaType, MutationSource, TaskStatus } from "../types";
+import { flowcraft_proto } from "../generated/flowcraft_proto";
+import type {
+  NodeTemplate,
+  AppNode,
+  TaskDefinition,
+  MediaType,
+} from "../types";
+import { MutationSource, TaskStatus } from "../types";
 import { useFlowStore } from "../store/flowStore";
-import { hydrateNodes } from "../utils/nodeUtils";
 import { useTaskStore } from "../store/taskStore";
 import { socketClient } from "../utils/SocketClient";
-import { ProtoAdapter } from "../utils/protoAdapter";
+import { fromProtoGraph, fromProtoNode } from "../utils/protoAdapter";
 
 export const useMockSocket = (config?: { disablePolling?: boolean }) => {
   const {
@@ -16,6 +20,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     setGraph,
     ydoc,
     applyYjsUpdate,
+    registerNodeHandlers,
   } = useFlowStore((state) => ({
     updateNodeData: state.updateNodeData,
     dispatchNodeEvent: state.dispatchNodeEvent,
@@ -23,6 +28,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     setGraph: state.setGraph,
     ydoc: state.ydoc,
     applyYjsUpdate: state.applyYjsUpdate,
+    registerNodeHandlers: state.registerNodeHandlers,
   }));
 
   const { updateTask } = useTaskStore();
@@ -30,10 +36,12 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
 
   const nodeHandlers = useMemo(
     () => ({
-      onChange: (id: string, d: Record<string, unknown>) =>
-        updateNodeData(id, d),
-      onWidgetClick: (nodeId: string, widgetId: string) =>
-        dispatchNodeEvent("widget-click", { nodeId, widgetId }),
+      onChange: (id: string, d: Record<string, unknown>) => {
+        updateNodeData(id, d);
+      },
+      onWidgetClick: (nodeId: string, widgetId: string) => {
+        dispatchNodeEvent("widget-click", { nodeId, widgetId });
+      },
       onGalleryItemContext: (
         nodeId: string,
         url: string,
@@ -47,10 +55,15 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     [updateNodeData, dispatchNodeEvent],
   );
 
+  // Register handlers so the store can hydrate nodes from Yjs
   useEffect(() => {
-    const onSnapshot = (snapshot: flowcraft.v1.IGraphSnapshot) => {
-      const { nodes, edges } = ProtoAdapter.fromProtoGraph(snapshot);
-      const hydratedNodes = hydrateNodes(nodes, nodeHandlers);
+    registerNodeHandlers(nodeHandlers);
+  }, [nodeHandlers, registerNodeHandlers]);
+
+  useEffect(() => {
+    const onSnapshot = (snapshot: flowcraft_proto.v1.IGraphSnapshot) => {
+      // Convert Proto -> AppNode (plain objects)
+      const { nodes, edges } = fromProtoGraph(snapshot);
 
       const taskId = "initial-sync";
       useTaskStore.getState().registerTask({
@@ -60,32 +73,33 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
         status: TaskStatus.TASK_COMPLETED,
       });
 
-      setGraph({ nodes: hydratedNodes, edges }, Number(snapshot.version || 0));
+      // Pass plain nodes to store. Store will dehydrate them into Yjs.
+      // Then syncFromYjs will read them back and hydrate them using registered handlers.
+      setGraph({ nodes, edges }, Number(snapshot.version ?? 0));
     };
 
     const onYjsUpdate = (update: Uint8Array) => {
       applyYjsUpdate(update);
     };
 
-    const onMutations = (mutations: flowcraft.v1.IGraphMutation[]) => {
+    const onMutations = (mutations: flowcraft_proto.v1.IGraphMutation[]) => {
       const processed = mutations.map((m) => {
         const cloned = { ...m };
         if (cloned.addNode?.node) {
-          const appNode = ProtoAdapter.fromProtoNode(cloned.addNode.node);
-          cloned.addNode.node = hydrateNodes(
-            [appNode],
-            nodeHandlers,
-          )[0] as flowcraft.v1.INode;
+          // Convert INode -> AppNode (plain object)
+          const appNode = fromProtoNode(cloned.addNode.node);
+          // We must cast to INode to satisfy the strict Protobuf type,
+          // even though it's actually an AppNode now.
+          // The store expects AppNode properties (like 'id') inside.
+          cloned.addNode.node = appNode as unknown as flowcraft_proto.v1.INode;
         }
         if (cloned.addSubgraph) {
           if (cloned.addSubgraph.nodes) {
             const appNodes = cloned.addSubgraph.nodes.map((n) =>
-              ProtoAdapter.fromProtoNode(n),
+              fromProtoNode(n),
             );
-            cloned.addSubgraph.nodes = hydrateNodes(
-              appNodes,
-              nodeHandlers,
-            ) as flowcraft.v1.INode[];
+            cloned.addSubgraph.nodes =
+              appNodes as unknown as flowcraft_proto.v1.INode[];
           }
         }
         return cloned;
@@ -108,7 +122,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
 
     const handleLocalUpdate = (update: Uint8Array, origin: unknown) => {
       if (origin === "local") {
-        socketClient.send({ yjsUpdate: update });
+        void socketClient.send({ yjsUpdate: update });
       }
     };
     ydoc.on("update", handleLocalUpdate);
@@ -120,31 +134,32 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
       socketClient.off("taskUpdate", onTaskUpdate);
       ydoc.off("update", handleLocalUpdate);
     };
-  }, [
-    setGraph,
-    applyMutations,
-    updateTask,
-    nodeHandlers,
-    ydoc,
-    applyYjsUpdate,
-  ]);
+  }, [setGraph, applyMutations, updateTask, ydoc, applyYjsUpdate]);
 
   useEffect(() => {
     if (config?.disablePolling) return;
     fetch("/api/node-templates")
       .then((r) => r.json())
-      .then((data) => setTemplates(data));
+      .then((data) => {
+        setTemplates(data as NodeTemplate[]);
+      })
+      .catch(() => {
+        // ignore error
+      });
 
-    socketClient.send({ syncRequest: { graphId: "main" } });
+    void socketClient.send({ syncRequest: { graphId: "main" } });
   }, [config?.disablePolling]);
 
   const sendNodeUpdate = (nodeId: string, data: Partial<AppNode["data"]>) =>
-    socketClient.send({
-      nodeUpdate: { nodeId, data: data as unknown as flowcraft.v1.INodeData },
+    void socketClient.send({
+      nodeUpdate: {
+        nodeId,
+        data: data as unknown as flowcraft_proto.v1.INodeData,
+      },
     });
 
   const sendWidgetUpdate = (nodeId: string, widgetId: string, value: unknown) =>
-    socketClient.send({
+    void socketClient.send({
       widgetUpdate: { nodeId, widgetId, valueJson: JSON.stringify(value) },
     });
 
@@ -154,7 +169,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     onChunk: (c: string) => void,
   ) => {
     socketClient.registerStreamHandler(nodeId, widgetId, onChunk);
-    socketClient.send({
+    void socketClient.send({
       actionExecute: { actionId: "stream", sourceNodeId: nodeId },
     });
   };
@@ -164,7 +179,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     type: string,
     params: { sourceNodeId: string },
   ) => {
-    socketClient.send({
+    void socketClient.send({
       actionExecute: {
         actionId: type,
         sourceNodeId: params.sourceNodeId,
@@ -174,7 +189,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
   };
 
   const cancelTask = (taskId: string) =>
-    socketClient.send({ taskCancel: { taskId } });
+    void socketClient.send({ taskCancel: { taskId } });
 
   const fetchWidgetOptions = async (nodeId: string, widgetId: string) => {
     try {
@@ -189,7 +204,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     }
   };
 
-  const executeAction = async (actionId: string, sourceNodeId: string) => {
+  const executeAction = async (actionId: string, sourceNodeId: string): Promise<{ type: string }> => {
     await socketClient.send({ actionExecute: { actionId, sourceNodeId } });
     return { type: "immediate" };
   };
@@ -201,8 +216,10 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nodeId }),
       });
-      const data = await res.json();
-      return data.actions as flowcraft.v1.IActionTemplate[];
+      const data = (await res.json()) as {
+        actions: flowcraft_proto.v1.IActionTemplate[];
+      };
+      return data.actions;
     } catch {
       return [];
     }

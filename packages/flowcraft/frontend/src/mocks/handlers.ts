@@ -3,7 +3,7 @@ import { nodeTemplates, actionTemplates } from "./templates";
 import { generateGallery } from "./generators";
 import { setServerNodes, setServerEdges } from "./db";
 import { handleWSMessage } from "./wsLogic";
-import { flowcraft } from "../generated/flowcraft";
+import { flowcraft_proto } from "../generated/flowcraft_proto";
 
 // --- Initialize State ---
 const gallery = generateGallery();
@@ -23,7 +23,7 @@ export const handlers = [
 
   // 3. Unified WebSocket Protocol (Stream over HTTP)
   http.post("/api/ws", async ({ request }) => {
-    const clientMsg = (await request.json()) as flowcraft.v1.IFlowMessage;
+    const clientMsg = (await request.json()) as flowcraft_proto.v1.IFlowMessage;
 
     const stream = new ReadableStream({
       async start(controller) {

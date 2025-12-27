@@ -17,12 +17,15 @@ interface NotificationState {
 
 export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: [],
-  addNotification: (notification) =>
+  addNotification: (notification) => {
     set((state) => ({
       notifications: [
         ...state.notifications,
         { ...notification, id: Date.now(), timestamp: new Date() },
       ],
-    })),
-  clearNotifications: () => set({ notifications: [] }),
+    }));
+  },
+  clearNotifications: () => {
+    set({ notifications: [] });
+  },
 }));

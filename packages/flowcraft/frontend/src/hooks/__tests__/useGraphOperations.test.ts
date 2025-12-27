@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
-import { flowcraft } from "../../generated/flowcraft";
+import { flowcraft_proto } from "../../generated/flowcraft_proto";
 
 // Mock the store
 vi.mock("../../store/flowStore", () => ({
@@ -47,13 +47,14 @@ describe("useGraphOperations - Auto Layout", () => {
     result.current.autoLayout();
 
     expect(mockApplyMutations).toHaveBeenCalled();
-    const mutations = mockApplyMutations.mock.calls[0][0];
+    const mutations = (mockApplyMutations as vi.Mock).mock
+      .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
 
     const firstUpdate = mutations.find(
-      (m: flowcraft.v1.IGraphMutation) => m.updateNode?.id === "1",
+      (m: flowcraft_proto.v1.IGraphMutation) => m.updateNode?.id === "1",
     );
-    expect(firstUpdate.updateNode).toHaveProperty("width", 200);
-    expect(firstUpdate.updateNode).toHaveProperty("height", 100);
+    expect(firstUpdate?.updateNode).toHaveProperty("width", 200);
+    expect(firstUpdate?.updateNode).toHaveProperty("height", 100);
   });
 
   it("should use fallback dimensions if measured is missing", () => {
@@ -70,9 +71,10 @@ describe("useGraphOperations - Auto Layout", () => {
     );
     result.current.autoLayout();
 
-    const mutations = mockApplyMutations.mock.calls[0][0];
-    const update = mutations[0].updateNode;
-    expect(update.width).toBe(300);
-    expect(update.height).toBe(200);
+    const mutations = (mockApplyMutations as vi.Mock).mock
+      .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
+    const update = mutations[0]?.updateNode;
+    expect(update?.width).toBe(300);
+    expect(update?.height).toBe(200);
   });
 });

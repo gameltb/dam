@@ -1,19 +1,21 @@
 import React from "react";
 import { Handle as ReactFlowHandle, Position, useStore } from "@xyflow/react";
 import {
-  PortStyle,
   isDynamicNode,
-  type flowcraft,
   type AppNode,
+  type PortStyle as PortStyleType,
 } from "../../types";
+import { flowcraft_proto } from "../../generated/flowcraft_proto";
 import { getValidator } from "../../utils/portValidators";
 import { useFlowStore } from "../../store/flowStore";
+
+const PortStyle = flowcraft_proto.v1.PortStyle;
 
 interface PortHandleProps {
   nodeId: string;
   portId: string;
   type: "source" | "target";
-  style?: PortStyle;
+  style?: PortStyleType;
   mainType?: string;
   itemType?: string;
   isGeneric?: boolean;
@@ -24,7 +26,7 @@ interface PortHandleProps {
 }
 
 const PortIcon: React.FC<{
-  style: PortStyle;
+  style: PortStyleType;
   mainType?: string;
   color: string;
   isConnected: boolean;
@@ -160,13 +162,16 @@ export const PortHandle: React.FC<PortHandleProps> = ({
     else {
       const sourceNode = nodes.find((n) => n.id === activeConnection.nodeId);
       if (sourceNode && isDynamicNode(sourceNode as AppNode)) {
-        const data = (sourceNode as AppNode).data as flowcraft.v1.INodeData;
+        const dynamicSourceNode = sourceNode as AppNode;
+        const data = dynamicSourceNode.data as
+          | flowcraft_proto.v1.INodeData
+          | undefined;
         const sourcePort =
-          data.outputPorts?.find((p) => p.id === activeConnection.handleId) ||
-          data.inputPorts?.find((p) => p.id === activeConnection.handleId);
+          data?.outputPorts?.find((p) => p.id === activeConnection.handleId) ??
+          data?.inputPorts?.find((p) => p.id === activeConnection.handleId);
 
-        if (sourcePort) {
-          const typeCompatible = validator.canAccept(sourcePort.type!, {
+        if (sourcePort?.type) {
+          const typeCompatible = validator.canAccept(sourcePort.type, {
             mainType,
             itemType,
             isGeneric,
@@ -185,7 +190,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   const isConnectable =
     !isInvalidTarget && (!isLeft || inputCount < validator.getMaxInputs());
 
-  const tooltip = `Type: ${mainType || "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description || ""}`;
+  const tooltip = `Type: ${mainType ?? "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
 
   return (
     <ReactFlowHandle

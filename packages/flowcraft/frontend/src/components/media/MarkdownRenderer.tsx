@@ -29,7 +29,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <textarea
         autoFocus
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
+        onChange={(e) => {
+          setLocalValue(e.target.value);
+        }}
         onBlur={handleBlur}
         style={{
           width: "100%",

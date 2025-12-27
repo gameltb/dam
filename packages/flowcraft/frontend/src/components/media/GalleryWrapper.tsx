@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFlowStore } from "../../store/flowStore";
-import { MediaType } from "../../types";
+import type { MediaType } from "../../types";
 
 interface GalleryWrapperProps {
   id: string;
@@ -141,7 +141,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
           }}
           title={isExpanded ? "Collapse Gallery" : "Expand Gallery"}
         >
-          {isExpanded ? "✕" : `+${gallery.length}`}
+          {isExpanded ? "✕" : `+${String(gallery.length)}`}
         </div>
       )}
 
@@ -172,7 +172,9 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
               {rowItems.map((url, imgIndex) => (
                 <div
                   key={imgIndex}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -185,8 +187,8 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
                     );
                   }}
                   style={{
-                    width: `${nodeWidth}px`,
-                    height: `${nodeHeight}px`,
+                    width: `${String(nodeWidth)}px`,
+                    height: `${String(nodeHeight)}px`,
                     border: "1px solid rgba(255,255,255,0.2)",
                     borderRadius: "5px",
                     overflow: "hidden",

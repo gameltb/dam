@@ -36,9 +36,9 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
         ...state.tasks,
         [task.taskId]: {
           taskId: task.taskId,
-          type: task.type || "generic",
-          label: task.label || "New Task",
-          source: task.source || MutationSource.SYSTEM,
+          type: task.type ?? "generic",
+          label: task.label ?? "New Task",
+          source: task.source ?? MutationSource.SYSTEM,
           status: TaskStatus.TASK_PENDING,
           progress: 0,
           message: "Initialized",
@@ -95,6 +95,10 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
     });
   },
 
-  setDrawerOpen: (isDrawerOpen) => set({ isDrawerOpen }),
-  setSelectedTaskId: (selectedTaskId) => set({ selectedTaskId }),
+  setDrawerOpen: (isDrawerOpen) => {
+    set({ isDrawerOpen });
+  },
+  setSelectedTaskId: (selectedTaskId) => {
+    set({ selectedTaskId });
+  },
 }));

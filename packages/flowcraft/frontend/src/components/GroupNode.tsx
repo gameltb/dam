@@ -43,7 +43,7 @@ const GroupNode = ({ selected, data, id }: NodeProps<GroupNodeType>) => {
           color: isDark ? "#aaa" : "#666",
         }}
       >
-        {data.label || `Group ${id.slice(0, 4)}`}
+        {data.label ?? `Group ${id.slice(0, 4)}`}
       </div>
     </div>
   );

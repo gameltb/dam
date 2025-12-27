@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package flowcraft.v1;
+package flowcraft_proto.v1;
 
 import "base.proto";
 import "widget.proto";
@@ -23,12 +23,14 @@ message FlowMessage {
     UpdateNodeRequest node_update = 12;
     UpdateWidgetRequest widget_update = 13;
     ActionExecutionRequest action_execute = 14;
+    ActionDiscoveryRequest action_discovery = 17;
     TaskCancelRequest task_cancel = 15;
     ViewportUpdate viewport_update = 16;
 
     // --- Server -> Client ---
     GraphSnapshot snapshot = 20;
     MutationList mutations = 21;
+    ActionDiscoveryResponse actions = 25;
     TaskUpdate task_update = 22;
     StreamChunk stream_chunk = 23;
     ErrorResponse error = 24;

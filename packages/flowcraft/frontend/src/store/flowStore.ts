@@ -8,15 +8,29 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react";
-import { type AppNode, MutationSource } from "../types";
-import { flowcraft } from "../generated/flowcraft";
+import { type AppNode, MutationSource, type DynamicNodeData } from "../types";
+import { flowcraft_proto } from "../generated/flowcraft_proto";
 import { useTaskStore } from "./taskStore";
 import * as Y from "yjs";
+import { ydoc, yNodes, yEdges } from "./yjsInstance";
+import { hydrateNodes, dehydrateNode } from "../utils/nodeUtils";
 
 export interface MutationContext {
   taskId?: string;
   source?: MutationSource;
   description?: string;
+}
+
+export interface NodeHandlers {
+  onChange: (id: string, data: Record<string, unknown>) => void;
+  onWidgetClick?: (nodeId: string, widgetId: string) => void;
+  onGalleryItemContext?: (
+    nodeId: string,
+    url: string,
+    mediaType: flowcraft_proto.v1.MediaType,
+    x: number,
+    y: number,
+  ) => void;
 }
 
 export interface RFState {
@@ -27,6 +41,10 @@ export interface RFState {
   ydoc: Y.Doc;
   yNodes: Y.Map<unknown>;
   yEdges: Y.Map<unknown>;
+
+  // Handlers for hydration
+  nodeHandlers: NodeHandlers | null;
+  registerNodeHandlers: (handlers: NodeHandlers) => void;
 
   lastNodeEvent: {
     type: string;
@@ -43,8 +61,11 @@ export interface RFState {
     graph: { nodes: AppNode[]; edges: Edge[] },
     version: number,
   ) => void;
+  addNode: (node: AppNode) => void;
+  updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
+
   applyMutations: (
-    mutations: flowcraft.v1.IGraphMutation[],
+    mutations: flowcraft_proto.v1.IGraphMutation[],
     context?: MutationContext,
   ) => void;
   applyYjsUpdate: (update: Uint8Array) => void;
@@ -63,167 +84,236 @@ export interface RFState {
   ) => void;
 }
 
-// Fixed references to ensure hooks never lose the context
-const _ydoc = new Y.Doc();
-const _yNodes = _ydoc.getMap("nodes");
-const _yEdges = _ydoc.getMap("edges");
-
 const useStore = create(
   temporal<RFState>(
-    (set, get) => ({
-      nodes: [],
-      edges: [],
-      version: 0,
-      ydoc: _ydoc,
-      yNodes: _yNodes,
-      yEdges: _yEdges,
-      lastNodeEvent: null,
-      dispatchNodeEvent: (type, payload) => {
-        set({ lastNodeEvent: { type, payload, timestamp: Date.now() } });
-      },
-      syncFromYjs: () => {
-        const nodes: AppNode[] = [];
-        _yNodes.forEach((v) => nodes.push(v as AppNode));
-        const edges: Edge[] = [];
-        _yEdges.forEach((v) => edges.push(v as Edge));
-        set({ nodes, edges, version: get().version + 1 });
-      },
-      applyYjsUpdate: (update) => {
-        Y.applyUpdate(_ydoc, update, "remote");
-        get().syncFromYjs();
-      },
-      applyMutations: (mutations, context) => {
-        const taskId = context?.taskId || "manual-interaction";
-        if (!useTaskStore.getState().tasks[taskId]) {
-          useTaskStore.getState().registerTask({
-            taskId,
-            label: context?.description || "Action",
-            source: context?.source || MutationSource.USER,
-          });
-        }
-        useTaskStore.getState().logMutation({
-          taskId,
-          source: context?.source || MutationSource.USER,
-          description: context?.description || "Applied",
-          mutations,
-        });
+    (set, get) => {
+      // Setup observers for granular updates
+      yNodes.observe((event) => {
+        // If the change came from our own local sync or an undo/redo,
+        // we don't need to update Zustand again (it's already done or will be done)
+        if (
+          event.transaction.origin === "zustand-sync" ||
+          event.transaction.origin === "undo-redo"
+        )
+          return;
 
-        _ydoc.transact(() => {
-          mutations.forEach((mut) => {
-            if (mut.addNode?.node) {
-              _yNodes.set(
-                mut.addNode.node.id!,
-                mut.addNode.node as flowcraft.v1.INode,
-              );
-            } else if (mut.updateNode) {
-              const id = mut.updateNode.id!;
-              const existing = _yNodes.get(id) as AppNode;
-              if (existing) {
-                const updated = { ...existing };
-                if (mut.updateNode.position) {
-                  updated.position = {
-                    x: mut.updateNode.position.x ?? updated.position.x,
-                    y: mut.updateNode.position.y ?? updated.position.y,
-                  };
+        get().syncFromYjs();
+      });
+
+      yEdges.observe((event) => {
+        if (
+          event.transaction.origin === "zustand-sync" ||
+          event.transaction.origin === "undo-redo"
+        )
+          return;
+
+        get().syncFromYjs();
+      });
+
+      return {
+        nodes: [],
+        edges: [],
+        version: 0,
+        ydoc: ydoc,
+        yNodes: yNodes,
+        yEdges: yEdges,
+        nodeHandlers: null,
+        lastNodeEvent: null,
+
+        registerNodeHandlers: (handlers) => {
+          set({ nodeHandlers: handlers });
+          // Trigger a re-sync to apply handlers to existing nodes
+          get().syncFromYjs();
+        },
+
+        dispatchNodeEvent: (type, payload) => {
+          set({ lastNodeEvent: { type, payload, timestamp: Date.now() } });
+        },
+
+        syncFromYjs: () => {
+          const rawNodes: AppNode[] = [];
+          yNodes.forEach((v) => rawNodes.push(v as AppNode));
+
+          // Apply hydration if handlers are available
+          const handlers = get().nodeHandlers;
+          const nodes = handlers ? hydrateNodes(rawNodes, handlers) : rawNodes;
+
+          const edges: Edge[] = [];
+          yEdges.forEach((v) => edges.push(v as Edge));
+          set({ nodes, edges, version: get().version + 1 });
+        },
+
+        applyYjsUpdate: (update) => {
+          Y.applyUpdate(ydoc, update, "remote");
+          // remote updates will be caught by the observer and update Zustand
+        },
+
+        updateNodeData: (id, data) => {
+          ydoc.transact(() => {
+            const existing = yNodes.get(id) as AppNode | undefined;
+            if (existing) {
+              const updated = {
+                ...existing,
+                data: { ...existing.data, ...data },
+              } as AppNode;
+              yNodes.set(id, dehydrateNode(updated));
+            }
+          }, "zustand-sync");
+          get().syncFromYjs();
+        },
+
+        applyMutations: (mutations, context) => {
+          const taskId = context?.taskId ?? "manual-interaction";
+          if (!useTaskStore.getState().tasks[taskId]) {
+            useTaskStore.getState().registerTask({
+              taskId,
+              label: context?.description ?? "Action",
+              source: context?.source ?? MutationSource.USER,
+            });
+          }
+          useTaskStore.getState().logMutation({
+            taskId,
+            source: context?.source ?? MutationSource.USER,
+            description: context?.description ?? "Applied",
+            mutations,
+          });
+
+          ydoc.transact(() => {
+            mutations.forEach((mut) => {
+              if (mut.addNode?.node) {
+                const node = mut.addNode.node;
+                if (node.id) {
+                  // Incoming mutations usually don't have handlers yet, but dehydrate just in case
+                  yNodes.set(node.id, dehydrateNode(node as AppNode));
                 }
-                if (mut.updateNode.width || mut.updateNode.height) {
-                  updated.measured = {
-                    width: mut.updateNode.width ?? updated.measured?.width ?? 0,
-                    height:
-                      mut.updateNode.height ?? updated.measured?.height ?? 0,
-                  };
+              } else if (mut.updateNode) {
+                const id = mut.updateNode.id;
+                if (!id) return;
+                const existing = yNodes.get(id) as AppNode | undefined;
+                if (existing) {
+                  const updated = { ...existing } as AppNode;
+                  if (mut.updateNode.position) {
+                    updated.position = {
+                      x: mut.updateNode.position.x ?? updated.position.x,
+                      y: mut.updateNode.position.y ?? updated.position.y,
+                    };
+                  }
+                  if (mut.updateNode.width || mut.updateNode.height) {
+                    updated.measured = {
+                      width:
+                        mut.updateNode.width ?? updated.measured?.width ?? 0,
+                      height:
+                        mut.updateNode.height ?? updated.measured?.height ?? 0,
+                    };
+                  }
+                  if (mut.updateNode.data) {
+                    updated.data = {
+                      ...updated.data,
+                      ...(mut.updateNode.data as Record<string, unknown>),
+                    };
+                  }
+                  yNodes.set(id, dehydrateNode(updated));
                 }
-                if (mut.updateNode.data) {
-                  updated.data = {
-                    ...updated.data,
-                    ...(mut.updateNode.data as Record<string, unknown>),
-                  };
-                }
-                _yNodes.set(id, updated);
+              } else if (mut.removeNode?.id) {
+                yNodes.delete(mut.removeNode.id);
+              } else if (mut.addEdge?.edge?.id) {
+                yEdges.set(mut.addEdge.edge.id, mut.addEdge.edge as Edge);
+              } else if (mut.removeEdge?.id) {
+                yEdges.delete(mut.removeEdge.id);
+              } else if (mut.addSubgraph) {
+                mut.addSubgraph.nodes?.forEach((n) => {
+                  if (n.id) yNodes.set(n.id, dehydrateNode(n as AppNode));
+                });
+                mut.addSubgraph.edges?.forEach((e) => {
+                  if (e.id) yEdges.set(e.id, JSON.parse(JSON.stringify(e)));
+                });
+              } else if (mut.clearGraph) {
+                yNodes.clear();
+                yEdges.clear();
               }
-            } else if (mut.removeNode) {
-              _yNodes.delete(mut.removeNode.id!);
-            } else if (mut.addEdge?.edge) {
-              _yEdges.set(mut.addEdge.edge.id!, mut.addEdge.edge as Edge);
-            } else if (mut.removeEdge) {
-              _yEdges.delete(mut.removeEdge.id!);
-            } else if (mut.addSubgraph) {
-              mut.addSubgraph.nodes?.forEach((n) => {
-                if (n.id) _yNodes.set(n.id, JSON.parse(JSON.stringify(n)));
-              });
-              mut.addSubgraph.edges?.forEach((e) => {
-                if (e.id) _yEdges.set(e.id, JSON.parse(JSON.stringify(e)));
-              });
-            } else if (mut.clearGraph) {
-              _yNodes.clear();
-              _yEdges.clear();
-            }
-          });
-        });
-        get().syncFromYjs();
-      },
-      onNodesChange: (changes) => {
-        const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
-        _ydoc.transact(() => {
-          changes.forEach((c) => {
-            if (
-              c.type === "position" ||
-              c.type === "dimensions" ||
-              c.type === "select"
-            ) {
-              const n = nextNodes.find((node) => node.id === c.id);
-              if (n) _yNodes.set(n.id, n);
-            } else if (c.type === "remove") _yNodes.delete(c.id);
-          });
-        });
-        get().syncFromYjs();
-      },
-      onEdgesChange: (changes) => {
-        const nextEdges = applyEdgeChanges(changes, get().edges);
-        _ydoc.transact(() => {
-          changes.forEach((c) => {
-            if (c.type === "remove") _yEdges.delete(c.id);
-            else if (c.type === "select") {
-              const e = nextEdges.find((edge) => edge.id === c.id);
-              if (e) _yEdges.set(e.id, e);
-            }
-          });
-        });
-        get().syncFromYjs();
-      },
-      onConnect: (connection) => {
-        const newEdge = { ...connection, id: `e${Date.now()}` } as Edge;
-        _yEdges.set(newEdge.id, newEdge);
-        get().syncFromYjs();
-      },
-      setGraph: (graph, version) => {
-        _ydoc.transact(() => {
-          _yNodes.clear();
-          _yEdges.clear();
-          graph.nodes.forEach((n) => _yNodes.set(n.id, n));
-          graph.edges.forEach((e) => _yEdges.set(e.id, e));
-        });
-        set({ version });
-        get().syncFromYjs();
-      },
-      resetStore: () => {
-        _ydoc.transact(() => {
-          _yNodes.clear();
-          _yEdges.clear();
-        });
-        set({ nodes: [], edges: [], version: 0 });
-      },
-      clipboard: null,
-      setClipboard: (c) => set({ clipboard: c }),
-      connectionStartHandle: null,
-      setConnectionStartHandle: (h) => set({ connectionStartHandle: h }),
-    }),
+            });
+          }, "zustand-sync");
+          // Since observer ignores "zustand-sync", we must sync Zustand manually
+          get().syncFromYjs();
+        },
+        onNodesChange: (changes) => {
+          const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
+          ydoc.transact(() => {
+            changes.forEach((c) => {
+              if (
+                c.type === "position" ||
+                c.type === "dimensions" ||
+                c.type === "select"
+              ) {
+                const n = nextNodes.find((node) => node.id === c.id);
+                if (n) yNodes.set(n.id, dehydrateNode(n));
+              } else if (c.type === "remove") yNodes.delete(c.id);
+            });
+          }, "zustand-sync");
+          get().syncFromYjs();
+        },
+        onEdgesChange: (changes) => {
+          const nextEdges = applyEdgeChanges(changes, get().edges);
+          ydoc.transact(() => {
+            changes.forEach((c) => {
+              if (c.type === "remove") yEdges.delete(c.id);
+              else if (c.type === "select") {
+                const e = nextEdges.find((edge) => edge.id === c.id);
+                if (e) yEdges.set(e.id, e);
+              }
+            });
+          }, "zustand-sync");
+          get().syncFromYjs();
+        },
+        onConnect: (connection) => {
+          const newEdge = {
+            ...connection,
+            id: `e${String(Date.now())}`,
+          } as Edge;
+          ydoc.transact(() => {
+            yEdges.set(newEdge.id, newEdge);
+          }, "zustand-sync");
+          get().syncFromYjs();
+        },
+        setGraph: (graph, version) => {
+          ydoc.transact(() => {
+            yNodes.clear();
+            yEdges.clear();
+            graph.nodes.forEach((n) => yNodes.set(n.id, dehydrateNode(n)));
+            graph.edges.forEach((e) => yEdges.set(e.id, e));
+          }, "zustand-sync");
+          set({ version });
+          get().syncFromYjs();
+        },
+        addNode: (node) => {
+          ydoc.transact(() => {
+            yNodes.set(node.id, dehydrateNode(node));
+          }, "zustand-sync");
+          get().syncFromYjs();
+        },
+        resetStore: () => {
+          ydoc.transact(() => {
+            yNodes.clear();
+            yEdges.clear();
+          }, "zustand-sync");
+          set({ nodes: [], edges: [], version: 0 });
+        },
+        clipboard: null,
+        setClipboard: (c) => {
+          set({ clipboard: c });
+        },
+        connectionStartHandle: null,
+        setConnectionStartHandle: (h) => {
+          set({ connectionStartHandle: h });
+        },
+      };
+    },
     {
       partialize: (state) => {
         const { nodes, edges, version } = state;
         return { nodes, edges, version } as RFState;
       },
-      equality: (a, b) => (a as RFState).version === (b as RFState).version,
+      equality: (a, b) => a.version === b.version,
     },
   ),
 );
@@ -233,11 +323,12 @@ useStore.temporal.subscribe(() => {
   // If we are performing an undo or redo (state is from the past/future)
   // We need to sync the restored Zustand state back to Yjs
   const current = useStore.getState();
-  _ydoc.transact(() => {
-    _yNodes.clear();
-    _yEdges.clear();
-    current.nodes.forEach((n) => _yNodes.set(n.id, n));
-    current.edges.forEach((e) => _yEdges.set(e.id, e));
+  ydoc.transact(() => {
+    yNodes.clear();
+    yEdges.clear();
+    // We dehydrate nodes before putting them back into Yjs
+    current.nodes.forEach((n) => yNodes.set(n.id, dehydrateNode(n)));
+    current.edges.forEach((e) => yEdges.set(e.id, e));
   }, "undo-redo");
 });
 

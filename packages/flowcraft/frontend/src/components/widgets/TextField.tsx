@@ -41,7 +41,9 @@ export const TextField: React.FC<TextFieldProps> = ({
         type="text"
         className="nodrag"
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
+        onChange={(e) => {
+          setLocalValue(e.target.value);
+        }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}

@@ -1,7 +1,7 @@
 import * as $protobuf from "protobufjs";
 import Long = require("long");
-/** Namespace flowcraft. */
-export namespace flowcraft {
+/** Namespace flowcraft_proto. */
+export namespace flowcraft_proto {
 
     /** Namespace v1. */
     namespace v1 {
@@ -25,7 +25,7 @@ export namespace flowcraft {
             path?: (string[]|null);
 
             /** ActionTemplate strategy */
-            strategy?: (flowcraft.v1.ActionExecutionStrategy|null);
+            strategy?: (flowcraft_proto.v1.ActionExecutionStrategy|null);
 
             /** ActionTemplate description */
             description?: (string|null);
@@ -41,7 +41,7 @@ export namespace flowcraft {
              * Constructs a new ActionTemplate.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IActionTemplate);
+            constructor(properties?: flowcraft_proto.v1.IActionTemplate);
 
             /** ActionTemplate id. */
             public id: string;
@@ -53,7 +53,7 @@ export namespace flowcraft {
             public path: string[];
 
             /** ActionTemplate strategy. */
-            public strategy: flowcraft.v1.ActionExecutionStrategy;
+            public strategy: flowcraft_proto.v1.ActionExecutionStrategy;
 
             /** ActionTemplate description. */
             public description: string;
@@ -66,23 +66,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns ActionTemplate instance
              */
-            public static create(properties?: flowcraft.v1.IActionTemplate): flowcraft.v1.ActionTemplate;
+            public static create(properties?: flowcraft_proto.v1.IActionTemplate): flowcraft_proto.v1.ActionTemplate;
 
             /**
-             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft.v1.ActionTemplate.verify|verify} messages.
+             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
              * @param message ActionTemplate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft.v1.ActionTemplate.verify|verify} messages.
+             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
              * @param message ActionTemplate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ActionTemplate message from the specified reader or buffer.
@@ -92,7 +92,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ActionTemplate;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionTemplate;
 
             /**
              * Decodes an ActionTemplate message from the specified reader or buffer, length delimited.
@@ -101,7 +101,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ActionTemplate;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionTemplate;
 
             /**
              * Verifies an ActionTemplate message.
@@ -115,7 +115,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ActionTemplate
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ActionTemplate;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionTemplate;
 
             /**
              * Creates a plain object from an ActionTemplate message. Also converts values to other types if specified.
@@ -123,7 +123,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ActionTemplate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionTemplate, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ActionTemplate to JSON.
@@ -156,7 +156,7 @@ export namespace flowcraft {
              * Constructs a new ActionDiscoveryRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IActionDiscoveryRequest);
+            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryRequest);
 
             /** ActionDiscoveryRequest nodeId. */
             public nodeId: string;
@@ -169,23 +169,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns ActionDiscoveryRequest instance
              */
-            public static create(properties?: flowcraft.v1.IActionDiscoveryRequest): flowcraft.v1.ActionDiscoveryRequest;
+            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryRequest): flowcraft_proto.v1.ActionDiscoveryRequest;
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
              * @param message ActionDiscoveryRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
              * @param message ActionDiscoveryRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ActionDiscoveryRequest message from the specified reader or buffer.
@@ -195,7 +195,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ActionDiscoveryRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryRequest;
 
             /**
              * Decodes an ActionDiscoveryRequest message from the specified reader or buffer, length delimited.
@@ -204,7 +204,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ActionDiscoveryRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryRequest;
 
             /**
              * Verifies an ActionDiscoveryRequest message.
@@ -218,7 +218,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ActionDiscoveryRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ActionDiscoveryRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryRequest;
 
             /**
              * Creates a plain object from an ActionDiscoveryRequest message. Also converts values to other types if specified.
@@ -226,7 +226,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ActionDiscoveryRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ActionDiscoveryRequest to JSON.
@@ -246,7 +246,7 @@ export namespace flowcraft {
         interface IActionDiscoveryResponse {
 
             /** ActionDiscoveryResponse actions */
-            actions?: (flowcraft.v1.IActionTemplate[]|null);
+            actions?: (flowcraft_proto.v1.IActionTemplate[]|null);
         }
 
         /** Represents an ActionDiscoveryResponse. */
@@ -256,33 +256,33 @@ export namespace flowcraft {
              * Constructs a new ActionDiscoveryResponse.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IActionDiscoveryResponse);
+            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryResponse);
 
             /** ActionDiscoveryResponse actions. */
-            public actions: flowcraft.v1.IActionTemplate[];
+            public actions: flowcraft_proto.v1.IActionTemplate[];
 
             /**
              * Creates a new ActionDiscoveryResponse instance using the specified properties.
              * @param [properties] Properties to set
              * @returns ActionDiscoveryResponse instance
              */
-            public static create(properties?: flowcraft.v1.IActionDiscoveryResponse): flowcraft.v1.ActionDiscoveryResponse;
+            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryResponse): flowcraft_proto.v1.ActionDiscoveryResponse;
 
             /**
-             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
              * @param message ActionDiscoveryResponse message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
              * @param message ActionDiscoveryResponse message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ActionDiscoveryResponse message from the specified reader or buffer.
@@ -292,7 +292,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ActionDiscoveryResponse;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryResponse;
 
             /**
              * Decodes an ActionDiscoveryResponse message from the specified reader or buffer, length delimited.
@@ -301,7 +301,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ActionDiscoveryResponse;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryResponse;
 
             /**
              * Verifies an ActionDiscoveryResponse message.
@@ -315,7 +315,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ActionDiscoveryResponse
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ActionDiscoveryResponse;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryResponse;
 
             /**
              * Creates a plain object from an ActionDiscoveryResponse message. Also converts values to other types if specified.
@@ -323,7 +323,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ActionDiscoveryResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ActionDiscoveryResponse to JSON.
@@ -362,7 +362,7 @@ export namespace flowcraft {
              * Constructs a new ActionExecutionRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IActionExecutionRequest);
+            constructor(properties?: flowcraft_proto.v1.IActionExecutionRequest);
 
             /** ActionExecutionRequest actionId. */
             public actionId: string;
@@ -381,23 +381,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns ActionExecutionRequest instance
              */
-            public static create(properties?: flowcraft.v1.IActionExecutionRequest): flowcraft.v1.ActionExecutionRequest;
+            public static create(properties?: flowcraft_proto.v1.IActionExecutionRequest): flowcraft_proto.v1.ActionExecutionRequest;
 
             /**
-             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft.v1.ActionExecutionRequest.verify|verify} messages.
+             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
              * @param message ActionExecutionRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft.v1.ActionExecutionRequest.verify|verify} messages.
+             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
              * @param message ActionExecutionRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ActionExecutionRequest message from the specified reader or buffer.
@@ -407,7 +407,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ActionExecutionRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionExecutionRequest;
 
             /**
              * Decodes an ActionExecutionRequest message from the specified reader or buffer, length delimited.
@@ -416,7 +416,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ActionExecutionRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionExecutionRequest;
 
             /**
              * Verifies an ActionExecutionRequest message.
@@ -430,7 +430,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ActionExecutionRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ActionExecutionRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionExecutionRequest;
 
             /**
              * Creates a plain object from an ActionExecutionRequest message. Also converts values to other types if specified.
@@ -438,7 +438,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ActionExecutionRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionExecutionRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ActionExecutionRequest to JSON.
@@ -464,10 +464,10 @@ export namespace flowcraft {
             taskId?: (string|null);
 
             /** ActionExecutionResult diff */
-            diff?: (flowcraft.v1.IGraphDiff|null);
+            diff?: (flowcraft_proto.v1.IGraphDiff|null);
 
             /** ActionExecutionResult strategy */
-            strategy?: (flowcraft.v1.ActionExecutionStrategy|null);
+            strategy?: (flowcraft_proto.v1.ActionExecutionStrategy|null);
         }
 
         /** Represents an ActionExecutionResult. */
@@ -477,7 +477,7 @@ export namespace flowcraft {
              * Constructs a new ActionExecutionResult.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IActionExecutionResult);
+            constructor(properties?: flowcraft_proto.v1.IActionExecutionResult);
 
             /** ActionExecutionResult success. */
             public success: boolean;
@@ -486,33 +486,33 @@ export namespace flowcraft {
             public taskId: string;
 
             /** ActionExecutionResult diff. */
-            public diff?: (flowcraft.v1.IGraphDiff|null);
+            public diff?: (flowcraft_proto.v1.IGraphDiff|null);
 
             /** ActionExecutionResult strategy. */
-            public strategy: flowcraft.v1.ActionExecutionStrategy;
+            public strategy: flowcraft_proto.v1.ActionExecutionStrategy;
 
             /**
              * Creates a new ActionExecutionResult instance using the specified properties.
              * @param [properties] Properties to set
              * @returns ActionExecutionResult instance
              */
-            public static create(properties?: flowcraft.v1.IActionExecutionResult): flowcraft.v1.ActionExecutionResult;
+            public static create(properties?: flowcraft_proto.v1.IActionExecutionResult): flowcraft_proto.v1.ActionExecutionResult;
 
             /**
-             * Encodes the specified ActionExecutionResult message. Does not implicitly {@link flowcraft.v1.ActionExecutionResult.verify|verify} messages.
+             * Encodes the specified ActionExecutionResult message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
              * @param message ActionExecutionResult message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionExecutionResult message, length delimited. Does not implicitly {@link flowcraft.v1.ActionExecutionResult.verify|verify} messages.
+             * Encodes the specified ActionExecutionResult message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
              * @param message ActionExecutionResult message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ActionExecutionResult message from the specified reader or buffer.
@@ -522,7 +522,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ActionExecutionResult;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionExecutionResult;
 
             /**
              * Decodes an ActionExecutionResult message from the specified reader or buffer, length delimited.
@@ -531,7 +531,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ActionExecutionResult;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionExecutionResult;
 
             /**
              * Verifies an ActionExecutionResult message.
@@ -545,7 +545,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ActionExecutionResult
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ActionExecutionResult;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionExecutionResult;
 
             /**
              * Creates a plain object from an ActionExecutionResult message. Also converts values to other types if specified.
@@ -553,7 +553,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ActionExecutionResult, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionExecutionResult, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ActionExecutionResult to JSON.
@@ -592,7 +592,7 @@ export namespace flowcraft {
              * Constructs a new GraphDiff.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IGraphDiff);
+            constructor(properties?: flowcraft_proto.v1.IGraphDiff);
 
             /** GraphDiff nodesJson. */
             public nodesJson: string;
@@ -611,23 +611,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns GraphDiff instance
              */
-            public static create(properties?: flowcraft.v1.IGraphDiff): flowcraft.v1.GraphDiff;
+            public static create(properties?: flowcraft_proto.v1.IGraphDiff): flowcraft_proto.v1.GraphDiff;
 
             /**
-             * Encodes the specified GraphDiff message. Does not implicitly {@link flowcraft.v1.GraphDiff.verify|verify} messages.
+             * Encodes the specified GraphDiff message. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
              * @param message GraphDiff message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified GraphDiff message, length delimited. Does not implicitly {@link flowcraft.v1.GraphDiff.verify|verify} messages.
+             * Encodes the specified GraphDiff message, length delimited. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
              * @param message GraphDiff message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a GraphDiff message from the specified reader or buffer.
@@ -637,7 +637,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.GraphDiff;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.GraphDiff;
 
             /**
              * Decodes a GraphDiff message from the specified reader or buffer, length delimited.
@@ -646,7 +646,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.GraphDiff;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.GraphDiff;
 
             /**
              * Verifies a GraphDiff message.
@@ -660,7 +660,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns GraphDiff
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.GraphDiff;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.GraphDiff;
 
             /**
              * Creates a plain object from a GraphDiff message. Also converts values to other types if specified.
@@ -668,7 +668,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.GraphDiff, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.GraphDiff, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this GraphDiff to JSON.
@@ -701,7 +701,7 @@ export namespace flowcraft {
              * Constructs a new Position.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IPosition);
+            constructor(properties?: flowcraft_proto.v1.IPosition);
 
             /** Position x. */
             public x: number;
@@ -714,23 +714,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Position instance
              */
-            public static create(properties?: flowcraft.v1.IPosition): flowcraft.v1.Position;
+            public static create(properties?: flowcraft_proto.v1.IPosition): flowcraft_proto.v1.Position;
 
             /**
-             * Encodes the specified Position message. Does not implicitly {@link flowcraft.v1.Position.verify|verify} messages.
+             * Encodes the specified Position message. Does not implicitly {@link flowcraft_proto.v1.Position.verify|verify} messages.
              * @param message Position message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IPosition, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Position message, length delimited. Does not implicitly {@link flowcraft.v1.Position.verify|verify} messages.
+             * Encodes the specified Position message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Position.verify|verify} messages.
              * @param message Position message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IPosition, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Position message from the specified reader or buffer.
@@ -740,7 +740,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Position;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Position;
 
             /**
              * Decodes a Position message from the specified reader or buffer, length delimited.
@@ -749,7 +749,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Position;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Position;
 
             /**
              * Verifies a Position message.
@@ -763,7 +763,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Position
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Position;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Position;
 
             /**
              * Creates a plain object from a Position message. Also converts values to other types if specified.
@@ -771,7 +771,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Position, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Position, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Position to JSON.
@@ -810,7 +810,7 @@ export namespace flowcraft {
              * Constructs a new Rect.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IRect);
+            constructor(properties?: flowcraft_proto.v1.IRect);
 
             /** Rect x. */
             public x: number;
@@ -829,23 +829,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Rect instance
              */
-            public static create(properties?: flowcraft.v1.IRect): flowcraft.v1.Rect;
+            public static create(properties?: flowcraft_proto.v1.IRect): flowcraft_proto.v1.Rect;
 
             /**
-             * Encodes the specified Rect message. Does not implicitly {@link flowcraft.v1.Rect.verify|verify} messages.
+             * Encodes the specified Rect message. Does not implicitly {@link flowcraft_proto.v1.Rect.verify|verify} messages.
              * @param message Rect message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IRect, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IRect, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Rect message, length delimited. Does not implicitly {@link flowcraft.v1.Rect.verify|verify} messages.
+             * Encodes the specified Rect message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Rect.verify|verify} messages.
              * @param message Rect message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IRect, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IRect, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Rect message from the specified reader or buffer.
@@ -855,7 +855,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Rect;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Rect;
 
             /**
              * Decodes a Rect message from the specified reader or buffer, length delimited.
@@ -864,7 +864,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Rect;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Rect;
 
             /**
              * Verifies a Rect message.
@@ -878,7 +878,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Rect
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Rect;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Rect;
 
             /**
              * Creates a plain object from a Rect message. Also converts values to other types if specified.
@@ -886,7 +886,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Rect, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Rect, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Rect to JSON.
@@ -922,7 +922,7 @@ export namespace flowcraft {
              * Constructs a new Viewport.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IViewport);
+            constructor(properties?: flowcraft_proto.v1.IViewport);
 
             /** Viewport x. */
             public x: number;
@@ -938,23 +938,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Viewport instance
              */
-            public static create(properties?: flowcraft.v1.IViewport): flowcraft.v1.Viewport;
+            public static create(properties?: flowcraft_proto.v1.IViewport): flowcraft_proto.v1.Viewport;
 
             /**
-             * Encodes the specified Viewport message. Does not implicitly {@link flowcraft.v1.Viewport.verify|verify} messages.
+             * Encodes the specified Viewport message. Does not implicitly {@link flowcraft_proto.v1.Viewport.verify|verify} messages.
              * @param message Viewport message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IViewport, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IViewport, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Viewport message, length delimited. Does not implicitly {@link flowcraft.v1.Viewport.verify|verify} messages.
+             * Encodes the specified Viewport message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Viewport.verify|verify} messages.
              * @param message Viewport message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IViewport, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IViewport, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Viewport message from the specified reader or buffer.
@@ -964,7 +964,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Viewport;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Viewport;
 
             /**
              * Decodes a Viewport message from the specified reader or buffer, length delimited.
@@ -973,7 +973,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Viewport;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Viewport;
 
             /**
              * Verifies a Viewport message.
@@ -987,7 +987,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Viewport
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Viewport;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Viewport;
 
             /**
              * Creates a plain object from a Viewport message. Also converts values to other types if specified.
@@ -995,7 +995,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Viewport, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Viewport, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Viewport to JSON.
@@ -1039,7 +1039,7 @@ export namespace flowcraft {
              * Constructs a new PortType.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IPortType);
+            constructor(properties?: flowcraft_proto.v1.IPortType);
 
             /** PortType mainType. */
             public mainType: string;
@@ -1055,23 +1055,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns PortType instance
              */
-            public static create(properties?: flowcraft.v1.IPortType): flowcraft.v1.PortType;
+            public static create(properties?: flowcraft_proto.v1.IPortType): flowcraft_proto.v1.PortType;
 
             /**
-             * Encodes the specified PortType message. Does not implicitly {@link flowcraft.v1.PortType.verify|verify} messages.
+             * Encodes the specified PortType message. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
              * @param message PortType message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft.v1.PortType.verify|verify} messages.
+             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
              * @param message PortType message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a PortType message from the specified reader or buffer.
@@ -1081,7 +1081,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.PortType;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.PortType;
 
             /**
              * Decodes a PortType message from the specified reader or buffer, length delimited.
@@ -1090,7 +1090,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.PortType;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.PortType;
 
             /**
              * Verifies a PortType message.
@@ -1104,7 +1104,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns PortType
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.PortType;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.PortType;
 
             /**
              * Creates a plain object from a PortType message. Also converts values to other types if specified.
@@ -1112,7 +1112,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.PortType, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.PortType, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this PortType to JSON.
@@ -1138,10 +1138,10 @@ export namespace flowcraft {
             label?: (string|null);
 
             /** Port type */
-            type?: (flowcraft.v1.IPortType|null);
+            type?: (flowcraft_proto.v1.IPortType|null);
 
             /** Port style */
-            style?: (flowcraft.v1.PortStyle|null);
+            style?: (flowcraft_proto.v1.PortStyle|null);
 
             /** Port color */
             color?: (string|null);
@@ -1157,7 +1157,7 @@ export namespace flowcraft {
              * Constructs a new Port.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IPort);
+            constructor(properties?: flowcraft_proto.v1.IPort);
 
             /** Port id. */
             public id: string;
@@ -1166,10 +1166,10 @@ export namespace flowcraft {
             public label: string;
 
             /** Port type. */
-            public type?: (flowcraft.v1.IPortType|null);
+            public type?: (flowcraft_proto.v1.IPortType|null);
 
             /** Port style. */
-            public style: flowcraft.v1.PortStyle;
+            public style: flowcraft_proto.v1.PortStyle;
 
             /** Port color. */
             public color: string;
@@ -1182,23 +1182,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Port instance
              */
-            public static create(properties?: flowcraft.v1.IPort): flowcraft.v1.Port;
+            public static create(properties?: flowcraft_proto.v1.IPort): flowcraft_proto.v1.Port;
 
             /**
-             * Encodes the specified Port message. Does not implicitly {@link flowcraft.v1.Port.verify|verify} messages.
+             * Encodes the specified Port message. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
              * @param message Port message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft.v1.Port.verify|verify} messages.
+             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
              * @param message Port message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Port message from the specified reader or buffer.
@@ -1208,7 +1208,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Port;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Port;
 
             /**
              * Decodes a Port message from the specified reader or buffer, length delimited.
@@ -1217,7 +1217,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Port;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Port;
 
             /**
              * Verifies a Port message.
@@ -1231,7 +1231,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Port
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Port;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Port;
 
             /**
              * Creates a plain object from a Port message. Also converts values to other types if specified.
@@ -1239,7 +1239,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Port, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Port, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Port to JSON.
@@ -1284,7 +1284,7 @@ export namespace flowcraft {
              * Constructs a new Edge.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IEdge);
+            constructor(properties?: flowcraft_proto.v1.IEdge);
 
             /** Edge id. */
             public id: string;
@@ -1309,23 +1309,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Edge instance
              */
-            public static create(properties?: flowcraft.v1.IEdge): flowcraft.v1.Edge;
+            public static create(properties?: flowcraft_proto.v1.IEdge): flowcraft_proto.v1.Edge;
 
             /**
-             * Encodes the specified Edge message. Does not implicitly {@link flowcraft.v1.Edge.verify|verify} messages.
+             * Encodes the specified Edge message. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
              * @param message Edge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft.v1.Edge.verify|verify} messages.
+             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
              * @param message Edge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an Edge message from the specified reader or buffer.
@@ -1335,7 +1335,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Edge;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Edge;
 
             /**
              * Decodes an Edge message from the specified reader or buffer, length delimited.
@@ -1344,7 +1344,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Edge;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Edge;
 
             /**
              * Verifies an Edge message.
@@ -1358,7 +1358,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Edge
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Edge;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Edge;
 
             /**
              * Creates a plain object from an Edge message. Also converts values to other types if specified.
@@ -1366,7 +1366,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Edge, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Edge, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Edge to JSON.
@@ -1392,40 +1392,46 @@ export namespace flowcraft {
             timestamp?: (number|Long|null);
 
             /** FlowMessage syncRequest */
-            syncRequest?: (flowcraft.v1.ISyncRequest|null);
+            syncRequest?: (flowcraft_proto.v1.ISyncRequest|null);
 
             /** FlowMessage yjsUpdate */
             yjsUpdate?: (Uint8Array|null);
 
             /** FlowMessage nodeUpdate */
-            nodeUpdate?: (flowcraft.v1.IUpdateNodeRequest|null);
+            nodeUpdate?: (flowcraft_proto.v1.IUpdateNodeRequest|null);
 
             /** FlowMessage widgetUpdate */
-            widgetUpdate?: (flowcraft.v1.IUpdateWidgetRequest|null);
+            widgetUpdate?: (flowcraft_proto.v1.IUpdateWidgetRequest|null);
 
             /** FlowMessage actionExecute */
-            actionExecute?: (flowcraft.v1.IActionExecutionRequest|null);
+            actionExecute?: (flowcraft_proto.v1.IActionExecutionRequest|null);
+
+            /** FlowMessage actionDiscovery */
+            actionDiscovery?: (flowcraft_proto.v1.IActionDiscoveryRequest|null);
 
             /** FlowMessage taskCancel */
-            taskCancel?: (flowcraft.v1.ITaskCancelRequest|null);
+            taskCancel?: (flowcraft_proto.v1.ITaskCancelRequest|null);
 
             /** FlowMessage viewportUpdate */
-            viewportUpdate?: (flowcraft.v1.IViewportUpdate|null);
+            viewportUpdate?: (flowcraft_proto.v1.IViewportUpdate|null);
 
             /** FlowMessage snapshot */
-            snapshot?: (flowcraft.v1.IGraphSnapshot|null);
+            snapshot?: (flowcraft_proto.v1.IGraphSnapshot|null);
 
             /** FlowMessage mutations */
-            mutations?: (flowcraft.v1.IMutationList|null);
+            mutations?: (flowcraft_proto.v1.IMutationList|null);
+
+            /** FlowMessage actions */
+            actions?: (flowcraft_proto.v1.IActionDiscoveryResponse|null);
 
             /** FlowMessage taskUpdate */
-            taskUpdate?: (flowcraft.v1.ITaskUpdate|null);
+            taskUpdate?: (flowcraft_proto.v1.ITaskUpdate|null);
 
             /** FlowMessage streamChunk */
-            streamChunk?: (flowcraft.v1.IStreamChunk|null);
+            streamChunk?: (flowcraft_proto.v1.IStreamChunk|null);
 
             /** FlowMessage error */
-            error?: (flowcraft.v1.IErrorResponse|null);
+            error?: (flowcraft_proto.v1.IErrorResponse|null);
         }
 
         /** Represents a FlowMessage. */
@@ -1435,7 +1441,7 @@ export namespace flowcraft {
              * Constructs a new FlowMessage.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IFlowMessage);
+            constructor(properties?: flowcraft_proto.v1.IFlowMessage);
 
             /** FlowMessage messageId. */
             public messageId: string;
@@ -1444,66 +1450,72 @@ export namespace flowcraft {
             public timestamp: (number|Long);
 
             /** FlowMessage syncRequest. */
-            public syncRequest?: (flowcraft.v1.ISyncRequest|null);
+            public syncRequest?: (flowcraft_proto.v1.ISyncRequest|null);
 
             /** FlowMessage yjsUpdate. */
             public yjsUpdate?: (Uint8Array|null);
 
             /** FlowMessage nodeUpdate. */
-            public nodeUpdate?: (flowcraft.v1.IUpdateNodeRequest|null);
+            public nodeUpdate?: (flowcraft_proto.v1.IUpdateNodeRequest|null);
 
             /** FlowMessage widgetUpdate. */
-            public widgetUpdate?: (flowcraft.v1.IUpdateWidgetRequest|null);
+            public widgetUpdate?: (flowcraft_proto.v1.IUpdateWidgetRequest|null);
 
             /** FlowMessage actionExecute. */
-            public actionExecute?: (flowcraft.v1.IActionExecutionRequest|null);
+            public actionExecute?: (flowcraft_proto.v1.IActionExecutionRequest|null);
+
+            /** FlowMessage actionDiscovery. */
+            public actionDiscovery?: (flowcraft_proto.v1.IActionDiscoveryRequest|null);
 
             /** FlowMessage taskCancel. */
-            public taskCancel?: (flowcraft.v1.ITaskCancelRequest|null);
+            public taskCancel?: (flowcraft_proto.v1.ITaskCancelRequest|null);
 
             /** FlowMessage viewportUpdate. */
-            public viewportUpdate?: (flowcraft.v1.IViewportUpdate|null);
+            public viewportUpdate?: (flowcraft_proto.v1.IViewportUpdate|null);
 
             /** FlowMessage snapshot. */
-            public snapshot?: (flowcraft.v1.IGraphSnapshot|null);
+            public snapshot?: (flowcraft_proto.v1.IGraphSnapshot|null);
 
             /** FlowMessage mutations. */
-            public mutations?: (flowcraft.v1.IMutationList|null);
+            public mutations?: (flowcraft_proto.v1.IMutationList|null);
+
+            /** FlowMessage actions. */
+            public actions?: (flowcraft_proto.v1.IActionDiscoveryResponse|null);
 
             /** FlowMessage taskUpdate. */
-            public taskUpdate?: (flowcraft.v1.ITaskUpdate|null);
+            public taskUpdate?: (flowcraft_proto.v1.ITaskUpdate|null);
 
             /** FlowMessage streamChunk. */
-            public streamChunk?: (flowcraft.v1.IStreamChunk|null);
+            public streamChunk?: (flowcraft_proto.v1.IStreamChunk|null);
 
             /** FlowMessage error. */
-            public error?: (flowcraft.v1.IErrorResponse|null);
+            public error?: (flowcraft_proto.v1.IErrorResponse|null);
 
             /** FlowMessage payload. */
-            public payload?: ("syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"taskCancel"|"viewportUpdate"|"snapshot"|"mutations"|"taskUpdate"|"streamChunk"|"error");
+            public payload?: ("syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"actionDiscovery"|"taskCancel"|"viewportUpdate"|"snapshot"|"mutations"|"actions"|"taskUpdate"|"streamChunk"|"error");
 
             /**
              * Creates a new FlowMessage instance using the specified properties.
              * @param [properties] Properties to set
              * @returns FlowMessage instance
              */
-            public static create(properties?: flowcraft.v1.IFlowMessage): flowcraft.v1.FlowMessage;
+            public static create(properties?: flowcraft_proto.v1.IFlowMessage): flowcraft_proto.v1.FlowMessage;
 
             /**
-             * Encodes the specified FlowMessage message. Does not implicitly {@link flowcraft.v1.FlowMessage.verify|verify} messages.
+             * Encodes the specified FlowMessage message. Does not implicitly {@link flowcraft_proto.v1.FlowMessage.verify|verify} messages.
              * @param message FlowMessage message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified FlowMessage message, length delimited. Does not implicitly {@link flowcraft.v1.FlowMessage.verify|verify} messages.
+             * Encodes the specified FlowMessage message, length delimited. Does not implicitly {@link flowcraft_proto.v1.FlowMessage.verify|verify} messages.
              * @param message FlowMessage message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a FlowMessage message from the specified reader or buffer.
@@ -1513,7 +1525,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.FlowMessage;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.FlowMessage;
 
             /**
              * Decodes a FlowMessage message from the specified reader or buffer, length delimited.
@@ -1522,7 +1534,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.FlowMessage;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.FlowMessage;
 
             /**
              * Verifies a FlowMessage message.
@@ -1536,7 +1548,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns FlowMessage
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.FlowMessage;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.FlowMessage;
 
             /**
              * Creates a plain object from a FlowMessage message. Also converts values to other types if specified.
@@ -1544,7 +1556,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.FlowMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.FlowMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this FlowMessage to JSON.
@@ -1574,7 +1586,7 @@ export namespace flowcraft {
              * Constructs a new SyncRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.ISyncRequest);
+            constructor(properties?: flowcraft_proto.v1.ISyncRequest);
 
             /** SyncRequest graphId. */
             public graphId: string;
@@ -1584,23 +1596,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns SyncRequest instance
              */
-            public static create(properties?: flowcraft.v1.ISyncRequest): flowcraft.v1.SyncRequest;
+            public static create(properties?: flowcraft_proto.v1.ISyncRequest): flowcraft_proto.v1.SyncRequest;
 
             /**
-             * Encodes the specified SyncRequest message. Does not implicitly {@link flowcraft.v1.SyncRequest.verify|verify} messages.
+             * Encodes the specified SyncRequest message. Does not implicitly {@link flowcraft_proto.v1.SyncRequest.verify|verify} messages.
              * @param message SyncRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.ISyncRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ISyncRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified SyncRequest message, length delimited. Does not implicitly {@link flowcraft.v1.SyncRequest.verify|verify} messages.
+             * Encodes the specified SyncRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SyncRequest.verify|verify} messages.
              * @param message SyncRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.ISyncRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ISyncRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a SyncRequest message from the specified reader or buffer.
@@ -1610,7 +1622,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.SyncRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.SyncRequest;
 
             /**
              * Decodes a SyncRequest message from the specified reader or buffer, length delimited.
@@ -1619,7 +1631,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.SyncRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.SyncRequest;
 
             /**
              * Verifies a SyncRequest message.
@@ -1633,7 +1645,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns SyncRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.SyncRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.SyncRequest;
 
             /**
              * Creates a plain object from a SyncRequest message. Also converts values to other types if specified.
@@ -1641,7 +1653,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.SyncRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.SyncRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this SyncRequest to JSON.
@@ -1664,10 +1676,10 @@ export namespace flowcraft {
             nodeId?: (string|null);
 
             /** UpdateNodeRequest data */
-            data?: (flowcraft.v1.INodeData|null);
+            data?: (flowcraft_proto.v1.INodeData|null);
 
             /** UpdateNodeRequest position */
-            position?: (flowcraft.v1.IPosition|null);
+            position?: (flowcraft_proto.v1.IPosition|null);
         }
 
         /** Represents an UpdateNodeRequest. */
@@ -1677,39 +1689,39 @@ export namespace flowcraft {
              * Constructs a new UpdateNodeRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IUpdateNodeRequest);
+            constructor(properties?: flowcraft_proto.v1.IUpdateNodeRequest);
 
             /** UpdateNodeRequest nodeId. */
             public nodeId: string;
 
             /** UpdateNodeRequest data. */
-            public data?: (flowcraft.v1.INodeData|null);
+            public data?: (flowcraft_proto.v1.INodeData|null);
 
             /** UpdateNodeRequest position. */
-            public position?: (flowcraft.v1.IPosition|null);
+            public position?: (flowcraft_proto.v1.IPosition|null);
 
             /**
              * Creates a new UpdateNodeRequest instance using the specified properties.
              * @param [properties] Properties to set
              * @returns UpdateNodeRequest instance
              */
-            public static create(properties?: flowcraft.v1.IUpdateNodeRequest): flowcraft.v1.UpdateNodeRequest;
+            public static create(properties?: flowcraft_proto.v1.IUpdateNodeRequest): flowcraft_proto.v1.UpdateNodeRequest;
 
             /**
-             * Encodes the specified UpdateNodeRequest message. Does not implicitly {@link flowcraft.v1.UpdateNodeRequest.verify|verify} messages.
+             * Encodes the specified UpdateNodeRequest message. Does not implicitly {@link flowcraft_proto.v1.UpdateNodeRequest.verify|verify} messages.
              * @param message UpdateNodeRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IUpdateNodeRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IUpdateNodeRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified UpdateNodeRequest message, length delimited. Does not implicitly {@link flowcraft.v1.UpdateNodeRequest.verify|verify} messages.
+             * Encodes the specified UpdateNodeRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.UpdateNodeRequest.verify|verify} messages.
              * @param message UpdateNodeRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IUpdateNodeRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IUpdateNodeRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an UpdateNodeRequest message from the specified reader or buffer.
@@ -1719,7 +1731,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.UpdateNodeRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.UpdateNodeRequest;
 
             /**
              * Decodes an UpdateNodeRequest message from the specified reader or buffer, length delimited.
@@ -1728,7 +1740,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.UpdateNodeRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.UpdateNodeRequest;
 
             /**
              * Verifies an UpdateNodeRequest message.
@@ -1742,7 +1754,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns UpdateNodeRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.UpdateNodeRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.UpdateNodeRequest;
 
             /**
              * Creates a plain object from an UpdateNodeRequest message. Also converts values to other types if specified.
@@ -1750,7 +1762,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.UpdateNodeRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.UpdateNodeRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this UpdateNodeRequest to JSON.
@@ -1786,7 +1798,7 @@ export namespace flowcraft {
              * Constructs a new UpdateWidgetRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IUpdateWidgetRequest);
+            constructor(properties?: flowcraft_proto.v1.IUpdateWidgetRequest);
 
             /** UpdateWidgetRequest nodeId. */
             public nodeId: string;
@@ -1802,23 +1814,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns UpdateWidgetRequest instance
              */
-            public static create(properties?: flowcraft.v1.IUpdateWidgetRequest): flowcraft.v1.UpdateWidgetRequest;
+            public static create(properties?: flowcraft_proto.v1.IUpdateWidgetRequest): flowcraft_proto.v1.UpdateWidgetRequest;
 
             /**
-             * Encodes the specified UpdateWidgetRequest message. Does not implicitly {@link flowcraft.v1.UpdateWidgetRequest.verify|verify} messages.
+             * Encodes the specified UpdateWidgetRequest message. Does not implicitly {@link flowcraft_proto.v1.UpdateWidgetRequest.verify|verify} messages.
              * @param message UpdateWidgetRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IUpdateWidgetRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IUpdateWidgetRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified UpdateWidgetRequest message, length delimited. Does not implicitly {@link flowcraft.v1.UpdateWidgetRequest.verify|verify} messages.
+             * Encodes the specified UpdateWidgetRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.UpdateWidgetRequest.verify|verify} messages.
              * @param message UpdateWidgetRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IUpdateWidgetRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IUpdateWidgetRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an UpdateWidgetRequest message from the specified reader or buffer.
@@ -1828,7 +1840,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.UpdateWidgetRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.UpdateWidgetRequest;
 
             /**
              * Decodes an UpdateWidgetRequest message from the specified reader or buffer, length delimited.
@@ -1837,7 +1849,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.UpdateWidgetRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.UpdateWidgetRequest;
 
             /**
              * Verifies an UpdateWidgetRequest message.
@@ -1851,7 +1863,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns UpdateWidgetRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.UpdateWidgetRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.UpdateWidgetRequest;
 
             /**
              * Creates a plain object from an UpdateWidgetRequest message. Also converts values to other types if specified.
@@ -1859,7 +1871,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.UpdateWidgetRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.UpdateWidgetRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this UpdateWidgetRequest to JSON.
@@ -1879,10 +1891,10 @@ export namespace flowcraft {
         interface IViewportUpdate {
 
             /** ViewportUpdate viewport */
-            viewport?: (flowcraft.v1.IViewport|null);
+            viewport?: (flowcraft_proto.v1.IViewport|null);
 
             /** ViewportUpdate visibleBounds */
-            visibleBounds?: (flowcraft.v1.IRect|null);
+            visibleBounds?: (flowcraft_proto.v1.IRect|null);
         }
 
         /** Represents a ViewportUpdate. */
@@ -1892,36 +1904,36 @@ export namespace flowcraft {
              * Constructs a new ViewportUpdate.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IViewportUpdate);
+            constructor(properties?: flowcraft_proto.v1.IViewportUpdate);
 
             /** ViewportUpdate viewport. */
-            public viewport?: (flowcraft.v1.IViewport|null);
+            public viewport?: (flowcraft_proto.v1.IViewport|null);
 
             /** ViewportUpdate visibleBounds. */
-            public visibleBounds?: (flowcraft.v1.IRect|null);
+            public visibleBounds?: (flowcraft_proto.v1.IRect|null);
 
             /**
              * Creates a new ViewportUpdate instance using the specified properties.
              * @param [properties] Properties to set
              * @returns ViewportUpdate instance
              */
-            public static create(properties?: flowcraft.v1.IViewportUpdate): flowcraft.v1.ViewportUpdate;
+            public static create(properties?: flowcraft_proto.v1.IViewportUpdate): flowcraft_proto.v1.ViewportUpdate;
 
             /**
-             * Encodes the specified ViewportUpdate message. Does not implicitly {@link flowcraft.v1.ViewportUpdate.verify|verify} messages.
+             * Encodes the specified ViewportUpdate message. Does not implicitly {@link flowcraft_proto.v1.ViewportUpdate.verify|verify} messages.
              * @param message ViewportUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IViewportUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IViewportUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ViewportUpdate message, length delimited. Does not implicitly {@link flowcraft.v1.ViewportUpdate.verify|verify} messages.
+             * Encodes the specified ViewportUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ViewportUpdate.verify|verify} messages.
              * @param message ViewportUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IViewportUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IViewportUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a ViewportUpdate message from the specified reader or buffer.
@@ -1931,7 +1943,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ViewportUpdate;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ViewportUpdate;
 
             /**
              * Decodes a ViewportUpdate message from the specified reader or buffer, length delimited.
@@ -1940,7 +1952,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ViewportUpdate;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ViewportUpdate;
 
             /**
              * Verifies a ViewportUpdate message.
@@ -1954,7 +1966,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ViewportUpdate
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ViewportUpdate;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ViewportUpdate;
 
             /**
              * Creates a plain object from a ViewportUpdate message. Also converts values to other types if specified.
@@ -1962,7 +1974,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ViewportUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ViewportUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ViewportUpdate to JSON.
@@ -1982,7 +1994,7 @@ export namespace flowcraft {
         interface IMutationList {
 
             /** MutationList mutations */
-            mutations?: (flowcraft.v1.IGraphMutation[]|null);
+            mutations?: (flowcraft_proto.v1.IGraphMutation[]|null);
 
             /** MutationList sequenceNumber */
             sequenceNumber?: (number|Long|null);
@@ -1995,10 +2007,10 @@ export namespace flowcraft {
              * Constructs a new MutationList.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IMutationList);
+            constructor(properties?: flowcraft_proto.v1.IMutationList);
 
             /** MutationList mutations. */
-            public mutations: flowcraft.v1.IGraphMutation[];
+            public mutations: flowcraft_proto.v1.IGraphMutation[];
 
             /** MutationList sequenceNumber. */
             public sequenceNumber: (number|Long);
@@ -2008,23 +2020,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns MutationList instance
              */
-            public static create(properties?: flowcraft.v1.IMutationList): flowcraft.v1.MutationList;
+            public static create(properties?: flowcraft_proto.v1.IMutationList): flowcraft_proto.v1.MutationList;
 
             /**
-             * Encodes the specified MutationList message. Does not implicitly {@link flowcraft.v1.MutationList.verify|verify} messages.
+             * Encodes the specified MutationList message. Does not implicitly {@link flowcraft_proto.v1.MutationList.verify|verify} messages.
              * @param message MutationList message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IMutationList, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IMutationList, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified MutationList message, length delimited. Does not implicitly {@link flowcraft.v1.MutationList.verify|verify} messages.
+             * Encodes the specified MutationList message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MutationList.verify|verify} messages.
              * @param message MutationList message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IMutationList, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IMutationList, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a MutationList message from the specified reader or buffer.
@@ -2034,7 +2046,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.MutationList;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.MutationList;
 
             /**
              * Decodes a MutationList message from the specified reader or buffer, length delimited.
@@ -2043,7 +2055,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.MutationList;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.MutationList;
 
             /**
              * Verifies a MutationList message.
@@ -2057,7 +2069,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns MutationList
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.MutationList;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.MutationList;
 
             /**
              * Creates a plain object from a MutationList message. Also converts values to other types if specified.
@@ -2065,7 +2077,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.MutationList, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.MutationList, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this MutationList to JSON.
@@ -2104,7 +2116,7 @@ export namespace flowcraft {
              * Constructs a new StreamChunk.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IStreamChunk);
+            constructor(properties?: flowcraft_proto.v1.IStreamChunk);
 
             /** StreamChunk nodeId. */
             public nodeId: string;
@@ -2123,23 +2135,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns StreamChunk instance
              */
-            public static create(properties?: flowcraft.v1.IStreamChunk): flowcraft.v1.StreamChunk;
+            public static create(properties?: flowcraft_proto.v1.IStreamChunk): flowcraft_proto.v1.StreamChunk;
 
             /**
-             * Encodes the specified StreamChunk message. Does not implicitly {@link flowcraft.v1.StreamChunk.verify|verify} messages.
+             * Encodes the specified StreamChunk message. Does not implicitly {@link flowcraft_proto.v1.StreamChunk.verify|verify} messages.
              * @param message StreamChunk message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IStreamChunk, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IStreamChunk, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified StreamChunk message, length delimited. Does not implicitly {@link flowcraft.v1.StreamChunk.verify|verify} messages.
+             * Encodes the specified StreamChunk message, length delimited. Does not implicitly {@link flowcraft_proto.v1.StreamChunk.verify|verify} messages.
              * @param message StreamChunk message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IStreamChunk, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IStreamChunk, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a StreamChunk message from the specified reader or buffer.
@@ -2149,7 +2161,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.StreamChunk;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.StreamChunk;
 
             /**
              * Decodes a StreamChunk message from the specified reader or buffer, length delimited.
@@ -2158,7 +2170,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.StreamChunk;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.StreamChunk;
 
             /**
              * Verifies a StreamChunk message.
@@ -2172,7 +2184,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns StreamChunk
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.StreamChunk;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.StreamChunk;
 
             /**
              * Creates a plain object from a StreamChunk message. Also converts values to other types if specified.
@@ -2180,7 +2192,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.StreamChunk, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.StreamChunk, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this StreamChunk to JSON.
@@ -2213,7 +2225,7 @@ export namespace flowcraft {
              * Constructs a new ErrorResponse.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IErrorResponse);
+            constructor(properties?: flowcraft_proto.v1.IErrorResponse);
 
             /** ErrorResponse code. */
             public code: string;
@@ -2226,23 +2238,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns ErrorResponse instance
              */
-            public static create(properties?: flowcraft.v1.IErrorResponse): flowcraft.v1.ErrorResponse;
+            public static create(properties?: flowcraft_proto.v1.IErrorResponse): flowcraft_proto.v1.ErrorResponse;
 
             /**
-             * Encodes the specified ErrorResponse message. Does not implicitly {@link flowcraft.v1.ErrorResponse.verify|verify} messages.
+             * Encodes the specified ErrorResponse message. Does not implicitly {@link flowcraft_proto.v1.ErrorResponse.verify|verify} messages.
              * @param message ErrorResponse message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IErrorResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IErrorResponse, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ErrorResponse message, length delimited. Does not implicitly {@link flowcraft.v1.ErrorResponse.verify|verify} messages.
+             * Encodes the specified ErrorResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ErrorResponse.verify|verify} messages.
              * @param message ErrorResponse message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IErrorResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IErrorResponse, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an ErrorResponse message from the specified reader or buffer.
@@ -2252,7 +2264,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ErrorResponse;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ErrorResponse;
 
             /**
              * Decodes an ErrorResponse message from the specified reader or buffer, length delimited.
@@ -2261,7 +2273,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ErrorResponse;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ErrorResponse;
 
             /**
              * Verifies an ErrorResponse message.
@@ -2275,7 +2287,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ErrorResponse
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ErrorResponse;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ErrorResponse;
 
             /**
              * Creates a plain object from an ErrorResponse message. Also converts values to other types if specified.
@@ -2283,7 +2295,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ErrorResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ErrorResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ErrorResponse to JSON.
@@ -2324,34 +2336,34 @@ export namespace flowcraft {
              * @param request FlowMessage message or plain object
              * @param callback Node-style callback called with the error, if any, and FlowMessage
              */
-            public connect(request: flowcraft.v1.IFlowMessage, callback: flowcraft.v1.FlowService.ConnectCallback): void;
+            public connect(request: flowcraft_proto.v1.IFlowMessage, callback: flowcraft_proto.v1.FlowService.ConnectCallback): void;
 
             /**
              * Calls Connect.
              * @param request FlowMessage message or plain object
              * @returns Promise
              */
-            public connect(request: flowcraft.v1.IFlowMessage): Promise<flowcraft.v1.FlowMessage>;
+            public connect(request: flowcraft_proto.v1.IFlowMessage): Promise<flowcraft_proto.v1.FlowMessage>;
         }
 
         namespace FlowService {
 
             /**
-             * Callback as used by {@link flowcraft.v1.FlowService#connect}.
+             * Callback as used by {@link flowcraft_proto.v1.FlowService#connect}.
              * @param error Error, if any
              * @param [response] FlowMessage
              */
-            type ConnectCallback = (error: (Error|null), response?: flowcraft.v1.FlowMessage) => void;
+            type ConnectCallback = (error: (Error|null), response?: flowcraft_proto.v1.FlowMessage) => void;
         }
 
         /** Properties of a GraphSnapshot. */
         interface IGraphSnapshot {
 
             /** GraphSnapshot nodes */
-            nodes?: (flowcraft.v1.INode[]|null);
+            nodes?: (flowcraft_proto.v1.INode[]|null);
 
             /** GraphSnapshot edges */
-            edges?: (flowcraft.v1.IEdge[]|null);
+            edges?: (flowcraft_proto.v1.IEdge[]|null);
 
             /** GraphSnapshot version */
             version?: (number|Long|null);
@@ -2364,13 +2376,13 @@ export namespace flowcraft {
              * Constructs a new GraphSnapshot.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IGraphSnapshot);
+            constructor(properties?: flowcraft_proto.v1.IGraphSnapshot);
 
             /** GraphSnapshot nodes. */
-            public nodes: flowcraft.v1.INode[];
+            public nodes: flowcraft_proto.v1.INode[];
 
             /** GraphSnapshot edges. */
-            public edges: flowcraft.v1.IEdge[];
+            public edges: flowcraft_proto.v1.IEdge[];
 
             /** GraphSnapshot version. */
             public version: (number|Long);
@@ -2380,23 +2392,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns GraphSnapshot instance
              */
-            public static create(properties?: flowcraft.v1.IGraphSnapshot): flowcraft.v1.GraphSnapshot;
+            public static create(properties?: flowcraft_proto.v1.IGraphSnapshot): flowcraft_proto.v1.GraphSnapshot;
 
             /**
-             * Encodes the specified GraphSnapshot message. Does not implicitly {@link flowcraft.v1.GraphSnapshot.verify|verify} messages.
+             * Encodes the specified GraphSnapshot message. Does not implicitly {@link flowcraft_proto.v1.GraphSnapshot.verify|verify} messages.
              * @param message GraphSnapshot message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IGraphSnapshot, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IGraphSnapshot, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified GraphSnapshot message, length delimited. Does not implicitly {@link flowcraft.v1.GraphSnapshot.verify|verify} messages.
+             * Encodes the specified GraphSnapshot message, length delimited. Does not implicitly {@link flowcraft_proto.v1.GraphSnapshot.verify|verify} messages.
              * @param message GraphSnapshot message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IGraphSnapshot, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IGraphSnapshot, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a GraphSnapshot message from the specified reader or buffer.
@@ -2406,7 +2418,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.GraphSnapshot;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.GraphSnapshot;
 
             /**
              * Decodes a GraphSnapshot message from the specified reader or buffer, length delimited.
@@ -2415,7 +2427,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.GraphSnapshot;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.GraphSnapshot;
 
             /**
              * Verifies a GraphSnapshot message.
@@ -2429,7 +2441,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns GraphSnapshot
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.GraphSnapshot;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.GraphSnapshot;
 
             /**
              * Creates a plain object from a GraphSnapshot message. Also converts values to other types if specified.
@@ -2437,7 +2449,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.GraphSnapshot, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.GraphSnapshot, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this GraphSnapshot to JSON.
@@ -2457,25 +2469,25 @@ export namespace flowcraft {
         interface IGraphMutation {
 
             /** GraphMutation addNode */
-            addNode?: (flowcraft.v1.IAddNode|null);
+            addNode?: (flowcraft_proto.v1.IAddNode|null);
 
             /** GraphMutation updateNode */
-            updateNode?: (flowcraft.v1.IUpdateNode|null);
+            updateNode?: (flowcraft_proto.v1.IUpdateNode|null);
 
             /** GraphMutation removeNode */
-            removeNode?: (flowcraft.v1.IRemoveNode|null);
+            removeNode?: (flowcraft_proto.v1.IRemoveNode|null);
 
             /** GraphMutation addEdge */
-            addEdge?: (flowcraft.v1.IAddEdge|null);
+            addEdge?: (flowcraft_proto.v1.IAddEdge|null);
 
             /** GraphMutation removeEdge */
-            removeEdge?: (flowcraft.v1.IRemoveEdge|null);
+            removeEdge?: (flowcraft_proto.v1.IRemoveEdge|null);
 
             /** GraphMutation addSubgraph */
-            addSubgraph?: (flowcraft.v1.IAddSubGraph|null);
+            addSubgraph?: (flowcraft_proto.v1.IAddSubGraph|null);
 
             /** GraphMutation clearGraph */
-            clearGraph?: (flowcraft.v1.IClearGraph|null);
+            clearGraph?: (flowcraft_proto.v1.IClearGraph|null);
         }
 
         /** Represents a GraphMutation. */
@@ -2485,28 +2497,28 @@ export namespace flowcraft {
              * Constructs a new GraphMutation.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IGraphMutation);
+            constructor(properties?: flowcraft_proto.v1.IGraphMutation);
 
             /** GraphMutation addNode. */
-            public addNode?: (flowcraft.v1.IAddNode|null);
+            public addNode?: (flowcraft_proto.v1.IAddNode|null);
 
             /** GraphMutation updateNode. */
-            public updateNode?: (flowcraft.v1.IUpdateNode|null);
+            public updateNode?: (flowcraft_proto.v1.IUpdateNode|null);
 
             /** GraphMutation removeNode. */
-            public removeNode?: (flowcraft.v1.IRemoveNode|null);
+            public removeNode?: (flowcraft_proto.v1.IRemoveNode|null);
 
             /** GraphMutation addEdge. */
-            public addEdge?: (flowcraft.v1.IAddEdge|null);
+            public addEdge?: (flowcraft_proto.v1.IAddEdge|null);
 
             /** GraphMutation removeEdge. */
-            public removeEdge?: (flowcraft.v1.IRemoveEdge|null);
+            public removeEdge?: (flowcraft_proto.v1.IRemoveEdge|null);
 
             /** GraphMutation addSubgraph. */
-            public addSubgraph?: (flowcraft.v1.IAddSubGraph|null);
+            public addSubgraph?: (flowcraft_proto.v1.IAddSubGraph|null);
 
             /** GraphMutation clearGraph. */
-            public clearGraph?: (flowcraft.v1.IClearGraph|null);
+            public clearGraph?: (flowcraft_proto.v1.IClearGraph|null);
 
             /** GraphMutation operation. */
             public operation?: ("addNode"|"updateNode"|"removeNode"|"addEdge"|"removeEdge"|"addSubgraph"|"clearGraph");
@@ -2516,23 +2528,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns GraphMutation instance
              */
-            public static create(properties?: flowcraft.v1.IGraphMutation): flowcraft.v1.GraphMutation;
+            public static create(properties?: flowcraft_proto.v1.IGraphMutation): flowcraft_proto.v1.GraphMutation;
 
             /**
-             * Encodes the specified GraphMutation message. Does not implicitly {@link flowcraft.v1.GraphMutation.verify|verify} messages.
+             * Encodes the specified GraphMutation message. Does not implicitly {@link flowcraft_proto.v1.GraphMutation.verify|verify} messages.
              * @param message GraphMutation message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IGraphMutation, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IGraphMutation, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified GraphMutation message, length delimited. Does not implicitly {@link flowcraft.v1.GraphMutation.verify|verify} messages.
+             * Encodes the specified GraphMutation message, length delimited. Does not implicitly {@link flowcraft_proto.v1.GraphMutation.verify|verify} messages.
              * @param message GraphMutation message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IGraphMutation, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IGraphMutation, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a GraphMutation message from the specified reader or buffer.
@@ -2542,7 +2554,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.GraphMutation;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.GraphMutation;
 
             /**
              * Decodes a GraphMutation message from the specified reader or buffer, length delimited.
@@ -2551,7 +2563,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.GraphMutation;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.GraphMutation;
 
             /**
              * Verifies a GraphMutation message.
@@ -2565,7 +2577,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns GraphMutation
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.GraphMutation;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.GraphMutation;
 
             /**
              * Creates a plain object from a GraphMutation message. Also converts values to other types if specified.
@@ -2573,7 +2585,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.GraphMutation, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.GraphMutation, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this GraphMutation to JSON.
@@ -2593,7 +2605,7 @@ export namespace flowcraft {
         interface IAddNode {
 
             /** AddNode node */
-            node?: (flowcraft.v1.INode|null);
+            node?: (flowcraft_proto.v1.INode|null);
         }
 
         /** Represents an AddNode. */
@@ -2603,33 +2615,33 @@ export namespace flowcraft {
              * Constructs a new AddNode.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IAddNode);
+            constructor(properties?: flowcraft_proto.v1.IAddNode);
 
             /** AddNode node. */
-            public node?: (flowcraft.v1.INode|null);
+            public node?: (flowcraft_proto.v1.INode|null);
 
             /**
              * Creates a new AddNode instance using the specified properties.
              * @param [properties] Properties to set
              * @returns AddNode instance
              */
-            public static create(properties?: flowcraft.v1.IAddNode): flowcraft.v1.AddNode;
+            public static create(properties?: flowcraft_proto.v1.IAddNode): flowcraft_proto.v1.AddNode;
 
             /**
-             * Encodes the specified AddNode message. Does not implicitly {@link flowcraft.v1.AddNode.verify|verify} messages.
+             * Encodes the specified AddNode message. Does not implicitly {@link flowcraft_proto.v1.AddNode.verify|verify} messages.
              * @param message AddNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IAddNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IAddNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified AddNode message, length delimited. Does not implicitly {@link flowcraft.v1.AddNode.verify|verify} messages.
+             * Encodes the specified AddNode message, length delimited. Does not implicitly {@link flowcraft_proto.v1.AddNode.verify|verify} messages.
              * @param message AddNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IAddNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IAddNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an AddNode message from the specified reader or buffer.
@@ -2639,7 +2651,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.AddNode;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.AddNode;
 
             /**
              * Decodes an AddNode message from the specified reader or buffer, length delimited.
@@ -2648,7 +2660,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.AddNode;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.AddNode;
 
             /**
              * Verifies an AddNode message.
@@ -2662,7 +2674,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns AddNode
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.AddNode;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.AddNode;
 
             /**
              * Creates a plain object from an AddNode message. Also converts values to other types if specified.
@@ -2670,7 +2682,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.AddNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.AddNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this AddNode to JSON.
@@ -2693,10 +2705,10 @@ export namespace flowcraft {
             id?: (string|null);
 
             /** UpdateNode data */
-            data?: (flowcraft.v1.INodeData|null);
+            data?: (flowcraft_proto.v1.INodeData|null);
 
             /** UpdateNode position */
-            position?: (flowcraft.v1.IPosition|null);
+            position?: (flowcraft_proto.v1.IPosition|null);
         }
 
         /** Represents an UpdateNode. */
@@ -2706,39 +2718,39 @@ export namespace flowcraft {
              * Constructs a new UpdateNode.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IUpdateNode);
+            constructor(properties?: flowcraft_proto.v1.IUpdateNode);
 
             /** UpdateNode id. */
             public id: string;
 
             /** UpdateNode data. */
-            public data?: (flowcraft.v1.INodeData|null);
+            public data?: (flowcraft_proto.v1.INodeData|null);
 
             /** UpdateNode position. */
-            public position?: (flowcraft.v1.IPosition|null);
+            public position?: (flowcraft_proto.v1.IPosition|null);
 
             /**
              * Creates a new UpdateNode instance using the specified properties.
              * @param [properties] Properties to set
              * @returns UpdateNode instance
              */
-            public static create(properties?: flowcraft.v1.IUpdateNode): flowcraft.v1.UpdateNode;
+            public static create(properties?: flowcraft_proto.v1.IUpdateNode): flowcraft_proto.v1.UpdateNode;
 
             /**
-             * Encodes the specified UpdateNode message. Does not implicitly {@link flowcraft.v1.UpdateNode.verify|verify} messages.
+             * Encodes the specified UpdateNode message. Does not implicitly {@link flowcraft_proto.v1.UpdateNode.verify|verify} messages.
              * @param message UpdateNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IUpdateNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IUpdateNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified UpdateNode message, length delimited. Does not implicitly {@link flowcraft.v1.UpdateNode.verify|verify} messages.
+             * Encodes the specified UpdateNode message, length delimited. Does not implicitly {@link flowcraft_proto.v1.UpdateNode.verify|verify} messages.
              * @param message UpdateNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IUpdateNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IUpdateNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an UpdateNode message from the specified reader or buffer.
@@ -2748,7 +2760,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.UpdateNode;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.UpdateNode;
 
             /**
              * Decodes an UpdateNode message from the specified reader or buffer, length delimited.
@@ -2757,7 +2769,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.UpdateNode;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.UpdateNode;
 
             /**
              * Verifies an UpdateNode message.
@@ -2771,7 +2783,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns UpdateNode
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.UpdateNode;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.UpdateNode;
 
             /**
              * Creates a plain object from an UpdateNode message. Also converts values to other types if specified.
@@ -2779,7 +2791,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.UpdateNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.UpdateNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this UpdateNode to JSON.
@@ -2809,7 +2821,7 @@ export namespace flowcraft {
              * Constructs a new RemoveNode.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IRemoveNode);
+            constructor(properties?: flowcraft_proto.v1.IRemoveNode);
 
             /** RemoveNode id. */
             public id: string;
@@ -2819,23 +2831,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns RemoveNode instance
              */
-            public static create(properties?: flowcraft.v1.IRemoveNode): flowcraft.v1.RemoveNode;
+            public static create(properties?: flowcraft_proto.v1.IRemoveNode): flowcraft_proto.v1.RemoveNode;
 
             /**
-             * Encodes the specified RemoveNode message. Does not implicitly {@link flowcraft.v1.RemoveNode.verify|verify} messages.
+             * Encodes the specified RemoveNode message. Does not implicitly {@link flowcraft_proto.v1.RemoveNode.verify|verify} messages.
              * @param message RemoveNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IRemoveNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IRemoveNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified RemoveNode message, length delimited. Does not implicitly {@link flowcraft.v1.RemoveNode.verify|verify} messages.
+             * Encodes the specified RemoveNode message, length delimited. Does not implicitly {@link flowcraft_proto.v1.RemoveNode.verify|verify} messages.
              * @param message RemoveNode message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IRemoveNode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IRemoveNode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a RemoveNode message from the specified reader or buffer.
@@ -2845,7 +2857,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.RemoveNode;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.RemoveNode;
 
             /**
              * Decodes a RemoveNode message from the specified reader or buffer, length delimited.
@@ -2854,7 +2866,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.RemoveNode;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.RemoveNode;
 
             /**
              * Verifies a RemoveNode message.
@@ -2868,7 +2880,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns RemoveNode
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.RemoveNode;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.RemoveNode;
 
             /**
              * Creates a plain object from a RemoveNode message. Also converts values to other types if specified.
@@ -2876,7 +2888,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.RemoveNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.RemoveNode, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this RemoveNode to JSON.
@@ -2896,7 +2908,7 @@ export namespace flowcraft {
         interface IAddEdge {
 
             /** AddEdge edge */
-            edge?: (flowcraft.v1.IEdge|null);
+            edge?: (flowcraft_proto.v1.IEdge|null);
         }
 
         /** Represents an AddEdge. */
@@ -2906,33 +2918,33 @@ export namespace flowcraft {
              * Constructs a new AddEdge.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IAddEdge);
+            constructor(properties?: flowcraft_proto.v1.IAddEdge);
 
             /** AddEdge edge. */
-            public edge?: (flowcraft.v1.IEdge|null);
+            public edge?: (flowcraft_proto.v1.IEdge|null);
 
             /**
              * Creates a new AddEdge instance using the specified properties.
              * @param [properties] Properties to set
              * @returns AddEdge instance
              */
-            public static create(properties?: flowcraft.v1.IAddEdge): flowcraft.v1.AddEdge;
+            public static create(properties?: flowcraft_proto.v1.IAddEdge): flowcraft_proto.v1.AddEdge;
 
             /**
-             * Encodes the specified AddEdge message. Does not implicitly {@link flowcraft.v1.AddEdge.verify|verify} messages.
+             * Encodes the specified AddEdge message. Does not implicitly {@link flowcraft_proto.v1.AddEdge.verify|verify} messages.
              * @param message AddEdge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IAddEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IAddEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified AddEdge message, length delimited. Does not implicitly {@link flowcraft.v1.AddEdge.verify|verify} messages.
+             * Encodes the specified AddEdge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.AddEdge.verify|verify} messages.
              * @param message AddEdge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IAddEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IAddEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an AddEdge message from the specified reader or buffer.
@@ -2942,7 +2954,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.AddEdge;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.AddEdge;
 
             /**
              * Decodes an AddEdge message from the specified reader or buffer, length delimited.
@@ -2951,7 +2963,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.AddEdge;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.AddEdge;
 
             /**
              * Verifies an AddEdge message.
@@ -2965,7 +2977,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns AddEdge
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.AddEdge;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.AddEdge;
 
             /**
              * Creates a plain object from an AddEdge message. Also converts values to other types if specified.
@@ -2973,7 +2985,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.AddEdge, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.AddEdge, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this AddEdge to JSON.
@@ -3003,7 +3015,7 @@ export namespace flowcraft {
              * Constructs a new RemoveEdge.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IRemoveEdge);
+            constructor(properties?: flowcraft_proto.v1.IRemoveEdge);
 
             /** RemoveEdge id. */
             public id: string;
@@ -3013,23 +3025,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns RemoveEdge instance
              */
-            public static create(properties?: flowcraft.v1.IRemoveEdge): flowcraft.v1.RemoveEdge;
+            public static create(properties?: flowcraft_proto.v1.IRemoveEdge): flowcraft_proto.v1.RemoveEdge;
 
             /**
-             * Encodes the specified RemoveEdge message. Does not implicitly {@link flowcraft.v1.RemoveEdge.verify|verify} messages.
+             * Encodes the specified RemoveEdge message. Does not implicitly {@link flowcraft_proto.v1.RemoveEdge.verify|verify} messages.
              * @param message RemoveEdge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IRemoveEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IRemoveEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified RemoveEdge message, length delimited. Does not implicitly {@link flowcraft.v1.RemoveEdge.verify|verify} messages.
+             * Encodes the specified RemoveEdge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.RemoveEdge.verify|verify} messages.
              * @param message RemoveEdge message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IRemoveEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IRemoveEdge, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a RemoveEdge message from the specified reader or buffer.
@@ -3039,7 +3051,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.RemoveEdge;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.RemoveEdge;
 
             /**
              * Decodes a RemoveEdge message from the specified reader or buffer, length delimited.
@@ -3048,7 +3060,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.RemoveEdge;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.RemoveEdge;
 
             /**
              * Verifies a RemoveEdge message.
@@ -3062,7 +3074,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns RemoveEdge
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.RemoveEdge;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.RemoveEdge;
 
             /**
              * Creates a plain object from a RemoveEdge message. Also converts values to other types if specified.
@@ -3070,7 +3082,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.RemoveEdge, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.RemoveEdge, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this RemoveEdge to JSON.
@@ -3090,10 +3102,10 @@ export namespace flowcraft {
         interface IAddSubGraph {
 
             /** AddSubGraph nodes */
-            nodes?: (flowcraft.v1.INode[]|null);
+            nodes?: (flowcraft_proto.v1.INode[]|null);
 
             /** AddSubGraph edges */
-            edges?: (flowcraft.v1.IEdge[]|null);
+            edges?: (flowcraft_proto.v1.IEdge[]|null);
         }
 
         /** Represents an AddSubGraph. */
@@ -3103,36 +3115,36 @@ export namespace flowcraft {
              * Constructs a new AddSubGraph.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IAddSubGraph);
+            constructor(properties?: flowcraft_proto.v1.IAddSubGraph);
 
             /** AddSubGraph nodes. */
-            public nodes: flowcraft.v1.INode[];
+            public nodes: flowcraft_proto.v1.INode[];
 
             /** AddSubGraph edges. */
-            public edges: flowcraft.v1.IEdge[];
+            public edges: flowcraft_proto.v1.IEdge[];
 
             /**
              * Creates a new AddSubGraph instance using the specified properties.
              * @param [properties] Properties to set
              * @returns AddSubGraph instance
              */
-            public static create(properties?: flowcraft.v1.IAddSubGraph): flowcraft.v1.AddSubGraph;
+            public static create(properties?: flowcraft_proto.v1.IAddSubGraph): flowcraft_proto.v1.AddSubGraph;
 
             /**
-             * Encodes the specified AddSubGraph message. Does not implicitly {@link flowcraft.v1.AddSubGraph.verify|verify} messages.
+             * Encodes the specified AddSubGraph message. Does not implicitly {@link flowcraft_proto.v1.AddSubGraph.verify|verify} messages.
              * @param message AddSubGraph message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IAddSubGraph, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IAddSubGraph, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified AddSubGraph message, length delimited. Does not implicitly {@link flowcraft.v1.AddSubGraph.verify|verify} messages.
+             * Encodes the specified AddSubGraph message, length delimited. Does not implicitly {@link flowcraft_proto.v1.AddSubGraph.verify|verify} messages.
              * @param message AddSubGraph message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IAddSubGraph, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IAddSubGraph, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes an AddSubGraph message from the specified reader or buffer.
@@ -3142,7 +3154,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.AddSubGraph;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.AddSubGraph;
 
             /**
              * Decodes an AddSubGraph message from the specified reader or buffer, length delimited.
@@ -3151,7 +3163,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.AddSubGraph;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.AddSubGraph;
 
             /**
              * Verifies an AddSubGraph message.
@@ -3165,7 +3177,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns AddSubGraph
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.AddSubGraph;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.AddSubGraph;
 
             /**
              * Creates a plain object from an AddSubGraph message. Also converts values to other types if specified.
@@ -3173,7 +3185,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.AddSubGraph, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.AddSubGraph, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this AddSubGraph to JSON.
@@ -3200,30 +3212,30 @@ export namespace flowcraft {
              * Constructs a new ClearGraph.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IClearGraph);
+            constructor(properties?: flowcraft_proto.v1.IClearGraph);
 
             /**
              * Creates a new ClearGraph instance using the specified properties.
              * @param [properties] Properties to set
              * @returns ClearGraph instance
              */
-            public static create(properties?: flowcraft.v1.IClearGraph): flowcraft.v1.ClearGraph;
+            public static create(properties?: flowcraft_proto.v1.IClearGraph): flowcraft_proto.v1.ClearGraph;
 
             /**
-             * Encodes the specified ClearGraph message. Does not implicitly {@link flowcraft.v1.ClearGraph.verify|verify} messages.
+             * Encodes the specified ClearGraph message. Does not implicitly {@link flowcraft_proto.v1.ClearGraph.verify|verify} messages.
              * @param message ClearGraph message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IClearGraph, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IClearGraph, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ClearGraph message, length delimited. Does not implicitly {@link flowcraft.v1.ClearGraph.verify|verify} messages.
+             * Encodes the specified ClearGraph message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ClearGraph.verify|verify} messages.
              * @param message ClearGraph message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IClearGraph, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IClearGraph, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a ClearGraph message from the specified reader or buffer.
@@ -3233,7 +3245,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.ClearGraph;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ClearGraph;
 
             /**
              * Decodes a ClearGraph message from the specified reader or buffer, length delimited.
@@ -3242,7 +3254,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.ClearGraph;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ClearGraph;
 
             /**
              * Verifies a ClearGraph message.
@@ -3256,7 +3268,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns ClearGraph
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.ClearGraph;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ClearGraph;
 
             /**
              * Creates a plain object from a ClearGraph message. Also converts values to other types if specified.
@@ -3264,7 +3276,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.ClearGraph, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ClearGraph, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this ClearGraph to JSON.
@@ -3287,7 +3299,7 @@ export namespace flowcraft {
             taskId?: (string|null);
 
             /** TaskUpdate status */
-            status?: (flowcraft.v1.TaskStatus|null);
+            status?: (flowcraft_proto.v1.TaskStatus|null);
 
             /** TaskUpdate progress */
             progress?: (number|null);
@@ -3306,13 +3318,13 @@ export namespace flowcraft {
              * Constructs a new TaskUpdate.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.ITaskUpdate);
+            constructor(properties?: flowcraft_proto.v1.ITaskUpdate);
 
             /** TaskUpdate taskId. */
             public taskId: string;
 
             /** TaskUpdate status. */
-            public status: flowcraft.v1.TaskStatus;
+            public status: flowcraft_proto.v1.TaskStatus;
 
             /** TaskUpdate progress. */
             public progress: number;
@@ -3328,23 +3340,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns TaskUpdate instance
              */
-            public static create(properties?: flowcraft.v1.ITaskUpdate): flowcraft.v1.TaskUpdate;
+            public static create(properties?: flowcraft_proto.v1.ITaskUpdate): flowcraft_proto.v1.TaskUpdate;
 
             /**
-             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft.v1.TaskUpdate.verify|verify} messages.
+             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
              * @param message TaskUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft.v1.TaskUpdate.verify|verify} messages.
+             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
              * @param message TaskUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a TaskUpdate message from the specified reader or buffer.
@@ -3354,7 +3366,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.TaskUpdate;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.TaskUpdate;
 
             /**
              * Decodes a TaskUpdate message from the specified reader or buffer, length delimited.
@@ -3363,7 +3375,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.TaskUpdate;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.TaskUpdate;
 
             /**
              * Verifies a TaskUpdate message.
@@ -3377,7 +3389,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns TaskUpdate
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.TaskUpdate;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.TaskUpdate;
 
             /**
              * Creates a plain object from a TaskUpdate message. Also converts values to other types if specified.
@@ -3385,7 +3397,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.TaskUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.TaskUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this TaskUpdate to JSON.
@@ -3424,7 +3436,7 @@ export namespace flowcraft {
              * Constructs a new TaskCancelRequest.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.ITaskCancelRequest);
+            constructor(properties?: flowcraft_proto.v1.ITaskCancelRequest);
 
             /** TaskCancelRequest taskId. */
             public taskId: string;
@@ -3434,23 +3446,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns TaskCancelRequest instance
              */
-            public static create(properties?: flowcraft.v1.ITaskCancelRequest): flowcraft.v1.TaskCancelRequest;
+            public static create(properties?: flowcraft_proto.v1.ITaskCancelRequest): flowcraft_proto.v1.TaskCancelRequest;
 
             /**
-             * Encodes the specified TaskCancelRequest message. Does not implicitly {@link flowcraft.v1.TaskCancelRequest.verify|verify} messages.
+             * Encodes the specified TaskCancelRequest message. Does not implicitly {@link flowcraft_proto.v1.TaskCancelRequest.verify|verify} messages.
              * @param message TaskCancelRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.ITaskCancelRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ITaskCancelRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified TaskCancelRequest message, length delimited. Does not implicitly {@link flowcraft.v1.TaskCancelRequest.verify|verify} messages.
+             * Encodes the specified TaskCancelRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskCancelRequest.verify|verify} messages.
              * @param message TaskCancelRequest message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.ITaskCancelRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ITaskCancelRequest, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a TaskCancelRequest message from the specified reader or buffer.
@@ -3460,7 +3472,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.TaskCancelRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.TaskCancelRequest;
 
             /**
              * Decodes a TaskCancelRequest message from the specified reader or buffer, length delimited.
@@ -3469,7 +3481,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.TaskCancelRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.TaskCancelRequest;
 
             /**
              * Verifies a TaskCancelRequest message.
@@ -3483,7 +3495,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns TaskCancelRequest
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.TaskCancelRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.TaskCancelRequest;
 
             /**
              * Creates a plain object from a TaskCancelRequest message. Also converts values to other types if specified.
@@ -3491,7 +3503,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.TaskCancelRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.TaskCancelRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this TaskCancelRequest to JSON.
@@ -3517,10 +3529,10 @@ export namespace flowcraft {
             type?: (string|null);
 
             /** Node position */
-            position?: (flowcraft.v1.IPosition|null);
+            position?: (flowcraft_proto.v1.IPosition|null);
 
             /** Node data */
-            data?: (flowcraft.v1.INodeData|null);
+            data?: (flowcraft_proto.v1.INodeData|null);
 
             /** Node width */
             width?: (number|null);
@@ -3542,7 +3554,7 @@ export namespace flowcraft {
              * Constructs a new Node.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.INode);
+            constructor(properties?: flowcraft_proto.v1.INode);
 
             /** Node id. */
             public id: string;
@@ -3551,10 +3563,10 @@ export namespace flowcraft {
             public type: string;
 
             /** Node position. */
-            public position?: (flowcraft.v1.IPosition|null);
+            public position?: (flowcraft_proto.v1.IPosition|null);
 
             /** Node data. */
-            public data?: (flowcraft.v1.INodeData|null);
+            public data?: (flowcraft_proto.v1.INodeData|null);
 
             /** Node width. */
             public width: number;
@@ -3573,23 +3585,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Node instance
              */
-            public static create(properties?: flowcraft.v1.INode): flowcraft.v1.Node;
+            public static create(properties?: flowcraft_proto.v1.INode): flowcraft_proto.v1.Node;
 
             /**
-             * Encodes the specified Node message. Does not implicitly {@link flowcraft.v1.Node.verify|verify} messages.
+             * Encodes the specified Node message. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
              * @param message Node message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft.v1.Node.verify|verify} messages.
+             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
              * @param message Node message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Node message from the specified reader or buffer.
@@ -3599,7 +3611,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Node;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Node;
 
             /**
              * Decodes a Node message from the specified reader or buffer, length delimited.
@@ -3608,7 +3620,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Node;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Node;
 
             /**
              * Verifies a Node message.
@@ -3622,7 +3634,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Node
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Node;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Node;
 
             /**
              * Creates a plain object from a Node message. Also converts values to other types if specified.
@@ -3630,7 +3642,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Node, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Node, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Node to JSON.
@@ -3653,22 +3665,22 @@ export namespace flowcraft {
             label?: (string|null);
 
             /** NodeData availableModes */
-            availableModes?: (flowcraft.v1.RenderMode[]|null);
+            availableModes?: (flowcraft_proto.v1.RenderMode[]|null);
 
             /** NodeData activeMode */
-            activeMode?: (flowcraft.v1.RenderMode|null);
+            activeMode?: (flowcraft_proto.v1.RenderMode|null);
 
             /** NodeData media */
-            media?: (flowcraft.v1.IMediaContent|null);
+            media?: (flowcraft_proto.v1.IMediaContent|null);
 
             /** NodeData widgets */
-            widgets?: (flowcraft.v1.IWidget[]|null);
+            widgets?: (flowcraft_proto.v1.IWidget[]|null);
 
             /** NodeData inputPorts */
-            inputPorts?: (flowcraft.v1.IPort[]|null);
+            inputPorts?: (flowcraft_proto.v1.IPort[]|null);
 
             /** NodeData outputPorts */
-            outputPorts?: (flowcraft.v1.IPort[]|null);
+            outputPorts?: (flowcraft_proto.v1.IPort[]|null);
 
             /** NodeData metadata */
             metadata?: ({ [k: string]: string }|null);
@@ -3681,28 +3693,28 @@ export namespace flowcraft {
              * Constructs a new NodeData.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.INodeData);
+            constructor(properties?: flowcraft_proto.v1.INodeData);
 
             /** NodeData label. */
             public label: string;
 
             /** NodeData availableModes. */
-            public availableModes: flowcraft.v1.RenderMode[];
+            public availableModes: flowcraft_proto.v1.RenderMode[];
 
             /** NodeData activeMode. */
-            public activeMode: flowcraft.v1.RenderMode;
+            public activeMode: flowcraft_proto.v1.RenderMode;
 
             /** NodeData media. */
-            public media?: (flowcraft.v1.IMediaContent|null);
+            public media?: (flowcraft_proto.v1.IMediaContent|null);
 
             /** NodeData widgets. */
-            public widgets: flowcraft.v1.IWidget[];
+            public widgets: flowcraft_proto.v1.IWidget[];
 
             /** NodeData inputPorts. */
-            public inputPorts: flowcraft.v1.IPort[];
+            public inputPorts: flowcraft_proto.v1.IPort[];
 
             /** NodeData outputPorts. */
-            public outputPorts: flowcraft.v1.IPort[];
+            public outputPorts: flowcraft_proto.v1.IPort[];
 
             /** NodeData metadata. */
             public metadata: { [k: string]: string };
@@ -3712,23 +3724,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns NodeData instance
              */
-            public static create(properties?: flowcraft.v1.INodeData): flowcraft.v1.NodeData;
+            public static create(properties?: flowcraft_proto.v1.INodeData): flowcraft_proto.v1.NodeData;
 
             /**
-             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft.v1.NodeData.verify|verify} messages.
+             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
              * @param message NodeData message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft.v1.NodeData.verify|verify} messages.
+             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
              * @param message NodeData message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a NodeData message from the specified reader or buffer.
@@ -3738,7 +3750,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.NodeData;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.NodeData;
 
             /**
              * Decodes a NodeData message from the specified reader or buffer, length delimited.
@@ -3747,7 +3759,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.NodeData;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.NodeData;
 
             /**
              * Verifies a NodeData message.
@@ -3761,7 +3773,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns NodeData
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.NodeData;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.NodeData;
 
             /**
              * Creates a plain object from a NodeData message. Also converts values to other types if specified.
@@ -3769,7 +3781,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.NodeData, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.NodeData, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this NodeData to JSON.
@@ -3797,7 +3809,7 @@ export namespace flowcraft {
         interface IMediaContent {
 
             /** MediaContent type */
-            type?: (flowcraft.v1.MediaType|null);
+            type?: (flowcraft_proto.v1.MediaType|null);
 
             /** MediaContent url */
             url?: (string|null);
@@ -3819,10 +3831,10 @@ export namespace flowcraft {
              * Constructs a new MediaContent.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IMediaContent);
+            constructor(properties?: flowcraft_proto.v1.IMediaContent);
 
             /** MediaContent type. */
-            public type: flowcraft.v1.MediaType;
+            public type: flowcraft_proto.v1.MediaType;
 
             /** MediaContent url. */
             public url: string;
@@ -3841,23 +3853,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns MediaContent instance
              */
-            public static create(properties?: flowcraft.v1.IMediaContent): flowcraft.v1.MediaContent;
+            public static create(properties?: flowcraft_proto.v1.IMediaContent): flowcraft_proto.v1.MediaContent;
 
             /**
-             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft.v1.MediaContent.verify|verify} messages.
+             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
              * @param message MediaContent message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft.v1.MediaContent.verify|verify} messages.
+             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
              * @param message MediaContent message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a MediaContent message from the specified reader or buffer.
@@ -3867,7 +3879,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.MediaContent;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.MediaContent;
 
             /**
              * Decodes a MediaContent message from the specified reader or buffer, length delimited.
@@ -3876,7 +3888,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.MediaContent;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.MediaContent;
 
             /**
              * Verifies a MediaContent message.
@@ -3890,7 +3902,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns MediaContent
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.MediaContent;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.MediaContent;
 
             /**
              * Creates a plain object from a MediaContent message. Also converts values to other types if specified.
@@ -3898,7 +3910,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.MediaContent, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.MediaContent, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this MediaContent to JSON.
@@ -3953,7 +3965,7 @@ export namespace flowcraft {
              * Constructs a new WidgetOption.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IWidgetOption);
+            constructor(properties?: flowcraft_proto.v1.IWidgetOption);
 
             /** WidgetOption label. */
             public label: string;
@@ -3969,23 +3981,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns WidgetOption instance
              */
-            public static create(properties?: flowcraft.v1.IWidgetOption): flowcraft.v1.WidgetOption;
+            public static create(properties?: flowcraft_proto.v1.IWidgetOption): flowcraft_proto.v1.WidgetOption;
 
             /**
-             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft.v1.WidgetOption.verify|verify} messages.
+             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
              * @param message WidgetOption message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft.v1.WidgetOption.verify|verify} messages.
+             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
              * @param message WidgetOption message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a WidgetOption message from the specified reader or buffer.
@@ -3995,7 +4007,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.WidgetOption;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetOption;
 
             /**
              * Decodes a WidgetOption message from the specified reader or buffer, length delimited.
@@ -4004,7 +4016,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.WidgetOption;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetOption;
 
             /**
              * Verifies a WidgetOption message.
@@ -4018,7 +4030,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns WidgetOption
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.WidgetOption;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetOption;
 
             /**
              * Creates a plain object from a WidgetOption message. Also converts values to other types if specified.
@@ -4026,7 +4038,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.WidgetOption, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.WidgetOption, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this WidgetOption to JSON.
@@ -4071,7 +4083,7 @@ export namespace flowcraft {
              * Constructs a new WidgetConfig.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IWidgetConfig);
+            constructor(properties?: flowcraft_proto.v1.IWidgetConfig);
 
             /** WidgetConfig placeholder. */
             public placeholder: string;
@@ -4096,23 +4108,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns WidgetConfig instance
              */
-            public static create(properties?: flowcraft.v1.IWidgetConfig): flowcraft.v1.WidgetConfig;
+            public static create(properties?: flowcraft_proto.v1.IWidgetConfig): flowcraft_proto.v1.WidgetConfig;
 
             /**
-             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft.v1.WidgetConfig.verify|verify} messages.
+             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
              * @param message WidgetConfig message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft.v1.WidgetConfig.verify|verify} messages.
+             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
              * @param message WidgetConfig message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a WidgetConfig message from the specified reader or buffer.
@@ -4122,7 +4134,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.WidgetConfig;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetConfig;
 
             /**
              * Decodes a WidgetConfig message from the specified reader or buffer, length delimited.
@@ -4131,7 +4143,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.WidgetConfig;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetConfig;
 
             /**
              * Verifies a WidgetConfig message.
@@ -4145,7 +4157,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns WidgetConfig
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.WidgetConfig;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetConfig;
 
             /**
              * Creates a plain object from a WidgetConfig message. Also converts values to other types if specified.
@@ -4153,7 +4165,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.WidgetConfig, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.WidgetConfig, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this WidgetConfig to JSON.
@@ -4176,7 +4188,7 @@ export namespace flowcraft {
             id?: (string|null);
 
             /** Widget type */
-            type?: (flowcraft.v1.WidgetType|null);
+            type?: (flowcraft_proto.v1.WidgetType|null);
 
             /** Widget label */
             label?: (string|null);
@@ -4185,10 +4197,10 @@ export namespace flowcraft {
             valueJson?: (string|null);
 
             /** Widget config */
-            config?: (flowcraft.v1.IWidgetConfig|null);
+            config?: (flowcraft_proto.v1.IWidgetConfig|null);
 
             /** Widget options */
-            options?: (flowcraft.v1.IWidgetOption[]|null);
+            options?: (flowcraft_proto.v1.IWidgetOption[]|null);
 
             /** Widget isReadonly */
             isReadonly?: (boolean|null);
@@ -4207,13 +4219,13 @@ export namespace flowcraft {
              * Constructs a new Widget.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft.v1.IWidget);
+            constructor(properties?: flowcraft_proto.v1.IWidget);
 
             /** Widget id. */
             public id: string;
 
             /** Widget type. */
-            public type: flowcraft.v1.WidgetType;
+            public type: flowcraft_proto.v1.WidgetType;
 
             /** Widget label. */
             public label: string;
@@ -4222,10 +4234,10 @@ export namespace flowcraft {
             public valueJson: string;
 
             /** Widget config. */
-            public config?: (flowcraft.v1.IWidgetConfig|null);
+            public config?: (flowcraft_proto.v1.IWidgetConfig|null);
 
             /** Widget options. */
-            public options: flowcraft.v1.IWidgetOption[];
+            public options: flowcraft_proto.v1.IWidgetOption[];
 
             /** Widget isReadonly. */
             public isReadonly: boolean;
@@ -4241,23 +4253,23 @@ export namespace flowcraft {
              * @param [properties] Properties to set
              * @returns Widget instance
              */
-            public static create(properties?: flowcraft.v1.IWidget): flowcraft.v1.Widget;
+            public static create(properties?: flowcraft_proto.v1.IWidget): flowcraft_proto.v1.Widget;
 
             /**
-             * Encodes the specified Widget message. Does not implicitly {@link flowcraft.v1.Widget.verify|verify} messages.
+             * Encodes the specified Widget message. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
              * @param message Widget message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft.v1.Widget.verify|verify} messages.
+             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
              * @param message Widget message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
              * Decodes a Widget message from the specified reader or buffer.
@@ -4267,7 +4279,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft.v1.Widget;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Widget;
 
             /**
              * Decodes a Widget message from the specified reader or buffer, length delimited.
@@ -4276,7 +4288,7 @@ export namespace flowcraft {
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft.v1.Widget;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Widget;
 
             /**
              * Verifies a Widget message.
@@ -4290,7 +4302,7 @@ export namespace flowcraft {
              * @param object Plain object
              * @returns Widget
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft.v1.Widget;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Widget;
 
             /**
              * Creates a plain object from a Widget message. Also converts values to other types if specified.
@@ -4298,7 +4310,7 @@ export namespace flowcraft {
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft.v1.Widget, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Widget, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
              * Converts this Widget to JSON.

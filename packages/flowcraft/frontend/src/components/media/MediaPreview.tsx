@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { MediaType, type AppNode } from "../../types";
+import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import type { AppNode } from "../../types";
+
+const MediaType = flowcraft_proto.v1.MediaType;
 
 interface MediaPreviewProps {
   node: AppNode;
@@ -18,7 +21,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   const media = node.type === "dynamic" ? node.data.media : null;
   const items = useMemo(() => {
     if (!media) return [];
-    return [media.url, ...(media.galleryUrls || [])].filter(
+    return [media.url, ...(media.galleryUrls ?? [])].filter(
       Boolean,
     ) as string[];
   }, [media]);
@@ -75,7 +78,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [handlePrev, handleNext, onClose]);
 
   if (!media || items.length === 0) return null;
@@ -257,7 +262,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
         )}
 
         <div
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
           style={{
             maxWidth: "90vw",
             maxHeight: "85vh",
@@ -274,7 +281,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
           {media.type === MediaType.MEDIA_IMAGE ? (
             <img
               src={currentUrl}
-              onLoad={() => setIsLoading(false)}
+              onLoad={() => {
+                setIsLoading(false);
+              }}
               style={{
                 maxWidth: "100%",
                 maxHeight: "85vh",
@@ -286,7 +295,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             <video
               key={currentUrl}
               src={currentUrl}
-              onLoadedData={() => setIsLoading(false)}
+              onLoadedData={() => {
+                setIsLoading(false);
+              }}
               controls
               autoPlay
               style={{ maxWidth: "100%", maxHeight: "85vh" }}
@@ -322,7 +333,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               <audio
                 key={currentUrl}
                 src={currentUrl}
-                onLoadedData={() => setIsLoading(false)}
+                onLoadedData={() => {
+                  setIsLoading(false);
+                }}
                 controls
                 autoPlay
                 style={{ width: "100%" }}

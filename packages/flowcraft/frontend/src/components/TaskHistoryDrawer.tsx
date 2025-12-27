@@ -20,7 +20,9 @@ export const TaskHistoryDrawer: React.FC = () => {
   if (!isDrawerOpen) {
     return (
       <div
-        onClick={() => setDrawerOpen(true)}
+        onClick={() => {
+          setDrawerOpen(true);
+        }}
         style={{
           position: "fixed",
           bottom: 0,
@@ -93,7 +95,9 @@ export const TaskHistoryDrawer: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={() => setDrawerOpen(false)}
+          onClick={() => {
+            setDrawerOpen(false);
+          }}
           style={{
             background: "transparent",
             border: "none",
@@ -117,7 +121,9 @@ export const TaskHistoryDrawer: React.FC = () => {
           {taskList.map((task) => (
             <div
               key={task.taskId}
-              onClick={() => setSelectedTaskId(task.taskId)}
+              onClick={() => {
+                setSelectedTaskId(task.taskId);
+              }}
               style={{
                 padding: "8px 12px",
                 borderBottom: "1px solid #222",

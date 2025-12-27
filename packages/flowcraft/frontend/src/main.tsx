@@ -5,15 +5,19 @@ import App from "./App.tsx";
 import ThemeProvider from "./ThemeProvider.tsx";
 
 async function enableMocking() {
-  if (!import.meta.env.DEV) {
-    return;
+  if (import.meta.env.DEV) {
+    const { worker } = await import("./mocks/browser");
+    return worker.start({
+      onUnhandledRequest: "bypass",
+    });
   }
-  const { worker } = await import("./mocks/browser");
-  return worker.start();
 }
 
-enableMocking().then(() => {
-  createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Failed to find root element");
+
+void enableMocking().then(() => {
+  createRoot(rootElement).render(
     <StrictMode>
       <ThemeProvider>
         <App />

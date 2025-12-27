@@ -1,5 +1,10 @@
+import { flowcraft_proto } from "../generated/flowcraft_proto";
 import type { AppNode, Edge } from "../types";
-import { WidgetType, RenderMode, MediaType, PortStyle } from "../types";
+
+const WidgetType = flowcraft_proto.v1.WidgetType;
+const RenderMode = flowcraft_proto.v1.RenderMode;
+const MediaType = flowcraft_proto.v1.MediaType;
+const PortStyle = flowcraft_proto.v1.PortStyle;
 
 export const createNode = (
   id: string,
@@ -12,11 +17,13 @@ export const createNode = (
     id,
     type: "dynamic",
     position: { x, y },
-    style: { width: 350, height: 300 },
+    style: { width: 300, height: 200 },
     data: {
-      typeId: typeId || "base-node",
+      typeId: typeId ?? "test-node",
       label,
-      onChange: () => {},
+      onChange: () => {
+        /* do nothing */
+      },
       inputPorts: [],
       outputPorts: [],
       modes: [RenderMode.MODE_WIDGETS],
@@ -29,174 +36,228 @@ export const generateGallery = () => {
   const nodes: AppNode[] = [];
   const edges: Edge[] = [];
 
-  let x = 50;
-  let y = 50;
-  const colGap = 450;
-  const rowGap = 500;
+  const startX = 50;
+  const startY = 50;
+  const colGap = 400;
+  const rowGap = 600;
 
-  // 1. All Widgets
-  const wShowcase = createNode(
-    "gallery-widgets",
-    "1. All Widgets Matrix",
-    x,
-    y,
-    "widget-matrix",
-  );
-  wShowcase.style = { width: 350, height: 550 };
-  wShowcase.data.widgets = [
+  // --- COLUMN 1: ALL WIDGET TYPES ---
+  let currY = startY;
+  const widgetTypes = [
+    { type: WidgetType.WIDGET_TEXT, label: "Text Field", value: "Hello World" },
     {
-      id: "t1",
-      type: WidgetType.WIDGET_TEXT,
-      label: "Text Field",
-      value: "Protocol V2",
-    },
-    {
-      id: "s1",
       type: WidgetType.WIDGET_SELECT,
-      label: "Dropdown",
-      value: "v1",
+      label: "Select",
+      value: "opt1",
       options: [
-        { label: "Option A", value: "v1" },
-        { label: "Option B", value: "v2" },
+        { label: "Option 1", value: "opt1" },
+        { label: "Option 2", value: "opt2" },
       ],
     },
+    { type: WidgetType.WIDGET_CHECKBOX, label: "Checkbox", value: true },
     {
-      id: "c1",
-      type: WidgetType.WIDGET_CHECKBOX,
-      label: "Toggle Switch",
-      value: true,
-    },
-    {
-      id: "sl1",
       type: WidgetType.WIDGET_SLIDER,
-      label: "Range Slider",
-      value: 42,
+      label: "Slider",
+      value: 50,
       config: { min: 0, max: 100 },
     },
-    {
-      id: "b1",
-      type: WidgetType.WIDGET_BUTTON,
-      label: "Task Trigger",
-      value: "task:demo",
-    },
-    {
-      id: "b2",
-      type: WidgetType.WIDGET_BUTTON,
-      label: "Stream Trigger",
-      value: "stream-to:t1",
-    },
+    { type: WidgetType.WIDGET_BUTTON, label: "Button Action", value: "click" },
   ];
-  nodes.push(wShowcase);
 
-  // 2. Ports
-  x += colGap;
-  const portNode = createNode(
-    "gallery-ports",
-    "2. Port Semantic & Styles",
-    x,
-    y,
-    "port-showcase",
+  const widgetNode = createNode(
+    "widgets-all",
+    "Widget Showcase",
+    startX,
+    currY,
   );
-  portNode.style = { width: 350, height: 450 };
-  portNode.data.inputPorts = [
+  widgetNode.style = { width: 320, height: 450 };
+  widgetNode.data.widgets = widgetTypes.map((w, i) => ({
+    id: `w-${String(i)}`,
+    ...w,
+  }));
+  nodes.push(widgetNode);
+
+  // --- COLUMN 2: PORT STYLES ---
+  currY = startY;
+  const portStyleNode = createNode(
+    "ports-styles",
+    "Port Visual Styles",
+    startX + colGap,
+    currY,
+  );
+  portStyleNode.style = { width: 320, height: 350 };
+  portStyleNode.data.inputPorts = [
     {
-      id: "in-std",
-      label: "Standard (Any)",
-      type: { mainType: "any" },
+      id: "in-1",
+      label: "Circle (Default)",
       style: PortStyle.PORT_STYLE_CIRCLE,
-      color: "#646cff",
     },
+    { id: "in-2", label: "Square", style: PortStyle.PORT_STYLE_SQUARE },
+    { id: "in-3", label: "Diamond", style: PortStyle.PORT_STYLE_DIAMOND },
+    { id: "in-4", label: "Dashed", style: PortStyle.PORT_STYLE_DASH },
+  ];
+  nodes.push(portStyleNode);
+
+  // --- COLUMN 3: PORT SEMANTICS (TYPES) ---
+  currY = startY;
+  const portTypeNode = createNode(
+    "ports-types",
+    "Port Types (Semantics)",
+    startX + colGap * 2,
+    currY,
+  );
+  portTypeNode.style = { width: 320, height: 400 };
+  portTypeNode.data.inputPorts = [
+    { id: "it-1", label: "String Input", type: { mainType: "string" } },
+    { id: "it-2", label: "Number Input", type: { mainType: "number" } },
     {
-      id: "in-list",
-      label: "List<String>",
-      type: { mainType: "list", itemType: "string" },
-      style: PortStyle.PORT_STYLE_SQUARE,
-      color: "#ed64a6",
+      id: "it-3",
+      label: "Image List",
+      type: { mainType: "list", itemType: "image" },
     },
+    { id: "it-4", label: "Any Type", type: { mainType: "any" } },
     {
-      id: "in-set",
-      label: "Set<ID>",
-      type: { mainType: "set", itemType: "id" },
-      style: PortStyle.PORT_STYLE_CIRCLE,
-      color: "#f6ad55",
-    },
-    {
-      id: "in-gen",
+      id: "it-5",
       label: "Generic T",
       type: { mainType: "any", isGeneric: true },
-      style: PortStyle.PORT_STYLE_DIAMOND,
-      color: "#a0aec0",
     },
   ];
-  portNode.data.outputPorts = [
+  portTypeNode.data.outputPorts = [
+    { id: "ot-1", label: "Process Result", type: { mainType: "any" } },
     {
-      id: "out-std",
-      label: "Result Out",
-      type: { mainType: "any" },
-      style: PortStyle.PORT_STYLE_CIRCLE,
-      color: "#646cff",
-    },
-    {
-      id: "out-sys",
-      label: "System Flow",
+      id: "ot-2",
+      label: "Signal Out",
       type: { mainType: "system" },
       style: PortStyle.PORT_STYLE_DASH,
-      color: "#cbd5e0",
     },
   ];
-  nodes.push(portNode);
+  nodes.push(portTypeNode);
 
-  // 3. Implicit
-  x += colGap;
+  // --- ROW 2: MEDIA MODES ---
+  currY = startY + rowGap;
+  const mediaTypes = [
+    {
+      id: "media-img",
+      label: "Image Renderer",
+      media: {
+        type: MediaType.MEDIA_IMAGE,
+        url: "https://picsum.photos/id/237/400/300",
+        galleryUrls: [
+          "https://picsum.photos/id/238/400/300",
+          "https://picsum.photos/id/239/400/300",
+        ],
+      },
+    },
+    {
+      id: "media-video",
+      label: "Video Renderer",
+      media: {
+        type: MediaType.MEDIA_VIDEO,
+        url: "https://www.w3schools.com/html/mov_bbb.mp4",
+      },
+    },
+    {
+      id: "media-audio",
+      label: "Audio Renderer",
+      media: {
+        type: MediaType.MEDIA_AUDIO,
+        url: "https://www.w3schools.com/html/horse.mp3",
+      },
+    },
+    {
+      id: "media-md",
+      label: "Markdown Renderer",
+      media: {
+        type: MediaType.MEDIA_MARKDOWN,
+        content:
+          "# Markdown Title\n\n- List Item 1\n- List Item 2\n\n**Bold Text** and `code`.",
+      },
+    },
+  ];
+
+  mediaTypes.forEach((m, i) => {
+    const node = createNode(m.id, m.label, startX + i * colGap, currY);
+    node.data.modes = [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS];
+    node.data.activeMode = RenderMode.MODE_MEDIA;
+    node.data.media = m.media;
+    // Add some widgets too so we can test switching
+    node.data.widgets = [
+      {
+        id: "sw-1",
+        type: WidgetType.WIDGET_TEXT,
+        label: "Description",
+        value: `Setting for ${m.label}`,
+      },
+    ];
+    nodes.push(node);
+  });
+
+  // --- ROW 3: COMPLEX COMBINATIONS ---
+  currY = startY + rowGap * 2;
+
+  // Node with implicit port binding (port tied to a widget)
   const implicitNode = createNode(
-    "gallery-implicit",
-    "3. Implicit Port Binding",
-    x,
-    y,
-    "implicit-binding",
+    "complex-implicit",
+    "Implicit Binding",
+    startX,
+    currY,
   );
+  implicitNode.style = { width: 320, height: 300 };
   implicitNode.data.widgets = [
     {
-      id: "linked",
+      id: "linked-widget",
       type: WidgetType.WIDGET_TEXT,
-      label: "External Input",
-      value: "Lock when connected",
-      inputPortId: "implicit-in",
+      label: "Manual / Remote",
+      value: "Override me via port",
+      inputPortId: "implicit-port",
     },
   ];
   implicitNode.data.inputPorts = [
     {
-      id: "implicit-in",
+      id: "implicit-port",
       label: "Remote Data",
       type: { mainType: "string" },
-      style: PortStyle.PORT_STYLE_CIRCLE,
       color: "#646cff",
     },
   ];
   nodes.push(implicitNode);
 
-  // 4. Media
-  x = 50;
-  y += rowGap;
-  const imgNode = createNode(
-    "gallery-img",
-    "4. Image & Gallery",
-    x,
-    y,
-    "media-gallery",
+  // Large Processing Node (Custom Type)
+  const procNode: AppNode = {
+    id: "proc-1",
+    type: "processing",
+    position: { x: startX + colGap, y: currY },
+    style: { width: 300, height: 120 },
+    data: {
+      taskId: "task-123",
+      label: "AI Image Generation",
+      progress: 45,
+      status: 1, // PROCESSING
+    },
+  } as AppNode;
+  nodes.push(procNode);
+
+  // Group Node
+  const groupNode: AppNode = {
+    id: "group-1",
+    type: "groupNode",
+    position: { x: startX + colGap * 2, y: currY },
+    style: { width: 400, height: 300 },
+    data: { label: "Logical Group" },
+  } as AppNode;
+  nodes.push(groupNode);
+
+  // Child inside group
+  const childNode = createNode(
+    "child-1",
+    "Child Node",
+    startX + colGap * 2 + 50,
+    currY + 50,
   );
-  imgNode.data.modes = [RenderMode.MODE_MEDIA];
-  imgNode.data.activeMode = RenderMode.MODE_MEDIA;
-  imgNode.data.media = {
-    type: MediaType.MEDIA_IMAGE,
-    url: "https://picsum.photos/id/1011/400/300",
-    aspectRatio: 1.33,
-    galleryUrls: [
-      "https://picsum.photos/id/1012/400/300",
-      "https://picsum.photos/id/1013/400/300",
-    ],
-  };
-  nodes.push(imgNode);
+  childNode.style = { width: 200, height: 150 };
+  childNode.parentId = "group-1";
+  childNode.extent = "parent";
+  nodes.push(childNode);
 
   return { nodes, edges };
 };

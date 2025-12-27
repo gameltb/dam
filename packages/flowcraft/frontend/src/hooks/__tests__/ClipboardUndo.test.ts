@@ -87,7 +87,12 @@ describe("Direct Store Clipboard Logic", () => {
         addSubgraph: {
           nodes: [
             {
-              ...clipboard!.nodes[0],
+              ...(clipboard?.nodes[0] ?? {
+                id: "fallback",
+                type: "dynamic",
+                position: { x: 0, y: 0 },
+                data: {},
+              }),
               id: newNodeId,
               position: { x: 140, y: 140 },
             },

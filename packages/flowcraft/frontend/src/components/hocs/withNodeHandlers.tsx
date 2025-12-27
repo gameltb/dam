@@ -1,7 +1,11 @@
 import React from "react";
 import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
 import { BaseNode } from "../base/BaseNode";
-import { type DynamicNodeData, RenderMode, MediaType } from "../../types";
+import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import type { DynamicNodeData } from "../../types";
+
+const RenderMode = flowcraft_proto.v1.RenderMode;
+const MediaType = flowcraft_proto.v1.MediaType;
 
 export type NodeRendererProps<T extends Node> = NodeProps<T>;
 
@@ -24,9 +28,9 @@ export function withNodeHandlers<
     // --- Dynamic Min Height Calculation ---
     const HEADER_HEIGHT = 46;
     const PORT_HEIGHT =
-      Math.max(data.inputPorts?.length || 0, data.outputPorts?.length || 0) *
+      Math.max(data.inputPorts?.length ?? 0, data.outputPorts?.length ?? 0) *
       24;
-    const WIDGETS_HEIGHT = (data.widgets?.length || 0) * 55;
+    const WIDGETS_HEIGHT = (data.widgets?.length ?? 0) * 55;
 
     const calculatedMinHeight = isMedia
       ? isAudio
@@ -84,7 +88,7 @@ export function withNodeHandlers<
                 borderBottom: "none",
               }}
             >
-              TYPE: {String(data.typeId || type).toUpperCase()}
+              TYPE: {(data.typeId ?? type).toUpperCase()}
             </div>
             <div
               style={{

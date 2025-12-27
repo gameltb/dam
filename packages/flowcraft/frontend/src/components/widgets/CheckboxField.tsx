@@ -20,7 +20,9 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({
         type="checkbox"
         className="nodrag"
         checked={value}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => {
+          onChange(e.target.checked);
+        }}
       />
       <label style={{ fontSize: "13px" }}>{label}</label>
     </div>

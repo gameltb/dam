@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
-import { MediaType } from "../types";
+import type { MediaType } from "../types";
 
 export const useContextMenu = () => {
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
@@ -18,9 +18,13 @@ export const useContextMenu = () => {
   const onPaneContextMenu = useCallback(
     (event: ReactMouseEvent | MouseEvent) => {
       event.preventDefault();
+      const clientX =
+        "clientX" in event ? event.clientX : (event as MouseEvent).clientX;
+      const clientY =
+        "clientY" in event ? event.clientY : (event as MouseEvent).clientY;
       setContextMenu({
-        x: (event as any).clientX, // eslint-disable-line @typescript-eslint/no-explicit-any
-        y: (event as any).clientY, // eslint-disable-line @typescript-eslint/no-explicit-any
+        x: clientX,
+        y: clientY,
       });
     },
     [],
@@ -55,7 +59,9 @@ export const useContextMenu = () => {
     dispatchNodeEvent("pane-click", {});
   }, [dispatchNodeEvent]);
 
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
 
   return {
     contextMenu,

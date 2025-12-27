@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import { type Node } from "@xyflow/react";
-import { type DynamicNodeData, RenderMode } from "../../types";
+import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { type DynamicNodeData } from "../../types";
+
+const RenderMode = flowcraft_proto.v1.RenderMode;
 
 export interface BaseNodeProps<T extends Node> {
   id: string;
   data: T["data"];
   selected?: boolean;
   style?: React.CSSProperties;
-  initialMode?: RenderMode;
+  initialMode?: flowcraft_proto.v1.RenderMode;
   renderMedia?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   renderWidgets?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   handles?: React.ReactNode;
@@ -15,9 +18,7 @@ export interface BaseNodeProps<T extends Node> {
   onOverflowChange?: (overflow: "visible" | "hidden") => void;
 }
 
-export function BaseNode<
-  T extends Node<Record<string, unknown>, string | undefined>,
->({
+export function BaseNode<T extends Node>({
   id,
   data,
   initialMode = RenderMode.MODE_WIDGETS,
@@ -28,11 +29,14 @@ export function BaseNode<
   onOverflowChange,
   ...rest
 }: BaseNodeProps<T>) {
-  const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
+  const [internalMode, setInternalMode] =
+    useState<flowcraft_proto.v1.RenderMode>(initialMode);
   // Default to visible so handles are never cut off
   const [overflow, setOverflow] = useState<"visible" | "hidden">("visible");
 
-  const mode = (data.activeMode as RenderMode) || internalMode;
+  const mode =
+    (data.activeMode as flowcraft_proto.v1.RenderMode | undefined) ??
+    internalMode;
 
   const toggleMode = () => {
     const nextMode =

@@ -7,9 +7,9 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
   const { taskId, label, onCancel } = data as ProcessingNodeData;
   const taskState = useTaskStore((state) => state.tasks[taskId]);
 
-  const progress = taskState?.progress || 0;
+  const progress = taskState?.progress ?? 0;
   const status = taskState?.status ?? TaskStatus.TASK_PENDING;
-  const message = taskState?.message || "Initializing...";
+  const message = taskState?.message ?? "Initializing...";
 
   const getStatusLabel = (s: TaskStatus) => {
     switch (s) {
@@ -65,7 +65,7 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
       >
         <div
           style={{
-            width: `${progress}%`,
+            width: `${String(Math.round(progress))}%`,
             height: "100%",
             background:
               status === TaskStatus.TASK_FAILED ? "#e53e3e" : "#4299e1",

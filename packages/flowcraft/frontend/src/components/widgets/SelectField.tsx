@@ -44,8 +44,12 @@ export const SelectField: React.FC<SelectFieldProps> = ({
       <select
         className="nodrag"
         value={String(value)}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={handleFocus}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
+        onFocus={() => {
+          void handleFocus();
+        }}
         disabled={loading}
         style={{
           width: "100%",

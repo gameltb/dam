@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useTheme } from "../hooks/useTheme";
 
-type EditUrlModalProps = {
+interface EditUrlModalProps {
   currentUrl: string;
   onClose: () => void;
   onSave: (newUrl: string) => void;
-};
+}
 
 export const EditUrlModal = ({
   currentUrl,
@@ -55,7 +55,9 @@ export const EditUrlModal = ({
         <input
           type="text"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => {
+            setUrl(e.target.value);
+          }}
           style={inputStyle}
         />
         <div

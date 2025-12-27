@@ -62,11 +62,11 @@ To maintain high code quality and prevent regressions, follow this iterative pro
     - `test`: Run all unit and integration tests.
     - `build`: Perform type-checking (`tsc`) and production build.
     - `format`: Finalize code formatting.
-6.  **Debugging Tests:** To debug tests using the Gemini CLI `node-debugger` tool:
+5.  **Debugging Tests:** To debug tests using the Gemini CLI `node-debugger` tool:
     - **Step 1:** Start the test in the background using `run_shell_command`:
       `node node_modules/vitest/vitest.mjs --inspect-brk=9229 --no-file-parallelism run <path_to_test> &`
     - **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).
-    *Note: Using `start_node_process` on the CLI directly causes a "double-pause" (once for the CLI, once for the worker). Using the shell to start the worker directly is more efficient.*
+      _Note: Using `start_node_process` on the CLI directly causes a "double-pause" (once for the CLI, once for the worker). Using the shell to start the worker directly is more efficient._
 6.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
 
 ---

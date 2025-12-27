@@ -10,9 +10,9 @@ export const nodeTemplates: NodeTemplate[] = [
   {
     id: "tpl-text",
     label: "Text Node",
-    path: ["Basic"],
+    path: ["Input", "Basic"],
     defaultData: {
-      label: "New Node",
+      label: "Text Input",
       modes: [RenderMode.MODE_WIDGETS],
       activeMode: RenderMode.MODE_WIDGETS,
       widgets: [
@@ -21,9 +21,28 @@ export const nodeTemplates: NodeTemplate[] = [
     },
   },
   {
-    id: "tpl-logic",
+    id: "tpl-slider",
+    label: "Slider Input",
+    path: ["Input", "Advanced"],
+    defaultData: {
+      label: "Range",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      widgets: [
+        {
+          id: "sl1",
+          type: WidgetType.WIDGET_SLIDER,
+          label: "Value",
+          value: 50,
+          config: { min: 0, max: 100 },
+        },
+      ],
+    },
+  },
+  {
+    id: "tpl-logic-and",
     label: "AND Gate",
-    path: ["Logic"],
+    path: ["Logic", "Boolean"],
     defaultData: {
       label: "AND",
       modes: [RenderMode.MODE_WIDGETS],
@@ -51,6 +70,58 @@ export const nodeTemplates: NodeTemplate[] = [
           type: { mainType: "bool" },
           style: PortStyle.PORT_STYLE_SQUARE,
           color: "#f6ad55",
+        },
+      ],
+    },
+  },
+  {
+    id: "tpl-logic-not",
+    label: "NOT Gate",
+    path: ["Logic", "Boolean"],
+    defaultData: {
+      label: "NOT",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "in",
+          label: "In",
+          type: { mainType: "bool" },
+          style: PortStyle.PORT_STYLE_SQUARE,
+          color: "#f6ad55",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "out",
+          label: "Out",
+          type: { mainType: "bool" },
+          style: PortStyle.PORT_STYLE_SQUARE,
+          color: "#f6ad55",
+        },
+      ],
+    },
+  },
+  {
+    id: "tpl-ai-gen",
+    label: "Image Generator",
+    path: ["AI", "Generation"],
+    defaultData: {
+      label: "Stable Diffusion",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      widgets: [
+        {
+          id: "p1",
+          type: WidgetType.WIDGET_TEXT,
+          label: "Prompt",
+          value: "A futuristic city",
+        },
+        {
+          id: "b1",
+          type: WidgetType.WIDGET_BUTTON,
+          label: "Generate",
+          value: "task:gen",
         },
       ],
     },

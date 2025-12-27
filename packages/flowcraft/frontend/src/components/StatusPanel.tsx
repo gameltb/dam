@@ -1,12 +1,12 @@
 import React from "react";
 import { useTheme } from "../hooks/useTheme";
 
-type StatusPanelProps = {
+interface StatusPanelProps {
   status: string;
   url: string;
   onClick: () => void;
   isOutOfSync?: boolean;
-};
+}
 
 export const StatusPanel = ({
   status,

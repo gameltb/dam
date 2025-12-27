@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { useFlowStore } from "../store/flowStore";
 import { v4 as uuidv4 } from "uuid";
-import type { AppNode } from "../types";
+import type { AppNode, DynamicNodeData } from "../types";
 import type { XYPosition, Edge } from "@xyflow/react";
 import dagre from "dagre";
-import { flowcraft } from "../generated/flowcraft";
+import { flowcraft_proto } from "../generated/flowcraft_proto";
 
 interface GraphOpsProps {
   clientVersion: number;
@@ -14,15 +14,24 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
   const store = useFlowStore();
 
   const addNode = useCallback(
-    (type: string, data: Partial<AppNode["data"]>, position: XYPosition) => {
+    (
+      type: string,
+      data: Partial<AppNode["data"]>,
+      position: XYPosition,
+      typeId?: string,
+    ) => {
+      const dynamicData = data as DynamicNodeData | undefined;
       const newNode: AppNode = {
         id: uuidv4(),
         type,
         position,
-        data,
+        data: {
+          ...data,
+          typeId: typeId ?? dynamicData?.typeId,
+        },
       } as AppNode;
       store.applyMutations([
-        { addNode: { node: newNode as unknown as flowcraft.v1.INode } },
+        { addNode: { node: newNode as unknown as flowcraft_proto.v1.INode } },
       ]);
     },
     [store],
@@ -54,8 +63,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     if (selectedNodes.length > 0) {
       store.setClipboard({
-        nodes: JSON.parse(JSON.stringify(selectedNodes)),
-        edges: JSON.parse(JSON.stringify(selectedEdges)),
+        nodes: JSON.parse(JSON.stringify(selectedNodes)) as AppNode[],
+        edges: JSON.parse(JSON.stringify(selectedEdges)) as Edge[],
       });
     }
   }, [store]);
@@ -66,7 +75,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       if (!clipboard) return;
 
       const idMap: Record<string, string> = {};
-      const firstNodePos = clipboard.nodes[0]?.position || { x: 0, y: 0 };
+      const firstNodePos = clipboard.nodes[0]?.position ?? { x: 0, y: 0 };
       const offset = targetPosition
         ? {
             x: targetPosition.x - firstNodePos.x,
@@ -91,8 +100,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       const newEdges = clipboard.edges.map((edge) => ({
         ...edge,
         id: uuidv4(),
-        source: idMap[edge.source] || edge.source,
-        target: idMap[edge.target] || edge.target,
+        source: idMap[edge.source] ?? edge.source,
+        target: idMap[edge.target] ?? edge.target,
         selected: true,
       }));
 
@@ -100,8 +109,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         [
           {
             addSubgraph: {
-              nodes: newNodes as unknown as flowcraft.v1.INode[],
-              edges: newEdges as unknown as flowcraft.v1.IEdge[],
+              nodes: newNodes as unknown as flowcraft_proto.v1.INode[],
+              edges: newEdges as unknown as flowcraft_proto.v1.IEdge[],
             },
           },
         ],
@@ -122,9 +131,9 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       return isSourceSelected && isTargetSelected;
     });
 
-    const tempClipboard = {
-      nodes: JSON.parse(JSON.stringify(selectedNodes)),
-      edges: JSON.parse(JSON.stringify(selectedEdges)),
+    const tempClipboard: { nodes: AppNode[]; edges: Edge[] } = {
+      nodes: JSON.parse(JSON.stringify(selectedNodes)) as AppNode[],
+      edges: JSON.parse(JSON.stringify(selectedEdges)) as Edge[],
     };
 
     const idMap: Record<string, string> = {};
@@ -141,8 +150,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     const newEdges = tempClipboard.edges.map((e: Edge) => ({
       ...e,
       id: uuidv4(),
-      source: idMap[e.source],
-      target: idMap[e.target],
+      source: idMap[e.source] ?? e.source,
+      target: idMap[e.target] ?? e.target,
       selected: true,
     }));
 
@@ -150,8 +159,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       [
         {
           addSubgraph: {
-            nodes: newNodes as unknown as flowcraft.v1.INode[],
-            edges: newEdges as unknown as flowcraft.v1.IEdge[],
+            nodes: newNodes as unknown as flowcraft_proto.v1.INode[],
+            edges: newEdges as unknown as flowcraft_proto.v1.IEdge[],
           },
         },
       ],
@@ -169,8 +178,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     nodes.forEach((node) => {
       g.setNode(node.id, {
-        width: node.measured?.width || 300,
-        height: node.measured?.height || 200,
+        width: node.measured?.width ?? 300,
+        height: node.measured?.height ?? 200,
       });
     });
 
@@ -180,10 +189,10 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     dagre.layout(g);
 
-    const mutations: flowcraft.v1.IGraphMutation[] = nodes.map((node) => {
+    const mutations: flowcraft_proto.v1.IGraphMutation[] = nodes.map((node) => {
       const nodeWithPos = g.node(node.id);
-      const width = node.measured?.width || 300;
-      const height = node.measured?.height || 200;
+      const width = node.measured?.width ?? 300;
+      const height = node.measured?.height ?? 200;
       return {
         updateNode: {
           id: node.id,
@@ -193,12 +202,74 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
           },
           width,
           height,
-          data: node.data as flowcraft.v1.INodeData,
+          data: node.data as flowcraft_proto.v1.INodeData,
         },
       };
     });
 
     applyMutations(mutations);
+  }, [store]);
+
+  const groupSelected = useCallback(() => {
+    const { nodes, applyMutations } = store;
+    const selectedNodes = nodes.filter((n) => n.selected && !n.parentId);
+    if (selectedNodes.length < 2) return;
+
+    // 1. Calculate bounding box
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+
+    selectedNodes.forEach((node) => {
+      const { x, y } = node.position;
+      const w = node.measured?.width ?? 200;
+      const h = node.measured?.height ?? 150;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w);
+      maxY = Math.max(maxY, y + h);
+    });
+
+    const padding = 40;
+    const groupX = minX - padding;
+    const groupY = minY - padding;
+    const groupW = maxX - minX + padding * 2;
+    const groupH = maxY - minY + padding * 2;
+
+    const groupId = uuidv4();
+    const groupNode: flowcraft_proto.v1.INode = {
+      id: groupId,
+      type: "groupNode",
+      position: { x: groupX, y: groupY },
+      width: groupW,
+      height: groupH,
+      data: { label: "New Group" } as flowcraft_proto.v1.INodeData,
+    };
+
+    // 2. Prepare mutations for grouping
+    const mutations: flowcraft_proto.v1.IGraphMutation[] = [
+      { addNode: { node: groupNode } },
+    ];
+
+    selectedNodes.forEach((node) => {
+      mutations.push({
+        updateNode: {
+          id: node.id,
+          parentId: groupId,
+          // Make position relative to the new group
+          position: {
+            x: node.position.x - groupX,
+            y: node.position.y - groupY,
+          },
+        },
+      });
+    });
+
+    applyMutations(mutations, {
+      taskId: uuidv4(),
+      description: `Group ${String(selectedNodes.length)} nodes`,
+    });
   }, [store]);
 
   return {
@@ -209,6 +280,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     paste,
     duplicateSelected,
     autoLayout,
+    groupSelected,
     clientVersion,
   };
 };

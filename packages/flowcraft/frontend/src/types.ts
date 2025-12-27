@@ -1,136 +1,32 @@
 import type { Edge, Viewport, Node } from "@xyflow/react";
 import type { GroupNodeType } from "./components/GroupNode";
-import { flowcraft as _flowcraft } from "./generated/flowcraft";
+import { flowcraft_proto } from "./generated/flowcraft_proto";
 
-// The data structure for a processing node
-export interface ProcessingNodeData extends Record<string, unknown> {
-  taskId: string;
-  label: string;
-  onCancel?: (taskId: string) => void;
-}
+/**
+ * SECTION 1: PROTOCOL & CRDT
+ * Definitions related to the communication protocol and state synchronization.
+ */
 
-// Export the generated flowcraft namespace types
-export type { _flowcraft as flowcraft };
+export { flowcraft_proto };
+export type { flowcraft_proto as flowcraft_proto_type } from "./generated/flowcraft_proto";
 
-// Re-export core types for other modules
-export type { Edge, Viewport, Node };
+// Re-export Enums from Protobuf as both values and types
+export const WidgetType = flowcraft_proto.v1.WidgetType;
+export type WidgetType = flowcraft_proto.v1.WidgetType;
 
-export type ProcessingNodeType = Node<ProcessingNodeData, "processing">;
+export const RenderMode = flowcraft_proto.v1.RenderMode;
+export type RenderMode = flowcraft_proto.v1.RenderMode;
 
-// Re-export Enums from Protobuf
-export const WidgetType = _flowcraft.v1.WidgetType;
-export type WidgetType = _flowcraft.v1.WidgetType;
+export const MediaType = flowcraft_proto.v1.MediaType;
+export type MediaType = flowcraft_proto.v1.MediaType;
 
-export const RenderMode = _flowcraft.v1.RenderMode;
-export type RenderMode = _flowcraft.v1.RenderMode;
+export const ActionExecutionStrategy =
+  flowcraft_proto.v1.ActionExecutionStrategy;
+export type ActionExecutionStrategy =
+  flowcraft_proto.v1.ActionExecutionStrategy;
 
-export const MediaType = _flowcraft.v1.MediaType;
-export type MediaType = _flowcraft.v1.MediaType;
-
-export const ActionExecutionStrategy = _flowcraft.v1.ActionExecutionStrategy;
-export type ActionExecutionStrategy = _flowcraft.v1.ActionExecutionStrategy;
-
-export const PortStyle = _flowcraft.v1.PortStyle;
-export type PortStyle = _flowcraft.v1.PortStyle;
-
-// Manually define TaskStatus due to generation issues
-export const TaskStatus = {
-  TASK_PENDING: 0,
-  TASK_PROCESSING: 1,
-  TASK_COMPLETED: 2,
-  TASK_FAILED: 3,
-  TASK_CANCELLED: 4,
-} as const;
-export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
-
-export interface WidgetDef {
-  id: string;
-  type: WidgetType;
-  label: string;
-  value: unknown;
-  options?: { label: string; value: unknown }[]; // For select
-  config?: Record<string, unknown>; // min/max for slider, etc.
-  inputPortId?: string; // New field
-}
-
-export interface MediaDef {
-  type: MediaType;
-  url?: string;
-  content?: string; // For markdown
-  galleryUrls?: string[]; // Array of additional media URLs (same type as main)
-}
-
-export interface DynamicNodeData extends Record<string, unknown> {
-  typeId?: string; // Original backend type ID
-  label: string;
-  modes: RenderMode[];
-  activeMode?: RenderMode;
-  media?: MediaDef & { aspectRatio?: number };
-  widgets?: WidgetDef[];
-
-  // New Port definitions
-  inputPorts?: _flowcraft.v1.IPort[];
-  outputPorts?: _flowcraft.v1.IPort[];
-
-  onChange: (id: string, data: Partial<DynamicNodeData>) => void;
-  onWidgetClick?: (nodeId: string, widgetId: string) => void;
-  onGalleryItemContext?: (
-    nodeId: string,
-    url: string,
-    mediaType: MediaType,
-    x: number,
-    y: number,
-  ) => void;
-}
-
-export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;
-
-export function isDynamicNode(node: AppNode): node is DynamicNodeType {
-  return node.type === "dynamic";
-}
-
-export interface NodeTemplate {
-  id: string;
-  label: string;
-  path: string[]; // Menu hierarchy, e.g. ["Basic", "Input"]
-  defaultData: Omit<DynamicNodeData, "onChange" | "onWidgetClick">;
-}
-
-export type NodeData = GroupNodeType["data"] | DynamicNodeData;
-
-export interface TypedNodeData {
-  inputType?: string;
-  outputType?: string;
-}
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export function isTypedNodeData(data: any): data is TypedNodeData {
-  return "inputType" in data || "outputType" in data;
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
-// --- Protocol Definitions ---
-
-export interface WidgetUpdatePayload {
-  nodeId: string;
-  widgetId: string;
-  value: unknown;
-}
-
-export interface WidgetOptionsRequest {
-  nodeId: string;
-  widgetId: string;
-  context?: Record<string, unknown>;
-}
-
-export interface StreamChunk {
-  nodeId: string;
-  widgetId: string;
-  chunk: string;
-  isDone: boolean;
-}
-
-// --- Task / Job System Definitions ---
+export const PortStyle = flowcraft_proto.v1.PortStyle;
+export type PortStyle = flowcraft_proto.v1.PortStyle;
 
 export enum MutationSource {
   USER = "USER",
@@ -145,8 +41,23 @@ export interface MutationLogEntry {
   source: MutationSource;
   timestamp: number;
   description: string;
-  mutations: flowcraft.v1.IGraphMutation[];
+  mutations: flowcraft_proto.v1.IGraphMutation[];
 }
+
+/**
+ * SECTION 2: TASK & JOB SYSTEM
+ * Tracking long-running operations and their lifecycle.
+ */
+
+// Manually define TaskStatus due to generation issues in some environments
+export const TaskStatus = {
+  TASK_PENDING: 0,
+  TASK_PROCESSING: 1,
+  TASK_COMPLETED: 2,
+  TASK_FAILED: 3,
+  TASK_CANCELLED: 4,
+} as const;
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
 
 export interface TaskDefinition {
   taskId: string;
@@ -166,13 +77,109 @@ export interface TaskCancelRequest {
   reason?: string;
 }
 
+/**
+ * SECTION 3: CORE NODE & GRAPH TYPES
+ * The main building blocks of the Flowcraft editor.
+ */
+
+export type { Edge, Viewport, Node };
+
+export interface WidgetDef {
+  id: string;
+  type: WidgetType;
+  label: string;
+  value: unknown;
+  options?: { label: string; value: unknown }[];
+  config?: Record<string, unknown>;
+  inputPortId?: string;
+}
+
+export interface MediaDef {
+  type: MediaType;
+  url?: string;
+  content?: string;
+  galleryUrls?: string[];
+}
+
+export interface DynamicNodeData extends Record<string, unknown> {
+  typeId?: string; // Original backend template ID
+  label: string;
+  modes: RenderMode[];
+  activeMode?: RenderMode;
+  media?: MediaDef & { aspectRatio?: number };
+  widgets?: WidgetDef[];
+
+  // Port definitions
+  inputPorts?: flowcraft_proto.v1.IPort[];
+  outputPorts?: flowcraft_proto.v1.IPort[];
+
+  // Handlers (attached during hydration)
+  onChange: (id: string, data: Partial<DynamicNodeData>) => void;
+  onWidgetClick?: (nodeId: string, widgetId: string) => void;
+  onGalleryItemContext?: (
+    nodeId: string,
+    url: string,
+    mediaType: MediaType,
+    x: number,
+    y: number,
+  ) => void;
+}
+
+export interface ProcessingNodeData extends Record<string, unknown> {
+  taskId: string;
+  label: string;
+  onCancel?: (taskId: string) => void;
+}
+
+export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;
+export type ProcessingNodeType = Node<ProcessingNodeData, "processing">;
 export type AppNode = GroupNodeType | DynamicNodeType | ProcessingNodeType;
 
-export type GraphState = {
+export type NodeData = AppNode["data"];
+
+export interface GraphState {
   graph: {
     nodes: AppNode[];
     edges: Edge[];
     viewport?: Viewport;
   };
   version: number;
-};
+}
+
+/**
+ * SECTION 4: TEMPLATES & PROTOCOL PAYLOADS
+ */
+
+export interface NodeTemplate {
+  id: string;
+  label: string;
+  path: string[]; // Menu hierarchy, e.g. ["Basic", "Input"]
+  defaultData: Omit<DynamicNodeData, "onChange" | "onWidgetClick">;
+}
+
+export interface WidgetUpdatePayload {
+  nodeId: string;
+  widgetId: string;
+  value: unknown;
+}
+
+/**
+ * SECTION 5: TYPE GUARDS & UTILITIES
+ */
+
+export function isDynamicNode(node: AppNode): node is DynamicNodeType {
+  return node.type === "dynamic";
+}
+
+export interface TypedNodeData {
+  inputType?: string;
+  outputType?: string;
+}
+
+export function isTypedNodeData(data: unknown): data is TypedNodeData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("inputType" in data || "outputType" in data)
+  );
+}

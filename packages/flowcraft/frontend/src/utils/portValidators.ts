@@ -1,4 +1,4 @@
-import { flowcraft } from "../generated/flowcraft";
+import { flowcraft_proto } from "../generated/flowcraft_proto";
 import { type Edge } from "@xyflow/react";
 
 export interface ConnectionResult {
@@ -11,8 +11,8 @@ export interface PortValidator {
    * 是否允许两个端口连接（类型检查）
    */
   canAccept(
-    sourceType: flowcraft.v1.IPortType,
-    targetType: flowcraft.v1.IPortType,
+    sourceType: flowcraft_proto.v1.IPortType,
+    targetType: flowcraft_proto.v1.IPortType,
   ): boolean;
 
   /**
@@ -53,9 +53,9 @@ export const AnyValidator: PortValidator = {
  * Validator Registry / Factory
  */
 export const getValidator = (
-  portType: flowcraft.v1.IPortType | undefined | null,
+  portType: flowcraft_proto.v1.IPortType | undefined | null,
 ): PortValidator => {
-  const mainType = portType?.mainType || "any";
+  const mainType = portType?.mainType ?? "any";
 
   if (mainType === "any") return AnyValidator;
   if (mainType === "list" || mainType === "set") return CollectionValidator;
@@ -67,8 +67,8 @@ export const getValidator = (
  * Integrated connection check logic
  */
 export const validateConnection = (
-  source: flowcraft.v1.IPort & { nodeId: string },
-  target: flowcraft.v1.IPort & { nodeId: string },
+  source: flowcraft_proto.v1.IPort & { nodeId: string },
+  target: flowcraft_proto.v1.IPort & { nodeId: string },
   currentEdges: Edge[],
 ): ConnectionResult => {
   const validator = getValidator(target.type);
@@ -81,7 +81,7 @@ export const validateConnection = (
   ) {
     return {
       canConnect: false,
-      reason: `Type Mismatch: Cannot connect ${source.type.mainType} to ${target.type.mainType}`,
+      reason: `Type Mismatch: Cannot connect ${source.type.mainType ?? "unknown"} to ${target.type.mainType ?? "unknown"}`,
     };
   }
 
@@ -92,7 +92,7 @@ export const validateConnection = (
   if (inputCount >= validator.getMaxInputs()) {
     return {
       canConnect: false,
-      reason: `Port Full: This input only accepts ${validator.getMaxInputs()} connection(s)`,
+      reason: `Port Full: This input only accepts ${String(validator.getMaxInputs())} connection(s)`,
     };
   }
 
