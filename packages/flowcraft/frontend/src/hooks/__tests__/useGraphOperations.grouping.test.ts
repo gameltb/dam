@@ -21,7 +21,7 @@ describe("useGraphOperations - Grouping", () => {
   });
 
   it("should create a group node and reparent selected nodes", () => {
-    (useFlowStore as unknown as Mock).mockReturnValue({
+    (useFlowStore as Mock).mockReturnValue({
       nodes: [
         {
           id: "node-1",
@@ -52,9 +52,8 @@ describe("useGraphOperations - Grouping", () => {
 
     expect(mockApplyMutations).toHaveBeenCalled();
 
-    const mutations: flowcraft_proto.v1.IGraphMutation[] = (
-      mockApplyMutations as vi.Mock
-    ).mock.calls[0][0];
+    const mutations = mockApplyMutations.mock
+      .calls[0][0] as unknonw as flowcraft_proto.v1.IGraphMutation[];
 
     // Should have 3 mutations: 1 addNode (group) and 2 updateNode (reparenting)
 
@@ -112,7 +111,7 @@ describe("useGraphOperations - Grouping", () => {
   });
 
   it("should not group if less than 2 nodes are selected", () => {
-    (useFlowStore as unknown as Mock).mockReturnValue({
+    (useFlowStore as Mock).mockReturnValue({
       nodes: [
         {
           id: "node-1",

@@ -19,7 +19,7 @@ describe("useGraphOperations - Auto Layout", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useFlowStore as unknown as Mock).mockReturnValue({
+    (useFlowStore as Mock).mockReturnValue({
       nodes: [
         {
           id: "1",
@@ -47,7 +47,7 @@ describe("useGraphOperations - Auto Layout", () => {
     result.current.autoLayout();
 
     expect(mockApplyMutations).toHaveBeenCalled();
-    const mutations = (mockApplyMutations as vi.Mock).mock
+    const mutations = mockApplyMutations.mock
       .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
 
     const firstUpdate = mutations.find(
@@ -58,7 +58,7 @@ describe("useGraphOperations - Auto Layout", () => {
   });
 
   it("should use fallback dimensions if measured is missing", () => {
-    (useFlowStore as unknown as Mock).mockReturnValue({
+    (useFlowStore as Mock).mockReturnValue({
       nodes: [{ id: "1", position: { x: 0, y: 0 } }],
       edges: [],
       applyMutations: mockApplyMutations,
@@ -71,7 +71,7 @@ describe("useGraphOperations - Auto Layout", () => {
     );
     result.current.autoLayout();
 
-    const mutations = (mockApplyMutations as vi.Mock).mock
+    const mutations = mockApplyMutations.mock
       .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
     const update = mutations[0]?.updateNode;
     expect(update?.width).toBe(300);
