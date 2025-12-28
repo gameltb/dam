@@ -191,7 +191,10 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
   const cancelTask = (taskId: string) =>
     void socketClient.send({ taskCancel: { taskId } });
 
-  const fetchWidgetOptions = async (nodeId: string, widgetId: string) => {
+  const fetchWidgetOptions = async (
+    nodeId: string,
+    widgetId: string,
+  ): Promise<unknown> => {
     try {
       const res = await fetch("/api/widget/options", {
         method: "POST",
@@ -204,7 +207,10 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     }
   };
 
-  const executeAction = async (actionId: string, sourceNodeId: string): Promise<{ type: string }> => {
+  const executeAction = async (
+    actionId: string,
+    sourceNodeId: string,
+  ): Promise<{ type: string }> => {
     await socketClient.send({ actionExecute: { actionId, sourceNodeId } });
     return { type: "immediate" };
   };

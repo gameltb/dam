@@ -12,8 +12,7 @@ export const handleWSMessage = async (
   const send = (payload: flowcraft_proto.v1.IFlowMessage) => {
     const msg = {
       messageId: uuidv4(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      timestamp: Date.now() as any,
+      timestamp: Date.now(),
       ...payload,
     };
     controller.enqueue(encoder.encode(JSON.stringify(msg) + "\n"));
@@ -53,10 +52,14 @@ export const handleWSMessage = async (
     }
 
     // Add path hierarchy to names for ContextMenu parsing
-    const mappedActions = filteredActions.map((a) => ({
-      ...a,
-      label: [...(a.path ?? []), a.label ?? ""].join("/"),
-    }));
+    const mappedActions = filteredActions.map((a) => {
+      const path = a.path ?? [];
+      const label = a.label ?? "";
+      return {
+        ...a,
+        label: [...path, label].join("/"),
+      };
+    });
 
     send({
       actions: {
@@ -119,8 +122,8 @@ export const handleWSMessage = async (
   // 5. Actions & Tasks
   if (clientMsg.actionExecute) {
     const { actionId, sourceNodeId, paramsJson } = clientMsg.actionExecute;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const params = (paramsJson ? JSON.parse(paramsJson) : {}) as any;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const params = paramsJson ? JSON.parse(paramsJson) : {};
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const taskId = (params.taskId as string | undefined) ?? uuidv4();
 

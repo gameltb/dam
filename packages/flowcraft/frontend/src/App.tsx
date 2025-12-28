@@ -159,7 +159,8 @@ function App() {
   );
 
   const handleExecuteAction = (action: flowcraft_proto.v1.IActionTemplate) => {
-    const nodeId = contextMenu?.nodeId ?? "";
+    const nodeId = contextMenu?.nodeId;
+    if (!nodeId) return;
     const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id);
 
     // Track as a task even if backend hasn't replied yet (Optimistic UI)
@@ -274,7 +275,8 @@ function App() {
         if (widget && typeof widget.value === "string") {
           const val = widget.value;
           if (val.startsWith("stream-to:")) {
-            const targetWidgetId = val.split(":")[1] ?? "";
+            const targetWidgetId = val.split(":")[1];
+            if (!targetWidgetId) return;
             let currentBuffer = "";
             streamAction(nodeId, widgetId, (chunk) => {
               currentBuffer += chunk;
@@ -292,7 +294,8 @@ function App() {
               }
             });
           } else if (val.startsWith("task:")) {
-            const taskType = val.split(":")[1] ?? "";
+            const taskType = val.split(":")[1];
+            if (!taskType) return;
             const taskId = uuidv4();
             const position = {
               x: node.position.x + 300,
@@ -303,7 +306,7 @@ function App() {
               type: "processing",
               position,
               data: {
-                label: `Running ${taskType ?? ""}...`,
+                label: `Running ${taskType}...`,
                 taskId,
                 onCancel: (tid: string) => {
                   cancelTask(tid);
@@ -313,7 +316,7 @@ function App() {
             addNodeToStore(placeholderNode);
             useTaskStore.getState().registerTask({
               taskId,
-              label: `Running ${taskType ?? ""}...`,
+              label: `Running ${taskType}...`,
               source: MutationSource.REMOTE_TASK,
             });
             executeTask(taskId, taskType, { sourceNodeId: nodeId });
@@ -431,22 +434,18 @@ function App() {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={closeContextMenuAndClear}
-          onDelete={
-            contextMenu.nodeId
-              ? () => {
-                  deleteNode(contextMenu.nodeId!);
-                  closeContextMenuAndClear();
-                }
-              : undefined
-          }
-          onDeleteEdge={
-            contextMenu.edgeId
-              ? () => {
-                  deleteEdge(contextMenu.edgeId!);
-                  closeContextMenuAndClear();
-                }
-              : undefined
-          }
+          onDelete={() => {
+            if (contextMenu.nodeId) {
+              deleteNode(contextMenu.nodeId);
+              closeContextMenuAndClear();
+            }
+          }}
+          onDeleteEdge={() => {
+            if (contextMenu.edgeId) {
+              deleteEdge(contextMenu.edgeId);
+              closeContextMenuAndClear();
+            }
+          }}
           onCopy={copySelected}
           onPaste={() => {
             paste(

@@ -54,11 +54,7 @@ include = "../../shared_tasks.toml"
 [tool.poe.tasks]
 mypy = "mypy --config-file ../../pyproject.toml src tests"
 dev = "uvicorn flowcraft.main:app --reload --app-dir src"
-check-frontend = [
-    { "cmd" = "npm --prefix frontend run lint" },
-    { "cmd" = "npm --prefix frontend run format" },
-    { "cmd" = "npm --prefix frontend run build" },
-]
+check-frontend = "npm --prefix frontend run verify"
 
 [tool.deptry]
 known_first_party = ["flowcraft"]

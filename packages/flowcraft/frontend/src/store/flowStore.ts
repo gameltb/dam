@@ -181,10 +181,10 @@ const useStore = create(
           ydoc.transact(() => {
             mutations.forEach((mut) => {
               if (mut.addNode?.node) {
-                const node = mut.addNode.node;
+                const node = mut.addNode.node as AppNode;
                 if (node.id) {
                   // Incoming mutations usually don't have handlers yet, but dehydrate just in case
-                  yNodes.set(node.id, dehydrateNode(node as AppNode));
+                  yNodes.set(node.id, dehydrateNode(node));
                 }
               } else if (mut.updateNode) {
                 const id = mut.updateNode.id;
@@ -216,16 +216,19 @@ const useStore = create(
                 }
               } else if (mut.removeNode?.id) {
                 yNodes.delete(mut.removeNode.id);
-              } else if (mut.addEdge?.edge?.id) {
-                yEdges.set(mut.addEdge.edge.id, mut.addEdge.edge as Edge);
+              } else if (mut.addEdge?.edge) {
+                const edge = mut.addEdge.edge as Edge;
+                yEdges.set(edge.id, edge);
               } else if (mut.removeEdge?.id) {
                 yEdges.delete(mut.removeEdge.id);
               } else if (mut.addSubgraph) {
                 mut.addSubgraph.nodes?.forEach((n) => {
-                  if (n.id) yNodes.set(n.id, dehydrateNode(n as AppNode));
+                  const node = n as AppNode;
+                  if (node.id) yNodes.set(node.id, dehydrateNode(node));
                 });
                 mut.addSubgraph.edges?.forEach((e) => {
-                  if (e.id) yEdges.set(e.id, JSON.parse(JSON.stringify(e)));
+                  const edge = e as Edge;
+                  if (edge.id) yEdges.set(edge.id, edge);
                 });
               } else if (mut.clearGraph) {
                 yNodes.clear();

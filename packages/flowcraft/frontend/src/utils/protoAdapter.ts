@@ -41,8 +41,7 @@ export function toProtoNodeData(
   return {
     label: data.label,
     availableModes: data.modes as unknown as flowcraft_proto.v1.RenderMode[],
-    activeMode:
-      (data.activeMode as unknown as flowcraft_proto.v1.RenderMode),
+    activeMode: data.activeMode as unknown as flowcraft_proto.v1.RenderMode,
     media: data.media ? toProtoMedia(data.media) : null,
     widgets: data.widgets ? data.widgets.map(toProtoWidget) : [],
     inputPorts: data.inputPorts ?? [],

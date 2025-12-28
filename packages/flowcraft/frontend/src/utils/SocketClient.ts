@@ -47,11 +47,10 @@ class SocketClientImpl {
         body: JSON.stringify(message),
       });
 
-      if (!response.ok) return;
+      if (!response.ok || !response.body) return;
 
-      const reader = response.body?.getReader();
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      if (!reader) return;
 
       let buffer = "";
       while (true) {
@@ -98,7 +97,9 @@ class SocketClientImpl {
     } else if (msg.taskUpdate) {
       this.emit("taskUpdate", msg.taskUpdate);
     } else if (msg.streamChunk) {
-      const handlerKey = `${msg.streamChunk.nodeId ?? ""}-${msg.streamChunk.widgetId ?? ""}`;
+      const nodeId = msg.streamChunk.nodeId ?? "";
+      const widgetId = msg.streamChunk.widgetId ?? "";
+      const handlerKey = `${nodeId}-${widgetId}`;
       const handler = this.streamHandlers[handlerKey];
       if (handler) {
         handler(msg.streamChunk.chunkData ?? "");

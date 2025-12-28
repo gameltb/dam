@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ProtoAdapter } from "../protoAdapter";
+import { fromProtoNode } from "../protoAdapter";
 import { flowcraft_proto } from "../../generated/flowcraft_proto";
 
 /**
@@ -16,7 +16,7 @@ describe("ProtoAdapter", () => {
       height: 0,
     };
 
-    const appNode = ProtoAdapter.fromProtoNode(protoNode);
+    const appNode = fromProtoNode(protoNode);
 
     // Crucial for MiniMap: measured should be undefined so React Flow can measure it
     expect(appNode.measured).toBeUndefined();
@@ -30,7 +30,7 @@ describe("ProtoAdapter", () => {
       height: 100,
     };
 
-    const appNode = ProtoAdapter.fromProtoNode(protoNode);
+    const appNode = fromProtoNode(protoNode);
 
     expect(appNode.measured).toEqual({ width: 150, height: 100 });
   });
