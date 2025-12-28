@@ -3,22 +3,21 @@ syntax = "proto3";
 package flowcraft_proto.v1;
 
 enum ActionExecutionStrategy {
-  EXECUTION_IMMEDIATE = 0; // Fast, returns result directly
-  EXECUTION_TASK = 1;      // Slow, returns a TaskID
+  EXECUTION_IMMEDIATE = 0;
+  EXECUTION_BACKGROUND = 1;
+  EXECUTION_STREAMING = 2;
 }
 
 message ActionTemplate {
   string id = 1;
   string label = 2;
-  repeated string path = 3; // e.g. ["AI", "Generate"]
+  repeated string path = 3;
   ActionExecutionStrategy strategy = 4;
-  string description = 5;
-  string icon = 6;
 }
 
 message ActionDiscoveryRequest {
-  string node_id = 1; // Actions available for this node
-  repeated string selected_node_ids = 2; // Multi-node actions
+  string node_id = 1;
+  repeated string selected_node_ids = 2;
 }
 
 message ActionDiscoveryResponse {
@@ -30,20 +29,4 @@ message ActionExecutionRequest {
   string source_node_id = 2;
   repeated string context_node_ids = 3;
   string params_json = 4;
-}
-
-// Result of an IMMEDIATE execution
-message ActionExecutionResult {
-  bool success = 1;
-  string task_id = 2; // Present if strategy was TASK
-  GraphDiff diff = 3; // Present if strategy was IMMEDIATE
-  ActionExecutionStrategy strategy = 4;
-}
-
-message GraphDiff {
-  // Nodes and edges to add or update
-  string nodes_json = 1;
-  string edges_json = 2;
-  repeated string remove_node_ids = 3;
-  repeated string remove_edge_ids = 4;
 }

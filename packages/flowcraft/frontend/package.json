@@ -13,7 +13,7 @@
     "test": "vitest run",
     "verify": "set -ex; npm run proto:generate; npm run lint:fix; npm run test; npm run build; npm run format",
     "preview": "vite preview",
-    "proto:generate": "npx pbjs -t static-module -w es6 -p schema/ -o src/generated/flowcraft_proto.js schema/*.proto && npx pbts -o src/generated/flowcraft_proto.d.ts src/generated/flowcraft_proto.js",
+    "proto:generate": "npx pbjs -t static-module -w es6 -p schema/ -o src/generated/flowcraft_proto.js $(find schema -name '*.proto') && npx pbts -o src/generated/flowcraft_proto.d.ts src/generated/flowcraft_proto.js",
     "prepare": "husky"
   },
   "dependencies": {

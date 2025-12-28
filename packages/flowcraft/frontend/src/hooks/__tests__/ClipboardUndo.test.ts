@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../../store/flowStore";
+import { useUiStore } from "../../store/uiStore";
 
 describe("Direct Store Clipboard Logic", () => {
   beforeEach(() => {
     useFlowStore.getState().resetStore();
+    useUiStore.getState().setClipboard(null);
   });
 
   it("should add subgraph and sync correctly", () => {
@@ -75,10 +77,10 @@ describe("Direct Store Clipboard Logic", () => {
       .getState()
       .nodes.filter((n) => n.selected);
     expect(selectedNodes.length).toBe(1);
-    store.setClipboard({ nodes: selectedNodes, edges: [] });
+    useUiStore.getState().setClipboard({ nodes: selectedNodes, edges: [] });
 
     // 3. Perform Paste
-    const clipboard = useFlowStore.getState().clipboard;
+    const clipboard = useUiStore.getState().clipboard;
     expect(clipboard).not.toBeNull();
 
     const newNodeId = "node-2"; // In real hook it's a uuid

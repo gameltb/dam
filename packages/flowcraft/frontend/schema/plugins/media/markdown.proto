@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+message MarkdownStream {
+  enum ChunkType {
+    START = 0;
+    APPEND = 1;
+    REPLACE = 2;
+    FINISH = 3;
+  }
+  ChunkType type = 1;
+  string content = 2;
+}

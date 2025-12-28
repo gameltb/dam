@@ -1,11 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { flowcraft_proto } from "../generated/flowcraft_proto";
-import type {
-  NodeTemplate,
-  AppNode,
-  TaskDefinition,
-  MediaType,
-} from "../types";
+import type { NodeTemplate, AppNode, TaskDefinition } from "../types";
 import { MutationSource, TaskStatus } from "../types";
 import { useFlowStore } from "../store/flowStore";
 import { useTaskStore } from "../store/taskStore";
@@ -13,52 +8,17 @@ import { socketClient } from "../utils/SocketClient";
 import { fromProtoGraph, fromProtoNode } from "../utils/protoAdapter";
 
 export const useMockSocket = (config?: { disablePolling?: boolean }) => {
-  const {
-    updateNodeData,
-    dispatchNodeEvent,
-    applyMutations,
-    setGraph,
-    ydoc,
-    applyYjsUpdate,
-    registerNodeHandlers,
-  } = useFlowStore((state) => ({
-    updateNodeData: state.updateNodeData,
-    dispatchNodeEvent: state.dispatchNodeEvent,
-    applyMutations: state.applyMutations,
-    setGraph: state.setGraph,
-    ydoc: state.ydoc,
-    applyYjsUpdate: state.applyYjsUpdate,
-    registerNodeHandlers: state.registerNodeHandlers,
-  }));
+  const { applyMutations, setGraph, ydoc, applyYjsUpdate } = useFlowStore(
+    (state) => ({
+      applyMutations: state.applyMutations,
+      setGraph: state.setGraph,
+      ydoc: state.ydoc,
+      applyYjsUpdate: state.applyYjsUpdate,
+    }),
+  );
 
   const { updateTask } = useTaskStore();
   const [templates, setTemplates] = useState<NodeTemplate[]>([]);
-
-  const nodeHandlers = useMemo(
-    () => ({
-      onChange: (id: string, d: Record<string, unknown>) => {
-        updateNodeData(id, d);
-      },
-      onWidgetClick: (nodeId: string, widgetId: string) => {
-        dispatchNodeEvent("widget-click", { nodeId, widgetId });
-      },
-      onGalleryItemContext: (
-        nodeId: string,
-        url: string,
-        mediaType: MediaType,
-        x: number,
-        y: number,
-      ) => {
-        dispatchNodeEvent("gallery-context", { nodeId, url, mediaType, x, y });
-      },
-    }),
-    [updateNodeData, dispatchNodeEvent],
-  );
-
-  // Register handlers so the store can hydrate nodes from Yjs
-  useEffect(() => {
-    registerNodeHandlers(nodeHandlers);
-  }, [nodeHandlers, registerNodeHandlers]);
 
   useEffect(() => {
     const onSnapshot = (snapshot: flowcraft_proto.v1.IGraphSnapshot) => {
@@ -151,7 +111,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
   }, [config?.disablePolling]);
 
   const sendNodeUpdate = (nodeId: string, data: Partial<AppNode["data"]>) =>
-    void socketClient.send({
+    socketClient.send({
       nodeUpdate: {
         nodeId,
         data: data as unknown as flowcraft_proto.v1.INodeData,
@@ -159,7 +119,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     });
 
   const sendWidgetUpdate = (nodeId: string, widgetId: string, value: unknown) =>
-    void socketClient.send({
+    socketClient.send({
       widgetUpdate: { nodeId, widgetId, valueJson: JSON.stringify(value) },
     });
 
@@ -169,7 +129,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     onChunk: (c: string) => void,
   ) => {
     socketClient.registerStreamHandler(nodeId, widgetId, onChunk);
-    void socketClient.send({
+    return socketClient.send({
       actionExecute: { actionId: "stream", sourceNodeId: nodeId },
     });
   };
@@ -179,7 +139,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
     type: string,
     params: { sourceNodeId: string },
   ) => {
-    void socketClient.send({
+    return socketClient.send({
       actionExecute: {
         actionId: type,
         sourceNodeId: params.sourceNodeId,
@@ -189,7 +149,7 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
   };
 
   const cancelTask = (taskId: string) =>
-    void socketClient.send({ taskCancel: { taskId } });
+    socketClient.send({ taskCancel: { taskId } });
 
   const fetchWidgetOptions = async (
     nodeId: string,

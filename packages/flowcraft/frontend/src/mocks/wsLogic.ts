@@ -53,8 +53,8 @@ export const handleWSMessage = async (
 
     // Add path hierarchy to names for ContextMenu parsing
     const mappedActions = filteredActions.map((a) => {
-      const path = a.path ?? [];
-      const label = a.label ?? "";
+      const path = a.path;
+      const label = a.label;
       return {
         ...a,
         label: [...path, label].join("/"),

@@ -180,6 +180,39 @@ export const generateGallery = () => {
     node.data.modes = [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS];
     node.data.activeMode = RenderMode.MODE_MEDIA;
     node.data.media = m.media;
+
+    // Define output port based on media type
+    let portMainType = "any";
+    let portColor = "#a0aec0";
+
+    switch (m.media.type) {
+      case MediaType.MEDIA_IMAGE:
+        portMainType = "image";
+        portColor = "#48bb78";
+        break;
+      case MediaType.MEDIA_VIDEO:
+        portMainType = "video";
+        portColor = "#ed64a6";
+        break;
+      case MediaType.MEDIA_AUDIO:
+        portMainType = "audio";
+        portColor = "#4299e1";
+        break;
+      case MediaType.MEDIA_MARKDOWN:
+        portMainType = "string";
+        portColor = "#646cff";
+        break;
+    }
+
+    node.data.outputPorts = [
+      {
+        id: "out-1",
+        label: "", // Empty label to hide text
+        type: { mainType: portMainType },
+        color: portColor,
+      },
+    ];
+
     // Add some widgets too so we can test switching
     node.data.widgets = [
       {
@@ -209,17 +242,10 @@ export const generateGallery = () => {
       type: WidgetType.WIDGET_TEXT,
       label: "Manual / Remote",
       value: "Override me via port",
-      inputPortId: "implicit-port",
+      inputPortId: "widget-port-1",
     },
   ];
-  implicitNode.data.inputPorts = [
-    {
-      id: "implicit-port",
-      label: "Remote Data",
-      type: { mainType: "string" },
-      color: "#646cff",
-    },
-  ];
+  implicitNode.data.inputPorts = [];
   nodes.push(implicitNode);
 
   // Large Processing Node (Custom Type)
@@ -258,6 +284,69 @@ export const generateGallery = () => {
   childNode.parentId = "group-1";
   childNode.extent = "parent";
   nodes.push(childNode);
+
+  // --- ROW 4: TYPE TESTING ---
+  currY = startY + rowGap * 3;
+
+  // Image Batcher
+  const batcherNode = createNode("batcher-1", "Image Batcher", startX, currY);
+  batcherNode.data.inputPorts = [
+    { id: "in", label: "Img", type: { mainType: "image" }, color: "#48bb78" },
+  ];
+  batcherNode.data.outputPorts = [
+    {
+      id: "out",
+      label: "List",
+      type: { mainType: "list", itemType: "image" },
+      color: "#48bb78",
+    },
+  ];
+  nodes.push(batcherNode);
+
+  // List Joiner (Generic Input)
+  const joinerNode = createNode(
+    "joiner-1",
+    "Generic Joiner",
+    startX + colGap,
+    currY,
+  );
+  joinerNode.data.inputPorts = [
+    {
+      id: "list",
+      label: "List",
+      type: { mainType: "list", isGeneric: true },
+      color: "#ecc94b",
+    },
+  ];
+  joinerNode.data.outputPorts = [
+    { id: "out", label: "Str", type: { mainType: "string" }, color: "#646cff" },
+  ];
+  nodes.push(joinerNode);
+
+  // Pass-Through (Full Generic)
+  const passNode = createNode(
+    "pass-1",
+    "Generic Pass",
+    startX + colGap * 2,
+    currY,
+  );
+  passNode.data.inputPorts = [
+    {
+      id: "in",
+      label: "Any",
+      type: { mainType: "any", isGeneric: true },
+      color: "#a0aec0",
+    },
+  ];
+  passNode.data.outputPorts = [
+    {
+      id: "out",
+      label: "Out",
+      type: { mainType: "any", isGeneric: true },
+      color: "#a0aec0",
+    },
+  ];
+  nodes.push(passNode);
 
   return { nodes, edges };
 };

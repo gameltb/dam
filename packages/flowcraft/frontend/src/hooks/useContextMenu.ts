@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
@@ -15,8 +15,33 @@ export const useContextMenu = () => {
     galleryItemType?: MediaType;
   } | null>(null);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      // We check if the click target is inside a context menu or its submenus
+      // Since context menus are often portals or fixed elements, we can check for a common class or attribute
+      const target = event.target as HTMLElement;
+      if (target.closest(".context-menu-container")) return;
+
+      setContextMenu(null);
+    };
+
+    // Use capture to ensure we catch clicks before they might be stopped by other handlers
+    window.addEventListener("click", handleOutsideClick, true);
+    return () => {
+      window.removeEventListener("click", handleOutsideClick, true);
+    };
+  }, [contextMenu]);
+
   const onPaneContextMenu = useCallback(
     (event: ReactMouseEvent | MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        event.stopPropagation();
+        return;
+      }
+
       event.preventDefault();
       const clientX =
         "clientX" in event ? event.clientX : (event as MouseEvent).clientX;
@@ -32,6 +57,12 @@ export const useContextMenu = () => {
 
   const onNodeContextMenu = useCallback(
     (event: ReactMouseEvent, node: Node) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        event.stopPropagation();
+        return;
+      }
+
       event.preventDefault();
       setContextMenu({ x: event.clientX, y: event.clientY, nodeId: node.id });
     },
@@ -40,6 +71,12 @@ export const useContextMenu = () => {
 
   const onEdgeContextMenu = useCallback(
     (event: ReactMouseEvent, edge: Edge) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        event.stopPropagation();
+        return;
+      }
+
       event.preventDefault();
       setContextMenu({ x: event.clientX, y: event.clientY, edgeId: edge.id });
     },
@@ -47,6 +84,12 @@ export const useContextMenu = () => {
   );
 
   const onSelectionContextMenu = useCallback((event: ReactMouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      event.stopPropagation();
+      return;
+    }
+
     event.preventDefault();
     setContextMenu({
       x: event.clientX,

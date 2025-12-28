@@ -27,6 +27,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   if (isEditing) {
     return (
       <textarea
+        className="nodrag nopan"
         autoFocus
         value={localValue}
         onChange={(e) => {

@@ -2,9 +2,11 @@ import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useTaskStore } from "../store/taskStore";
 import { TaskStatus, type ProcessingNodeData } from "../types";
+import { useMockSocket } from "../hooks/useMockSocket";
 
 const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
-  const { taskId, label, onCancel } = data as ProcessingNodeData;
+  const { taskId, label } = data as ProcessingNodeData;
+  const { cancelTask } = useMockSocket({ disablePolling: true });
   const taskState = useTaskStore((state) => state.tasks[taskId]);
 
   const progress = taskState?.progress ?? 0;
@@ -83,7 +85,9 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
         status !== TaskStatus.TASK_FAILED && (
           <button
             className="nodrag"
-            onClick={() => onCancel?.(taskId)}
+            onClick={() => {
+              void cancelTask(taskId);
+            }}
             style={{
               background: "transparent",
               border: "1px solid #e53e3e",

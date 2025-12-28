@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+message SelectQuery {
+  string search_term = 1;
+  int32 page_index = 2;
+}
+
+message SelectResult {
+  message Option {
+    string id = 1;
+    string label = 2;
+    string description = 3;
+  }
+  repeated Option options = 1;
+  bool has_more = 2;
+}

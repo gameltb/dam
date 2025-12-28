@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../flowStore";
 import { useTaskStore } from "../taskStore";
 import { MutationSource } from "../../types";
+import { initOrchestrator } from "../orchestrator";
 
 /**
  * PROBLEM: Changes to the graph were hard to trace back to their origin (User vs Task).
@@ -12,6 +13,7 @@ describe("Task-based Mutation Traceability", () => {
     // Reset stores
     useTaskStore.setState({ tasks: {}, mutationLogs: [] });
     useFlowStore.setState({ nodes: [], edges: [], version: 0 });
+    initOrchestrator();
   });
 
   it("should automatically log mutations to the task store when applyMutations is called", () => {

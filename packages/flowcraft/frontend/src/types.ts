@@ -28,12 +28,14 @@ export type ActionExecutionStrategy =
 export const PortStyle = flowcraft_proto.v1.PortStyle;
 export type PortStyle = flowcraft_proto.v1.PortStyle;
 
-export enum MutationSource {
-  USER = "USER",
-  REMOTE_TASK = "REMOTE_TASK",
-  SYSTEM = "SYSTEM",
-  SYNC = "SYNC",
-}
+export const MutationSource = {
+  USER: "USER",
+  REMOTE_TASK: "REMOTE_TASK",
+  SYSTEM: "SYSTEM",
+  SYNC: "SYNC",
+} as const;
+export type MutationSource =
+  (typeof MutationSource)[keyof typeof MutationSource];
 
 export interface MutationLogEntry {
   id: string;
@@ -112,17 +114,6 @@ export interface DynamicNodeData extends Record<string, unknown> {
   // Port definitions
   inputPorts?: flowcraft_proto.v1.IPort[];
   outputPorts?: flowcraft_proto.v1.IPort[];
-
-  // Handlers (attached during hydration)
-  onChange: (id: string, data: Partial<DynamicNodeData>) => void;
-  onWidgetClick?: (nodeId: string, widgetId: string) => void;
-  onGalleryItemContext?: (
-    nodeId: string,
-    url: string,
-    mediaType: MediaType,
-    x: number,
-    y: number,
-  ) => void;
 }
 
 export interface ProcessingNodeData extends Record<string, unknown> {

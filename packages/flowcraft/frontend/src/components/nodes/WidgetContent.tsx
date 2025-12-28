@@ -10,6 +10,7 @@ import { PortHandle } from "../base/PortHandle";
 import { useMockSocket } from "../../hooks/useMockSocket";
 import { NodeLabel } from "./NodeLabel";
 import { PortLabelRow } from "./PortLabelRow";
+import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 
 const _WidgetType = flowcraft_proto.v1.WidgetType;
 const PortStyle = flowcraft_proto.v1.PortStyle;
@@ -27,7 +28,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
 
     const handleValueChange = (val: unknown) => {
       onValueChange(val);
-      sendWidgetUpdate(nodeId, widget.id, val);
+      void sendWidgetUpdate(nodeId, widget.id, val);
     };
 
     let component;
@@ -102,6 +103,7 @@ interface WidgetContentProps {
 
 export const WidgetContent: React.FC<WidgetContentProps> = memo(
   ({ id, data, selected, onToggleMode }) => {
+    const { onChange, onWidgetClick } = useNodeHandlers();
     const isSwitchable = data.modes.length > 1;
 
     const inputs = data.inputPorts ?? [];
@@ -133,7 +135,7 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
           label={data.label}
           selected={selected}
           onChange={(nodeId, label) => {
-            data.onChange(nodeId, { label });
+            onChange(nodeId, { label });
           }}
         />
 
@@ -169,37 +171,39 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
         >
           {data.widgets?.map((w) => (
             <div key={w.id} style={{ position: "relative", width: "100%" }}>
-              {w.inputPortId && (
-                <PortHandle
-                  nodeId={id}
-                  portId={w.inputPortId}
-                  type="target"
-                  sideOffset={12}
-                  style={PortStyle.PORT_STYLE_CIRCLE}
-                  color="var(--primary-color)"
-                />
-              )}
-
               <WidgetWrapper
                 isSwitchable={isSwitchable}
                 onToggleMode={onToggleMode}
                 inputPortId={w.inputPortId}
                 nodeId={id}
               >
-                <WidgetRenderer
-                  nodeId={id}
-                  widget={w}
-                  onValueChange={(val) => {
-                    const updatedWidgets = (data.widgets ?? []).map((item) =>
-                      item.id === w.id ? { ...item, value: val } : item,
-                    );
+                <div style={{ position: "relative", width: "100%" }}>
+                  {w.inputPortId && (
+                    <PortHandle
+                      nodeId={id}
+                      portId={w.inputPortId}
+                      type="target"
+                      sideOffset={17}
+                      style={PortStyle.PORT_STYLE_CIRCLE}
+                      color="var(--primary-color)"
+                      isImplicit={true}
+                    />
+                  )}
+                  <WidgetRenderer
+                    nodeId={id}
+                    widget={w}
+                    onValueChange={(val) => {
+                      const updatedWidgets = (data.widgets ?? []).map((item) =>
+                        item.id === w.id ? { ...item, value: val } : item,
+                      );
 
-                    data.onChange(id, { widgets: updatedWidgets });
-                  }}
-                  onClick={() => {
-                    data.onWidgetClick?.(id, w.id);
-                  }}
-                />
+                      onChange(id, { widgets: updatedWidgets });
+                    }}
+                    onClick={() => {
+                      onWidgetClick(id, w.id);
+                    }}
+                  />
+                </div>
               </WidgetWrapper>
             </div>
           ))}

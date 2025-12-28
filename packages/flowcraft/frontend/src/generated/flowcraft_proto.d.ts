@@ -6,678 +6,1308 @@ export namespace flowcraft_proto {
     /** Namespace v1. */
     namespace v1 {
 
-        /** ActionExecutionStrategy enum. */
-        enum ActionExecutionStrategy {
-            EXECUTION_IMMEDIATE = 0,
-            EXECUTION_TASK = 1
-        }
+        /** Properties of a Node. */
+        interface INode {
 
-        /** Properties of an ActionTemplate. */
-        interface IActionTemplate {
-
-            /** ActionTemplate id */
+            /** Node id */
             id?: (string|null);
 
-            /** ActionTemplate label */
-            label?: (string|null);
+            /** Node type */
+            type?: (string|null);
 
-            /** ActionTemplate path */
-            path?: (string[]|null);
+            /** Node position */
+            position?: (flowcraft_proto.v1.IPosition|null);
 
-            /** ActionTemplate strategy */
-            strategy?: (flowcraft_proto.v1.ActionExecutionStrategy|null);
+            /** Node data */
+            data?: (flowcraft_proto.v1.INodeData|null);
 
-            /** ActionTemplate description */
-            description?: (string|null);
+            /** Node width */
+            width?: (number|null);
 
-            /** ActionTemplate icon */
-            icon?: (string|null);
+            /** Node height */
+            height?: (number|null);
+
+            /** Node selected */
+            selected?: (boolean|null);
+
+            /** Node parentId */
+            parentId?: (string|null);
         }
 
-        /** Represents an ActionTemplate. */
-        class ActionTemplate implements IActionTemplate {
+        /** Represents a Node. */
+        class Node implements INode {
 
             /**
-             * Constructs a new ActionTemplate.
+             * Constructs a new Node.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IActionTemplate);
+            constructor(properties?: flowcraft_proto.v1.INode);
 
-            /** ActionTemplate id. */
+            /** Node id. */
             public id: string;
 
-            /** ActionTemplate label. */
+            /** Node type. */
+            public type: string;
+
+            /** Node position. */
+            public position?: (flowcraft_proto.v1.IPosition|null);
+
+            /** Node data. */
+            public data?: (flowcraft_proto.v1.INodeData|null);
+
+            /** Node width. */
+            public width: number;
+
+            /** Node height. */
+            public height: number;
+
+            /** Node selected. */
+            public selected: boolean;
+
+            /** Node parentId. */
+            public parentId: string;
+
+            /**
+             * Creates a new Node instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns Node instance
+             */
+            public static create(properties?: flowcraft_proto.v1.INode): flowcraft_proto.v1.Node;
+
+            /**
+             * Encodes the specified Node message. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
+             * @param message Node message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
+             * @param message Node message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a Node message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns Node
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Node;
+
+            /**
+             * Decodes a Node message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns Node
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Node;
+
+            /**
+             * Verifies a Node message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a Node message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns Node
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Node;
+
+            /**
+             * Creates a plain object from a Node message. Also converts values to other types if specified.
+             * @param message Node
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.Node, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this Node to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for Node
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a NodeData. */
+        interface INodeData {
+
+            /** NodeData label */
+            label?: (string|null);
+
+            /** NodeData availableModes */
+            availableModes?: (flowcraft_proto.v1.RenderMode[]|null);
+
+            /** NodeData activeMode */
+            activeMode?: (flowcraft_proto.v1.RenderMode|null);
+
+            /** NodeData media */
+            media?: (flowcraft_proto.v1.IMediaContent|null);
+
+            /** NodeData widgets */
+            widgets?: (flowcraft_proto.v1.IWidget[]|null);
+
+            /** NodeData inputPorts */
+            inputPorts?: (flowcraft_proto.v1.IPort[]|null);
+
+            /** NodeData outputPorts */
+            outputPorts?: (flowcraft_proto.v1.IPort[]|null);
+
+            /** NodeData metadata */
+            metadata?: ({ [k: string]: string }|null);
+        }
+
+        /** Represents a NodeData. */
+        class NodeData implements INodeData {
+
+            /**
+             * Constructs a new NodeData.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.INodeData);
+
+            /** NodeData label. */
             public label: string;
 
-            /** ActionTemplate path. */
-            public path: string[];
+            /** NodeData availableModes. */
+            public availableModes: flowcraft_proto.v1.RenderMode[];
 
-            /** ActionTemplate strategy. */
-            public strategy: flowcraft_proto.v1.ActionExecutionStrategy;
+            /** NodeData activeMode. */
+            public activeMode: flowcraft_proto.v1.RenderMode;
 
-            /** ActionTemplate description. */
+            /** NodeData media. */
+            public media?: (flowcraft_proto.v1.IMediaContent|null);
+
+            /** NodeData widgets. */
+            public widgets: flowcraft_proto.v1.IWidget[];
+
+            /** NodeData inputPorts. */
+            public inputPorts: flowcraft_proto.v1.IPort[];
+
+            /** NodeData outputPorts. */
+            public outputPorts: flowcraft_proto.v1.IPort[];
+
+            /** NodeData metadata. */
+            public metadata: { [k: string]: string };
+
+            /**
+             * Creates a new NodeData instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns NodeData instance
+             */
+            public static create(properties?: flowcraft_proto.v1.INodeData): flowcraft_proto.v1.NodeData;
+
+            /**
+             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
+             * @param message NodeData message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
+             * @param message NodeData message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a NodeData message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns NodeData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.NodeData;
+
+            /**
+             * Decodes a NodeData message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns NodeData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.NodeData;
+
+            /**
+             * Verifies a NodeData message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a NodeData message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns NodeData
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.NodeData;
+
+            /**
+             * Creates a plain object from a NodeData message. Also converts values to other types if specified.
+             * @param message NodeData
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.NodeData, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this NodeData to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for NodeData
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** RenderMode enum. */
+        enum RenderMode {
+            MODE_UNSPECIFIED = 0,
+            MODE_MEDIA = 1,
+            MODE_WIDGETS = 2,
+            MODE_MARKDOWN = 3
+        }
+
+        /** Properties of a MediaContent. */
+        interface IMediaContent {
+
+            /** MediaContent type */
+            type?: (flowcraft_proto.v1.MediaType|null);
+
+            /** MediaContent url */
+            url?: (string|null);
+
+            /** MediaContent content */
+            content?: (string|null);
+
+            /** MediaContent aspectRatio */
+            aspectRatio?: (number|null);
+
+            /** MediaContent galleryUrls */
+            galleryUrls?: (string[]|null);
+        }
+
+        /** Represents a MediaContent. */
+        class MediaContent implements IMediaContent {
+
+            /**
+             * Constructs a new MediaContent.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IMediaContent);
+
+            /** MediaContent type. */
+            public type: flowcraft_proto.v1.MediaType;
+
+            /** MediaContent url. */
+            public url: string;
+
+            /** MediaContent content. */
+            public content: string;
+
+            /** MediaContent aspectRatio. */
+            public aspectRatio: number;
+
+            /** MediaContent galleryUrls. */
+            public galleryUrls: string[];
+
+            /**
+             * Creates a new MediaContent instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MediaContent instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IMediaContent): flowcraft_proto.v1.MediaContent;
+
+            /**
+             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * @param message MediaContent message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * @param message MediaContent message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MediaContent message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MediaContent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.MediaContent;
+
+            /**
+             * Decodes a MediaContent message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MediaContent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.MediaContent;
+
+            /**
+             * Verifies a MediaContent message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MediaContent message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MediaContent
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.MediaContent;
+
+            /**
+             * Creates a plain object from a MediaContent message. Also converts values to other types if specified.
+             * @param message MediaContent
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.MediaContent, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MediaContent to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MediaContent
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** MediaType enum. */
+        enum MediaType {
+            MEDIA_UNSPECIFIED = 0,
+            MEDIA_IMAGE = 1,
+            MEDIA_VIDEO = 2,
+            MEDIA_AUDIO = 3,
+            MEDIA_MARKDOWN = 4
+        }
+
+        /** Properties of a Port. */
+        interface IPort {
+
+            /** Port id */
+            id?: (string|null);
+
+            /** Port label */
+            label?: (string|null);
+
+            /** Port type */
+            type?: (flowcraft_proto.v1.IPortType|null);
+
+            /** Port color */
+            color?: (string|null);
+
+            /** Port style */
+            style?: (flowcraft_proto.v1.PortStyle|null);
+
+            /** Port description */
+            description?: (string|null);
+        }
+
+        /** Represents a Port. */
+        class Port implements IPort {
+
+            /**
+             * Constructs a new Port.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IPort);
+
+            /** Port id. */
+            public id: string;
+
+            /** Port label. */
+            public label: string;
+
+            /** Port type. */
+            public type?: (flowcraft_proto.v1.IPortType|null);
+
+            /** Port color. */
+            public color: string;
+
+            /** Port style. */
+            public style: flowcraft_proto.v1.PortStyle;
+
+            /** Port description. */
             public description: string;
 
-            /** ActionTemplate icon. */
-            public icon: string;
-
             /**
-             * Creates a new ActionTemplate instance using the specified properties.
+             * Creates a new Port instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ActionTemplate instance
+             * @returns Port instance
              */
-            public static create(properties?: flowcraft_proto.v1.IActionTemplate): flowcraft_proto.v1.ActionTemplate;
+            public static create(properties?: flowcraft_proto.v1.IPort): flowcraft_proto.v1.Port;
 
             /**
-             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
-             * @param message ActionTemplate message or plain object to encode
+             * Encodes the specified Port message. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
+             * @param message Port message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
-             * @param message ActionTemplate message or plain object to encode
+             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
+             * @param message Port message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an ActionTemplate message from the specified reader or buffer.
+             * Decodes a Port message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns ActionTemplate
+             * @returns Port
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionTemplate;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Port;
 
             /**
-             * Decodes an ActionTemplate message from the specified reader or buffer, length delimited.
+             * Decodes a Port message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns ActionTemplate
+             * @returns Port
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionTemplate;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Port;
 
             /**
-             * Verifies an ActionTemplate message.
+             * Verifies a Port message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an ActionTemplate message from a plain object. Also converts values to their respective internal types.
+             * Creates a Port message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ActionTemplate
+             * @returns Port
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionTemplate;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Port;
 
             /**
-             * Creates a plain object from an ActionTemplate message. Also converts values to other types if specified.
-             * @param message ActionTemplate
+             * Creates a plain object from a Port message. Also converts values to other types if specified.
+             * @param message Port
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.ActionTemplate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Port, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ActionTemplate to JSON.
+             * Converts this Port to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for ActionTemplate
+             * Gets the default type url for Port
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of an ActionDiscoveryRequest. */
-        interface IActionDiscoveryRequest {
+        /** Properties of a PortType. */
+        interface IPortType {
 
-            /** ActionDiscoveryRequest nodeId */
-            nodeId?: (string|null);
+            /** PortType mainType */
+            mainType?: (string|null);
 
-            /** ActionDiscoveryRequest selectedNodeIds */
-            selectedNodeIds?: (string[]|null);
+            /** PortType itemType */
+            itemType?: (string|null);
+
+            /** PortType isGeneric */
+            isGeneric?: (boolean|null);
         }
 
-        /** Represents an ActionDiscoveryRequest. */
-        class ActionDiscoveryRequest implements IActionDiscoveryRequest {
+        /** Represents a PortType. */
+        class PortType implements IPortType {
 
             /**
-             * Constructs a new ActionDiscoveryRequest.
+             * Constructs a new PortType.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryRequest);
+            constructor(properties?: flowcraft_proto.v1.IPortType);
 
-            /** ActionDiscoveryRequest nodeId. */
-            public nodeId: string;
+            /** PortType mainType. */
+            public mainType: string;
 
-            /** ActionDiscoveryRequest selectedNodeIds. */
-            public selectedNodeIds: string[];
+            /** PortType itemType. */
+            public itemType: string;
+
+            /** PortType isGeneric. */
+            public isGeneric: boolean;
 
             /**
-             * Creates a new ActionDiscoveryRequest instance using the specified properties.
+             * Creates a new PortType instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ActionDiscoveryRequest instance
+             * @returns PortType instance
              */
-            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryRequest): flowcraft_proto.v1.ActionDiscoveryRequest;
+            public static create(properties?: flowcraft_proto.v1.IPortType): flowcraft_proto.v1.PortType;
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
-             * @param message ActionDiscoveryRequest message or plain object to encode
+             * Encodes the specified PortType message. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
+             * @param message PortType message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
-             * @param message ActionDiscoveryRequest message or plain object to encode
+             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
+             * @param message PortType message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer.
+             * Decodes a PortType message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns ActionDiscoveryRequest
+             * @returns PortType
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.PortType;
 
             /**
-             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer, length delimited.
+             * Decodes a PortType message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns ActionDiscoveryRequest
+             * @returns PortType
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.PortType;
 
             /**
-             * Verifies an ActionDiscoveryRequest message.
+             * Verifies a PortType message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an ActionDiscoveryRequest message from a plain object. Also converts values to their respective internal types.
+             * Creates a PortType message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ActionDiscoveryRequest
+             * @returns PortType
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.PortType;
 
             /**
-             * Creates a plain object from an ActionDiscoveryRequest message. Also converts values to other types if specified.
-             * @param message ActionDiscoveryRequest
+             * Creates a plain object from a PortType message. Also converts values to other types if specified.
+             * @param message PortType
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.PortType, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ActionDiscoveryRequest to JSON.
+             * Converts this PortType to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for ActionDiscoveryRequest
+             * Gets the default type url for PortType
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of an ActionDiscoveryResponse. */
-        interface IActionDiscoveryResponse {
-
-            /** ActionDiscoveryResponse actions */
-            actions?: (flowcraft_proto.v1.IActionTemplate[]|null);
+        /** PortStyle enum. */
+        enum PortStyle {
+            PORT_STYLE_CIRCLE = 0,
+            PORT_STYLE_SQUARE = 1,
+            PORT_STYLE_DIAMOND = 2,
+            PORT_STYLE_DASH = 3
         }
 
-        /** Represents an ActionDiscoveryResponse. */
-        class ActionDiscoveryResponse implements IActionDiscoveryResponse {
+        /** Properties of a Widget. */
+        interface IWidget {
+
+            /** Widget id */
+            id?: (string|null);
+
+            /** Widget type */
+            type?: (flowcraft_proto.v1.WidgetType|null);
+
+            /** Widget label */
+            label?: (string|null);
+
+            /** Widget valueJson */
+            valueJson?: (string|null);
+
+            /** Widget config */
+            config?: (flowcraft_proto.v1.IWidgetConfig|null);
+
+            /** Widget options */
+            options?: (flowcraft_proto.v1.IWidgetOption[]|null);
+
+            /** Widget isReadonly */
+            isReadonly?: (boolean|null);
+
+            /** Widget isLoading */
+            isLoading?: (boolean|null);
+
+            /** Widget inputPortId */
+            inputPortId?: (string|null);
+        }
+
+        /** Represents a Widget. */
+        class Widget implements IWidget {
 
             /**
-             * Constructs a new ActionDiscoveryResponse.
+             * Constructs a new Widget.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryResponse);
+            constructor(properties?: flowcraft_proto.v1.IWidget);
 
-            /** ActionDiscoveryResponse actions. */
-            public actions: flowcraft_proto.v1.IActionTemplate[];
+            /** Widget id. */
+            public id: string;
+
+            /** Widget type. */
+            public type: flowcraft_proto.v1.WidgetType;
+
+            /** Widget label. */
+            public label: string;
+
+            /** Widget valueJson. */
+            public valueJson: string;
+
+            /** Widget config. */
+            public config?: (flowcraft_proto.v1.IWidgetConfig|null);
+
+            /** Widget options. */
+            public options: flowcraft_proto.v1.IWidgetOption[];
+
+            /** Widget isReadonly. */
+            public isReadonly: boolean;
+
+            /** Widget isLoading. */
+            public isLoading: boolean;
+
+            /** Widget inputPortId. */
+            public inputPortId: string;
 
             /**
-             * Creates a new ActionDiscoveryResponse instance using the specified properties.
+             * Creates a new Widget instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ActionDiscoveryResponse instance
+             * @returns Widget instance
              */
-            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryResponse): flowcraft_proto.v1.ActionDiscoveryResponse;
+            public static create(properties?: flowcraft_proto.v1.IWidget): flowcraft_proto.v1.Widget;
 
             /**
-             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
-             * @param message ActionDiscoveryResponse message or plain object to encode
+             * Encodes the specified Widget message. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
+             * @param message Widget message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
-             * @param message ActionDiscoveryResponse message or plain object to encode
+             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
+             * @param message Widget message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer.
+             * Decodes a Widget message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns ActionDiscoveryResponse
+             * @returns Widget
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryResponse;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Widget;
 
             /**
-             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer, length delimited.
+             * Decodes a Widget message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns ActionDiscoveryResponse
+             * @returns Widget
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryResponse;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Widget;
 
             /**
-             * Verifies an ActionDiscoveryResponse message.
+             * Verifies a Widget message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an ActionDiscoveryResponse message from a plain object. Also converts values to their respective internal types.
+             * Creates a Widget message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ActionDiscoveryResponse
+             * @returns Widget
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryResponse;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Widget;
 
             /**
-             * Creates a plain object from an ActionDiscoveryResponse message. Also converts values to other types if specified.
-             * @param message ActionDiscoveryResponse
+             * Creates a plain object from a Widget message. Also converts values to other types if specified.
+             * @param message Widget
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.Widget, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ActionDiscoveryResponse to JSON.
+             * Converts this Widget to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for ActionDiscoveryResponse
+             * Gets the default type url for Widget
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of an ActionExecutionRequest. */
-        interface IActionExecutionRequest {
-
-            /** ActionExecutionRequest actionId */
-            actionId?: (string|null);
-
-            /** ActionExecutionRequest sourceNodeId */
-            sourceNodeId?: (string|null);
-
-            /** ActionExecutionRequest contextNodeIds */
-            contextNodeIds?: (string[]|null);
-
-            /** ActionExecutionRequest paramsJson */
-            paramsJson?: (string|null);
+        /** WidgetType enum. */
+        enum WidgetType {
+            WIDGET_UNSPECIFIED = 0,
+            WIDGET_TEXT = 1,
+            WIDGET_SELECT = 2,
+            WIDGET_CHECKBOX = 3,
+            WIDGET_SLIDER = 4,
+            WIDGET_BUTTON = 5
         }
 
-        /** Represents an ActionExecutionRequest. */
-        class ActionExecutionRequest implements IActionExecutionRequest {
+        /** Properties of a WidgetOption. */
+        interface IWidgetOption {
+
+            /** WidgetOption label */
+            label?: (string|null);
+
+            /** WidgetOption value */
+            value?: (string|null);
+
+            /** WidgetOption description */
+            description?: (string|null);
+        }
+
+        /** Represents a WidgetOption. */
+        class WidgetOption implements IWidgetOption {
 
             /**
-             * Constructs a new ActionExecutionRequest.
+             * Constructs a new WidgetOption.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IActionExecutionRequest);
+            constructor(properties?: flowcraft_proto.v1.IWidgetOption);
 
-            /** ActionExecutionRequest actionId. */
-            public actionId: string;
+            /** WidgetOption label. */
+            public label: string;
 
-            /** ActionExecutionRequest sourceNodeId. */
-            public sourceNodeId: string;
+            /** WidgetOption value. */
+            public value: string;
 
-            /** ActionExecutionRequest contextNodeIds. */
-            public contextNodeIds: string[];
-
-            /** ActionExecutionRequest paramsJson. */
-            public paramsJson: string;
+            /** WidgetOption description. */
+            public description: string;
 
             /**
-             * Creates a new ActionExecutionRequest instance using the specified properties.
+             * Creates a new WidgetOption instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ActionExecutionRequest instance
+             * @returns WidgetOption instance
              */
-            public static create(properties?: flowcraft_proto.v1.IActionExecutionRequest): flowcraft_proto.v1.ActionExecutionRequest;
+            public static create(properties?: flowcraft_proto.v1.IWidgetOption): flowcraft_proto.v1.WidgetOption;
 
             /**
-             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
-             * @param message ActionExecutionRequest message or plain object to encode
+             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * @param message WidgetOption message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
-             * @param message ActionExecutionRequest message or plain object to encode
+             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * @param message WidgetOption message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an ActionExecutionRequest message from the specified reader or buffer.
+             * Decodes a WidgetOption message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns ActionExecutionRequest
+             * @returns WidgetOption
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionExecutionRequest;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetOption;
 
             /**
-             * Decodes an ActionExecutionRequest message from the specified reader or buffer, length delimited.
+             * Decodes a WidgetOption message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns ActionExecutionRequest
+             * @returns WidgetOption
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionExecutionRequest;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetOption;
 
             /**
-             * Verifies an ActionExecutionRequest message.
+             * Verifies a WidgetOption message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an ActionExecutionRequest message from a plain object. Also converts values to their respective internal types.
+             * Creates a WidgetOption message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ActionExecutionRequest
+             * @returns WidgetOption
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionExecutionRequest;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetOption;
 
             /**
-             * Creates a plain object from an ActionExecutionRequest message. Also converts values to other types if specified.
-             * @param message ActionExecutionRequest
+             * Creates a plain object from a WidgetOption message. Also converts values to other types if specified.
+             * @param message WidgetOption
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.ActionExecutionRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.WidgetOption, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ActionExecutionRequest to JSON.
+             * Converts this WidgetOption to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for ActionExecutionRequest
+             * Gets the default type url for WidgetOption
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of an ActionExecutionResult. */
-        interface IActionExecutionResult {
+        /** Properties of a WidgetConfig. */
+        interface IWidgetConfig {
 
-            /** ActionExecutionResult success */
-            success?: (boolean|null);
+            /** WidgetConfig placeholder */
+            placeholder?: (string|null);
 
-            /** ActionExecutionResult taskId */
+            /** WidgetConfig min */
+            min?: (number|null);
+
+            /** WidgetConfig max */
+            max?: (number|null);
+
+            /** WidgetConfig step */
+            step?: (number|null);
+
+            /** WidgetConfig dynamicOptions */
+            dynamicOptions?: (boolean|null);
+
+            /** WidgetConfig actionTarget */
+            actionTarget?: (string|null);
+        }
+
+        /** Represents a WidgetConfig. */
+        class WidgetConfig implements IWidgetConfig {
+
+            /**
+             * Constructs a new WidgetConfig.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IWidgetConfig);
+
+            /** WidgetConfig placeholder. */
+            public placeholder: string;
+
+            /** WidgetConfig min. */
+            public min: number;
+
+            /** WidgetConfig max. */
+            public max: number;
+
+            /** WidgetConfig step. */
+            public step: number;
+
+            /** WidgetConfig dynamicOptions. */
+            public dynamicOptions: boolean;
+
+            /** WidgetConfig actionTarget. */
+            public actionTarget: string;
+
+            /**
+             * Creates a new WidgetConfig instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns WidgetConfig instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IWidgetConfig): flowcraft_proto.v1.WidgetConfig;
+
+            /**
+             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
+             * @param message WidgetConfig message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
+             * @param message WidgetConfig message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a WidgetConfig message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns WidgetConfig
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetConfig;
+
+            /**
+             * Decodes a WidgetConfig message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns WidgetConfig
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetConfig;
+
+            /**
+             * Verifies a WidgetConfig message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a WidgetConfig message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns WidgetConfig
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetConfig;
+
+            /**
+             * Creates a plain object from a WidgetConfig message. Also converts values to other types if specified.
+             * @param message WidgetConfig
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.WidgetConfig, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this WidgetConfig to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for WidgetConfig
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an Edge. */
+        interface IEdge {
+
+            /** Edge id */
+            id?: (string|null);
+
+            /** Edge source */
+            source?: (string|null);
+
+            /** Edge target */
+            target?: (string|null);
+
+            /** Edge sourceHandle */
+            sourceHandle?: (string|null);
+
+            /** Edge targetHandle */
+            targetHandle?: (string|null);
+
+            /** Edge metadata */
+            metadata?: ({ [k: string]: string }|null);
+        }
+
+        /** Represents an Edge. */
+        class Edge implements IEdge {
+
+            /**
+             * Constructs a new Edge.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IEdge);
+
+            /** Edge id. */
+            public id: string;
+
+            /** Edge source. */
+            public source: string;
+
+            /** Edge target. */
+            public target: string;
+
+            /** Edge sourceHandle. */
+            public sourceHandle: string;
+
+            /** Edge targetHandle. */
+            public targetHandle: string;
+
+            /** Edge metadata. */
+            public metadata: { [k: string]: string };
+
+            /**
+             * Creates a new Edge instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns Edge instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IEdge): flowcraft_proto.v1.Edge;
+
+            /**
+             * Encodes the specified Edge message. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
+             * @param message Edge message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
+             * @param message Edge message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an Edge message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns Edge
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Edge;
+
+            /**
+             * Decodes an Edge message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns Edge
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Edge;
+
+            /**
+             * Verifies an Edge message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an Edge message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns Edge
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Edge;
+
+            /**
+             * Creates a plain object from an Edge message. Also converts values to other types if specified.
+             * @param message Edge
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.Edge, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this Edge to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for Edge
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** TaskStatus enum. */
+        enum TaskStatus {
+            TASK_PENDING = 0,
+            TASK_PROCESSING = 1,
+            TASK_COMPLETED = 2,
+            TASK_FAILED = 3,
+            TASK_CANCELLED = 4
+        }
+
+        /** Properties of a TaskUpdate. */
+        interface ITaskUpdate {
+
+            /** TaskUpdate taskId */
             taskId?: (string|null);
 
-            /** ActionExecutionResult diff */
-            diff?: (flowcraft_proto.v1.IGraphDiff|null);
+            /** TaskUpdate status */
+            status?: (flowcraft_proto.v1.TaskStatus|null);
 
-            /** ActionExecutionResult strategy */
-            strategy?: (flowcraft_proto.v1.ActionExecutionStrategy|null);
+            /** TaskUpdate progress */
+            progress?: (number|null);
+
+            /** TaskUpdate message */
+            message?: (string|null);
+
+            /** TaskUpdate resultJson */
+            resultJson?: (string|null);
         }
 
-        /** Represents an ActionExecutionResult. */
-        class ActionExecutionResult implements IActionExecutionResult {
+        /** Represents a TaskUpdate. */
+        class TaskUpdate implements ITaskUpdate {
 
             /**
-             * Constructs a new ActionExecutionResult.
+             * Constructs a new TaskUpdate.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IActionExecutionResult);
+            constructor(properties?: flowcraft_proto.v1.ITaskUpdate);
 
-            /** ActionExecutionResult success. */
-            public success: boolean;
-
-            /** ActionExecutionResult taskId. */
+            /** TaskUpdate taskId. */
             public taskId: string;
 
-            /** ActionExecutionResult diff. */
-            public diff?: (flowcraft_proto.v1.IGraphDiff|null);
+            /** TaskUpdate status. */
+            public status: flowcraft_proto.v1.TaskStatus;
 
-            /** ActionExecutionResult strategy. */
-            public strategy: flowcraft_proto.v1.ActionExecutionStrategy;
+            /** TaskUpdate progress. */
+            public progress: number;
+
+            /** TaskUpdate message. */
+            public message: string;
+
+            /** TaskUpdate resultJson. */
+            public resultJson: string;
 
             /**
-             * Creates a new ActionExecutionResult instance using the specified properties.
+             * Creates a new TaskUpdate instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ActionExecutionResult instance
+             * @returns TaskUpdate instance
              */
-            public static create(properties?: flowcraft_proto.v1.IActionExecutionResult): flowcraft_proto.v1.ActionExecutionResult;
+            public static create(properties?: flowcraft_proto.v1.ITaskUpdate): flowcraft_proto.v1.TaskUpdate;
 
             /**
-             * Encodes the specified ActionExecutionResult message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
-             * @param message ActionExecutionResult message or plain object to encode
+             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
+             * @param message TaskUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ActionExecutionResult message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
-             * @param message ActionExecutionResult message or plain object to encode
+             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
+             * @param message TaskUpdate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IActionExecutionResult, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an ActionExecutionResult message from the specified reader or buffer.
+             * Decodes a TaskUpdate message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns ActionExecutionResult
+             * @returns TaskUpdate
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionExecutionResult;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.TaskUpdate;
 
             /**
-             * Decodes an ActionExecutionResult message from the specified reader or buffer, length delimited.
+             * Decodes a TaskUpdate message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns ActionExecutionResult
+             * @returns TaskUpdate
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionExecutionResult;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.TaskUpdate;
 
             /**
-             * Verifies an ActionExecutionResult message.
+             * Verifies a TaskUpdate message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an ActionExecutionResult message from a plain object. Also converts values to their respective internal types.
+             * Creates a TaskUpdate message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ActionExecutionResult
+             * @returns TaskUpdate
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionExecutionResult;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.TaskUpdate;
 
             /**
-             * Creates a plain object from an ActionExecutionResult message. Also converts values to other types if specified.
-             * @param message ActionExecutionResult
+             * Creates a plain object from a TaskUpdate message. Also converts values to other types if specified.
+             * @param message TaskUpdate
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.ActionExecutionResult, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.TaskUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ActionExecutionResult to JSON.
+             * Converts this TaskUpdate to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for ActionExecutionResult
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of a GraphDiff. */
-        interface IGraphDiff {
-
-            /** GraphDiff nodesJson */
-            nodesJson?: (string|null);
-
-            /** GraphDiff edgesJson */
-            edgesJson?: (string|null);
-
-            /** GraphDiff removeNodeIds */
-            removeNodeIds?: (string[]|null);
-
-            /** GraphDiff removeEdgeIds */
-            removeEdgeIds?: (string[]|null);
-        }
-
-        /** Represents a GraphDiff. */
-        class GraphDiff implements IGraphDiff {
-
-            /**
-             * Constructs a new GraphDiff.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.IGraphDiff);
-
-            /** GraphDiff nodesJson. */
-            public nodesJson: string;
-
-            /** GraphDiff edgesJson. */
-            public edgesJson: string;
-
-            /** GraphDiff removeNodeIds. */
-            public removeNodeIds: string[];
-
-            /** GraphDiff removeEdgeIds. */
-            public removeEdgeIds: string[];
-
-            /**
-             * Creates a new GraphDiff instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns GraphDiff instance
-             */
-            public static create(properties?: flowcraft_proto.v1.IGraphDiff): flowcraft_proto.v1.GraphDiff;
-
-            /**
-             * Encodes the specified GraphDiff message. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
-             * @param message GraphDiff message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified GraphDiff message, length delimited. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
-             * @param message GraphDiff message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.IGraphDiff, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a GraphDiff message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns GraphDiff
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.GraphDiff;
-
-            /**
-             * Decodes a GraphDiff message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns GraphDiff
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.GraphDiff;
-
-            /**
-             * Verifies a GraphDiff message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a GraphDiff message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns GraphDiff
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.GraphDiff;
-
-            /**
-             * Creates a plain object from a GraphDiff message. Also converts values to other types if specified.
-             * @param message GraphDiff
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.GraphDiff, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this GraphDiff to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for GraphDiff
+             * Gets the default type url for TaskUpdate
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
@@ -1011,377 +1641,6 @@ export namespace flowcraft_proto {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** PortStyle enum. */
-        enum PortStyle {
-            PORT_STYLE_CIRCLE = 0,
-            PORT_STYLE_SQUARE = 1,
-            PORT_STYLE_DIAMOND = 2,
-            PORT_STYLE_DASH = 3
-        }
-
-        /** Properties of a PortType. */
-        interface IPortType {
-
-            /** PortType mainType */
-            mainType?: (string|null);
-
-            /** PortType itemType */
-            itemType?: (string|null);
-
-            /** PortType isGeneric */
-            isGeneric?: (boolean|null);
-        }
-
-        /** Represents a PortType. */
-        class PortType implements IPortType {
-
-            /**
-             * Constructs a new PortType.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.IPortType);
-
-            /** PortType mainType. */
-            public mainType: string;
-
-            /** PortType itemType. */
-            public itemType: string;
-
-            /** PortType isGeneric. */
-            public isGeneric: boolean;
-
-            /**
-             * Creates a new PortType instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns PortType instance
-             */
-            public static create(properties?: flowcraft_proto.v1.IPortType): flowcraft_proto.v1.PortType;
-
-            /**
-             * Encodes the specified PortType message. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
-             * @param message PortType message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
-             * @param message PortType message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.IPortType, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a PortType message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns PortType
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.PortType;
-
-            /**
-             * Decodes a PortType message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns PortType
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.PortType;
-
-            /**
-             * Verifies a PortType message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a PortType message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns PortType
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.PortType;
-
-            /**
-             * Creates a plain object from a PortType message. Also converts values to other types if specified.
-             * @param message PortType
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.PortType, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this PortType to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for PortType
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of a Port. */
-        interface IPort {
-
-            /** Port id */
-            id?: (string|null);
-
-            /** Port label */
-            label?: (string|null);
-
-            /** Port type */
-            type?: (flowcraft_proto.v1.IPortType|null);
-
-            /** Port style */
-            style?: (flowcraft_proto.v1.PortStyle|null);
-
-            /** Port color */
-            color?: (string|null);
-
-            /** Port description */
-            description?: (string|null);
-        }
-
-        /** Represents a Port. */
-        class Port implements IPort {
-
-            /**
-             * Constructs a new Port.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.IPort);
-
-            /** Port id. */
-            public id: string;
-
-            /** Port label. */
-            public label: string;
-
-            /** Port type. */
-            public type?: (flowcraft_proto.v1.IPortType|null);
-
-            /** Port style. */
-            public style: flowcraft_proto.v1.PortStyle;
-
-            /** Port color. */
-            public color: string;
-
-            /** Port description. */
-            public description: string;
-
-            /**
-             * Creates a new Port instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns Port instance
-             */
-            public static create(properties?: flowcraft_proto.v1.IPort): flowcraft_proto.v1.Port;
-
-            /**
-             * Encodes the specified Port message. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
-             * @param message Port message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
-             * @param message Port message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.IPort, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a Port message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns Port
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Port;
-
-            /**
-             * Decodes a Port message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns Port
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Port;
-
-            /**
-             * Verifies a Port message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a Port message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns Port
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Port;
-
-            /**
-             * Creates a plain object from a Port message. Also converts values to other types if specified.
-             * @param message Port
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.Port, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this Port to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for Port
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of an Edge. */
-        interface IEdge {
-
-            /** Edge id */
-            id?: (string|null);
-
-            /** Edge source */
-            source?: (string|null);
-
-            /** Edge target */
-            target?: (string|null);
-
-            /** Edge sourceHandle */
-            sourceHandle?: (string|null);
-
-            /** Edge targetHandle */
-            targetHandle?: (string|null);
-
-            /** Edge metadata */
-            metadata?: ({ [k: string]: string }|null);
-        }
-
-        /** Represents an Edge. */
-        class Edge implements IEdge {
-
-            /**
-             * Constructs a new Edge.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.IEdge);
-
-            /** Edge id. */
-            public id: string;
-
-            /** Edge source. */
-            public source: string;
-
-            /** Edge target. */
-            public target: string;
-
-            /** Edge sourceHandle. */
-            public sourceHandle: string;
-
-            /** Edge targetHandle. */
-            public targetHandle: string;
-
-            /** Edge metadata. */
-            public metadata: { [k: string]: string };
-
-            /**
-             * Creates a new Edge instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns Edge instance
-             */
-            public static create(properties?: flowcraft_proto.v1.IEdge): flowcraft_proto.v1.Edge;
-
-            /**
-             * Encodes the specified Edge message. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
-             * @param message Edge message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
-             * @param message Edge message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.IEdge, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes an Edge message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns Edge
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Edge;
-
-            /**
-             * Decodes an Edge message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns Edge
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Edge;
-
-            /**
-             * Verifies an Edge message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates an Edge message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns Edge
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Edge;
-
-            /**
-             * Creates a plain object from an Edge message. Also converts values to other types if specified.
-             * @param message Edge
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.Edge, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this Edge to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for Edge
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
         /** Properties of a FlowMessage. */
         interface IFlowMessage {
 
@@ -1414,6 +1673,9 @@ export namespace flowcraft_proto {
 
             /** FlowMessage viewportUpdate */
             viewportUpdate?: (flowcraft_proto.v1.IViewportUpdate|null);
+
+            /** FlowMessage widgetSignal */
+            widgetSignal?: (flowcraft_proto.v1.IWidgetSignal|null);
 
             /** FlowMessage snapshot */
             snapshot?: (flowcraft_proto.v1.IGraphSnapshot|null);
@@ -1473,6 +1735,9 @@ export namespace flowcraft_proto {
             /** FlowMessage viewportUpdate. */
             public viewportUpdate?: (flowcraft_proto.v1.IViewportUpdate|null);
 
+            /** FlowMessage widgetSignal. */
+            public widgetSignal?: (flowcraft_proto.v1.IWidgetSignal|null);
+
             /** FlowMessage snapshot. */
             public snapshot?: (flowcraft_proto.v1.IGraphSnapshot|null);
 
@@ -1492,7 +1757,7 @@ export namespace flowcraft_proto {
             public error?: (flowcraft_proto.v1.IErrorResponse|null);
 
             /** FlowMessage payload. */
-            public payload?: ("syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"actionDiscovery"|"taskCancel"|"viewportUpdate"|"snapshot"|"mutations"|"actions"|"taskUpdate"|"streamChunk"|"error");
+            public payload?: ("syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"actionDiscovery"|"taskCancel"|"viewportUpdate"|"widgetSignal"|"snapshot"|"mutations"|"actions"|"taskUpdate"|"streamChunk"|"error");
 
             /**
              * Creates a new FlowMessage instance using the specified properties.
@@ -2311,51 +2576,6 @@ export namespace flowcraft_proto {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Represents a FlowService */
-        class FlowService extends $protobuf.rpc.Service {
-
-            /**
-             * Constructs a new FlowService service.
-             * @param rpcImpl RPC implementation
-             * @param [requestDelimited=false] Whether requests are length-delimited
-             * @param [responseDelimited=false] Whether responses are length-delimited
-             */
-            constructor(rpcImpl: $protobuf.RPCImpl, requestDelimited?: boolean, responseDelimited?: boolean);
-
-            /**
-             * Creates new FlowService service using the specified rpc implementation.
-             * @param rpcImpl RPC implementation
-             * @param [requestDelimited=false] Whether requests are length-delimited
-             * @param [responseDelimited=false] Whether responses are length-delimited
-             * @returns RPC service. Useful where requests and/or responses are streamed.
-             */
-            public static create(rpcImpl: $protobuf.RPCImpl, requestDelimited?: boolean, responseDelimited?: boolean): FlowService;
-
-            /**
-             * Calls Connect.
-             * @param request FlowMessage message or plain object
-             * @param callback Node-style callback called with the error, if any, and FlowMessage
-             */
-            public connect(request: flowcraft_proto.v1.IFlowMessage, callback: flowcraft_proto.v1.FlowService.ConnectCallback): void;
-
-            /**
-             * Calls Connect.
-             * @param request FlowMessage message or plain object
-             * @returns Promise
-             */
-            public connect(request: flowcraft_proto.v1.IFlowMessage): Promise<flowcraft_proto.v1.FlowMessage>;
-        }
-
-        namespace FlowService {
-
-            /**
-             * Callback as used by {@link flowcraft_proto.v1.FlowService#connect}.
-             * @param error Error, if any
-             * @param [response] FlowMessage
-             */
-            type ConnectCallback = (error: (Error|null), response?: flowcraft_proto.v1.FlowMessage) => void;
-        }
-
         /** Properties of a GraphSnapshot. */
         interface IGraphSnapshot {
 
@@ -2709,6 +2929,15 @@ export namespace flowcraft_proto {
 
             /** UpdateNode position */
             position?: (flowcraft_proto.v1.IPosition|null);
+
+            /** UpdateNode parentId */
+            parentId?: (string|null);
+
+            /** UpdateNode width */
+            width?: (number|null);
+
+            /** UpdateNode height */
+            height?: (number|null);
         }
 
         /** Represents an UpdateNode. */
@@ -2728,6 +2957,15 @@ export namespace flowcraft_proto {
 
             /** UpdateNode position. */
             public position?: (flowcraft_proto.v1.IPosition|null);
+
+            /** UpdateNode parentId. */
+            public parentId: string;
+
+            /** UpdateNode width. */
+            public width: number;
+
+            /** UpdateNode height. */
+            public height: number;
 
             /**
              * Creates a new UpdateNode instance using the specified properties.
@@ -3292,136 +3530,6 @@ export namespace flowcraft_proto {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a TaskUpdate. */
-        interface ITaskUpdate {
-
-            /** TaskUpdate taskId */
-            taskId?: (string|null);
-
-            /** TaskUpdate status */
-            status?: (flowcraft_proto.v1.TaskStatus|null);
-
-            /** TaskUpdate progress */
-            progress?: (number|null);
-
-            /** TaskUpdate message */
-            message?: (string|null);
-
-            /** TaskUpdate resultJson */
-            resultJson?: (string|null);
-        }
-
-        /** Represents a TaskUpdate. */
-        class TaskUpdate implements ITaskUpdate {
-
-            /**
-             * Constructs a new TaskUpdate.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.ITaskUpdate);
-
-            /** TaskUpdate taskId. */
-            public taskId: string;
-
-            /** TaskUpdate status. */
-            public status: flowcraft_proto.v1.TaskStatus;
-
-            /** TaskUpdate progress. */
-            public progress: number;
-
-            /** TaskUpdate message. */
-            public message: string;
-
-            /** TaskUpdate resultJson. */
-            public resultJson: string;
-
-            /**
-             * Creates a new TaskUpdate instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns TaskUpdate instance
-             */
-            public static create(properties?: flowcraft_proto.v1.ITaskUpdate): flowcraft_proto.v1.TaskUpdate;
-
-            /**
-             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
-             * @param message TaskUpdate message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
-             * @param message TaskUpdate message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.ITaskUpdate, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a TaskUpdate message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns TaskUpdate
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.TaskUpdate;
-
-            /**
-             * Decodes a TaskUpdate message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns TaskUpdate
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.TaskUpdate;
-
-            /**
-             * Verifies a TaskUpdate message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a TaskUpdate message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns TaskUpdate
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.TaskUpdate;
-
-            /**
-             * Creates a plain object from a TaskUpdate message. Also converts values to other types if specified.
-             * @param message TaskUpdate
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.TaskUpdate, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this TaskUpdate to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for TaskUpdate
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** TaskStatus enum. */
-        enum TaskStatus {
-            TASK_PENDING = 0,
-            TASK_PROCESSING = 1,
-            TASK_COMPLETED = 2,
-            TASK_FAILED = 3,
-            TASK_CANCELLED = 4
-        }
-
         /** Properties of a TaskCancelRequest. */
         interface ITaskCancelRequest {
 
@@ -3519,807 +3627,993 @@ export namespace flowcraft_proto {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a Node. */
-        interface INode {
+        /** Properties of a WidgetSignal. */
+        interface IWidgetSignal {
 
-            /** Node id */
-            id?: (string|null);
+            /** WidgetSignal nodeId */
+            nodeId?: (string|null);
 
-            /** Node type */
-            type?: (string|null);
+            /** WidgetSignal widgetId */
+            widgetId?: (string|null);
 
-            /** Node position */
-            position?: (flowcraft_proto.v1.IPosition|null);
+            /** WidgetSignal markdownStream */
+            markdownStream?: (flowcraft_proto.v1.IMarkdownStream|null);
 
-            /** Node data */
-            data?: (flowcraft_proto.v1.INodeData|null);
+            /** WidgetSignal selectQuery */
+            selectQuery?: (flowcraft_proto.v1.ISelectQuery|null);
 
-            /** Node width */
-            width?: (number|null);
-
-            /** Node height */
-            height?: (number|null);
-
-            /** Node selected */
-            selected?: (boolean|null);
-
-            /** Node parentId */
-            parentId?: (string|null);
+            /** WidgetSignal selectResult */
+            selectResult?: (flowcraft_proto.v1.ISelectResult|null);
         }
 
-        /** Represents a Node. */
-        class Node implements INode {
+        /** Represents a WidgetSignal. */
+        class WidgetSignal implements IWidgetSignal {
 
             /**
-             * Constructs a new Node.
+             * Constructs a new WidgetSignal.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.INode);
+            constructor(properties?: flowcraft_proto.v1.IWidgetSignal);
 
-            /** Node id. */
-            public id: string;
+            /** WidgetSignal nodeId. */
+            public nodeId: string;
 
-            /** Node type. */
-            public type: string;
+            /** WidgetSignal widgetId. */
+            public widgetId: string;
 
-            /** Node position. */
-            public position?: (flowcraft_proto.v1.IPosition|null);
+            /** WidgetSignal markdownStream. */
+            public markdownStream?: (flowcraft_proto.v1.IMarkdownStream|null);
 
-            /** Node data. */
-            public data?: (flowcraft_proto.v1.INodeData|null);
+            /** WidgetSignal selectQuery. */
+            public selectQuery?: (flowcraft_proto.v1.ISelectQuery|null);
 
-            /** Node width. */
-            public width: number;
+            /** WidgetSignal selectResult. */
+            public selectResult?: (flowcraft_proto.v1.ISelectResult|null);
 
-            /** Node height. */
-            public height: number;
-
-            /** Node selected. */
-            public selected: boolean;
-
-            /** Node parentId. */
-            public parentId: string;
+            /** WidgetSignal payload. */
+            public payload?: ("markdownStream"|"selectQuery"|"selectResult");
 
             /**
-             * Creates a new Node instance using the specified properties.
+             * Creates a new WidgetSignal instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns Node instance
+             * @returns WidgetSignal instance
              */
-            public static create(properties?: flowcraft_proto.v1.INode): flowcraft_proto.v1.Node;
+            public static create(properties?: flowcraft_proto.v1.IWidgetSignal): flowcraft_proto.v1.WidgetSignal;
 
             /**
-             * Encodes the specified Node message. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
-             * @param message Node message or plain object to encode
+             * Encodes the specified WidgetSignal message. Does not implicitly {@link flowcraft_proto.v1.WidgetSignal.verify|verify} messages.
+             * @param message WidgetSignal message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IWidgetSignal, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
-             * @param message Node message or plain object to encode
+             * Encodes the specified WidgetSignal message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetSignal.verify|verify} messages.
+             * @param message WidgetSignal message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.INode, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetSignal, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a Node message from the specified reader or buffer.
+             * Decodes a WidgetSignal message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns Node
+             * @returns WidgetSignal
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Node;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetSignal;
 
             /**
-             * Decodes a Node message from the specified reader or buffer, length delimited.
+             * Decodes a WidgetSignal message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns Node
+             * @returns WidgetSignal
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Node;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetSignal;
 
             /**
-             * Verifies a Node message.
+             * Verifies a WidgetSignal message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a Node message from a plain object. Also converts values to their respective internal types.
+             * Creates a WidgetSignal message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns Node
+             * @returns WidgetSignal
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Node;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetSignal;
 
             /**
-             * Creates a plain object from a Node message. Also converts values to other types if specified.
-             * @param message Node
+             * Creates a plain object from a WidgetSignal message. Also converts values to other types if specified.
+             * @param message WidgetSignal
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.Node, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.WidgetSignal, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this Node to JSON.
+             * Converts this WidgetSignal to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for Node
+             * Gets the default type url for WidgetSignal
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a NodeData. */
-        interface INodeData {
+        /** Properties of a MarkdownStream. */
+        interface IMarkdownStream {
 
-            /** NodeData label */
-            label?: (string|null);
+            /** MarkdownStream type */
+            type?: (flowcraft_proto.v1.MarkdownStream.ChunkType|null);
 
-            /** NodeData availableModes */
-            availableModes?: (flowcraft_proto.v1.RenderMode[]|null);
-
-            /** NodeData activeMode */
-            activeMode?: (flowcraft_proto.v1.RenderMode|null);
-
-            /** NodeData media */
-            media?: (flowcraft_proto.v1.IMediaContent|null);
-
-            /** NodeData widgets */
-            widgets?: (flowcraft_proto.v1.IWidget[]|null);
-
-            /** NodeData inputPorts */
-            inputPorts?: (flowcraft_proto.v1.IPort[]|null);
-
-            /** NodeData outputPorts */
-            outputPorts?: (flowcraft_proto.v1.IPort[]|null);
-
-            /** NodeData metadata */
-            metadata?: ({ [k: string]: string }|null);
-        }
-
-        /** Represents a NodeData. */
-        class NodeData implements INodeData {
-
-            /**
-             * Constructs a new NodeData.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: flowcraft_proto.v1.INodeData);
-
-            /** NodeData label. */
-            public label: string;
-
-            /** NodeData availableModes. */
-            public availableModes: flowcraft_proto.v1.RenderMode[];
-
-            /** NodeData activeMode. */
-            public activeMode: flowcraft_proto.v1.RenderMode;
-
-            /** NodeData media. */
-            public media?: (flowcraft_proto.v1.IMediaContent|null);
-
-            /** NodeData widgets. */
-            public widgets: flowcraft_proto.v1.IWidget[];
-
-            /** NodeData inputPorts. */
-            public inputPorts: flowcraft_proto.v1.IPort[];
-
-            /** NodeData outputPorts. */
-            public outputPorts: flowcraft_proto.v1.IPort[];
-
-            /** NodeData metadata. */
-            public metadata: { [k: string]: string };
-
-            /**
-             * Creates a new NodeData instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns NodeData instance
-             */
-            public static create(properties?: flowcraft_proto.v1.INodeData): flowcraft_proto.v1.NodeData;
-
-            /**
-             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
-             * @param message NodeData message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
-             * @param message NodeData message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: flowcraft_proto.v1.INodeData, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a NodeData message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns NodeData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.NodeData;
-
-            /**
-             * Decodes a NodeData message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns NodeData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.NodeData;
-
-            /**
-             * Verifies a NodeData message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a NodeData message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns NodeData
-             */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.NodeData;
-
-            /**
-             * Creates a plain object from a NodeData message. Also converts values to other types if specified.
-             * @param message NodeData
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: flowcraft_proto.v1.NodeData, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this NodeData to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for NodeData
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** RenderMode enum. */
-        enum RenderMode {
-            MODE_UNSPECIFIED = 0,
-            MODE_MEDIA = 1,
-            MODE_WIDGETS = 2,
-            MODE_MARKDOWN = 3
-        }
-
-        /** Properties of a MediaContent. */
-        interface IMediaContent {
-
-            /** MediaContent type */
-            type?: (flowcraft_proto.v1.MediaType|null);
-
-            /** MediaContent url */
-            url?: (string|null);
-
-            /** MediaContent content */
+            /** MarkdownStream content */
             content?: (string|null);
-
-            /** MediaContent aspectRatio */
-            aspectRatio?: (number|null);
-
-            /** MediaContent galleryUrls */
-            galleryUrls?: (string[]|null);
         }
 
-        /** Represents a MediaContent. */
-        class MediaContent implements IMediaContent {
+        /** Represents a MarkdownStream. */
+        class MarkdownStream implements IMarkdownStream {
 
             /**
-             * Constructs a new MediaContent.
+             * Constructs a new MarkdownStream.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IMediaContent);
+            constructor(properties?: flowcraft_proto.v1.IMarkdownStream);
 
-            /** MediaContent type. */
-            public type: flowcraft_proto.v1.MediaType;
+            /** MarkdownStream type. */
+            public type: flowcraft_proto.v1.MarkdownStream.ChunkType;
 
-            /** MediaContent url. */
-            public url: string;
-
-            /** MediaContent content. */
+            /** MarkdownStream content. */
             public content: string;
 
-            /** MediaContent aspectRatio. */
-            public aspectRatio: number;
-
-            /** MediaContent galleryUrls. */
-            public galleryUrls: string[];
-
             /**
-             * Creates a new MediaContent instance using the specified properties.
+             * Creates a new MarkdownStream instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns MediaContent instance
+             * @returns MarkdownStream instance
              */
-            public static create(properties?: flowcraft_proto.v1.IMediaContent): flowcraft_proto.v1.MediaContent;
+            public static create(properties?: flowcraft_proto.v1.IMarkdownStream): flowcraft_proto.v1.MarkdownStream;
 
             /**
-             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
-             * @param message MediaContent message or plain object to encode
+             * Encodes the specified MarkdownStream message. Does not implicitly {@link flowcraft_proto.v1.MarkdownStream.verify|verify} messages.
+             * @param message MarkdownStream message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IMarkdownStream, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
-             * @param message MediaContent message or plain object to encode
+             * Encodes the specified MarkdownStream message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MarkdownStream.verify|verify} messages.
+             * @param message MarkdownStream message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IMediaContent, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IMarkdownStream, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a MediaContent message from the specified reader or buffer.
+             * Decodes a MarkdownStream message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns MediaContent
+             * @returns MarkdownStream
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.MediaContent;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.MarkdownStream;
 
             /**
-             * Decodes a MediaContent message from the specified reader or buffer, length delimited.
+             * Decodes a MarkdownStream message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns MediaContent
+             * @returns MarkdownStream
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.MediaContent;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.MarkdownStream;
 
             /**
-             * Verifies a MediaContent message.
+             * Verifies a MarkdownStream message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a MediaContent message from a plain object. Also converts values to their respective internal types.
+             * Creates a MarkdownStream message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns MediaContent
+             * @returns MarkdownStream
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.MediaContent;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.MarkdownStream;
 
             /**
-             * Creates a plain object from a MediaContent message. Also converts values to other types if specified.
-             * @param message MediaContent
+             * Creates a plain object from a MarkdownStream message. Also converts values to other types if specified.
+             * @param message MarkdownStream
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.MediaContent, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.MarkdownStream, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this MediaContent to JSON.
+             * Converts this MarkdownStream to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for MediaContent
+             * Gets the default type url for MarkdownStream
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** MediaType enum. */
-        enum MediaType {
-            MEDIA_UNSPECIFIED = 0,
-            MEDIA_IMAGE = 1,
-            MEDIA_VIDEO = 2,
-            MEDIA_AUDIO = 3,
-            MEDIA_MARKDOWN = 4
+        namespace MarkdownStream {
+
+            /** ChunkType enum. */
+            enum ChunkType {
+                START = 0,
+                APPEND = 1,
+                REPLACE = 2,
+                FINISH = 3
+            }
         }
 
-        /** WidgetType enum. */
-        enum WidgetType {
-            WIDGET_UNSPECIFIED = 0,
-            WIDGET_TEXT = 1,
-            WIDGET_SELECT = 2,
-            WIDGET_CHECKBOX = 3,
-            WIDGET_SLIDER = 4,
-            WIDGET_BUTTON = 5
+        /** Properties of a SelectQuery. */
+        interface ISelectQuery {
+
+            /** SelectQuery searchTerm */
+            searchTerm?: (string|null);
+
+            /** SelectQuery pageIndex */
+            pageIndex?: (number|null);
         }
 
-        /** Properties of a WidgetOption. */
-        interface IWidgetOption {
-
-            /** WidgetOption label */
-            label?: (string|null);
-
-            /** WidgetOption value */
-            value?: (string|null);
-
-            /** WidgetOption description */
-            description?: (string|null);
-        }
-
-        /** Represents a WidgetOption. */
-        class WidgetOption implements IWidgetOption {
+        /** Represents a SelectQuery. */
+        class SelectQuery implements ISelectQuery {
 
             /**
-             * Constructs a new WidgetOption.
+             * Constructs a new SelectQuery.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IWidgetOption);
+            constructor(properties?: flowcraft_proto.v1.ISelectQuery);
 
-            /** WidgetOption label. */
-            public label: string;
+            /** SelectQuery searchTerm. */
+            public searchTerm: string;
 
-            /** WidgetOption value. */
-            public value: string;
-
-            /** WidgetOption description. */
-            public description: string;
+            /** SelectQuery pageIndex. */
+            public pageIndex: number;
 
             /**
-             * Creates a new WidgetOption instance using the specified properties.
+             * Creates a new SelectQuery instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns WidgetOption instance
+             * @returns SelectQuery instance
              */
-            public static create(properties?: flowcraft_proto.v1.IWidgetOption): flowcraft_proto.v1.WidgetOption;
+            public static create(properties?: flowcraft_proto.v1.ISelectQuery): flowcraft_proto.v1.SelectQuery;
 
             /**
-             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
-             * @param message WidgetOption message or plain object to encode
+             * Encodes the specified SelectQuery message. Does not implicitly {@link flowcraft_proto.v1.SelectQuery.verify|verify} messages.
+             * @param message SelectQuery message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ISelectQuery, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
-             * @param message WidgetOption message or plain object to encode
+             * Encodes the specified SelectQuery message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectQuery.verify|verify} messages.
+             * @param message SelectQuery message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetOption, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ISelectQuery, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a WidgetOption message from the specified reader or buffer.
+             * Decodes a SelectQuery message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns WidgetOption
+             * @returns SelectQuery
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetOption;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.SelectQuery;
 
             /**
-             * Decodes a WidgetOption message from the specified reader or buffer, length delimited.
+             * Decodes a SelectQuery message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns WidgetOption
+             * @returns SelectQuery
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetOption;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.SelectQuery;
 
             /**
-             * Verifies a WidgetOption message.
+             * Verifies a SelectQuery message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a WidgetOption message from a plain object. Also converts values to their respective internal types.
+             * Creates a SelectQuery message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns WidgetOption
+             * @returns SelectQuery
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetOption;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.SelectQuery;
 
             /**
-             * Creates a plain object from a WidgetOption message. Also converts values to other types if specified.
-             * @param message WidgetOption
+             * Creates a plain object from a SelectQuery message. Also converts values to other types if specified.
+             * @param message SelectQuery
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.WidgetOption, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.SelectQuery, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this WidgetOption to JSON.
+             * Converts this SelectQuery to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for WidgetOption
+             * Gets the default type url for SelectQuery
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a WidgetConfig. */
-        interface IWidgetConfig {
+        /** Properties of a SelectResult. */
+        interface ISelectResult {
 
-            /** WidgetConfig placeholder */
-            placeholder?: (string|null);
+            /** SelectResult options */
+            options?: (flowcraft_proto.v1.SelectResult.IOption[]|null);
 
-            /** WidgetConfig min */
-            min?: (number|null);
-
-            /** WidgetConfig max */
-            max?: (number|null);
-
-            /** WidgetConfig step */
-            step?: (number|null);
-
-            /** WidgetConfig dynamicOptions */
-            dynamicOptions?: (boolean|null);
-
-            /** WidgetConfig actionTarget */
-            actionTarget?: (string|null);
+            /** SelectResult hasMore */
+            hasMore?: (boolean|null);
         }
 
-        /** Represents a WidgetConfig. */
-        class WidgetConfig implements IWidgetConfig {
+        /** Represents a SelectResult. */
+        class SelectResult implements ISelectResult {
 
             /**
-             * Constructs a new WidgetConfig.
+             * Constructs a new SelectResult.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IWidgetConfig);
+            constructor(properties?: flowcraft_proto.v1.ISelectResult);
 
-            /** WidgetConfig placeholder. */
-            public placeholder: string;
+            /** SelectResult options. */
+            public options: flowcraft_proto.v1.SelectResult.IOption[];
 
-            /** WidgetConfig min. */
-            public min: number;
-
-            /** WidgetConfig max. */
-            public max: number;
-
-            /** WidgetConfig step. */
-            public step: number;
-
-            /** WidgetConfig dynamicOptions. */
-            public dynamicOptions: boolean;
-
-            /** WidgetConfig actionTarget. */
-            public actionTarget: string;
+            /** SelectResult hasMore. */
+            public hasMore: boolean;
 
             /**
-             * Creates a new WidgetConfig instance using the specified properties.
+             * Creates a new SelectResult instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns WidgetConfig instance
+             * @returns SelectResult instance
              */
-            public static create(properties?: flowcraft_proto.v1.IWidgetConfig): flowcraft_proto.v1.WidgetConfig;
+            public static create(properties?: flowcraft_proto.v1.ISelectResult): flowcraft_proto.v1.SelectResult;
 
             /**
-             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
-             * @param message WidgetConfig message or plain object to encode
+             * Encodes the specified SelectResult message. Does not implicitly {@link flowcraft_proto.v1.SelectResult.verify|verify} messages.
+             * @param message SelectResult message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.ISelectResult, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
-             * @param message WidgetConfig message or plain object to encode
+             * Encodes the specified SelectResult message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectResult.verify|verify} messages.
+             * @param message SelectResult message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IWidgetConfig, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.ISelectResult, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a WidgetConfig message from the specified reader or buffer.
+             * Decodes a SelectResult message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns WidgetConfig
+             * @returns SelectResult
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.WidgetConfig;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.SelectResult;
 
             /**
-             * Decodes a WidgetConfig message from the specified reader or buffer, length delimited.
+             * Decodes a SelectResult message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns WidgetConfig
+             * @returns SelectResult
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.WidgetConfig;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.SelectResult;
 
             /**
-             * Verifies a WidgetConfig message.
+             * Verifies a SelectResult message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a WidgetConfig message from a plain object. Also converts values to their respective internal types.
+             * Creates a SelectResult message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns WidgetConfig
+             * @returns SelectResult
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.WidgetConfig;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.SelectResult;
 
             /**
-             * Creates a plain object from a WidgetConfig message. Also converts values to other types if specified.
-             * @param message WidgetConfig
+             * Creates a plain object from a SelectResult message. Also converts values to other types if specified.
+             * @param message SelectResult
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.WidgetConfig, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.SelectResult, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this WidgetConfig to JSON.
+             * Converts this SelectResult to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for WidgetConfig
+             * Gets the default type url for SelectResult
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a Widget. */
-        interface IWidget {
+        namespace SelectResult {
 
-            /** Widget id */
+            /** Properties of an Option. */
+            interface IOption {
+
+                /** Option id */
+                id?: (string|null);
+
+                /** Option label */
+                label?: (string|null);
+
+                /** Option description */
+                description?: (string|null);
+            }
+
+            /** Represents an Option. */
+            class Option implements IOption {
+
+                /**
+                 * Constructs a new Option.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: flowcraft_proto.v1.SelectResult.IOption);
+
+                /** Option id. */
+                public id: string;
+
+                /** Option label. */
+                public label: string;
+
+                /** Option description. */
+                public description: string;
+
+                /**
+                 * Creates a new Option instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns Option instance
+                 */
+                public static create(properties?: flowcraft_proto.v1.SelectResult.IOption): flowcraft_proto.v1.SelectResult.Option;
+
+                /**
+                 * Encodes the specified Option message. Does not implicitly {@link flowcraft_proto.v1.SelectResult.Option.verify|verify} messages.
+                 * @param message Option message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: flowcraft_proto.v1.SelectResult.IOption, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified Option message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectResult.Option.verify|verify} messages.
+                 * @param message Option message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: flowcraft_proto.v1.SelectResult.IOption, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes an Option message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns Option
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.SelectResult.Option;
+
+                /**
+                 * Decodes an Option message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns Option
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.SelectResult.Option;
+
+                /**
+                 * Verifies an Option message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates an Option message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns Option
+                 */
+                public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.SelectResult.Option;
+
+                /**
+                 * Creates a plain object from an Option message. Also converts values to other types if specified.
+                 * @param message Option
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: flowcraft_proto.v1.SelectResult.Option, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this Option to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for Option
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+        }
+
+        /** ActionExecutionStrategy enum. */
+        enum ActionExecutionStrategy {
+            EXECUTION_IMMEDIATE = 0,
+            EXECUTION_BACKGROUND = 1,
+            EXECUTION_STREAMING = 2
+        }
+
+        /** Properties of an ActionTemplate. */
+        interface IActionTemplate {
+
+            /** ActionTemplate id */
             id?: (string|null);
 
-            /** Widget type */
-            type?: (flowcraft_proto.v1.WidgetType|null);
-
-            /** Widget label */
+            /** ActionTemplate label */
             label?: (string|null);
 
-            /** Widget valueJson */
-            valueJson?: (string|null);
+            /** ActionTemplate path */
+            path?: (string[]|null);
 
-            /** Widget config */
-            config?: (flowcraft_proto.v1.IWidgetConfig|null);
-
-            /** Widget options */
-            options?: (flowcraft_proto.v1.IWidgetOption[]|null);
-
-            /** Widget isReadonly */
-            isReadonly?: (boolean|null);
-
-            /** Widget isLoading */
-            isLoading?: (boolean|null);
-
-            /** Widget inputPortId */
-            inputPortId?: (string|null);
+            /** ActionTemplate strategy */
+            strategy?: (flowcraft_proto.v1.ActionExecutionStrategy|null);
         }
 
-        /** Represents a Widget. */
-        class Widget implements IWidget {
+        /** Represents an ActionTemplate. */
+        class ActionTemplate implements IActionTemplate {
 
             /**
-             * Constructs a new Widget.
+             * Constructs a new ActionTemplate.
              * @param [properties] Properties to set
              */
-            constructor(properties?: flowcraft_proto.v1.IWidget);
+            constructor(properties?: flowcraft_proto.v1.IActionTemplate);
 
-            /** Widget id. */
+            /** ActionTemplate id. */
             public id: string;
 
-            /** Widget type. */
-            public type: flowcraft_proto.v1.WidgetType;
-
-            /** Widget label. */
+            /** ActionTemplate label. */
             public label: string;
 
-            /** Widget valueJson. */
-            public valueJson: string;
+            /** ActionTemplate path. */
+            public path: string[];
 
-            /** Widget config. */
-            public config?: (flowcraft_proto.v1.IWidgetConfig|null);
-
-            /** Widget options. */
-            public options: flowcraft_proto.v1.IWidgetOption[];
-
-            /** Widget isReadonly. */
-            public isReadonly: boolean;
-
-            /** Widget isLoading. */
-            public isLoading: boolean;
-
-            /** Widget inputPortId. */
-            public inputPortId: string;
+            /** ActionTemplate strategy. */
+            public strategy: flowcraft_proto.v1.ActionExecutionStrategy;
 
             /**
-             * Creates a new Widget instance using the specified properties.
+             * Creates a new ActionTemplate instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns Widget instance
+             * @returns ActionTemplate instance
              */
-            public static create(properties?: flowcraft_proto.v1.IWidget): flowcraft_proto.v1.Widget;
+            public static create(properties?: flowcraft_proto.v1.IActionTemplate): flowcraft_proto.v1.ActionTemplate;
 
             /**
-             * Encodes the specified Widget message. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
-             * @param message Widget message or plain object to encode
+             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * @param message ActionTemplate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encode(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encode(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
-             * @param message Widget message or plain object to encode
+             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * @param message ActionTemplate message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            public static encodeDelimited(message: flowcraft_proto.v1.IWidget, writer?: $protobuf.Writer): $protobuf.Writer;
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionTemplate, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a Widget message from the specified reader or buffer.
+             * Decodes an ActionTemplate message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns Widget
+             * @returns ActionTemplate
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.Widget;
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionTemplate;
 
             /**
-             * Decodes a Widget message from the specified reader or buffer, length delimited.
+             * Decodes an ActionTemplate message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns Widget
+             * @returns ActionTemplate
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.Widget;
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionTemplate;
 
             /**
-             * Verifies a Widget message.
+             * Verifies an ActionTemplate message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             public static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a Widget message from a plain object. Also converts values to their respective internal types.
+             * Creates an ActionTemplate message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns Widget
+             * @returns ActionTemplate
              */
-            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.Widget;
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionTemplate;
 
             /**
-             * Creates a plain object from a Widget message. Also converts values to other types if specified.
-             * @param message Widget
+             * Creates a plain object from an ActionTemplate message. Also converts values to other types if specified.
+             * @param message ActionTemplate
              * @param [options] Conversion options
              * @returns Plain object
              */
-            public static toObject(message: flowcraft_proto.v1.Widget, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            public static toObject(message: flowcraft_proto.v1.ActionTemplate, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this Widget to JSON.
+             * Converts this ActionTemplate to JSON.
              * @returns JSON object
              */
             public toJSON(): { [k: string]: any };
 
             /**
-             * Gets the default type url for Widget
+             * Gets the default type url for ActionTemplate
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an ActionDiscoveryRequest. */
+        interface IActionDiscoveryRequest {
+
+            /** ActionDiscoveryRequest nodeId */
+            nodeId?: (string|null);
+
+            /** ActionDiscoveryRequest selectedNodeIds */
+            selectedNodeIds?: (string[]|null);
+        }
+
+        /** Represents an ActionDiscoveryRequest. */
+        class ActionDiscoveryRequest implements IActionDiscoveryRequest {
+
+            /**
+             * Constructs a new ActionDiscoveryRequest.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryRequest);
+
+            /** ActionDiscoveryRequest nodeId. */
+            public nodeId: string;
+
+            /** ActionDiscoveryRequest selectedNodeIds. */
+            public selectedNodeIds: string[];
+
+            /**
+             * Creates a new ActionDiscoveryRequest instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ActionDiscoveryRequest instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryRequest): flowcraft_proto.v1.ActionDiscoveryRequest;
+
+            /**
+             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * @param message ActionDiscoveryRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * @param message ActionDiscoveryRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ActionDiscoveryRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryRequest;
+
+            /**
+             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ActionDiscoveryRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryRequest;
+
+            /**
+             * Verifies an ActionDiscoveryRequest message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an ActionDiscoveryRequest message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ActionDiscoveryRequest
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryRequest;
+
+            /**
+             * Creates a plain object from an ActionDiscoveryRequest message. Also converts values to other types if specified.
+             * @param message ActionDiscoveryRequest
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ActionDiscoveryRequest to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ActionDiscoveryRequest
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an ActionDiscoveryResponse. */
+        interface IActionDiscoveryResponse {
+
+            /** ActionDiscoveryResponse actions */
+            actions?: (flowcraft_proto.v1.IActionTemplate[]|null);
+        }
+
+        /** Represents an ActionDiscoveryResponse. */
+        class ActionDiscoveryResponse implements IActionDiscoveryResponse {
+
+            /**
+             * Constructs a new ActionDiscoveryResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IActionDiscoveryResponse);
+
+            /** ActionDiscoveryResponse actions. */
+            public actions: flowcraft_proto.v1.IActionTemplate[];
+
+            /**
+             * Creates a new ActionDiscoveryResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ActionDiscoveryResponse instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IActionDiscoveryResponse): flowcraft_proto.v1.ActionDiscoveryResponse;
+
+            /**
+             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * @param message ActionDiscoveryResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * @param message ActionDiscoveryResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionDiscoveryResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ActionDiscoveryResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionDiscoveryResponse;
+
+            /**
+             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ActionDiscoveryResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionDiscoveryResponse;
+
+            /**
+             * Verifies an ActionDiscoveryResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an ActionDiscoveryResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ActionDiscoveryResponse
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionDiscoveryResponse;
+
+            /**
+             * Creates a plain object from an ActionDiscoveryResponse message. Also converts values to other types if specified.
+             * @param message ActionDiscoveryResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.ActionDiscoveryResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ActionDiscoveryResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ActionDiscoveryResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an ActionExecutionRequest. */
+        interface IActionExecutionRequest {
+
+            /** ActionExecutionRequest actionId */
+            actionId?: (string|null);
+
+            /** ActionExecutionRequest sourceNodeId */
+            sourceNodeId?: (string|null);
+
+            /** ActionExecutionRequest contextNodeIds */
+            contextNodeIds?: (string[]|null);
+
+            /** ActionExecutionRequest paramsJson */
+            paramsJson?: (string|null);
+        }
+
+        /** Represents an ActionExecutionRequest. */
+        class ActionExecutionRequest implements IActionExecutionRequest {
+
+            /**
+             * Constructs a new ActionExecutionRequest.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: flowcraft_proto.v1.IActionExecutionRequest);
+
+            /** ActionExecutionRequest actionId. */
+            public actionId: string;
+
+            /** ActionExecutionRequest sourceNodeId. */
+            public sourceNodeId: string;
+
+            /** ActionExecutionRequest contextNodeIds. */
+            public contextNodeIds: string[];
+
+            /** ActionExecutionRequest paramsJson. */
+            public paramsJson: string;
+
+            /**
+             * Creates a new ActionExecutionRequest instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ActionExecutionRequest instance
+             */
+            public static create(properties?: flowcraft_proto.v1.IActionExecutionRequest): flowcraft_proto.v1.ActionExecutionRequest;
+
+            /**
+             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
+             * @param message ActionExecutionRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
+             * @param message ActionExecutionRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: flowcraft_proto.v1.IActionExecutionRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an ActionExecutionRequest message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ActionExecutionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): flowcraft_proto.v1.ActionExecutionRequest;
+
+            /**
+             * Decodes an ActionExecutionRequest message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ActionExecutionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): flowcraft_proto.v1.ActionExecutionRequest;
+
+            /**
+             * Verifies an ActionExecutionRequest message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an ActionExecutionRequest message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ActionExecutionRequest
+             */
+            public static fromObject(object: { [k: string]: any }): flowcraft_proto.v1.ActionExecutionRequest;
+
+            /**
+             * Creates a plain object from an ActionExecutionRequest message. Also converts values to other types if specified.
+             * @param message ActionExecutionRequest
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: flowcraft_proto.v1.ActionExecutionRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ActionExecutionRequest to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ActionExecutionRequest
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */

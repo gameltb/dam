@@ -51,4 +51,57 @@ describe("Yjs CRDT Core Logic", () => {
     expect(yNodes.has("node-b")).toBe(true);
     expect(yNodes.size).toBe(2);
   });
+
+  it("should preserve node hierarchy (parentId) during sync", () => {
+    const store = useFlowStore.getState();
+
+    // 1. Add a group and a child
+    store.applyMutations([
+      {
+        addNode: {
+          node: { id: "group-1", type: "groupNode", position: { x: 0, y: 0 } },
+        },
+      },
+    ]);
+    store.applyMutations(
+      [
+        {
+          updateNode: {
+            id: "child-1",
+            parentId: "group-1",
+            position: { x: 10, y: 10 },
+          },
+        },
+      ],
+      { taskId: "group-task" },
+    );
+
+    // 2. Add child node via mutation (if it didn't exist)
+    // Actually applyMutations with updateNode on non-existent node does nothing in our current logic.
+    // Let's add it first.
+    store.applyMutations([
+      {
+        addNode: {
+          node: { id: "child-1", type: "dynamic", position: { x: 0, y: 0 } },
+        },
+      },
+    ]);
+
+    store.applyMutations([
+      {
+        updateNode: {
+          id: "child-1",
+          parentId: "group-1",
+          position: { x: 10, y: 10 },
+        },
+      },
+    ]);
+
+    const child = store.yNodes.get("child-1") as {
+      parentId: string;
+      extent: string;
+    };
+    expect(child.parentId).toBe("group-1");
+    expect(child.extent).toBe("parent");
+  });
 });

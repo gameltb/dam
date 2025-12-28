@@ -1,11 +1,9 @@
 import React from "react";
 import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
 import { BaseNode } from "../base/BaseNode";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
 import type { DynamicNodeData } from "../../types";
-
-const RenderMode = flowcraft_proto.v1.RenderMode;
-const MediaType = flowcraft_proto.v1.MediaType;
+import { MediaType } from "../../types";
+import { useNodeLayout } from "../../hooks/useNodeLayout";
 
 export type NodeRendererProps<T extends Node> = NodeProps<T>;
 
@@ -22,21 +20,12 @@ export function withNodeHandlers<
     const { data, selected, type, positionAbsoluteX, positionAbsoluteY } =
       props;
 
-    const isMedia = data.activeMode === RenderMode.MODE_MEDIA;
-    const isAudio = isMedia && data.media?.type === MediaType.MEDIA_AUDIO;
+    const { minHeight, isMedia } = useNodeLayout(data);
 
-    // --- Dynamic Min Height Calculation ---
-    const HEADER_HEIGHT = 46;
-    const PORT_HEIGHT =
-      Math.max(data.inputPorts?.length ?? 0, data.outputPorts?.length ?? 0) *
-      24;
-    const WIDGETS_HEIGHT = (data.widgets?.length ?? 0) * 55;
-
-    const calculatedMinHeight = isMedia
-      ? isAudio
-        ? 110
-        : 50
-      : HEADER_HEIGHT + PORT_HEIGHT + WIDGETS_HEIGHT + 20;
+    const shouldLockAspectRatio =
+      isMedia &&
+      (data.media?.type === MediaType.MEDIA_IMAGE ||
+        data.media?.type === MediaType.MEDIA_VIDEO);
 
     return (
       <div
@@ -107,8 +96,8 @@ export function withNodeHandlers<
         <NodeResizer
           isVisible={selected}
           minWidth={180}
-          minHeight={calculatedMinHeight}
-          keepAspectRatio={isMedia}
+          minHeight={minHeight}
+          keepAspectRatio={shouldLockAspectRatio}
           handleStyle={{
             width: 8,
             height: 8,

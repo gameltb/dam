@@ -41,8 +41,11 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   };
 
   const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
     if (isSwitchable) {
+      event.preventDefault();
       setContextMenu({ x: event.clientX, y: event.clientY });
     }
   };
@@ -56,9 +59,8 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
     padding: "5px",
     border: isSelected ? "1px solid #777" : "1px solid transparent",
     borderRadius: "4px",
-    opacity: isConnected ? 0.5 : 1,
-    pointerEvents: isConnected ? "none" : "auto", // 连线后禁用交互
-    transition: "opacity 0.2s",
+    // Remove global opacity when connected to keep port clear
+    transition: "background 0.2s",
   };
 
   const buttonStyle: React.CSSProperties = {

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useFlowStore } from "../store/flowStore";
+import { useUiStore } from "../store/uiStore";
 import { v4 as uuidv4 } from "uuid";
 import type { AppNode, DynamicNodeData } from "../types";
 import type { XYPosition, Edge } from "@xyflow/react";
@@ -62,7 +63,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     });
 
     if (selectedNodes.length > 0) {
-      store.setClipboard({
+      useUiStore.getState().setClipboard({
         nodes: JSON.parse(JSON.stringify(selectedNodes)) as AppNode[],
         edges: JSON.parse(JSON.stringify(selectedEdges)) as Edge[],
       });
@@ -71,7 +72,8 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
   const paste = useCallback(
     (targetPosition?: XYPosition) => {
-      const { clipboard, applyMutations } = store;
+      const { applyMutations } = store;
+      const clipboard = useUiStore.getState().clipboard;
       if (!clipboard) return;
 
       const idMap: Record<string, string> = {};
@@ -248,6 +250,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     };
 
     // 2. Prepare mutations for grouping
+    // We add the group node FIRST so it's ready to receive children
     const mutations: flowcraft_proto.v1.IGraphMutation[] = [
       { addNode: { node: groupNode } },
     ];
@@ -257,7 +260,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         updateNode: {
           id: node.id,
           parentId: groupId,
-          // Make position relative to the new group
+          // Convert absolute to relative
           position: {
             x: node.position.x - groupX,
             y: node.position.y - groupY,

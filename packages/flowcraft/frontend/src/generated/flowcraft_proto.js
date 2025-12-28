@@ -25,44 +25,31 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
          */
         const v1 = {};
 
-        /**
-         * ActionExecutionStrategy enum.
-         * @name flowcraft_proto.v1.ActionExecutionStrategy
-         * @enum {number}
-         * @property {number} EXECUTION_IMMEDIATE=0 EXECUTION_IMMEDIATE value
-         * @property {number} EXECUTION_TASK=1 EXECUTION_TASK value
-         */
-        v1.ActionExecutionStrategy = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "EXECUTION_IMMEDIATE"] = 0;
-            values[valuesById[1] = "EXECUTION_TASK"] = 1;
-            return values;
-        })();
-
-        v1.ActionTemplate = (function() {
+        v1.Node = (function() {
 
             /**
-             * Properties of an ActionTemplate.
+             * Properties of a Node.
              * @memberof flowcraft_proto.v1
-             * @interface IActionTemplate
-             * @property {string|null} [id] ActionTemplate id
-             * @property {string|null} [label] ActionTemplate label
-             * @property {Array.<string>|null} [path] ActionTemplate path
-             * @property {flowcraft_proto.v1.ActionExecutionStrategy|null} [strategy] ActionTemplate strategy
-             * @property {string|null} [description] ActionTemplate description
-             * @property {string|null} [icon] ActionTemplate icon
+             * @interface INode
+             * @property {string|null} [id] Node id
+             * @property {string|null} [type] Node type
+             * @property {flowcraft_proto.v1.IPosition|null} [position] Node position
+             * @property {flowcraft_proto.v1.INodeData|null} [data] Node data
+             * @property {number|null} [width] Node width
+             * @property {number|null} [height] Node height
+             * @property {boolean|null} [selected] Node selected
+             * @property {string|null} [parentId] Node parentId
              */
 
             /**
-             * Constructs a new ActionTemplate.
+             * Constructs a new Node.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents an ActionTemplate.
-             * @implements IActionTemplate
+             * @classdesc Represents a Node.
+             * @implements INode
              * @constructor
-             * @param {flowcraft_proto.v1.IActionTemplate=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.INode=} [properties] Properties to set
              */
-            function ActionTemplate(properties) {
-                this.path = [];
+            function Node(properties) {
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -70,121 +57,1437 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * ActionTemplate id.
+             * Node id.
              * @member {string} id
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.id = "";
+            Node.prototype.id = "";
 
             /**
-             * ActionTemplate label.
-             * @member {string} label
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * Node type.
+             * @member {string} type
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.label = "";
+            Node.prototype.type = "";
 
             /**
-             * ActionTemplate path.
-             * @member {Array.<string>} path
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * Node position.
+             * @member {flowcraft_proto.v1.IPosition|null|undefined} position
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.path = $util.emptyArray;
+            Node.prototype.position = null;
 
             /**
-             * ActionTemplate strategy.
-             * @member {flowcraft_proto.v1.ActionExecutionStrategy} strategy
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * Node data.
+             * @member {flowcraft_proto.v1.INodeData|null|undefined} data
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.strategy = 0;
+            Node.prototype.data = null;
 
             /**
-             * ActionTemplate description.
-             * @member {string} description
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * Node width.
+             * @member {number} width
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.description = "";
+            Node.prototype.width = 0;
 
             /**
-             * ActionTemplate icon.
-             * @member {string} icon
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * Node height.
+             * @member {number} height
+             * @memberof flowcraft_proto.v1.Node
              * @instance
              */
-            ActionTemplate.prototype.icon = "";
+            Node.prototype.height = 0;
 
             /**
-             * Creates a new ActionTemplate instance using the specified properties.
+             * Node selected.
+             * @member {boolean} selected
+             * @memberof flowcraft_proto.v1.Node
+             * @instance
+             */
+            Node.prototype.selected = false;
+
+            /**
+             * Node parentId.
+             * @member {string} parentId
+             * @memberof flowcraft_proto.v1.Node
+             * @instance
+             */
+            Node.prototype.parentId = "";
+
+            /**
+             * Creates a new Node instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Node
              * @static
-             * @param {flowcraft_proto.v1.IActionTemplate=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate instance
+             * @param {flowcraft_proto.v1.INode=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.Node} Node instance
              */
-            ActionTemplate.create = function create(properties) {
-                return new ActionTemplate(properties);
+            Node.create = function create(properties) {
+                return new Node(properties);
             };
 
             /**
-             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * Encodes the specified Node message. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Node
              * @static
-             * @param {flowcraft_proto.v1.IActionTemplate} message ActionTemplate message or plain object to encode
+             * @param {flowcraft_proto.v1.INode} message Node message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionTemplate.encode = function encode(message, writer) {
+            Node.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.type);
+                if (message.position != null && Object.hasOwnProperty.call(message, "position"))
+                    $root.flowcraft_proto.v1.Position.encode(message.position, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
+                    $root.flowcraft_proto.v1.NodeData.encode(message.data, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                if (message.width != null && Object.hasOwnProperty.call(message, "width"))
+                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.width);
+                if (message.height != null && Object.hasOwnProperty.call(message, "height"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.height);
+                if (message.selected != null && Object.hasOwnProperty.call(message, "selected"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.selected);
+                if (message.parentId != null && Object.hasOwnProperty.call(message, "parentId"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.parentId);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {flowcraft_proto.v1.INode} message Node message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Node.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a Node message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.Node} Node
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Node.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Node();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.id = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.type = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.position = $root.flowcraft_proto.v1.Position.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.data = $root.flowcraft_proto.v1.NodeData.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 5: {
+                            message.width = reader.double();
+                            break;
+                        }
+                    case 6: {
+                            message.height = reader.double();
+                            break;
+                        }
+                    case 7: {
+                            message.selected = reader.bool();
+                            break;
+                        }
+                    case 8: {
+                            message.parentId = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a Node message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.Node} Node
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Node.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a Node message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Node.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.id != null && message.hasOwnProperty("id"))
+                    if (!$util.isString(message.id))
+                        return "id: string expected";
+                if (message.type != null && message.hasOwnProperty("type"))
+                    if (!$util.isString(message.type))
+                        return "type: string expected";
+                if (message.position != null && message.hasOwnProperty("position")) {
+                    let error = $root.flowcraft_proto.v1.Position.verify(message.position);
+                    if (error)
+                        return "position." + error;
+                }
+                if (message.data != null && message.hasOwnProperty("data")) {
+                    let error = $root.flowcraft_proto.v1.NodeData.verify(message.data);
+                    if (error)
+                        return "data." + error;
+                }
+                if (message.width != null && message.hasOwnProperty("width"))
+                    if (typeof message.width !== "number")
+                        return "width: number expected";
+                if (message.height != null && message.hasOwnProperty("height"))
+                    if (typeof message.height !== "number")
+                        return "height: number expected";
+                if (message.selected != null && message.hasOwnProperty("selected"))
+                    if (typeof message.selected !== "boolean")
+                        return "selected: boolean expected";
+                if (message.parentId != null && message.hasOwnProperty("parentId"))
+                    if (!$util.isString(message.parentId))
+                        return "parentId: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a Node message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.Node} Node
+             */
+            Node.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.Node)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.Node();
+                if (object.id != null)
+                    message.id = String(object.id);
+                if (object.type != null)
+                    message.type = String(object.type);
+                if (object.position != null) {
+                    if (typeof object.position !== "object")
+                        throw TypeError(".flowcraft_proto.v1.Node.position: object expected");
+                    message.position = $root.flowcraft_proto.v1.Position.fromObject(object.position);
+                }
+                if (object.data != null) {
+                    if (typeof object.data !== "object")
+                        throw TypeError(".flowcraft_proto.v1.Node.data: object expected");
+                    message.data = $root.flowcraft_proto.v1.NodeData.fromObject(object.data);
+                }
+                if (object.width != null)
+                    message.width = Number(object.width);
+                if (object.height != null)
+                    message.height = Number(object.height);
+                if (object.selected != null)
+                    message.selected = Boolean(object.selected);
+                if (object.parentId != null)
+                    message.parentId = String(object.parentId);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Node message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {flowcraft_proto.v1.Node} message Node
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Node.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.id = "";
+                    object.type = "";
+                    object.position = null;
+                    object.data = null;
+                    object.width = 0;
+                    object.height = 0;
+                    object.selected = false;
+                    object.parentId = "";
+                }
+                if (message.id != null && message.hasOwnProperty("id"))
+                    object.id = message.id;
+                if (message.type != null && message.hasOwnProperty("type"))
+                    object.type = message.type;
+                if (message.position != null && message.hasOwnProperty("position"))
+                    object.position = $root.flowcraft_proto.v1.Position.toObject(message.position, options);
+                if (message.data != null && message.hasOwnProperty("data"))
+                    object.data = $root.flowcraft_proto.v1.NodeData.toObject(message.data, options);
+                if (message.width != null && message.hasOwnProperty("width"))
+                    object.width = options.json && !isFinite(message.width) ? String(message.width) : message.width;
+                if (message.height != null && message.hasOwnProperty("height"))
+                    object.height = options.json && !isFinite(message.height) ? String(message.height) : message.height;
+                if (message.selected != null && message.hasOwnProperty("selected"))
+                    object.selected = message.selected;
+                if (message.parentId != null && message.hasOwnProperty("parentId"))
+                    object.parentId = message.parentId;
+                return object;
+            };
+
+            /**
+             * Converts this Node to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.Node
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Node.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Node
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.Node
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Node.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.Node";
+            };
+
+            return Node;
+        })();
+
+        v1.NodeData = (function() {
+
+            /**
+             * Properties of a NodeData.
+             * @memberof flowcraft_proto.v1
+             * @interface INodeData
+             * @property {string|null} [label] NodeData label
+             * @property {Array.<flowcraft_proto.v1.RenderMode>|null} [availableModes] NodeData availableModes
+             * @property {flowcraft_proto.v1.RenderMode|null} [activeMode] NodeData activeMode
+             * @property {flowcraft_proto.v1.IMediaContent|null} [media] NodeData media
+             * @property {Array.<flowcraft_proto.v1.IWidget>|null} [widgets] NodeData widgets
+             * @property {Array.<flowcraft_proto.v1.IPort>|null} [inputPorts] NodeData inputPorts
+             * @property {Array.<flowcraft_proto.v1.IPort>|null} [outputPorts] NodeData outputPorts
+             * @property {Object.<string,string>|null} [metadata] NodeData metadata
+             */
+
+            /**
+             * Constructs a new NodeData.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a NodeData.
+             * @implements INodeData
+             * @constructor
+             * @param {flowcraft_proto.v1.INodeData=} [properties] Properties to set
+             */
+            function NodeData(properties) {
+                this.availableModes = [];
+                this.widgets = [];
+                this.inputPorts = [];
+                this.outputPorts = [];
+                this.metadata = {};
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * NodeData label.
+             * @member {string} label
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.label = "";
+
+            /**
+             * NodeData availableModes.
+             * @member {Array.<flowcraft_proto.v1.RenderMode>} availableModes
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.availableModes = $util.emptyArray;
+
+            /**
+             * NodeData activeMode.
+             * @member {flowcraft_proto.v1.RenderMode} activeMode
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.activeMode = 0;
+
+            /**
+             * NodeData media.
+             * @member {flowcraft_proto.v1.IMediaContent|null|undefined} media
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.media = null;
+
+            /**
+             * NodeData widgets.
+             * @member {Array.<flowcraft_proto.v1.IWidget>} widgets
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.widgets = $util.emptyArray;
+
+            /**
+             * NodeData inputPorts.
+             * @member {Array.<flowcraft_proto.v1.IPort>} inputPorts
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.inputPorts = $util.emptyArray;
+
+            /**
+             * NodeData outputPorts.
+             * @member {Array.<flowcraft_proto.v1.IPort>} outputPorts
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.outputPorts = $util.emptyArray;
+
+            /**
+             * NodeData metadata.
+             * @member {Object.<string,string>} metadata
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             */
+            NodeData.prototype.metadata = $util.emptyObject;
+
+            /**
+             * Creates a new NodeData instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {flowcraft_proto.v1.INodeData=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.NodeData} NodeData instance
+             */
+            NodeData.create = function create(properties) {
+                return new NodeData(properties);
+            };
+
+            /**
+             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {flowcraft_proto.v1.INodeData} message NodeData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            NodeData.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.label);
+                if (message.availableModes != null && message.availableModes.length) {
+                    writer.uint32(/* id 2, wireType 2 =*/18).fork();
+                    for (let i = 0; i < message.availableModes.length; ++i)
+                        writer.int32(message.availableModes[i]);
+                    writer.ldelim();
+                }
+                if (message.activeMode != null && Object.hasOwnProperty.call(message, "activeMode"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.activeMode);
+                if (message.media != null && Object.hasOwnProperty.call(message, "media"))
+                    $root.flowcraft_proto.v1.MediaContent.encode(message.media, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                if (message.widgets != null && message.widgets.length)
+                    for (let i = 0; i < message.widgets.length; ++i)
+                        $root.flowcraft_proto.v1.Widget.encode(message.widgets[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.inputPorts != null && message.inputPorts.length)
+                    for (let i = 0; i < message.inputPorts.length; ++i)
+                        $root.flowcraft_proto.v1.Port.encode(message.inputPorts[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
+                if (message.outputPorts != null && message.outputPorts.length)
+                    for (let i = 0; i < message.outputPorts.length; ++i)
+                        $root.flowcraft_proto.v1.Port.encode(message.outputPorts[i], writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
+                if (message.metadata != null && Object.hasOwnProperty.call(message, "metadata"))
+                    for (let keys = Object.keys(message.metadata), i = 0; i < keys.length; ++i)
+                        writer.uint32(/* id 8, wireType 2 =*/66).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.metadata[keys[i]]).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {flowcraft_proto.v1.INodeData} message NodeData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            NodeData.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a NodeData message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.NodeData} NodeData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            NodeData.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.NodeData(), key, value;
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.label = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            if (!(message.availableModes && message.availableModes.length))
+                                message.availableModes = [];
+                            if ((tag & 7) === 2) {
+                                let end2 = reader.uint32() + reader.pos;
+                                while (reader.pos < end2)
+                                    message.availableModes.push(reader.int32());
+                            } else
+                                message.availableModes.push(reader.int32());
+                            break;
+                        }
+                    case 3: {
+                            message.activeMode = reader.int32();
+                            break;
+                        }
+                    case 4: {
+                            message.media = $root.flowcraft_proto.v1.MediaContent.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.widgets && message.widgets.length))
+                                message.widgets = [];
+                            message.widgets.push($root.flowcraft_proto.v1.Widget.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 6: {
+                            if (!(message.inputPorts && message.inputPorts.length))
+                                message.inputPorts = [];
+                            message.inputPorts.push($root.flowcraft_proto.v1.Port.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 7: {
+                            if (!(message.outputPorts && message.outputPorts.length))
+                                message.outputPorts = [];
+                            message.outputPorts.push($root.flowcraft_proto.v1.Port.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 8: {
+                            if (message.metadata === $util.emptyObject)
+                                message.metadata = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            key = "";
+                            value = "";
+                            while (reader.pos < end2) {
+                                let tag2 = reader.uint32();
+                                switch (tag2 >>> 3) {
+                                case 1:
+                                    key = reader.string();
+                                    break;
+                                case 2:
+                                    value = reader.string();
+                                    break;
+                                default:
+                                    reader.skipType(tag2 & 7);
+                                    break;
+                                }
+                            }
+                            message.metadata[key] = value;
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a NodeData message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.NodeData} NodeData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            NodeData.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a NodeData message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            NodeData.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.label != null && message.hasOwnProperty("label"))
+                    if (!$util.isString(message.label))
+                        return "label: string expected";
+                if (message.availableModes != null && message.hasOwnProperty("availableModes")) {
+                    if (!Array.isArray(message.availableModes))
+                        return "availableModes: array expected";
+                    for (let i = 0; i < message.availableModes.length; ++i)
+                        switch (message.availableModes[i]) {
+                        default:
+                            return "availableModes: enum value[] expected";
+                        case 0:
+                        case 1:
+                        case 2:
+                        case 3:
+                            break;
+                        }
+                }
+                if (message.activeMode != null && message.hasOwnProperty("activeMode"))
+                    switch (message.activeMode) {
+                    default:
+                        return "activeMode: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                        break;
+                    }
+                if (message.media != null && message.hasOwnProperty("media")) {
+                    let error = $root.flowcraft_proto.v1.MediaContent.verify(message.media);
+                    if (error)
+                        return "media." + error;
+                }
+                if (message.widgets != null && message.hasOwnProperty("widgets")) {
+                    if (!Array.isArray(message.widgets))
+                        return "widgets: array expected";
+                    for (let i = 0; i < message.widgets.length; ++i) {
+                        let error = $root.flowcraft_proto.v1.Widget.verify(message.widgets[i]);
+                        if (error)
+                            return "widgets." + error;
+                    }
+                }
+                if (message.inputPorts != null && message.hasOwnProperty("inputPorts")) {
+                    if (!Array.isArray(message.inputPorts))
+                        return "inputPorts: array expected";
+                    for (let i = 0; i < message.inputPorts.length; ++i) {
+                        let error = $root.flowcraft_proto.v1.Port.verify(message.inputPorts[i]);
+                        if (error)
+                            return "inputPorts." + error;
+                    }
+                }
+                if (message.outputPorts != null && message.hasOwnProperty("outputPorts")) {
+                    if (!Array.isArray(message.outputPorts))
+                        return "outputPorts: array expected";
+                    for (let i = 0; i < message.outputPorts.length; ++i) {
+                        let error = $root.flowcraft_proto.v1.Port.verify(message.outputPorts[i]);
+                        if (error)
+                            return "outputPorts." + error;
+                    }
+                }
+                if (message.metadata != null && message.hasOwnProperty("metadata")) {
+                    if (!$util.isObject(message.metadata))
+                        return "metadata: object expected";
+                    let key = Object.keys(message.metadata);
+                    for (let i = 0; i < key.length; ++i)
+                        if (!$util.isString(message.metadata[key[i]]))
+                            return "metadata: string{k:string} expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a NodeData message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.NodeData} NodeData
+             */
+            NodeData.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.NodeData)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.NodeData();
+                if (object.label != null)
+                    message.label = String(object.label);
+                if (object.availableModes) {
+                    if (!Array.isArray(object.availableModes))
+                        throw TypeError(".flowcraft_proto.v1.NodeData.availableModes: array expected");
+                    message.availableModes = [];
+                    for (let i = 0; i < object.availableModes.length; ++i)
+                        switch (object.availableModes[i]) {
+                        default:
+                            if (typeof object.availableModes[i] === "number") {
+                                message.availableModes[i] = object.availableModes[i];
+                                break;
+                            }
+                        case "MODE_UNSPECIFIED":
+                        case 0:
+                            message.availableModes[i] = 0;
+                            break;
+                        case "MODE_MEDIA":
+                        case 1:
+                            message.availableModes[i] = 1;
+                            break;
+                        case "MODE_WIDGETS":
+                        case 2:
+                            message.availableModes[i] = 2;
+                            break;
+                        case "MODE_MARKDOWN":
+                        case 3:
+                            message.availableModes[i] = 3;
+                            break;
+                        }
+                }
+                switch (object.activeMode) {
+                default:
+                    if (typeof object.activeMode === "number") {
+                        message.activeMode = object.activeMode;
+                        break;
+                    }
+                    break;
+                case "MODE_UNSPECIFIED":
+                case 0:
+                    message.activeMode = 0;
+                    break;
+                case "MODE_MEDIA":
+                case 1:
+                    message.activeMode = 1;
+                    break;
+                case "MODE_WIDGETS":
+                case 2:
+                    message.activeMode = 2;
+                    break;
+                case "MODE_MARKDOWN":
+                case 3:
+                    message.activeMode = 3;
+                    break;
+                }
+                if (object.media != null) {
+                    if (typeof object.media !== "object")
+                        throw TypeError(".flowcraft_proto.v1.NodeData.media: object expected");
+                    message.media = $root.flowcraft_proto.v1.MediaContent.fromObject(object.media);
+                }
+                if (object.widgets) {
+                    if (!Array.isArray(object.widgets))
+                        throw TypeError(".flowcraft_proto.v1.NodeData.widgets: array expected");
+                    message.widgets = [];
+                    for (let i = 0; i < object.widgets.length; ++i) {
+                        if (typeof object.widgets[i] !== "object")
+                            throw TypeError(".flowcraft_proto.v1.NodeData.widgets: object expected");
+                        message.widgets[i] = $root.flowcraft_proto.v1.Widget.fromObject(object.widgets[i]);
+                    }
+                }
+                if (object.inputPorts) {
+                    if (!Array.isArray(object.inputPorts))
+                        throw TypeError(".flowcraft_proto.v1.NodeData.inputPorts: array expected");
+                    message.inputPorts = [];
+                    for (let i = 0; i < object.inputPorts.length; ++i) {
+                        if (typeof object.inputPorts[i] !== "object")
+                            throw TypeError(".flowcraft_proto.v1.NodeData.inputPorts: object expected");
+                        message.inputPorts[i] = $root.flowcraft_proto.v1.Port.fromObject(object.inputPorts[i]);
+                    }
+                }
+                if (object.outputPorts) {
+                    if (!Array.isArray(object.outputPorts))
+                        throw TypeError(".flowcraft_proto.v1.NodeData.outputPorts: array expected");
+                    message.outputPorts = [];
+                    for (let i = 0; i < object.outputPorts.length; ++i) {
+                        if (typeof object.outputPorts[i] !== "object")
+                            throw TypeError(".flowcraft_proto.v1.NodeData.outputPorts: object expected");
+                        message.outputPorts[i] = $root.flowcraft_proto.v1.Port.fromObject(object.outputPorts[i]);
+                    }
+                }
+                if (object.metadata) {
+                    if (typeof object.metadata !== "object")
+                        throw TypeError(".flowcraft_proto.v1.NodeData.metadata: object expected");
+                    message.metadata = {};
+                    for (let keys = Object.keys(object.metadata), i = 0; i < keys.length; ++i)
+                        message.metadata[keys[i]] = String(object.metadata[keys[i]]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a NodeData message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {flowcraft_proto.v1.NodeData} message NodeData
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            NodeData.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.availableModes = [];
+                    object.widgets = [];
+                    object.inputPorts = [];
+                    object.outputPorts = [];
+                }
+                if (options.objects || options.defaults)
+                    object.metadata = {};
+                if (options.defaults) {
+                    object.label = "";
+                    object.activeMode = options.enums === String ? "MODE_UNSPECIFIED" : 0;
+                    object.media = null;
+                }
+                if (message.label != null && message.hasOwnProperty("label"))
+                    object.label = message.label;
+                if (message.availableModes && message.availableModes.length) {
+                    object.availableModes = [];
+                    for (let j = 0; j < message.availableModes.length; ++j)
+                        object.availableModes[j] = options.enums === String ? $root.flowcraft_proto.v1.RenderMode[message.availableModes[j]] === undefined ? message.availableModes[j] : $root.flowcraft_proto.v1.RenderMode[message.availableModes[j]] : message.availableModes[j];
+                }
+                if (message.activeMode != null && message.hasOwnProperty("activeMode"))
+                    object.activeMode = options.enums === String ? $root.flowcraft_proto.v1.RenderMode[message.activeMode] === undefined ? message.activeMode : $root.flowcraft_proto.v1.RenderMode[message.activeMode] : message.activeMode;
+                if (message.media != null && message.hasOwnProperty("media"))
+                    object.media = $root.flowcraft_proto.v1.MediaContent.toObject(message.media, options);
+                if (message.widgets && message.widgets.length) {
+                    object.widgets = [];
+                    for (let j = 0; j < message.widgets.length; ++j)
+                        object.widgets[j] = $root.flowcraft_proto.v1.Widget.toObject(message.widgets[j], options);
+                }
+                if (message.inputPorts && message.inputPorts.length) {
+                    object.inputPorts = [];
+                    for (let j = 0; j < message.inputPorts.length; ++j)
+                        object.inputPorts[j] = $root.flowcraft_proto.v1.Port.toObject(message.inputPorts[j], options);
+                }
+                if (message.outputPorts && message.outputPorts.length) {
+                    object.outputPorts = [];
+                    for (let j = 0; j < message.outputPorts.length; ++j)
+                        object.outputPorts[j] = $root.flowcraft_proto.v1.Port.toObject(message.outputPorts[j], options);
+                }
+                let keys2;
+                if (message.metadata && (keys2 = Object.keys(message.metadata)).length) {
+                    object.metadata = {};
+                    for (let j = 0; j < keys2.length; ++j)
+                        object.metadata[keys2[j]] = message.metadata[keys2[j]];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this NodeData to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.NodeData
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            NodeData.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for NodeData
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.NodeData
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            NodeData.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.NodeData";
+            };
+
+            return NodeData;
+        })();
+
+        /**
+         * RenderMode enum.
+         * @name flowcraft_proto.v1.RenderMode
+         * @enum {number}
+         * @property {number} MODE_UNSPECIFIED=0 MODE_UNSPECIFIED value
+         * @property {number} MODE_MEDIA=1 MODE_MEDIA value
+         * @property {number} MODE_WIDGETS=2 MODE_WIDGETS value
+         * @property {number} MODE_MARKDOWN=3 MODE_MARKDOWN value
+         */
+        v1.RenderMode = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "MODE_UNSPECIFIED"] = 0;
+            values[valuesById[1] = "MODE_MEDIA"] = 1;
+            values[valuesById[2] = "MODE_WIDGETS"] = 2;
+            values[valuesById[3] = "MODE_MARKDOWN"] = 3;
+            return values;
+        })();
+
+        v1.MediaContent = (function() {
+
+            /**
+             * Properties of a MediaContent.
+             * @memberof flowcraft_proto.v1
+             * @interface IMediaContent
+             * @property {flowcraft_proto.v1.MediaType|null} [type] MediaContent type
+             * @property {string|null} [url] MediaContent url
+             * @property {string|null} [content] MediaContent content
+             * @property {number|null} [aspectRatio] MediaContent aspectRatio
+             * @property {Array.<string>|null} [galleryUrls] MediaContent galleryUrls
+             */
+
+            /**
+             * Constructs a new MediaContent.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a MediaContent.
+             * @implements IMediaContent
+             * @constructor
+             * @param {flowcraft_proto.v1.IMediaContent=} [properties] Properties to set
+             */
+            function MediaContent(properties) {
+                this.galleryUrls = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MediaContent type.
+             * @member {flowcraft_proto.v1.MediaType} type
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             */
+            MediaContent.prototype.type = 0;
+
+            /**
+             * MediaContent url.
+             * @member {string} url
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             */
+            MediaContent.prototype.url = "";
+
+            /**
+             * MediaContent content.
+             * @member {string} content
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             */
+            MediaContent.prototype.content = "";
+
+            /**
+             * MediaContent aspectRatio.
+             * @member {number} aspectRatio
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             */
+            MediaContent.prototype.aspectRatio = 0;
+
+            /**
+             * MediaContent galleryUrls.
+             * @member {Array.<string>} galleryUrls
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             */
+            MediaContent.prototype.galleryUrls = $util.emptyArray;
+
+            /**
+             * Creates a new MediaContent instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {flowcraft_proto.v1.IMediaContent=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.MediaContent} MediaContent instance
+             */
+            MediaContent.create = function create(properties) {
+                return new MediaContent(properties);
+            };
+
+            /**
+             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {flowcraft_proto.v1.IMediaContent} message MediaContent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MediaContent.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int32(message.type);
+                if (message.url != null && Object.hasOwnProperty.call(message, "url"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.url);
+                if (message.content != null && Object.hasOwnProperty.call(message, "content"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.content);
+                if (message.aspectRatio != null && Object.hasOwnProperty.call(message, "aspectRatio"))
+                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.aspectRatio);
+                if (message.galleryUrls != null && message.galleryUrls.length)
+                    for (let i = 0; i < message.galleryUrls.length; ++i)
+                        writer.uint32(/* id 5, wireType 2 =*/42).string(message.galleryUrls[i]);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {flowcraft_proto.v1.IMediaContent} message MediaContent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MediaContent.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MediaContent message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MediaContent.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.MediaContent();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.type = reader.int32();
+                            break;
+                        }
+                    case 2: {
+                            message.url = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.content = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.aspectRatio = reader.double();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.galleryUrls && message.galleryUrls.length))
+                                message.galleryUrls = [];
+                            message.galleryUrls.push(reader.string());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MediaContent message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MediaContent.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MediaContent message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MediaContent.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.type != null && message.hasOwnProperty("type"))
+                    switch (message.type) {
+                    default:
+                        return "type: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                        break;
+                    }
+                if (message.url != null && message.hasOwnProperty("url"))
+                    if (!$util.isString(message.url))
+                        return "url: string expected";
+                if (message.content != null && message.hasOwnProperty("content"))
+                    if (!$util.isString(message.content))
+                        return "content: string expected";
+                if (message.aspectRatio != null && message.hasOwnProperty("aspectRatio"))
+                    if (typeof message.aspectRatio !== "number")
+                        return "aspectRatio: number expected";
+                if (message.galleryUrls != null && message.hasOwnProperty("galleryUrls")) {
+                    if (!Array.isArray(message.galleryUrls))
+                        return "galleryUrls: array expected";
+                    for (let i = 0; i < message.galleryUrls.length; ++i)
+                        if (!$util.isString(message.galleryUrls[i]))
+                            return "galleryUrls: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a MediaContent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             */
+            MediaContent.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.MediaContent)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.MediaContent();
+                switch (object.type) {
+                default:
+                    if (typeof object.type === "number") {
+                        message.type = object.type;
+                        break;
+                    }
+                    break;
+                case "MEDIA_UNSPECIFIED":
+                case 0:
+                    message.type = 0;
+                    break;
+                case "MEDIA_IMAGE":
+                case 1:
+                    message.type = 1;
+                    break;
+                case "MEDIA_VIDEO":
+                case 2:
+                    message.type = 2;
+                    break;
+                case "MEDIA_AUDIO":
+                case 3:
+                    message.type = 3;
+                    break;
+                case "MEDIA_MARKDOWN":
+                case 4:
+                    message.type = 4;
+                    break;
+                }
+                if (object.url != null)
+                    message.url = String(object.url);
+                if (object.content != null)
+                    message.content = String(object.content);
+                if (object.aspectRatio != null)
+                    message.aspectRatio = Number(object.aspectRatio);
+                if (object.galleryUrls) {
+                    if (!Array.isArray(object.galleryUrls))
+                        throw TypeError(".flowcraft_proto.v1.MediaContent.galleryUrls: array expected");
+                    message.galleryUrls = [];
+                    for (let i = 0; i < object.galleryUrls.length; ++i)
+                        message.galleryUrls[i] = String(object.galleryUrls[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MediaContent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {flowcraft_proto.v1.MediaContent} message MediaContent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MediaContent.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.galleryUrls = [];
+                if (options.defaults) {
+                    object.type = options.enums === String ? "MEDIA_UNSPECIFIED" : 0;
+                    object.url = "";
+                    object.content = "";
+                    object.aspectRatio = 0;
+                }
+                if (message.type != null && message.hasOwnProperty("type"))
+                    object.type = options.enums === String ? $root.flowcraft_proto.v1.MediaType[message.type] === undefined ? message.type : $root.flowcraft_proto.v1.MediaType[message.type] : message.type;
+                if (message.url != null && message.hasOwnProperty("url"))
+                    object.url = message.url;
+                if (message.content != null && message.hasOwnProperty("content"))
+                    object.content = message.content;
+                if (message.aspectRatio != null && message.hasOwnProperty("aspectRatio"))
+                    object.aspectRatio = options.json && !isFinite(message.aspectRatio) ? String(message.aspectRatio) : message.aspectRatio;
+                if (message.galleryUrls && message.galleryUrls.length) {
+                    object.galleryUrls = [];
+                    for (let j = 0; j < message.galleryUrls.length; ++j)
+                        object.galleryUrls[j] = message.galleryUrls[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this MediaContent to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MediaContent.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MediaContent
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.MediaContent
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MediaContent.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.MediaContent";
+            };
+
+            return MediaContent;
+        })();
+
+        /**
+         * MediaType enum.
+         * @name flowcraft_proto.v1.MediaType
+         * @enum {number}
+         * @property {number} MEDIA_UNSPECIFIED=0 MEDIA_UNSPECIFIED value
+         * @property {number} MEDIA_IMAGE=1 MEDIA_IMAGE value
+         * @property {number} MEDIA_VIDEO=2 MEDIA_VIDEO value
+         * @property {number} MEDIA_AUDIO=3 MEDIA_AUDIO value
+         * @property {number} MEDIA_MARKDOWN=4 MEDIA_MARKDOWN value
+         */
+        v1.MediaType = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "MEDIA_UNSPECIFIED"] = 0;
+            values[valuesById[1] = "MEDIA_IMAGE"] = 1;
+            values[valuesById[2] = "MEDIA_VIDEO"] = 2;
+            values[valuesById[3] = "MEDIA_AUDIO"] = 3;
+            values[valuesById[4] = "MEDIA_MARKDOWN"] = 4;
+            return values;
+        })();
+
+        v1.Port = (function() {
+
+            /**
+             * Properties of a Port.
+             * @memberof flowcraft_proto.v1
+             * @interface IPort
+             * @property {string|null} [id] Port id
+             * @property {string|null} [label] Port label
+             * @property {flowcraft_proto.v1.IPortType|null} [type] Port type
+             * @property {string|null} [color] Port color
+             * @property {flowcraft_proto.v1.PortStyle|null} [style] Port style
+             * @property {string|null} [description] Port description
+             */
+
+            /**
+             * Constructs a new Port.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a Port.
+             * @implements IPort
+             * @constructor
+             * @param {flowcraft_proto.v1.IPort=} [properties] Properties to set
+             */
+            function Port(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * Port id.
+             * @member {string} id
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.id = "";
+
+            /**
+             * Port label.
+             * @member {string} label
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.label = "";
+
+            /**
+             * Port type.
+             * @member {flowcraft_proto.v1.IPortType|null|undefined} type
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.type = null;
+
+            /**
+             * Port color.
+             * @member {string} color
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.color = "";
+
+            /**
+             * Port style.
+             * @member {flowcraft_proto.v1.PortStyle} style
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.style = 0;
+
+            /**
+             * Port description.
+             * @member {string} description
+             * @memberof flowcraft_proto.v1.Port
+             * @instance
+             */
+            Port.prototype.description = "";
+
+            /**
+             * Creates a new Port instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.Port
+             * @static
+             * @param {flowcraft_proto.v1.IPort=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.Port} Port instance
+             */
+            Port.create = function create(properties) {
+                return new Port(properties);
+            };
+
+            /**
+             * Encodes the specified Port message. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.Port
+             * @static
+             * @param {flowcraft_proto.v1.IPort} message Port message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Port.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
                 if (message.id != null && Object.hasOwnProperty.call(message, "id"))
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
                 if (message.label != null && Object.hasOwnProperty.call(message, "label"))
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.label);
-                if (message.path != null && message.path.length)
-                    for (let i = 0; i < message.path.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.path[i]);
-                if (message.strategy != null && Object.hasOwnProperty.call(message, "strategy"))
-                    writer.uint32(/* id 4, wireType 0 =*/32).int32(message.strategy);
+                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+                    $root.flowcraft_proto.v1.PortType.encode(message.type, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.color != null && Object.hasOwnProperty.call(message, "color"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.color);
+                if (message.style != null && Object.hasOwnProperty.call(message, "style"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int32(message.style);
                 if (message.description != null && Object.hasOwnProperty.call(message, "description"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.description);
-                if (message.icon != null && Object.hasOwnProperty.call(message, "icon"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.icon);
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.description);
                 return writer;
             };
 
             /**
-             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
-             * @param {flowcraft_proto.v1.IActionTemplate} message ActionTemplate message or plain object to encode
+             * @param {flowcraft_proto.v1.IPort} message Port message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionTemplate.encodeDelimited = function encodeDelimited(message, writer) {
+            Port.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes an ActionTemplate message from the specified reader or buffer.
+             * Decodes a Port message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             * @returns {flowcraft_proto.v1.Port} Port
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionTemplate.decode = function decode(reader, length, error) {
+            Port.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionTemplate();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Port();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
@@ -199,21 +1502,19 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                             break;
                         }
                     case 3: {
-                            if (!(message.path && message.path.length))
-                                message.path = [];
-                            message.path.push(reader.string());
+                            message.type = $root.flowcraft_proto.v1.PortType.decode(reader, reader.uint32());
                             break;
                         }
                     case 4: {
-                            message.strategy = reader.int32();
+                            message.color = reader.string();
                             break;
                         }
                     case 5: {
-                            message.description = reader.string();
+                            message.style = reader.int32();
                             break;
                         }
                     case 6: {
-                            message.icon = reader.string();
+                            message.description = reader.string();
                             break;
                         }
                     default:
@@ -225,30 +1526,30 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes an ActionTemplate message from the specified reader or buffer, length delimited.
+             * Decodes a Port message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             * @returns {flowcraft_proto.v1.Port} Port
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionTemplate.decodeDelimited = function decodeDelimited(reader) {
+            Port.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies an ActionTemplate message.
+             * Verifies a Port message.
              * @function verify
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            ActionTemplate.verify = function verify(message) {
+            Port.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.id != null && message.hasOwnProperty("id"))
@@ -257,165 +1558,167 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                 if (message.label != null && message.hasOwnProperty("label"))
                     if (!$util.isString(message.label))
                         return "label: string expected";
-                if (message.path != null && message.hasOwnProperty("path")) {
-                    if (!Array.isArray(message.path))
-                        return "path: array expected";
-                    for (let i = 0; i < message.path.length; ++i)
-                        if (!$util.isString(message.path[i]))
-                            return "path: string[] expected";
+                if (message.type != null && message.hasOwnProperty("type")) {
+                    let error = $root.flowcraft_proto.v1.PortType.verify(message.type);
+                    if (error)
+                        return "type." + error;
                 }
-                if (message.strategy != null && message.hasOwnProperty("strategy"))
-                    switch (message.strategy) {
+                if (message.color != null && message.hasOwnProperty("color"))
+                    if (!$util.isString(message.color))
+                        return "color: string expected";
+                if (message.style != null && message.hasOwnProperty("style"))
+                    switch (message.style) {
                     default:
-                        return "strategy: enum value expected";
+                        return "style: enum value expected";
                     case 0:
                     case 1:
+                    case 2:
+                    case 3:
                         break;
                     }
                 if (message.description != null && message.hasOwnProperty("description"))
                     if (!$util.isString(message.description))
                         return "description: string expected";
-                if (message.icon != null && message.hasOwnProperty("icon"))
-                    if (!$util.isString(message.icon))
-                        return "icon: string expected";
                 return null;
             };
 
             /**
-             * Creates an ActionTemplate message from a plain object. Also converts values to their respective internal types.
+             * Creates a Port message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             * @returns {flowcraft_proto.v1.Port} Port
              */
-            ActionTemplate.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.ActionTemplate)
+            Port.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.Port)
                     return object;
-                let message = new $root.flowcraft_proto.v1.ActionTemplate();
+                let message = new $root.flowcraft_proto.v1.Port();
                 if (object.id != null)
                     message.id = String(object.id);
                 if (object.label != null)
                     message.label = String(object.label);
-                if (object.path) {
-                    if (!Array.isArray(object.path))
-                        throw TypeError(".flowcraft_proto.v1.ActionTemplate.path: array expected");
-                    message.path = [];
-                    for (let i = 0; i < object.path.length; ++i)
-                        message.path[i] = String(object.path[i]);
+                if (object.type != null) {
+                    if (typeof object.type !== "object")
+                        throw TypeError(".flowcraft_proto.v1.Port.type: object expected");
+                    message.type = $root.flowcraft_proto.v1.PortType.fromObject(object.type);
                 }
-                switch (object.strategy) {
+                if (object.color != null)
+                    message.color = String(object.color);
+                switch (object.style) {
                 default:
-                    if (typeof object.strategy === "number") {
-                        message.strategy = object.strategy;
+                    if (typeof object.style === "number") {
+                        message.style = object.style;
                         break;
                     }
                     break;
-                case "EXECUTION_IMMEDIATE":
+                case "PORT_STYLE_CIRCLE":
                 case 0:
-                    message.strategy = 0;
+                    message.style = 0;
                     break;
-                case "EXECUTION_TASK":
+                case "PORT_STYLE_SQUARE":
                 case 1:
-                    message.strategy = 1;
+                    message.style = 1;
+                    break;
+                case "PORT_STYLE_DIAMOND":
+                case 2:
+                    message.style = 2;
+                    break;
+                case "PORT_STYLE_DASH":
+                case 3:
+                    message.style = 3;
                     break;
                 }
                 if (object.description != null)
                     message.description = String(object.description);
-                if (object.icon != null)
-                    message.icon = String(object.icon);
                 return message;
             };
 
             /**
-             * Creates a plain object from an ActionTemplate message. Also converts values to other types if specified.
+             * Creates a plain object from a Port message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
-             * @param {flowcraft_proto.v1.ActionTemplate} message ActionTemplate
+             * @param {flowcraft_proto.v1.Port} message Port
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            ActionTemplate.toObject = function toObject(message, options) {
+            Port.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
-                if (options.arrays || options.defaults)
-                    object.path = [];
                 if (options.defaults) {
                     object.id = "";
                     object.label = "";
-                    object.strategy = options.enums === String ? "EXECUTION_IMMEDIATE" : 0;
+                    object.type = null;
+                    object.color = "";
+                    object.style = options.enums === String ? "PORT_STYLE_CIRCLE" : 0;
                     object.description = "";
-                    object.icon = "";
                 }
                 if (message.id != null && message.hasOwnProperty("id"))
                     object.id = message.id;
                 if (message.label != null && message.hasOwnProperty("label"))
                     object.label = message.label;
-                if (message.path && message.path.length) {
-                    object.path = [];
-                    for (let j = 0; j < message.path.length; ++j)
-                        object.path[j] = message.path[j];
-                }
-                if (message.strategy != null && message.hasOwnProperty("strategy"))
-                    object.strategy = options.enums === String ? $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] === undefined ? message.strategy : $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] : message.strategy;
+                if (message.type != null && message.hasOwnProperty("type"))
+                    object.type = $root.flowcraft_proto.v1.PortType.toObject(message.type, options);
+                if (message.color != null && message.hasOwnProperty("color"))
+                    object.color = message.color;
+                if (message.style != null && message.hasOwnProperty("style"))
+                    object.style = options.enums === String ? $root.flowcraft_proto.v1.PortStyle[message.style] === undefined ? message.style : $root.flowcraft_proto.v1.PortStyle[message.style] : message.style;
                 if (message.description != null && message.hasOwnProperty("description"))
                     object.description = message.description;
-                if (message.icon != null && message.hasOwnProperty("icon"))
-                    object.icon = message.icon;
                 return object;
             };
 
             /**
-             * Converts this ActionTemplate to JSON.
+             * Converts this Port to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            ActionTemplate.prototype.toJSON = function toJSON() {
+            Port.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for ActionTemplate
+             * Gets the default type url for Port
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @memberof flowcraft_proto.v1.Port
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            ActionTemplate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            Port.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.ActionTemplate";
+                return typeUrlPrefix + "/flowcraft_proto.v1.Port";
             };
 
-            return ActionTemplate;
+            return Port;
         })();
 
-        v1.ActionDiscoveryRequest = (function() {
+        v1.PortType = (function() {
 
             /**
-             * Properties of an ActionDiscoveryRequest.
+             * Properties of a PortType.
              * @memberof flowcraft_proto.v1
-             * @interface IActionDiscoveryRequest
-             * @property {string|null} [nodeId] ActionDiscoveryRequest nodeId
-             * @property {Array.<string>|null} [selectedNodeIds] ActionDiscoveryRequest selectedNodeIds
+             * @interface IPortType
+             * @property {string|null} [mainType] PortType mainType
+             * @property {string|null} [itemType] PortType itemType
+             * @property {boolean|null} [isGeneric] PortType isGeneric
              */
 
             /**
-             * Constructs a new ActionDiscoveryRequest.
+             * Constructs a new PortType.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents an ActionDiscoveryRequest.
-             * @implements IActionDiscoveryRequest
+             * @classdesc Represents a PortType.
+             * @implements IPortType
              * @constructor
-             * @param {flowcraft_proto.v1.IActionDiscoveryRequest=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.IPortType=} [properties] Properties to set
              */
-            function ActionDiscoveryRequest(properties) {
-                this.selectedNodeIds = [];
+            function PortType(properties) {
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -423,595 +1726,105 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * ActionDiscoveryRequest nodeId.
-             * @member {string} nodeId
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * PortType mainType.
+             * @member {string} mainType
+             * @memberof flowcraft_proto.v1.PortType
              * @instance
              */
-            ActionDiscoveryRequest.prototype.nodeId = "";
+            PortType.prototype.mainType = "";
 
             /**
-             * ActionDiscoveryRequest selectedNodeIds.
-             * @member {Array.<string>} selectedNodeIds
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * PortType itemType.
+             * @member {string} itemType
+             * @memberof flowcraft_proto.v1.PortType
              * @instance
              */
-            ActionDiscoveryRequest.prototype.selectedNodeIds = $util.emptyArray;
+            PortType.prototype.itemType = "";
 
             /**
-             * Creates a new ActionDiscoveryRequest instance using the specified properties.
+             * PortType isGeneric.
+             * @member {boolean} isGeneric
+             * @memberof flowcraft_proto.v1.PortType
+             * @instance
+             */
+            PortType.prototype.isGeneric = false;
+
+            /**
+             * Creates a new PortType instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryRequest=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest instance
+             * @param {flowcraft_proto.v1.IPortType=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.PortType} PortType instance
              */
-            ActionDiscoveryRequest.create = function create(properties) {
-                return new ActionDiscoveryRequest(properties);
+            PortType.create = function create(properties) {
+                return new PortType(properties);
             };
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * Encodes the specified PortType message. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryRequest} message ActionDiscoveryRequest message or plain object to encode
+             * @param {flowcraft_proto.v1.IPortType} message PortType message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionDiscoveryRequest.encode = function encode(message, writer) {
+            PortType.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.nodeId != null && Object.hasOwnProperty.call(message, "nodeId"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.nodeId);
-                if (message.selectedNodeIds != null && message.selectedNodeIds.length)
-                    for (let i = 0; i < message.selectedNodeIds.length; ++i)
-                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.selectedNodeIds[i]);
+                if (message.mainType != null && Object.hasOwnProperty.call(message, "mainType"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.mainType);
+                if (message.itemType != null && Object.hasOwnProperty.call(message, "itemType"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.itemType);
+                if (message.isGeneric != null && Object.hasOwnProperty.call(message, "isGeneric"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.isGeneric);
                 return writer;
             };
 
             /**
-             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryRequest} message ActionDiscoveryRequest message or plain object to encode
+             * @param {flowcraft_proto.v1.IPortType} message PortType message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionDiscoveryRequest.encodeDelimited = function encodeDelimited(message, writer) {
+            PortType.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer.
+             * Decodes a PortType message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
+             * @returns {flowcraft_proto.v1.PortType} PortType
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionDiscoveryRequest.decode = function decode(reader, length, error) {
+            PortType.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionDiscoveryRequest();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.PortType();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.nodeId = reader.string();
+                            message.mainType = reader.string();
                             break;
                         }
                     case 2: {
-                            if (!(message.selectedNodeIds && message.selectedNodeIds.length))
-                                message.selectedNodeIds = [];
-                            message.selectedNodeIds.push(reader.string());
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ActionDiscoveryRequest.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies an ActionDiscoveryRequest message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ActionDiscoveryRequest.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
-                    if (!$util.isString(message.nodeId))
-                        return "nodeId: string expected";
-                if (message.selectedNodeIds != null && message.hasOwnProperty("selectedNodeIds")) {
-                    if (!Array.isArray(message.selectedNodeIds))
-                        return "selectedNodeIds: array expected";
-                    for (let i = 0; i < message.selectedNodeIds.length; ++i)
-                        if (!$util.isString(message.selectedNodeIds[i]))
-                            return "selectedNodeIds: string[] expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates an ActionDiscoveryRequest message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
-             */
-            ActionDiscoveryRequest.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.ActionDiscoveryRequest)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.ActionDiscoveryRequest();
-                if (object.nodeId != null)
-                    message.nodeId = String(object.nodeId);
-                if (object.selectedNodeIds) {
-                    if (!Array.isArray(object.selectedNodeIds))
-                        throw TypeError(".flowcraft_proto.v1.ActionDiscoveryRequest.selectedNodeIds: array expected");
-                    message.selectedNodeIds = [];
-                    for (let i = 0; i < object.selectedNodeIds.length; ++i)
-                        message.selectedNodeIds[i] = String(object.selectedNodeIds[i]);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an ActionDiscoveryRequest message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @static
-             * @param {flowcraft_proto.v1.ActionDiscoveryRequest} message ActionDiscoveryRequest
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ActionDiscoveryRequest.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.arrays || options.defaults)
-                    object.selectedNodeIds = [];
-                if (options.defaults)
-                    object.nodeId = "";
-                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
-                    object.nodeId = message.nodeId;
-                if (message.selectedNodeIds && message.selectedNodeIds.length) {
-                    object.selectedNodeIds = [];
-                    for (let j = 0; j < message.selectedNodeIds.length; ++j)
-                        object.selectedNodeIds[j] = message.selectedNodeIds[j];
-                }
-                return object;
-            };
-
-            /**
-             * Converts this ActionDiscoveryRequest to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ActionDiscoveryRequest.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for ActionDiscoveryRequest
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            ActionDiscoveryRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.ActionDiscoveryRequest";
-            };
-
-            return ActionDiscoveryRequest;
-        })();
-
-        v1.ActionDiscoveryResponse = (function() {
-
-            /**
-             * Properties of an ActionDiscoveryResponse.
-             * @memberof flowcraft_proto.v1
-             * @interface IActionDiscoveryResponse
-             * @property {Array.<flowcraft_proto.v1.IActionTemplate>|null} [actions] ActionDiscoveryResponse actions
-             */
-
-            /**
-             * Constructs a new ActionDiscoveryResponse.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents an ActionDiscoveryResponse.
-             * @implements IActionDiscoveryResponse
-             * @constructor
-             * @param {flowcraft_proto.v1.IActionDiscoveryResponse=} [properties] Properties to set
-             */
-            function ActionDiscoveryResponse(properties) {
-                this.actions = [];
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * ActionDiscoveryResponse actions.
-             * @member {Array.<flowcraft_proto.v1.IActionTemplate>} actions
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @instance
-             */
-            ActionDiscoveryResponse.prototype.actions = $util.emptyArray;
-
-            /**
-             * Creates a new ActionDiscoveryResponse instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryResponse=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse instance
-             */
-            ActionDiscoveryResponse.create = function create(properties) {
-                return new ActionDiscoveryResponse(properties);
-            };
-
-            /**
-             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryResponse} message ActionDiscoveryResponse message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ActionDiscoveryResponse.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.actions != null && message.actions.length)
-                    for (let i = 0; i < message.actions.length; ++i)
-                        $root.flowcraft_proto.v1.ActionTemplate.encode(message.actions[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {flowcraft_proto.v1.IActionDiscoveryResponse} message ActionDiscoveryResponse message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ActionDiscoveryResponse.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ActionDiscoveryResponse.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionDiscoveryResponse();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            if (!(message.actions && message.actions.length))
-                                message.actions = [];
-                            message.actions.push($root.flowcraft_proto.v1.ActionTemplate.decode(reader, reader.uint32()));
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ActionDiscoveryResponse.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies an ActionDiscoveryResponse message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ActionDiscoveryResponse.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.actions != null && message.hasOwnProperty("actions")) {
-                    if (!Array.isArray(message.actions))
-                        return "actions: array expected";
-                    for (let i = 0; i < message.actions.length; ++i) {
-                        let error = $root.flowcraft_proto.v1.ActionTemplate.verify(message.actions[i]);
-                        if (error)
-                            return "actions." + error;
-                    }
-                }
-                return null;
-            };
-
-            /**
-             * Creates an ActionDiscoveryResponse message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
-             */
-            ActionDiscoveryResponse.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.ActionDiscoveryResponse)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.ActionDiscoveryResponse();
-                if (object.actions) {
-                    if (!Array.isArray(object.actions))
-                        throw TypeError(".flowcraft_proto.v1.ActionDiscoveryResponse.actions: array expected");
-                    message.actions = [];
-                    for (let i = 0; i < object.actions.length; ++i) {
-                        if (typeof object.actions[i] !== "object")
-                            throw TypeError(".flowcraft_proto.v1.ActionDiscoveryResponse.actions: object expected");
-                        message.actions[i] = $root.flowcraft_proto.v1.ActionTemplate.fromObject(object.actions[i]);
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an ActionDiscoveryResponse message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {flowcraft_proto.v1.ActionDiscoveryResponse} message ActionDiscoveryResponse
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ActionDiscoveryResponse.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.arrays || options.defaults)
-                    object.actions = [];
-                if (message.actions && message.actions.length) {
-                    object.actions = [];
-                    for (let j = 0; j < message.actions.length; ++j)
-                        object.actions[j] = $root.flowcraft_proto.v1.ActionTemplate.toObject(message.actions[j], options);
-                }
-                return object;
-            };
-
-            /**
-             * Converts this ActionDiscoveryResponse to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ActionDiscoveryResponse.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for ActionDiscoveryResponse
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            ActionDiscoveryResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.ActionDiscoveryResponse";
-            };
-
-            return ActionDiscoveryResponse;
-        })();
-
-        v1.ActionExecutionRequest = (function() {
-
-            /**
-             * Properties of an ActionExecutionRequest.
-             * @memberof flowcraft_proto.v1
-             * @interface IActionExecutionRequest
-             * @property {string|null} [actionId] ActionExecutionRequest actionId
-             * @property {string|null} [sourceNodeId] ActionExecutionRequest sourceNodeId
-             * @property {Array.<string>|null} [contextNodeIds] ActionExecutionRequest contextNodeIds
-             * @property {string|null} [paramsJson] ActionExecutionRequest paramsJson
-             */
-
-            /**
-             * Constructs a new ActionExecutionRequest.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents an ActionExecutionRequest.
-             * @implements IActionExecutionRequest
-             * @constructor
-             * @param {flowcraft_proto.v1.IActionExecutionRequest=} [properties] Properties to set
-             */
-            function ActionExecutionRequest(properties) {
-                this.contextNodeIds = [];
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * ActionExecutionRequest actionId.
-             * @member {string} actionId
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @instance
-             */
-            ActionExecutionRequest.prototype.actionId = "";
-
-            /**
-             * ActionExecutionRequest sourceNodeId.
-             * @member {string} sourceNodeId
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @instance
-             */
-            ActionExecutionRequest.prototype.sourceNodeId = "";
-
-            /**
-             * ActionExecutionRequest contextNodeIds.
-             * @member {Array.<string>} contextNodeIds
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @instance
-             */
-            ActionExecutionRequest.prototype.contextNodeIds = $util.emptyArray;
-
-            /**
-             * ActionExecutionRequest paramsJson.
-             * @member {string} paramsJson
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @instance
-             */
-            ActionExecutionRequest.prototype.paramsJson = "";
-
-            /**
-             * Creates a new ActionExecutionRequest instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @static
-             * @param {flowcraft_proto.v1.IActionExecutionRequest=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest instance
-             */
-            ActionExecutionRequest.create = function create(properties) {
-                return new ActionExecutionRequest(properties);
-            };
-
-            /**
-             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @static
-             * @param {flowcraft_proto.v1.IActionExecutionRequest} message ActionExecutionRequest message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ActionExecutionRequest.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.actionId != null && Object.hasOwnProperty.call(message, "actionId"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.actionId);
-                if (message.sourceNodeId != null && Object.hasOwnProperty.call(message, "sourceNodeId"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.sourceNodeId);
-                if (message.contextNodeIds != null && message.contextNodeIds.length)
-                    for (let i = 0; i < message.contextNodeIds.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.contextNodeIds[i]);
-                if (message.paramsJson != null && Object.hasOwnProperty.call(message, "paramsJson"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.paramsJson);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @static
-             * @param {flowcraft_proto.v1.IActionExecutionRequest} message ActionExecutionRequest message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ActionExecutionRequest.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes an ActionExecutionRequest message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ActionExecutionRequest.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionExecutionRequest();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.actionId = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.sourceNodeId = reader.string();
+                            message.itemType = reader.string();
                             break;
                         }
                     case 3: {
-                            if (!(message.contextNodeIds && message.contextNodeIds.length))
-                                message.contextNodeIds = [];
-                            message.contextNodeIds.push(reader.string());
-                            break;
-                        }
-                    case 4: {
-                            message.paramsJson = reader.string();
+                            message.isGeneric = reader.bool();
                             break;
                         }
                     default:
@@ -1023,163 +1836,166 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes an ActionExecutionRequest message from the specified reader or buffer, length delimited.
+             * Decodes a PortType message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
+             * @returns {flowcraft_proto.v1.PortType} PortType
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionExecutionRequest.decodeDelimited = function decodeDelimited(reader) {
+            PortType.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies an ActionExecutionRequest message.
+             * Verifies a PortType message.
              * @function verify
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            ActionExecutionRequest.verify = function verify(message) {
+            PortType.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
-                if (message.actionId != null && message.hasOwnProperty("actionId"))
-                    if (!$util.isString(message.actionId))
-                        return "actionId: string expected";
-                if (message.sourceNodeId != null && message.hasOwnProperty("sourceNodeId"))
-                    if (!$util.isString(message.sourceNodeId))
-                        return "sourceNodeId: string expected";
-                if (message.contextNodeIds != null && message.hasOwnProperty("contextNodeIds")) {
-                    if (!Array.isArray(message.contextNodeIds))
-                        return "contextNodeIds: array expected";
-                    for (let i = 0; i < message.contextNodeIds.length; ++i)
-                        if (!$util.isString(message.contextNodeIds[i]))
-                            return "contextNodeIds: string[] expected";
-                }
-                if (message.paramsJson != null && message.hasOwnProperty("paramsJson"))
-                    if (!$util.isString(message.paramsJson))
-                        return "paramsJson: string expected";
+                if (message.mainType != null && message.hasOwnProperty("mainType"))
+                    if (!$util.isString(message.mainType))
+                        return "mainType: string expected";
+                if (message.itemType != null && message.hasOwnProperty("itemType"))
+                    if (!$util.isString(message.itemType))
+                        return "itemType: string expected";
+                if (message.isGeneric != null && message.hasOwnProperty("isGeneric"))
+                    if (typeof message.isGeneric !== "boolean")
+                        return "isGeneric: boolean expected";
                 return null;
             };
 
             /**
-             * Creates an ActionExecutionRequest message from a plain object. Also converts values to their respective internal types.
+             * Creates a PortType message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
+             * @returns {flowcraft_proto.v1.PortType} PortType
              */
-            ActionExecutionRequest.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.ActionExecutionRequest)
+            PortType.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.PortType)
                     return object;
-                let message = new $root.flowcraft_proto.v1.ActionExecutionRequest();
-                if (object.actionId != null)
-                    message.actionId = String(object.actionId);
-                if (object.sourceNodeId != null)
-                    message.sourceNodeId = String(object.sourceNodeId);
-                if (object.contextNodeIds) {
-                    if (!Array.isArray(object.contextNodeIds))
-                        throw TypeError(".flowcraft_proto.v1.ActionExecutionRequest.contextNodeIds: array expected");
-                    message.contextNodeIds = [];
-                    for (let i = 0; i < object.contextNodeIds.length; ++i)
-                        message.contextNodeIds[i] = String(object.contextNodeIds[i]);
-                }
-                if (object.paramsJson != null)
-                    message.paramsJson = String(object.paramsJson);
+                let message = new $root.flowcraft_proto.v1.PortType();
+                if (object.mainType != null)
+                    message.mainType = String(object.mainType);
+                if (object.itemType != null)
+                    message.itemType = String(object.itemType);
+                if (object.isGeneric != null)
+                    message.isGeneric = Boolean(object.isGeneric);
                 return message;
             };
 
             /**
-             * Creates a plain object from an ActionExecutionRequest message. Also converts values to other types if specified.
+             * Creates a plain object from a PortType message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
-             * @param {flowcraft_proto.v1.ActionExecutionRequest} message ActionExecutionRequest
+             * @param {flowcraft_proto.v1.PortType} message PortType
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            ActionExecutionRequest.toObject = function toObject(message, options) {
+            PortType.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
-                if (options.arrays || options.defaults)
-                    object.contextNodeIds = [];
                 if (options.defaults) {
-                    object.actionId = "";
-                    object.sourceNodeId = "";
-                    object.paramsJson = "";
+                    object.mainType = "";
+                    object.itemType = "";
+                    object.isGeneric = false;
                 }
-                if (message.actionId != null && message.hasOwnProperty("actionId"))
-                    object.actionId = message.actionId;
-                if (message.sourceNodeId != null && message.hasOwnProperty("sourceNodeId"))
-                    object.sourceNodeId = message.sourceNodeId;
-                if (message.contextNodeIds && message.contextNodeIds.length) {
-                    object.contextNodeIds = [];
-                    for (let j = 0; j < message.contextNodeIds.length; ++j)
-                        object.contextNodeIds[j] = message.contextNodeIds[j];
-                }
-                if (message.paramsJson != null && message.hasOwnProperty("paramsJson"))
-                    object.paramsJson = message.paramsJson;
+                if (message.mainType != null && message.hasOwnProperty("mainType"))
+                    object.mainType = message.mainType;
+                if (message.itemType != null && message.hasOwnProperty("itemType"))
+                    object.itemType = message.itemType;
+                if (message.isGeneric != null && message.hasOwnProperty("isGeneric"))
+                    object.isGeneric = message.isGeneric;
                 return object;
             };
 
             /**
-             * Converts this ActionExecutionRequest to JSON.
+             * Converts this PortType to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            ActionExecutionRequest.prototype.toJSON = function toJSON() {
+            PortType.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for ActionExecutionRequest
+             * Gets the default type url for PortType
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @memberof flowcraft_proto.v1.PortType
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            ActionExecutionRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            PortType.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.ActionExecutionRequest";
+                return typeUrlPrefix + "/flowcraft_proto.v1.PortType";
             };
 
-            return ActionExecutionRequest;
+            return PortType;
         })();
 
-        v1.ActionExecutionResult = (function() {
+        /**
+         * PortStyle enum.
+         * @name flowcraft_proto.v1.PortStyle
+         * @enum {number}
+         * @property {number} PORT_STYLE_CIRCLE=0 PORT_STYLE_CIRCLE value
+         * @property {number} PORT_STYLE_SQUARE=1 PORT_STYLE_SQUARE value
+         * @property {number} PORT_STYLE_DIAMOND=2 PORT_STYLE_DIAMOND value
+         * @property {number} PORT_STYLE_DASH=3 PORT_STYLE_DASH value
+         */
+        v1.PortStyle = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "PORT_STYLE_CIRCLE"] = 0;
+            values[valuesById[1] = "PORT_STYLE_SQUARE"] = 1;
+            values[valuesById[2] = "PORT_STYLE_DIAMOND"] = 2;
+            values[valuesById[3] = "PORT_STYLE_DASH"] = 3;
+            return values;
+        })();
+
+        v1.Widget = (function() {
 
             /**
-             * Properties of an ActionExecutionResult.
+             * Properties of a Widget.
              * @memberof flowcraft_proto.v1
-             * @interface IActionExecutionResult
-             * @property {boolean|null} [success] ActionExecutionResult success
-             * @property {string|null} [taskId] ActionExecutionResult taskId
-             * @property {flowcraft_proto.v1.IGraphDiff|null} [diff] ActionExecutionResult diff
-             * @property {flowcraft_proto.v1.ActionExecutionStrategy|null} [strategy] ActionExecutionResult strategy
+             * @interface IWidget
+             * @property {string|null} [id] Widget id
+             * @property {flowcraft_proto.v1.WidgetType|null} [type] Widget type
+             * @property {string|null} [label] Widget label
+             * @property {string|null} [valueJson] Widget valueJson
+             * @property {flowcraft_proto.v1.IWidgetConfig|null} [config] Widget config
+             * @property {Array.<flowcraft_proto.v1.IWidgetOption>|null} [options] Widget options
+             * @property {boolean|null} [isReadonly] Widget isReadonly
+             * @property {boolean|null} [isLoading] Widget isLoading
+             * @property {string|null} [inputPortId] Widget inputPortId
              */
 
             /**
-             * Constructs a new ActionExecutionResult.
+             * Constructs a new Widget.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents an ActionExecutionResult.
-             * @implements IActionExecutionResult
+             * @classdesc Represents a Widget.
+             * @implements IWidget
              * @constructor
-             * @param {flowcraft_proto.v1.IActionExecutionResult=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.IWidget=} [properties] Properties to set
              */
-            function ActionExecutionResult(properties) {
+            function Widget(properties) {
+                this.options = [];
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -1187,119 +2003,1556 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * ActionExecutionResult success.
-             * @member {boolean} success
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * Widget id.
+             * @member {string} id
+             * @memberof flowcraft_proto.v1.Widget
              * @instance
              */
-            ActionExecutionResult.prototype.success = false;
+            Widget.prototype.id = "";
 
             /**
-             * ActionExecutionResult taskId.
-             * @member {string} taskId
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * Widget type.
+             * @member {flowcraft_proto.v1.WidgetType} type
+             * @memberof flowcraft_proto.v1.Widget
              * @instance
              */
-            ActionExecutionResult.prototype.taskId = "";
+            Widget.prototype.type = 0;
 
             /**
-             * ActionExecutionResult diff.
-             * @member {flowcraft_proto.v1.IGraphDiff|null|undefined} diff
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * Widget label.
+             * @member {string} label
+             * @memberof flowcraft_proto.v1.Widget
              * @instance
              */
-            ActionExecutionResult.prototype.diff = null;
+            Widget.prototype.label = "";
 
             /**
-             * ActionExecutionResult strategy.
-             * @member {flowcraft_proto.v1.ActionExecutionStrategy} strategy
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * Widget valueJson.
+             * @member {string} valueJson
+             * @memberof flowcraft_proto.v1.Widget
              * @instance
              */
-            ActionExecutionResult.prototype.strategy = 0;
+            Widget.prototype.valueJson = "";
 
             /**
-             * Creates a new ActionExecutionResult instance using the specified properties.
+             * Widget config.
+             * @member {flowcraft_proto.v1.IWidgetConfig|null|undefined} config
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             */
+            Widget.prototype.config = null;
+
+            /**
+             * Widget options.
+             * @member {Array.<flowcraft_proto.v1.IWidgetOption>} options
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             */
+            Widget.prototype.options = $util.emptyArray;
+
+            /**
+             * Widget isReadonly.
+             * @member {boolean} isReadonly
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             */
+            Widget.prototype.isReadonly = false;
+
+            /**
+             * Widget isLoading.
+             * @member {boolean} isLoading
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             */
+            Widget.prototype.isLoading = false;
+
+            /**
+             * Widget inputPortId.
+             * @member {string} inputPortId
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             */
+            Widget.prototype.inputPortId = "";
+
+            /**
+             * Creates a new Widget instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.Widget
              * @static
-             * @param {flowcraft_proto.v1.IActionExecutionResult=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.ActionExecutionResult} ActionExecutionResult instance
+             * @param {flowcraft_proto.v1.IWidget=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.Widget} Widget instance
              */
-            ActionExecutionResult.create = function create(properties) {
-                return new ActionExecutionResult(properties);
+            Widget.create = function create(properties) {
+                return new Widget(properties);
             };
 
             /**
-             * Encodes the specified ActionExecutionResult message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
+             * Encodes the specified Widget message. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.Widget
              * @static
-             * @param {flowcraft_proto.v1.IActionExecutionResult} message ActionExecutionResult message or plain object to encode
+             * @param {flowcraft_proto.v1.IWidget} message Widget message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionExecutionResult.encode = function encode(message, writer) {
+            Widget.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.success != null && Object.hasOwnProperty.call(message, "success"))
-                    writer.uint32(/* id 1, wireType 0 =*/8).bool(message.success);
-                if (message.taskId != null && Object.hasOwnProperty.call(message, "taskId"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.taskId);
-                if (message.diff != null && Object.hasOwnProperty.call(message, "diff"))
-                    $root.flowcraft_proto.v1.GraphDiff.encode(message.diff, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
-                if (message.strategy != null && Object.hasOwnProperty.call(message, "strategy"))
-                    writer.uint32(/* id 4, wireType 0 =*/32).int32(message.strategy);
+                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.type);
+                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.label);
+                if (message.valueJson != null && Object.hasOwnProperty.call(message, "valueJson"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.valueJson);
+                if (message.config != null && Object.hasOwnProperty.call(message, "config"))
+                    $root.flowcraft_proto.v1.WidgetConfig.encode(message.config, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.options != null && message.options.length)
+                    for (let i = 0; i < message.options.length; ++i)
+                        $root.flowcraft_proto.v1.WidgetOption.encode(message.options[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
+                if (message.isReadonly != null && Object.hasOwnProperty.call(message, "isReadonly"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.isReadonly);
+                if (message.isLoading != null && Object.hasOwnProperty.call(message, "isLoading"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).bool(message.isLoading);
+                if (message.inputPortId != null && Object.hasOwnProperty.call(message, "inputPortId"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.inputPortId);
                 return writer;
             };
 
             /**
-             * Encodes the specified ActionExecutionResult message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionResult.verify|verify} messages.
+             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.Widget
              * @static
-             * @param {flowcraft_proto.v1.IActionExecutionResult} message ActionExecutionResult message or plain object to encode
+             * @param {flowcraft_proto.v1.IWidget} message Widget message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            ActionExecutionResult.encodeDelimited = function encodeDelimited(message, writer) {
+            Widget.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes an ActionExecutionResult message from the specified reader or buffer.
+             * Decodes a Widget message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.Widget
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.ActionExecutionResult} ActionExecutionResult
+             * @returns {flowcraft_proto.v1.Widget} Widget
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionExecutionResult.decode = function decode(reader, length, error) {
+            Widget.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionExecutionResult();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Widget();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.success = reader.bool();
+                            message.id = reader.string();
                             break;
                         }
                     case 2: {
+                            message.type = reader.int32();
+                            break;
+                        }
+                    case 3: {
+                            message.label = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.valueJson = reader.string();
+                            break;
+                        }
+                    case 5: {
+                            message.config = $root.flowcraft_proto.v1.WidgetConfig.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 6: {
+                            if (!(message.options && message.options.length))
+                                message.options = [];
+                            message.options.push($root.flowcraft_proto.v1.WidgetOption.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 7: {
+                            message.isReadonly = reader.bool();
+                            break;
+                        }
+                    case 8: {
+                            message.isLoading = reader.bool();
+                            break;
+                        }
+                    case 9: {
+                            message.inputPortId = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a Widget message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.Widget
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.Widget} Widget
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Widget.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a Widget message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.Widget
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Widget.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.id != null && message.hasOwnProperty("id"))
+                    if (!$util.isString(message.id))
+                        return "id: string expected";
+                if (message.type != null && message.hasOwnProperty("type"))
+                    switch (message.type) {
+                    default:
+                        return "type: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        break;
+                    }
+                if (message.label != null && message.hasOwnProperty("label"))
+                    if (!$util.isString(message.label))
+                        return "label: string expected";
+                if (message.valueJson != null && message.hasOwnProperty("valueJson"))
+                    if (!$util.isString(message.valueJson))
+                        return "valueJson: string expected";
+                if (message.config != null && message.hasOwnProperty("config")) {
+                    let error = $root.flowcraft_proto.v1.WidgetConfig.verify(message.config);
+                    if (error)
+                        return "config." + error;
+                }
+                if (message.options != null && message.hasOwnProperty("options")) {
+                    if (!Array.isArray(message.options))
+                        return "options: array expected";
+                    for (let i = 0; i < message.options.length; ++i) {
+                        let error = $root.flowcraft_proto.v1.WidgetOption.verify(message.options[i]);
+                        if (error)
+                            return "options." + error;
+                    }
+                }
+                if (message.isReadonly != null && message.hasOwnProperty("isReadonly"))
+                    if (typeof message.isReadonly !== "boolean")
+                        return "isReadonly: boolean expected";
+                if (message.isLoading != null && message.hasOwnProperty("isLoading"))
+                    if (typeof message.isLoading !== "boolean")
+                        return "isLoading: boolean expected";
+                if (message.inputPortId != null && message.hasOwnProperty("inputPortId"))
+                    if (!$util.isString(message.inputPortId))
+                        return "inputPortId: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a Widget message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.Widget
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.Widget} Widget
+             */
+            Widget.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.Widget)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.Widget();
+                if (object.id != null)
+                    message.id = String(object.id);
+                switch (object.type) {
+                default:
+                    if (typeof object.type === "number") {
+                        message.type = object.type;
+                        break;
+                    }
+                    break;
+                case "WIDGET_UNSPECIFIED":
+                case 0:
+                    message.type = 0;
+                    break;
+                case "WIDGET_TEXT":
+                case 1:
+                    message.type = 1;
+                    break;
+                case "WIDGET_SELECT":
+                case 2:
+                    message.type = 2;
+                    break;
+                case "WIDGET_CHECKBOX":
+                case 3:
+                    message.type = 3;
+                    break;
+                case "WIDGET_SLIDER":
+                case 4:
+                    message.type = 4;
+                    break;
+                case "WIDGET_BUTTON":
+                case 5:
+                    message.type = 5;
+                    break;
+                }
+                if (object.label != null)
+                    message.label = String(object.label);
+                if (object.valueJson != null)
+                    message.valueJson = String(object.valueJson);
+                if (object.config != null) {
+                    if (typeof object.config !== "object")
+                        throw TypeError(".flowcraft_proto.v1.Widget.config: object expected");
+                    message.config = $root.flowcraft_proto.v1.WidgetConfig.fromObject(object.config);
+                }
+                if (object.options) {
+                    if (!Array.isArray(object.options))
+                        throw TypeError(".flowcraft_proto.v1.Widget.options: array expected");
+                    message.options = [];
+                    for (let i = 0; i < object.options.length; ++i) {
+                        if (typeof object.options[i] !== "object")
+                            throw TypeError(".flowcraft_proto.v1.Widget.options: object expected");
+                        message.options[i] = $root.flowcraft_proto.v1.WidgetOption.fromObject(object.options[i]);
+                    }
+                }
+                if (object.isReadonly != null)
+                    message.isReadonly = Boolean(object.isReadonly);
+                if (object.isLoading != null)
+                    message.isLoading = Boolean(object.isLoading);
+                if (object.inputPortId != null)
+                    message.inputPortId = String(object.inputPortId);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Widget message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.Widget
+             * @static
+             * @param {flowcraft_proto.v1.Widget} message Widget
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Widget.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.options = [];
+                if (options.defaults) {
+                    object.id = "";
+                    object.type = options.enums === String ? "WIDGET_UNSPECIFIED" : 0;
+                    object.label = "";
+                    object.valueJson = "";
+                    object.config = null;
+                    object.isReadonly = false;
+                    object.isLoading = false;
+                    object.inputPortId = "";
+                }
+                if (message.id != null && message.hasOwnProperty("id"))
+                    object.id = message.id;
+                if (message.type != null && message.hasOwnProperty("type"))
+                    object.type = options.enums === String ? $root.flowcraft_proto.v1.WidgetType[message.type] === undefined ? message.type : $root.flowcraft_proto.v1.WidgetType[message.type] : message.type;
+                if (message.label != null && message.hasOwnProperty("label"))
+                    object.label = message.label;
+                if (message.valueJson != null && message.hasOwnProperty("valueJson"))
+                    object.valueJson = message.valueJson;
+                if (message.config != null && message.hasOwnProperty("config"))
+                    object.config = $root.flowcraft_proto.v1.WidgetConfig.toObject(message.config, options);
+                if (message.options && message.options.length) {
+                    object.options = [];
+                    for (let j = 0; j < message.options.length; ++j)
+                        object.options[j] = $root.flowcraft_proto.v1.WidgetOption.toObject(message.options[j], options);
+                }
+                if (message.isReadonly != null && message.hasOwnProperty("isReadonly"))
+                    object.isReadonly = message.isReadonly;
+                if (message.isLoading != null && message.hasOwnProperty("isLoading"))
+                    object.isLoading = message.isLoading;
+                if (message.inputPortId != null && message.hasOwnProperty("inputPortId"))
+                    object.inputPortId = message.inputPortId;
+                return object;
+            };
+
+            /**
+             * Converts this Widget to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.Widget
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Widget.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Widget
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.Widget
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Widget.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.Widget";
+            };
+
+            return Widget;
+        })();
+
+        /**
+         * WidgetType enum.
+         * @name flowcraft_proto.v1.WidgetType
+         * @enum {number}
+         * @property {number} WIDGET_UNSPECIFIED=0 WIDGET_UNSPECIFIED value
+         * @property {number} WIDGET_TEXT=1 WIDGET_TEXT value
+         * @property {number} WIDGET_SELECT=2 WIDGET_SELECT value
+         * @property {number} WIDGET_CHECKBOX=3 WIDGET_CHECKBOX value
+         * @property {number} WIDGET_SLIDER=4 WIDGET_SLIDER value
+         * @property {number} WIDGET_BUTTON=5 WIDGET_BUTTON value
+         */
+        v1.WidgetType = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "WIDGET_UNSPECIFIED"] = 0;
+            values[valuesById[1] = "WIDGET_TEXT"] = 1;
+            values[valuesById[2] = "WIDGET_SELECT"] = 2;
+            values[valuesById[3] = "WIDGET_CHECKBOX"] = 3;
+            values[valuesById[4] = "WIDGET_SLIDER"] = 4;
+            values[valuesById[5] = "WIDGET_BUTTON"] = 5;
+            return values;
+        })();
+
+        v1.WidgetOption = (function() {
+
+            /**
+             * Properties of a WidgetOption.
+             * @memberof flowcraft_proto.v1
+             * @interface IWidgetOption
+             * @property {string|null} [label] WidgetOption label
+             * @property {string|null} [value] WidgetOption value
+             * @property {string|null} [description] WidgetOption description
+             */
+
+            /**
+             * Constructs a new WidgetOption.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a WidgetOption.
+             * @implements IWidgetOption
+             * @constructor
+             * @param {flowcraft_proto.v1.IWidgetOption=} [properties] Properties to set
+             */
+            function WidgetOption(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * WidgetOption label.
+             * @member {string} label
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @instance
+             */
+            WidgetOption.prototype.label = "";
+
+            /**
+             * WidgetOption value.
+             * @member {string} value
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @instance
+             */
+            WidgetOption.prototype.value = "";
+
+            /**
+             * WidgetOption description.
+             * @member {string} description
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @instance
+             */
+            WidgetOption.prototype.description = "";
+
+            /**
+             * Creates a new WidgetOption instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetOption=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption instance
+             */
+            WidgetOption.create = function create(properties) {
+                return new WidgetOption(properties);
+            };
+
+            /**
+             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetOption} message WidgetOption message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WidgetOption.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.label);
+                if (message.value != null && Object.hasOwnProperty.call(message, "value"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.value);
+                if (message.description != null && Object.hasOwnProperty.call(message, "description"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.description);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetOption} message WidgetOption message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WidgetOption.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a WidgetOption message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WidgetOption.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.WidgetOption();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.label = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.value = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.description = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a WidgetOption message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WidgetOption.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a WidgetOption message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            WidgetOption.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.label != null && message.hasOwnProperty("label"))
+                    if (!$util.isString(message.label))
+                        return "label: string expected";
+                if (message.value != null && message.hasOwnProperty("value"))
+                    if (!$util.isString(message.value))
+                        return "value: string expected";
+                if (message.description != null && message.hasOwnProperty("description"))
+                    if (!$util.isString(message.description))
+                        return "description: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a WidgetOption message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             */
+            WidgetOption.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.WidgetOption)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.WidgetOption();
+                if (object.label != null)
+                    message.label = String(object.label);
+                if (object.value != null)
+                    message.value = String(object.value);
+                if (object.description != null)
+                    message.description = String(object.description);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a WidgetOption message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {flowcraft_proto.v1.WidgetOption} message WidgetOption
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            WidgetOption.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.label = "";
+                    object.value = "";
+                    object.description = "";
+                }
+                if (message.label != null && message.hasOwnProperty("label"))
+                    object.label = message.label;
+                if (message.value != null && message.hasOwnProperty("value"))
+                    object.value = message.value;
+                if (message.description != null && message.hasOwnProperty("description"))
+                    object.description = message.description;
+                return object;
+            };
+
+            /**
+             * Converts this WidgetOption to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            WidgetOption.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for WidgetOption
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.WidgetOption
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            WidgetOption.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.WidgetOption";
+            };
+
+            return WidgetOption;
+        })();
+
+        v1.WidgetConfig = (function() {
+
+            /**
+             * Properties of a WidgetConfig.
+             * @memberof flowcraft_proto.v1
+             * @interface IWidgetConfig
+             * @property {string|null} [placeholder] WidgetConfig placeholder
+             * @property {number|null} [min] WidgetConfig min
+             * @property {number|null} [max] WidgetConfig max
+             * @property {number|null} [step] WidgetConfig step
+             * @property {boolean|null} [dynamicOptions] WidgetConfig dynamicOptions
+             * @property {string|null} [actionTarget] WidgetConfig actionTarget
+             */
+
+            /**
+             * Constructs a new WidgetConfig.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a WidgetConfig.
+             * @implements IWidgetConfig
+             * @constructor
+             * @param {flowcraft_proto.v1.IWidgetConfig=} [properties] Properties to set
+             */
+            function WidgetConfig(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * WidgetConfig placeholder.
+             * @member {string} placeholder
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.placeholder = "";
+
+            /**
+             * WidgetConfig min.
+             * @member {number} min
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.min = 0;
+
+            /**
+             * WidgetConfig max.
+             * @member {number} max
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.max = 0;
+
+            /**
+             * WidgetConfig step.
+             * @member {number} step
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.step = 0;
+
+            /**
+             * WidgetConfig dynamicOptions.
+             * @member {boolean} dynamicOptions
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.dynamicOptions = false;
+
+            /**
+             * WidgetConfig actionTarget.
+             * @member {string} actionTarget
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             */
+            WidgetConfig.prototype.actionTarget = "";
+
+            /**
+             * Creates a new WidgetConfig instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetConfig=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig instance
+             */
+            WidgetConfig.create = function create(properties) {
+                return new WidgetConfig(properties);
+            };
+
+            /**
+             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetConfig} message WidgetConfig message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WidgetConfig.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.placeholder != null && Object.hasOwnProperty.call(message, "placeholder"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.placeholder);
+                if (message.min != null && Object.hasOwnProperty.call(message, "min"))
+                    writer.uint32(/* id 2, wireType 1 =*/17).double(message.min);
+                if (message.max != null && Object.hasOwnProperty.call(message, "max"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.max);
+                if (message.step != null && Object.hasOwnProperty.call(message, "step"))
+                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.step);
+                if (message.dynamicOptions != null && Object.hasOwnProperty.call(message, "dynamicOptions"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.dynamicOptions);
+                if (message.actionTarget != null && Object.hasOwnProperty.call(message, "actionTarget"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.actionTarget);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {flowcraft_proto.v1.IWidgetConfig} message WidgetConfig message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WidgetConfig.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a WidgetConfig message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WidgetConfig.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.WidgetConfig();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.placeholder = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.min = reader.double();
+                            break;
+                        }
+                    case 3: {
+                            message.max = reader.double();
+                            break;
+                        }
+                    case 4: {
+                            message.step = reader.double();
+                            break;
+                        }
+                    case 5: {
+                            message.dynamicOptions = reader.bool();
+                            break;
+                        }
+                    case 6: {
+                            message.actionTarget = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a WidgetConfig message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WidgetConfig.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a WidgetConfig message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            WidgetConfig.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.placeholder != null && message.hasOwnProperty("placeholder"))
+                    if (!$util.isString(message.placeholder))
+                        return "placeholder: string expected";
+                if (message.min != null && message.hasOwnProperty("min"))
+                    if (typeof message.min !== "number")
+                        return "min: number expected";
+                if (message.max != null && message.hasOwnProperty("max"))
+                    if (typeof message.max !== "number")
+                        return "max: number expected";
+                if (message.step != null && message.hasOwnProperty("step"))
+                    if (typeof message.step !== "number")
+                        return "step: number expected";
+                if (message.dynamicOptions != null && message.hasOwnProperty("dynamicOptions"))
+                    if (typeof message.dynamicOptions !== "boolean")
+                        return "dynamicOptions: boolean expected";
+                if (message.actionTarget != null && message.hasOwnProperty("actionTarget"))
+                    if (!$util.isString(message.actionTarget))
+                        return "actionTarget: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a WidgetConfig message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
+             */
+            WidgetConfig.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.WidgetConfig)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.WidgetConfig();
+                if (object.placeholder != null)
+                    message.placeholder = String(object.placeholder);
+                if (object.min != null)
+                    message.min = Number(object.min);
+                if (object.max != null)
+                    message.max = Number(object.max);
+                if (object.step != null)
+                    message.step = Number(object.step);
+                if (object.dynamicOptions != null)
+                    message.dynamicOptions = Boolean(object.dynamicOptions);
+                if (object.actionTarget != null)
+                    message.actionTarget = String(object.actionTarget);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a WidgetConfig message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {flowcraft_proto.v1.WidgetConfig} message WidgetConfig
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            WidgetConfig.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.placeholder = "";
+                    object.min = 0;
+                    object.max = 0;
+                    object.step = 0;
+                    object.dynamicOptions = false;
+                    object.actionTarget = "";
+                }
+                if (message.placeholder != null && message.hasOwnProperty("placeholder"))
+                    object.placeholder = message.placeholder;
+                if (message.min != null && message.hasOwnProperty("min"))
+                    object.min = options.json && !isFinite(message.min) ? String(message.min) : message.min;
+                if (message.max != null && message.hasOwnProperty("max"))
+                    object.max = options.json && !isFinite(message.max) ? String(message.max) : message.max;
+                if (message.step != null && message.hasOwnProperty("step"))
+                    object.step = options.json && !isFinite(message.step) ? String(message.step) : message.step;
+                if (message.dynamicOptions != null && message.hasOwnProperty("dynamicOptions"))
+                    object.dynamicOptions = message.dynamicOptions;
+                if (message.actionTarget != null && message.hasOwnProperty("actionTarget"))
+                    object.actionTarget = message.actionTarget;
+                return object;
+            };
+
+            /**
+             * Converts this WidgetConfig to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            WidgetConfig.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for WidgetConfig
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.WidgetConfig
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            WidgetConfig.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.WidgetConfig";
+            };
+
+            return WidgetConfig;
+        })();
+
+        v1.Edge = (function() {
+
+            /**
+             * Properties of an Edge.
+             * @memberof flowcraft_proto.v1
+             * @interface IEdge
+             * @property {string|null} [id] Edge id
+             * @property {string|null} [source] Edge source
+             * @property {string|null} [target] Edge target
+             * @property {string|null} [sourceHandle] Edge sourceHandle
+             * @property {string|null} [targetHandle] Edge targetHandle
+             * @property {Object.<string,string>|null} [metadata] Edge metadata
+             */
+
+            /**
+             * Constructs a new Edge.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents an Edge.
+             * @implements IEdge
+             * @constructor
+             * @param {flowcraft_proto.v1.IEdge=} [properties] Properties to set
+             */
+            function Edge(properties) {
+                this.metadata = {};
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * Edge id.
+             * @member {string} id
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.id = "";
+
+            /**
+             * Edge source.
+             * @member {string} source
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.source = "";
+
+            /**
+             * Edge target.
+             * @member {string} target
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.target = "";
+
+            /**
+             * Edge sourceHandle.
+             * @member {string} sourceHandle
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.sourceHandle = "";
+
+            /**
+             * Edge targetHandle.
+             * @member {string} targetHandle
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.targetHandle = "";
+
+            /**
+             * Edge metadata.
+             * @member {Object.<string,string>} metadata
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             */
+            Edge.prototype.metadata = $util.emptyObject;
+
+            /**
+             * Creates a new Edge instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {flowcraft_proto.v1.IEdge=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.Edge} Edge instance
+             */
+            Edge.create = function create(properties) {
+                return new Edge(properties);
+            };
+
+            /**
+             * Encodes the specified Edge message. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {flowcraft_proto.v1.IEdge} message Edge message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Edge.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                if (message.source != null && Object.hasOwnProperty.call(message, "source"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.source);
+                if (message.target != null && Object.hasOwnProperty.call(message, "target"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.target);
+                if (message.sourceHandle != null && Object.hasOwnProperty.call(message, "sourceHandle"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.sourceHandle);
+                if (message.targetHandle != null && Object.hasOwnProperty.call(message, "targetHandle"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.targetHandle);
+                if (message.metadata != null && Object.hasOwnProperty.call(message, "metadata"))
+                    for (let keys = Object.keys(message.metadata), i = 0; i < keys.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.metadata[keys[i]]).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {flowcraft_proto.v1.IEdge} message Edge message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Edge.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an Edge message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.Edge} Edge
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Edge.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Edge(), key, value;
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.id = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.source = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.target = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.sourceHandle = reader.string();
+                            break;
+                        }
+                    case 5: {
+                            message.targetHandle = reader.string();
+                            break;
+                        }
+                    case 6: {
+                            if (message.metadata === $util.emptyObject)
+                                message.metadata = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            key = "";
+                            value = "";
+                            while (reader.pos < end2) {
+                                let tag2 = reader.uint32();
+                                switch (tag2 >>> 3) {
+                                case 1:
+                                    key = reader.string();
+                                    break;
+                                case 2:
+                                    value = reader.string();
+                                    break;
+                                default:
+                                    reader.skipType(tag2 & 7);
+                                    break;
+                                }
+                            }
+                            message.metadata[key] = value;
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an Edge message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.Edge} Edge
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Edge.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an Edge message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Edge.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.id != null && message.hasOwnProperty("id"))
+                    if (!$util.isString(message.id))
+                        return "id: string expected";
+                if (message.source != null && message.hasOwnProperty("source"))
+                    if (!$util.isString(message.source))
+                        return "source: string expected";
+                if (message.target != null && message.hasOwnProperty("target"))
+                    if (!$util.isString(message.target))
+                        return "target: string expected";
+                if (message.sourceHandle != null && message.hasOwnProperty("sourceHandle"))
+                    if (!$util.isString(message.sourceHandle))
+                        return "sourceHandle: string expected";
+                if (message.targetHandle != null && message.hasOwnProperty("targetHandle"))
+                    if (!$util.isString(message.targetHandle))
+                        return "targetHandle: string expected";
+                if (message.metadata != null && message.hasOwnProperty("metadata")) {
+                    if (!$util.isObject(message.metadata))
+                        return "metadata: object expected";
+                    let key = Object.keys(message.metadata);
+                    for (let i = 0; i < key.length; ++i)
+                        if (!$util.isString(message.metadata[key[i]]))
+                            return "metadata: string{k:string} expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an Edge message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.Edge} Edge
+             */
+            Edge.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.Edge)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.Edge();
+                if (object.id != null)
+                    message.id = String(object.id);
+                if (object.source != null)
+                    message.source = String(object.source);
+                if (object.target != null)
+                    message.target = String(object.target);
+                if (object.sourceHandle != null)
+                    message.sourceHandle = String(object.sourceHandle);
+                if (object.targetHandle != null)
+                    message.targetHandle = String(object.targetHandle);
+                if (object.metadata) {
+                    if (typeof object.metadata !== "object")
+                        throw TypeError(".flowcraft_proto.v1.Edge.metadata: object expected");
+                    message.metadata = {};
+                    for (let keys = Object.keys(object.metadata), i = 0; i < keys.length; ++i)
+                        message.metadata[keys[i]] = String(object.metadata[keys[i]]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an Edge message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {flowcraft_proto.v1.Edge} message Edge
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Edge.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.objects || options.defaults)
+                    object.metadata = {};
+                if (options.defaults) {
+                    object.id = "";
+                    object.source = "";
+                    object.target = "";
+                    object.sourceHandle = "";
+                    object.targetHandle = "";
+                }
+                if (message.id != null && message.hasOwnProperty("id"))
+                    object.id = message.id;
+                if (message.source != null && message.hasOwnProperty("source"))
+                    object.source = message.source;
+                if (message.target != null && message.hasOwnProperty("target"))
+                    object.target = message.target;
+                if (message.sourceHandle != null && message.hasOwnProperty("sourceHandle"))
+                    object.sourceHandle = message.sourceHandle;
+                if (message.targetHandle != null && message.hasOwnProperty("targetHandle"))
+                    object.targetHandle = message.targetHandle;
+                let keys2;
+                if (message.metadata && (keys2 = Object.keys(message.metadata)).length) {
+                    object.metadata = {};
+                    for (let j = 0; j < keys2.length; ++j)
+                        object.metadata[keys2[j]] = message.metadata[keys2[j]];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this Edge to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.Edge
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Edge.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Edge
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.Edge
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Edge.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.Edge";
+            };
+
+            return Edge;
+        })();
+
+        /**
+         * TaskStatus enum.
+         * @name flowcraft_proto.v1.TaskStatus
+         * @enum {number}
+         * @property {number} TASK_PENDING=0 TASK_PENDING value
+         * @property {number} TASK_PROCESSING=1 TASK_PROCESSING value
+         * @property {number} TASK_COMPLETED=2 TASK_COMPLETED value
+         * @property {number} TASK_FAILED=3 TASK_FAILED value
+         * @property {number} TASK_CANCELLED=4 TASK_CANCELLED value
+         */
+        v1.TaskStatus = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "TASK_PENDING"] = 0;
+            values[valuesById[1] = "TASK_PROCESSING"] = 1;
+            values[valuesById[2] = "TASK_COMPLETED"] = 2;
+            values[valuesById[3] = "TASK_FAILED"] = 3;
+            values[valuesById[4] = "TASK_CANCELLED"] = 4;
+            return values;
+        })();
+
+        v1.TaskUpdate = (function() {
+
+            /**
+             * Properties of a TaskUpdate.
+             * @memberof flowcraft_proto.v1
+             * @interface ITaskUpdate
+             * @property {string|null} [taskId] TaskUpdate taskId
+             * @property {flowcraft_proto.v1.TaskStatus|null} [status] TaskUpdate status
+             * @property {number|null} [progress] TaskUpdate progress
+             * @property {string|null} [message] TaskUpdate message
+             * @property {string|null} [resultJson] TaskUpdate resultJson
+             */
+
+            /**
+             * Constructs a new TaskUpdate.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents a TaskUpdate.
+             * @implements ITaskUpdate
+             * @constructor
+             * @param {flowcraft_proto.v1.ITaskUpdate=} [properties] Properties to set
+             */
+            function TaskUpdate(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * TaskUpdate taskId.
+             * @member {string} taskId
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @instance
+             */
+            TaskUpdate.prototype.taskId = "";
+
+            /**
+             * TaskUpdate status.
+             * @member {flowcraft_proto.v1.TaskStatus} status
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @instance
+             */
+            TaskUpdate.prototype.status = 0;
+
+            /**
+             * TaskUpdate progress.
+             * @member {number} progress
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @instance
+             */
+            TaskUpdate.prototype.progress = 0;
+
+            /**
+             * TaskUpdate message.
+             * @member {string} message
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @instance
+             */
+            TaskUpdate.prototype.message = "";
+
+            /**
+             * TaskUpdate resultJson.
+             * @member {string} resultJson
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @instance
+             */
+            TaskUpdate.prototype.resultJson = "";
+
+            /**
+             * Creates a new TaskUpdate instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @static
+             * @param {flowcraft_proto.v1.ITaskUpdate=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate instance
+             */
+            TaskUpdate.create = function create(properties) {
+                return new TaskUpdate(properties);
+            };
+
+            /**
+             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @static
+             * @param {flowcraft_proto.v1.ITaskUpdate} message TaskUpdate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            TaskUpdate.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.taskId != null && Object.hasOwnProperty.call(message, "taskId"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.taskId);
+                if (message.status != null && Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.status);
+                if (message.progress != null && Object.hasOwnProperty.call(message, "progress"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.progress);
+                if (message.message != null && Object.hasOwnProperty.call(message, "message"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.message);
+                if (message.resultJson != null && Object.hasOwnProperty.call(message, "resultJson"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.resultJson);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @static
+             * @param {flowcraft_proto.v1.ITaskUpdate} message TaskUpdate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            TaskUpdate.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a TaskUpdate message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.TaskUpdate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            TaskUpdate.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.TaskUpdate();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
                             message.taskId = reader.string();
                             break;
                         }
+                    case 2: {
+                            message.status = reader.int32();
+                            break;
+                        }
                     case 3: {
-                            message.diff = $root.flowcraft_proto.v1.GraphDiff.decode(reader, reader.uint32());
+                            message.progress = reader.double();
                             break;
                         }
                     case 4: {
-                            message.strategy = reader.int32();
+                            message.message = reader.string();
+                            break;
+                        }
+                    case 5: {
+                            message.resultJson = reader.string();
                             break;
                         }
                     default:
@@ -1311,460 +3564,169 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes an ActionExecutionResult message from the specified reader or buffer, length delimited.
+             * Decodes a TaskUpdate message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.ActionExecutionResult} ActionExecutionResult
+             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            ActionExecutionResult.decodeDelimited = function decodeDelimited(reader) {
+            TaskUpdate.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies an ActionExecutionResult message.
+             * Verifies a TaskUpdate message.
              * @function verify
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            ActionExecutionResult.verify = function verify(message) {
+            TaskUpdate.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
-                if (message.success != null && message.hasOwnProperty("success"))
-                    if (typeof message.success !== "boolean")
-                        return "success: boolean expected";
                 if (message.taskId != null && message.hasOwnProperty("taskId"))
                     if (!$util.isString(message.taskId))
                         return "taskId: string expected";
-                if (message.diff != null && message.hasOwnProperty("diff")) {
-                    let error = $root.flowcraft_proto.v1.GraphDiff.verify(message.diff);
-                    if (error)
-                        return "diff." + error;
-                }
-                if (message.strategy != null && message.hasOwnProperty("strategy"))
-                    switch (message.strategy) {
+                if (message.status != null && message.hasOwnProperty("status"))
+                    switch (message.status) {
                     default:
-                        return "strategy: enum value expected";
+                        return "status: enum value expected";
                     case 0:
                     case 1:
+                    case 2:
+                    case 3:
+                    case 4:
                         break;
                     }
+                if (message.progress != null && message.hasOwnProperty("progress"))
+                    if (typeof message.progress !== "number")
+                        return "progress: number expected";
+                if (message.message != null && message.hasOwnProperty("message"))
+                    if (!$util.isString(message.message))
+                        return "message: string expected";
+                if (message.resultJson != null && message.hasOwnProperty("resultJson"))
+                    if (!$util.isString(message.resultJson))
+                        return "resultJson: string expected";
                 return null;
             };
 
             /**
-             * Creates an ActionExecutionResult message from a plain object. Also converts values to their respective internal types.
+             * Creates a TaskUpdate message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.ActionExecutionResult} ActionExecutionResult
+             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
              */
-            ActionExecutionResult.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.ActionExecutionResult)
+            TaskUpdate.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.TaskUpdate)
                     return object;
-                let message = new $root.flowcraft_proto.v1.ActionExecutionResult();
-                if (object.success != null)
-                    message.success = Boolean(object.success);
+                let message = new $root.flowcraft_proto.v1.TaskUpdate();
                 if (object.taskId != null)
                     message.taskId = String(object.taskId);
-                if (object.diff != null) {
-                    if (typeof object.diff !== "object")
-                        throw TypeError(".flowcraft_proto.v1.ActionExecutionResult.diff: object expected");
-                    message.diff = $root.flowcraft_proto.v1.GraphDiff.fromObject(object.diff);
-                }
-                switch (object.strategy) {
+                switch (object.status) {
                 default:
-                    if (typeof object.strategy === "number") {
-                        message.strategy = object.strategy;
+                    if (typeof object.status === "number") {
+                        message.status = object.status;
                         break;
                     }
                     break;
-                case "EXECUTION_IMMEDIATE":
+                case "TASK_PENDING":
                 case 0:
-                    message.strategy = 0;
+                    message.status = 0;
                     break;
-                case "EXECUTION_TASK":
+                case "TASK_PROCESSING":
                 case 1:
-                    message.strategy = 1;
+                    message.status = 1;
+                    break;
+                case "TASK_COMPLETED":
+                case 2:
+                    message.status = 2;
+                    break;
+                case "TASK_FAILED":
+                case 3:
+                    message.status = 3;
+                    break;
+                case "TASK_CANCELLED":
+                case 4:
+                    message.status = 4;
                     break;
                 }
+                if (object.progress != null)
+                    message.progress = Number(object.progress);
+                if (object.message != null)
+                    message.message = String(object.message);
+                if (object.resultJson != null)
+                    message.resultJson = String(object.resultJson);
                 return message;
             };
 
             /**
-             * Creates a plain object from an ActionExecutionResult message. Also converts values to other types if specified.
+             * Creates a plain object from a TaskUpdate message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @static
-             * @param {flowcraft_proto.v1.ActionExecutionResult} message ActionExecutionResult
+             * @param {flowcraft_proto.v1.TaskUpdate} message TaskUpdate
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            ActionExecutionResult.toObject = function toObject(message, options) {
+            TaskUpdate.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
                 if (options.defaults) {
-                    object.success = false;
                     object.taskId = "";
-                    object.diff = null;
-                    object.strategy = options.enums === String ? "EXECUTION_IMMEDIATE" : 0;
+                    object.status = options.enums === String ? "TASK_PENDING" : 0;
+                    object.progress = 0;
+                    object.message = "";
+                    object.resultJson = "";
                 }
-                if (message.success != null && message.hasOwnProperty("success"))
-                    object.success = message.success;
                 if (message.taskId != null && message.hasOwnProperty("taskId"))
                     object.taskId = message.taskId;
-                if (message.diff != null && message.hasOwnProperty("diff"))
-                    object.diff = $root.flowcraft_proto.v1.GraphDiff.toObject(message.diff, options);
-                if (message.strategy != null && message.hasOwnProperty("strategy"))
-                    object.strategy = options.enums === String ? $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] === undefined ? message.strategy : $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] : message.strategy;
+                if (message.status != null && message.hasOwnProperty("status"))
+                    object.status = options.enums === String ? $root.flowcraft_proto.v1.TaskStatus[message.status] === undefined ? message.status : $root.flowcraft_proto.v1.TaskStatus[message.status] : message.status;
+                if (message.progress != null && message.hasOwnProperty("progress"))
+                    object.progress = options.json && !isFinite(message.progress) ? String(message.progress) : message.progress;
+                if (message.message != null && message.hasOwnProperty("message"))
+                    object.message = message.message;
+                if (message.resultJson != null && message.hasOwnProperty("resultJson"))
+                    object.resultJson = message.resultJson;
                 return object;
             };
 
             /**
-             * Converts this ActionExecutionResult to JSON.
+             * Converts this TaskUpdate to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            ActionExecutionResult.prototype.toJSON = function toJSON() {
+            TaskUpdate.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for ActionExecutionResult
+             * Gets the default type url for TaskUpdate
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.ActionExecutionResult
+             * @memberof flowcraft_proto.v1.TaskUpdate
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            ActionExecutionResult.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            TaskUpdate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.ActionExecutionResult";
+                return typeUrlPrefix + "/flowcraft_proto.v1.TaskUpdate";
             };
 
-            return ActionExecutionResult;
-        })();
-
-        v1.GraphDiff = (function() {
-
-            /**
-             * Properties of a GraphDiff.
-             * @memberof flowcraft_proto.v1
-             * @interface IGraphDiff
-             * @property {string|null} [nodesJson] GraphDiff nodesJson
-             * @property {string|null} [edgesJson] GraphDiff edgesJson
-             * @property {Array.<string>|null} [removeNodeIds] GraphDiff removeNodeIds
-             * @property {Array.<string>|null} [removeEdgeIds] GraphDiff removeEdgeIds
-             */
-
-            /**
-             * Constructs a new GraphDiff.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a GraphDiff.
-             * @implements IGraphDiff
-             * @constructor
-             * @param {flowcraft_proto.v1.IGraphDiff=} [properties] Properties to set
-             */
-            function GraphDiff(properties) {
-                this.removeNodeIds = [];
-                this.removeEdgeIds = [];
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * GraphDiff nodesJson.
-             * @member {string} nodesJson
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @instance
-             */
-            GraphDiff.prototype.nodesJson = "";
-
-            /**
-             * GraphDiff edgesJson.
-             * @member {string} edgesJson
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @instance
-             */
-            GraphDiff.prototype.edgesJson = "";
-
-            /**
-             * GraphDiff removeNodeIds.
-             * @member {Array.<string>} removeNodeIds
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @instance
-             */
-            GraphDiff.prototype.removeNodeIds = $util.emptyArray;
-
-            /**
-             * GraphDiff removeEdgeIds.
-             * @member {Array.<string>} removeEdgeIds
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @instance
-             */
-            GraphDiff.prototype.removeEdgeIds = $util.emptyArray;
-
-            /**
-             * Creates a new GraphDiff instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {flowcraft_proto.v1.IGraphDiff=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.GraphDiff} GraphDiff instance
-             */
-            GraphDiff.create = function create(properties) {
-                return new GraphDiff(properties);
-            };
-
-            /**
-             * Encodes the specified GraphDiff message. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {flowcraft_proto.v1.IGraphDiff} message GraphDiff message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            GraphDiff.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.nodesJson != null && Object.hasOwnProperty.call(message, "nodesJson"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.nodesJson);
-                if (message.edgesJson != null && Object.hasOwnProperty.call(message, "edgesJson"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.edgesJson);
-                if (message.removeNodeIds != null && message.removeNodeIds.length)
-                    for (let i = 0; i < message.removeNodeIds.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.removeNodeIds[i]);
-                if (message.removeEdgeIds != null && message.removeEdgeIds.length)
-                    for (let i = 0; i < message.removeEdgeIds.length; ++i)
-                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.removeEdgeIds[i]);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified GraphDiff message, length delimited. Does not implicitly {@link flowcraft_proto.v1.GraphDiff.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {flowcraft_proto.v1.IGraphDiff} message GraphDiff message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            GraphDiff.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a GraphDiff message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.GraphDiff} GraphDiff
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            GraphDiff.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.GraphDiff();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.nodesJson = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.edgesJson = reader.string();
-                            break;
-                        }
-                    case 3: {
-                            if (!(message.removeNodeIds && message.removeNodeIds.length))
-                                message.removeNodeIds = [];
-                            message.removeNodeIds.push(reader.string());
-                            break;
-                        }
-                    case 4: {
-                            if (!(message.removeEdgeIds && message.removeEdgeIds.length))
-                                message.removeEdgeIds = [];
-                            message.removeEdgeIds.push(reader.string());
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a GraphDiff message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.GraphDiff} GraphDiff
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            GraphDiff.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a GraphDiff message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            GraphDiff.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.nodesJson != null && message.hasOwnProperty("nodesJson"))
-                    if (!$util.isString(message.nodesJson))
-                        return "nodesJson: string expected";
-                if (message.edgesJson != null && message.hasOwnProperty("edgesJson"))
-                    if (!$util.isString(message.edgesJson))
-                        return "edgesJson: string expected";
-                if (message.removeNodeIds != null && message.hasOwnProperty("removeNodeIds")) {
-                    if (!Array.isArray(message.removeNodeIds))
-                        return "removeNodeIds: array expected";
-                    for (let i = 0; i < message.removeNodeIds.length; ++i)
-                        if (!$util.isString(message.removeNodeIds[i]))
-                            return "removeNodeIds: string[] expected";
-                }
-                if (message.removeEdgeIds != null && message.hasOwnProperty("removeEdgeIds")) {
-                    if (!Array.isArray(message.removeEdgeIds))
-                        return "removeEdgeIds: array expected";
-                    for (let i = 0; i < message.removeEdgeIds.length; ++i)
-                        if (!$util.isString(message.removeEdgeIds[i]))
-                            return "removeEdgeIds: string[] expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a GraphDiff message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.GraphDiff} GraphDiff
-             */
-            GraphDiff.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.GraphDiff)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.GraphDiff();
-                if (object.nodesJson != null)
-                    message.nodesJson = String(object.nodesJson);
-                if (object.edgesJson != null)
-                    message.edgesJson = String(object.edgesJson);
-                if (object.removeNodeIds) {
-                    if (!Array.isArray(object.removeNodeIds))
-                        throw TypeError(".flowcraft_proto.v1.GraphDiff.removeNodeIds: array expected");
-                    message.removeNodeIds = [];
-                    for (let i = 0; i < object.removeNodeIds.length; ++i)
-                        message.removeNodeIds[i] = String(object.removeNodeIds[i]);
-                }
-                if (object.removeEdgeIds) {
-                    if (!Array.isArray(object.removeEdgeIds))
-                        throw TypeError(".flowcraft_proto.v1.GraphDiff.removeEdgeIds: array expected");
-                    message.removeEdgeIds = [];
-                    for (let i = 0; i < object.removeEdgeIds.length; ++i)
-                        message.removeEdgeIds[i] = String(object.removeEdgeIds[i]);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a GraphDiff message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {flowcraft_proto.v1.GraphDiff} message GraphDiff
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            GraphDiff.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.arrays || options.defaults) {
-                    object.removeNodeIds = [];
-                    object.removeEdgeIds = [];
-                }
-                if (options.defaults) {
-                    object.nodesJson = "";
-                    object.edgesJson = "";
-                }
-                if (message.nodesJson != null && message.hasOwnProperty("nodesJson"))
-                    object.nodesJson = message.nodesJson;
-                if (message.edgesJson != null && message.hasOwnProperty("edgesJson"))
-                    object.edgesJson = message.edgesJson;
-                if (message.removeNodeIds && message.removeNodeIds.length) {
-                    object.removeNodeIds = [];
-                    for (let j = 0; j < message.removeNodeIds.length; ++j)
-                        object.removeNodeIds[j] = message.removeNodeIds[j];
-                }
-                if (message.removeEdgeIds && message.removeEdgeIds.length) {
-                    object.removeEdgeIds = [];
-                    for (let j = 0; j < message.removeEdgeIds.length; ++j)
-                        object.removeEdgeIds[j] = message.removeEdgeIds[j];
-                }
-                return object;
-            };
-
-            /**
-             * Converts this GraphDiff to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            GraphDiff.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for GraphDiff
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.GraphDiff
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            GraphDiff.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.GraphDiff";
-            };
-
-            return GraphDiff;
+            return TaskUpdate;
         })();
 
         v1.Position = (function() {
@@ -2523,988 +4485,6 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             return Viewport;
         })();
 
-        /**
-         * PortStyle enum.
-         * @name flowcraft_proto.v1.PortStyle
-         * @enum {number}
-         * @property {number} PORT_STYLE_CIRCLE=0 PORT_STYLE_CIRCLE value
-         * @property {number} PORT_STYLE_SQUARE=1 PORT_STYLE_SQUARE value
-         * @property {number} PORT_STYLE_DIAMOND=2 PORT_STYLE_DIAMOND value
-         * @property {number} PORT_STYLE_DASH=3 PORT_STYLE_DASH value
-         */
-        v1.PortStyle = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "PORT_STYLE_CIRCLE"] = 0;
-            values[valuesById[1] = "PORT_STYLE_SQUARE"] = 1;
-            values[valuesById[2] = "PORT_STYLE_DIAMOND"] = 2;
-            values[valuesById[3] = "PORT_STYLE_DASH"] = 3;
-            return values;
-        })();
-
-        v1.PortType = (function() {
-
-            /**
-             * Properties of a PortType.
-             * @memberof flowcraft_proto.v1
-             * @interface IPortType
-             * @property {string|null} [mainType] PortType mainType
-             * @property {string|null} [itemType] PortType itemType
-             * @property {boolean|null} [isGeneric] PortType isGeneric
-             */
-
-            /**
-             * Constructs a new PortType.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a PortType.
-             * @implements IPortType
-             * @constructor
-             * @param {flowcraft_proto.v1.IPortType=} [properties] Properties to set
-             */
-            function PortType(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * PortType mainType.
-             * @member {string} mainType
-             * @memberof flowcraft_proto.v1.PortType
-             * @instance
-             */
-            PortType.prototype.mainType = "";
-
-            /**
-             * PortType itemType.
-             * @member {string} itemType
-             * @memberof flowcraft_proto.v1.PortType
-             * @instance
-             */
-            PortType.prototype.itemType = "";
-
-            /**
-             * PortType isGeneric.
-             * @member {boolean} isGeneric
-             * @memberof flowcraft_proto.v1.PortType
-             * @instance
-             */
-            PortType.prototype.isGeneric = false;
-
-            /**
-             * Creates a new PortType instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {flowcraft_proto.v1.IPortType=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.PortType} PortType instance
-             */
-            PortType.create = function create(properties) {
-                return new PortType(properties);
-            };
-
-            /**
-             * Encodes the specified PortType message. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {flowcraft_proto.v1.IPortType} message PortType message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PortType.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.mainType != null && Object.hasOwnProperty.call(message, "mainType"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.mainType);
-                if (message.itemType != null && Object.hasOwnProperty.call(message, "itemType"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.itemType);
-                if (message.isGeneric != null && Object.hasOwnProperty.call(message, "isGeneric"))
-                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.isGeneric);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified PortType message, length delimited. Does not implicitly {@link flowcraft_proto.v1.PortType.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {flowcraft_proto.v1.IPortType} message PortType message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PortType.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a PortType message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.PortType} PortType
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PortType.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.PortType();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.mainType = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.itemType = reader.string();
-                            break;
-                        }
-                    case 3: {
-                            message.isGeneric = reader.bool();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a PortType message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.PortType} PortType
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PortType.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a PortType message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            PortType.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.mainType != null && message.hasOwnProperty("mainType"))
-                    if (!$util.isString(message.mainType))
-                        return "mainType: string expected";
-                if (message.itemType != null && message.hasOwnProperty("itemType"))
-                    if (!$util.isString(message.itemType))
-                        return "itemType: string expected";
-                if (message.isGeneric != null && message.hasOwnProperty("isGeneric"))
-                    if (typeof message.isGeneric !== "boolean")
-                        return "isGeneric: boolean expected";
-                return null;
-            };
-
-            /**
-             * Creates a PortType message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.PortType} PortType
-             */
-            PortType.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.PortType)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.PortType();
-                if (object.mainType != null)
-                    message.mainType = String(object.mainType);
-                if (object.itemType != null)
-                    message.itemType = String(object.itemType);
-                if (object.isGeneric != null)
-                    message.isGeneric = Boolean(object.isGeneric);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a PortType message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {flowcraft_proto.v1.PortType} message PortType
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            PortType.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.mainType = "";
-                    object.itemType = "";
-                    object.isGeneric = false;
-                }
-                if (message.mainType != null && message.hasOwnProperty("mainType"))
-                    object.mainType = message.mainType;
-                if (message.itemType != null && message.hasOwnProperty("itemType"))
-                    object.itemType = message.itemType;
-                if (message.isGeneric != null && message.hasOwnProperty("isGeneric"))
-                    object.isGeneric = message.isGeneric;
-                return object;
-            };
-
-            /**
-             * Converts this PortType to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.PortType
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            PortType.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for PortType
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.PortType
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            PortType.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.PortType";
-            };
-
-            return PortType;
-        })();
-
-        v1.Port = (function() {
-
-            /**
-             * Properties of a Port.
-             * @memberof flowcraft_proto.v1
-             * @interface IPort
-             * @property {string|null} [id] Port id
-             * @property {string|null} [label] Port label
-             * @property {flowcraft_proto.v1.IPortType|null} [type] Port type
-             * @property {flowcraft_proto.v1.PortStyle|null} [style] Port style
-             * @property {string|null} [color] Port color
-             * @property {string|null} [description] Port description
-             */
-
-            /**
-             * Constructs a new Port.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a Port.
-             * @implements IPort
-             * @constructor
-             * @param {flowcraft_proto.v1.IPort=} [properties] Properties to set
-             */
-            function Port(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * Port id.
-             * @member {string} id
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.id = "";
-
-            /**
-             * Port label.
-             * @member {string} label
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.label = "";
-
-            /**
-             * Port type.
-             * @member {flowcraft_proto.v1.IPortType|null|undefined} type
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.type = null;
-
-            /**
-             * Port style.
-             * @member {flowcraft_proto.v1.PortStyle} style
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.style = 0;
-
-            /**
-             * Port color.
-             * @member {string} color
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.color = "";
-
-            /**
-             * Port description.
-             * @member {string} description
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             */
-            Port.prototype.description = "";
-
-            /**
-             * Creates a new Port instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {flowcraft_proto.v1.IPort=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.Port} Port instance
-             */
-            Port.create = function create(properties) {
-                return new Port(properties);
-            };
-
-            /**
-             * Encodes the specified Port message. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {flowcraft_proto.v1.IPort} message Port message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Port.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
-                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.label);
-                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
-                    $root.flowcraft_proto.v1.PortType.encode(message.type, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
-                if (message.style != null && Object.hasOwnProperty.call(message, "style"))
-                    writer.uint32(/* id 4, wireType 0 =*/32).int32(message.style);
-                if (message.color != null && Object.hasOwnProperty.call(message, "color"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.color);
-                if (message.description != null && Object.hasOwnProperty.call(message, "description"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.description);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified Port message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Port.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {flowcraft_proto.v1.IPort} message Port message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Port.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a Port message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.Port} Port
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Port.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Port();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.id = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.label = reader.string();
-                            break;
-                        }
-                    case 3: {
-                            message.type = $root.flowcraft_proto.v1.PortType.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 4: {
-                            message.style = reader.int32();
-                            break;
-                        }
-                    case 5: {
-                            message.color = reader.string();
-                            break;
-                        }
-                    case 6: {
-                            message.description = reader.string();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a Port message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.Port} Port
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Port.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a Port message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            Port.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.id != null && message.hasOwnProperty("id"))
-                    if (!$util.isString(message.id))
-                        return "id: string expected";
-                if (message.label != null && message.hasOwnProperty("label"))
-                    if (!$util.isString(message.label))
-                        return "label: string expected";
-                if (message.type != null && message.hasOwnProperty("type")) {
-                    let error = $root.flowcraft_proto.v1.PortType.verify(message.type);
-                    if (error)
-                        return "type." + error;
-                }
-                if (message.style != null && message.hasOwnProperty("style"))
-                    switch (message.style) {
-                    default:
-                        return "style: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        break;
-                    }
-                if (message.color != null && message.hasOwnProperty("color"))
-                    if (!$util.isString(message.color))
-                        return "color: string expected";
-                if (message.description != null && message.hasOwnProperty("description"))
-                    if (!$util.isString(message.description))
-                        return "description: string expected";
-                return null;
-            };
-
-            /**
-             * Creates a Port message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.Port} Port
-             */
-            Port.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.Port)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.Port();
-                if (object.id != null)
-                    message.id = String(object.id);
-                if (object.label != null)
-                    message.label = String(object.label);
-                if (object.type != null) {
-                    if (typeof object.type !== "object")
-                        throw TypeError(".flowcraft_proto.v1.Port.type: object expected");
-                    message.type = $root.flowcraft_proto.v1.PortType.fromObject(object.type);
-                }
-                switch (object.style) {
-                default:
-                    if (typeof object.style === "number") {
-                        message.style = object.style;
-                        break;
-                    }
-                    break;
-                case "PORT_STYLE_CIRCLE":
-                case 0:
-                    message.style = 0;
-                    break;
-                case "PORT_STYLE_SQUARE":
-                case 1:
-                    message.style = 1;
-                    break;
-                case "PORT_STYLE_DIAMOND":
-                case 2:
-                    message.style = 2;
-                    break;
-                case "PORT_STYLE_DASH":
-                case 3:
-                    message.style = 3;
-                    break;
-                }
-                if (object.color != null)
-                    message.color = String(object.color);
-                if (object.description != null)
-                    message.description = String(object.description);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a Port message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {flowcraft_proto.v1.Port} message Port
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            Port.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.id = "";
-                    object.label = "";
-                    object.type = null;
-                    object.style = options.enums === String ? "PORT_STYLE_CIRCLE" : 0;
-                    object.color = "";
-                    object.description = "";
-                }
-                if (message.id != null && message.hasOwnProperty("id"))
-                    object.id = message.id;
-                if (message.label != null && message.hasOwnProperty("label"))
-                    object.label = message.label;
-                if (message.type != null && message.hasOwnProperty("type"))
-                    object.type = $root.flowcraft_proto.v1.PortType.toObject(message.type, options);
-                if (message.style != null && message.hasOwnProperty("style"))
-                    object.style = options.enums === String ? $root.flowcraft_proto.v1.PortStyle[message.style] === undefined ? message.style : $root.flowcraft_proto.v1.PortStyle[message.style] : message.style;
-                if (message.color != null && message.hasOwnProperty("color"))
-                    object.color = message.color;
-                if (message.description != null && message.hasOwnProperty("description"))
-                    object.description = message.description;
-                return object;
-            };
-
-            /**
-             * Converts this Port to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.Port
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            Port.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for Port
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.Port
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            Port.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.Port";
-            };
-
-            return Port;
-        })();
-
-        v1.Edge = (function() {
-
-            /**
-             * Properties of an Edge.
-             * @memberof flowcraft_proto.v1
-             * @interface IEdge
-             * @property {string|null} [id] Edge id
-             * @property {string|null} [source] Edge source
-             * @property {string|null} [target] Edge target
-             * @property {string|null} [sourceHandle] Edge sourceHandle
-             * @property {string|null} [targetHandle] Edge targetHandle
-             * @property {Object.<string,string>|null} [metadata] Edge metadata
-             */
-
-            /**
-             * Constructs a new Edge.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents an Edge.
-             * @implements IEdge
-             * @constructor
-             * @param {flowcraft_proto.v1.IEdge=} [properties] Properties to set
-             */
-            function Edge(properties) {
-                this.metadata = {};
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * Edge id.
-             * @member {string} id
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.id = "";
-
-            /**
-             * Edge source.
-             * @member {string} source
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.source = "";
-
-            /**
-             * Edge target.
-             * @member {string} target
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.target = "";
-
-            /**
-             * Edge sourceHandle.
-             * @member {string} sourceHandle
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.sourceHandle = "";
-
-            /**
-             * Edge targetHandle.
-             * @member {string} targetHandle
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.targetHandle = "";
-
-            /**
-             * Edge metadata.
-             * @member {Object.<string,string>} metadata
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             */
-            Edge.prototype.metadata = $util.emptyObject;
-
-            /**
-             * Creates a new Edge instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {flowcraft_proto.v1.IEdge=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.Edge} Edge instance
-             */
-            Edge.create = function create(properties) {
-                return new Edge(properties);
-            };
-
-            /**
-             * Encodes the specified Edge message. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {flowcraft_proto.v1.IEdge} message Edge message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Edge.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
-                if (message.source != null && Object.hasOwnProperty.call(message, "source"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.source);
-                if (message.target != null && Object.hasOwnProperty.call(message, "target"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.target);
-                if (message.sourceHandle != null && Object.hasOwnProperty.call(message, "sourceHandle"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.sourceHandle);
-                if (message.targetHandle != null && Object.hasOwnProperty.call(message, "targetHandle"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.targetHandle);
-                if (message.metadata != null && Object.hasOwnProperty.call(message, "metadata"))
-                    for (let keys = Object.keys(message.metadata), i = 0; i < keys.length; ++i)
-                        writer.uint32(/* id 6, wireType 2 =*/50).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.metadata[keys[i]]).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified Edge message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Edge.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {flowcraft_proto.v1.IEdge} message Edge message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Edge.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes an Edge message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.Edge} Edge
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Edge.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Edge(), key, value;
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.id = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.source = reader.string();
-                            break;
-                        }
-                    case 3: {
-                            message.target = reader.string();
-                            break;
-                        }
-                    case 4: {
-                            message.sourceHandle = reader.string();
-                            break;
-                        }
-                    case 5: {
-                            message.targetHandle = reader.string();
-                            break;
-                        }
-                    case 6: {
-                            if (message.metadata === $util.emptyObject)
-                                message.metadata = {};
-                            let end2 = reader.uint32() + reader.pos;
-                            key = "";
-                            value = "";
-                            while (reader.pos < end2) {
-                                let tag2 = reader.uint32();
-                                switch (tag2 >>> 3) {
-                                case 1:
-                                    key = reader.string();
-                                    break;
-                                case 2:
-                                    value = reader.string();
-                                    break;
-                                default:
-                                    reader.skipType(tag2 & 7);
-                                    break;
-                                }
-                            }
-                            message.metadata[key] = value;
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes an Edge message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.Edge} Edge
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Edge.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies an Edge message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            Edge.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.id != null && message.hasOwnProperty("id"))
-                    if (!$util.isString(message.id))
-                        return "id: string expected";
-                if (message.source != null && message.hasOwnProperty("source"))
-                    if (!$util.isString(message.source))
-                        return "source: string expected";
-                if (message.target != null && message.hasOwnProperty("target"))
-                    if (!$util.isString(message.target))
-                        return "target: string expected";
-                if (message.sourceHandle != null && message.hasOwnProperty("sourceHandle"))
-                    if (!$util.isString(message.sourceHandle))
-                        return "sourceHandle: string expected";
-                if (message.targetHandle != null && message.hasOwnProperty("targetHandle"))
-                    if (!$util.isString(message.targetHandle))
-                        return "targetHandle: string expected";
-                if (message.metadata != null && message.hasOwnProperty("metadata")) {
-                    if (!$util.isObject(message.metadata))
-                        return "metadata: object expected";
-                    let key = Object.keys(message.metadata);
-                    for (let i = 0; i < key.length; ++i)
-                        if (!$util.isString(message.metadata[key[i]]))
-                            return "metadata: string{k:string} expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates an Edge message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.Edge} Edge
-             */
-            Edge.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.Edge)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.Edge();
-                if (object.id != null)
-                    message.id = String(object.id);
-                if (object.source != null)
-                    message.source = String(object.source);
-                if (object.target != null)
-                    message.target = String(object.target);
-                if (object.sourceHandle != null)
-                    message.sourceHandle = String(object.sourceHandle);
-                if (object.targetHandle != null)
-                    message.targetHandle = String(object.targetHandle);
-                if (object.metadata) {
-                    if (typeof object.metadata !== "object")
-                        throw TypeError(".flowcraft_proto.v1.Edge.metadata: object expected");
-                    message.metadata = {};
-                    for (let keys = Object.keys(object.metadata), i = 0; i < keys.length; ++i)
-                        message.metadata[keys[i]] = String(object.metadata[keys[i]]);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an Edge message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {flowcraft_proto.v1.Edge} message Edge
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            Edge.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.objects || options.defaults)
-                    object.metadata = {};
-                if (options.defaults) {
-                    object.id = "";
-                    object.source = "";
-                    object.target = "";
-                    object.sourceHandle = "";
-                    object.targetHandle = "";
-                }
-                if (message.id != null && message.hasOwnProperty("id"))
-                    object.id = message.id;
-                if (message.source != null && message.hasOwnProperty("source"))
-                    object.source = message.source;
-                if (message.target != null && message.hasOwnProperty("target"))
-                    object.target = message.target;
-                if (message.sourceHandle != null && message.hasOwnProperty("sourceHandle"))
-                    object.sourceHandle = message.sourceHandle;
-                if (message.targetHandle != null && message.hasOwnProperty("targetHandle"))
-                    object.targetHandle = message.targetHandle;
-                let keys2;
-                if (message.metadata && (keys2 = Object.keys(message.metadata)).length) {
-                    object.metadata = {};
-                    for (let j = 0; j < keys2.length; ++j)
-                        object.metadata[keys2[j]] = message.metadata[keys2[j]];
-                }
-                return object;
-            };
-
-            /**
-             * Converts this Edge to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.Edge
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            Edge.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for Edge
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.Edge
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            Edge.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.Edge";
-            };
-
-            return Edge;
-        })();
-
         v1.FlowMessage = (function() {
 
             /**
@@ -3521,6 +4501,7 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
              * @property {flowcraft_proto.v1.IActionDiscoveryRequest|null} [actionDiscovery] FlowMessage actionDiscovery
              * @property {flowcraft_proto.v1.ITaskCancelRequest|null} [taskCancel] FlowMessage taskCancel
              * @property {flowcraft_proto.v1.IViewportUpdate|null} [viewportUpdate] FlowMessage viewportUpdate
+             * @property {flowcraft_proto.v1.IWidgetSignal|null} [widgetSignal] FlowMessage widgetSignal
              * @property {flowcraft_proto.v1.IGraphSnapshot|null} [snapshot] FlowMessage snapshot
              * @property {flowcraft_proto.v1.IMutationList|null} [mutations] FlowMessage mutations
              * @property {flowcraft_proto.v1.IActionDiscoveryResponse|null} [actions] FlowMessage actions
@@ -3625,6 +4606,14 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             FlowMessage.prototype.viewportUpdate = null;
 
             /**
+             * FlowMessage widgetSignal.
+             * @member {flowcraft_proto.v1.IWidgetSignal|null|undefined} widgetSignal
+             * @memberof flowcraft_proto.v1.FlowMessage
+             * @instance
+             */
+            FlowMessage.prototype.widgetSignal = null;
+
+            /**
              * FlowMessage snapshot.
              * @member {flowcraft_proto.v1.IGraphSnapshot|null|undefined} snapshot
              * @memberof flowcraft_proto.v1.FlowMessage
@@ -3677,12 +4666,12 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
 
             /**
              * FlowMessage payload.
-             * @member {"syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"actionDiscovery"|"taskCancel"|"viewportUpdate"|"snapshot"|"mutations"|"actions"|"taskUpdate"|"streamChunk"|"error"|undefined} payload
+             * @member {"syncRequest"|"yjsUpdate"|"nodeUpdate"|"widgetUpdate"|"actionExecute"|"actionDiscovery"|"taskCancel"|"viewportUpdate"|"widgetSignal"|"snapshot"|"mutations"|"actions"|"taskUpdate"|"streamChunk"|"error"|undefined} payload
              * @memberof flowcraft_proto.v1.FlowMessage
              * @instance
              */
             Object.defineProperty(FlowMessage.prototype, "payload", {
-                get: $util.oneOfGetter($oneOfFields = ["syncRequest", "yjsUpdate", "nodeUpdate", "widgetUpdate", "actionExecute", "actionDiscovery", "taskCancel", "viewportUpdate", "snapshot", "mutations", "actions", "taskUpdate", "streamChunk", "error"]),
+                get: $util.oneOfGetter($oneOfFields = ["syncRequest", "yjsUpdate", "nodeUpdate", "widgetUpdate", "actionExecute", "actionDiscovery", "taskCancel", "viewportUpdate", "widgetSignal", "snapshot", "mutations", "actions", "taskUpdate", "streamChunk", "error"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -3730,6 +4719,8 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     $root.flowcraft_proto.v1.ViewportUpdate.encode(message.viewportUpdate, writer.uint32(/* id 16, wireType 2 =*/130).fork()).ldelim();
                 if (message.actionDiscovery != null && Object.hasOwnProperty.call(message, "actionDiscovery"))
                     $root.flowcraft_proto.v1.ActionDiscoveryRequest.encode(message.actionDiscovery, writer.uint32(/* id 17, wireType 2 =*/138).fork()).ldelim();
+                if (message.widgetSignal != null && Object.hasOwnProperty.call(message, "widgetSignal"))
+                    $root.flowcraft_proto.v1.WidgetSignal.encode(message.widgetSignal, writer.uint32(/* id 18, wireType 2 =*/146).fork()).ldelim();
                 if (message.snapshot != null && Object.hasOwnProperty.call(message, "snapshot"))
                     $root.flowcraft_proto.v1.GraphSnapshot.encode(message.snapshot, writer.uint32(/* id 20, wireType 2 =*/162).fork()).ldelim();
                 if (message.mutations != null && Object.hasOwnProperty.call(message, "mutations"))
@@ -3816,6 +4807,10 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                         }
                     case 16: {
                             message.viewportUpdate = $root.flowcraft_proto.v1.ViewportUpdate.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 18: {
+                            message.widgetSignal = $root.flowcraft_proto.v1.WidgetSignal.decode(reader, reader.uint32());
                             break;
                         }
                     case 20: {
@@ -3959,6 +4954,16 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                             return "viewportUpdate." + error;
                     }
                 }
+                if (message.widgetSignal != null && message.hasOwnProperty("widgetSignal")) {
+                    if (properties.payload === 1)
+                        return "payload: multiple values";
+                    properties.payload = 1;
+                    {
+                        let error = $root.flowcraft_proto.v1.WidgetSignal.verify(message.widgetSignal);
+                        if (error)
+                            return "widgetSignal." + error;
+                    }
+                }
                 if (message.snapshot != null && message.hasOwnProperty("snapshot")) {
                     if (properties.payload === 1)
                         return "payload: multiple values";
@@ -4085,6 +5090,11 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                         throw TypeError(".flowcraft_proto.v1.FlowMessage.viewportUpdate: object expected");
                     message.viewportUpdate = $root.flowcraft_proto.v1.ViewportUpdate.fromObject(object.viewportUpdate);
                 }
+                if (object.widgetSignal != null) {
+                    if (typeof object.widgetSignal !== "object")
+                        throw TypeError(".flowcraft_proto.v1.FlowMessage.widgetSignal: object expected");
+                    message.widgetSignal = $root.flowcraft_proto.v1.WidgetSignal.fromObject(object.widgetSignal);
+                }
                 if (object.snapshot != null) {
                     if (typeof object.snapshot !== "object")
                         throw TypeError(".flowcraft_proto.v1.FlowMessage.snapshot: object expected");
@@ -4185,6 +5195,11 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     object.actionDiscovery = $root.flowcraft_proto.v1.ActionDiscoveryRequest.toObject(message.actionDiscovery, options);
                     if (options.oneofs)
                         object.payload = "actionDiscovery";
+                }
+                if (message.widgetSignal != null && message.hasOwnProperty("widgetSignal")) {
+                    object.widgetSignal = $root.flowcraft_proto.v1.WidgetSignal.toObject(message.widgetSignal, options);
+                    if (options.oneofs)
+                        object.payload = "widgetSignal";
                 }
                 if (message.snapshot != null && message.hasOwnProperty("snapshot")) {
                     object.snapshot = $root.flowcraft_proto.v1.GraphSnapshot.toObject(message.snapshot, options);
@@ -5974,74 +6989,6 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             return ErrorResponse;
         })();
 
-        v1.FlowService = (function() {
-
-            /**
-             * Constructs a new FlowService service.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a FlowService
-             * @extends $protobuf.rpc.Service
-             * @constructor
-             * @param {$protobuf.RPCImpl} rpcImpl RPC implementation
-             * @param {boolean} [requestDelimited=false] Whether requests are length-delimited
-             * @param {boolean} [responseDelimited=false] Whether responses are length-delimited
-             */
-            function FlowService(rpcImpl, requestDelimited, responseDelimited) {
-                $protobuf.rpc.Service.call(this, rpcImpl, requestDelimited, responseDelimited);
-            }
-
-            (FlowService.prototype = Object.create($protobuf.rpc.Service.prototype)).constructor = FlowService;
-
-            /**
-             * Creates new FlowService service using the specified rpc implementation.
-             * @function create
-             * @memberof flowcraft_proto.v1.FlowService
-             * @static
-             * @param {$protobuf.RPCImpl} rpcImpl RPC implementation
-             * @param {boolean} [requestDelimited=false] Whether requests are length-delimited
-             * @param {boolean} [responseDelimited=false] Whether responses are length-delimited
-             * @returns {FlowService} RPC service. Useful where requests and/or responses are streamed.
-             */
-            FlowService.create = function create(rpcImpl, requestDelimited, responseDelimited) {
-                return new this(rpcImpl, requestDelimited, responseDelimited);
-            };
-
-            /**
-             * Callback as used by {@link flowcraft_proto.v1.FlowService#connect}.
-             * @memberof flowcraft_proto.v1.FlowService
-             * @typedef ConnectCallback
-             * @type {function}
-             * @param {Error|null} error Error, if any
-             * @param {flowcraft_proto.v1.FlowMessage} [response] FlowMessage
-             */
-
-            /**
-             * Calls Connect.
-             * @function connect
-             * @memberof flowcraft_proto.v1.FlowService
-             * @instance
-             * @param {flowcraft_proto.v1.IFlowMessage} request FlowMessage message or plain object
-             * @param {flowcraft_proto.v1.FlowService.ConnectCallback} callback Node-style callback called with the error, if any, and FlowMessage
-             * @returns {undefined}
-             * @variation 1
-             */
-            Object.defineProperty(FlowService.prototype.connect = function connect(request, callback) {
-                return this.rpcCall(connect, $root.flowcraft_proto.v1.FlowMessage, $root.flowcraft_proto.v1.FlowMessage, request, callback);
-            }, "name", { value: "Connect" });
-
-            /**
-             * Calls Connect.
-             * @function connect
-             * @memberof flowcraft_proto.v1.FlowService
-             * @instance
-             * @param {flowcraft_proto.v1.IFlowMessage} request FlowMessage message or plain object
-             * @returns {Promise<flowcraft_proto.v1.FlowMessage>} Promise
-             * @variation 2
-             */
-
-            return FlowService;
-        })();
-
         v1.GraphSnapshot = (function() {
 
             /**
@@ -7009,6 +7956,9 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
              * @property {string|null} [id] UpdateNode id
              * @property {flowcraft_proto.v1.INodeData|null} [data] UpdateNode data
              * @property {flowcraft_proto.v1.IPosition|null} [position] UpdateNode position
+             * @property {string|null} [parentId] UpdateNode parentId
+             * @property {number|null} [width] UpdateNode width
+             * @property {number|null} [height] UpdateNode height
              */
 
             /**
@@ -7051,6 +8001,30 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             UpdateNode.prototype.position = null;
 
             /**
+             * UpdateNode parentId.
+             * @member {string} parentId
+             * @memberof flowcraft_proto.v1.UpdateNode
+             * @instance
+             */
+            UpdateNode.prototype.parentId = "";
+
+            /**
+             * UpdateNode width.
+             * @member {number} width
+             * @memberof flowcraft_proto.v1.UpdateNode
+             * @instance
+             */
+            UpdateNode.prototype.width = 0;
+
+            /**
+             * UpdateNode height.
+             * @member {number} height
+             * @memberof flowcraft_proto.v1.UpdateNode
+             * @instance
+             */
+            UpdateNode.prototype.height = 0;
+
+            /**
              * Creates a new UpdateNode instance using the specified properties.
              * @function create
              * @memberof flowcraft_proto.v1.UpdateNode
@@ -7080,6 +8054,12 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     $root.flowcraft_proto.v1.NodeData.encode(message.data, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
                 if (message.position != null && Object.hasOwnProperty.call(message, "position"))
                     $root.flowcraft_proto.v1.Position.encode(message.position, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.parentId != null && Object.hasOwnProperty.call(message, "parentId"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.parentId);
+                if (message.width != null && Object.hasOwnProperty.call(message, "width"))
+                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.width);
+                if (message.height != null && Object.hasOwnProperty.call(message, "height"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.height);
                 return writer;
             };
 
@@ -7126,6 +8106,18 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                         }
                     case 3: {
                             message.position = $root.flowcraft_proto.v1.Position.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.parentId = reader.string();
+                            break;
+                        }
+                    case 5: {
+                            message.width = reader.double();
+                            break;
+                        }
+                    case 6: {
+                            message.height = reader.double();
                             break;
                         }
                     default:
@@ -7176,6 +8168,15 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     if (error)
                         return "position." + error;
                 }
+                if (message.parentId != null && message.hasOwnProperty("parentId"))
+                    if (!$util.isString(message.parentId))
+                        return "parentId: string expected";
+                if (message.width != null && message.hasOwnProperty("width"))
+                    if (typeof message.width !== "number")
+                        return "width: number expected";
+                if (message.height != null && message.hasOwnProperty("height"))
+                    if (typeof message.height !== "number")
+                        return "height: number expected";
                 return null;
             };
 
@@ -7203,6 +8204,12 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                         throw TypeError(".flowcraft_proto.v1.UpdateNode.position: object expected");
                     message.position = $root.flowcraft_proto.v1.Position.fromObject(object.position);
                 }
+                if (object.parentId != null)
+                    message.parentId = String(object.parentId);
+                if (object.width != null)
+                    message.width = Number(object.width);
+                if (object.height != null)
+                    message.height = Number(object.height);
                 return message;
             };
 
@@ -7223,6 +8230,9 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     object.id = "";
                     object.data = null;
                     object.position = null;
+                    object.parentId = "";
+                    object.width = 0;
+                    object.height = 0;
                 }
                 if (message.id != null && message.hasOwnProperty("id"))
                     object.id = message.id;
@@ -7230,6 +8240,12 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     object.data = $root.flowcraft_proto.v1.NodeData.toObject(message.data, options);
                 if (message.position != null && message.hasOwnProperty("position"))
                     object.position = $root.flowcraft_proto.v1.Position.toObject(message.position, options);
+                if (message.parentId != null && message.hasOwnProperty("parentId"))
+                    object.parentId = message.parentId;
+                if (message.width != null && message.hasOwnProperty("width"))
+                    object.width = options.json && !isFinite(message.width) ? String(message.width) : message.width;
+                if (message.height != null && message.hasOwnProperty("height"))
+                    object.height = options.json && !isFinite(message.height) ? String(message.height) : message.height;
                 return object;
             };
 
@@ -8330,358 +9346,6 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             return ClearGraph;
         })();
 
-        v1.TaskUpdate = (function() {
-
-            /**
-             * Properties of a TaskUpdate.
-             * @memberof flowcraft_proto.v1
-             * @interface ITaskUpdate
-             * @property {string|null} [taskId] TaskUpdate taskId
-             * @property {flowcraft_proto.v1.TaskStatus|null} [status] TaskUpdate status
-             * @property {number|null} [progress] TaskUpdate progress
-             * @property {string|null} [message] TaskUpdate message
-             * @property {string|null} [resultJson] TaskUpdate resultJson
-             */
-
-            /**
-             * Constructs a new TaskUpdate.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a TaskUpdate.
-             * @implements ITaskUpdate
-             * @constructor
-             * @param {flowcraft_proto.v1.ITaskUpdate=} [properties] Properties to set
-             */
-            function TaskUpdate(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * TaskUpdate taskId.
-             * @member {string} taskId
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             */
-            TaskUpdate.prototype.taskId = "";
-
-            /**
-             * TaskUpdate status.
-             * @member {flowcraft_proto.v1.TaskStatus} status
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             */
-            TaskUpdate.prototype.status = 0;
-
-            /**
-             * TaskUpdate progress.
-             * @member {number} progress
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             */
-            TaskUpdate.prototype.progress = 0;
-
-            /**
-             * TaskUpdate message.
-             * @member {string} message
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             */
-            TaskUpdate.prototype.message = "";
-
-            /**
-             * TaskUpdate resultJson.
-             * @member {string} resultJson
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             */
-            TaskUpdate.prototype.resultJson = "";
-
-            /**
-             * Creates a new TaskUpdate instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {flowcraft_proto.v1.ITaskUpdate=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate instance
-             */
-            TaskUpdate.create = function create(properties) {
-                return new TaskUpdate(properties);
-            };
-
-            /**
-             * Encodes the specified TaskUpdate message. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {flowcraft_proto.v1.ITaskUpdate} message TaskUpdate message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            TaskUpdate.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.taskId != null && Object.hasOwnProperty.call(message, "taskId"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.taskId);
-                if (message.status != null && Object.hasOwnProperty.call(message, "status"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.status);
-                if (message.progress != null && Object.hasOwnProperty.call(message, "progress"))
-                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.progress);
-                if (message.message != null && Object.hasOwnProperty.call(message, "message"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.message);
-                if (message.resultJson != null && Object.hasOwnProperty.call(message, "resultJson"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.resultJson);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified TaskUpdate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.TaskUpdate.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {flowcraft_proto.v1.ITaskUpdate} message TaskUpdate message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            TaskUpdate.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a TaskUpdate message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            TaskUpdate.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.TaskUpdate();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.taskId = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.status = reader.int32();
-                            break;
-                        }
-                    case 3: {
-                            message.progress = reader.double();
-                            break;
-                        }
-                    case 4: {
-                            message.message = reader.string();
-                            break;
-                        }
-                    case 5: {
-                            message.resultJson = reader.string();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a TaskUpdate message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            TaskUpdate.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a TaskUpdate message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            TaskUpdate.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.taskId != null && message.hasOwnProperty("taskId"))
-                    if (!$util.isString(message.taskId))
-                        return "taskId: string expected";
-                if (message.status != null && message.hasOwnProperty("status"))
-                    switch (message.status) {
-                    default:
-                        return "status: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                        break;
-                    }
-                if (message.progress != null && message.hasOwnProperty("progress"))
-                    if (typeof message.progress !== "number")
-                        return "progress: number expected";
-                if (message.message != null && message.hasOwnProperty("message"))
-                    if (!$util.isString(message.message))
-                        return "message: string expected";
-                if (message.resultJson != null && message.hasOwnProperty("resultJson"))
-                    if (!$util.isString(message.resultJson))
-                        return "resultJson: string expected";
-                return null;
-            };
-
-            /**
-             * Creates a TaskUpdate message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.TaskUpdate} TaskUpdate
-             */
-            TaskUpdate.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.TaskUpdate)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.TaskUpdate();
-                if (object.taskId != null)
-                    message.taskId = String(object.taskId);
-                switch (object.status) {
-                default:
-                    if (typeof object.status === "number") {
-                        message.status = object.status;
-                        break;
-                    }
-                    break;
-                case "TASK_PENDING":
-                case 0:
-                    message.status = 0;
-                    break;
-                case "TASK_PROCESSING":
-                case 1:
-                    message.status = 1;
-                    break;
-                case "TASK_COMPLETED":
-                case 2:
-                    message.status = 2;
-                    break;
-                case "TASK_FAILED":
-                case 3:
-                    message.status = 3;
-                    break;
-                case "TASK_CANCELLED":
-                case 4:
-                    message.status = 4;
-                    break;
-                }
-                if (object.progress != null)
-                    message.progress = Number(object.progress);
-                if (object.message != null)
-                    message.message = String(object.message);
-                if (object.resultJson != null)
-                    message.resultJson = String(object.resultJson);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a TaskUpdate message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {flowcraft_proto.v1.TaskUpdate} message TaskUpdate
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            TaskUpdate.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.taskId = "";
-                    object.status = options.enums === String ? "TASK_PENDING" : 0;
-                    object.progress = 0;
-                    object.message = "";
-                    object.resultJson = "";
-                }
-                if (message.taskId != null && message.hasOwnProperty("taskId"))
-                    object.taskId = message.taskId;
-                if (message.status != null && message.hasOwnProperty("status"))
-                    object.status = options.enums === String ? $root.flowcraft_proto.v1.TaskStatus[message.status] === undefined ? message.status : $root.flowcraft_proto.v1.TaskStatus[message.status] : message.status;
-                if (message.progress != null && message.hasOwnProperty("progress"))
-                    object.progress = options.json && !isFinite(message.progress) ? String(message.progress) : message.progress;
-                if (message.message != null && message.hasOwnProperty("message"))
-                    object.message = message.message;
-                if (message.resultJson != null && message.hasOwnProperty("resultJson"))
-                    object.resultJson = message.resultJson;
-                return object;
-            };
-
-            /**
-             * Converts this TaskUpdate to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            TaskUpdate.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for TaskUpdate
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.TaskUpdate
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            TaskUpdate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.TaskUpdate";
-            };
-
-            return TaskUpdate;
-        })();
-
-        /**
-         * TaskStatus enum.
-         * @name flowcraft_proto.v1.TaskStatus
-         * @enum {number}
-         * @property {number} TASK_PENDING=0 TASK_PENDING value
-         * @property {number} TASK_PROCESSING=1 TASK_PROCESSING value
-         * @property {number} TASK_COMPLETED=2 TASK_COMPLETED value
-         * @property {number} TASK_FAILED=3 TASK_FAILED value
-         * @property {number} TASK_CANCELLED=4 TASK_CANCELLED value
-         */
-        v1.TaskStatus = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "TASK_PENDING"] = 0;
-            values[valuesById[1] = "TASK_PROCESSING"] = 1;
-            values[valuesById[2] = "TASK_COMPLETED"] = 2;
-            values[valuesById[3] = "TASK_FAILED"] = 3;
-            values[valuesById[4] = "TASK_CANCELLED"] = 4;
-            return values;
-        })();
-
         v1.TaskCancelRequest = (function() {
 
             /**
@@ -8887,31 +9551,28 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             return TaskCancelRequest;
         })();
 
-        v1.Node = (function() {
+        v1.WidgetSignal = (function() {
 
             /**
-             * Properties of a Node.
+             * Properties of a WidgetSignal.
              * @memberof flowcraft_proto.v1
-             * @interface INode
-             * @property {string|null} [id] Node id
-             * @property {string|null} [type] Node type
-             * @property {flowcraft_proto.v1.IPosition|null} [position] Node position
-             * @property {flowcraft_proto.v1.INodeData|null} [data] Node data
-             * @property {number|null} [width] Node width
-             * @property {number|null} [height] Node height
-             * @property {boolean|null} [selected] Node selected
-             * @property {string|null} [parentId] Node parentId
+             * @interface IWidgetSignal
+             * @property {string|null} [nodeId] WidgetSignal nodeId
+             * @property {string|null} [widgetId] WidgetSignal widgetId
+             * @property {flowcraft_proto.v1.IMarkdownStream|null} [markdownStream] WidgetSignal markdownStream
+             * @property {flowcraft_proto.v1.ISelectQuery|null} [selectQuery] WidgetSignal selectQuery
+             * @property {flowcraft_proto.v1.ISelectResult|null} [selectResult] WidgetSignal selectResult
              */
 
             /**
-             * Constructs a new Node.
+             * Constructs a new WidgetSignal.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents a Node.
-             * @implements INode
+             * @classdesc Represents a WidgetSignal.
+             * @implements IWidgetSignal
              * @constructor
-             * @param {flowcraft_proto.v1.INode=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.IWidgetSignal=} [properties] Properties to set
              */
-            function Node(properties) {
+            function WidgetSignal(properties) {
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -8919,175 +9580,147 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * Node id.
-             * @member {string} id
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal nodeId.
+             * @member {string} nodeId
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.id = "";
+            WidgetSignal.prototype.nodeId = "";
 
             /**
-             * Node type.
-             * @member {string} type
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal widgetId.
+             * @member {string} widgetId
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.type = "";
+            WidgetSignal.prototype.widgetId = "";
 
             /**
-             * Node position.
-             * @member {flowcraft_proto.v1.IPosition|null|undefined} position
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal markdownStream.
+             * @member {flowcraft_proto.v1.IMarkdownStream|null|undefined} markdownStream
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.position = null;
+            WidgetSignal.prototype.markdownStream = null;
 
             /**
-             * Node data.
-             * @member {flowcraft_proto.v1.INodeData|null|undefined} data
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal selectQuery.
+             * @member {flowcraft_proto.v1.ISelectQuery|null|undefined} selectQuery
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.data = null;
+            WidgetSignal.prototype.selectQuery = null;
 
             /**
-             * Node width.
-             * @member {number} width
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal selectResult.
+             * @member {flowcraft_proto.v1.ISelectResult|null|undefined} selectResult
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.width = 0;
+            WidgetSignal.prototype.selectResult = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
 
             /**
-             * Node height.
-             * @member {number} height
-             * @memberof flowcraft_proto.v1.Node
+             * WidgetSignal payload.
+             * @member {"markdownStream"|"selectQuery"|"selectResult"|undefined} payload
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              */
-            Node.prototype.height = 0;
+            Object.defineProperty(WidgetSignal.prototype, "payload", {
+                get: $util.oneOfGetter($oneOfFields = ["markdownStream", "selectQuery", "selectResult"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
-             * Node selected.
-             * @member {boolean} selected
-             * @memberof flowcraft_proto.v1.Node
-             * @instance
-             */
-            Node.prototype.selected = false;
-
-            /**
-             * Node parentId.
-             * @member {string} parentId
-             * @memberof flowcraft_proto.v1.Node
-             * @instance
-             */
-            Node.prototype.parentId = "";
-
-            /**
-             * Creates a new Node instance using the specified properties.
+             * Creates a new WidgetSignal instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
-             * @param {flowcraft_proto.v1.INode=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.Node} Node instance
+             * @param {flowcraft_proto.v1.IWidgetSignal=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.WidgetSignal} WidgetSignal instance
              */
-            Node.create = function create(properties) {
-                return new Node(properties);
+            WidgetSignal.create = function create(properties) {
+                return new WidgetSignal(properties);
             };
 
             /**
-             * Encodes the specified Node message. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
+             * Encodes the specified WidgetSignal message. Does not implicitly {@link flowcraft_proto.v1.WidgetSignal.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
-             * @param {flowcraft_proto.v1.INode} message Node message or plain object to encode
+             * @param {flowcraft_proto.v1.IWidgetSignal} message WidgetSignal message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            Node.encode = function encode(message, writer) {
+            WidgetSignal.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
-                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.type);
-                if (message.position != null && Object.hasOwnProperty.call(message, "position"))
-                    $root.flowcraft_proto.v1.Position.encode(message.position, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
-                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
-                    $root.flowcraft_proto.v1.NodeData.encode(message.data, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
-                if (message.width != null && Object.hasOwnProperty.call(message, "width"))
-                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.width);
-                if (message.height != null && Object.hasOwnProperty.call(message, "height"))
-                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.height);
-                if (message.selected != null && Object.hasOwnProperty.call(message, "selected"))
-                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.selected);
-                if (message.parentId != null && Object.hasOwnProperty.call(message, "parentId"))
-                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.parentId);
+                if (message.nodeId != null && Object.hasOwnProperty.call(message, "nodeId"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.nodeId);
+                if (message.widgetId != null && Object.hasOwnProperty.call(message, "widgetId"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.widgetId);
+                if (message.markdownStream != null && Object.hasOwnProperty.call(message, "markdownStream"))
+                    $root.flowcraft_proto.v1.MarkdownStream.encode(message.markdownStream, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.selectQuery != null && Object.hasOwnProperty.call(message, "selectQuery"))
+                    $root.flowcraft_proto.v1.SelectQuery.encode(message.selectQuery, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                if (message.selectResult != null && Object.hasOwnProperty.call(message, "selectResult"))
+                    $root.flowcraft_proto.v1.SelectResult.encode(message.selectResult, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
                 return writer;
             };
 
             /**
-             * Encodes the specified Node message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Node.verify|verify} messages.
+             * Encodes the specified WidgetSignal message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetSignal.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
-             * @param {flowcraft_proto.v1.INode} message Node message or plain object to encode
+             * @param {flowcraft_proto.v1.IWidgetSignal} message WidgetSignal message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            Node.encodeDelimited = function encodeDelimited(message, writer) {
+            WidgetSignal.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes a Node message from the specified reader or buffer.
+             * Decodes a WidgetSignal message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.Node} Node
+             * @returns {flowcraft_proto.v1.WidgetSignal} WidgetSignal
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            Node.decode = function decode(reader, length, error) {
+            WidgetSignal.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Node();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.WidgetSignal();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.id = reader.string();
+                            message.nodeId = reader.string();
                             break;
                         }
                     case 2: {
-                            message.type = reader.string();
+                            message.widgetId = reader.string();
                             break;
                         }
                     case 3: {
-                            message.position = $root.flowcraft_proto.v1.Position.decode(reader, reader.uint32());
+                            message.markdownStream = $root.flowcraft_proto.v1.MarkdownStream.decode(reader, reader.uint32());
                             break;
                         }
                     case 4: {
-                            message.data = $root.flowcraft_proto.v1.NodeData.decode(reader, reader.uint32());
+                            message.selectQuery = $root.flowcraft_proto.v1.SelectQuery.decode(reader, reader.uint32());
                             break;
                         }
                     case 5: {
-                            message.width = reader.double();
-                            break;
-                        }
-                    case 6: {
-                            message.height = reader.double();
-                            break;
-                        }
-                    case 7: {
-                            message.selected = reader.bool();
-                            break;
-                        }
-                    case 8: {
-                            message.parentId = reader.string();
+                            message.selectResult = $root.flowcraft_proto.v1.SelectResult.decode(reader, reader.uint32());
                             break;
                         }
                     default:
@@ -9099,201 +9732,191 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes a Node message from the specified reader or buffer, length delimited.
+             * Decodes a WidgetSignal message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.Node} Node
+             * @returns {flowcraft_proto.v1.WidgetSignal} WidgetSignal
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            Node.decodeDelimited = function decodeDelimited(reader) {
+            WidgetSignal.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies a Node message.
+             * Verifies a WidgetSignal message.
              * @function verify
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            Node.verify = function verify(message) {
+            WidgetSignal.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
-                if (message.id != null && message.hasOwnProperty("id"))
-                    if (!$util.isString(message.id))
-                        return "id: string expected";
-                if (message.type != null && message.hasOwnProperty("type"))
-                    if (!$util.isString(message.type))
-                        return "type: string expected";
-                if (message.position != null && message.hasOwnProperty("position")) {
-                    let error = $root.flowcraft_proto.v1.Position.verify(message.position);
-                    if (error)
-                        return "position." + error;
+                let properties = {};
+                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+                    if (!$util.isString(message.nodeId))
+                        return "nodeId: string expected";
+                if (message.widgetId != null && message.hasOwnProperty("widgetId"))
+                    if (!$util.isString(message.widgetId))
+                        return "widgetId: string expected";
+                if (message.markdownStream != null && message.hasOwnProperty("markdownStream")) {
+                    properties.payload = 1;
+                    {
+                        let error = $root.flowcraft_proto.v1.MarkdownStream.verify(message.markdownStream);
+                        if (error)
+                            return "markdownStream." + error;
+                    }
                 }
-                if (message.data != null && message.hasOwnProperty("data")) {
-                    let error = $root.flowcraft_proto.v1.NodeData.verify(message.data);
-                    if (error)
-                        return "data." + error;
+                if (message.selectQuery != null && message.hasOwnProperty("selectQuery")) {
+                    if (properties.payload === 1)
+                        return "payload: multiple values";
+                    properties.payload = 1;
+                    {
+                        let error = $root.flowcraft_proto.v1.SelectQuery.verify(message.selectQuery);
+                        if (error)
+                            return "selectQuery." + error;
+                    }
                 }
-                if (message.width != null && message.hasOwnProperty("width"))
-                    if (typeof message.width !== "number")
-                        return "width: number expected";
-                if (message.height != null && message.hasOwnProperty("height"))
-                    if (typeof message.height !== "number")
-                        return "height: number expected";
-                if (message.selected != null && message.hasOwnProperty("selected"))
-                    if (typeof message.selected !== "boolean")
-                        return "selected: boolean expected";
-                if (message.parentId != null && message.hasOwnProperty("parentId"))
-                    if (!$util.isString(message.parentId))
-                        return "parentId: string expected";
+                if (message.selectResult != null && message.hasOwnProperty("selectResult")) {
+                    if (properties.payload === 1)
+                        return "payload: multiple values";
+                    properties.payload = 1;
+                    {
+                        let error = $root.flowcraft_proto.v1.SelectResult.verify(message.selectResult);
+                        if (error)
+                            return "selectResult." + error;
+                    }
+                }
                 return null;
             };
 
             /**
-             * Creates a Node message from a plain object. Also converts values to their respective internal types.
+             * Creates a WidgetSignal message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.Node} Node
+             * @returns {flowcraft_proto.v1.WidgetSignal} WidgetSignal
              */
-            Node.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.Node)
+            WidgetSignal.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.WidgetSignal)
                     return object;
-                let message = new $root.flowcraft_proto.v1.Node();
-                if (object.id != null)
-                    message.id = String(object.id);
-                if (object.type != null)
-                    message.type = String(object.type);
-                if (object.position != null) {
-                    if (typeof object.position !== "object")
-                        throw TypeError(".flowcraft_proto.v1.Node.position: object expected");
-                    message.position = $root.flowcraft_proto.v1.Position.fromObject(object.position);
+                let message = new $root.flowcraft_proto.v1.WidgetSignal();
+                if (object.nodeId != null)
+                    message.nodeId = String(object.nodeId);
+                if (object.widgetId != null)
+                    message.widgetId = String(object.widgetId);
+                if (object.markdownStream != null) {
+                    if (typeof object.markdownStream !== "object")
+                        throw TypeError(".flowcraft_proto.v1.WidgetSignal.markdownStream: object expected");
+                    message.markdownStream = $root.flowcraft_proto.v1.MarkdownStream.fromObject(object.markdownStream);
                 }
-                if (object.data != null) {
-                    if (typeof object.data !== "object")
-                        throw TypeError(".flowcraft_proto.v1.Node.data: object expected");
-                    message.data = $root.flowcraft_proto.v1.NodeData.fromObject(object.data);
+                if (object.selectQuery != null) {
+                    if (typeof object.selectQuery !== "object")
+                        throw TypeError(".flowcraft_proto.v1.WidgetSignal.selectQuery: object expected");
+                    message.selectQuery = $root.flowcraft_proto.v1.SelectQuery.fromObject(object.selectQuery);
                 }
-                if (object.width != null)
-                    message.width = Number(object.width);
-                if (object.height != null)
-                    message.height = Number(object.height);
-                if (object.selected != null)
-                    message.selected = Boolean(object.selected);
-                if (object.parentId != null)
-                    message.parentId = String(object.parentId);
+                if (object.selectResult != null) {
+                    if (typeof object.selectResult !== "object")
+                        throw TypeError(".flowcraft_proto.v1.WidgetSignal.selectResult: object expected");
+                    message.selectResult = $root.flowcraft_proto.v1.SelectResult.fromObject(object.selectResult);
+                }
                 return message;
             };
 
             /**
-             * Creates a plain object from a Node message. Also converts values to other types if specified.
+             * Creates a plain object from a WidgetSignal message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
-             * @param {flowcraft_proto.v1.Node} message Node
+             * @param {flowcraft_proto.v1.WidgetSignal} message WidgetSignal
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            Node.toObject = function toObject(message, options) {
+            WidgetSignal.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
                 if (options.defaults) {
-                    object.id = "";
-                    object.type = "";
-                    object.position = null;
-                    object.data = null;
-                    object.width = 0;
-                    object.height = 0;
-                    object.selected = false;
-                    object.parentId = "";
+                    object.nodeId = "";
+                    object.widgetId = "";
                 }
-                if (message.id != null && message.hasOwnProperty("id"))
-                    object.id = message.id;
-                if (message.type != null && message.hasOwnProperty("type"))
-                    object.type = message.type;
-                if (message.position != null && message.hasOwnProperty("position"))
-                    object.position = $root.flowcraft_proto.v1.Position.toObject(message.position, options);
-                if (message.data != null && message.hasOwnProperty("data"))
-                    object.data = $root.flowcraft_proto.v1.NodeData.toObject(message.data, options);
-                if (message.width != null && message.hasOwnProperty("width"))
-                    object.width = options.json && !isFinite(message.width) ? String(message.width) : message.width;
-                if (message.height != null && message.hasOwnProperty("height"))
-                    object.height = options.json && !isFinite(message.height) ? String(message.height) : message.height;
-                if (message.selected != null && message.hasOwnProperty("selected"))
-                    object.selected = message.selected;
-                if (message.parentId != null && message.hasOwnProperty("parentId"))
-                    object.parentId = message.parentId;
+                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+                    object.nodeId = message.nodeId;
+                if (message.widgetId != null && message.hasOwnProperty("widgetId"))
+                    object.widgetId = message.widgetId;
+                if (message.markdownStream != null && message.hasOwnProperty("markdownStream")) {
+                    object.markdownStream = $root.flowcraft_proto.v1.MarkdownStream.toObject(message.markdownStream, options);
+                    if (options.oneofs)
+                        object.payload = "markdownStream";
+                }
+                if (message.selectQuery != null && message.hasOwnProperty("selectQuery")) {
+                    object.selectQuery = $root.flowcraft_proto.v1.SelectQuery.toObject(message.selectQuery, options);
+                    if (options.oneofs)
+                        object.payload = "selectQuery";
+                }
+                if (message.selectResult != null && message.hasOwnProperty("selectResult")) {
+                    object.selectResult = $root.flowcraft_proto.v1.SelectResult.toObject(message.selectResult, options);
+                    if (options.oneofs)
+                        object.payload = "selectResult";
+                }
                 return object;
             };
 
             /**
-             * Converts this Node to JSON.
+             * Converts this WidgetSignal to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            Node.prototype.toJSON = function toJSON() {
+            WidgetSignal.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for Node
+             * Gets the default type url for WidgetSignal
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.Node
+             * @memberof flowcraft_proto.v1.WidgetSignal
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            Node.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            WidgetSignal.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.Node";
+                return typeUrlPrefix + "/flowcraft_proto.v1.WidgetSignal";
             };
 
-            return Node;
+            return WidgetSignal;
         })();
 
-        v1.NodeData = (function() {
+        v1.MarkdownStream = (function() {
 
             /**
-             * Properties of a NodeData.
+             * Properties of a MarkdownStream.
              * @memberof flowcraft_proto.v1
-             * @interface INodeData
-             * @property {string|null} [label] NodeData label
-             * @property {Array.<flowcraft_proto.v1.RenderMode>|null} [availableModes] NodeData availableModes
-             * @property {flowcraft_proto.v1.RenderMode|null} [activeMode] NodeData activeMode
-             * @property {flowcraft_proto.v1.IMediaContent|null} [media] NodeData media
-             * @property {Array.<flowcraft_proto.v1.IWidget>|null} [widgets] NodeData widgets
-             * @property {Array.<flowcraft_proto.v1.IPort>|null} [inputPorts] NodeData inputPorts
-             * @property {Array.<flowcraft_proto.v1.IPort>|null} [outputPorts] NodeData outputPorts
-             * @property {Object.<string,string>|null} [metadata] NodeData metadata
+             * @interface IMarkdownStream
+             * @property {flowcraft_proto.v1.MarkdownStream.ChunkType|null} [type] MarkdownStream type
+             * @property {string|null} [content] MarkdownStream content
              */
 
             /**
-             * Constructs a new NodeData.
+             * Constructs a new MarkdownStream.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents a NodeData.
-             * @implements INodeData
+             * @classdesc Represents a MarkdownStream.
+             * @implements IMarkdownStream
              * @constructor
-             * @param {flowcraft_proto.v1.INodeData=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.IMarkdownStream=} [properties] Properties to set
              */
-            function NodeData(properties) {
-                this.availableModes = [];
-                this.widgets = [];
-                this.inputPorts = [];
-                this.outputPorts = [];
-                this.metadata = {};
+            function MarkdownStream(properties) {
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -9301,677 +9924,80 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * NodeData label.
-             * @member {string} label
-             * @memberof flowcraft_proto.v1.NodeData
+             * MarkdownStream type.
+             * @member {flowcraft_proto.v1.MarkdownStream.ChunkType} type
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @instance
              */
-            NodeData.prototype.label = "";
+            MarkdownStream.prototype.type = 0;
 
             /**
-             * NodeData availableModes.
-             * @member {Array.<flowcraft_proto.v1.RenderMode>} availableModes
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.availableModes = $util.emptyArray;
-
-            /**
-             * NodeData activeMode.
-             * @member {flowcraft_proto.v1.RenderMode} activeMode
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.activeMode = 0;
-
-            /**
-             * NodeData media.
-             * @member {flowcraft_proto.v1.IMediaContent|null|undefined} media
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.media = null;
-
-            /**
-             * NodeData widgets.
-             * @member {Array.<flowcraft_proto.v1.IWidget>} widgets
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.widgets = $util.emptyArray;
-
-            /**
-             * NodeData inputPorts.
-             * @member {Array.<flowcraft_proto.v1.IPort>} inputPorts
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.inputPorts = $util.emptyArray;
-
-            /**
-             * NodeData outputPorts.
-             * @member {Array.<flowcraft_proto.v1.IPort>} outputPorts
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.outputPorts = $util.emptyArray;
-
-            /**
-             * NodeData metadata.
-             * @member {Object.<string,string>} metadata
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             */
-            NodeData.prototype.metadata = $util.emptyObject;
-
-            /**
-             * Creates a new NodeData instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {flowcraft_proto.v1.INodeData=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.NodeData} NodeData instance
-             */
-            NodeData.create = function create(properties) {
-                return new NodeData(properties);
-            };
-
-            /**
-             * Encodes the specified NodeData message. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {flowcraft_proto.v1.INodeData} message NodeData message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            NodeData.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.label);
-                if (message.availableModes != null && message.availableModes.length) {
-                    writer.uint32(/* id 2, wireType 2 =*/18).fork();
-                    for (let i = 0; i < message.availableModes.length; ++i)
-                        writer.int32(message.availableModes[i]);
-                    writer.ldelim();
-                }
-                if (message.activeMode != null && Object.hasOwnProperty.call(message, "activeMode"))
-                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.activeMode);
-                if (message.media != null && Object.hasOwnProperty.call(message, "media"))
-                    $root.flowcraft_proto.v1.MediaContent.encode(message.media, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
-                if (message.widgets != null && message.widgets.length)
-                    for (let i = 0; i < message.widgets.length; ++i)
-                        $root.flowcraft_proto.v1.Widget.encode(message.widgets[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
-                if (message.inputPorts != null && message.inputPorts.length)
-                    for (let i = 0; i < message.inputPorts.length; ++i)
-                        $root.flowcraft_proto.v1.Port.encode(message.inputPorts[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
-                if (message.outputPorts != null && message.outputPorts.length)
-                    for (let i = 0; i < message.outputPorts.length; ++i)
-                        $root.flowcraft_proto.v1.Port.encode(message.outputPorts[i], writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
-                if (message.metadata != null && Object.hasOwnProperty.call(message, "metadata"))
-                    for (let keys = Object.keys(message.metadata), i = 0; i < keys.length; ++i)
-                        writer.uint32(/* id 8, wireType 2 =*/66).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.metadata[keys[i]]).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified NodeData message, length delimited. Does not implicitly {@link flowcraft_proto.v1.NodeData.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {flowcraft_proto.v1.INodeData} message NodeData message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            NodeData.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a NodeData message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.NodeData} NodeData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            NodeData.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.NodeData(), key, value;
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.label = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            if (!(message.availableModes && message.availableModes.length))
-                                message.availableModes = [];
-                            if ((tag & 7) === 2) {
-                                let end2 = reader.uint32() + reader.pos;
-                                while (reader.pos < end2)
-                                    message.availableModes.push(reader.int32());
-                            } else
-                                message.availableModes.push(reader.int32());
-                            break;
-                        }
-                    case 3: {
-                            message.activeMode = reader.int32();
-                            break;
-                        }
-                    case 4: {
-                            message.media = $root.flowcraft_proto.v1.MediaContent.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 5: {
-                            if (!(message.widgets && message.widgets.length))
-                                message.widgets = [];
-                            message.widgets.push($root.flowcraft_proto.v1.Widget.decode(reader, reader.uint32()));
-                            break;
-                        }
-                    case 6: {
-                            if (!(message.inputPorts && message.inputPorts.length))
-                                message.inputPorts = [];
-                            message.inputPorts.push($root.flowcraft_proto.v1.Port.decode(reader, reader.uint32()));
-                            break;
-                        }
-                    case 7: {
-                            if (!(message.outputPorts && message.outputPorts.length))
-                                message.outputPorts = [];
-                            message.outputPorts.push($root.flowcraft_proto.v1.Port.decode(reader, reader.uint32()));
-                            break;
-                        }
-                    case 8: {
-                            if (message.metadata === $util.emptyObject)
-                                message.metadata = {};
-                            let end2 = reader.uint32() + reader.pos;
-                            key = "";
-                            value = "";
-                            while (reader.pos < end2) {
-                                let tag2 = reader.uint32();
-                                switch (tag2 >>> 3) {
-                                case 1:
-                                    key = reader.string();
-                                    break;
-                                case 2:
-                                    value = reader.string();
-                                    break;
-                                default:
-                                    reader.skipType(tag2 & 7);
-                                    break;
-                                }
-                            }
-                            message.metadata[key] = value;
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a NodeData message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.NodeData} NodeData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            NodeData.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a NodeData message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            NodeData.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.label != null && message.hasOwnProperty("label"))
-                    if (!$util.isString(message.label))
-                        return "label: string expected";
-                if (message.availableModes != null && message.hasOwnProperty("availableModes")) {
-                    if (!Array.isArray(message.availableModes))
-                        return "availableModes: array expected";
-                    for (let i = 0; i < message.availableModes.length; ++i)
-                        switch (message.availableModes[i]) {
-                        default:
-                            return "availableModes: enum value[] expected";
-                        case 0:
-                        case 1:
-                        case 2:
-                        case 3:
-                            break;
-                        }
-                }
-                if (message.activeMode != null && message.hasOwnProperty("activeMode"))
-                    switch (message.activeMode) {
-                    default:
-                        return "activeMode: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        break;
-                    }
-                if (message.media != null && message.hasOwnProperty("media")) {
-                    let error = $root.flowcraft_proto.v1.MediaContent.verify(message.media);
-                    if (error)
-                        return "media." + error;
-                }
-                if (message.widgets != null && message.hasOwnProperty("widgets")) {
-                    if (!Array.isArray(message.widgets))
-                        return "widgets: array expected";
-                    for (let i = 0; i < message.widgets.length; ++i) {
-                        let error = $root.flowcraft_proto.v1.Widget.verify(message.widgets[i]);
-                        if (error)
-                            return "widgets." + error;
-                    }
-                }
-                if (message.inputPorts != null && message.hasOwnProperty("inputPorts")) {
-                    if (!Array.isArray(message.inputPorts))
-                        return "inputPorts: array expected";
-                    for (let i = 0; i < message.inputPorts.length; ++i) {
-                        let error = $root.flowcraft_proto.v1.Port.verify(message.inputPorts[i]);
-                        if (error)
-                            return "inputPorts." + error;
-                    }
-                }
-                if (message.outputPorts != null && message.hasOwnProperty("outputPorts")) {
-                    if (!Array.isArray(message.outputPorts))
-                        return "outputPorts: array expected";
-                    for (let i = 0; i < message.outputPorts.length; ++i) {
-                        let error = $root.flowcraft_proto.v1.Port.verify(message.outputPorts[i]);
-                        if (error)
-                            return "outputPorts." + error;
-                    }
-                }
-                if (message.metadata != null && message.hasOwnProperty("metadata")) {
-                    if (!$util.isObject(message.metadata))
-                        return "metadata: object expected";
-                    let key = Object.keys(message.metadata);
-                    for (let i = 0; i < key.length; ++i)
-                        if (!$util.isString(message.metadata[key[i]]))
-                            return "metadata: string{k:string} expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a NodeData message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.NodeData} NodeData
-             */
-            NodeData.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.NodeData)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.NodeData();
-                if (object.label != null)
-                    message.label = String(object.label);
-                if (object.availableModes) {
-                    if (!Array.isArray(object.availableModes))
-                        throw TypeError(".flowcraft_proto.v1.NodeData.availableModes: array expected");
-                    message.availableModes = [];
-                    for (let i = 0; i < object.availableModes.length; ++i)
-                        switch (object.availableModes[i]) {
-                        default:
-                            if (typeof object.availableModes[i] === "number") {
-                                message.availableModes[i] = object.availableModes[i];
-                                break;
-                            }
-                        case "MODE_UNSPECIFIED":
-                        case 0:
-                            message.availableModes[i] = 0;
-                            break;
-                        case "MODE_MEDIA":
-                        case 1:
-                            message.availableModes[i] = 1;
-                            break;
-                        case "MODE_WIDGETS":
-                        case 2:
-                            message.availableModes[i] = 2;
-                            break;
-                        case "MODE_MARKDOWN":
-                        case 3:
-                            message.availableModes[i] = 3;
-                            break;
-                        }
-                }
-                switch (object.activeMode) {
-                default:
-                    if (typeof object.activeMode === "number") {
-                        message.activeMode = object.activeMode;
-                        break;
-                    }
-                    break;
-                case "MODE_UNSPECIFIED":
-                case 0:
-                    message.activeMode = 0;
-                    break;
-                case "MODE_MEDIA":
-                case 1:
-                    message.activeMode = 1;
-                    break;
-                case "MODE_WIDGETS":
-                case 2:
-                    message.activeMode = 2;
-                    break;
-                case "MODE_MARKDOWN":
-                case 3:
-                    message.activeMode = 3;
-                    break;
-                }
-                if (object.media != null) {
-                    if (typeof object.media !== "object")
-                        throw TypeError(".flowcraft_proto.v1.NodeData.media: object expected");
-                    message.media = $root.flowcraft_proto.v1.MediaContent.fromObject(object.media);
-                }
-                if (object.widgets) {
-                    if (!Array.isArray(object.widgets))
-                        throw TypeError(".flowcraft_proto.v1.NodeData.widgets: array expected");
-                    message.widgets = [];
-                    for (let i = 0; i < object.widgets.length; ++i) {
-                        if (typeof object.widgets[i] !== "object")
-                            throw TypeError(".flowcraft_proto.v1.NodeData.widgets: object expected");
-                        message.widgets[i] = $root.flowcraft_proto.v1.Widget.fromObject(object.widgets[i]);
-                    }
-                }
-                if (object.inputPorts) {
-                    if (!Array.isArray(object.inputPorts))
-                        throw TypeError(".flowcraft_proto.v1.NodeData.inputPorts: array expected");
-                    message.inputPorts = [];
-                    for (let i = 0; i < object.inputPorts.length; ++i) {
-                        if (typeof object.inputPorts[i] !== "object")
-                            throw TypeError(".flowcraft_proto.v1.NodeData.inputPorts: object expected");
-                        message.inputPorts[i] = $root.flowcraft_proto.v1.Port.fromObject(object.inputPorts[i]);
-                    }
-                }
-                if (object.outputPorts) {
-                    if (!Array.isArray(object.outputPorts))
-                        throw TypeError(".flowcraft_proto.v1.NodeData.outputPorts: array expected");
-                    message.outputPorts = [];
-                    for (let i = 0; i < object.outputPorts.length; ++i) {
-                        if (typeof object.outputPorts[i] !== "object")
-                            throw TypeError(".flowcraft_proto.v1.NodeData.outputPorts: object expected");
-                        message.outputPorts[i] = $root.flowcraft_proto.v1.Port.fromObject(object.outputPorts[i]);
-                    }
-                }
-                if (object.metadata) {
-                    if (typeof object.metadata !== "object")
-                        throw TypeError(".flowcraft_proto.v1.NodeData.metadata: object expected");
-                    message.metadata = {};
-                    for (let keys = Object.keys(object.metadata), i = 0; i < keys.length; ++i)
-                        message.metadata[keys[i]] = String(object.metadata[keys[i]]);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a NodeData message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {flowcraft_proto.v1.NodeData} message NodeData
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            NodeData.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.arrays || options.defaults) {
-                    object.availableModes = [];
-                    object.widgets = [];
-                    object.inputPorts = [];
-                    object.outputPorts = [];
-                }
-                if (options.objects || options.defaults)
-                    object.metadata = {};
-                if (options.defaults) {
-                    object.label = "";
-                    object.activeMode = options.enums === String ? "MODE_UNSPECIFIED" : 0;
-                    object.media = null;
-                }
-                if (message.label != null && message.hasOwnProperty("label"))
-                    object.label = message.label;
-                if (message.availableModes && message.availableModes.length) {
-                    object.availableModes = [];
-                    for (let j = 0; j < message.availableModes.length; ++j)
-                        object.availableModes[j] = options.enums === String ? $root.flowcraft_proto.v1.RenderMode[message.availableModes[j]] === undefined ? message.availableModes[j] : $root.flowcraft_proto.v1.RenderMode[message.availableModes[j]] : message.availableModes[j];
-                }
-                if (message.activeMode != null && message.hasOwnProperty("activeMode"))
-                    object.activeMode = options.enums === String ? $root.flowcraft_proto.v1.RenderMode[message.activeMode] === undefined ? message.activeMode : $root.flowcraft_proto.v1.RenderMode[message.activeMode] : message.activeMode;
-                if (message.media != null && message.hasOwnProperty("media"))
-                    object.media = $root.flowcraft_proto.v1.MediaContent.toObject(message.media, options);
-                if (message.widgets && message.widgets.length) {
-                    object.widgets = [];
-                    for (let j = 0; j < message.widgets.length; ++j)
-                        object.widgets[j] = $root.flowcraft_proto.v1.Widget.toObject(message.widgets[j], options);
-                }
-                if (message.inputPorts && message.inputPorts.length) {
-                    object.inputPorts = [];
-                    for (let j = 0; j < message.inputPorts.length; ++j)
-                        object.inputPorts[j] = $root.flowcraft_proto.v1.Port.toObject(message.inputPorts[j], options);
-                }
-                if (message.outputPorts && message.outputPorts.length) {
-                    object.outputPorts = [];
-                    for (let j = 0; j < message.outputPorts.length; ++j)
-                        object.outputPorts[j] = $root.flowcraft_proto.v1.Port.toObject(message.outputPorts[j], options);
-                }
-                let keys2;
-                if (message.metadata && (keys2 = Object.keys(message.metadata)).length) {
-                    object.metadata = {};
-                    for (let j = 0; j < keys2.length; ++j)
-                        object.metadata[keys2[j]] = message.metadata[keys2[j]];
-                }
-                return object;
-            };
-
-            /**
-             * Converts this NodeData to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.NodeData
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            NodeData.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for NodeData
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.NodeData
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            NodeData.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.NodeData";
-            };
-
-            return NodeData;
-        })();
-
-        /**
-         * RenderMode enum.
-         * @name flowcraft_proto.v1.RenderMode
-         * @enum {number}
-         * @property {number} MODE_UNSPECIFIED=0 MODE_UNSPECIFIED value
-         * @property {number} MODE_MEDIA=1 MODE_MEDIA value
-         * @property {number} MODE_WIDGETS=2 MODE_WIDGETS value
-         * @property {number} MODE_MARKDOWN=3 MODE_MARKDOWN value
-         */
-        v1.RenderMode = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "MODE_UNSPECIFIED"] = 0;
-            values[valuesById[1] = "MODE_MEDIA"] = 1;
-            values[valuesById[2] = "MODE_WIDGETS"] = 2;
-            values[valuesById[3] = "MODE_MARKDOWN"] = 3;
-            return values;
-        })();
-
-        v1.MediaContent = (function() {
-
-            /**
-             * Properties of a MediaContent.
-             * @memberof flowcraft_proto.v1
-             * @interface IMediaContent
-             * @property {flowcraft_proto.v1.MediaType|null} [type] MediaContent type
-             * @property {string|null} [url] MediaContent url
-             * @property {string|null} [content] MediaContent content
-             * @property {number|null} [aspectRatio] MediaContent aspectRatio
-             * @property {Array.<string>|null} [galleryUrls] MediaContent galleryUrls
-             */
-
-            /**
-             * Constructs a new MediaContent.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a MediaContent.
-             * @implements IMediaContent
-             * @constructor
-             * @param {flowcraft_proto.v1.IMediaContent=} [properties] Properties to set
-             */
-            function MediaContent(properties) {
-                this.galleryUrls = [];
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * MediaContent type.
-             * @member {flowcraft_proto.v1.MediaType} type
-             * @memberof flowcraft_proto.v1.MediaContent
-             * @instance
-             */
-            MediaContent.prototype.type = 0;
-
-            /**
-             * MediaContent url.
-             * @member {string} url
-             * @memberof flowcraft_proto.v1.MediaContent
-             * @instance
-             */
-            MediaContent.prototype.url = "";
-
-            /**
-             * MediaContent content.
+             * MarkdownStream content.
              * @member {string} content
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @instance
              */
-            MediaContent.prototype.content = "";
+            MarkdownStream.prototype.content = "";
 
             /**
-             * MediaContent aspectRatio.
-             * @member {number} aspectRatio
-             * @memberof flowcraft_proto.v1.MediaContent
-             * @instance
-             */
-            MediaContent.prototype.aspectRatio = 0;
-
-            /**
-             * MediaContent galleryUrls.
-             * @member {Array.<string>} galleryUrls
-             * @memberof flowcraft_proto.v1.MediaContent
-             * @instance
-             */
-            MediaContent.prototype.galleryUrls = $util.emptyArray;
-
-            /**
-             * Creates a new MediaContent instance using the specified properties.
+             * Creates a new MarkdownStream instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
-             * @param {flowcraft_proto.v1.IMediaContent=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.MediaContent} MediaContent instance
+             * @param {flowcraft_proto.v1.IMarkdownStream=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.MarkdownStream} MarkdownStream instance
              */
-            MediaContent.create = function create(properties) {
-                return new MediaContent(properties);
+            MarkdownStream.create = function create(properties) {
+                return new MarkdownStream(properties);
             };
 
             /**
-             * Encodes the specified MediaContent message. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * Encodes the specified MarkdownStream message. Does not implicitly {@link flowcraft_proto.v1.MarkdownStream.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
-             * @param {flowcraft_proto.v1.IMediaContent} message MediaContent message or plain object to encode
+             * @param {flowcraft_proto.v1.IMarkdownStream} message MarkdownStream message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            MediaContent.encode = function encode(message, writer) {
+            MarkdownStream.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
                 if (message.type != null && Object.hasOwnProperty.call(message, "type"))
                     writer.uint32(/* id 1, wireType 0 =*/8).int32(message.type);
-                if (message.url != null && Object.hasOwnProperty.call(message, "url"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.url);
                 if (message.content != null && Object.hasOwnProperty.call(message, "content"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.content);
-                if (message.aspectRatio != null && Object.hasOwnProperty.call(message, "aspectRatio"))
-                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.aspectRatio);
-                if (message.galleryUrls != null && message.galleryUrls.length)
-                    for (let i = 0; i < message.galleryUrls.length; ++i)
-                        writer.uint32(/* id 5, wireType 2 =*/42).string(message.galleryUrls[i]);
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.content);
                 return writer;
             };
 
             /**
-             * Encodes the specified MediaContent message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MediaContent.verify|verify} messages.
+             * Encodes the specified MarkdownStream message, length delimited. Does not implicitly {@link flowcraft_proto.v1.MarkdownStream.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
-             * @param {flowcraft_proto.v1.IMediaContent} message MediaContent message or plain object to encode
+             * @param {flowcraft_proto.v1.IMarkdownStream} message MarkdownStream message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            MediaContent.encodeDelimited = function encodeDelimited(message, writer) {
+            MarkdownStream.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes a MediaContent message from the specified reader or buffer.
+             * Decodes a MarkdownStream message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             * @returns {flowcraft_proto.v1.MarkdownStream} MarkdownStream
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            MediaContent.decode = function decode(reader, length, error) {
+            MarkdownStream.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.MediaContent();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.MarkdownStream();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
@@ -9982,21 +10008,7 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                             break;
                         }
                     case 2: {
-                            message.url = reader.string();
-                            break;
-                        }
-                    case 3: {
                             message.content = reader.string();
-                            break;
-                        }
-                    case 4: {
-                            message.aspectRatio = reader.double();
-                            break;
-                        }
-                    case 5: {
-                            if (!(message.galleryUrls && message.galleryUrls.length))
-                                message.galleryUrls = [];
-                            message.galleryUrls.push(reader.string());
                             break;
                         }
                     default:
@@ -10008,30 +10020,30 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes a MediaContent message from the specified reader or buffer, length delimited.
+             * Decodes a MarkdownStream message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             * @returns {flowcraft_proto.v1.MarkdownStream} MarkdownStream
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            MediaContent.decodeDelimited = function decodeDelimited(reader) {
+            MarkdownStream.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies a MediaContent message.
+             * Verifies a MarkdownStream message.
              * @function verify
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            MediaContent.verify = function verify(message) {
+            MarkdownStream.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.type != null && message.hasOwnProperty("type"))
@@ -10042,40 +10054,26 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                     case 1:
                     case 2:
                     case 3:
-                    case 4:
                         break;
                     }
-                if (message.url != null && message.hasOwnProperty("url"))
-                    if (!$util.isString(message.url))
-                        return "url: string expected";
                 if (message.content != null && message.hasOwnProperty("content"))
                     if (!$util.isString(message.content))
                         return "content: string expected";
-                if (message.aspectRatio != null && message.hasOwnProperty("aspectRatio"))
-                    if (typeof message.aspectRatio !== "number")
-                        return "aspectRatio: number expected";
-                if (message.galleryUrls != null && message.hasOwnProperty("galleryUrls")) {
-                    if (!Array.isArray(message.galleryUrls))
-                        return "galleryUrls: array expected";
-                    for (let i = 0; i < message.galleryUrls.length; ++i)
-                        if (!$util.isString(message.galleryUrls[i]))
-                            return "galleryUrls: string[] expected";
-                }
                 return null;
             };
 
             /**
-             * Creates a MediaContent message from a plain object. Also converts values to their respective internal types.
+             * Creates a MarkdownStream message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.MediaContent} MediaContent
+             * @returns {flowcraft_proto.v1.MarkdownStream} MarkdownStream
              */
-            MediaContent.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.MediaContent)
+            MarkdownStream.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.MarkdownStream)
                     return object;
-                let message = new $root.flowcraft_proto.v1.MediaContent();
+                let message = new $root.flowcraft_proto.v1.MarkdownStream();
                 switch (object.type) {
                 default:
                     if (typeof object.type === "number") {
@@ -10083,171 +10081,118 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
                         break;
                     }
                     break;
-                case "MEDIA_UNSPECIFIED":
+                case "START":
                 case 0:
                     message.type = 0;
                     break;
-                case "MEDIA_IMAGE":
+                case "APPEND":
                 case 1:
                     message.type = 1;
                     break;
-                case "MEDIA_VIDEO":
+                case "REPLACE":
                 case 2:
                     message.type = 2;
                     break;
-                case "MEDIA_AUDIO":
+                case "FINISH":
                 case 3:
                     message.type = 3;
                     break;
-                case "MEDIA_MARKDOWN":
-                case 4:
-                    message.type = 4;
-                    break;
                 }
-                if (object.url != null)
-                    message.url = String(object.url);
                 if (object.content != null)
                     message.content = String(object.content);
-                if (object.aspectRatio != null)
-                    message.aspectRatio = Number(object.aspectRatio);
-                if (object.galleryUrls) {
-                    if (!Array.isArray(object.galleryUrls))
-                        throw TypeError(".flowcraft_proto.v1.MediaContent.galleryUrls: array expected");
-                    message.galleryUrls = [];
-                    for (let i = 0; i < object.galleryUrls.length; ++i)
-                        message.galleryUrls[i] = String(object.galleryUrls[i]);
-                }
                 return message;
             };
 
             /**
-             * Creates a plain object from a MediaContent message. Also converts values to other types if specified.
+             * Creates a plain object from a MarkdownStream message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
-             * @param {flowcraft_proto.v1.MediaContent} message MediaContent
+             * @param {flowcraft_proto.v1.MarkdownStream} message MarkdownStream
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            MediaContent.toObject = function toObject(message, options) {
+            MarkdownStream.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
-                if (options.arrays || options.defaults)
-                    object.galleryUrls = [];
                 if (options.defaults) {
-                    object.type = options.enums === String ? "MEDIA_UNSPECIFIED" : 0;
-                    object.url = "";
+                    object.type = options.enums === String ? "START" : 0;
                     object.content = "";
-                    object.aspectRatio = 0;
                 }
                 if (message.type != null && message.hasOwnProperty("type"))
-                    object.type = options.enums === String ? $root.flowcraft_proto.v1.MediaType[message.type] === undefined ? message.type : $root.flowcraft_proto.v1.MediaType[message.type] : message.type;
-                if (message.url != null && message.hasOwnProperty("url"))
-                    object.url = message.url;
+                    object.type = options.enums === String ? $root.flowcraft_proto.v1.MarkdownStream.ChunkType[message.type] === undefined ? message.type : $root.flowcraft_proto.v1.MarkdownStream.ChunkType[message.type] : message.type;
                 if (message.content != null && message.hasOwnProperty("content"))
                     object.content = message.content;
-                if (message.aspectRatio != null && message.hasOwnProperty("aspectRatio"))
-                    object.aspectRatio = options.json && !isFinite(message.aspectRatio) ? String(message.aspectRatio) : message.aspectRatio;
-                if (message.galleryUrls && message.galleryUrls.length) {
-                    object.galleryUrls = [];
-                    for (let j = 0; j < message.galleryUrls.length; ++j)
-                        object.galleryUrls[j] = message.galleryUrls[j];
-                }
                 return object;
             };
 
             /**
-             * Converts this MediaContent to JSON.
+             * Converts this MarkdownStream to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            MediaContent.prototype.toJSON = function toJSON() {
+            MarkdownStream.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for MediaContent
+             * Gets the default type url for MarkdownStream
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.MediaContent
+             * @memberof flowcraft_proto.v1.MarkdownStream
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            MediaContent.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            MarkdownStream.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.MediaContent";
+                return typeUrlPrefix + "/flowcraft_proto.v1.MarkdownStream";
             };
 
-            return MediaContent;
+            /**
+             * ChunkType enum.
+             * @name flowcraft_proto.v1.MarkdownStream.ChunkType
+             * @enum {number}
+             * @property {number} START=0 START value
+             * @property {number} APPEND=1 APPEND value
+             * @property {number} REPLACE=2 REPLACE value
+             * @property {number} FINISH=3 FINISH value
+             */
+            MarkdownStream.ChunkType = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "START"] = 0;
+                values[valuesById[1] = "APPEND"] = 1;
+                values[valuesById[2] = "REPLACE"] = 2;
+                values[valuesById[3] = "FINISH"] = 3;
+                return values;
+            })();
+
+            return MarkdownStream;
         })();
 
-        /**
-         * MediaType enum.
-         * @name flowcraft_proto.v1.MediaType
-         * @enum {number}
-         * @property {number} MEDIA_UNSPECIFIED=0 MEDIA_UNSPECIFIED value
-         * @property {number} MEDIA_IMAGE=1 MEDIA_IMAGE value
-         * @property {number} MEDIA_VIDEO=2 MEDIA_VIDEO value
-         * @property {number} MEDIA_AUDIO=3 MEDIA_AUDIO value
-         * @property {number} MEDIA_MARKDOWN=4 MEDIA_MARKDOWN value
-         */
-        v1.MediaType = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "MEDIA_UNSPECIFIED"] = 0;
-            values[valuesById[1] = "MEDIA_IMAGE"] = 1;
-            values[valuesById[2] = "MEDIA_VIDEO"] = 2;
-            values[valuesById[3] = "MEDIA_AUDIO"] = 3;
-            values[valuesById[4] = "MEDIA_MARKDOWN"] = 4;
-            return values;
-        })();
-
-        /**
-         * WidgetType enum.
-         * @name flowcraft_proto.v1.WidgetType
-         * @enum {number}
-         * @property {number} WIDGET_UNSPECIFIED=0 WIDGET_UNSPECIFIED value
-         * @property {number} WIDGET_TEXT=1 WIDGET_TEXT value
-         * @property {number} WIDGET_SELECT=2 WIDGET_SELECT value
-         * @property {number} WIDGET_CHECKBOX=3 WIDGET_CHECKBOX value
-         * @property {number} WIDGET_SLIDER=4 WIDGET_SLIDER value
-         * @property {number} WIDGET_BUTTON=5 WIDGET_BUTTON value
-         */
-        v1.WidgetType = (function() {
-            const valuesById = {}, values = Object.create(valuesById);
-            values[valuesById[0] = "WIDGET_UNSPECIFIED"] = 0;
-            values[valuesById[1] = "WIDGET_TEXT"] = 1;
-            values[valuesById[2] = "WIDGET_SELECT"] = 2;
-            values[valuesById[3] = "WIDGET_CHECKBOX"] = 3;
-            values[valuesById[4] = "WIDGET_SLIDER"] = 4;
-            values[valuesById[5] = "WIDGET_BUTTON"] = 5;
-            return values;
-        })();
-
-        v1.WidgetOption = (function() {
+        v1.SelectQuery = (function() {
 
             /**
-             * Properties of a WidgetOption.
+             * Properties of a SelectQuery.
              * @memberof flowcraft_proto.v1
-             * @interface IWidgetOption
-             * @property {string|null} [label] WidgetOption label
-             * @property {string|null} [value] WidgetOption value
-             * @property {string|null} [description] WidgetOption description
+             * @interface ISelectQuery
+             * @property {string|null} [searchTerm] SelectQuery searchTerm
+             * @property {number|null} [pageIndex] SelectQuery pageIndex
              */
 
             /**
-             * Constructs a new WidgetOption.
+             * Constructs a new SelectQuery.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents a WidgetOption.
-             * @implements IWidgetOption
+             * @classdesc Represents a SelectQuery.
+             * @implements ISelectQuery
              * @constructor
-             * @param {flowcraft_proto.v1.IWidgetOption=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.ISelectQuery=} [properties] Properties to set
              */
-            function WidgetOption(properties) {
+            function SelectQuery(properties) {
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -10255,105 +10200,91 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * WidgetOption label.
-             * @member {string} label
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * SelectQuery searchTerm.
+             * @member {string} searchTerm
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @instance
              */
-            WidgetOption.prototype.label = "";
+            SelectQuery.prototype.searchTerm = "";
 
             /**
-             * WidgetOption value.
-             * @member {string} value
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * SelectQuery pageIndex.
+             * @member {number} pageIndex
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @instance
              */
-            WidgetOption.prototype.value = "";
+            SelectQuery.prototype.pageIndex = 0;
 
             /**
-             * WidgetOption description.
-             * @member {string} description
-             * @memberof flowcraft_proto.v1.WidgetOption
-             * @instance
-             */
-            WidgetOption.prototype.description = "";
-
-            /**
-             * Creates a new WidgetOption instance using the specified properties.
+             * Creates a new SelectQuery instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
-             * @param {flowcraft_proto.v1.IWidgetOption=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption instance
+             * @param {flowcraft_proto.v1.ISelectQuery=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.SelectQuery} SelectQuery instance
              */
-            WidgetOption.create = function create(properties) {
-                return new WidgetOption(properties);
+            SelectQuery.create = function create(properties) {
+                return new SelectQuery(properties);
             };
 
             /**
-             * Encodes the specified WidgetOption message. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * Encodes the specified SelectQuery message. Does not implicitly {@link flowcraft_proto.v1.SelectQuery.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
-             * @param {flowcraft_proto.v1.IWidgetOption} message WidgetOption message or plain object to encode
+             * @param {flowcraft_proto.v1.ISelectQuery} message SelectQuery message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            WidgetOption.encode = function encode(message, writer) {
+            SelectQuery.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.label);
-                if (message.value != null && Object.hasOwnProperty.call(message, "value"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.value);
-                if (message.description != null && Object.hasOwnProperty.call(message, "description"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.description);
+                if (message.searchTerm != null && Object.hasOwnProperty.call(message, "searchTerm"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.searchTerm);
+                if (message.pageIndex != null && Object.hasOwnProperty.call(message, "pageIndex"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.pageIndex);
                 return writer;
             };
 
             /**
-             * Encodes the specified WidgetOption message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetOption.verify|verify} messages.
+             * Encodes the specified SelectQuery message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectQuery.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
-             * @param {flowcraft_proto.v1.IWidgetOption} message WidgetOption message or plain object to encode
+             * @param {flowcraft_proto.v1.ISelectQuery} message SelectQuery message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            WidgetOption.encodeDelimited = function encodeDelimited(message, writer) {
+            SelectQuery.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes a WidgetOption message from the specified reader or buffer.
+             * Decodes a SelectQuery message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             * @returns {flowcraft_proto.v1.SelectQuery} SelectQuery
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            WidgetOption.decode = function decode(reader, length, error) {
+            SelectQuery.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.WidgetOption();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.SelectQuery();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.label = reader.string();
+                            message.searchTerm = reader.string();
                             break;
                         }
                     case 2: {
-                            message.value = reader.string();
-                            break;
-                        }
-                    case 3: {
-                            message.description = reader.string();
+                            message.pageIndex = reader.int32();
                             break;
                         }
                     default:
@@ -10365,468 +10296,132 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes a WidgetOption message from the specified reader or buffer, length delimited.
+             * Decodes a SelectQuery message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             * @returns {flowcraft_proto.v1.SelectQuery} SelectQuery
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            WidgetOption.decodeDelimited = function decodeDelimited(reader) {
+            SelectQuery.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies a WidgetOption message.
+             * Verifies a SelectQuery message.
              * @function verify
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            WidgetOption.verify = function verify(message) {
+            SelectQuery.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
-                if (message.label != null && message.hasOwnProperty("label"))
-                    if (!$util.isString(message.label))
-                        return "label: string expected";
-                if (message.value != null && message.hasOwnProperty("value"))
-                    if (!$util.isString(message.value))
-                        return "value: string expected";
-                if (message.description != null && message.hasOwnProperty("description"))
-                    if (!$util.isString(message.description))
-                        return "description: string expected";
+                if (message.searchTerm != null && message.hasOwnProperty("searchTerm"))
+                    if (!$util.isString(message.searchTerm))
+                        return "searchTerm: string expected";
+                if (message.pageIndex != null && message.hasOwnProperty("pageIndex"))
+                    if (!$util.isInteger(message.pageIndex))
+                        return "pageIndex: integer expected";
                 return null;
             };
 
             /**
-             * Creates a WidgetOption message from a plain object. Also converts values to their respective internal types.
+             * Creates a SelectQuery message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.WidgetOption} WidgetOption
+             * @returns {flowcraft_proto.v1.SelectQuery} SelectQuery
              */
-            WidgetOption.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.WidgetOption)
+            SelectQuery.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.SelectQuery)
                     return object;
-                let message = new $root.flowcraft_proto.v1.WidgetOption();
-                if (object.label != null)
-                    message.label = String(object.label);
-                if (object.value != null)
-                    message.value = String(object.value);
-                if (object.description != null)
-                    message.description = String(object.description);
+                let message = new $root.flowcraft_proto.v1.SelectQuery();
+                if (object.searchTerm != null)
+                    message.searchTerm = String(object.searchTerm);
+                if (object.pageIndex != null)
+                    message.pageIndex = object.pageIndex | 0;
                 return message;
             };
 
             /**
-             * Creates a plain object from a WidgetOption message. Also converts values to other types if specified.
+             * Creates a plain object from a SelectQuery message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
-             * @param {flowcraft_proto.v1.WidgetOption} message WidgetOption
+             * @param {flowcraft_proto.v1.SelectQuery} message SelectQuery
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            WidgetOption.toObject = function toObject(message, options) {
+            SelectQuery.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
                 if (options.defaults) {
-                    object.label = "";
-                    object.value = "";
-                    object.description = "";
+                    object.searchTerm = "";
+                    object.pageIndex = 0;
                 }
-                if (message.label != null && message.hasOwnProperty("label"))
-                    object.label = message.label;
-                if (message.value != null && message.hasOwnProperty("value"))
-                    object.value = message.value;
-                if (message.description != null && message.hasOwnProperty("description"))
-                    object.description = message.description;
+                if (message.searchTerm != null && message.hasOwnProperty("searchTerm"))
+                    object.searchTerm = message.searchTerm;
+                if (message.pageIndex != null && message.hasOwnProperty("pageIndex"))
+                    object.pageIndex = message.pageIndex;
                 return object;
             };
 
             /**
-             * Converts this WidgetOption to JSON.
+             * Converts this SelectQuery to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            WidgetOption.prototype.toJSON = function toJSON() {
+            SelectQuery.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for WidgetOption
+             * Gets the default type url for SelectQuery
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.WidgetOption
+             * @memberof flowcraft_proto.v1.SelectQuery
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            WidgetOption.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            SelectQuery.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.WidgetOption";
+                return typeUrlPrefix + "/flowcraft_proto.v1.SelectQuery";
             };
 
-            return WidgetOption;
+            return SelectQuery;
         })();
 
-        v1.WidgetConfig = (function() {
+        v1.SelectResult = (function() {
 
             /**
-             * Properties of a WidgetConfig.
+             * Properties of a SelectResult.
              * @memberof flowcraft_proto.v1
-             * @interface IWidgetConfig
-             * @property {string|null} [placeholder] WidgetConfig placeholder
-             * @property {number|null} [min] WidgetConfig min
-             * @property {number|null} [max] WidgetConfig max
-             * @property {number|null} [step] WidgetConfig step
-             * @property {boolean|null} [dynamicOptions] WidgetConfig dynamicOptions
-             * @property {string|null} [actionTarget] WidgetConfig actionTarget
+             * @interface ISelectResult
+             * @property {Array.<flowcraft_proto.v1.SelectResult.IOption>|null} [options] SelectResult options
+             * @property {boolean|null} [hasMore] SelectResult hasMore
              */
 
             /**
-             * Constructs a new WidgetConfig.
+             * Constructs a new SelectResult.
              * @memberof flowcraft_proto.v1
-             * @classdesc Represents a WidgetConfig.
-             * @implements IWidgetConfig
+             * @classdesc Represents a SelectResult.
+             * @implements ISelectResult
              * @constructor
-             * @param {flowcraft_proto.v1.IWidgetConfig=} [properties] Properties to set
+             * @param {flowcraft_proto.v1.ISelectResult=} [properties] Properties to set
              */
-            function WidgetConfig(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * WidgetConfig placeholder.
-             * @member {string} placeholder
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.placeholder = "";
-
-            /**
-             * WidgetConfig min.
-             * @member {number} min
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.min = 0;
-
-            /**
-             * WidgetConfig max.
-             * @member {number} max
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.max = 0;
-
-            /**
-             * WidgetConfig step.
-             * @member {number} step
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.step = 0;
-
-            /**
-             * WidgetConfig dynamicOptions.
-             * @member {boolean} dynamicOptions
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.dynamicOptions = false;
-
-            /**
-             * WidgetConfig actionTarget.
-             * @member {string} actionTarget
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             */
-            WidgetConfig.prototype.actionTarget = "";
-
-            /**
-             * Creates a new WidgetConfig instance using the specified properties.
-             * @function create
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {flowcraft_proto.v1.IWidgetConfig=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig instance
-             */
-            WidgetConfig.create = function create(properties) {
-                return new WidgetConfig(properties);
-            };
-
-            /**
-             * Encodes the specified WidgetConfig message. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
-             * @function encode
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {flowcraft_proto.v1.IWidgetConfig} message WidgetConfig message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            WidgetConfig.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.placeholder != null && Object.hasOwnProperty.call(message, "placeholder"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.placeholder);
-                if (message.min != null && Object.hasOwnProperty.call(message, "min"))
-                    writer.uint32(/* id 2, wireType 1 =*/17).double(message.min);
-                if (message.max != null && Object.hasOwnProperty.call(message, "max"))
-                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.max);
-                if (message.step != null && Object.hasOwnProperty.call(message, "step"))
-                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.step);
-                if (message.dynamicOptions != null && Object.hasOwnProperty.call(message, "dynamicOptions"))
-                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.dynamicOptions);
-                if (message.actionTarget != null && Object.hasOwnProperty.call(message, "actionTarget"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.actionTarget);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified WidgetConfig message, length delimited. Does not implicitly {@link flowcraft_proto.v1.WidgetConfig.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {flowcraft_proto.v1.IWidgetConfig} message WidgetConfig message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            WidgetConfig.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a WidgetConfig message from the specified reader or buffer.
-             * @function decode
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            WidgetConfig.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.WidgetConfig();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.placeholder = reader.string();
-                            break;
-                        }
-                    case 2: {
-                            message.min = reader.double();
-                            break;
-                        }
-                    case 3: {
-                            message.max = reader.double();
-                            break;
-                        }
-                    case 4: {
-                            message.step = reader.double();
-                            break;
-                        }
-                    case 5: {
-                            message.dynamicOptions = reader.bool();
-                            break;
-                        }
-                    case 6: {
-                            message.actionTarget = reader.string();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a WidgetConfig message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            WidgetConfig.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a WidgetConfig message.
-             * @function verify
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            WidgetConfig.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.placeholder != null && message.hasOwnProperty("placeholder"))
-                    if (!$util.isString(message.placeholder))
-                        return "placeholder: string expected";
-                if (message.min != null && message.hasOwnProperty("min"))
-                    if (typeof message.min !== "number")
-                        return "min: number expected";
-                if (message.max != null && message.hasOwnProperty("max"))
-                    if (typeof message.max !== "number")
-                        return "max: number expected";
-                if (message.step != null && message.hasOwnProperty("step"))
-                    if (typeof message.step !== "number")
-                        return "step: number expected";
-                if (message.dynamicOptions != null && message.hasOwnProperty("dynamicOptions"))
-                    if (typeof message.dynamicOptions !== "boolean")
-                        return "dynamicOptions: boolean expected";
-                if (message.actionTarget != null && message.hasOwnProperty("actionTarget"))
-                    if (!$util.isString(message.actionTarget))
-                        return "actionTarget: string expected";
-                return null;
-            };
-
-            /**
-             * Creates a WidgetConfig message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.WidgetConfig} WidgetConfig
-             */
-            WidgetConfig.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.WidgetConfig)
-                    return object;
-                let message = new $root.flowcraft_proto.v1.WidgetConfig();
-                if (object.placeholder != null)
-                    message.placeholder = String(object.placeholder);
-                if (object.min != null)
-                    message.min = Number(object.min);
-                if (object.max != null)
-                    message.max = Number(object.max);
-                if (object.step != null)
-                    message.step = Number(object.step);
-                if (object.dynamicOptions != null)
-                    message.dynamicOptions = Boolean(object.dynamicOptions);
-                if (object.actionTarget != null)
-                    message.actionTarget = String(object.actionTarget);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a WidgetConfig message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {flowcraft_proto.v1.WidgetConfig} message WidgetConfig
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            WidgetConfig.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.placeholder = "";
-                    object.min = 0;
-                    object.max = 0;
-                    object.step = 0;
-                    object.dynamicOptions = false;
-                    object.actionTarget = "";
-                }
-                if (message.placeholder != null && message.hasOwnProperty("placeholder"))
-                    object.placeholder = message.placeholder;
-                if (message.min != null && message.hasOwnProperty("min"))
-                    object.min = options.json && !isFinite(message.min) ? String(message.min) : message.min;
-                if (message.max != null && message.hasOwnProperty("max"))
-                    object.max = options.json && !isFinite(message.max) ? String(message.max) : message.max;
-                if (message.step != null && message.hasOwnProperty("step"))
-                    object.step = options.json && !isFinite(message.step) ? String(message.step) : message.step;
-                if (message.dynamicOptions != null && message.hasOwnProperty("dynamicOptions"))
-                    object.dynamicOptions = message.dynamicOptions;
-                if (message.actionTarget != null && message.hasOwnProperty("actionTarget"))
-                    object.actionTarget = message.actionTarget;
-                return object;
-            };
-
-            /**
-             * Converts this WidgetConfig to JSON.
-             * @function toJSON
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            WidgetConfig.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for WidgetConfig
-             * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.WidgetConfig
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            WidgetConfig.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/flowcraft_proto.v1.WidgetConfig";
-            };
-
-            return WidgetConfig;
-        })();
-
-        v1.Widget = (function() {
-
-            /**
-             * Properties of a Widget.
-             * @memberof flowcraft_proto.v1
-             * @interface IWidget
-             * @property {string|null} [id] Widget id
-             * @property {flowcraft_proto.v1.WidgetType|null} [type] Widget type
-             * @property {string|null} [label] Widget label
-             * @property {string|null} [valueJson] Widget valueJson
-             * @property {flowcraft_proto.v1.IWidgetConfig|null} [config] Widget config
-             * @property {Array.<flowcraft_proto.v1.IWidgetOption>|null} [options] Widget options
-             * @property {boolean|null} [isReadonly] Widget isReadonly
-             * @property {boolean|null} [isLoading] Widget isLoading
-             * @property {string|null} [inputPortId] Widget inputPortId
-             */
-
-            /**
-             * Constructs a new Widget.
-             * @memberof flowcraft_proto.v1
-             * @classdesc Represents a Widget.
-             * @implements IWidget
-             * @constructor
-             * @param {flowcraft_proto.v1.IWidget=} [properties] Properties to set
-             */
-            function Widget(properties) {
+            function SelectResult(properties) {
                 this.options = [];
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
@@ -10835,192 +10430,94 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             }
 
             /**
-             * Widget id.
-             * @member {string} id
-             * @memberof flowcraft_proto.v1.Widget
+             * SelectResult options.
+             * @member {Array.<flowcraft_proto.v1.SelectResult.IOption>} options
+             * @memberof flowcraft_proto.v1.SelectResult
              * @instance
              */
-            Widget.prototype.id = "";
+            SelectResult.prototype.options = $util.emptyArray;
 
             /**
-             * Widget type.
-             * @member {flowcraft_proto.v1.WidgetType} type
-             * @memberof flowcraft_proto.v1.Widget
+             * SelectResult hasMore.
+             * @member {boolean} hasMore
+             * @memberof flowcraft_proto.v1.SelectResult
              * @instance
              */
-            Widget.prototype.type = 0;
+            SelectResult.prototype.hasMore = false;
 
             /**
-             * Widget label.
-             * @member {string} label
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.label = "";
-
-            /**
-             * Widget valueJson.
-             * @member {string} valueJson
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.valueJson = "";
-
-            /**
-             * Widget config.
-             * @member {flowcraft_proto.v1.IWidgetConfig|null|undefined} config
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.config = null;
-
-            /**
-             * Widget options.
-             * @member {Array.<flowcraft_proto.v1.IWidgetOption>} options
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.options = $util.emptyArray;
-
-            /**
-             * Widget isReadonly.
-             * @member {boolean} isReadonly
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.isReadonly = false;
-
-            /**
-             * Widget isLoading.
-             * @member {boolean} isLoading
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.isLoading = false;
-
-            /**
-             * Widget inputPortId.
-             * @member {string} inputPortId
-             * @memberof flowcraft_proto.v1.Widget
-             * @instance
-             */
-            Widget.prototype.inputPortId = "";
-
-            /**
-             * Creates a new Widget instance using the specified properties.
+             * Creates a new SelectResult instance using the specified properties.
              * @function create
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
-             * @param {flowcraft_proto.v1.IWidget=} [properties] Properties to set
-             * @returns {flowcraft_proto.v1.Widget} Widget instance
+             * @param {flowcraft_proto.v1.ISelectResult=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.SelectResult} SelectResult instance
              */
-            Widget.create = function create(properties) {
-                return new Widget(properties);
+            SelectResult.create = function create(properties) {
+                return new SelectResult(properties);
             };
 
             /**
-             * Encodes the specified Widget message. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
+             * Encodes the specified SelectResult message. Does not implicitly {@link flowcraft_proto.v1.SelectResult.verify|verify} messages.
              * @function encode
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
-             * @param {flowcraft_proto.v1.IWidget} message Widget message or plain object to encode
+             * @param {flowcraft_proto.v1.ISelectResult} message SelectResult message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            Widget.encode = function encode(message, writer) {
+            SelectResult.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
-                if (message.type != null && Object.hasOwnProperty.call(message, "type"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.type);
-                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.label);
-                if (message.valueJson != null && Object.hasOwnProperty.call(message, "valueJson"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.valueJson);
-                if (message.config != null && Object.hasOwnProperty.call(message, "config"))
-                    $root.flowcraft_proto.v1.WidgetConfig.encode(message.config, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
                 if (message.options != null && message.options.length)
                     for (let i = 0; i < message.options.length; ++i)
-                        $root.flowcraft_proto.v1.WidgetOption.encode(message.options[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
-                if (message.isReadonly != null && Object.hasOwnProperty.call(message, "isReadonly"))
-                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.isReadonly);
-                if (message.isLoading != null && Object.hasOwnProperty.call(message, "isLoading"))
-                    writer.uint32(/* id 8, wireType 0 =*/64).bool(message.isLoading);
-                if (message.inputPortId != null && Object.hasOwnProperty.call(message, "inputPortId"))
-                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.inputPortId);
+                        $root.flowcraft_proto.v1.SelectResult.Option.encode(message.options[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.hasMore != null && Object.hasOwnProperty.call(message, "hasMore"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.hasMore);
                 return writer;
             };
 
             /**
-             * Encodes the specified Widget message, length delimited. Does not implicitly {@link flowcraft_proto.v1.Widget.verify|verify} messages.
+             * Encodes the specified SelectResult message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectResult.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
-             * @param {flowcraft_proto.v1.IWidget} message Widget message or plain object to encode
+             * @param {flowcraft_proto.v1.ISelectResult} message SelectResult message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            Widget.encodeDelimited = function encodeDelimited(message, writer) {
+            SelectResult.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
 
             /**
-             * Decodes a Widget message from the specified reader or buffer.
+             * Decodes a SelectResult message from the specified reader or buffer.
              * @function decode
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {flowcraft_proto.v1.Widget} Widget
+             * @returns {flowcraft_proto.v1.SelectResult} SelectResult
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            Widget.decode = function decode(reader, length, error) {
+            SelectResult.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.Widget();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.SelectResult();
                 while (reader.pos < end) {
                     let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.id = reader.string();
+                            if (!(message.options && message.options.length))
+                                message.options = [];
+                            message.options.push($root.flowcraft_proto.v1.SelectResult.Option.decode(reader, reader.uint32()));
                             break;
                         }
                     case 2: {
-                            message.type = reader.int32();
-                            break;
-                        }
-                    case 3: {
-                            message.label = reader.string();
-                            break;
-                        }
-                    case 4: {
-                            message.valueJson = reader.string();
-                            break;
-                        }
-                    case 5: {
-                            message.config = $root.flowcraft_proto.v1.WidgetConfig.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 6: {
-                            if (!(message.options && message.options.length))
-                                message.options = [];
-                            message.options.push($root.flowcraft_proto.v1.WidgetOption.decode(reader, reader.uint32()));
-                            break;
-                        }
-                    case 7: {
-                            message.isReadonly = reader.bool();
-                            break;
-                        }
-                    case 8: {
-                            message.isLoading = reader.bool();
-                            break;
-                        }
-                    case 9: {
-                            message.inputPortId = reader.string();
+                            message.hasMore = reader.bool();
                             break;
                         }
                     default:
@@ -11032,229 +10529,1475 @@ export const flowcraft_proto = $root.flowcraft_proto = (() => {
             };
 
             /**
-             * Decodes a Widget message from the specified reader or buffer, length delimited.
+             * Decodes a SelectResult message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {flowcraft_proto.v1.Widget} Widget
+             * @returns {flowcraft_proto.v1.SelectResult} SelectResult
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            Widget.decodeDelimited = function decodeDelimited(reader) {
+            SelectResult.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
 
             /**
-             * Verifies a Widget message.
+             * Verifies a SelectResult message.
              * @function verify
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            Widget.verify = function verify(message) {
+            SelectResult.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
-                if (message.id != null && message.hasOwnProperty("id"))
-                    if (!$util.isString(message.id))
-                        return "id: string expected";
-                if (message.type != null && message.hasOwnProperty("type"))
-                    switch (message.type) {
-                    default:
-                        return "type: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                        break;
-                    }
-                if (message.label != null && message.hasOwnProperty("label"))
-                    if (!$util.isString(message.label))
-                        return "label: string expected";
-                if (message.valueJson != null && message.hasOwnProperty("valueJson"))
-                    if (!$util.isString(message.valueJson))
-                        return "valueJson: string expected";
-                if (message.config != null && message.hasOwnProperty("config")) {
-                    let error = $root.flowcraft_proto.v1.WidgetConfig.verify(message.config);
-                    if (error)
-                        return "config." + error;
-                }
                 if (message.options != null && message.hasOwnProperty("options")) {
                     if (!Array.isArray(message.options))
                         return "options: array expected";
                     for (let i = 0; i < message.options.length; ++i) {
-                        let error = $root.flowcraft_proto.v1.WidgetOption.verify(message.options[i]);
+                        let error = $root.flowcraft_proto.v1.SelectResult.Option.verify(message.options[i]);
                         if (error)
                             return "options." + error;
                     }
                 }
-                if (message.isReadonly != null && message.hasOwnProperty("isReadonly"))
-                    if (typeof message.isReadonly !== "boolean")
-                        return "isReadonly: boolean expected";
-                if (message.isLoading != null && message.hasOwnProperty("isLoading"))
-                    if (typeof message.isLoading !== "boolean")
-                        return "isLoading: boolean expected";
-                if (message.inputPortId != null && message.hasOwnProperty("inputPortId"))
-                    if (!$util.isString(message.inputPortId))
-                        return "inputPortId: string expected";
+                if (message.hasMore != null && message.hasOwnProperty("hasMore"))
+                    if (typeof message.hasMore !== "boolean")
+                        return "hasMore: boolean expected";
                 return null;
             };
 
             /**
-             * Creates a Widget message from a plain object. Also converts values to their respective internal types.
+             * Creates a SelectResult message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {flowcraft_proto.v1.Widget} Widget
+             * @returns {flowcraft_proto.v1.SelectResult} SelectResult
              */
-            Widget.fromObject = function fromObject(object) {
-                if (object instanceof $root.flowcraft_proto.v1.Widget)
+            SelectResult.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.SelectResult)
                     return object;
-                let message = new $root.flowcraft_proto.v1.Widget();
-                if (object.id != null)
-                    message.id = String(object.id);
-                switch (object.type) {
-                default:
-                    if (typeof object.type === "number") {
-                        message.type = object.type;
-                        break;
-                    }
-                    break;
-                case "WIDGET_UNSPECIFIED":
-                case 0:
-                    message.type = 0;
-                    break;
-                case "WIDGET_TEXT":
-                case 1:
-                    message.type = 1;
-                    break;
-                case "WIDGET_SELECT":
-                case 2:
-                    message.type = 2;
-                    break;
-                case "WIDGET_CHECKBOX":
-                case 3:
-                    message.type = 3;
-                    break;
-                case "WIDGET_SLIDER":
-                case 4:
-                    message.type = 4;
-                    break;
-                case "WIDGET_BUTTON":
-                case 5:
-                    message.type = 5;
-                    break;
-                }
-                if (object.label != null)
-                    message.label = String(object.label);
-                if (object.valueJson != null)
-                    message.valueJson = String(object.valueJson);
-                if (object.config != null) {
-                    if (typeof object.config !== "object")
-                        throw TypeError(".flowcraft_proto.v1.Widget.config: object expected");
-                    message.config = $root.flowcraft_proto.v1.WidgetConfig.fromObject(object.config);
-                }
+                let message = new $root.flowcraft_proto.v1.SelectResult();
                 if (object.options) {
                     if (!Array.isArray(object.options))
-                        throw TypeError(".flowcraft_proto.v1.Widget.options: array expected");
+                        throw TypeError(".flowcraft_proto.v1.SelectResult.options: array expected");
                     message.options = [];
                     for (let i = 0; i < object.options.length; ++i) {
                         if (typeof object.options[i] !== "object")
-                            throw TypeError(".flowcraft_proto.v1.Widget.options: object expected");
-                        message.options[i] = $root.flowcraft_proto.v1.WidgetOption.fromObject(object.options[i]);
+                            throw TypeError(".flowcraft_proto.v1.SelectResult.options: object expected");
+                        message.options[i] = $root.flowcraft_proto.v1.SelectResult.Option.fromObject(object.options[i]);
                     }
                 }
-                if (object.isReadonly != null)
-                    message.isReadonly = Boolean(object.isReadonly);
-                if (object.isLoading != null)
-                    message.isLoading = Boolean(object.isLoading);
-                if (object.inputPortId != null)
-                    message.inputPortId = String(object.inputPortId);
+                if (object.hasMore != null)
+                    message.hasMore = Boolean(object.hasMore);
                 return message;
             };
 
             /**
-             * Creates a plain object from a Widget message. Also converts values to other types if specified.
+             * Creates a plain object from a SelectResult message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
-             * @param {flowcraft_proto.v1.Widget} message Widget
+             * @param {flowcraft_proto.v1.SelectResult} message SelectResult
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            Widget.toObject = function toObject(message, options) {
+            SelectResult.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 let object = {};
                 if (options.arrays || options.defaults)
                     object.options = [];
-                if (options.defaults) {
-                    object.id = "";
-                    object.type = options.enums === String ? "WIDGET_UNSPECIFIED" : 0;
-                    object.label = "";
-                    object.valueJson = "";
-                    object.config = null;
-                    object.isReadonly = false;
-                    object.isLoading = false;
-                    object.inputPortId = "";
-                }
-                if (message.id != null && message.hasOwnProperty("id"))
-                    object.id = message.id;
-                if (message.type != null && message.hasOwnProperty("type"))
-                    object.type = options.enums === String ? $root.flowcraft_proto.v1.WidgetType[message.type] === undefined ? message.type : $root.flowcraft_proto.v1.WidgetType[message.type] : message.type;
-                if (message.label != null && message.hasOwnProperty("label"))
-                    object.label = message.label;
-                if (message.valueJson != null && message.hasOwnProperty("valueJson"))
-                    object.valueJson = message.valueJson;
-                if (message.config != null && message.hasOwnProperty("config"))
-                    object.config = $root.flowcraft_proto.v1.WidgetConfig.toObject(message.config, options);
+                if (options.defaults)
+                    object.hasMore = false;
                 if (message.options && message.options.length) {
                     object.options = [];
                     for (let j = 0; j < message.options.length; ++j)
-                        object.options[j] = $root.flowcraft_proto.v1.WidgetOption.toObject(message.options[j], options);
+                        object.options[j] = $root.flowcraft_proto.v1.SelectResult.Option.toObject(message.options[j], options);
                 }
-                if (message.isReadonly != null && message.hasOwnProperty("isReadonly"))
-                    object.isReadonly = message.isReadonly;
-                if (message.isLoading != null && message.hasOwnProperty("isLoading"))
-                    object.isLoading = message.isLoading;
-                if (message.inputPortId != null && message.hasOwnProperty("inputPortId"))
-                    object.inputPortId = message.inputPortId;
+                if (message.hasMore != null && message.hasOwnProperty("hasMore"))
+                    object.hasMore = message.hasMore;
                 return object;
             };
 
             /**
-             * Converts this Widget to JSON.
+             * Converts this SelectResult to JSON.
              * @function toJSON
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            Widget.prototype.toJSON = function toJSON() {
+            SelectResult.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the default type url for Widget
+             * Gets the default type url for SelectResult
              * @function getTypeUrl
-             * @memberof flowcraft_proto.v1.Widget
+             * @memberof flowcraft_proto.v1.SelectResult
              * @static
              * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns {string} The default type url
              */
-            Widget.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            SelectResult.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
                 if (typeUrlPrefix === undefined) {
                     typeUrlPrefix = "type.googleapis.com";
                 }
-                return typeUrlPrefix + "/flowcraft_proto.v1.Widget";
+                return typeUrlPrefix + "/flowcraft_proto.v1.SelectResult";
             };
 
-            return Widget;
+            SelectResult.Option = (function() {
+
+                /**
+                 * Properties of an Option.
+                 * @memberof flowcraft_proto.v1.SelectResult
+                 * @interface IOption
+                 * @property {string|null} [id] Option id
+                 * @property {string|null} [label] Option label
+                 * @property {string|null} [description] Option description
+                 */
+
+                /**
+                 * Constructs a new Option.
+                 * @memberof flowcraft_proto.v1.SelectResult
+                 * @classdesc Represents an Option.
+                 * @implements IOption
+                 * @constructor
+                 * @param {flowcraft_proto.v1.SelectResult.IOption=} [properties] Properties to set
+                 */
+                function Option(properties) {
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * Option id.
+                 * @member {string} id
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @instance
+                 */
+                Option.prototype.id = "";
+
+                /**
+                 * Option label.
+                 * @member {string} label
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @instance
+                 */
+                Option.prototype.label = "";
+
+                /**
+                 * Option description.
+                 * @member {string} description
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @instance
+                 */
+                Option.prototype.description = "";
+
+                /**
+                 * Creates a new Option instance using the specified properties.
+                 * @function create
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {flowcraft_proto.v1.SelectResult.IOption=} [properties] Properties to set
+                 * @returns {flowcraft_proto.v1.SelectResult.Option} Option instance
+                 */
+                Option.create = function create(properties) {
+                    return new Option(properties);
+                };
+
+                /**
+                 * Encodes the specified Option message. Does not implicitly {@link flowcraft_proto.v1.SelectResult.Option.verify|verify} messages.
+                 * @function encode
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {flowcraft_proto.v1.SelectResult.IOption} message Option message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                Option.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                    if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.label);
+                    if (message.description != null && Object.hasOwnProperty.call(message, "description"))
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.description);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified Option message, length delimited. Does not implicitly {@link flowcraft_proto.v1.SelectResult.Option.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {flowcraft_proto.v1.SelectResult.IOption} message Option message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                Option.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes an Option message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {flowcraft_proto.v1.SelectResult.Option} Option
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                Option.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.SelectResult.Option();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.id = reader.string();
+                                break;
+                            }
+                        case 2: {
+                                message.label = reader.string();
+                                break;
+                            }
+                        case 3: {
+                                message.description = reader.string();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes an Option message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {flowcraft_proto.v1.SelectResult.Option} Option
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                Option.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies an Option message.
+                 * @function verify
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                Option.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.id != null && message.hasOwnProperty("id"))
+                        if (!$util.isString(message.id))
+                            return "id: string expected";
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        if (!$util.isString(message.label))
+                            return "label: string expected";
+                    if (message.description != null && message.hasOwnProperty("description"))
+                        if (!$util.isString(message.description))
+                            return "description: string expected";
+                    return null;
+                };
+
+                /**
+                 * Creates an Option message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {flowcraft_proto.v1.SelectResult.Option} Option
+                 */
+                Option.fromObject = function fromObject(object) {
+                    if (object instanceof $root.flowcraft_proto.v1.SelectResult.Option)
+                        return object;
+                    let message = new $root.flowcraft_proto.v1.SelectResult.Option();
+                    if (object.id != null)
+                        message.id = String(object.id);
+                    if (object.label != null)
+                        message.label = String(object.label);
+                    if (object.description != null)
+                        message.description = String(object.description);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from an Option message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {flowcraft_proto.v1.SelectResult.Option} message Option
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                Option.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.defaults) {
+                        object.id = "";
+                        object.label = "";
+                        object.description = "";
+                    }
+                    if (message.id != null && message.hasOwnProperty("id"))
+                        object.id = message.id;
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        object.label = message.label;
+                    if (message.description != null && message.hasOwnProperty("description"))
+                        object.description = message.description;
+                    return object;
+                };
+
+                /**
+                 * Converts this Option to JSON.
+                 * @function toJSON
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                Option.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for Option
+                 * @function getTypeUrl
+                 * @memberof flowcraft_proto.v1.SelectResult.Option
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                Option.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/flowcraft_proto.v1.SelectResult.Option";
+                };
+
+                return Option;
+            })();
+
+            return SelectResult;
+        })();
+
+        /**
+         * ActionExecutionStrategy enum.
+         * @name flowcraft_proto.v1.ActionExecutionStrategy
+         * @enum {number}
+         * @property {number} EXECUTION_IMMEDIATE=0 EXECUTION_IMMEDIATE value
+         * @property {number} EXECUTION_BACKGROUND=1 EXECUTION_BACKGROUND value
+         * @property {number} EXECUTION_STREAMING=2 EXECUTION_STREAMING value
+         */
+        v1.ActionExecutionStrategy = (function() {
+            const valuesById = {}, values = Object.create(valuesById);
+            values[valuesById[0] = "EXECUTION_IMMEDIATE"] = 0;
+            values[valuesById[1] = "EXECUTION_BACKGROUND"] = 1;
+            values[valuesById[2] = "EXECUTION_STREAMING"] = 2;
+            return values;
+        })();
+
+        v1.ActionTemplate = (function() {
+
+            /**
+             * Properties of an ActionTemplate.
+             * @memberof flowcraft_proto.v1
+             * @interface IActionTemplate
+             * @property {string|null} [id] ActionTemplate id
+             * @property {string|null} [label] ActionTemplate label
+             * @property {Array.<string>|null} [path] ActionTemplate path
+             * @property {flowcraft_proto.v1.ActionExecutionStrategy|null} [strategy] ActionTemplate strategy
+             */
+
+            /**
+             * Constructs a new ActionTemplate.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents an ActionTemplate.
+             * @implements IActionTemplate
+             * @constructor
+             * @param {flowcraft_proto.v1.IActionTemplate=} [properties] Properties to set
+             */
+            function ActionTemplate(properties) {
+                this.path = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ActionTemplate id.
+             * @member {string} id
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @instance
+             */
+            ActionTemplate.prototype.id = "";
+
+            /**
+             * ActionTemplate label.
+             * @member {string} label
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @instance
+             */
+            ActionTemplate.prototype.label = "";
+
+            /**
+             * ActionTemplate path.
+             * @member {Array.<string>} path
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @instance
+             */
+            ActionTemplate.prototype.path = $util.emptyArray;
+
+            /**
+             * ActionTemplate strategy.
+             * @member {flowcraft_proto.v1.ActionExecutionStrategy} strategy
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @instance
+             */
+            ActionTemplate.prototype.strategy = 0;
+
+            /**
+             * Creates a new ActionTemplate instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {flowcraft_proto.v1.IActionTemplate=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate instance
+             */
+            ActionTemplate.create = function create(properties) {
+                return new ActionTemplate(properties);
+            };
+
+            /**
+             * Encodes the specified ActionTemplate message. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {flowcraft_proto.v1.IActionTemplate} message ActionTemplate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionTemplate.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.label);
+                if (message.path != null && message.path.length)
+                    for (let i = 0; i < message.path.length; ++i)
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.path[i]);
+                if (message.strategy != null && Object.hasOwnProperty.call(message, "strategy"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int32(message.strategy);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ActionTemplate message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionTemplate.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {flowcraft_proto.v1.IActionTemplate} message ActionTemplate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionTemplate.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ActionTemplate message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionTemplate.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionTemplate();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.id = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.label = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            if (!(message.path && message.path.length))
+                                message.path = [];
+                            message.path.push(reader.string());
+                            break;
+                        }
+                    case 4: {
+                            message.strategy = reader.int32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ActionTemplate message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionTemplate.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ActionTemplate message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ActionTemplate.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.id != null && message.hasOwnProperty("id"))
+                    if (!$util.isString(message.id))
+                        return "id: string expected";
+                if (message.label != null && message.hasOwnProperty("label"))
+                    if (!$util.isString(message.label))
+                        return "label: string expected";
+                if (message.path != null && message.hasOwnProperty("path")) {
+                    if (!Array.isArray(message.path))
+                        return "path: array expected";
+                    for (let i = 0; i < message.path.length; ++i)
+                        if (!$util.isString(message.path[i]))
+                            return "path: string[] expected";
+                }
+                if (message.strategy != null && message.hasOwnProperty("strategy"))
+                    switch (message.strategy) {
+                    default:
+                        return "strategy: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                        break;
+                    }
+                return null;
+            };
+
+            /**
+             * Creates an ActionTemplate message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.ActionTemplate} ActionTemplate
+             */
+            ActionTemplate.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.ActionTemplate)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.ActionTemplate();
+                if (object.id != null)
+                    message.id = String(object.id);
+                if (object.label != null)
+                    message.label = String(object.label);
+                if (object.path) {
+                    if (!Array.isArray(object.path))
+                        throw TypeError(".flowcraft_proto.v1.ActionTemplate.path: array expected");
+                    message.path = [];
+                    for (let i = 0; i < object.path.length; ++i)
+                        message.path[i] = String(object.path[i]);
+                }
+                switch (object.strategy) {
+                default:
+                    if (typeof object.strategy === "number") {
+                        message.strategy = object.strategy;
+                        break;
+                    }
+                    break;
+                case "EXECUTION_IMMEDIATE":
+                case 0:
+                    message.strategy = 0;
+                    break;
+                case "EXECUTION_BACKGROUND":
+                case 1:
+                    message.strategy = 1;
+                    break;
+                case "EXECUTION_STREAMING":
+                case 2:
+                    message.strategy = 2;
+                    break;
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ActionTemplate message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {flowcraft_proto.v1.ActionTemplate} message ActionTemplate
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ActionTemplate.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.path = [];
+                if (options.defaults) {
+                    object.id = "";
+                    object.label = "";
+                    object.strategy = options.enums === String ? "EXECUTION_IMMEDIATE" : 0;
+                }
+                if (message.id != null && message.hasOwnProperty("id"))
+                    object.id = message.id;
+                if (message.label != null && message.hasOwnProperty("label"))
+                    object.label = message.label;
+                if (message.path && message.path.length) {
+                    object.path = [];
+                    for (let j = 0; j < message.path.length; ++j)
+                        object.path[j] = message.path[j];
+                }
+                if (message.strategy != null && message.hasOwnProperty("strategy"))
+                    object.strategy = options.enums === String ? $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] === undefined ? message.strategy : $root.flowcraft_proto.v1.ActionExecutionStrategy[message.strategy] : message.strategy;
+                return object;
+            };
+
+            /**
+             * Converts this ActionTemplate to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ActionTemplate.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ActionTemplate
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.ActionTemplate
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ActionTemplate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.ActionTemplate";
+            };
+
+            return ActionTemplate;
+        })();
+
+        v1.ActionDiscoveryRequest = (function() {
+
+            /**
+             * Properties of an ActionDiscoveryRequest.
+             * @memberof flowcraft_proto.v1
+             * @interface IActionDiscoveryRequest
+             * @property {string|null} [nodeId] ActionDiscoveryRequest nodeId
+             * @property {Array.<string>|null} [selectedNodeIds] ActionDiscoveryRequest selectedNodeIds
+             */
+
+            /**
+             * Constructs a new ActionDiscoveryRequest.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents an ActionDiscoveryRequest.
+             * @implements IActionDiscoveryRequest
+             * @constructor
+             * @param {flowcraft_proto.v1.IActionDiscoveryRequest=} [properties] Properties to set
+             */
+            function ActionDiscoveryRequest(properties) {
+                this.selectedNodeIds = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ActionDiscoveryRequest nodeId.
+             * @member {string} nodeId
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @instance
+             */
+            ActionDiscoveryRequest.prototype.nodeId = "";
+
+            /**
+             * ActionDiscoveryRequest selectedNodeIds.
+             * @member {Array.<string>} selectedNodeIds
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @instance
+             */
+            ActionDiscoveryRequest.prototype.selectedNodeIds = $util.emptyArray;
+
+            /**
+             * Creates a new ActionDiscoveryRequest instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryRequest=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest instance
+             */
+            ActionDiscoveryRequest.create = function create(properties) {
+                return new ActionDiscoveryRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ActionDiscoveryRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryRequest} message ActionDiscoveryRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionDiscoveryRequest.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.nodeId != null && Object.hasOwnProperty.call(message, "nodeId"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.nodeId);
+                if (message.selectedNodeIds != null && message.selectedNodeIds.length)
+                    for (let i = 0; i < message.selectedNodeIds.length; ++i)
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.selectedNodeIds[i]);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ActionDiscoveryRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryRequest.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryRequest} message ActionDiscoveryRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionDiscoveryRequest.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionDiscoveryRequest.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionDiscoveryRequest();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.nodeId = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            if (!(message.selectedNodeIds && message.selectedNodeIds.length))
+                                message.selectedNodeIds = [];
+                            message.selectedNodeIds.push(reader.string());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ActionDiscoveryRequest message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionDiscoveryRequest.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ActionDiscoveryRequest message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ActionDiscoveryRequest.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+                    if (!$util.isString(message.nodeId))
+                        return "nodeId: string expected";
+                if (message.selectedNodeIds != null && message.hasOwnProperty("selectedNodeIds")) {
+                    if (!Array.isArray(message.selectedNodeIds))
+                        return "selectedNodeIds: array expected";
+                    for (let i = 0; i < message.selectedNodeIds.length; ++i)
+                        if (!$util.isString(message.selectedNodeIds[i]))
+                            return "selectedNodeIds: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ActionDiscoveryRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.ActionDiscoveryRequest} ActionDiscoveryRequest
+             */
+            ActionDiscoveryRequest.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.ActionDiscoveryRequest)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.ActionDiscoveryRequest();
+                if (object.nodeId != null)
+                    message.nodeId = String(object.nodeId);
+                if (object.selectedNodeIds) {
+                    if (!Array.isArray(object.selectedNodeIds))
+                        throw TypeError(".flowcraft_proto.v1.ActionDiscoveryRequest.selectedNodeIds: array expected");
+                    message.selectedNodeIds = [];
+                    for (let i = 0; i < object.selectedNodeIds.length; ++i)
+                        message.selectedNodeIds[i] = String(object.selectedNodeIds[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ActionDiscoveryRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {flowcraft_proto.v1.ActionDiscoveryRequest} message ActionDiscoveryRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ActionDiscoveryRequest.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.selectedNodeIds = [];
+                if (options.defaults)
+                    object.nodeId = "";
+                if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+                    object.nodeId = message.nodeId;
+                if (message.selectedNodeIds && message.selectedNodeIds.length) {
+                    object.selectedNodeIds = [];
+                    for (let j = 0; j < message.selectedNodeIds.length; ++j)
+                        object.selectedNodeIds[j] = message.selectedNodeIds[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ActionDiscoveryRequest to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ActionDiscoveryRequest.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ActionDiscoveryRequest
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.ActionDiscoveryRequest
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ActionDiscoveryRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.ActionDiscoveryRequest";
+            };
+
+            return ActionDiscoveryRequest;
+        })();
+
+        v1.ActionDiscoveryResponse = (function() {
+
+            /**
+             * Properties of an ActionDiscoveryResponse.
+             * @memberof flowcraft_proto.v1
+             * @interface IActionDiscoveryResponse
+             * @property {Array.<flowcraft_proto.v1.IActionTemplate>|null} [actions] ActionDiscoveryResponse actions
+             */
+
+            /**
+             * Constructs a new ActionDiscoveryResponse.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents an ActionDiscoveryResponse.
+             * @implements IActionDiscoveryResponse
+             * @constructor
+             * @param {flowcraft_proto.v1.IActionDiscoveryResponse=} [properties] Properties to set
+             */
+            function ActionDiscoveryResponse(properties) {
+                this.actions = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ActionDiscoveryResponse actions.
+             * @member {Array.<flowcraft_proto.v1.IActionTemplate>} actions
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @instance
+             */
+            ActionDiscoveryResponse.prototype.actions = $util.emptyArray;
+
+            /**
+             * Creates a new ActionDiscoveryResponse instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryResponse=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse instance
+             */
+            ActionDiscoveryResponse.create = function create(properties) {
+                return new ActionDiscoveryResponse(properties);
+            };
+
+            /**
+             * Encodes the specified ActionDiscoveryResponse message. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryResponse} message ActionDiscoveryResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionDiscoveryResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.actions != null && message.actions.length)
+                    for (let i = 0; i < message.actions.length; ++i)
+                        $root.flowcraft_proto.v1.ActionTemplate.encode(message.actions[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ActionDiscoveryResponse message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionDiscoveryResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {flowcraft_proto.v1.IActionDiscoveryResponse} message ActionDiscoveryResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionDiscoveryResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionDiscoveryResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionDiscoveryResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            if (!(message.actions && message.actions.length))
+                                message.actions = [];
+                            message.actions.push($root.flowcraft_proto.v1.ActionTemplate.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ActionDiscoveryResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionDiscoveryResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ActionDiscoveryResponse message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ActionDiscoveryResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.actions != null && message.hasOwnProperty("actions")) {
+                    if (!Array.isArray(message.actions))
+                        return "actions: array expected";
+                    for (let i = 0; i < message.actions.length; ++i) {
+                        let error = $root.flowcraft_proto.v1.ActionTemplate.verify(message.actions[i]);
+                        if (error)
+                            return "actions." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ActionDiscoveryResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.ActionDiscoveryResponse} ActionDiscoveryResponse
+             */
+            ActionDiscoveryResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.ActionDiscoveryResponse)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.ActionDiscoveryResponse();
+                if (object.actions) {
+                    if (!Array.isArray(object.actions))
+                        throw TypeError(".flowcraft_proto.v1.ActionDiscoveryResponse.actions: array expected");
+                    message.actions = [];
+                    for (let i = 0; i < object.actions.length; ++i) {
+                        if (typeof object.actions[i] !== "object")
+                            throw TypeError(".flowcraft_proto.v1.ActionDiscoveryResponse.actions: object expected");
+                        message.actions[i] = $root.flowcraft_proto.v1.ActionTemplate.fromObject(object.actions[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ActionDiscoveryResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {flowcraft_proto.v1.ActionDiscoveryResponse} message ActionDiscoveryResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ActionDiscoveryResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.actions = [];
+                if (message.actions && message.actions.length) {
+                    object.actions = [];
+                    for (let j = 0; j < message.actions.length; ++j)
+                        object.actions[j] = $root.flowcraft_proto.v1.ActionTemplate.toObject(message.actions[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ActionDiscoveryResponse to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ActionDiscoveryResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ActionDiscoveryResponse
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.ActionDiscoveryResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ActionDiscoveryResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.ActionDiscoveryResponse";
+            };
+
+            return ActionDiscoveryResponse;
+        })();
+
+        v1.ActionExecutionRequest = (function() {
+
+            /**
+             * Properties of an ActionExecutionRequest.
+             * @memberof flowcraft_proto.v1
+             * @interface IActionExecutionRequest
+             * @property {string|null} [actionId] ActionExecutionRequest actionId
+             * @property {string|null} [sourceNodeId] ActionExecutionRequest sourceNodeId
+             * @property {Array.<string>|null} [contextNodeIds] ActionExecutionRequest contextNodeIds
+             * @property {string|null} [paramsJson] ActionExecutionRequest paramsJson
+             */
+
+            /**
+             * Constructs a new ActionExecutionRequest.
+             * @memberof flowcraft_proto.v1
+             * @classdesc Represents an ActionExecutionRequest.
+             * @implements IActionExecutionRequest
+             * @constructor
+             * @param {flowcraft_proto.v1.IActionExecutionRequest=} [properties] Properties to set
+             */
+            function ActionExecutionRequest(properties) {
+                this.contextNodeIds = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ActionExecutionRequest actionId.
+             * @member {string} actionId
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @instance
+             */
+            ActionExecutionRequest.prototype.actionId = "";
+
+            /**
+             * ActionExecutionRequest sourceNodeId.
+             * @member {string} sourceNodeId
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @instance
+             */
+            ActionExecutionRequest.prototype.sourceNodeId = "";
+
+            /**
+             * ActionExecutionRequest contextNodeIds.
+             * @member {Array.<string>} contextNodeIds
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @instance
+             */
+            ActionExecutionRequest.prototype.contextNodeIds = $util.emptyArray;
+
+            /**
+             * ActionExecutionRequest paramsJson.
+             * @member {string} paramsJson
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @instance
+             */
+            ActionExecutionRequest.prototype.paramsJson = "";
+
+            /**
+             * Creates a new ActionExecutionRequest instance using the specified properties.
+             * @function create
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionExecutionRequest=} [properties] Properties to set
+             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest instance
+             */
+            ActionExecutionRequest.create = function create(properties) {
+                return new ActionExecutionRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ActionExecutionRequest message. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
+             * @function encode
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionExecutionRequest} message ActionExecutionRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionExecutionRequest.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.actionId != null && Object.hasOwnProperty.call(message, "actionId"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.actionId);
+                if (message.sourceNodeId != null && Object.hasOwnProperty.call(message, "sourceNodeId"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.sourceNodeId);
+                if (message.contextNodeIds != null && message.contextNodeIds.length)
+                    for (let i = 0; i < message.contextNodeIds.length; ++i)
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.contextNodeIds[i]);
+                if (message.paramsJson != null && Object.hasOwnProperty.call(message, "paramsJson"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.paramsJson);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ActionExecutionRequest message, length delimited. Does not implicitly {@link flowcraft_proto.v1.ActionExecutionRequest.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {flowcraft_proto.v1.IActionExecutionRequest} message ActionExecutionRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ActionExecutionRequest.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ActionExecutionRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionExecutionRequest.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.flowcraft_proto.v1.ActionExecutionRequest();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.actionId = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.sourceNodeId = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            if (!(message.contextNodeIds && message.contextNodeIds.length))
+                                message.contextNodeIds = [];
+                            message.contextNodeIds.push(reader.string());
+                            break;
+                        }
+                    case 4: {
+                            message.paramsJson = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ActionExecutionRequest message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ActionExecutionRequest.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ActionExecutionRequest message.
+             * @function verify
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ActionExecutionRequest.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.actionId != null && message.hasOwnProperty("actionId"))
+                    if (!$util.isString(message.actionId))
+                        return "actionId: string expected";
+                if (message.sourceNodeId != null && message.hasOwnProperty("sourceNodeId"))
+                    if (!$util.isString(message.sourceNodeId))
+                        return "sourceNodeId: string expected";
+                if (message.contextNodeIds != null && message.hasOwnProperty("contextNodeIds")) {
+                    if (!Array.isArray(message.contextNodeIds))
+                        return "contextNodeIds: array expected";
+                    for (let i = 0; i < message.contextNodeIds.length; ++i)
+                        if (!$util.isString(message.contextNodeIds[i]))
+                            return "contextNodeIds: string[] expected";
+                }
+                if (message.paramsJson != null && message.hasOwnProperty("paramsJson"))
+                    if (!$util.isString(message.paramsJson))
+                        return "paramsJson: string expected";
+                return null;
+            };
+
+            /**
+             * Creates an ActionExecutionRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {flowcraft_proto.v1.ActionExecutionRequest} ActionExecutionRequest
+             */
+            ActionExecutionRequest.fromObject = function fromObject(object) {
+                if (object instanceof $root.flowcraft_proto.v1.ActionExecutionRequest)
+                    return object;
+                let message = new $root.flowcraft_proto.v1.ActionExecutionRequest();
+                if (object.actionId != null)
+                    message.actionId = String(object.actionId);
+                if (object.sourceNodeId != null)
+                    message.sourceNodeId = String(object.sourceNodeId);
+                if (object.contextNodeIds) {
+                    if (!Array.isArray(object.contextNodeIds))
+                        throw TypeError(".flowcraft_proto.v1.ActionExecutionRequest.contextNodeIds: array expected");
+                    message.contextNodeIds = [];
+                    for (let i = 0; i < object.contextNodeIds.length; ++i)
+                        message.contextNodeIds[i] = String(object.contextNodeIds[i]);
+                }
+                if (object.paramsJson != null)
+                    message.paramsJson = String(object.paramsJson);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ActionExecutionRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {flowcraft_proto.v1.ActionExecutionRequest} message ActionExecutionRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ActionExecutionRequest.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.contextNodeIds = [];
+                if (options.defaults) {
+                    object.actionId = "";
+                    object.sourceNodeId = "";
+                    object.paramsJson = "";
+                }
+                if (message.actionId != null && message.hasOwnProperty("actionId"))
+                    object.actionId = message.actionId;
+                if (message.sourceNodeId != null && message.hasOwnProperty("sourceNodeId"))
+                    object.sourceNodeId = message.sourceNodeId;
+                if (message.contextNodeIds && message.contextNodeIds.length) {
+                    object.contextNodeIds = [];
+                    for (let j = 0; j < message.contextNodeIds.length; ++j)
+                        object.contextNodeIds[j] = message.contextNodeIds[j];
+                }
+                if (message.paramsJson != null && message.hasOwnProperty("paramsJson"))
+                    object.paramsJson = message.paramsJson;
+                return object;
+            };
+
+            /**
+             * Converts this ActionExecutionRequest to JSON.
+             * @function toJSON
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ActionExecutionRequest.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ActionExecutionRequest
+             * @function getTypeUrl
+             * @memberof flowcraft_proto.v1.ActionExecutionRequest
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ActionExecutionRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/flowcraft_proto.v1.ActionExecutionRequest";
+            };
+
+            return ActionExecutionRequest;
         })();
 
         return v1;

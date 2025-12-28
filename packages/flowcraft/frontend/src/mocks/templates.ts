@@ -126,6 +126,148 @@ export const nodeTemplates: NodeTemplate[] = [
       ],
     },
   },
+  // --- MEDIA PROCESSING ---
+  {
+    id: "tpl-img-proc",
+    label: "Image Filter",
+    path: ["Media", "Image"],
+    defaultData: {
+      label: "Grayscale",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "in",
+          label: "Image",
+          type: { mainType: "image" },
+          color: "#48bb78",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "out",
+          label: "Filtered",
+          type: { mainType: "image" },
+          color: "#48bb78",
+        },
+      ],
+    },
+  },
+  {
+    id: "tpl-vid-proc",
+    label: "Video Trimmer",
+    path: ["Media", "Video"],
+    defaultData: {
+      label: "Trimmer",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "in",
+          label: "Video",
+          type: { mainType: "video" },
+          color: "#ed64a6",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "out",
+          label: "Trimmed",
+          type: { mainType: "video" },
+          color: "#ed64a6",
+        },
+      ],
+    },
+  },
+  // --- COLLECTIONS & CONTAINERS ---
+  {
+    id: "tpl-list-merge",
+    label: "List Joiner",
+    path: ["Logic", "Collections"],
+    defaultData: {
+      label: "Join List",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "list",
+          label: "Input List",
+          type: { mainType: "list", isGeneric: true },
+          color: "#ecc94b",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "str",
+          label: "String",
+          type: { mainType: "string" },
+          color: "#646cff",
+        },
+      ],
+      widgets: [
+        {
+          id: "sep",
+          type: WidgetType.WIDGET_TEXT,
+          label: "Separator",
+          value: ", ",
+        },
+      ],
+    },
+  },
+  {
+    id: "tpl-batch-image",
+    label: "Image Batcher",
+    path: ["Media", "Image"],
+    defaultData: {
+      label: "Batch",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "img",
+          label: "Image",
+          type: { mainType: "image" },
+          color: "#48bb78",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "batch",
+          label: "Image List",
+          type: { mainType: "list", itemType: "image" },
+          color: "#48bb78",
+          style: PortStyle.PORT_STYLE_SQUARE,
+        },
+      ],
+    },
+  },
+  // --- GENERIC TYPES ---
+  {
+    id: "tpl-any-pass",
+    label: "Generic Pass",
+    path: ["Utility", "Debug"],
+    defaultData: {
+      label: "Pass-Through",
+      modes: [RenderMode.MODE_WIDGETS],
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [
+        {
+          id: "any",
+          label: "Any",
+          type: { mainType: "any", isGeneric: true },
+          color: "#a0aec0",
+        },
+      ],
+      outputPorts: [
+        {
+          id: "out",
+          label: "Result",
+          type: { mainType: "any", isGeneric: true },
+          color: "#a0aec0",
+        },
+      ],
+    },
+  },
 ];
 
 export const actionTemplates = [

@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import ThemeProvider from "./ThemeProvider.tsx";
+import { initOrchestrator } from "./store/orchestrator";
+
+// Initialize cross-store side-effects
+initOrchestrator();
 
 async function enableMocking() {
   if (import.meta.env.DEV) {

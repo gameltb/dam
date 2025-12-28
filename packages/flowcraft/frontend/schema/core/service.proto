@@ -3,31 +3,25 @@ syntax = "proto3";
 package flowcraft_proto.v1;
 
 import "base.proto";
-import "widget.proto";
+import "core/node.proto";
+import "core/signals.proto";
 import "action.proto";
-
-// ============================================================================
-// Unified WebSocket Protocol
-// ============================================================================
 
 message FlowMessage {
   string message_id = 1;
   int64 timestamp = 2;
 
   oneof payload {
-    // --- Synchronization ---
     SyncRequest sync_request = 10;
-    bytes yjs_update = 11; // CRDT incremental update
-
-    // --- Other Client Actions ---
+    bytes yjs_update = 11;
     UpdateNodeRequest node_update = 12;
     UpdateWidgetRequest widget_update = 13;
     ActionExecutionRequest action_execute = 14;
     ActionDiscoveryRequest action_discovery = 17;
     TaskCancelRequest task_cancel = 15;
     ViewportUpdate viewport_update = 16;
+    WidgetSignal widget_signal = 18;
 
-    // --- Server -> Client ---
     GraphSnapshot snapshot = 20;
     MutationList mutations = 21;
     ActionDiscoveryResponse actions = 25;
@@ -36,8 +30,6 @@ message FlowMessage {
     ErrorResponse error = 24;
   }
 }
-
-// --- Specific Message Structures ---
 
 message SyncRequest { string graph_id = 1; }
 
@@ -75,16 +67,6 @@ message ErrorResponse {
   string message = 2;
 }
 
-// ============================================================================
-// Service Interface
-// ============================================================================
-
-service FlowService {
-  // The single bidirectional stream for all graph interactions
-  rpc Connect (stream FlowMessage) returns (stream FlowMessage);
-}
-
-// ... (Existing GraphMutation, TaskUpdate, etc.)
 message GraphSnapshot {
   repeated Node nodes = 1;
   repeated Edge edges = 2;
@@ -104,27 +86,18 @@ message GraphMutation {
 }
 
 message AddNode { Node node = 1; }
-message UpdateNode { string id = 1; NodeData data = 2; Position position = 3; }
+message UpdateNode {
+  string id = 1;
+  NodeData data = 2;
+  Position position = 3;
+  string parent_id = 4;
+  double width = 5;
+  double height = 6;
+}
 message RemoveNode { string id = 1; }
 message AddEdge { Edge edge = 1; }
 message RemoveEdge { string id = 1; }
 message AddSubGraph { repeated Node nodes = 1; repeated Edge edges = 2; }
 message ClearGraph {}
-
-message TaskUpdate {
-  string task_id = 1;
-  TaskStatus status = 2;
-  double progress = 3;
-  string message = 4;
-  string result_json = 5;
-}
-
-enum TaskStatus {
-  TASK_PENDING = 0;
-  TASK_PROCESSING = 1;
-  TASK_COMPLETED = 2;
-  TASK_FAILED = 3;
-  TASK_CANCELLED = 4;
-}
 
 message TaskCancelRequest { string task_id = 1; }

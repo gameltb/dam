@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
+import { useUiStore } from "../../store/uiStore";
 import { flowcraft_proto } from "../../generated/flowcraft_proto";
 
-// Mock the store
+// Mock the stores
 vi.mock("../../store/flowStore", () => ({
   useFlowStore: vi.fn(),
+}));
+
+vi.mock("../../store/uiStore", () => ({
+  useUiStore: vi.fn(),
 }));
 
 /**
@@ -16,6 +21,7 @@ vi.mock("../../store/flowStore", () => ({
  */
 describe("useGraphOperations - Auto Layout", () => {
   const mockApplyMutations = vi.fn();
+  const mockSetClipboard = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,8 +40,16 @@ describe("useGraphOperations - Auto Layout", () => {
       ],
       edges: [{ id: "e1-2", source: "1", target: "2" }],
       applyMutations: mockApplyMutations,
-      setNodes: vi.fn(),
-      setClipboard: vi.fn(),
+    });
+
+    (useUiStore as unknown as Mock).mockReturnValue({
+      setClipboard: mockSetClipboard,
+      clipboard: null,
+    });
+    // For direct access to getState() in useGraphOperations
+    (useUiStore as unknown as { getState: () => unknown }).getState = () => ({
+      setClipboard: mockSetClipboard,
+      clipboard: null,
     });
   });
 
@@ -62,8 +76,6 @@ describe("useGraphOperations - Auto Layout", () => {
       nodes: [{ id: "1", position: { x: 0, y: 0 } }],
       edges: [],
       applyMutations: mockApplyMutations,
-      setNodes: vi.fn(),
-      setClipboard: vi.fn(),
     });
 
     const { result } = renderHook(() =>

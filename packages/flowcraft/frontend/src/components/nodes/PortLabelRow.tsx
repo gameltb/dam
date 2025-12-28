@@ -61,19 +61,21 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
                 description={inputPort.description ?? undefined}
                 sideOffset={12}
               />
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "var(--text-color)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  opacity: isInputConnected ? 1 : 0.6,
-                }}
-              >
-                {inputPort.label}
-              </div>
+              {inputPort.label && (
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "var(--text-color)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    opacity: isInputConnected ? 1 : 0.6,
+                  }}
+                >
+                  {inputPort.label}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -93,19 +95,21 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
         >
           {outputPort && (
             <>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "var(--text-color)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  opacity: isOutputConnected ? 1 : 0.6,
-                }}
-              >
-                {outputPort.label}
-              </div>
+              {outputPort.label && (
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "var(--text-color)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    opacity: isOutputConnected ? 1 : 0.6,
+                  }}
+                >
+                  {outputPort.label}
+                </div>
+              )}
               <PortHandle
                 nodeId={nodeId}
                 portId={outputPort.id ?? ""}

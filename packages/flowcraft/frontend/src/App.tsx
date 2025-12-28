@@ -10,8 +10,10 @@ import {
   type NodeTypes,
   type ReactFlowInstance,
   type OnConnectStartParams,
+  type NodeChange,
 } from "@xyflow/react";
 import { useFlowStore, useTemporalStore } from "./store/flowStore";
+import { useUiStore } from "./store/uiStore";
 import { useTaskStore } from "./store/taskStore";
 import "@xyflow/react/dist/style.css";
 import { useMockSocket } from "./hooks/useMockSocket";
@@ -32,6 +34,8 @@ import { Toaster } from "react-hot-toast";
 import { Notifications } from "./components/Notifications";
 import { useContextMenu } from "./hooks/useContextMenu";
 import { useGraphOperations } from "./hooks/useGraphOperations";
+import { useHelperLines } from "./hooks/useHelperLines";
+import { HelperLinesRenderer } from "./components/HelperLinesRenderer";
 import SystemEdge from "./components/edges/SystemEdge";
 import { BaseFlowEdge } from "./components/edges/BaseFlowEdge";
 import { MediaPreview } from "./components/media/MediaPreview";
@@ -54,7 +58,6 @@ function App() {
     version: clientVersion,
     updateNodeData,
     lastNodeEvent,
-    setConnectionStartHandle,
   } = useFlowStore(
     useShallow((state) => ({
       nodes: state.nodes,
@@ -66,8 +69,11 @@ function App() {
       version: state.version,
       updateNodeData: state.updateNodeData,
       lastNodeEvent: state.lastNodeEvent,
-      setConnectionStartHandle: state.setConnectionStartHandle,
     })),
+  );
+
+  const setConnectionStartHandle = useUiStore(
+    (state) => state.setConnectionStartHandle,
   );
 
   const { undo, redo } = useTemporalStore((state) => ({
@@ -78,6 +84,7 @@ function App() {
   const mockSocket = useMockSocket();
   const { templates, executeTask, cancelTask, streamAction } = mockSocket;
   const { theme, toggleTheme } = useTheme();
+  const { helperLines, setHelperLines, calculateLines } = useHelperLines();
 
   const [wsUrl, setWsUrl] = useState("ws://127.0.0.1:8000/ws (mocked)");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -111,6 +118,48 @@ function App() {
     setAvailableActions([]);
   }, [closeContextMenu]);
 
+  const onNodesChangeWithSnapping = useCallback(
+    (changes: NodeChange[]) => {
+      const snappedChanges = changes.map((change) => {
+        if (change.type === "position" && change.position) {
+          const node = nodes.find((n) => n.id === change.id);
+          if (node) {
+            // Create a virtual node with the proposed position to calculate snap
+            const virtualNode = {
+              ...node,
+              position: change.position,
+            };
+            const { snappedPosition } = calculateLines(
+              virtualNode,
+              nodes,
+              false,
+            );
+            return {
+              ...change,
+              position: snappedPosition,
+            };
+          }
+        }
+        return change;
+      });
+
+      onNodesChange(snappedChanges);
+    },
+    [nodes, calculateLines, onNodesChange],
+  );
+
+  const onNodeDrag = useCallback(
+    (_: unknown, node: AppNode) => {
+      // Just update the helper lines visual state here
+      calculateLines(node, nodes, true);
+    },
+    [calculateLines, nodes],
+  );
+
+  const onNodeDragStop = useCallback(() => {
+    setHelperLines({});
+  }, [setHelperLines]);
+
   const {
     addNode,
     deleteNode,
@@ -126,9 +175,33 @@ function App() {
     (_: unknown, { nodeId, handleId, handleType }: OnConnectStartParams) => {
       // Defer to avoid render warning
       setTimeout(() => {
-        if (nodeId && handleId && handleType) {
-          setConnectionStartHandle({ nodeId, handleId, type: handleType });
+        const store = useFlowStore.getState();
+        const node = store.nodes.find((n) => n.id === nodeId);
+        let portInfo = {};
+
+        if (node?.type === "dynamic") {
+          const data = node.data;
+          const port = (data.outputPorts?.find((p) => p.id === handleId) ??
+            data.inputPorts?.find((p) => p.id === handleId) ??
+            data.widgets?.find((w) => w.inputPortId === handleId)) as
+            | flowcraft_proto.v1.IPort
+            | undefined;
+
+          if (port?.type) {
+            portInfo = {
+              portType: port.type.mainType ?? "",
+              mainType: port.type.mainType ?? "",
+              itemType: port.type.itemType ?? "",
+            };
+          }
         }
+
+        setConnectionStartHandle({
+          nodeId: nodeId ?? "",
+          handleId: handleId ?? "",
+          type: handleType,
+          ...portInfo,
+        });
       }, 0);
     },
     [setConnectionStartHandle],
@@ -142,6 +215,9 @@ function App() {
 
   const handleNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: AppNode) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
       onNodeContextMenu(event, node);
       // Discover actions via Unified Protocol
       void socketClient
@@ -278,7 +354,7 @@ function App() {
             const targetWidgetId = val.split(":")[1];
             if (!targetWidgetId) return;
             let currentBuffer = "";
-            streamAction(nodeId, widgetId, (chunk) => {
+            void streamAction(nodeId, widgetId, (chunk) => {
               currentBuffer += chunk;
               const store = useFlowStore.getState();
               const currentNode = store.nodes.find((n) => n.id === nodeId);
@@ -309,7 +385,7 @@ function App() {
                 label: `Running ${taskType}...`,
                 taskId,
                 onCancel: (tid: string) => {
-                  cancelTask(tid);
+                  void cancelTask(tid);
                 },
               },
             } as AppNode;
@@ -319,7 +395,7 @@ function App() {
               label: `Running ${taskType}...`,
               source: MutationSource.REMOTE_TASK,
             });
-            executeTask(taskId, taskType, { sourceNodeId: nodeId });
+            void executeTask(taskId, taskType, { sourceNodeId: nodeId });
           }
         }
       }
@@ -403,11 +479,13 @@ function App() {
       <ReactFlow<AppNode>
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={onNodesChangeWithSnapping}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneContextMenu={onPaneContextMenu}
@@ -426,8 +504,19 @@ function App() {
         colorMode={theme}
       >
         <Controls />
-        <MiniMap />
+        <MiniMap
+          nodeColor={(n) => {
+            if (n.type === "groupNode") return "rgba(100, 108, 255, 0.4)";
+            if (n.type === "processing") return "#f6ad55";
+            return theme === "dark" ? "#333" : "#eee";
+          }}
+          nodeStrokeWidth={3}
+          zoomable
+          pannable
+        />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        {/* Render helper lines as part of the canvas content */}
+        <HelperLinesRenderer lines={helperLines} />
       </ReactFlow>
       {contextMenu && (
         <ContextMenu

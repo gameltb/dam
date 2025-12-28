@@ -53,6 +53,16 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Optimization: If node is not selected, select it first
+    const nodes = useFlowStore.getState().nodes;
+    const currentNode = nodes.find((n) => n.id === id);
+    if (currentNode && !currentNode.selected) {
+      useFlowStore
+        .getState()
+        .onNodesChange([{ id, type: "select", selected: true }]);
+    }
+
     const next = !isExpanded;
 
     // When opening, we mark the CURRENT event as processed so we only close on FUTURE events
@@ -99,7 +109,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
         width: "100%",
         height: "100%",
         position: "relative",
-        overflow: isExpanded ? "visible" : "hidden",
+        overflow: "visible", // Changed from dynamic to always visible
         borderRadius: "inherit", // Inherit from BaseNode
       }}
     >

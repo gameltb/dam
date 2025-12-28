@@ -47,14 +47,18 @@ class SocketClientImpl {
         body: JSON.stringify(message),
       });
 
-      if (!response.ok || !response.body) return;
+      if (!response.ok) return;
 
-      const reader = response.body.getReader();
+      const body = response.body;
+      if (!body) return;
+
+      const reader = body.getReader();
       const decoder = new TextDecoder();
 
       let buffer = "";
-      while (true) {
+      for (;;) {
         const { done, value } = await reader.read();
+
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -96,6 +100,12 @@ class SocketClientImpl {
       this.emit("actions", msg.actions.actions);
     } else if (msg.taskUpdate) {
       this.emit("taskUpdate", msg.taskUpdate);
+    } else if (msg.widgetSignal) {
+      const signal = msg.widgetSignal;
+      void import("../store/flowStore").then(({ useFlowStore }) => {
+        useFlowStore.getState().handleIncomingWidgetSignal(signal);
+      });
+      this.emit("widgetSignal", signal);
     } else if (msg.streamChunk) {
       const nodeId = msg.streamChunk.nodeId ?? "";
       const widgetId = msg.streamChunk.widgetId ?? "";

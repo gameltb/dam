@@ -1,72 +1,20 @@
-import { type AppNode, isDynamicNode, type MediaType } from "../types";
+import { type AppNode } from "../types";
 
 /**
- * Hydrates a node with client-side handlers that cannot be sent over the wire (JSON).
- */
-export function hydrateNode(
-  node: AppNode,
-  handlers: {
-    onChange: (id: string, data: Record<string, unknown>) => void;
-    onWidgetClick?: (nodeId: string, widgetId: string) => void;
-    onGalleryItemContext?: (
-      nodeId: string,
-      url: string,
-      mediaType: MediaType,
-      x: number,
-      y: number,
-    ) => void;
-  },
-): AppNode {
-  if (isDynamicNode(node)) {
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        onChange: handlers.onChange,
-        onWidgetClick: handlers.onWidgetClick,
-        onGalleryItemContext: handlers.onGalleryItemContext,
-      },
-    };
-  }
-  return node;
-}
-
-/**
- * Bulk hydrates an array of nodes.
- */
-export function hydrateNodes(
-  nodes: AppNode[],
-  handlers: {
-    onChange: (id: string, data: Record<string, unknown>) => void;
-    onWidgetClick?: (nodeId: string, widgetId: string) => void;
-    onGalleryItemContext?: (
-      nodeId: string,
-      url: string,
-      mediaType: MediaType,
-      x: number,
-      y: number,
-    ) => void;
-  },
-): AppNode[] {
-  return nodes.map((node) => hydrateNode(node, handlers));
-}
-
-/**
- * Dehydrates a node by removing client-side handlers so it can be safely serialized (e.g. to Yjs or JSON).
+ * Dehydrates a node by ensuring it only contains serializable data.
+ * In the new architecture, handlers are provided via context/hooks and are no longer part of the node state.
  */
 export function dehydrateNode(node: AppNode): AppNode {
-  if (isDynamicNode(node) && node.data) {
-    // Destructure handlers out to exclude them from the returned object
-    const {
-      onChange: _onChange,
-      onWidgetClick: _onWidgetClick,
-      onGalleryItemContext: _onGalleryItemContext,
-      ...rest
-    } = node.data;
-    return {
-      ...node,
-      data: rest,
-    };
-  }
-  return node;
+  // We want to keep all standard React Flow properties (id, type, position, data, parentId, extent, measured, etc.)
+  // but ensure no non-serializable content (like functions) is present.
+  const { ...serializableNode } = node;
+  return serializableNode as AppNode;
+}
+
+/**
+ * Legacy hydration function (kept for backward compatibility during refactor if needed, but empty).
+ * In the new architecture, we don't modify node objects with functions.
+ */
+export function hydrateNodes(nodes: AppNode[]): AppNode[] {
+  return nodes;
 }

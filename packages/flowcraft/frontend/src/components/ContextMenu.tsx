@@ -245,6 +245,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   return (
     <div
+      className="context-menu-container"
       style={{
         position: "fixed",
         top: y,
@@ -259,7 +260,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         animation: "fade-in 0.1s ease-out",
         backdropFilter: "blur(10px)",
       }}
-      onMouseLeave={onClose}
     >
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }

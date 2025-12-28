@@ -10,10 +10,11 @@ import {
 } from "@xyflow/react";
 import { type AppNode, MutationSource, type DynamicNodeData } from "../types";
 import { flowcraft_proto } from "../generated/flowcraft_proto";
-import { useTaskStore } from "./taskStore";
 import * as Y from "yjs";
 import { ydoc, yNodes, yEdges } from "./yjsInstance";
-import { hydrateNodes, dehydrateNode } from "../utils/nodeUtils";
+import { dehydrateNode } from "../utils/nodeUtils";
+import { fromProtoNode } from "../utils/protoAdapter";
+import { getValidator } from "../utils/portValidators";
 
 export interface MutationContext {
   taskId?: string;
@@ -42,10 +43,6 @@ export interface RFState {
   yNodes: Y.Map<unknown>;
   yEdges: Y.Map<unknown>;
 
-  // Handlers for hydration
-  nodeHandlers: NodeHandlers | null;
-  registerNodeHandlers: (handlers: NodeHandlers) => void;
-
   lastNodeEvent: {
     type: string;
     payload: Record<string, unknown>;
@@ -72,17 +69,29 @@ export interface RFState {
   syncFromYjs: () => void;
   resetStore: () => void;
 
-  clipboard: { nodes: AppNode[]; edges: Edge[] } | null;
-  setClipboard: (data: { nodes: AppNode[]; edges: Edge[] } | null) => void;
-  connectionStartHandle: {
-    nodeId: string;
-    handleId: string;
-    type: "source" | "target";
-  } | null;
-  setConnectionStartHandle: (
-    h: { nodeId: string; handleId: string; type: "source" | "target" } | null,
+  // --- Widget Interaction Signals ---
+  sendWidgetSignal: (signal: flowcraft_proto.v1.IWidgetSignal) => void;
+  handleIncomingWidgetSignal: (
+    signal: flowcraft_proto.v1.IWidgetSignal,
   ) => void;
 }
+
+const widgetSignalListeners = new Map<
+  string,
+  (signal: flowcraft_proto.v1.IWidgetSignal) => void
+>();
+
+export const registerWidgetSignalListener = (
+  nodeId: string,
+  widgetId: string,
+  callback: (signal: flowcraft_proto.v1.IWidgetSignal) => void,
+) => {
+  const key = `${nodeId}-${widgetId}`;
+  widgetSignalListeners.set(key, callback);
+  return () => {
+    widgetSignalListeners.delete(key);
+  };
+};
 
 const useStore = create(
   temporal<RFState>(
@@ -117,14 +126,7 @@ const useStore = create(
         ydoc: ydoc,
         yNodes: yNodes,
         yEdges: yEdges,
-        nodeHandlers: null,
         lastNodeEvent: null,
-
-        registerNodeHandlers: (handlers) => {
-          set({ nodeHandlers: handlers });
-          // Trigger a re-sync to apply handlers to existing nodes
-          get().syncFromYjs();
-        },
 
         dispatchNodeEvent: (type, payload) => {
           set({ lastNodeEvent: { type, payload, timestamp: Date.now() } });
@@ -134,9 +136,26 @@ const useStore = create(
           const rawNodes: AppNode[] = [];
           yNodes.forEach((v) => rawNodes.push(v as AppNode));
 
-          // Apply hydration if handlers are available
-          const handlers = get().nodeHandlers;
-          const nodes = handlers ? hydrateNodes(rawNodes, handlers) : rawNodes;
+          // Robust topological sort: Parents must come before children.
+          const nodes: AppNode[] = [];
+          const visited = new Set<string>();
+
+          const visit = (node: AppNode) => {
+            if (visited.has(node.id)) return;
+
+            // If this node has a parent that we haven't visited yet, visit the parent first
+            if (node.parentId && !visited.has(node.parentId)) {
+              const parent = rawNodes.find((n) => n.id === node.parentId);
+              if (parent) visit(parent);
+            }
+
+            visited.add(node.id);
+            nodes.push(node);
+          };
+
+          rawNodes.forEach((n) => {
+            visit(n);
+          });
 
           const edges: Edge[] = [];
           yEdges.forEach((v) => edges.push(v as Edge));
@@ -163,27 +182,14 @@ const useStore = create(
         },
 
         applyMutations: (mutations, context) => {
-          const taskId = context?.taskId ?? "manual-interaction";
-          if (!useTaskStore.getState().tasks[taskId]) {
-            useTaskStore.getState().registerTask({
-              taskId,
-              label: context?.description ?? "Action",
-              source: context?.source ?? MutationSource.USER,
-            });
-          }
-          useTaskStore.getState().logMutation({
-            taskId,
-            source: context?.source ?? MutationSource.USER,
-            description: context?.description ?? "Applied",
-            mutations,
-          });
+          get().dispatchNodeEvent("mutations-applied", { mutations, context });
 
           ydoc.transact(() => {
             mutations.forEach((mut) => {
               if (mut.addNode?.node) {
-                const node = mut.addNode.node as AppNode;
+                // IMPORTANT: Use fromProtoNode to ensure proper mapping
+                const node = fromProtoNode(mut.addNode.node);
                 if (node.id) {
-                  // Incoming mutations usually don't have handlers yet, but dehydrate just in case
                   yNodes.set(node.id, dehydrateNode(node));
                 }
               } else if (mut.updateNode) {
@@ -200,10 +206,17 @@ const useStore = create(
                   }
                   if (mut.updateNode.width || mut.updateNode.height) {
                     updated.measured = {
-                      width:
+                      width: Number(
                         mut.updateNode.width ?? updated.measured?.width ?? 0,
-                      height:
+                      ),
+                      height: Number(
                         mut.updateNode.height ?? updated.measured?.height ?? 0,
+                      ),
+                    };
+                    updated.style = {
+                      ...updated.style,
+                      width: updated.measured.width,
+                      height: updated.measured.height,
                     };
                   }
                   if (mut.updateNode.data) {
@@ -211,6 +224,18 @@ const useStore = create(
                       ...updated.data,
                       ...(mut.updateNode.data as Record<string, unknown>),
                     };
+                  }
+                  if (mut.updateNode.parentId !== undefined) {
+                    const pId = mut.updateNode.parentId;
+
+                    updated.parentId =
+                      (pId === "" ? undefined : pId) ?? undefined;
+                    // Usually when parentId is set, we want the node to be contained within parent
+                    updated.extent = updated.parentId ? "parent" : undefined;
+                  }
+                  // Preserve extent if it was already set and not explicitly removed
+                  if (updated.parentId && !updated.extent) {
+                    updated.extent = "parent";
                   }
                   yNodes.set(id, dehydrateNode(updated));
                 }
@@ -223,7 +248,7 @@ const useStore = create(
                 yEdges.delete(mut.removeEdge.id);
               } else if (mut.addSubgraph) {
                 mut.addSubgraph.nodes?.forEach((n) => {
-                  const node = n as AppNode;
+                  const node = fromProtoNode(n);
                   if (node.id) yNodes.set(node.id, dehydrateNode(node));
                 });
                 mut.addSubgraph.edges?.forEach((e) => {
@@ -241,19 +266,44 @@ const useStore = create(
         },
         onNodesChange: (changes) => {
           const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
+
+          // Immediate Zustand update for smooth UI
+          set({ nodes: nextNodes });
+
+          // Yjs sync should be careful not to spam.
+          // We only sync to Yjs if the change is NOT a purely local position update during dragging,
+          // OR we can rely on React Flow's drag events to sync at the end.
+          // For now, let's avoid syncing 'position' changes to Yjs if they are part of an active drag.
+          // React Flow 12 sets dragging: true on nodes being dragged.
+
           ydoc.transact(() => {
             changes.forEach((c) => {
-              if (
-                c.type === "position" ||
-                c.type === "dimensions" ||
-                c.type === "select"
-              ) {
+              if (c.type === "remove") {
+                yNodes.delete(c.id);
+              } else if (c.type === "dimensions" || c.type === "select") {
+                // Dimensions and selection are relatively infrequent, sync immediately
+                const n = nextNodes.find((node) => node.id === c.id);
+                if (n) {
+                  if (c.type === "dimensions" && c.dimensions) {
+                    n.measured = c.dimensions;
+                    n.style = {
+                      ...n.style,
+                      width: c.dimensions.width,
+                      height: c.dimensions.height,
+                    };
+                  }
+                  yNodes.set(n.id, dehydrateNode(n));
+                }
+              } else if (c.type === "position" && !c.dragging) {
+                // Only sync position if dragging has finished or it's an external move (like layout)
                 const n = nextNodes.find((node) => node.id === c.id);
                 if (n) yNodes.set(n.id, dehydrateNode(n));
-              } else if (c.type === "remove") yNodes.delete(c.id);
+              }
             });
           }, "zustand-sync");
-          get().syncFromYjs();
+
+          // Note: syncFromYjs is skipped here because we already updated Zustand state locally
+          // and we want to avoid the expensive topological sort on every frame.
         },
         onEdgesChange: (changes) => {
           const nextEdges = applyEdgeChanges(changes, get().edges);
@@ -269,11 +319,45 @@ const useStore = create(
           get().syncFromYjs();
         },
         onConnect: (connection) => {
+          const { nodes, edges } = get();
+          const targetNode = nodes.find((n) => n.id === connection.target);
+          let maxInputs = 999; // Default to multiple
+
+          if (targetNode?.type === "dynamic") {
+            const data = targetNode.data;
+            const port =
+              data.inputPorts?.find((p) => p.id === connection.targetHandle) ??
+              data.widgets?.find(
+                (w) => w.inputPortId === connection.targetHandle,
+              );
+
+            if (port) {
+              const validator = getValidator(
+                "type" in port
+                  ? (port.type as flowcraft_proto.v1.IPortType)
+                  : undefined,
+              );
+              maxInputs = validator.getMaxInputs();
+            }
+          }
+
           const newEdge = {
             ...connection,
             id: `e${String(Date.now())}`,
           } as Edge;
+
           ydoc.transact(() => {
+            // If it's a single input port, remove existing connections to this handle
+            if (maxInputs === 1) {
+              edges.forEach((e) => {
+                if (
+                  e.target === connection.target &&
+                  e.targetHandle === connection.targetHandle
+                ) {
+                  yEdges.delete(e.id);
+                }
+              });
+            }
             yEdges.set(newEdge.id, newEdge);
           }, "zustand-sync");
           get().syncFromYjs();
@@ -301,13 +385,16 @@ const useStore = create(
           }, "zustand-sync");
           set({ nodes: [], edges: [], version: 0 });
         },
-        clipboard: null,
-        setClipboard: (c) => {
-          set({ clipboard: c });
+
+        sendWidgetSignal: (signal) => {
+          void import("../utils/SocketClient").then(({ socketClient }) => {
+            void socketClient.send({ widgetSignal: signal });
+          });
         },
-        connectionStartHandle: null,
-        setConnectionStartHandle: (h) => {
-          set({ connectionStartHandle: h });
+
+        handleIncomingWidgetSignal: (signal) => {
+          const key = `${String(signal.nodeId)}-${String(signal.widgetId)}`;
+          widgetSignalListeners.get(key)?.(signal);
         },
       };
     },
@@ -317,6 +404,12 @@ const useStore = create(
         return { nodes, edges, version } as RFState;
       },
       equality: (a, b) => a.version === b.version,
+      handleSet: (handleSet) => (state) => {
+        // Skip recording history if we're in the middle of a drag
+        const isDragging = (state as RFState).nodes.some((n) => n.dragging);
+        if (isDragging) return;
+        handleSet(state);
+      },
     },
   ),
 );
@@ -345,8 +438,5 @@ export function useTemporalStore<T>(
   equality?: (a: T, b: T) => boolean,
 ): T {
   const store = useStore.temporal;
-  if (!store) {
-    throw new Error("Temporal store not found.");
-  }
   return useStoreWithEqualityFn(store, selector, equality);
 }

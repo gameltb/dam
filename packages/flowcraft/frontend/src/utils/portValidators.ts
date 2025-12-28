@@ -86,13 +86,20 @@ export const validateConnection = (
   }
 
   // 2. Multi-connection Check
+  const maxInputs = validator.getMaxInputs();
   const inputCount = currentEdges.filter(
     (e) => e.target === target.nodeId && e.targetHandle === target.id,
   ).length;
-  if (inputCount >= validator.getMaxInputs()) {
+
+  if (inputCount >= maxInputs) {
+    // If it's a single input port, we allow connection to "replace" the existing one
+    if (maxInputs === 1) {
+      return { canConnect: true };
+    }
+
     return {
       canConnect: false,
-      reason: `Port Full: This input only accepts ${String(validator.getMaxInputs())} connection(s)`,
+      reason: `Port Full: This input only accepts ${String(maxInputs)} connection(s)`,
     };
   }
 

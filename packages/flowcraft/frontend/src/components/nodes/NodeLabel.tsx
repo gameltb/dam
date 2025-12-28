@@ -39,7 +39,9 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(
     const handleExitEdit = () => {
       setIsEditing(false);
       if (localLabel !== label) {
-        void sendNodeUpdate(id, { label: localLabel });
+        sendNodeUpdate(id, { label: localLabel }).catch((err: unknown) => {
+          console.error("Failed to update node label", err);
+        });
       }
     };
     return (
