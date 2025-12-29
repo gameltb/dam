@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
@@ -38,7 +37,14 @@ describe("useGraphOperations - Grouping", () => {
       applyMutations: mockApplyMutations,
     });
 
-    (useUiStore as unknown as { getState: () => any }).getState = () => ({
+    (
+      useUiStore as unknown as {
+        getState: () => {
+          clipboard: null;
+          setClipboard: Mock;
+        };
+      }
+    ).getState = () => ({
       clipboard: null,
       setClipboard: vi.fn(),
     });
@@ -52,13 +58,21 @@ describe("useGraphOperations - Grouping", () => {
     result.current.groupSelected();
 
     expect(mockApplyMutations).toHaveBeenCalled();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mutations = mockApplyMutations.mock.calls[0][0] as any[];
+    const mutations = mockApplyMutations.mock.calls[0][0] as {
+      addNode?: {
+        node?: { type?: string; position: { x: number; y: number } };
+      };
+      updateNode?: {
+        id: string;
+        parentId?: string;
+        position: { x: number; y: number };
+      };
+    }[];
 
     // 1. Check if group node is added
 
     const addGroupMut = mutations.find(
-      (m: any) => m.addNode?.node?.type === "groupNode",
+      (m) => m.addNode?.node?.type === "groupNode",
     );
     expect(addGroupMut).toBeDefined();
 
