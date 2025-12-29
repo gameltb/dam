@@ -1,10 +1,10 @@
-import { flowcraft_proto } from "../generated/flowcraft_proto";
+import {
+  WidgetType,
+  RenderMode,
+  MediaType,
+  PortStyle,
+} from "../generated/core/node_pb";
 import type { AppNode, Edge } from "../types";
-
-const WidgetType = flowcraft_proto.v1.WidgetType;
-const RenderMode = flowcraft_proto.v1.RenderMode;
-const MediaType = flowcraft_proto.v1.MediaType;
-const PortStyle = flowcraft_proto.v1.PortStyle;
 
 export const createNode = (
   id: string,
@@ -90,11 +90,11 @@ export const generateGallery = () => {
     {
       id: "in-1",
       label: "Circle (Default)",
-      style: PortStyle.PORT_STYLE_CIRCLE,
+      style: PortStyle.CIRCLE,
     },
-    { id: "in-2", label: "Square", style: PortStyle.PORT_STYLE_SQUARE },
-    { id: "in-3", label: "Diamond", style: PortStyle.PORT_STYLE_DIAMOND },
-    { id: "in-4", label: "Dashed", style: PortStyle.PORT_STYLE_DASH },
+    { id: "in-2", label: "Square", style: PortStyle.SQUARE },
+    { id: "in-3", label: "Diamond", style: PortStyle.DIAMOND },
+    { id: "in-4", label: "Dashed", style: PortStyle.DASH },
   ];
   nodes.push(portStyleNode);
 
@@ -128,7 +128,7 @@ export const generateGallery = () => {
       id: "ot-2",
       label: "Signal Out",
       type: { mainType: "system" },
-      style: PortStyle.PORT_STYLE_DASH,
+      style: PortStyle.DASH,
     },
   ];
   nodes.push(portTypeNode);

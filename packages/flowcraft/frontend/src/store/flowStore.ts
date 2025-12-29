@@ -9,7 +9,13 @@ import {
   applyEdgeChanges,
 } from "@xyflow/react";
 import { type AppNode, MutationSource, type DynamicNodeData } from "../types";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
+import { type MediaType, type PortType } from "../generated/core/node_pb";
+import {
+  type GraphMutation,
+  GraphMutationSchema,
+} from "../generated/core/service_pb";
+import { type WidgetSignal } from "../generated/core/signals_pb";
+import { create as createProto } from "@bufbuild/protobuf";
 import * as Y from "yjs";
 import { ydoc, yNodes, yEdges } from "./yjsInstance";
 import { dehydrateNode } from "../utils/nodeUtils";
@@ -28,7 +34,7 @@ export interface NodeHandlers {
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
-    mediaType: flowcraft_proto.v1.MediaType,
+    mediaType: MediaType,
     x: number,
     y: number,
   ) => void;
@@ -62,7 +68,7 @@ export interface RFState {
   updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
 
   applyMutations: (
-    mutations: flowcraft_proto.v1.IGraphMutation[],
+    mutations: GraphMutation[],
     context?: MutationContext,
   ) => void;
   applyYjsUpdate: (update: Uint8Array) => void;
@@ -70,21 +76,16 @@ export interface RFState {
   resetStore: () => void;
 
   // --- Widget Interaction Signals ---
-  sendWidgetSignal: (signal: flowcraft_proto.v1.IWidgetSignal) => void;
-  handleIncomingWidgetSignal: (
-    signal: flowcraft_proto.v1.IWidgetSignal,
-  ) => void;
+  sendWidgetSignal: (signal: WidgetSignal) => void;
+  handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
 }
 
-const widgetSignalListeners = new Map<
-  string,
-  (signal: flowcraft_proto.v1.IWidgetSignal) => void
->();
+const widgetSignalListeners = new Map<string, (signal: WidgetSignal) => void>();
 
 export const registerWidgetSignalListener = (
   nodeId: string,
   widgetId: string,
-  callback: (signal: flowcraft_proto.v1.IWidgetSignal) => void,
+  callback: (signal: WidgetSignal) => void,
 ) => {
   const key = `${nodeId}-${widgetId}`;
   widgetSignalListeners.set(key, callback);
@@ -185,81 +186,148 @@ const useStore = create(
           get().dispatchNodeEvent("mutations-applied", { mutations, context });
 
           ydoc.transact(() => {
-            mutations.forEach((mut) => {
-              if (mut.addNode?.node) {
-                // IMPORTANT: Use fromProtoNode to ensure proper mapping
-                const node = fromProtoNode(mut.addNode.node);
-                if (node.id) {
-                  yNodes.set(node.id, dehydrateNode(node));
-                }
-              } else if (mut.updateNode) {
-                const id = mut.updateNode.id;
-                if (!id) return;
-                const existing = yNodes.get(id) as AppNode | undefined;
-                if (existing) {
-                  const updated = { ...existing } as AppNode;
-                  if (mut.updateNode.position) {
-                    updated.position = {
-                      x: mut.updateNode.position.x ?? updated.position.x,
-                      y: mut.updateNode.position.y ?? updated.position.y,
-                    };
+            mutations.forEach((mutInput) => {
+              const mut = createProto(GraphMutationSchema, mutInput);
+
+              const op = mut.operation;
+
+              if (!op.case) return;
+
+              switch (op.case) {
+                case "addNode":
+                  if (op.value.node) {
+                    const node = fromProtoNode(op.value.node);
+
+                    if (node.id) {
+                      yNodes.set(node.id, dehydrateNode(node));
+                    }
                   }
-                  if (mut.updateNode.width || mut.updateNode.height) {
-                    updated.measured = {
-                      width:
-                        mut.updateNode.width ?? updated.measured?.width ?? 0,
-                      height:
-                        mut.updateNode.height ?? updated.measured?.height ?? 0,
-                    };
-                    updated.style = {
-                      ...updated.style,
-                      width: updated.measured.width,
-                      height: updated.measured.height,
-                    };
-                  }
-                  if (mut.updateNode.data) {
-                    updated.data = {
-                      ...updated.data,
-                      ...(mut.updateNode.data as Record<string, unknown>),
-                    };
-                  }
-                  if (mut.updateNode.parentId !== undefined) {
-                    const pId = mut.updateNode.parentId;
+
+                  break;
+
+                case "updateNode": {
+                  const val = op.value;
+
+                  const id = val.id;
+
+                  if (!id) break;
+
+                  const existing = yNodes.get(id) as AppNode | undefined;
+
+                  if (existing) {
+                    const updated = { ...existing } as AppNode;
+
+                    if (val.position) {
+                      updated.position = {
+                        x: val.position.x || updated.position.x,
+
+                        y: val.position.y || updated.position.y,
+                      };
+                    }
+
+                    if (val.width !== 0 || val.height !== 0) {
+                      const newWidth =
+                        val.width ||
+                        (updated.measured ? updated.measured.width : 0);
+
+                      const newHeight =
+                        val.height ||
+                        (updated.measured ? updated.measured.height : 0);
+
+                      updated.measured = {
+                        width: newWidth,
+
+                        height: newHeight,
+                      };
+
+                      updated.style = {
+                        ...updated.style,
+
+                        width: updated.measured.width,
+
+                        height: updated.measured.height,
+                      };
+                    }
+
+                    if (val.data) {
+                      updated.data = {
+                        ...updated.data,
+
+                        ...(val.data as Record<string, unknown>),
+                      };
+                    }
+
+                    const pId = val.parentId;
 
                     updated.parentId =
                       (pId === "" ? undefined : pId) ?? undefined;
+
                     // Usually when parentId is set, we want the node to be contained within parent
+
                     updated.extent = updated.parentId ? "parent" : undefined;
+
+                    // Preserve extent if it was already set and not explicitly removed
+
+                    if (updated.parentId && !updated.extent) {
+                      updated.extent = "parent";
+                    }
+
+                    yNodes.set(id, dehydrateNode(updated));
                   }
-                  // Preserve extent if it was already set and not explicitly removed
-                  if (updated.parentId && !updated.extent) {
-                    updated.extent = "parent";
-                  }
-                  yNodes.set(id, dehydrateNode(updated));
+
+                  break;
                 }
-              } else if (mut.removeNode?.id) {
-                yNodes.delete(mut.removeNode.id);
-              } else if (mut.addEdge?.edge) {
-                const edge = mut.addEdge.edge as Edge;
-                yEdges.set(edge.id, edge);
-              } else if (mut.removeEdge?.id) {
-                yEdges.delete(mut.removeEdge.id);
-              } else if (mut.addSubgraph) {
-                mut.addSubgraph.nodes?.forEach((n) => {
-                  const node = fromProtoNode(n);
-                  if (node.id) yNodes.set(node.id, dehydrateNode(node));
-                });
-                mut.addSubgraph.edges?.forEach((e) => {
-                  const edge = e as Edge;
-                  if (edge.id) yEdges.set(edge.id, edge);
-                });
-              } else if (mut.clearGraph) {
-                yNodes.clear();
-                yEdges.clear();
+
+                case "removeNode":
+                  if (op.value.id) {
+                    yNodes.delete(op.value.id);
+                  }
+
+                  break;
+
+                case "addEdge":
+                  if (op.value.edge) {
+                    const edge = op.value.edge as Edge;
+
+                    yEdges.set(edge.id, edge);
+                  }
+
+                  break;
+
+                case "removeEdge":
+                  if (op.value.id) {
+                    yEdges.delete(op.value.id);
+                  }
+
+                  break;
+
+                case "addSubgraph":
+                  op.value.nodes.forEach((n) => {
+                    const node = fromProtoNode(n);
+
+                    if (node.id) yNodes.set(node.id, dehydrateNode(node));
+                  });
+
+                  op.value.edges.forEach((e) => {
+                    const edge = e as Edge;
+
+                    if (edge.id) yEdges.set(edge.id, edge);
+                  });
+
+                  break;
+
+                case "clearGraph":
+                  yNodes.clear();
+
+                  yEdges.clear();
+
+                  break;
               }
             });
           }, "zustand-sync");
+
           // Since observer ignores "zustand-sync", we must sync Zustand manually
+
           get().syncFromYjs();
         },
         onNodesChange: (changes) => {
@@ -331,9 +399,7 @@ const useStore = create(
 
             if (port) {
               const validator = getValidator(
-                "type" in port
-                  ? (port.type as flowcraft_proto.v1.IPortType)
-                  : undefined,
+                "type" in port ? (port.type as PortType) : undefined,
               );
               maxInputs = validator.getMaxInputs();
             }
@@ -386,12 +452,14 @@ const useStore = create(
 
         sendWidgetSignal: (signal) => {
           void import("../utils/SocketClient").then(({ socketClient }) => {
-            void socketClient.send({ widgetSignal: signal });
+            void socketClient.send({
+              payload: { case: "widgetSignal", value: signal },
+            });
           });
         },
 
         handleIncomingWidgetSignal: (signal) => {
-          const key = `${String(signal.nodeId)}-${String(signal.widgetId)}`;
+          const key = `${signal.nodeId}-${signal.widgetId}`;
           widgetSignalListeners.get(key)?.(signal);
         },
       };

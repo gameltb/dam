@@ -59,7 +59,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg libimage-exiftool-perl unrar rar
+        sudo apt-get install -y ffmpeg libimage-exiftool-perl unrar rar protobuf-compiler
 
     - name: Create virtual environment and install dependencies
       run: |

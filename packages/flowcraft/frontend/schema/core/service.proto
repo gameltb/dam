@@ -101,3 +101,29 @@ message AddSubGraph { repeated Node nodes = 1; repeated Edge edges = 2; }
 message ClearGraph {}
 
 message TaskCancelRequest { string task_id = 1; }
+
+service FlowService {
+  // 建立流连接，持续接收图状态更新（替代当前的信封协议分发逻辑）
+  rpc WatchGraph(SyncRequest) returns (stream FlowMessage);
+
+  // 执行单次变更
+  rpc ApplyMutations(MutationList) returns (ErrorResponse);
+
+  // 更新节点状态
+  rpc UpdateNode(UpdateNodeRequest) returns (ErrorResponse);
+
+  // 更新 Widget 值
+  rpc UpdateWidget(UpdateWidgetRequest) returns (ErrorResponse);
+
+  // 发送 Widget 信号
+  rpc SendWidgetSignal(WidgetSignal) returns (ErrorResponse);
+
+  // 执行 Action
+  rpc ExecuteAction(ActionExecutionRequest) returns (ErrorResponse);
+
+  // 发现可用的 Action
+  rpc DiscoverActions(ActionDiscoveryRequest) returns (ActionDiscoveryResponse);
+
+  // 取消任务
+  rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
+}

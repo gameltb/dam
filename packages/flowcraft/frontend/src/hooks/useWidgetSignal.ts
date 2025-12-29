@@ -1,42 +1,26 @@
+import { type WidgetSignal } from "../generated/core/signals_pb";
 import { useEffect, useCallback } from "react";
 import { useFlowStore, registerWidgetSignalListener } from "../store/flowStore";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
 
-/**
- * Hook for widgets to communicate with the backend using type-safe Proto signals.
- *
- * @param nodeId The ID of the node containing the widget
- * @param widgetId The ID of the widget
- * @param onSignal Callback when a signal is received from the backend
- */
-export function useWidgetSignal(
-  nodeId: string,
-  widgetId: string,
-  onSignal?: (signal: flowcraft_proto.v1.IWidgetSignal) => void,
-) {
+export const useWidgetSignal = (nodeId: string, widgetId: string) => {
   const sendWidgetSignal = useFlowStore((s) => s.sendWidgetSignal);
 
-  useEffect(() => {
-    if (!onSignal) return;
-    return registerWidgetSignalListener(nodeId, widgetId, onSignal);
-  }, [nodeId, widgetId, onSignal]);
-
   const sendSignal = useCallback(
-    (payload: flowcraft_proto.v1.IWidgetSignal["payload"]) => {
-      const signal: flowcraft_proto.v1.IWidgetSignal = {
-        node_id: nodeId,
-        widget_id: widgetId,
-      };
-
-      if (payload) {
-        // Correctly map the oneof payload based on the input
-        Object.assign(signal, payload);
-      }
-
-      sendWidgetSignal(signal);
+    (payload: Record<string, unknown>) => {
+      sendWidgetSignal({
+        nodeId,
+        widgetId,
+        payloadJson: JSON.stringify(payload),
+      } as unknown as WidgetSignal);
     },
     [nodeId, widgetId, sendWidgetSignal],
   );
 
+  useEffect(() => {
+    return registerWidgetSignalListener(nodeId, widgetId, (signal) => {
+      console.log("Received widget signal", signal);
+    });
+  }, [nodeId, widgetId]);
+
   return { sendSignal };
-}
+};

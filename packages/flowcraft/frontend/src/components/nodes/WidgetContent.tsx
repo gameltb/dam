@@ -1,5 +1,9 @@
 import React, { memo } from "react";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import {
+  WidgetType,
+  PortStyle,
+  type PortType,
+} from "../../generated/core/node_pb";
 import type { WidgetDef, DynamicNodeData } from "../../types";
 import { WidgetWrapper } from "../widgets/WidgetWrapper";
 import { TextField } from "../widgets/TextField";
@@ -12,8 +16,7 @@ import { NodeLabel } from "./NodeLabel";
 import { PortLabelRow } from "./PortLabelRow";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 
-const _WidgetType = flowcraft_proto.v1.WidgetType;
-const PortStyle = flowcraft_proto.v1.PortStyle;
+import { getPortColor } from "../../utils/themeUtils";
 
 interface WidgetRendererProps {
   nodeId: string;
@@ -24,16 +27,16 @@ interface WidgetRendererProps {
 
 const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
   ({ nodeId, widget, onValueChange, onClick }) => {
-    const { sendWidgetUpdate } = useMockSocket({ disablePolling: true });
+    const { updateWidget } = useMockSocket({ disablePolling: true });
 
     const handleValueChange = (val: unknown) => {
       onValueChange(val);
-      void sendWidgetUpdate(nodeId, widget.id, val);
+      updateWidget(nodeId, widget.id, val);
     };
 
     let component;
     switch (widget.type) {
-      case _WidgetType.WIDGET_TEXT:
+      case WidgetType.WIDGET_TEXT:
         component = (
           <TextField
             value={widget.value as string}
@@ -42,7 +45,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
           />
         );
         break;
-      case _WidgetType.WIDGET_SELECT:
+      case WidgetType.WIDGET_SELECT:
         component = (
           <SelectField
             value={widget.value}
@@ -53,7 +56,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
           />
         );
         break;
-      case _WidgetType.WIDGET_CHECKBOX:
+      case WidgetType.WIDGET_CHECKBOX:
         component = (
           <CheckboxField
             value={!!widget.value}
@@ -62,7 +65,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
           />
         );
         break;
-      case _WidgetType.WIDGET_SLIDER:
+      case WidgetType.WIDGET_SLIDER:
         component = (
           <SliderField
             value={widget.value as number}
@@ -73,7 +76,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
           />
         );
         break;
-      case _WidgetType.WIDGET_BUTTON:
+      case WidgetType.WIDGET_BUTTON:
         component = (
           <button
             className="nodrag"
@@ -184,8 +187,12 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                       portId={w.inputPortId}
                       type="target"
                       sideOffset={17}
-                      style={PortStyle.PORT_STYLE_CIRCLE}
-                      color="var(--primary-color)"
+                      style={PortStyle.CIRCLE}
+                      color={getPortColor({
+                        mainType: "string", // 默认假设连接到 widget 的是 string/number 基础类型
+                        itemType: "",
+                        isGeneric: false,
+                      } as PortType)}
                       isImplicit={true}
                     />
                   )}

@@ -1,27 +1,42 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
-import type { NodeTemplate, AppNode, TaskDefinition } from "../types";
+import { type NodeData } from "../generated/core/node_pb";
+import {
+  type GraphSnapshot,
+  type GraphMutation,
+} from "../generated/core/service_pb";
+import {
+  type ActionTemplate,
+  ActionExecutionRequestSchema,
+} from "../generated/action_pb";
+import {
+  SyncRequestSchema,
+  UpdateNodeRequestSchema,
+  UpdateWidgetRequestSchema,
+  TaskCancelRequestSchema,
+} from "../generated/core/service_pb";
+import { create } from "@bufbuild/protobuf";
+import type { NodeTemplate, TaskDefinition } from "../types";
 import { MutationSource, TaskStatus } from "../types";
 import { useFlowStore } from "../store/flowStore";
 import { useTaskStore } from "../store/taskStore";
 import { socketClient } from "../utils/SocketClient";
-import { fromProtoGraph, fromProtoNode } from "../utils/protoAdapter";
+import { fromProtoGraph } from "../utils/protoAdapter";
 
-export const useMockSocket = (config?: { disablePolling?: boolean }) => {
-  const { applyMutations, setGraph, ydoc, applyYjsUpdate } = useFlowStore(
+export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
+  const { applyMutations, setGraph, applyYjsUpdate } = useFlowStore(
     (state) => ({
       applyMutations: state.applyMutations,
       setGraph: state.setGraph,
-      ydoc: state.ydoc,
       applyYjsUpdate: state.applyYjsUpdate,
     }),
   );
 
   const { updateTask } = useTaskStore();
-  const [templates, setTemplates] = useState<NodeTemplate[]>([]);
+  const [templates] = useState<NodeTemplate[]>([]);
 
   useEffect(() => {
-    const onSnapshot = (snapshot: flowcraft_proto.v1.IGraphSnapshot) => {
+    const onSnapshot = (snapshot: GraphSnapshot) => {
       // Convert Proto -> AppNode (plain objects)
       const { nodes, edges } = fromProtoGraph(snapshot);
 
@@ -34,174 +49,122 @@ export const useMockSocket = (config?: { disablePolling?: boolean }) => {
       });
 
       // Pass plain nodes to store. Store will dehydrate them into Yjs.
-      // Then syncFromYjs will read them back and hydrate them using registered handlers.
-      setGraph({ nodes, edges }, Number(snapshot.version ?? 0));
+      setGraph({ nodes, edges }, 0);
     };
 
     const onYjsUpdate = (update: Uint8Array) => {
       applyYjsUpdate(update);
     };
 
-    const onMutations = (mutations: flowcraft_proto.v1.IGraphMutation[]) => {
-      const processed = mutations.map((m) => {
-        const cloned = { ...m };
-        if (cloned.addNode?.node) {
-          // Convert INode -> AppNode (plain object)
-          const appNode = fromProtoNode(cloned.addNode.node);
-          // We must cast to INode to satisfy the strict Protobuf type,
-          // even though it's actually an AppNode now.
-          // The store expects AppNode properties (like 'id') inside.
-          cloned.addNode.node = appNode as unknown as flowcraft_proto.v1.INode;
-        }
-        if (cloned.addSubgraph) {
-          if (cloned.addSubgraph.nodes) {
-            const appNodes = cloned.addSubgraph.nodes.map((n) =>
-              fromProtoNode(n),
-            );
-            cloned.addSubgraph.nodes =
-              appNodes as unknown as flowcraft_proto.v1.INode[];
-          }
-        }
-        return cloned;
-      });
-
-      applyMutations(processed, {
-        source: MutationSource.REMOTE_TASK,
-        description: "Mutations from server",
-      });
+    const onMutations = (mutations: GraphMutation[]) => {
+      applyMutations(mutations, { source: MutationSource.SYNC });
     };
 
     const onTaskUpdate = (update: TaskDefinition) => {
       updateTask(update.taskId, update);
     };
 
-    socketClient.on("snapshot", onSnapshot);
-    socketClient.on("yjsUpdate", onYjsUpdate);
-    socketClient.on("mutations", onMutations);
-    socketClient.on("taskUpdate", onTaskUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    socketClient.on("snapshot", onSnapshot as any);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    socketClient.on("yjsUpdate", onYjsUpdate as any);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    socketClient.on("mutations", onMutations as any);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    socketClient.on("taskUpdate", onTaskUpdate as any);
 
-    const handleLocalUpdate = (update: Uint8Array, origin: unknown) => {
-      if (origin === "local") {
-        void socketClient.send({ yjsUpdate: update });
-      }
-    };
-    ydoc.on("update", handleLocalUpdate);
+    // Initial Sync Request
+    void socketClient.send({
+      payload: {
+        case: "syncRequest",
+        value: create(SyncRequestSchema, {
+          graphId: "default",
+        }),
+      },
+    });
 
     return () => {
-      socketClient.off("snapshot", onSnapshot);
-      socketClient.off("yjsUpdate", onYjsUpdate);
-      socketClient.off("mutations", onMutations);
-      socketClient.off("taskUpdate", onTaskUpdate);
-      ydoc.off("update", handleLocalUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      socketClient.off("snapshot", onSnapshot as any);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      socketClient.off("yjsUpdate", onYjsUpdate as any);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      socketClient.off("mutations", onMutations as any);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      socketClient.off("taskUpdate", onTaskUpdate as any);
     };
-  }, [setGraph, applyMutations, updateTask, ydoc, applyYjsUpdate]);
+  }, [applyMutations, setGraph, applyYjsUpdate, updateTask]);
 
-  useEffect(() => {
-    if (config?.disablePolling) return;
-    fetch("/api/node-templates")
-      .then((r) => r.json())
-      .then((data) => {
-        setTemplates(data as NodeTemplate[]);
-      })
-      .catch(() => {
-        // ignore error
-      });
-
-    void socketClient.send({ syncRequest: { graphId: "main" } });
-  }, [config?.disablePolling]);
-
-  const sendNodeUpdate = (nodeId: string, data: Partial<AppNode["data"]>) =>
-    socketClient.send({
-      nodeUpdate: {
-        nodeId,
-        data: data as unknown as flowcraft_proto.v1.INodeData,
-      },
-    });
-
-  const sendWidgetUpdate = (nodeId: string, widgetId: string, value: unknown) =>
-    socketClient.send({
-      widgetUpdate: { nodeId, widgetId, valueJson: JSON.stringify(value) },
-    });
-
-  const streamAction = (
-    nodeId: string,
-    widgetId: string,
-    onChunk: (c: string) => void,
-  ) => {
-    socketClient.registerStreamHandler(nodeId, widgetId, onChunk);
-    return socketClient.send({
-      actionExecute: { actionId: "stream", sourceNodeId: nodeId },
-    });
-  };
-
-  const executeTask = (
-    taskId: string,
-    type: string,
-    params: { sourceNodeId: string },
-  ) => {
-    return socketClient.send({
-      actionExecute: {
-        actionId: type,
-        sourceNodeId: params.sourceNodeId,
-        paramsJson: JSON.stringify({ taskId }),
+  const executeTask = (action: ActionTemplate, nodeId?: string) => {
+    void socketClient.send({
+      payload: {
+        case: "actionExecute",
+        value: create(ActionExecutionRequestSchema, {
+          actionId: action.id,
+          sourceNodeId: nodeId ?? "",
+          contextNodeIds: [],
+          paramsJson: "{}",
+        }),
       },
     });
   };
 
-  const cancelTask = (taskId: string) =>
-    socketClient.send({ taskCancel: { taskId } });
-
-  const fetchWidgetOptions = async (
-    nodeId: string,
-    widgetId: string,
-  ): Promise<unknown> => {
-    try {
-      const res = await fetch("/api/widget/options", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodeId, widgetId }),
-      });
-      return await res.json();
-    } catch {
-      return [];
-    }
+  const cancelTask = (taskId: string) => {
+    void socketClient.send({
+      payload: {
+        case: "taskCancel",
+        value: create(TaskCancelRequestSchema, {
+          taskId,
+        }),
+      },
+    });
   };
 
-  const executeAction = async (
-    actionId: string,
-    sourceNodeId: string,
-  ): Promise<{ type: string }> => {
-    await socketClient.send({ actionExecute: { actionId, sourceNodeId } });
-    return { type: "immediate" };
+  const updateNodeData = (nodeId: string, data: NodeData) => {
+    void socketClient.send({
+      payload: {
+        case: "nodeUpdate",
+        value: create(UpdateNodeRequestSchema, {
+          nodeId,
+          data,
+        }),
+      },
+    });
   };
 
-  const discoverActions = async (nodeId?: string) => {
-    try {
-      const res = await fetch("/api/actions/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodeId }),
-      });
-      const data = (await res.json()) as {
-        actions: flowcraft_proto.v1.IActionTemplate[];
-      };
-      return data.actions;
-    } catch {
-      return [];
-    }
+  const updateWidget = (nodeId: string, widgetId: string, value: unknown) => {
+    void socketClient.send({
+      payload: {
+        case: "widgetUpdate",
+        value: create(UpdateWidgetRequestSchema, {
+          nodeId,
+          widgetId,
+          valueJson: JSON.stringify(value),
+        }),
+      },
+    });
+  };
+
+  const streamAction = (nodeId: string, actionId: string) => {
+    void socketClient.send({
+      payload: {
+        case: "actionExecute",
+        value: create(ActionExecutionRequestSchema, {
+          actionId,
+          sourceNodeId: nodeId,
+          contextNodeIds: [],
+          paramsJson: JSON.stringify({ stream: true }),
+        }),
+      },
+    });
   };
 
   return {
-    sendNodeUpdate,
-    sendWidgetUpdate,
-    fetchWidgetOptions,
-    executeAction,
-    streamAction,
+    templates,
     executeTask,
     cancelTask,
-    discoverActions,
-    templates,
-    readyState: 1,
-    mockServerState: { availableActions: { text: [] } },
+    updateNodeData,
+    updateWidget,
+    streamAction,
   };
 };

@@ -1,11 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { useCallback } from "react";
 import { useFlowStore } from "../store/flowStore";
 import { useUiStore } from "../store/uiStore";
 import { v4 as uuidv4 } from "uuid";
 import type { AppNode, DynamicNodeData } from "../types";
-import type { XYPosition, Edge } from "@xyflow/react";
+import type { XYPosition, Edge as RFEdge } from "@xyflow/react";
 import dagre from "dagre";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
+import {
+  GraphMutationSchema,
+  type GraphMutation,
+} from "../generated/core/service_pb";
+import {
+  type Node as ProtoNode,
+  NodeSchema,
+  EdgeSchema,
+} from "../generated/core/node_pb";
+import { create } from "@bufbuild/protobuf";
 
 interface GraphOpsProps {
   clientVersion: number;
@@ -27,12 +38,19 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         type,
         position,
         data: {
+          label: "New Node",
+          modes: [],
           ...data,
           typeId: typeId ?? dynamicData?.typeId,
         },
       } as AppNode;
       store.applyMutations([
-        { addNode: { node: newNode as unknown as flowcraft_proto.v1.INode } },
+        create(GraphMutationSchema, {
+          operation: {
+            case: "addNode",
+            value: { node: newNode as unknown as ProtoNode },
+          },
+        }),
       ]);
     },
     [store],
@@ -40,14 +58,28 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      store.applyMutations([{ removeNode: { id: nodeId } }]);
+      store.applyMutations([
+        create(GraphMutationSchema, {
+          operation: {
+            case: "removeNode",
+            value: { id: nodeId },
+          },
+        }),
+      ]);
     },
     [store],
   );
 
   const deleteEdge = useCallback(
     (edgeId: string) => {
-      store.applyMutations([{ removeEdge: { id: edgeId } }]);
+      store.applyMutations([
+        create(GraphMutationSchema, {
+          operation: {
+            case: "removeEdge",
+            value: { id: edgeId },
+          },
+        }),
+      ]);
     },
     [store],
   );
@@ -65,7 +97,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     if (selectedNodes.length > 0) {
       useUiStore.getState().setClipboard({
         nodes: JSON.parse(JSON.stringify(selectedNodes)) as AppNode[],
-        edges: JSON.parse(JSON.stringify(selectedEdges)) as Edge[],
+        edges: JSON.parse(JSON.stringify(selectedEdges)) as RFEdge[],
       });
     }
   }, [store]);
@@ -109,12 +141,23 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
       applyMutations(
         [
-          {
-            addSubgraph: {
-              nodes: newNodes as unknown as flowcraft_proto.v1.INode[],
-              edges: newEdges as unknown as flowcraft_proto.v1.IEdge[],
+          create(GraphMutationSchema, {
+            operation: {
+              case: "addSubgraph",
+              value: {
+                nodes: newNodes as unknown as ProtoNode[],
+                edges: newEdges.map((e) =>
+                  create(EdgeSchema, {
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    sourceHandle: e.sourceHandle ?? "",
+                    targetHandle: e.targetHandle ?? "",
+                  }),
+                ),
+              },
             },
-          },
+          }),
         ],
         { taskId: uuidv4(), description: "Paste Subgraph" },
       );
@@ -133,9 +176,9 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       return isSourceSelected && isTargetSelected;
     });
 
-    const tempClipboard: { nodes: AppNode[]; edges: Edge[] } = {
+    const tempClipboard: { nodes: AppNode[]; edges: RFEdge[] } = {
       nodes: JSON.parse(JSON.stringify(selectedNodes)) as AppNode[],
-      edges: JSON.parse(JSON.stringify(selectedEdges)) as Edge[],
+      edges: JSON.parse(JSON.stringify(selectedEdges)) as RFEdge[],
     };
 
     const idMap: Record<string, string> = {};
@@ -149,7 +192,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         selected: true,
       };
     });
-    const newEdges = tempClipboard.edges.map((e: Edge) => ({
+    const newEdges = tempClipboard.edges.map((e: RFEdge) => ({
       ...e,
       id: uuidv4(),
       source: idMap[e.source] ?? e.source,
@@ -159,12 +202,23 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     applyMutations(
       [
-        {
-          addSubgraph: {
-            nodes: newNodes as unknown as flowcraft_proto.v1.INode[],
-            edges: newEdges as unknown as flowcraft_proto.v1.IEdge[],
+        create(GraphMutationSchema, {
+          operation: {
+            case: "addSubgraph",
+            value: {
+              nodes: newNodes as unknown as ProtoNode[],
+              edges: newEdges.map((e) =>
+                create(EdgeSchema, {
+                  id: e.id,
+                  source: e.source,
+                  target: e.target,
+                  sourceHandle: e.sourceHandle ?? "",
+                  targetHandle: e.targetHandle ?? "",
+                }),
+              ),
+            },
           },
-        },
+        }),
       ],
       { taskId: uuidv4(), description: "Duplicate Selected" },
     );
@@ -191,22 +245,25 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
     dagre.layout(g);
 
-    const mutations: flowcraft_proto.v1.IGraphMutation[] = nodes.map((node) => {
+    const mutations: GraphMutation[] = nodes.map((node) => {
       const nodeWithPos = g.node(node.id);
       const width = node.measured?.width ?? 300;
       const height = node.measured?.height ?? 200;
-      return {
-        updateNode: {
-          id: node.id,
-          position: {
-            x: nodeWithPos.x - width / 2,
-            y: nodeWithPos.y - height / 2,
+      return create(GraphMutationSchema, {
+        operation: {
+          case: "updateNode",
+          value: {
+            id: node.id,
+            position: {
+              x: nodeWithPos.x - width / 2,
+              y: nodeWithPos.y - height / 2,
+            },
+            width,
+            height,
+            data: node.data as any,
           },
-          width,
-          height,
-          data: node.data as flowcraft_proto.v1.INodeData,
         },
-      };
+      });
     });
 
     applyMutations(mutations);
@@ -240,33 +297,43 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     const groupH = maxY - minY + padding * 2;
 
     const groupId = uuidv4();
-    const groupNode: flowcraft_proto.v1.INode = {
+    const groupNode = create(NodeSchema, {
       id: groupId,
       type: "groupNode",
       position: { x: groupX, y: groupY },
       width: groupW,
       height: groupH,
-      data: { label: "New Group" } as flowcraft_proto.v1.INodeData,
-    };
+      data: { label: "New Group", modes: [] } as any,
+    });
 
     // 2. Prepare mutations for grouping
     // We add the group node FIRST so it's ready to receive children
-    const mutations: flowcraft_proto.v1.IGraphMutation[] = [
-      { addNode: { node: groupNode } },
+    const mutations: GraphMutation[] = [
+      create(GraphMutationSchema, {
+        operation: {
+          case: "addNode",
+          value: { node: groupNode },
+        },
+      }),
     ];
 
     selectedNodes.forEach((node) => {
-      mutations.push({
-        updateNode: {
-          id: node.id,
-          parentId: groupId,
-          // Convert absolute to relative
-          position: {
-            x: node.position.x - groupX,
-            y: node.position.y - groupY,
+      mutations.push(
+        create(GraphMutationSchema, {
+          operation: {
+            case: "updateNode",
+            value: {
+              id: node.id,
+              parentId: groupId,
+              // Convert absolute to relative
+              position: {
+                x: node.position.x - groupX,
+                y: node.position.y - groupY,
+              },
+            },
           },
-        },
-      });
+        }),
+      );
     });
 
     applyMutations(mutations, {

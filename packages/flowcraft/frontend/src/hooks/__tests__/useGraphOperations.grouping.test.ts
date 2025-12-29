@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
+import { type GraphMutation } from "../../generated/core/service_pb";
 
 vi.mock("../../store/flowStore", () => ({
   useFlowStore: vi.fn(),
@@ -58,39 +58,53 @@ describe("useGraphOperations - Grouping", () => {
     result.current.groupSelected();
 
     expect(mockApplyMutations).toHaveBeenCalled();
-    const mutations = mockApplyMutations.mock.calls[0][0] as {
-      addNode?: {
-        node?: { type?: string; position: { x: number; y: number } };
-      };
-      updateNode?: {
-        id: string;
-        parentId?: string;
-        position: { x: number; y: number };
-      };
-    }[];
+    const calls = mockApplyMutations.mock.calls;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
 
     // 1. Check if group node is added
 
     const addGroupMut = mutations.find(
-      (m) => m.addNode?.node?.type === "groupNode",
+      (m) =>
+        m.operation.case === "addNode" &&
+        m.operation.value.node?.type === "groupNode",
     );
     expect(addGroupMut).toBeDefined();
 
     // Bounding Box: minX=100, minY=100, maxX=300, maxY=250 (padding=40)
     // groupX = 100 - 40 = 60, groupY = 100 - 40 = 60
-    const groupPos = addGroupMut?.addNode?.node?.position;
-    expect(groupPos).toEqual({ x: 60, y: 60 });
+    const groupPos =
+      addGroupMut?.operation.case === "addNode"
+        ? addGroupMut.operation.value.node?.position
+        : null;
+    expect(groupPos).toMatchObject({ x: 60, y: 60 });
 
     // 2. Check if children are updated with parentId and relative positions
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateNode1 = mutations.find((m: any) => m.updateNode?.id === "1");
-    expect(updateNode1?.updateNode?.parentId).toBeDefined();
-    // relativeX = 100 - 60 = 40, relativeY = 100 - 60 = 40
-    expect(updateNode1?.updateNode?.position).toEqual({ x: 40, y: 40 });
+    const updateNode1 = mutations.find(
+      (m) => m.operation.case === "updateNode" && m.operation.value.id === "1",
+    );
+    if (updateNode1?.operation.case === "updateNode") {
+      expect(updateNode1.operation.value.parentId).toBeDefined();
+      // relativeX = 100 - 60 = 40, relativeY = 100 - 60 = 40
+      expect(updateNode1.operation.value.position).toMatchObject({
+        x: 40,
+        y: 40,
+      });
+    } else {
+      throw new Error("Expected updateNode mutation");
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateNode2 = mutations.find((m: any) => m.updateNode?.id === "2");
-    // relativeX = 200 - 60 = 140, relativeY = 200 - 60 = 140
-    expect(updateNode2?.updateNode?.position).toEqual({ x: 140, y: 140 });
+    const updateNode2 = mutations.find(
+      (m) => m.operation.case === "updateNode" && m.operation.value.id === "2",
+    );
+    if (updateNode2?.operation.case === "updateNode") {
+      // relativeX = 200 - 60 = 140, relativeY = 200 - 60 = 140
+      expect(updateNode2.operation.value.position).toMatchObject({
+        x: 140,
+        y: 140,
+      });
+    } else {
+      throw new Error("Expected updateNode mutation");
+    }
   });
 });

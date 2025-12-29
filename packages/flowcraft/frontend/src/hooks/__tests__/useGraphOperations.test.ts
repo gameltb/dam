@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { type GraphMutation } from "../../generated/core/service_pb";
 
 // Mock the stores
 vi.mock("../../store/flowStore", () => ({
@@ -25,7 +25,7 @@ describe("useGraphOperations - Auto Layout", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useFlowStore as Mock).mockReturnValue({
+    (useFlowStore as unknown as Mock).mockReturnValue({
       nodes: [
         {
           id: "1",
@@ -61,18 +61,28 @@ describe("useGraphOperations - Auto Layout", () => {
     result.current.autoLayout();
 
     expect(mockApplyMutations).toHaveBeenCalled();
-    const mutations = mockApplyMutations.mock
-      .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
+    const calls = mockApplyMutations.mock.calls;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
 
     const firstUpdate = mutations.find(
-      (m: flowcraft_proto.v1.IGraphMutation) => m.updateNode?.id === "1",
+      (m: GraphMutation) =>
+        m.operation.case === "updateNode" && m.operation.value.id === "1",
     );
-    expect(firstUpdate?.updateNode).toHaveProperty("width", 200);
-    expect(firstUpdate?.updateNode).toHaveProperty("height", 100);
+    expect(
+      firstUpdate?.operation.case === "updateNode"
+        ? firstUpdate.operation.value
+        : null,
+    ).toHaveProperty("width", 200);
+    expect(
+      firstUpdate?.operation.case === "updateNode"
+        ? firstUpdate.operation.value
+        : null,
+    ).toHaveProperty("height", 100);
   });
 
   it("should use fallback dimensions if measured is missing", () => {
-    (useFlowStore as Mock).mockReturnValue({
+    (useFlowStore as unknown as Mock).mockReturnValue({
       nodes: [{ id: "1", position: { x: 0, y: 0 } }],
       edges: [],
       applyMutations: mockApplyMutations,
@@ -83,10 +93,15 @@ describe("useGraphOperations - Auto Layout", () => {
     );
     result.current.autoLayout();
 
-    const mutations = mockApplyMutations.mock
-      .calls[0][0] as flowcraft_proto.v1.IGraphMutation[];
-    const update = mutations[0]?.updateNode;
-    expect(update?.width).toBe(300);
-    expect(update?.height).toBe(200);
+    const calls = mockApplyMutations.mock.calls;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
+    const op = mutations[0]?.operation;
+    if (op?.case === "updateNode") {
+      expect(op.value.width).toBe(300);
+      expect(op.value.height).toBe(200);
+    } else {
+      throw new Error("Expected updateNode mutation");
+    }
   });
 });

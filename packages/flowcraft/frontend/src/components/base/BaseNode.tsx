@@ -1,16 +1,14 @@
 import React, { useState } from "react";
-import { type Node } from "@xyflow/react";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
-import { type DynamicNodeData } from "../../types";
+import { type Node as RFNode } from "@xyflow/react";
+import { RenderMode } from "../../generated/core/node_pb";
+import type { DynamicNodeData } from "../../types";
 
-const RenderMode = flowcraft_proto.v1.RenderMode;
-
-export interface BaseNodeProps<T extends Node> {
+export interface BaseNodeProps<T extends RFNode> {
   id: string;
   data: T["data"];
   selected?: boolean;
   style?: React.CSSProperties;
-  initialMode?: flowcraft_proto.v1.RenderMode;
+  initialMode?: RenderMode;
   renderMedia?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   renderWidgets?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   handles?: React.ReactNode;
@@ -18,7 +16,7 @@ export interface BaseNodeProps<T extends Node> {
   onOverflowChange?: (overflow: "visible" | "hidden") => void;
 }
 
-export function BaseNode<T extends Node>({
+export function BaseNode<T extends RFNode>({
   id,
   data,
   initialMode = RenderMode.MODE_WIDGETS,
@@ -29,14 +27,11 @@ export function BaseNode<T extends Node>({
   onOverflowChange,
   ...rest
 }: BaseNodeProps<T>) {
-  const [internalMode, setInternalMode] =
-    useState<flowcraft_proto.v1.RenderMode>(initialMode);
+  const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
   // Default to visible so handles are never cut off
   const [overflow, setOverflow] = useState<"visible" | "hidden">("visible");
 
-  const mode =
-    (data.activeMode as flowcraft_proto.v1.RenderMode | undefined) ??
-    internalMode;
+  const mode = (data as DynamicNodeData).activeMode ?? internalMode;
 
   const toggleMode = () => {
     const nextMode =
@@ -48,7 +43,7 @@ export function BaseNode<T extends Node>({
       (
         dynamicData.onChange as (
           id: string,
-          data: { activeMode: flowcraft_proto.v1.RenderMode },
+          data: { activeMode: RenderMode },
         ) => void
       )(id, {
         activeMode: nextMode,

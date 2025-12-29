@@ -1,5 +1,5 @@
-import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { memo } from "react";
 import { useTaskStore } from "../store/taskStore";
 import { TaskStatus, type ProcessingNodeData } from "../types";
 import { useMockSocket } from "../hooks/useMockSocket";
@@ -86,7 +86,7 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
           <button
             className="nodrag"
             onClick={() => {
-              void cancelTask(taskId);
+              cancelTask(taskId);
             }}
             style={{
               background: "transparent",

@@ -1,5 +1,9 @@
-import { v4 as uuidv4 } from "uuid";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import { createClient } from "@connectrpc/connect";
+import { FlowService } from "../generated/core/service_pb";
+import { type FlowMessage } from "../generated/core/service_pb";
+import { routerTransport } from "../mocks/routerTransport";
 
 type Handler = (data: unknown) => void;
 
@@ -7,9 +11,14 @@ class SocketClientImpl {
   private handlers: Record<string, Handler[]> = {};
   private streamHandlers: Record<string, (chunk: string) => void> = {};
 
+  // In a real app, use createConnectTransport({ baseUrl: "..." })
+  // Here we use the in-memory router transport to connect to our mock service directly.
+  private transport = routerTransport;
+
+  private client = createClient(FlowService, this.transport);
+
   on(event: string, handler: Handler) {
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    this.handlers[event] = this.handlers[event] || [];
+    this.handlers[event] = this.handlers[event] ?? [];
     this.handlers[event].push(handler);
   }
 
@@ -33,88 +42,103 @@ class SocketClientImpl {
     this.streamHandlers[`${nodeId}-${widgetId}`] = handler;
   }
 
-  async send(payload: flowcraft_proto.v1.IFlowMessage) {
-    const message: flowcraft_proto.v1.IFlowMessage = {
-      messageId: uuidv4(),
-      timestamp: Date.now(),
-      ...payload,
-    };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async send(wrapper: { payload: { case: string; value: any } }) {
+    const { case: type, value } = wrapper.payload;
 
     try {
-      const response = await fetch("/api/ws", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(message),
-      });
+      switch (type) {
+        case "syncRequest":
+          void this.startStream(value);
+          break;
 
-      if (!response.ok) return;
+        case "nodeUpdate":
+          await this.client.updateNode(value);
+          break;
 
-      const body = response.body;
-      if (!body) return;
+        case "widgetUpdate":
+          await this.client.updateWidget(value);
+          break;
 
-      const reader = body.getReader();
-      const decoder = new TextDecoder();
+        case "widgetSignal":
+          await this.client.sendWidgetSignal(value);
+          break;
 
-      let buffer = "";
-      for (;;) {
-        const { done, value } = await reader.read();
+        case "actionExecute":
+          await this.client.executeAction(value);
+          break;
 
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-
-        // The last element is either an empty string (if buffer ends with \n)
-        // or a partial line. Keep it in the buffer for the next chunk.
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const serverMsg = JSON.parse(
-              line,
-            ) as flowcraft_proto.v1.IFlowMessage;
-            this.handleIncomingMessage(serverMsg);
-          } catch (e) {
-            console.error(
-              "Failed to parse server message",
-              e instanceof Error ? e.message : String(e),
-              line,
-            );
-          }
+        case "actionDiscovery": {
+          const res = await this.client.discoverActions(value);
+          this.emit("actions", res.actions);
+          break;
         }
+
+        case "taskCancel":
+          await this.client.cancelTask(value);
+          break;
+
+        default:
+          console.warn("Unknown message type:", type);
       }
     } catch (e) {
+      console.error("gRPC Error:", e);
       this.emit("error", e);
     }
   }
 
-  private handleIncomingMessage(msg: flowcraft_proto.v1.IFlowMessage) {
-    if (msg.snapshot) {
-      this.emit("snapshot", msg.snapshot);
-    } else if (msg.yjsUpdate) {
-      this.emit("yjsUpdate", msg.yjsUpdate);
-    } else if (msg.mutations) {
-      this.emit("mutations", msg.mutations.mutations);
-    } else if (msg.actions) {
-      this.emit("actions", msg.actions.actions);
-    } else if (msg.taskUpdate) {
-      this.emit("taskUpdate", msg.taskUpdate);
-    } else if (msg.widgetSignal) {
-      const signal = msg.widgetSignal;
-      void import("../store/flowStore").then(({ useFlowStore }) => {
-        useFlowStore.getState().handleIncomingWidgetSignal(signal);
-      });
-      this.emit("widgetSignal", signal);
-    } else if (msg.streamChunk) {
-      const nodeId = msg.streamChunk.nodeId ?? "";
-      const widgetId = msg.streamChunk.widgetId ?? "";
-      const handlerKey = `${nodeId}-${widgetId}`;
-      const handler = this.streamHandlers[handlerKey];
-      if (handler) {
-        handler(msg.streamChunk.chunkData ?? "");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async startStream(req: any) {
+    try {
+      for await (const msg of this.client.watchGraph(req)) {
+        this.handleIncomingMessage(msg);
       }
-      this.emit("streamChunk", msg.streamChunk);
+    } catch (e) {
+      console.error("Stream Error:", e);
+      this.emit("error", e);
+    }
+  }
+
+  private handleIncomingMessage(msg: FlowMessage) {
+    const payload = msg.payload;
+    if (payload.case === undefined) return;
+
+    switch (payload.case) {
+      case "snapshot":
+        this.emit("snapshot", payload.value);
+        break;
+      case "yjsUpdate":
+        this.emit("yjsUpdate", payload.value);
+        break;
+      case "mutations":
+        this.emit("mutations", payload.value.mutations);
+        break;
+      case "actions":
+        this.emit("actions", payload.value.actions);
+        break;
+      case "taskUpdate":
+        this.emit("taskUpdate", payload.value);
+        break;
+      case "widgetSignal": {
+        const signal = payload.value;
+        void import("../store/flowStore").then(({ useFlowStore }) => {
+          useFlowStore.getState().handleIncomingWidgetSignal(signal);
+        });
+        this.emit("widgetSignal", signal);
+        break;
+      }
+      case "streamChunk": {
+        const val = payload.value;
+        const nodeId = val.nodeId;
+        const widgetId = val.widgetId;
+        const handlerKey = `${nodeId}-${widgetId}`;
+        const handler = this.streamHandlers[handlerKey];
+        if (handler) {
+          handler(val.chunkData);
+        }
+        this.emit("streamChunk", val);
+        break;
+      }
     }
   }
 }

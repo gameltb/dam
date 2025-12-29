@@ -4,7 +4,34 @@ import type { Node, Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
 import type { MediaType } from "../types";
 
-export const useContextMenu = () => {
+export const useContextMenu = (): {
+  contextMenu: {
+    x: number;
+    y: number;
+    nodeId?: string;
+    edgeId?: string;
+    galleryItemUrl?: string;
+    galleryItemType?: MediaType;
+  } | null;
+  onPaneContextMenu: (event: ReactMouseEvent | MouseEvent) => void;
+  onNodeContextMenu: (event: ReactMouseEvent, node: Node) => void;
+  onEdgeContextMenu: (event: ReactMouseEvent, edge: Edge) => void;
+  onSelectionContextMenu: (event: ReactMouseEvent) => void;
+  onPaneClick: () => void;
+  closeContextMenu: () => void;
+  closeContextMenuAndClear: () => void;
+  onNodeDragStop: () => void;
+  setContextMenu: React.Dispatch<
+    React.SetStateAction<{
+      x: number;
+      y: number;
+      nodeId?: string;
+      edgeId?: string;
+      galleryItemUrl?: string;
+      galleryItemType?: MediaType;
+    } | null>
+  >;
+} => {
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -106,6 +133,14 @@ export const useContextMenu = () => {
     setContextMenu(null);
   }, []);
 
+  const closeContextMenuAndClear = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const onNodeDragStop = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
   return {
     contextMenu,
     onPaneContextMenu,
@@ -114,6 +149,8 @@ export const useContextMenu = () => {
     onSelectionContextMenu,
     onPaneClick,
     closeContextMenu,
+    closeContextMenuAndClear,
+    onNodeDragStop,
     setContextMenu,
   };
 };

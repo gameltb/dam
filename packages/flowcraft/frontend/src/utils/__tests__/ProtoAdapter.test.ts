@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fromProtoNode } from "../protoAdapter";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { NodeSchema } from "../../generated/core/node_pb";
+import { create } from "@bufbuild/protobuf";
 
 /**
  * PROBLEM: Nodes were invisible in the MiniMap.
@@ -9,12 +10,15 @@ import { flowcraft_proto } from "../../generated/flowcraft_proto";
  */
 describe("ProtoAdapter", () => {
   it("should NOT set measured dimensions when proto width/height are 0", () => {
-    const protoNode: flowcraft_proto.v1.INode = {
+    const protoNode = create(NodeSchema, {
       id: "node-1",
       position: { x: 10, y: 10 },
       width: 0,
       height: 0,
-    };
+      type: "dynamic",
+      selected: false,
+      parentId: "",
+    });
 
     const appNode = fromProtoNode(protoNode);
 
@@ -23,12 +27,15 @@ describe("ProtoAdapter", () => {
   });
 
   it("should set measured dimensions when proto width/height are positive", () => {
-    const protoNode: flowcraft_proto.v1.INode = {
+    const protoNode = create(NodeSchema, {
       id: "node-1",
       position: { x: 10, y: 10 },
       width: 150,
       height: 100,
-    };
+      type: "dynamic",
+      selected: false,
+      parentId: "",
+    });
 
     const appNode = fromProtoNode(protoNode);
 

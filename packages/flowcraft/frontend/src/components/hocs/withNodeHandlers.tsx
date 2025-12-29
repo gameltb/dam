@@ -1,15 +1,19 @@
 import React from "react";
-import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
+import {
+  type Node as RFNode,
+  type NodeProps,
+  NodeResizer,
+} from "@xyflow/react";
 import { BaseNode } from "../base/BaseNode";
 import type { DynamicNodeData } from "../../types";
 import { MediaType } from "../../types";
 import { useNodeLayout } from "../../hooks/useNodeLayout";
 
-export type NodeRendererProps<T extends Node> = NodeProps<T>;
+export type NodeRendererProps<T extends RFNode> = NodeProps<T>;
 
 export function withNodeHandlers<
   D extends DynamicNodeData = DynamicNodeData,
-  T extends Node<D, string> = Node<D, string>,
+  T extends RFNode<D, string> = RFNode<D, string>,
 >(
   RenderMedia: React.ComponentType<NodeRendererProps<T>>,
   RenderWidgets: React.ComponentType<
@@ -20,7 +24,8 @@ export function withNodeHandlers<
     const { data, selected, type, positionAbsoluteX, positionAbsoluteY } =
       props;
 
-    const { minHeight, isMedia } = useNodeLayout(data);
+    const layout = useNodeLayout(data);
+    const { minHeight, isMedia } = layout;
 
     const shouldLockAspectRatio =
       isMedia &&

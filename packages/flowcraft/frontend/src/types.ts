@@ -1,32 +1,32 @@
 import type { Edge, Viewport, Node } from "@xyflow/react";
 import type { GroupNodeType } from "./components/GroupNode";
-import { flowcraft_proto } from "./generated/flowcraft_proto";
+import {
+  WidgetType,
+  RenderMode,
+  MediaType,
+  PortStyle,
+  TaskStatus,
+  type Port,
+} from "./generated/core/node_pb";
+import { type GraphMutation } from "./generated/core/service_pb";
+import { ActionExecutionStrategy } from "./generated/action_pb";
 
 /**
  * SECTION 1: PROTOCOL & CRDT
  * Definitions related to the communication protocol and state synchronization.
  */
 
-export { flowcraft_proto };
-export type { flowcraft_proto as flowcraft_proto_type } from "./generated/flowcraft_proto";
+// Re-export Enums
+export {
+  WidgetType,
+  RenderMode,
+  MediaType,
+  ActionExecutionStrategy,
+  PortStyle,
+  TaskStatus,
+};
 
-// Re-export Enums from Protobuf as both values and types
-export const WidgetType = flowcraft_proto.v1.WidgetType;
-export type WidgetType = flowcraft_proto.v1.WidgetType;
-
-export const RenderMode = flowcraft_proto.v1.RenderMode;
-export type RenderMode = flowcraft_proto.v1.RenderMode;
-
-export const MediaType = flowcraft_proto.v1.MediaType;
-export type MediaType = flowcraft_proto.v1.MediaType;
-
-export const ActionExecutionStrategy =
-  flowcraft_proto.v1.ActionExecutionStrategy;
-export type ActionExecutionStrategy =
-  flowcraft_proto.v1.ActionExecutionStrategy;
-
-export const PortStyle = flowcraft_proto.v1.PortStyle;
-export type PortStyle = flowcraft_proto.v1.PortStyle;
+export type { Port };
 
 export const MutationSource = {
   USER: "USER",
@@ -43,23 +43,8 @@ export interface MutationLogEntry {
   source: MutationSource;
   timestamp: number;
   description: string;
-  mutations: flowcraft_proto.v1.IGraphMutation[];
+  mutations: GraphMutation[];
 }
-
-/**
- * SECTION 2: TASK & JOB SYSTEM
- * Tracking long-running operations and their lifecycle.
- */
-
-// Manually define TaskStatus due to generation issues in some environments
-export const TaskStatus = {
-  TASK_PENDING: 0,
-  TASK_PROCESSING: 1,
-  TASK_COMPLETED: 2,
-  TASK_FAILED: 3,
-  TASK_CANCELLED: 4,
-} as const;
-export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
 
 export interface TaskDefinition {
   taskId: string;
@@ -112,8 +97,8 @@ export interface DynamicNodeData extends Record<string, unknown> {
   widgets?: WidgetDef[];
 
   // Port definitions
-  inputPorts?: flowcraft_proto.v1.IPort[];
-  outputPorts?: flowcraft_proto.v1.IPort[];
+  inputPorts?: Port[];
+  outputPorts?: Port[];
 }
 
 export interface ProcessingNodeData extends Record<string, unknown> {

@@ -11,7 +11,15 @@ const SNAP_DISTANCE = 10;
 /**
  * Hook to calculate snapping and helper lines using absolute coordinates.
  */
-export function useHelperLines() {
+export function useHelperLines(): {
+  helperLines: HelperLines;
+  setHelperLines: React.Dispatch<React.SetStateAction<HelperLines>>;
+  calculateLines: (
+    draggingNode: Node,
+    allNodes: Node[],
+    shouldUpdateState: boolean,
+  ) => { snappedPosition: XYPosition; helperLines: HelperLines };
+} {
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   // Helper to find absolute position of a node
@@ -34,7 +42,7 @@ export function useHelperLines() {
   };
 
   const calculateLines = useCallback(
-    (draggingNode: Node, allNodes: Node[], shouldUpdateState) => {
+    (draggingNode: Node, allNodes: Node[], shouldUpdateState: boolean) => {
       const result: HelperLines = {
         horizontal: undefined,
         vertical: undefined,

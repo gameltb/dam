@@ -1,8 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
-import type { AppNode } from "../../types";
-
-const MediaType = flowcraft_proto.v1.MediaType;
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { MediaType } from "../../generated/core/node_pb";
+import { type AppNode } from "../../types";
 
 interface MediaPreviewProps {
   node: AppNode;
@@ -37,13 +35,19 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
     };
 
     // Preload next and prev
-    if (activeIndex < items.length - 1) preload(items[activeIndex + 1]);
-    if (activeIndex > 0) preload(items[activeIndex - 1]);
+    const nextUrl =
+      activeIndex < items.length - 1 ? items[activeIndex + 1] : undefined;
+    const prevUrl = activeIndex > 0 ? items[activeIndex - 1] : undefined;
+
+    if (nextUrl) preload(nextUrl);
+    if (prevUrl) preload(prevUrl);
   }, [activeIndex, items]);
 
   const handleSwitch = useCallback(
     (newIndex: number) => {
       const url = items[newIndex];
+      if (!url) return;
+
       // For images, we can check if they are already in cache
       if (media?.type === MediaType.MEDIA_IMAGE) {
         const img = new Image();

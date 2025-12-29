@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import { Handle as ReactFlowHandle, Position, useStore } from "@xyflow/react";
-import { type PortStyle as PortStyleType } from "../../types";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import {
+  PortStyle,
+  PortSchema,
+  PortTypeSchema,
+} from "../../generated/core/node_pb";
 import { getValidator, validateConnection } from "../../utils/portValidators";
 import { useUiStore } from "../../store/uiStore";
-
-const PortStyle = flowcraft_proto.v1.PortStyle;
+import { create } from "@bufbuild/protobuf";
 
 interface PortHandleProps {
   nodeId: string;
   portId: string;
   type: "source" | "target";
-  style?: PortStyleType;
+  style?: PortStyle;
   mainType?: string;
   itemType?: string;
   isGeneric?: boolean;
@@ -24,7 +26,7 @@ interface PortHandleProps {
 }
 
 const PortIcon: React.FC<{
-  style: PortStyleType;
+  style: PortStyle;
   mainType?: string;
   color: string;
   isConnected: boolean;
@@ -87,9 +89,9 @@ const PortIcon: React.FC<{
     );
   }
   switch (style) {
-    case PortStyle.PORT_STYLE_SQUARE:
+    case PortStyle.SQUARE:
       return <div style={{ ...baseStyle, borderRadius: "2px" }} />;
-    case PortStyle.PORT_STYLE_DIAMOND:
+    case PortStyle.DIAMOND:
       return (
         <div
           style={{
@@ -99,7 +101,7 @@ const PortIcon: React.FC<{
           }}
         />
       );
-    case PortStyle.PORT_STYLE_DASH:
+    case PortStyle.DASH:
       return (
         <div
           style={{
@@ -119,10 +121,10 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   nodeId,
   portId,
   type,
-  style = PortStyle.PORT_STYLE_CIRCLE,
-  mainType,
-  itemType,
-  isGeneric,
+  style = PortStyle.CIRCLE,
+  mainType = "any",
+  itemType = "",
+  isGeneric = false,
   color = "var(--primary-color)",
   description,
   sideOffset = 0,
@@ -141,7 +143,9 @@ export const PortHandle: React.FC<PortHandleProps> = ({
       : e.source === nodeId && e.sourceHandle === portId,
   );
 
-  const validator = getValidator({ mainType, itemType, isGeneric });
+  const validator = getValidator(
+    create(PortTypeSchema, { mainType, itemType, isGeneric }),
+  );
   const inputCount = edges.filter(
     (e) => e.target === nodeId && e.targetHandle === portId,
   ).length;
@@ -155,17 +159,30 @@ export const PortHandle: React.FC<PortHandleProps> = ({
       isInvalidTarget = true;
     } else {
       // Perform validation for tooltip feedback
-      const sourcePort: flowcraft_proto.v1.IPort = {
+      const sourcePort = create(PortSchema, {
         id: activeConnection.handleId,
         type: {
           mainType: activeConnection.mainType,
           itemType: activeConnection.itemType,
+          isGeneric: false,
         },
-      };
-      const targetPort: flowcraft_proto.v1.IPort = {
+        label: "",
+        color: "",
+        style: PortStyle.CIRCLE,
+        description: "",
+      });
+      const targetPort = create(PortSchema, {
         id: portId,
-        type: { mainType, itemType, isGeneric },
-      };
+        type: {
+          mainType: mainType,
+          itemType: itemType,
+          isGeneric: isGeneric,
+        },
+        label: "",
+        color: "",
+        style: style,
+        description: "",
+      });
 
       const res = validateConnection(
         { ...sourcePort, nodeId: activeConnection.nodeId },
@@ -181,7 +198,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   const isConnectable =
     !isInvalidTarget && (!isLeft || inputCount < maxInputs || maxInputs === 1);
 
-  const tooltip = `Type: ${mainType ?? "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
+  const tooltip = `Type: ${mainType}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
 
   // --- Presentation Mode Specific Styles ---
 
@@ -343,7 +360,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
           }}
         >
           <div style={{ color: "var(--sub-text)" }}>
-            Connection: {activeConnection.mainType ?? "any"}
+            Connection: {activeConnection.mainType}
           </div>
           <div
             style={{
@@ -351,7 +368,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
               fontWeight: "bold",
             }}
           >
-            This Port: {mainType ?? "any"}
+            This Port: {mainType}
           </div>
           {!validationResult?.canConnect && validationResult?.reason && (
             <div style={{ color: "#f87171", fontSize: "9px" }}>

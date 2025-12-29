@@ -1,5 +1,5 @@
-import { flowcraft_proto } from "../generated/flowcraft_proto";
-import { type Edge } from "@xyflow/react";
+import { type Port, type PortType } from "../generated/core/node_pb";
+import type { Edge } from "@xyflow/react";
 
 export interface ConnectionResult {
   canConnect: boolean;
@@ -10,10 +10,7 @@ export interface PortValidator {
   /**
    * 是否允许两个端口连接（类型检查）
    */
-  canAccept(
-    sourceType: flowcraft_proto.v1.IPortType,
-    targetType: flowcraft_proto.v1.IPortType,
-  ): boolean;
+  canAccept(sourceType: PortType, targetType: PortType): boolean;
 
   /**
    * 该端口允许的最大输入连接数
@@ -53,7 +50,7 @@ export const AnyValidator: PortValidator = {
  * Validator Registry / Factory
  */
 export const getValidator = (
-  portType: flowcraft_proto.v1.IPortType | undefined | null,
+  portType: PortType | undefined | null,
 ): PortValidator => {
   const mainType = portType?.mainType ?? "any";
 
@@ -67,8 +64,8 @@ export const getValidator = (
  * Integrated connection check logic
  */
 export const validateConnection = (
-  source: flowcraft_proto.v1.IPort & { nodeId: string },
-  target: flowcraft_proto.v1.IPort & { nodeId: string },
+  source: Port & { nodeId: string },
+  target: Port & { nodeId: string },
   currentEdges: Edge[],
 ): ConnectionResult => {
   const validator = getValidator(target.type);
@@ -81,7 +78,7 @@ export const validateConnection = (
   ) {
     return {
       canConnect: false,
-      reason: `Type Mismatch: Cannot connect ${source.type.mainType ?? "unknown"} to ${target.type.mainType ?? "unknown"}`,
+      reason: `Type Mismatch: Cannot connect ${source.type.mainType} to ${target.type.mainType}`,
     };
   }
 

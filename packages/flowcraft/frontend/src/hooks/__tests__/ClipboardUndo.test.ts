@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
+import { create } from "@bufbuild/protobuf";
+import {
+  GraphMutationSchema,
+  AddSubGraphSchema,
+  AddNodeSchema,
+} from "../../generated/core/service_pb";
+import { NodeSchema } from "../../generated/core/node_pb";
 
 describe("Direct Store Clipboard Logic", () => {
   beforeEach(() => {
@@ -13,12 +20,25 @@ describe("Direct Store Clipboard Logic", () => {
 
     // 1. Manually apply mutation (bypassing Hook)
     store.applyMutations([
-      {
-        addSubgraph: {
-          nodes: [{ id: "test-node", type: "dynamic" }],
-          edges: [],
+      create(GraphMutationSchema, {
+        operation: {
+          case: "addSubgraph",
+          value: create(AddSubGraphSchema, {
+            nodes: [
+              create(NodeSchema, {
+                id: "test-node",
+                type: "dynamic",
+                position: { x: 0, y: 0 },
+                width: 0,
+                height: 0,
+                selected: false,
+                parentId: "",
+              }),
+            ],
+            edges: [],
+          }),
         },
-      },
+      }),
     ]);
 
     // 2. Immediate checks
@@ -26,7 +46,7 @@ describe("Direct Store Clipboard Logic", () => {
 
     const updatedStore = useFlowStore.getState();
     expect(updatedStore.nodes.length).toBe(1);
-    expect(updatedStore.nodes[0].id).toBe("test-node");
+    expect(updatedStore.nodes[0]?.id).toBe("test-node");
   });
 
   it("should undo addSubgraph correctly", () => {
@@ -35,12 +55,25 @@ describe("Direct Store Clipboard Logic", () => {
 
     // 1. Add node
     store.applyMutations([
-      {
-        addSubgraph: {
-          nodes: [{ id: "undo-node", type: "dynamic" }],
-          edges: [],
+      create(GraphMutationSchema, {
+        operation: {
+          case: "addSubgraph",
+          value: create(AddSubGraphSchema, {
+            nodes: [
+              create(NodeSchema, {
+                id: "undo-node",
+                type: "dynamic",
+                position: { x: 0, y: 0 },
+                width: 0,
+                height: 0,
+                selected: false,
+                parentId: "",
+              }),
+            ],
+            edges: [],
+          }),
         },
-      },
+      }),
     ]);
 
     expect(useFlowStore.getState().nodes.length).toBe(1);
@@ -51,7 +84,6 @@ describe("Direct Store Clipboard Logic", () => {
 
     const afterUndoStore = useFlowStore.getState();
     expect(afterUndoStore.nodes.length).toBe(0);
-    // This is where it likely fails: yNodes is not managed by Zundo
     expect(afterUndoStore.yNodes.size).toBe(0);
   });
 
@@ -60,17 +92,28 @@ describe("Direct Store Clipboard Logic", () => {
 
     // 1. Setup a selected node
     store.applyMutations([
-      {
-        addNode: {
-          node: { id: "node-1", type: "dynamic", position: { x: 100, y: 100 } },
+      create(GraphMutationSchema, {
+        operation: {
+          case: "addNode",
+          value: create(AddNodeSchema, {
+            node: create(NodeSchema, {
+              id: "node-1",
+              type: "dynamic",
+              position: { x: 100, y: 100 },
+              width: 0,
+              height: 0,
+              selected: false,
+              parentId: "",
+            }),
+          }),
         },
-      },
+      }),
     ]);
 
     // Manually trigger selection change to sync it
     store.onNodesChange([{ id: "node-1", type: "select", selected: true }]);
 
-    expect(useFlowStore.getState().nodes[0].selected).toBe(true);
+    expect(useFlowStore.getState().nodes[0]?.selected).toBe(true);
 
     // 2. Perform Copy (simulating Hook logic)
     const selectedNodes = useFlowStore
@@ -85,23 +128,25 @@ describe("Direct Store Clipboard Logic", () => {
 
     const newNodeId = "node-2"; // In real hook it's a uuid
     store.applyMutations([
-      {
-        addSubgraph: {
-          nodes: [
-            {
-              ...(clipboard?.nodes[0] ?? {
-                id: "fallback",
+      create(GraphMutationSchema, {
+        operation: {
+          case: "addSubgraph",
+          value: create(AddSubGraphSchema, {
+            nodes: [
+              create(NodeSchema, {
+                id: newNodeId,
                 type: "dynamic",
-                position: { x: 0, y: 0 },
-                data: {},
+                position: { x: 140, y: 140 },
+                width: 0,
+                height: 0,
+                selected: false,
+                parentId: "",
               }),
-              id: newNodeId,
-              position: { x: 140, y: 140 },
-            },
-          ],
-          edges: [],
+            ],
+            edges: [],
+          }),
         },
-      },
+      }),
     ]);
 
     const finalStore = useFlowStore.getState();

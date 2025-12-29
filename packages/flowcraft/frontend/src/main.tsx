@@ -15,6 +15,7 @@ async function enableMocking() {
       onUnhandledRequest: "bypass",
     });
   }
+  return Promise.resolve();
 }
 
 const rootElement = document.getElementById("root");

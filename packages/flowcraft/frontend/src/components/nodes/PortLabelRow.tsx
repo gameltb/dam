@@ -1,23 +1,24 @@
 import React, { memo } from "react";
 import { useNodeConnections } from "@xyflow/react";
 import { PortHandle } from "../base/PortHandle";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { type Port } from "../../generated/core/node_pb";
+import { getPortColor, getPortShape } from "../../utils/themeUtils";
 
 interface PortLabelRowProps {
   nodeId: string;
-  inputPort?: flowcraft_proto.v1.IPort;
-  outputPort?: flowcraft_proto.v1.IPort;
+  inputPort?: Port;
+  outputPort?: Port;
 }
 
 export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
   ({ nodeId, inputPort, outputPort }) => {
     const inputConnections = useNodeConnections({
       handleType: "target",
-      handleId: inputPort?.id ?? undefined,
+      handleId: inputPort?.id,
     });
     const outputConnections = useNodeConnections({
       handleType: "source",
-      handleId: outputPort?.id ?? undefined,
+      handleId: outputPort?.id,
     });
 
     const isInputConnected = inputConnections.length > 0;
@@ -51,14 +52,11 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
             <>
               <PortHandle
                 nodeId={nodeId}
-                portId={inputPort.id ?? ""}
+                portId={inputPort.id}
                 type="target"
-                style={inputPort.style ?? undefined}
-                mainType={inputPort.type?.mainType ?? undefined}
-                itemType={inputPort.type?.itemType ?? undefined}
-                isGeneric={!!inputPort.type?.isGeneric}
-                color={inputPort.color ?? undefined}
-                description={inputPort.description ?? undefined}
+                style={getPortShape(inputPort.type)}
+                color={getPortColor(inputPort.type)}
+                description={inputPort.description}
                 sideOffset={12}
               />
               {inputPort.label && (
@@ -112,14 +110,11 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
               )}
               <PortHandle
                 nodeId={nodeId}
-                portId={outputPort.id ?? ""}
+                portId={outputPort.id}
                 type="source"
-                style={outputPort.style ?? undefined}
-                mainType={outputPort.type?.mainType ?? undefined}
-                itemType={outputPort.type?.itemType ?? undefined}
-                isGeneric={!!outputPort.type?.isGeneric}
-                color={outputPort.color ?? undefined}
-                description={outputPort.description ?? undefined}
+                style={getPortShape(outputPort.type)}
+                color={getPortColor(outputPort.type)}
+                description={outputPort.description}
                 sideOffset={12}
               />
             </>

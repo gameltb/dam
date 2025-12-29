@@ -1,9 +1,6 @@
 import { useMemo } from "react";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
+import { RenderMode, MediaType } from "../generated/core/node_pb";
 import type { DynamicNodeData } from "../types";
-
-const RenderMode = flowcraft_proto.v1.RenderMode;
-const MediaType = flowcraft_proto.v1.MediaType;
 
 const HEADER_HEIGHT = 46;
 const PORT_HEIGHT_PER_ROW = 24;

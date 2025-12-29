@@ -1,5 +1,7 @@
 import React, { useState, memo } from "react";
 import { useMockSocket } from "../../hooks/useMockSocket";
+import { create } from "@bufbuild/protobuf";
+import { NodeDataSchema } from "../../generated/core/node_pb";
 
 interface NodeLabelProps {
   id: string;
@@ -10,7 +12,7 @@ interface NodeLabelProps {
 
 export const NodeLabel: React.FC<NodeLabelProps> = memo(
   ({ id, label, selected, onChange }) => {
-    const { sendNodeUpdate } = useMockSocket({ disablePolling: true });
+    const { updateNodeData } = useMockSocket({ disablePolling: true });
 
     const [isEditing, setIsEditing] = useState(false);
 
@@ -39,9 +41,7 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(
     const handleExitEdit = () => {
       setIsEditing(false);
       if (localLabel !== label) {
-        sendNodeUpdate(id, { label: localLabel }).catch((err: unknown) => {
-          console.error("Failed to update node label", err);
-        });
+        updateNodeData(id, create(NodeDataSchema, { label: localLabel }));
       }
     };
     return (

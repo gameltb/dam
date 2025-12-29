@@ -35,7 +35,6 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
       tasks: {
         ...state.tasks,
         [task.taskId]: {
-          taskId: task.taskId,
           type: task.type ?? "generic",
           label: task.label ?? "New Task",
           source: task.source ?? MutationSource.SYSTEM,

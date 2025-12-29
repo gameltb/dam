@@ -1,8 +1,6 @@
 import React from "react";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { MediaType } from "../../generated/core/node_pb";
 import { type AppNode, isDynamicNode } from "../../types";
-
-const MediaType = flowcraft_proto.v1.MediaType;
 
 interface EditorPlaceholderProps {
   node: AppNode;

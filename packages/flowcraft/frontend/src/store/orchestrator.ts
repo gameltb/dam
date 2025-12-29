@@ -1,7 +1,11 @@
+import { MutationSource } from "../types";
+import {
+  type GraphMutation,
+  GraphMutationSchema,
+} from "../generated/core/service_pb";
+import { create } from "@bufbuild/protobuf";
 import { useFlowStore } from "./flowStore";
 import { useTaskStore } from "./taskStore";
-import { MutationSource } from "../types";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
 
 /**
  * Orchestrates side-effects between different stores.
@@ -15,7 +19,7 @@ export function initOrchestrator() {
       state.lastNodeEvent?.type === "mutations-applied"
     ) {
       const { mutations, context } = state.lastNodeEvent.payload as {
-        mutations: flowcraft_proto.v1.IGraphMutation[];
+        mutations: GraphMutation[];
         context?: {
           taskId?: string;
           source?: MutationSource;
@@ -38,7 +42,7 @@ export function initOrchestrator() {
         taskId,
         source: context?.source ?? MutationSource.USER,
         description: context?.description ?? "Applied",
-        mutations,
+        mutations: mutations.map((m) => create(GraphMutationSchema, m)),
       });
     }
   });

@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { flowcraft_proto } from "../../generated/flowcraft_proto";
+import { MediaType } from "../../generated/core/node_pb";
 import type { DynamicNodeData } from "../../types";
 import { ImageRenderer } from "../media/ImageRenderer";
 import { VideoRenderer } from "../media/VideoRenderer";
@@ -10,7 +10,7 @@ import { PortHandle } from "../base/PortHandle";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 import { useFlowStore } from "../../store/flowStore";
 
-const MediaType = flowcraft_proto.v1.MediaType;
+import { getPortColor, getPortShape } from "../../utils/themeUtils";
 
 interface MediaContentProps {
   id: string;
@@ -45,11 +45,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       }
     };
 
-    const renderContent = (
-      url: string,
-      type: flowcraft_proto.v1.MediaType,
-      index = 0,
-    ) => {
+    const renderContent = (url: string, type: MediaType, index = 0) => {
       switch (type) {
         case MediaType.MEDIA_IMAGE:
           return (
@@ -188,7 +184,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
         <div style={{ pointerEvents: "auto" }}>
           {outputs.map((port, idx) => (
             <div
-              key={port.id ?? idx}
+              key={port.id || idx}
               style={{
                 position: "absolute",
                 right: 0,
@@ -198,17 +194,17 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
             >
               <PortHandle
                 nodeId={id}
-                portId={port.id ?? ""}
+                portId={port.id}
                 type="source"
-                style={flowcraft_proto.v1.PortStyle.PORT_STYLE_DIAMOND}
-                color={port.color ?? "var(--primary-color)"}
+                style={getPortShape(port.type)}
+                color={getPortColor(port.type)}
                 isPresentation={true}
               />
             </div>
           ))}
           {inputs.map((port, idx) => (
             <div
-              key={port.id ?? idx}
+              key={port.id || idx}
               style={{
                 position: "absolute",
                 left: 0,
@@ -218,10 +214,10 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
             >
               <PortHandle
                 nodeId={id}
-                portId={port.id ?? ""}
+                portId={port.id}
                 type="target"
-                style={flowcraft_proto.v1.PortStyle.PORT_STYLE_DIAMOND}
-                color={port.color ?? "var(--primary-color)"}
+                style={getPortShape(port.type)}
+                color={getPortColor(port.type)}
                 isPresentation={true}
               />
             </div>

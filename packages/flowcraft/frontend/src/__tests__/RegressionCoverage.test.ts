@@ -3,9 +3,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../store/flowStore";
 import { fromProtoNode } from "../utils/protoAdapter";
-import { flowcraft_proto } from "../generated/flowcraft_proto";
 import { type AppNode } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
+import { create } from "@bufbuild/protobuf";
+import { NodeSchema } from "../generated/core/node_pb";
 
 /**
  * ARCHITECTURAL REGRESSION TESTS
@@ -34,13 +35,13 @@ describe("Architectural Regressions", () => {
       parentId: "parent-1",
       position: { x: 10, y: 10 },
       type: "dynamic",
-      data: { label: "C" },
+      data: { label: "C", modes: [] },
     };
     const parent: AppNode = {
       id: "parent-1",
       position: { x: 100, y: 100 },
       type: "groupNode",
-      data: { label: "P" },
+      data: { label: "P", modes: [] } as any,
     };
 
     yNodes.set(child.id, child);
@@ -62,12 +63,12 @@ describe("Architectural Regressions", () => {
    * and fails to find the parent, breaking nested rendering.
    */
   it("should convert Protobuf empty parentId to undefined", () => {
-    const protoNode: flowcraft_proto.v1.INode = {
+    const protoNode = create(NodeSchema, {
       id: "test-node",
       type: "dynamic",
       parentId: "", // Protobuf default
       position: { x: 0, y: 0 },
-    };
+    });
 
     const node = fromProtoNode(protoNode);
     expect(node.parentId).toBeUndefined();
