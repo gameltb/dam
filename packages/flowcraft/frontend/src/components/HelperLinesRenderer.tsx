@@ -31,7 +31,9 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
         top: 0,
       }}
     >
-      <g transform={`translate(${tx}, ${ty}) scale(${zoom})`}>
+      <g
+        transform={`translate(${tx.toString()}, ${ty.toString()}) scale(${zoom.toString()})`}
+      >
         {lines.vertical !== undefined && (
           <line
             x1={lines.vertical}
@@ -39,8 +41,8 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
             x2={lines.vertical}
             y2="1000000"
             stroke="var(--primary-color)"
-            strokeWidth={1 / zoom} // Maintain constant line thickness
-            strokeDasharray={`${4 / zoom} ${4 / zoom}`}
+            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
+            strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
             style={{ opacity: 0.8 }}
           />
         )}
@@ -51,8 +53,8 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
             x2="1000000"
             y2={lines.horizontal}
             stroke="var(--primary-color)"
-            strokeWidth={1 / zoom} // Maintain constant line thickness
-            strokeDasharray={`${4 / zoom} ${4 / zoom}`}
+            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
+            strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
             style={{ opacity: 0.8 }}
           />
         )}

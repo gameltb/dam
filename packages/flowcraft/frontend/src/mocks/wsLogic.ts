@@ -41,20 +41,23 @@ export const handleWSMessage = async (
   if (clientMsg.actionDiscovery) {
     const { selectedNodeIds } = clientMsg.actionDiscovery;
     // Simulate dynamic discovery: if multiple nodes selected, show "Group" actions
-    const filteredActions = [...actionTemplates];
+    const filteredActions: flowcraft_proto.v1.IActionTemplate[] = [
+      ...actionTemplates,
+    ];
     if (selectedNodeIds && selectedNodeIds.length > 1) {
       filteredActions.push({
         id: "batch-process",
         label: "Process Group",
         path: ["Batch"],
-        strategy: flowcraft_proto.v1.ActionExecutionStrategy.EXECUTION_TASK,
+        strategy:
+          flowcraft_proto.v1.ActionExecutionStrategy.EXECUTION_BACKGROUND,
       });
     }
 
     // Add path hierarchy to names for ContextMenu parsing
     const mappedActions = filteredActions.map((a) => {
-      const path = a.path;
-      const label = a.label;
+      const path = a.path ?? [];
+      const label = a.label ?? "";
       return {
         ...a,
         label: [...path, label].join("/"),
@@ -63,7 +66,14 @@ export const handleWSMessage = async (
 
     send({
       actions: {
-        actions: mappedActions as flowcraft_proto.v1.IActionTemplate[],
+        actions: mappedActions.map(
+          (a): flowcraft_proto.v1.IActionTemplate => ({
+            id: a.id,
+            label: a.label,
+            path: a.path,
+            strategy: a.strategy,
+          }),
+        ),
       },
     });
   }

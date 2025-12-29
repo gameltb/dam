@@ -206,12 +206,10 @@ const useStore = create(
                   }
                   if (mut.updateNode.width || mut.updateNode.height) {
                     updated.measured = {
-                      width: Number(
+                      width:
                         mut.updateNode.width ?? updated.measured?.width ?? 0,
-                      ),
-                      height: Number(
+                      height:
                         mut.updateNode.height ?? updated.measured?.height ?? 0,
-                      ),
                     };
                     updated.style = {
                       ...updated.style,

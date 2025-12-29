@@ -45,7 +45,14 @@ export function BaseNode<T extends Node>({
         : RenderMode.MODE_WIDGETS;
     const dynamicData = data as unknown as DynamicNodeData;
     if (typeof dynamicData.onChange === "function") {
-      dynamicData.onChange(id, { activeMode: nextMode });
+      (
+        dynamicData.onChange as (
+          id: string,
+          data: { activeMode: flowcraft_proto.v1.RenderMode },
+        ) => void
+      )(id, {
+        activeMode: nextMode,
+      });
     } else {
       setInternalMode(nextMode);
     }
