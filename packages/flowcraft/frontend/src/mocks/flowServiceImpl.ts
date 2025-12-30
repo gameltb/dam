@@ -294,12 +294,105 @@ export const flowServiceImpl = (router: ConnectRouter) => {
       return Promise.resolve({});
     },
 
-    applyMutations(_req, _ctx) {
+    applyMutations(req, _ctx) {
+      const { mutations } = req;
+      if (!mutations) return Promise.resolve({});
+
+      mutations.forEach((mut) => {
+        const op = mut.operation;
+        if (!op.case) return;
+
+        switch (op.case) {
+          case "addNode": {
+            const protoNode = op.value.node;
+            if (protoNode) {
+              serverGraph.nodes.push({
+                id: protoNode.id,
+                type: protoNode.type || "dynamic",
+                position: {
+                  x: protoNode.position?.x ?? 0,
+                  y: protoNode.position?.y ?? 0,
+                },
+                data: protoNode.data as any,
+                measured: { width: protoNode.width, height: protoNode.height },
+                style: { width: protoNode.width, height: protoNode.height },
+                selected: protoNode.selected,
+                parentId: protoNode.parentId || undefined,
+              } as any);
+            }
+            break;
+          }
+          case "updateNode": {
+            const val = op.value;
+            const node = serverGraph.nodes.find((n) => n.id === val.id);
+            if (node) {
+              if (val.position) node.position = val.position as any;
+              if (val.data) node.data = { ...node.data, ...val.data };
+              if (val.width) {
+                node.measured = {
+                  width: val.width,
+                  height: val.height || (node.measured?.height ?? 0),
+                };
+                node.style = { ...node.style, width: val.width };
+              }
+              if (val.height) {
+                node.measured = {
+                  width: val.width || (node.measured?.width ?? 0),
+                  height: val.height,
+                };
+                node.style = { ...node.style, height: val.height };
+              }
+              if (val.parentId !== undefined)
+                node.parentId = val.parentId || undefined;
+            }
+            break;
+          }
+          case "removeNode": {
+            const id = op.value.id;
+            serverGraph.nodes = serverGraph.nodes.filter((n) => n.id !== id);
+            break;
+          }
+          case "addEdge": {
+            const edge = op.value.edge;
+            if (edge) serverGraph.edges.push(edge as any);
+            break;
+          }
+          case "removeEdge": {
+            const id = op.value.id;
+            serverGraph.edges = serverGraph.edges.filter((e) => e.id !== id);
+            break;
+          }
+          case "clearGraph": {
+            serverGraph.nodes = [];
+            serverGraph.edges = [];
+            break;
+          }
+        }
+      });
+
+      incrementVersion();
+      // Broadcast the mutations to all connected clients (except the sender in a real app, but here we just broadcast)
+      mockEventBus.emit(
+        "mutations",
+        create(MutationListSchema, {
+          mutations,
+          sequenceNumber: BigInt(serverVersion),
+        }),
+      );
+
       return Promise.resolve({});
     },
 
-    cancelTask(_req, _ctx) {
-      // Mock cancellation
+    cancelTask(req, _ctx) {
+      const { taskId } = req;
+      mockEventBus.emit(
+        "taskUpdate",
+        create(TaskUpdateSchema, {
+          taskId,
+          status: TaskStatus.TASK_FAILED,
+          message: "Task cancelled by user.",
+        }),
+      );
       return Promise.resolve({});
     },
   });

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { useCallback } from "react";
 import { useFlowStore } from "../store/flowStore";
 import { useUiStore } from "../store/uiStore";
@@ -17,13 +15,20 @@ import {
   EdgeSchema,
 } from "../generated/core/node_pb";
 import { create } from "@bufbuild/protobuf";
+import { useShallow } from "zustand/react/shallow";
 
 interface GraphOpsProps {
   clientVersion: number;
 }
 
 export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
-  const store = useFlowStore();
+  const { nodes, edges, applyMutations } = useFlowStore(
+    useShallow((state) => ({
+      nodes: state.nodes,
+      edges: state.edges,
+      applyMutations: state.applyMutations,
+    })),
+  );
 
   const addNode = useCallback(
     (
@@ -44,7 +49,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
           typeId: typeId ?? dynamicData?.typeId,
         },
       } as AppNode;
-      store.applyMutations([
+      applyMutations([
         create(GraphMutationSchema, {
           operation: {
             case: "addNode",
@@ -53,12 +58,12 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         }),
       ]);
     },
-    [store],
+    [applyMutations],
   );
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      store.applyMutations([
+      applyMutations([
         create(GraphMutationSchema, {
           operation: {
             case: "removeNode",
@@ -67,12 +72,12 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         }),
       ]);
     },
-    [store],
+    [applyMutations],
   );
 
   const deleteEdge = useCallback(
     (edgeId: string) => {
-      store.applyMutations([
+      applyMutations([
         create(GraphMutationSchema, {
           operation: {
             case: "removeEdge",
@@ -81,14 +86,14 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         }),
       ]);
     },
-    [store],
+    [applyMutations],
   );
 
   // --- Copy / Paste Logic ---
 
   const copySelected = useCallback(() => {
-    const selectedNodes = store.nodes.filter((n) => n.selected);
-    const selectedEdges = store.edges.filter((e) => {
+    const selectedNodes = nodes.filter((n) => n.selected);
+    const selectedEdges = edges.filter((e) => {
       const isSourceSelected = selectedNodes.some((n) => n.id === e.source);
       const isTargetSelected = selectedNodes.some((n) => n.id === e.target);
       return isSourceSelected && isTargetSelected;
@@ -100,11 +105,10 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         edges: JSON.parse(JSON.stringify(selectedEdges)) as RFEdge[],
       });
     }
-  }, [store]);
+  }, [nodes, edges]);
 
   const paste = useCallback(
     (targetPosition?: XYPosition) => {
-      const { applyMutations } = store;
       const clipboard = useUiStore.getState().clipboard;
       if (!clipboard) return;
 
@@ -162,11 +166,10 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
         { taskId: uuidv4(), description: "Paste Subgraph" },
       );
     },
-    [store],
+    [applyMutations],
   );
 
   const duplicateSelected = useCallback(() => {
-    const { nodes, edges, applyMutations } = store;
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 0) return;
 
@@ -222,12 +225,11 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       ],
       { taskId: uuidv4(), description: "Duplicate Selected" },
     );
-  }, [store]);
+  }, [nodes, edges, applyMutations]);
 
   // --- Auto Layout (Dagre) ---
 
   const autoLayout = useCallback(() => {
-    const { nodes, edges, applyMutations } = store;
     const g = new dagre.graphlib.Graph();
     g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100 });
     g.setDefaultEdgeLabel(() => ({}));
@@ -267,10 +269,9 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     });
 
     applyMutations(mutations);
-  }, [store]);
+  }, [nodes, edges, applyMutations]);
 
   const groupSelected = useCallback(() => {
-    const { nodes, applyMutations } = store;
     const selectedNodes = nodes.filter((n) => n.selected && !n.parentId);
     if (selectedNodes.length < 2) return;
 
@@ -307,7 +308,6 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     });
 
     // 2. Prepare mutations for grouping
-    // We add the group node FIRST so it's ready to receive children
     const mutations: GraphMutation[] = [
       create(GraphMutationSchema, {
         operation: {
@@ -325,7 +325,6 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
             value: {
               id: node.id,
               parentId: groupId,
-              // Convert absolute to relative
               position: {
                 x: node.position.x - groupX,
                 y: node.position.y - groupY,
@@ -340,7 +339,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
       taskId: uuidv4(),
       description: `Group ${String(selectedNodes.length)} nodes`,
     });
-  }, [store]);
+  }, [nodes, applyMutations]);
 
   return {
     addNode,
@@ -354,3 +353,4 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     clientVersion,
   };
 };
+

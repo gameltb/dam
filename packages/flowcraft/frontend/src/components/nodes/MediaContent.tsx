@@ -45,16 +45,11 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       }
     };
 
-    const renderContent = (url: string, type: MediaType, index = 0) => {
+    const renderContent = (url: string, type: MediaType, _index = 0) => {
       switch (type) {
         case MediaType.MEDIA_IMAGE:
           return (
-            <div
-              onDoubleClick={() => {
-                handleOpenPreview(index);
-              }}
-              style={{ width: "100%", height: "100%" }}
-            >
+            <div style={{ width: "100%", height: "100%" }}>
               <ImageRenderer
                 url={url}
                 onDimensionsLoad={handleDimensionsLoad}
@@ -63,12 +58,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           );
         case MediaType.MEDIA_VIDEO:
           return (
-            <div
-              onDoubleClick={() => {
-                handleOpenPreview(index);
-              }}
-              style={{ width: "100%", height: "100%" }}
-            >
+            <div style={{ width: "100%", height: "100%" }}>
               <VideoRenderer
                 url={url}
                 autoPlay
@@ -103,12 +93,14 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     // --- Layer 1: Core Media Content (Clipped for rounded corners) ---
     const mediaLayer = (
       <div
+        className="nopan"
         style={{
           width: "100%",
           height: "100%",
           borderRadius: "inherit",
           overflow: "hidden",
           position: "relative",
+          pointerEvents: "auto",
         }}
       >
         {data.media.type === MediaType.MEDIA_MARKDOWN ? (
@@ -137,17 +129,25 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           inset: 0,
           pointerEvents: "none", // Click-through by default
           overflow: "visible",
-          zIndex: 10,
+          zIndex: 100,
         }}
       >
         {/* Gallery Logic (Floating over content) */}
         {data.media.type !== MediaType.MEDIA_MARKDOWN && (
-          <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
+          <div style={{ pointerEvents: "none", width: "100%", height: "100%" }}>
             <GalleryWrapper
               id={id}
               nodeWidth={nodeWidth}
               nodeHeight={nodeHeight}
-              mainContent={<div style={{ width: "100%", height: "100%" }} />} // Invisible ghost to drive layout
+              mainContent={
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    pointerEvents: "none",
+                  }}
+                />
+              } // Invisible ghost to drive layout
               gallery={gallery}
               mediaType={data.media.type}
               renderItem={(url) => {
@@ -181,7 +181,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
         )}
 
         {/* Triangle Ports Layer */}
-        <div style={{ pointerEvents: "auto" }}>
+        <div style={{ pointerEvents: "none" }}>
           {outputs.map((port, idx) => (
             <div
               key={port.id || idx}
@@ -190,6 +190,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
                 right: 0,
                 top: "50%",
                 transform: "translateY(-50%)",
+                pointerEvents: "auto",
               }}
             >
               <PortHandle
@@ -210,6 +211,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
                 left: 0,
                 top: "50%",
                 transform: "translateY(-50%)",
+                pointerEvents: "auto",
               }}
             >
               <PortHandle
@@ -228,6 +230,10 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
 
     return (
       <div
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleOpenPreview(0);
+        }}
         style={{
           position: "relative",
           width: "100%",
@@ -235,8 +241,23 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           borderRadius: "inherit",
           // The base container must remain visible to show the overlay
           overflow: "visible",
+          pointerEvents: "auto",
         }}
       >
+        {/* Top Drag Handle (Invisible Overlay) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "30px", // Slightly larger hit area
+            zIndex: 50,
+            pointerEvents: "auto",
+            cursor: "grab",
+            borderRadius: "8px 8px 0 0",
+          }}
+        />
         {mediaLayer}
         {overlayLayer}
       </div>

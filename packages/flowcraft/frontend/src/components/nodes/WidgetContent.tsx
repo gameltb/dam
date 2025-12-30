@@ -107,7 +107,7 @@ interface WidgetContentProps {
 export const WidgetContent: React.FC<WidgetContentProps> = memo(
   ({ id, data, selected, onToggleMode }) => {
     const { onChange, onWidgetClick } = useNodeHandlers();
-    const isSwitchable = data.modes.length > 1;
+    const isSwitchable = (data.modes?.length ?? 0) > 1;
 
     const inputs = data.inputPorts ?? [];
 

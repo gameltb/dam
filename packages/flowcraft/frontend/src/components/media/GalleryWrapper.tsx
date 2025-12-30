@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFlowStore } from "../../store/flowStore";
 import type { MediaType } from "../../types";
+import { IconButton } from "../base/IconButton";
+import { Layers, X } from "lucide-react";
 
 interface GalleryWrapperProps {
   id: string;
@@ -74,6 +76,10 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
     onExpand?.(next);
   };
 
+  const handleOpenPreview = (index: number) => {
+    useFlowStore.getState().dispatchNodeEvent("open-preview", { nodeId: id, index });
+  };
+
   const getGalleryRows = () => {
     const n = gallery.length;
     if (n === 0) return [];
@@ -111,6 +117,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
         position: "relative",
         overflow: "visible", // Changed from dynamic to always visible
         borderRadius: "inherit", // Inherit from BaseNode
+        pointerEvents: "none",
       }}
     >
       {/* Wrapper for main content to enforce clipping even when gallery is expanded */}
@@ -123,36 +130,31 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
           position: "absolute",
           top: 0,
           left: 0,
+          pointerEvents: "none",
         }}
       >
         {mainContent}
       </div>
 
       {hasGallery && (
-        <div
+        <IconButton
           onClick={handleToggleExpand}
+          icon={isExpanded ? <X size={14} /> : <Layers size={14} />}
+          label={isExpanded ? "Collapse Gallery" : `Expand Gallery (${String(gallery.length)})`}
           style={{
             position: "absolute",
             top: "5px",
             right: "5px",
-            backgroundColor: isExpanded
-              ? "rgba(255, 59, 48, 0.9)"
-              : "rgba(0,0,0,0.6)",
-            color: "white",
+            zIndex: 110,
+            width: "auto",
+            height: "24px",
+            padding: "0 8px",
             borderRadius: "12px",
-            padding: "2px 8px",
             fontSize: "10px",
-            cursor: "pointer",
-            zIndex: 110, // Higher than expanded items (100)
-            backdropFilter: "blur(4px)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-            boxShadow: isExpanded ? "0 4px 12px rgba(0,0,0,0.3)" : "none",
+            backgroundColor: isExpanded ? "rgba(255, 59, 48, 0.8)" : "rgba(0,0,0,0.6)",
+            pointerEvents: "auto",
           }}
-          title={isExpanded ? "Collapse Gallery" : "Expand Gallery"}
-        >
-          {isExpanded ? "✕" : `+${String(gallery.length)}`}
-        </div>
+        />
       )}
 
       {isExpanded && (
@@ -166,6 +168,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
             gap: "15px",
             zIndex: 100,
             width: "max-content",
+            pointerEvents: "auto",
           }}
         >
           {galleryRows.map((rowItems, rowIndex) => (
@@ -182,8 +185,13 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
               {rowItems.map((url, imgIndex) => (
                 <div
                   key={imgIndex}
+                  className="nodrag"
                   onClick={(e) => {
                     e.stopPropagation();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPreview(gallery.indexOf(url) + 1);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();

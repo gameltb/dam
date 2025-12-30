@@ -18,14 +18,19 @@ export function useHelperLines(): {
     draggingNode: Node,
     allNodes: Node[],
     shouldUpdateState: boolean,
+    overriddenPosition?: XYPosition,
   ) => { snappedPosition: XYPosition; helperLines: HelperLines };
 } {
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   // Helper to find absolute position of a node
-  const getAbsolutePosition = (node: Node, allNodes: Node[]): XYPosition => {
-    let x = node.position.x;
-    let y = node.position.y;
+  const getAbsolutePosition = (
+    node: Node,
+    allNodes: Node[],
+    overriddenPosition?: XYPosition,
+  ): XYPosition => {
+    let x = overriddenPosition ? overriddenPosition.x : node.position.x;
+    let y = overriddenPosition ? overriddenPosition.y : node.position.y;
     let parentId = node.parentId;
 
     while (parentId) {
@@ -42,14 +47,28 @@ export function useHelperLines(): {
   };
 
   const calculateLines = useCallback(
-    (draggingNode: Node, allNodes: Node[], shouldUpdateState: boolean) => {
+    (
+      draggingNode: Node,
+      allNodes: Node[],
+      shouldUpdateState: boolean,
+      overriddenPosition?: XYPosition,
+    ) => {
       const result: HelperLines = {
         horizontal: undefined,
         vertical: undefined,
       };
 
+      // We only want to snap against nodes that are NOT being dragged
+      const targetNodesForSnapping = allNodes.filter(
+        (n) => n.id !== draggingNode.id && !n.dragging,
+      );
+
       // Calculate dragging node's absolute position
-      const draggingAbsPos = getAbsolutePosition(draggingNode, allNodes);
+      const draggingAbsPos = getAbsolutePosition(
+        draggingNode,
+        allNodes,
+        overriddenPosition,
+      );
 
       const draggingRect = {
         width: draggingNode.measured?.width ?? 0,
@@ -70,9 +89,7 @@ export function useHelperLines(): {
       // Final snapped absolute position
       const snappedAbsPos: XYPosition = { ...draggingAbsPos };
 
-      for (const node of allNodes) {
-        if (node.id === draggingNode.id) continue;
-
+      for (const node of targetNodesForSnapping) {
         const nodeAbsPos = getAbsolutePosition(node, allNodes);
         const nodeRect = {
           width: node.measured?.width ?? 0,

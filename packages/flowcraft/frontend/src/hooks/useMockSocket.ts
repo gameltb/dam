@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { type NodeData } from "../generated/core/node_pb";
 import {
   type GraphSnapshot,
@@ -23,13 +23,15 @@ import { useTaskStore } from "../store/taskStore";
 import { socketClient } from "../utils/SocketClient";
 import { fromProtoGraph } from "../utils/protoAdapter";
 
+import { useShallow } from "zustand/react/shallow";
+
 export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
   const { applyMutations, setGraph, applyYjsUpdate } = useFlowStore(
-    (state) => ({
+    useShallow((state) => ({
       applyMutations: state.applyMutations,
       setGraph: state.setGraph,
       applyYjsUpdate: state.applyYjsUpdate,
-    }),
+    })),
   );
 
   const { updateTask } = useTaskStore();
@@ -73,6 +75,11 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     socketClient.on("taskUpdate", onTaskUpdate as any);
 
+    const onError = (error: unknown) => {
+      console.error("Socket Error Event:", error);
+    };
+    socketClient.on("error", onError);
+
     // Initial Sync Request
     void socketClient.send({
       payload: {
@@ -92,10 +99,11 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
       socketClient.off("mutations", onMutations as any);
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       socketClient.off("taskUpdate", onTaskUpdate as any);
+      socketClient.off("error", onError);
     };
   }, [applyMutations, setGraph, applyYjsUpdate, updateTask]);
 
-  const executeTask = (action: ActionTemplate, nodeId?: string) => {
+  const executeTask = useCallback((action: ActionTemplate, nodeId?: string) => {
     void socketClient.send({
       payload: {
         case: "actionExecute",
@@ -107,9 +115,9 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
         }),
       },
     });
-  };
+  }, []);
 
-  const cancelTask = (taskId: string) => {
+  const cancelTask = useCallback((taskId: string) => {
     void socketClient.send({
       payload: {
         case: "taskCancel",
@@ -118,9 +126,9 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
         }),
       },
     });
-  };
+  }, []);
 
-  const updateNodeData = (nodeId: string, data: NodeData) => {
+  const updateNodeData = useCallback((nodeId: string, data: NodeData) => {
     void socketClient.send({
       payload: {
         case: "nodeUpdate",
@@ -130,22 +138,25 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
         }),
       },
     });
-  };
+  }, []);
 
-  const updateWidget = (nodeId: string, widgetId: string, value: unknown) => {
-    void socketClient.send({
-      payload: {
-        case: "widgetUpdate",
-        value: create(UpdateWidgetRequestSchema, {
-          nodeId,
-          widgetId,
-          valueJson: JSON.stringify(value),
-        }),
-      },
-    });
-  };
+  const updateWidget = useCallback(
+    (nodeId: string, widgetId: string, value: unknown) => {
+      void socketClient.send({
+        payload: {
+          case: "widgetUpdate",
+          value: create(UpdateWidgetRequestSchema, {
+            nodeId,
+            widgetId,
+            valueJson: JSON.stringify(value),
+          }),
+        },
+      });
+    },
+    [],
+  );
 
-  const streamAction = (nodeId: string, actionId: string) => {
+  const streamAction = useCallback((nodeId: string, actionId: string) => {
     void socketClient.send({
       payload: {
         case: "actionExecute",
@@ -157,14 +168,25 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
         }),
       },
     });
-  };
+  }, []);
 
-  return {
-    templates,
-    executeTask,
-    cancelTask,
-    updateNodeData,
-    updateWidget,
-    streamAction,
-  };
+  return useMemo(
+    () => ({
+      templates,
+      executeTask,
+      cancelTask,
+      updateNodeData,
+      updateWidget,
+      streamAction,
+    }),
+    [
+      templates,
+      executeTask,
+      cancelTask,
+      updateNodeData,
+      updateWidget,
+      streamAction,
+    ],
+  );
 };
+

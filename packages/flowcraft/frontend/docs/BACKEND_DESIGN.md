@@ -4,52 +4,41 @@ This document outlines the design of the mock backend for Flowcraft.
 
 ## Overview
 
-The backend is simulated using **MSW (Mock Service Worker)**, allowing the frontend to interact with a realistic REST API that maintains an in-memory state.
+The backend is simulated using a hybrid approach:
+1.  **MSW (Mock Service Worker)**: For legacy REST endpoints (like `/api/node-templates`).
+2.  **ConnectRPC (gRPC-web compatible)**: For the core Flowcraft service. This provides a type-safe, contract-first API using Protobuf.
+
+The frontend communicates with this mock service via an in-memory `routerTransport`, which can be easily swapped for a real network transport (Connect, gRPC-web, or gRPC).
 
 ## State Management
 
-The "Server" state is held in `src/mocks/handlers.ts`:
+The "Server" state is held in `src/mocks/db.ts`:
 
 - `serverGraph`: Stores the list of nodes, edges, and the current viewport.
 - `serverVersion`: A monotonic counter used for conflict detection and version matching.
 
-## Protocol & Endpoints
+## Protocol & Implementation
 
-The system uses a hybrid communication strategy:
+### 1. FlowService Implementation
 
-1.  **REST/HTTP**: For resource fetching (templates).
-2.  **Protobuf/RPC** (Logical): For strict graph synchronization and commands.
-3.  **Streaming**: For AI generation and long-running tasks.
+The core logic is implemented in `src/mocks/flowServiceImpl.ts`. This implementation handles:
+- **watchGraph**: A server-streaming RPC that sends an initial snapshot and then streams incremental mutations, task updates, and widget signals.
+- **applyMutations**: Pushes graph changes from the client to the server.
+- **executeAction**: Triggers long-running background tasks.
+- **updateNode/updateWidget**: Specialized mutations for frequent updates.
 
-### 1. Protobuf Schema (`flowcraft.proto`)
+### 2. Event Bus (`mockEventBus.ts`)
 
-All data structures are strictly defined in `schema/flowcraft.proto`. This acts as the contract between frontend and backend.
+Since multiple RPC calls (like `applyMutations` and `watchGraph`) need to coordinate, a central `mockEventBus` is used to broadcast events within the mock backend environment.
+
+### 3. Protobuf Schema (`schema/`)
+
+All data structures are strictly defined in `.proto` files.
 Key Definitions:
+- `FlowService`: The service definition with all RPC methods.
+- `NodeSchema`: The schema-driven definition of a node's capabilities.
+- `GraphMutation`: Atomic operations for graph synchronization.
 
-- `Graph`: The full snapshot state.
-- `NodeData`: The schema-driven definition of a node's capabilities (modes, media, widgets).
-- `TaskRequest` / `TaskUpdate`: The standard envelope for job execution.
-
-### 2. Synchronization (`/api/graph`)
-
-- **GET**: Polling for full graph state (proto-compliant JSON).
-- **POST**: Pushing changes.
-
-### 3. Widget Interaction Service
-
-- **Real-time Updates**: `/api/widget/update` for lightweight value syncing (e.g., slider dragging).
-- **Dynamic Options**: `/api/widget/options` allows Select widgets to fetch data from the server (e.g., listing available AI models).
-
-### 4. Task Execution System (`/api/task/*`)
-
-For long-running operations (like "Analyze Data" or "Generate Image"), we use a Job System:
-
-1.  **Execute** (`POST /api/task/execute`):
-    - Client sends `TaskRequest` (Task Type + Params).
-    - Server responds with a **Chunked Stream** (application/x-ndjson or text/event-stream).
-    - Client receives `TaskUpdate` events (status: PENDING -> PROCESSING -> COMPLETED).
-2.  **Cancel** (`POST /api/task/cancel`):
-    - Client can abort a running task by ID.
 
 ## Node Definitions (JSON/Proto)
 

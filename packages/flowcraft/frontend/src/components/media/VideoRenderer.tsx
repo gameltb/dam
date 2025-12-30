@@ -40,6 +40,7 @@ export const VideoRenderer: React.FC<VideoRendererProps> = ({
         controls={controls}
         onLoadedMetadata={handleLoadedMetadata}
         loop
+        draggable={false}
         style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
       />
     </div>

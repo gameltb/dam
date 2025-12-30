@@ -21,6 +21,7 @@ export const ImageRenderer: React.FC<ImageRendererProps> = ({
       src={url}
       alt="media content"
       onLoad={handleLoad}
+      draggable={false}
       style={{
         width: "100%",
         height: "100%",

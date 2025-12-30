@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, memo, useCallback } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  memo,
+  useCallback,
+  useRef,
+} from "react";
 import { useTheme } from "./hooks/useTheme";
 import {
   ReactFlow,
@@ -73,10 +80,12 @@ function App() {
     (state) => state.setConnectionStartHandle,
   );
 
-  const { undo, redo } = useTemporalStore((state) => ({
-    undo: state.undo,
-    redo: state.redo,
-  }));
+  const { undo, redo } = useTemporalStore(
+    useShallow((state) => ({
+      undo: state.undo,
+      redo: state.redo,
+    })),
+  );
 
   const mockSocket = useMockSocket();
   const { cancelTask, executeTask, streamAction, templates } = mockSocket;
@@ -105,17 +114,35 @@ function App() {
     onNodeDragStop: contextMenuDragStop,
   } = useContextMenu();
 
-  const handleNodeDrag = useCallback(
-    (_: unknown, node: AppNode) => {
-      calculateLines(node, nodes, true);
-    },
-    [calculateLines, nodes],
-  );
-
   const handleNodeDragStop = useCallback(() => {
     setHelperLines({});
     contextMenuDragStop();
   }, [setHelperLines, contextMenuDragStop]);
+
+  const onNodesChangeWithSnapping = useCallback(
+    (changes: NodeChange[]) => {
+      const snappedChanges = changes.map((change) => {
+        if (change.type === "position" && change.position) {
+          const node = nodes.find((n) => n.id === change.id);
+          if (node) {
+            const { snappedPosition } = calculateLines(
+              node,
+              nodes,
+              true,
+              change.position,
+            );
+            return {
+              ...change,
+              position: snappedPosition,
+            };
+          }
+        }
+        return change;
+      });
+      onNodesChange(snappedChanges);
+    },
+    [onNodesChange, nodes, calculateLines],
+  );
 
   const {
     copySelected,
@@ -131,22 +158,6 @@ function App() {
   const handleAddNode = useCallback(
     (template: NodeTemplate) => {
       if (!contextMenu) return;
-      // Convert screen coordinates to flow coordinates if necessary,
-      // but ContextMenu usually provides screen coordinates.
-      // However, addNodeOp expects flow coordinates.
-      // We might need to map it using reactFlowInstance.project() if we had it.
-      // For now, let's use the coordinates from contextMenu directly,
-      // acknowledging they might be screen coordinates if not adjusted.
-      // Actually, ContextMenu in App.tsx gets x/y from event.clientX/Y.
-      // Ideally we should project this. But we don't have easy access to flow instance here
-      // unless we store it from onInit.
-      // Let's assume for now direct usage or that we accept it might be offset.
-      // A better way is using useReactFlow() hook but we are inside the component that renders ReactFlowProvider (actually ReactFlow manages its own provider if not wrapped).
-      // If App is not wrapped in ReactFlowProvider, we can't use useReactFlow().
-      // ReactFlow 12 (xyflow) usually requires ReactFlowProvider for hooks.
-      // But let's check if we can access the instance.
-      // We have onInit. We could store the instance in a ref.
-
       addNodeOp(
         "dynamic",
         template.defaultData,
@@ -295,8 +306,16 @@ function App() {
     };
   }, [undo, redo, copySelected, paste, duplicateSelected]);
 
+  const lastProcessedEventTimestamp = useRef<number>(0);
+
   useEffect(() => {
-    if (!lastNodeEvent) return;
+    if (
+      !lastNodeEvent ||
+      lastNodeEvent.timestamp === lastProcessedEventTimestamp.current
+    )
+      return;
+
+    lastProcessedEventTimestamp.current = lastNodeEvent.timestamp;
 
     if (lastNodeEvent.type === "gallery-context") {
       const payload = lastNodeEvent.payload as {
@@ -432,6 +451,17 @@ function App() {
     console.log("React Flow Instance Ready", instance);
   }, []);
 
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: "default",
+      animated: true,
+      style: { strokeWidth: 2 },
+    }),
+    [],
+  );
+
+  const snapGrid: [number, number] = useMemo(() => [15, 15], []);
+
   return (
     <div
       style={{ width: "100vw", height: "100vh", backgroundColor: "var(--bg)" }}
@@ -440,13 +470,12 @@ function App() {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={onNodesChangeWithSnapping}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onInit={onInit}
         nodeTypes={memoizedNodeTypes}
         edgeTypes={memoizedEdgeTypes}
-        onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
@@ -455,13 +484,9 @@ function App() {
         fitView
         selectionMode={SelectionMode.Partial}
         selectNodesOnDrag={false}
-        snapToGrid={true}
-        snapGrid={[15, 15]}
-        defaultEdgeOptions={{
-          type: "default",
-          animated: true,
-          style: { strokeWidth: 2 },
-        }}
+        snapToGrid={false}
+        snapGrid={snapGrid}
+        defaultEdgeOptions={defaultEdgeOptions}
       >
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
         <Controls />

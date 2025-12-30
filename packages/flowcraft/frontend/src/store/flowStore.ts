@@ -99,8 +99,6 @@ const useStore = create(
     (set, get) => {
       // Setup observers for granular updates
       yNodes.observe((event) => {
-        // If the change came from our own local sync or an undo/redo,
-        // we don't need to update Zustand again (it's already done or will be done)
         if (
           event.transaction.origin === "zustand-sync" ||
           event.transaction.origin === "undo-redo"
@@ -136,8 +134,6 @@ const useStore = create(
         syncFromYjs: () => {
           const rawNodes: AppNode[] = [];
           yNodes.forEach((v) => rawNodes.push(v as AppNode));
-
-          // Robust topological sort: Parents must come before children.
           const nodes: AppNode[] = [];
           const visited = new Set<string>();
 
@@ -165,7 +161,6 @@ const useStore = create(
 
         applyYjsUpdate: (update) => {
           Y.applyUpdate(ydoc, update, "remote");
-          // remote updates will be caught by the observer and update Zustand
         },
 
         updateNodeData: (id, data) => {
@@ -373,6 +368,7 @@ const useStore = create(
         },
         onEdgesChange: (changes) => {
           const nextEdges = applyEdgeChanges(changes, get().edges);
+          set({ edges: nextEdges });
           ydoc.transact(() => {
             changes.forEach((c) => {
               if (c.type === "remove") yEdges.delete(c.id);
@@ -382,7 +378,6 @@ const useStore = create(
               }
             });
           }, "zustand-sync");
-          get().syncFromYjs();
         },
         onConnect: (connection) => {
           const { nodes, edges } = get();
@@ -447,6 +442,8 @@ const useStore = create(
             yNodes.clear();
             yEdges.clear();
           }, "zustand-sync");
+          lastPastLength = 0;
+          lastFutureLength = 0;
           set({ nodes: [], edges: [], version: 0 });
         },
 
@@ -467,7 +464,7 @@ const useStore = create(
     {
       partialize: (state) => {
         const { nodes, edges, version } = state;
-        return { nodes, edges, version } as RFState;
+        return { nodes, edges, version };
       },
       equality: (a, b) => a.version === b.version,
       handleSet: (handleSet) => (state) => {
@@ -481,17 +478,35 @@ const useStore = create(
 );
 
 // Subscribe to temporal store to sync back to Yjs on undo/redo
-useStore.temporal.subscribe(() => {
-  // If we are performing an undo or redo (state is from the past/future)
-  // We need to sync the restored Zustand state back to Yjs
-  const current = useStore.getState();
-  ydoc.transact(() => {
-    yNodes.clear();
-    yEdges.clear();
-    // We dehydrate nodes before putting them back into Yjs
-    current.nodes.forEach((n) => yNodes.set(n.id, dehydrateNode(n)));
-    current.edges.forEach((e) => yEdges.set(e.id, e));
-  }, "undo-redo");
+let isSyncingFromTemporal = false;
+let lastPastLength = 0;
+let lastFutureLength = 0;
+
+useStore.temporal.subscribe((state) => {
+  // Only sync back to Yjs if an actual undo or redo happened.
+  // We can detect this by checking if the lengths changed and the present state is different.
+  const isUndo = state.pastStates.length < lastPastLength;
+  const isRedo = state.futureStates.length < lastFutureLength;
+
+  lastPastLength = state.pastStates.length;
+  lastFutureLength = state.futureStates.length;
+
+  if (isUndo || isRedo) {
+    if (isSyncingFromTemporal) return;
+    isSyncingFromTemporal = true;
+    try {
+      const current = useStore.getState();
+      ydoc.transact(() => {
+        yNodes.clear();
+        yEdges.clear();
+        // We dehydrate nodes before putting them back into Yjs
+        current.nodes.forEach((n) => yNodes.set(n.id, dehydrateNode(n)));
+        current.edges.forEach((e) => yEdges.set(e.id, e));
+      }, "undo-redo");
+    } finally {
+      isSyncingFromTemporal = false;
+    }
+  }
 });
 
 import { useStoreWithEqualityFn } from "zustand/traditional";
@@ -503,6 +518,5 @@ export function useTemporalStore<T>(
   selector: (state: TemporalState<RFState>) => T,
   equality?: (a: T, b: T) => boolean,
 ): T {
-  const store = useStore.temporal;
-  return useStoreWithEqualityFn(store, selector, equality);
+  return useStoreWithEqualityFn(useStore.temporal, selector, equality);
 }
