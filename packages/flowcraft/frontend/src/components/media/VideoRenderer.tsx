@@ -27,10 +27,10 @@ export const VideoRenderer: React.FC<VideoRendererProps> = ({
       style={{
         width: "100%",
         height: "100%",
-        backgroundColor: "#000",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        overflow: "hidden",
       }}
     >
       <video
@@ -41,7 +41,7 @@ export const VideoRenderer: React.FC<VideoRendererProps> = ({
         onLoadedMetadata={handleLoadedMetadata}
         loop
         draggable={false}
-        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
     </div>
   );

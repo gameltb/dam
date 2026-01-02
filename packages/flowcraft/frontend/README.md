@@ -1,73 +1,84 @@
-# React + TypeScript + Vite
+# Flowcraft
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Flowcraft is a high-performance, backend-driven node-based editor built with React 19, `@xyflow/react` (React Flow 12), and TypeScript. It features a unified incremental update protocol using Protobuf, real-time collaboration support via Yjs, and a robust task system for long-running operations.
 
-Currently, two official plugins are available:
+## Architecture & Core Technologies
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Frontend:** React 19, Vite, TypeScript
+- **Graph Engine:** `@xyflow/react` (React Flow 12)
+- **State Management:** Zustand (global state), Zundo (undo/redo), Yjs (CRDT/Collaboration)
+- **Protocol:** Protocol Buffers (Protobuf) for data serialization and contracts
+- **Layout:** `dagre` for automatic directed graph positioning
+- **Mocking:** Mock Service Worker (MSW) for simulating a stateful backend
 
-## React Compiler
+## Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Dynamic Node Architecture
 
-## Expanding the ESLint configuration
+Nodes are defined by backend JSON/Protobuf schemas.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Media Mode:** Renders images, video, and markdown.
+- **Widgets Mode:** Interactive fields like sliders, selects, and inputs.
+- **Implicit Ports:** Ports can be tied to widgets, enabling dynamic connections.
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+### 2. Unified Protocol
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+All graph operations (snapshots, mutations, task updates) use a single `FlowMessage` envelope. Updates are incremental and atomic (e.g., `addNode`, `updateNode`).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+### 3. Task System
+
+Supports long-running operations (e.g., AI generation) with real-time lifecycle tracking (`pending` -> `processing` -> `completed`).
+
+### 4. Development Standards
+
+- **Strict Typing:** No `any`. Uses generated Protobuf types.
+- **Testing:** Comprehensive Vitest setup with regression coverage for architectural decisions.
+- **Linting:** ESLint with strict type-checking and Prettier integration.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v20+ recommended)
+- npm
+
+### Installation
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development Server
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+Starts the Vite dev server and the MSW worker.
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm run dev
 ```
+
+### Building
+
+```bash
+npm run build
+```
+
+### Verification
+
+Run the full quality pipeline (Protobuf generation, type check, linting, testing, build):
+
+```bash
+npm run verify
+```
+
+## Project Structure
+
+- `src/components`: UI components organized by domain (nodes, edges, widgets).
+- `src/store`: State management (Zustand stores).
+- `src/generated`: Protobuf generated TypeScript files.
+- `src/mocks`: MSW handlers and mock data.
+- `src/utils`: Helper functions for nodes, ports, and Protobuf adaptation.
+- `docs/`: Detailed design and architecture documentation.
+
+## Documentation
+
+For more details on the architecture, see [docs/DESIGN.md](docs/DESIGN.md).

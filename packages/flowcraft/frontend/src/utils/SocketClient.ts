@@ -1,37 +1,79 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 import { createClient } from "@connectrpc/connect";
-import { FlowService } from "../generated/core/service_pb";
-import { type FlowMessage } from "../generated/core/service_pb";
+import { toast } from "react-hot-toast";
+import {
+  FlowService,
+  type FlowMessage,
+  type SyncRequest,
+  type GraphSnapshot,
+  type GraphMutation,
+  type StreamChunk,
+} from "../generated/core/service_pb";
+import { type TaskUpdate } from "../generated/core/node_pb";
+import { type ActionTemplate } from "../generated/action_pb";
+import { type TaskDefinition, MutationSource } from "../types";
+import { type WidgetSignal } from "../generated/core/signals_pb";
 import { routerTransport } from "../mocks/routerTransport";
 
-type Handler = (data: unknown) => void;
+interface SocketEvents {
+  snapshot: (data: GraphSnapshot) => void;
+  yjsUpdate: (data: Uint8Array) => void;
+  mutations: (data: GraphMutation[]) => void;
+  actions: (data: ActionTemplate[]) => void;
+  taskUpdate: (data: TaskDefinition) => void;
+  widgetSignal: (data: WidgetSignal) => void;
+  streamChunk: (data: StreamChunk) => void;
+  error: (error: unknown) => void;
+}
+
+type Handler<K extends keyof SocketEvents> = SocketEvents[K];
+
+function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
+  return {
+    taskId: update.taskId,
+    type: "remote-task",
+    label: update.message,
+    source: MutationSource.REMOTE_TASK,
+    status: update.status,
+    progress: update.progress,
+    message: update.message,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    mutationIds: [],
+  };
+}
 
 class SocketClientImpl {
-  private handlers: Record<string, Handler[]> = {};
+  private handlers: { [K in keyof SocketEvents]?: SocketEvents[K][] } = {};
   private streamHandlers: Record<string, (chunk: string) => void> = {};
 
-  // In a real app, use createConnectTransport({ baseUrl: "..." })
-  // Here we use the in-memory router transport to connect to our mock service directly.
   private transport = routerTransport;
-
   private client = createClient(FlowService, this.transport);
 
-  on(event: string, handler: Handler) {
-    this.handlers[event] = this.handlers[event] ?? [];
-    this.handlers[event].push(handler);
+  on<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
+    const handlers = (this.handlers[event] ?? []) as Handler<K>[];
+    handlers.push(handler);
+    this.handlers[event] = handlers as any;
   }
 
-  off(event: string, handler: Handler) {
+  off<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
     const list = this.handlers[event];
     if (!list) return;
-    this.handlers[event] = list.filter((h) => h !== handler);
+    this.handlers[event] = (list as Handler<K>[]).filter(
+      (h) => h !== handler,
+    ) as any;
   }
 
-  private emit(event: string, data: unknown) {
-    this.handlers[event]?.forEach((h) => {
-      h(data);
-    });
+  private emit<K extends keyof SocketEvents>(
+    event: K,
+    data: Parameters<SocketEvents[K]>[0],
+  ) {
+    const handlers = this.handlers[event];
+    if (handlers) {
+      handlers.forEach((h: any) => {
+        h(data);
+      });
+    }
   }
 
   registerStreamHandler(
@@ -42,8 +84,7 @@ class SocketClientImpl {
     this.streamHandlers[`${nodeId}-${widgetId}`] = handler;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async send(wrapper: { payload: { case: string; value: any } }) {
+  async send(wrapper: { payload: FlowMessage["payload"] }) {
     const { case: type, value } = wrapper.payload;
 
     try {
@@ -83,18 +124,26 @@ class SocketClientImpl {
       }
     } catch (e) {
       console.error("gRPC Error:", e);
+      toast.error(
+        `Operation failed: ${e instanceof Error ? e.message : "Unknown error"}`,
+      );
       this.emit("error", e);
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async startStream(req: any) {
+  private async startStream(req: SyncRequest) {
+    const toastId = "socket-stream";
     try {
       for await (const msg of this.client.watchGraph(req)) {
+        toast.success("Connected to backend", { id: toastId });
         this.handleIncomingMessage(msg);
       }
     } catch (e) {
       console.error("Stream Error:", e);
+      toast.error(
+        `Connection lost: ${e instanceof Error ? e.message : "Unknown error"}`,
+        { id: toastId },
+      );
       this.emit("error", e);
     }
   }
@@ -117,7 +166,7 @@ class SocketClientImpl {
         this.emit("actions", payload.value.actions);
         break;
       case "taskUpdate":
-        this.emit("taskUpdate", payload.value);
+        this.emit("taskUpdate", mapTaskUpdateToDefinition(payload.value));
         break;
       case "widgetSignal": {
         const signal = payload.value;

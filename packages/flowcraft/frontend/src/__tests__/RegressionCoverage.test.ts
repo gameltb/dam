@@ -47,6 +47,9 @@ describe("Architectural Regressions", () => {
     yNodes.set(child.id, child);
     yNodes.set(parent.id, parent);
 
+    // Manually mark layout as dirty since we bypassed the store methods
+    useFlowStore.setState({ isLayoutDirty: true });
+
     // Trigger sync
     store.syncFromYjs();
 

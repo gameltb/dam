@@ -8,7 +8,6 @@ import {
   PortStyle,
   PortTypeSchema,
   PortSchema,
-  WidgetSchema,
 } from "../../generated/core/node_pb";
 import type { DynamicNodeData } from "../../types";
 import { create } from "@bufbuild/protobuf";
@@ -36,12 +35,12 @@ describe("useNodeLayout", () => {
         }),
       ],
       widgets: [
-        create(WidgetSchema, {
+        {
           id: "w1",
           type: WidgetType.WIDGET_TEXT,
           label: "W1",
-          valueJson: "",
-        }) as any,
+          value: "",
+        },
       ],
     };
 

@@ -2,17 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { MediaType } from "../../generated/core/node_pb";
 import { type AppNode } from "../../types";
 import { IconButton } from "../base/IconButton";
-import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Maximize,
-  Minimize,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Focus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMediaTransform } from "../../hooks/useMediaTransform";
+import { MediaPreviewToolbar } from "./MediaPreviewToolbar";
 
 interface MediaPreviewProps {
   node: AppNode;
@@ -28,12 +20,20 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Image Transformations
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotate] = useState(0);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const {
+    zoom,
+    rotation,
+    offset,
+    isDragging,
+    resetTransform,
+    handleZoomIn,
+    handleZoomOut,
+    handleRotate,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleWheel,
+  } = useMediaTransform(activeIndex);
 
   // Video Modes
   const [videoMode, setVideoMode] = useState<"fit" | "original">("fit");
@@ -47,55 +47,6 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   }, [media]);
 
   const currentUrl = items[activeIndex];
-
-  const resetTransform = useCallback(() => {
-    setZoom(1);
-    setRotate(0);
-    setOffset({ x: 0, y: 0 });
-  }, []);
-
-  useEffect(() => {
-    resetTransform();
-  }, [activeIndex, resetTransform]);
-
-  const handleZoomIn = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setZoom((prev) => Math.min(prev + 0.25, 5));
-  };
-
-  const handleZoomOut = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setZoom((prev) => Math.max(prev - 0.25, 0.5));
-  };
-
-  const handleRotate = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setRotate((prev) => prev + 90);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom <= 1) return;
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setOffset({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY < 0) handleZoomIn();
-    else handleZoomOut();
-  };
 
   // Preloading Logic
   useEffect(() => {
@@ -176,110 +127,23 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* Header / Toolbar */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          width: "100%",
-          padding: "20px 40px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          color: "white",
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)",
-          boxSizing: "border-box",
-          zIndex: 100,
+      <MediaPreviewToolbar
+        label={node.data.label ?? "Untitled Node"}
+        activeIndex={activeIndex}
+        totalItems={items.length}
+        isImage={isImage}
+        isVideo={isVideo}
+        videoMode={videoMode}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onRotate={handleRotate}
+        onReset={resetTransform}
+        onSetVideoMode={setVideoMode}
+        onClose={(e) => {
+          e.stopPropagation();
+          onClose();
         }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                letterSpacing: "-0.5px",
-              }}
-            >
-              {node.data.label}
-            </span>
-            <span style={{ fontSize: "12px", opacity: 0.6 }}>
-              {activeIndex + 1} / {items.length}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              backgroundColor: "rgba(255,255,255,0.05)",
-              borderRadius: "10px",
-              padding: "4px",
-              gap: "4px",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            {isImage && (
-              <>
-                <IconButton
-                  onClick={handleZoomIn}
-                  icon={<ZoomIn size={18} />}
-                  label="Zoom In"
-                />
-                <IconButton
-                  onClick={handleZoomOut}
-                  icon={<ZoomOut size={18} />}
-                  label="Zoom Out"
-                />
-                <IconButton
-                  onClick={handleRotate}
-                  icon={<RotateCw size={18} />}
-                  label="Rotate"
-                />
-                <IconButton
-                  onClick={resetTransform}
-                  icon={<Focus size={18} />}
-                  label="Reset View"
-                />
-              </>
-            )}
-            {isVideo && (
-              <>
-                <IconButton
-                  onClick={() => setVideoMode("fit")}
-                  active={videoMode === "fit"}
-                  icon={<Minimize size={18} />}
-                  label="Fit to View"
-                />
-                <IconButton
-                  onClick={() => setVideoMode("original")}
-                  active={videoMode === "original"}
-                  icon={<Maximize size={18} />}
-                  label="Original Size"
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          icon={<X size={20} />}
-          label="Close"
-          style={{
-            width: "40px",
-            height: "40px",
-            borderRadius: "12px",
-            backgroundColor: "rgba(255, 59, 48, 0.15)",
-            borderColor: "rgba(255, 59, 48, 0.2)",
-            color: "#ff3b30",
-          }}
-        />
-      </div>
+      />
 
       {/* Main Content Area */}
       <div
@@ -346,13 +210,15 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             justifyContent: "center",
             cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
             transition: isDragging ? "none" : "transform 0.2s ease-out",
-            transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+            transform: `translate(${String(offset.x)}px, ${String(offset.y)}px) scale(${String(zoom)}) rotate(${String(rotation)}deg)`,
           }}
         >
           {isImage ? (
             <img
               src={currentUrl}
-              onLoad={() => setIsLoading(false)}
+              onLoad={() => {
+                setIsLoading(false);
+              }}
               style={{
                 maxWidth: "90vw",
                 maxHeight: "85vh",
@@ -366,7 +232,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             <video
               key={currentUrl}
               src={currentUrl}
-              onLoadedData={() => setIsLoading(false)}
+              onLoadedData={() => {
+                setIsLoading(false);
+              }}
               controls
               autoPlay
               style={{
@@ -395,7 +263,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               <audio
                 key={currentUrl}
                 src={currentUrl}
-                onLoadedData={() => setIsLoading(false)}
+                onLoadedData={() => {
+                  setIsLoading(false);
+                }}
                 controls
                 autoPlay
                 style={{ width: "100%" }}
@@ -440,21 +310,6 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   );
 };
 
-const toolbarButtonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "white",
-  width: "32px",
-  height: "32px",
-  borderRadius: "6px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "14px",
-  transition: "background 0.2s",
-};
-
 const navButtonStyle: React.CSSProperties = {
   position: "absolute",
   width: "50px",
@@ -472,4 +327,3 @@ const navButtonStyle: React.CSSProperties = {
   zIndex: 10,
   transition: "all 0.2s",
 };
-

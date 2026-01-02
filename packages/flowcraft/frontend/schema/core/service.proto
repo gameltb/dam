@@ -25,6 +25,7 @@ message FlowMessage {
     GraphSnapshot snapshot = 20;
     MutationList mutations = 21;
     ActionDiscoveryResponse actions = 25;
+    TemplateDiscoveryResponse templates = 26;
     TaskUpdate task_update = 22;
     StreamChunk stream_chunk = 23;
     ErrorResponse error = 24;
@@ -32,6 +33,11 @@ message FlowMessage {
 }
 
 message SyncRequest { string graph_id = 1; }
+
+message TemplateDiscoveryRequest {}
+message TemplateDiscoveryResponse {
+  repeated NodeTemplate templates = 1;
+}
 
 message UpdateNodeRequest {
   string node_id = 1;
@@ -124,6 +130,12 @@ service FlowService {
   // 发现可用的 Action
   rpc DiscoverActions(ActionDiscoveryRequest) returns (ActionDiscoveryResponse);
 
+  // 发现节点模板
+  rpc DiscoverTemplates(TemplateDiscoveryRequest) returns (TemplateDiscoveryResponse);
+
   // 取消任务
   rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
+
+  // 更新视口信息 (用于 Lazy Sync)
+  rpc UpdateViewport(ViewportUpdate) returns (ErrorResponse);
 }

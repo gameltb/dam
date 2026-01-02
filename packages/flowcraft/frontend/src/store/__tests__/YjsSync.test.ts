@@ -3,8 +3,11 @@ import { useFlowStore } from "../flowStore";
 import * as Y from "yjs";
 
 describe("Yjs Sync Logic", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     useFlowStore.getState().resetStore();
+    useFlowStore.getState().syncFromYjs();
+    // Ensure Yjs updates propagate
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   it("should sync nodes from yNodes to store correctly", () => {
@@ -25,7 +28,7 @@ describe("Yjs Sync Logic", () => {
     expect(useFlowStore.getState().nodes[0]?.id).toBe("1");
   });
 
-  it("should handle remote Yjs updates", async () => {
+  it("should handle remote Yjs updates", () => {
     const store = useFlowStore.getState();
     const remoteDoc = new Y.Doc();
     const remoteNodes = remoteDoc.getMap("nodes");
@@ -41,9 +44,7 @@ describe("Yjs Sync Logic", () => {
 
     const update = Y.encodeStateAsUpdate(remoteDoc);
     store.applyYjsUpdate(update);
-
-    // Wait for any potential async propagation (though usually sync)
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    store.syncFromYjs();
 
     expect(useFlowStore.getState().nodes.length).toBe(1);
     expect(useFlowStore.getState().nodes[0]?.id).toBe("1");

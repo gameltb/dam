@@ -59,9 +59,14 @@ body {
   background-color: var(--node-bg);
   color: var(--text-color);
   border: 1px solid var(--node-border);
+  overflow: visible !important; /* Ensure children like floating panels aren't clipped */
 }
 
 /* React Flow Theming */
+.react-flow__node {
+  overflow: visible !important;
+}
+
 .react-flow__pane {
   background-color: var(--bg-color);
 }

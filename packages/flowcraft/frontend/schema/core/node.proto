@@ -134,3 +134,12 @@ message TaskUpdate {
   string message = 4;
   string result_json = 5;
 }
+
+message NodeTemplate {
+  string id = 1;
+  string label = 2;
+  repeated string path = 3;
+  NodeData default_data = 4;
+  double default_width = 5;
+  double default_height = 6;
+}

@@ -22,7 +22,7 @@ interface MediaContentProps {
 
 export const MediaContent: React.FC<MediaContentProps> = memo(
   ({ id, data, onOverflowChange, width, height }) => {
-    const { onChange, onGalleryItemContext } = useNodeHandlers();
+    const { onChange, onGalleryItemContext } = useNodeHandlers(data);
     const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
     if (!data.media) return null;
@@ -58,7 +58,13 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           );
         case MediaType.MEDIA_VIDEO:
           return (
-            <div style={{ width: "100%", height: "100%" }}>
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                background: "transparent",
+              }}
+            >
               <VideoRenderer
                 url={url}
                 autoPlay
@@ -70,7 +76,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           return (
             <div
               onDoubleClick={() => {
-                handleOpenPreview(index);
+                handleOpenPreview(_index);
               }}
               style={{ width: "100%", height: "100%" }}
             >

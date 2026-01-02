@@ -131,6 +131,8 @@ export interface NodeTemplate {
   label: string;
   path: string[]; // Menu hierarchy, e.g. ["Basic", "Input"]
   defaultData: Omit<DynamicNodeData, "onChange" | "onWidgetClick">;
+  defaultWidth?: number;
+  defaultHeight?: number;
 }
 
 export interface WidgetUpdatePayload {

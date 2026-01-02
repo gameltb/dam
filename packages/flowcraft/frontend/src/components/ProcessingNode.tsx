@@ -1,11 +1,17 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { type NodeProps } from "@xyflow/react";
 import { memo } from "react";
 import { useTaskStore } from "../store/taskStore";
 import { TaskStatus, type ProcessingNodeData } from "../types";
 import { useMockSocket } from "../hooks/useMockSocket";
+import { BaseNode } from "./base/BaseNode";
+import { Handle } from "./base/Handle";
+import { Position } from "@xyflow/react";
 
-const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
-  const { taskId, label } = data as ProcessingNodeData;
+const ProcessingContent: React.FC<{
+  id: string;
+  data: ProcessingNodeData;
+}> = ({ data }) => {
+  const { taskId, label } = data;
   const { cancelTask } = useMockSocket({ disablePolling: true });
   const taskState = useTaskStore((state) => state.tasks[taskId]);
 
@@ -34,21 +40,13 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
     <div
       style={{
         padding: "16px",
-        borderRadius: "8px",
-        background: "#2d3748",
-        color: "white",
-        border: "1px dashed #718096",
-        minWidth: "200px",
-        textAlign: "center",
-        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        boxSizing: "border-box",
       }}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{ background: "#555" }}
-      />
-
       <div style={{ fontWeight: "bold", marginBottom: "8px" }}>{label}</div>
 
       <div style={{ fontSize: "12px", color: "#cbd5e0", marginBottom: "4px" }}>
@@ -101,11 +99,41 @@ const ProcessingNode: React.FC<NodeProps> = ({ data }) => {
             Cancel
           </button>
         )}
+    </div>
+  );
+};
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{ background: "#555" }}
+const ProcessingNode: React.FC<NodeProps> = (props) => {
+  const { selected, positionAbsoluteX, positionAbsoluteY } = props;
+
+  return (
+    <div
+      style={{
+        borderRadius: "12px",
+        background: "var(--node-bg)",
+        color: "white",
+        border: `2px solid ${selected ? "var(--primary-color)" : "rgba(113, 128, 150, 0.4)"}`,
+        minWidth: "200px",
+        textAlign: "center",
+        boxShadow: selected
+          ? "0 0 20px rgba(100, 108, 255, 0.3)"
+          : "0 4px 15px rgba(0,0,0,0.3)",
+        overflow: "visible", // For floating panel
+        transition: "all 0.2s ease",
+      }}
+    >
+      <BaseNode
+        {...props}
+        renderWidgets={ProcessingContent}
+        type="processing"
+        x={positionAbsoluteX}
+        y={positionAbsoluteY}
+        handles={
+          <>
+            <Handle type="target" position={Position.Top} />
+            <Handle type="source" position={Position.Bottom} />
+          </>
+        }
       />
     </div>
   );

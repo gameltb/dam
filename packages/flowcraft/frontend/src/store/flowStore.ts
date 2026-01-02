@@ -10,17 +10,14 @@ import {
 } from "@xyflow/react";
 import { type AppNode, MutationSource, type DynamicNodeData } from "../types";
 import { type MediaType, type PortType } from "../generated/core/node_pb";
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-} from "../generated/core/service_pb";
+import { type GraphMutation } from "../generated/core/service_pb";
 import { type WidgetSignal } from "../generated/core/signals_pb";
-import { create as createProto } from "@bufbuild/protobuf";
 import * as Y from "yjs";
 import { ydoc, yNodes, yEdges } from "./yjsInstance";
 import { dehydrateNode } from "../utils/nodeUtils";
-import { fromProtoNode } from "../utils/protoAdapter";
 import { getValidator } from "../utils/portValidators";
+import { handleGraphMutation } from "./mutationHandlers";
+import { getWidgetSignalListener } from "./signalHandlers";
 
 export interface MutationContext {
   taskId?: string;
@@ -44,6 +41,7 @@ export interface RFState {
   nodes: AppNode[];
   edges: Edge[];
   version: number;
+  isLayoutDirty: boolean; // Flag to indicate if topological sort is needed
 
   ydoc: Y.Doc;
   yNodes: Y.Map<unknown>;
@@ -80,20 +78,6 @@ export interface RFState {
   handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
 }
 
-const widgetSignalListeners = new Map<string, (signal: WidgetSignal) => void>();
-
-export const registerWidgetSignalListener = (
-  nodeId: string,
-  widgetId: string,
-  callback: (signal: WidgetSignal) => void,
-) => {
-  const key = `${nodeId}-${widgetId}`;
-  widgetSignalListeners.set(key, callback);
-  return () => {
-    widgetSignalListeners.delete(key);
-  };
-};
-
 const useStore = create(
   temporal<RFState>(
     (set, get) => {
@@ -122,6 +106,7 @@ const useStore = create(
         nodes: [],
         edges: [],
         version: 0,
+        isLayoutDirty: false,
         ydoc: ydoc,
         yNodes: yNodes,
         yEdges: yEdges,
@@ -132,15 +117,25 @@ const useStore = create(
         },
 
         syncFromYjs: () => {
+          const state = get();
           const rawNodes: AppNode[] = [];
           yNodes.forEach((v) => rawNodes.push(v as AppNode));
+
+          const edges: Edge[] = [];
+          yEdges.forEach((v) => edges.push(v as Edge));
+
+          // If layout is not dirty, we can just update nodes without sorting
+          if (!state.isLayoutDirty) {
+            set({ nodes: rawNodes, edges, version: state.version + 1 });
+            return;
+          }
+
           const nodes: AppNode[] = [];
           const visited = new Set<string>();
 
           const visit = (node: AppNode) => {
             if (visited.has(node.id)) return;
 
-            // If this node has a parent that we haven't visited yet, visit the parent first
             if (node.parentId && !visited.has(node.parentId)) {
               const parent = rawNodes.find((n) => n.id === node.parentId);
               if (parent) visit(parent);
@@ -154,13 +149,19 @@ const useStore = create(
             visit(n);
           });
 
-          const edges: Edge[] = [];
-          yEdges.forEach((v) => edges.push(v as Edge));
-          set({ nodes, edges, version: get().version + 1 });
+          set({
+            nodes,
+            edges,
+            isLayoutDirty: false,
+            version: state.version + 1,
+          });
         },
 
         applyYjsUpdate: (update) => {
+          // Updates from remote might change parent/child relationships
+          set({ isLayoutDirty: true });
           Y.applyUpdate(ydoc, update, "remote");
+          get().syncFromYjs();
         },
 
         updateNodeData: (id, data) => {
@@ -180,169 +181,24 @@ const useStore = create(
         applyMutations: (mutations, context) => {
           get().dispatchNodeEvent("mutations-applied", { mutations, context });
 
+          set({ isLayoutDirty: true });
           ydoc.transact(() => {
             mutations.forEach((mutInput) => {
-              const mut = createProto(GraphMutationSchema, mutInput);
-
-              const op = mut.operation;
-
-              if (!op.case) return;
-
-              switch (op.case) {
-                case "addNode":
-                  if (op.value.node) {
-                    const node = fromProtoNode(op.value.node);
-
-                    if (node.id) {
-                      yNodes.set(node.id, dehydrateNode(node));
-                    }
-                  }
-
-                  break;
-
-                case "updateNode": {
-                  const val = op.value;
-
-                  const id = val.id;
-
-                  if (!id) break;
-
-                  const existing = yNodes.get(id) as AppNode | undefined;
-
-                  if (existing) {
-                    const updated = { ...existing } as AppNode;
-
-                    if (val.position) {
-                      updated.position = {
-                        x: val.position.x || updated.position.x,
-
-                        y: val.position.y || updated.position.y,
-                      };
-                    }
-
-                    if (val.width !== 0 || val.height !== 0) {
-                      const newWidth =
-                        val.width ||
-                        (updated.measured ? updated.measured.width : 0);
-
-                      const newHeight =
-                        val.height ||
-                        (updated.measured ? updated.measured.height : 0);
-
-                      updated.measured = {
-                        width: newWidth,
-
-                        height: newHeight,
-                      };
-
-                      updated.style = {
-                        ...updated.style,
-
-                        width: updated.measured.width,
-
-                        height: updated.measured.height,
-                      };
-                    }
-
-                    if (val.data) {
-                      updated.data = {
-                        ...updated.data,
-
-                        ...(val.data as Record<string, unknown>),
-                      };
-                    }
-
-                    const pId = val.parentId;
-
-                    updated.parentId =
-                      (pId === "" ? undefined : pId) ?? undefined;
-
-                    // Usually when parentId is set, we want the node to be contained within parent
-
-                    updated.extent = updated.parentId ? "parent" : undefined;
-
-                    // Preserve extent if it was already set and not explicitly removed
-
-                    if (updated.parentId && !updated.extent) {
-                      updated.extent = "parent";
-                    }
-
-                    yNodes.set(id, dehydrateNode(updated));
-                  }
-
-                  break;
-                }
-
-                case "removeNode":
-                  if (op.value.id) {
-                    yNodes.delete(op.value.id);
-                  }
-
-                  break;
-
-                case "addEdge":
-                  if (op.value.edge) {
-                    const edge = op.value.edge as Edge;
-
-                    yEdges.set(edge.id, edge);
-                  }
-
-                  break;
-
-                case "removeEdge":
-                  if (op.value.id) {
-                    yEdges.delete(op.value.id);
-                  }
-
-                  break;
-
-                case "addSubgraph":
-                  op.value.nodes.forEach((n) => {
-                    const node = fromProtoNode(n);
-
-                    if (node.id) yNodes.set(node.id, dehydrateNode(node));
-                  });
-
-                  op.value.edges.forEach((e) => {
-                    const edge = e as Edge;
-
-                    if (edge.id) yEdges.set(edge.id, edge);
-                  });
-
-                  break;
-
-                case "clearGraph":
-                  yNodes.clear();
-
-                  yEdges.clear();
-
-                  break;
-              }
+              handleGraphMutation(mutInput, yNodes, yEdges);
             });
           }, "zustand-sync");
-
-          // Since observer ignores "zustand-sync", we must sync Zustand manually
 
           get().syncFromYjs();
         },
         onNodesChange: (changes) => {
           const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
-
-          // Immediate Zustand update for smooth UI
           set({ nodes: nextNodes });
-
-          // Yjs sync should be careful not to spam.
-          // We only sync to Yjs if the change is NOT a purely local position update during dragging,
-          // OR we can rely on React Flow's drag events to sync at the end.
-          // For now, let's avoid syncing 'position' changes to Yjs if they are part of an active drag.
-          // React Flow 12 sets dragging: true on nodes being dragged.
 
           ydoc.transact(() => {
             changes.forEach((c) => {
               if (c.type === "remove") {
                 yNodes.delete(c.id);
               } else if (c.type === "dimensions" || c.type === "select") {
-                // Dimensions and selection are relatively infrequent, sync immediately
                 const n = nextNodes.find((node) => node.id === c.id);
                 if (n) {
                   if (c.type === "dimensions" && c.dimensions) {
@@ -356,15 +212,15 @@ const useStore = create(
                   yNodes.set(n.id, dehydrateNode(n));
                 }
               } else if (c.type === "position" && !c.dragging) {
-                // Only sync position if dragging has finished or it's an external move (like layout)
                 const n = nextNodes.find((node) => node.id === c.id);
                 if (n) yNodes.set(n.id, dehydrateNode(n));
               }
             });
           }, "zustand-sync");
 
-          // Note: syncFromYjs is skipped here because we already updated Zustand state locally
-          // and we want to avoid the expensive topological sort on every frame.
+          if (changes.some((c) => c.type === "remove")) {
+            set({ isLayoutDirty: true });
+          }
         },
         onEdgesChange: (changes) => {
           const nextEdges = applyEdgeChanges(changes, get().edges);
@@ -422,6 +278,7 @@ const useStore = create(
           get().syncFromYjs();
         },
         setGraph: (graph, version) => {
+          set({ isLayoutDirty: true });
           ydoc.transact(() => {
             yNodes.clear();
             yEdges.clear();
@@ -444,7 +301,8 @@ const useStore = create(
           }, "zustand-sync");
           lastPastLength = 0;
           lastFutureLength = 0;
-          set({ nodes: [], edges: [], version: 0 });
+          set({ nodes: [], edges: [], version: 0, isLayoutDirty: false });
+          get().syncFromYjs();
         },
 
         sendWidgetSignal: (signal) => {
@@ -456,15 +314,14 @@ const useStore = create(
         },
 
         handleIncomingWidgetSignal: (signal) => {
-          const key = `${signal.nodeId}-${signal.widgetId}`;
-          widgetSignalListeners.get(key)?.(signal);
+          getWidgetSignalListener(signal.nodeId, signal.widgetId)?.(signal);
         },
       };
     },
     {
       partialize: (state) => {
         const { nodes, edges, version } = state;
-        return { nodes, edges, version };
+        return { nodes, edges, version } as unknown as RFState;
       },
       equality: (a, b) => a.version === b.version,
       handleSet: (handleSet) => (state) => {
@@ -496,6 +353,7 @@ useStore.temporal.subscribe((state) => {
     isSyncingFromTemporal = true;
     try {
       const current = useStore.getState();
+      useStore.setState({ isLayoutDirty: true });
       ydoc.transact(() => {
         yNodes.clear();
         yEdges.clear();
@@ -518,5 +376,10 @@ export function useTemporalStore<T>(
   selector: (state: TemporalState<RFState>) => T,
   equality?: (a: T, b: T) => boolean,
 ): T {
-  return useStoreWithEqualityFn(useStore.temporal, selector, equality);
+  return useStoreWithEqualityFn(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    useStore.temporal as any,
+    (state) => selector(state as TemporalState<RFState>),
+    equality,
+  );
 }

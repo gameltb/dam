@@ -1,6 +1,7 @@
 import { type WidgetSignal } from "../generated/core/signals_pb";
 import { useEffect, useCallback } from "react";
-import { useFlowStore, registerWidgetSignalListener } from "../store/flowStore";
+import { useFlowStore } from "../store/flowStore";
+import { registerWidgetSignalListener } from "../store/signalHandlers";
 
 export const useWidgetSignal = (nodeId: string, widgetId: string) => {
   const sendWidgetSignal = useFlowStore((s) => s.sendWidgetSignal);
@@ -17,9 +18,13 @@ export const useWidgetSignal = (nodeId: string, widgetId: string) => {
   );
 
   useEffect(() => {
-    return registerWidgetSignalListener(nodeId, widgetId, (signal) => {
-      console.log("Received widget signal", signal);
-    });
+    return registerWidgetSignalListener(
+      nodeId,
+      widgetId,
+      (signal: WidgetSignal) => {
+        console.log("Received widget signal", signal);
+      },
+    );
   }, [nodeId, widgetId]);
 
   return { sendSignal };

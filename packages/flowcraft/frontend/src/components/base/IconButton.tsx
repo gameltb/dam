@@ -17,9 +17,13 @@ export const IconButton: React.FC<IconButtonProps> = ({
     <button
       {...props}
       style={{
-        background: active ? "rgba(100, 108, 255, 0.2)" : "rgba(255, 255, 255, 0.05)",
+        background: active
+          ? "rgba(100, 108, 255, 0.2)"
+          : "rgba(255, 255, 255, 0.05)",
         border: "1px solid",
-        borderColor: active ? "rgba(100, 108, 255, 0.4)" : "rgba(255, 255, 255, 0.1)",
+        borderColor: active
+          ? "rgba(100, 108, 255, 0.4)"
+          : "rgba(255, 255, 255, 0.1)",
         color: active ? "#646cff" : "white",
         width: "32px",
         height: "32px",

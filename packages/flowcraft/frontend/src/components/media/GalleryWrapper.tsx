@@ -77,7 +77,9 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   };
 
   const handleOpenPreview = (index: number) => {
-    useFlowStore.getState().dispatchNodeEvent("open-preview", { nodeId: id, index });
+    useFlowStore
+      .getState()
+      .dispatchNodeEvent("open-preview", { nodeId: id, index });
   };
 
   const getGalleryRows = () => {
@@ -140,7 +142,11 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
         <IconButton
           onClick={handleToggleExpand}
           icon={isExpanded ? <X size={14} /> : <Layers size={14} />}
-          label={isExpanded ? "Collapse Gallery" : `Expand Gallery (${String(gallery.length)})`}
+          label={
+            isExpanded
+              ? "Collapse Gallery"
+              : `Expand Gallery (${String(gallery.length)})`
+          }
           style={{
             position: "absolute",
             top: "5px",
@@ -151,7 +157,9 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
             padding: "0 8px",
             borderRadius: "12px",
             fontSize: "10px",
-            backgroundColor: isExpanded ? "rgba(255, 59, 48, 0.8)" : "rgba(0,0,0,0.6)",
+            backgroundColor: isExpanded
+              ? "rgba(255, 59, 48, 0.8)"
+              : "rgba(0,0,0,0.6)",
             pointerEvents: "auto",
           }}
         />

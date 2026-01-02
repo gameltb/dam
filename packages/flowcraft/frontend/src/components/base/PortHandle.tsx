@@ -8,6 +8,7 @@ import {
 import { getValidator, validateConnection } from "../../utils/portValidators";
 import { useUiStore } from "../../store/uiStore";
 import { create } from "@bufbuild/protobuf";
+import { PortIcon } from "./PortIcon";
 
 interface PortHandleProps {
   nodeId: string;
@@ -24,98 +25,6 @@ interface PortHandleProps {
   isImplicit?: boolean;
   isPresentation?: boolean;
 }
-
-const PortIcon: React.FC<{
-  style: PortStyle;
-  mainType?: string;
-  color: string;
-  isConnected: boolean;
-}> = ({ style, mainType, color, isConnected }) => {
-  const baseStyle: React.CSSProperties = {
-    width: "10px",
-    height: "10px",
-    background: isConnected ? color : "var(--node-bg)",
-    border: `2px solid ${color}`,
-    boxSizing: "border-box",
-    transition: "all 0.2s ease",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  };
-
-  if (mainType === "list") {
-    return (
-      <div
-        style={{
-          ...baseStyle,
-          borderRadius: "2px",
-          flexDirection: "column",
-          gap: "1px",
-          padding: "1px",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "2px",
-            background: isConnected ? "white" : color,
-            opacity: 0.8,
-          }}
-        />
-        <div
-          style={{
-            width: "100%",
-            height: "2px",
-            background: isConnected ? "white" : color,
-            opacity: 0.8,
-          }}
-        />
-      </div>
-    );
-  }
-  if (mainType === "set") {
-    return (
-      <div style={{ ...baseStyle, borderRadius: "50%" }}>
-        <div
-          style={{
-            width: "4px",
-            height: "4px",
-            borderRadius: "50%",
-            background: isConnected ? "white" : color,
-          }}
-        />
-      </div>
-    );
-  }
-  switch (style) {
-    case PortStyle.SQUARE:
-      return <div style={{ ...baseStyle, borderRadius: "2px" }} />;
-    case PortStyle.DIAMOND:
-      return (
-        <div
-          style={{
-            ...baseStyle,
-            transform: "rotate(45deg) scale(0.8)",
-            borderRadius: "1px",
-          }}
-        />
-      );
-    case PortStyle.DASH:
-      return (
-        <div
-          style={{
-            ...baseStyle,
-            borderStyle: "dashed",
-            borderRadius: "50%",
-            background: "transparent",
-          }}
-        />
-      );
-    default:
-      return <div style={{ ...baseStyle, borderRadius: "50%" }} />;
-  }
-};
 
 export const PortHandle: React.FC<PortHandleProps> = ({
   nodeId,
@@ -201,13 +110,6 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   const tooltip = `Type: ${mainType}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
 
   // --- Presentation Mode Specific Styles ---
-
-  // Left side (Target): Flat edge at center (7), Tip at x=0 (outside)
-
-  // Right side (Source): Flat edge at center (7), Tip at x=14 (outside)
-
-  // We use a 7px wide triangle so the base sits exactly on the handle's center line.
-
   const trianglePath = isLeft
     ? "M 7 0 L 0 7 L 7 14 Z"
     : "M 7 0 L 14 7 L 7 14 Z";
@@ -215,45 +117,23 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   const handleStyle: React.CSSProperties = isPresentation
     ? {
         position: "absolute",
-
         [isLeft ? "left" : "right"]: 0,
-
         top: "50%",
-
         width: "14px",
-
         height: "14px",
-
         background: "transparent",
-
         border: "none",
-
         minWidth: "14px",
-
         minHeight: "14px",
-
         padding: 0,
-
         boxSizing: "border-box",
-
         display: "flex",
-
         alignItems: "center",
-
         justifyContent: "center",
-
         zIndex: 10,
-
         pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
-
-        // Semi-transparent when idle, opaque when active/connected
-
         opacity: activeConnection || isConnected || isHovered ? 1 : 0.6,
-
-        // Align handle center exactly to the node boundary
-
         transform: isLeft ? "translate(-50%, -50%)" : "translate(50%, -50%)",
-
         transition: "all 0.2s ease",
       }
     : {

@@ -2,13 +2,26 @@ import { type AppNode } from "../types";
 
 /**
  * Dehydrates a node by ensuring it only contains serializable data.
- * In the new architecture, handlers are provided via context/hooks and are no longer part of the node state.
+ * It recursively removes any functions or non-serializable properties.
  */
-export function dehydrateNode(node: AppNode): AppNode {
-  // We want to keep all standard React Flow properties (id, type, position, data, parentId, extent, measured, etc.)
-  // but ensure no non-serializable content (like functions) is present.
-  const { ...serializableNode } = node;
-  return serializableNode as AppNode;
+export function dehydrateNode<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(dehydrateNode) as unknown as T;
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip functions and undefined values
+    if (typeof value === "function" || value === undefined) {
+      continue;
+    }
+    result[key] = dehydrateNode(value);
+  }
+  return result as T;
 }
 
 /**

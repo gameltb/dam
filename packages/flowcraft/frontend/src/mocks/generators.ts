@@ -12,12 +12,15 @@ export const createNode = (
   x: number,
   y: number,
   typeId?: string,
+  width = 300,
+  height = 200,
 ): AppNode =>
   ({
     id,
     type: "dynamic",
     position: { x, y },
-    style: { width: 300, height: 200 },
+    style: { width, height },
+    measured: { width, height },
     data: {
       typeId: typeId ?? "test-node",
       label,
@@ -69,8 +72,10 @@ export const generateGallery = () => {
     "Widget Showcase",
     startX,
     currY,
+    undefined,
+    320,
+    450,
   );
-  widgetNode.style = { width: 320, height: 450 };
   widgetNode.data.widgets = widgetTypes.map((w, i) => ({
     id: `w-${String(i)}`,
     ...w,
@@ -84,8 +89,10 @@ export const generateGallery = () => {
     "Port Visual Styles",
     startX + colGap,
     currY,
+    undefined,
+    320,
+    350,
   );
-  portStyleNode.style = { width: 320, height: 350 };
   portStyleNode.data.inputPorts = [
     {
       id: "in-1",
@@ -105,8 +112,10 @@ export const generateGallery = () => {
     "Port Types (Semantics)",
     startX + colGap * 2,
     currY,
+    undefined,
+    320,
+    400,
   );
-  portTypeNode.style = { width: 320, height: 400 };
   portTypeNode.data.inputPorts = [
     { id: "it-1", label: "String Input", type: { mainType: "string" } },
     { id: "it-2", label: "Number Input", type: { mainType: "number" } },
@@ -139,6 +148,8 @@ export const generateGallery = () => {
     {
       id: "media-img",
       label: "Image Renderer",
+      width: 300,
+      height: 200,
       media: {
         type: MediaType.MEDIA_IMAGE,
         url: "https://picsum.photos/id/237/400/300",
@@ -151,6 +162,8 @@ export const generateGallery = () => {
     {
       id: "media-video",
       label: "Video Renderer",
+      width: 300,
+      height: 200,
       media: {
         type: MediaType.MEDIA_VIDEO,
         url: "https://www.w3schools.com/html/mov_bbb.mp4",
@@ -159,6 +172,8 @@ export const generateGallery = () => {
     {
       id: "media-audio",
       label: "Audio Renderer",
+      width: 240,
+      height: 110,
       media: {
         type: MediaType.MEDIA_AUDIO,
         url: "https://www.w3schools.com/html/horse.mp3",
@@ -167,6 +182,8 @@ export const generateGallery = () => {
     {
       id: "media-md",
       label: "Markdown Renderer",
+      width: 300,
+      height: 200,
       media: {
         type: MediaType.MEDIA_MARKDOWN,
         content:
@@ -176,7 +193,15 @@ export const generateGallery = () => {
   ];
 
   mediaTypes.forEach((m, i) => {
-    const node = createNode(m.id, m.label, startX + i * colGap, currY);
+    const node = createNode(
+      m.id,
+      m.label,
+      startX + i * colGap,
+      currY,
+      undefined,
+      m.width,
+      m.height,
+    );
     node.data.modes = [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS];
     node.data.activeMode = RenderMode.MODE_MEDIA;
     node.data.media = m.media;
@@ -234,8 +259,10 @@ export const generateGallery = () => {
     "Implicit Binding",
     startX,
     currY,
+    undefined,
+    320,
+    300,
   );
-  implicitNode.style = { width: 320, height: 300 };
   implicitNode.data.widgets = [
     {
       id: "linked-widget",
@@ -254,6 +281,7 @@ export const generateGallery = () => {
     type: "processing",
     position: { x: startX + colGap, y: currY },
     style: { width: 300, height: 120 },
+    measured: { width: 300, height: 120 },
     data: {
       taskId: "task-123",
       label: "AI Image Generation",
@@ -269,6 +297,7 @@ export const generateGallery = () => {
     type: "groupNode",
     position: { x: startX + colGap * 2, y: currY },
     style: { width: 400, height: 300 },
+    measured: { width: 400, height: 300 },
     data: { label: "Logical Group" },
   } as AppNode;
   nodes.push(groupNode);
@@ -279,8 +308,10 @@ export const generateGallery = () => {
     "Child Node",
     startX + colGap * 2 + 50,
     currY + 50,
+    undefined,
+    200,
+    150,
   );
-  childNode.style = { width: 200, height: 150 };
   childNode.parentId = "group-1";
   childNode.extent = "parent";
   nodes.push(childNode);
@@ -341,7 +372,7 @@ export const generateGallery = () => {
   passNode.data.outputPorts = [
     {
       id: "out",
-      label: "Out",
+      label: "Result",
       type: { mainType: "any", isGeneric: true },
       color: "#a0aec0",
     },

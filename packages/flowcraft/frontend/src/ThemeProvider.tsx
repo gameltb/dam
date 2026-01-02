@@ -1,8 +1,10 @@
-import { type ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { ThemeContext } from "./contexts/ThemeContext";
+import { useUiStore } from "./store/uiStore";
 
 const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const theme = useUiStore((s) => s.settings.theme);
+  const setSettings = useUiStore((s) => s.setSettings);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -11,7 +13,7 @@ const ThemeProvider = ({ children }: { children: ReactNode }) => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+    setSettings({ theme: theme === "light" ? "dark" : "light" });
   };
 
   return (

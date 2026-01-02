@@ -47,6 +47,10 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Event Bus:** Use the centralized event bus in `flowStore` (`dispatchNodeEvent`) for inter-component signaling (e.g., opening previews or editors).
 - **Theming:** The application is dark-mode first. Use CSS variables defined in `index.css` (`--node-bg`, `--primary-color`, etc.) for all styling.
 - **Components:** Modularize node renderers and widgets. Prefer Functional Components and Hooks.
+- **Polymorphism over Conditionals:**
+  - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
+  - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).
+  - Presentation fields like `position`, `width`, `height`, and `parentId` must be **strictly typed** in Protobuf and handled as "pass-through" by the backend to ensure visual consistency while allowing introspection.
 - **Mocking:** When adding new API features, update the MSW handlers in `src/mocks/` to maintain a consistent local development experience.
 
 ## Quality & Development Workflow

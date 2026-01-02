@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type NodeData } from "../generated/core/node_pb";
 import {
@@ -14,6 +13,7 @@ import {
   UpdateNodeRequestSchema,
   UpdateWidgetRequestSchema,
   TaskCancelRequestSchema,
+  ViewportUpdateSchema,
 } from "../generated/core/service_pb";
 import { create } from "@bufbuild/protobuf";
 import type { NodeTemplate, TaskDefinition } from "../types";
@@ -66,14 +66,10 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
       updateTask(update.taskId, update);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    socketClient.on("snapshot", onSnapshot as any);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    socketClient.on("yjsUpdate", onYjsUpdate as any);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    socketClient.on("mutations", onMutations as any);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    socketClient.on("taskUpdate", onTaskUpdate as any);
+    socketClient.on("snapshot", onSnapshot);
+    socketClient.on("yjsUpdate", onYjsUpdate);
+    socketClient.on("mutations", onMutations);
+    socketClient.on("taskUpdate", onTaskUpdate);
 
     const onError = (error: unknown) => {
       console.error("Socket Error Event:", error);
@@ -91,14 +87,10 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
     });
 
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      socketClient.off("snapshot", onSnapshot as any);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      socketClient.off("yjsUpdate", onYjsUpdate as any);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      socketClient.off("mutations", onMutations as any);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      socketClient.off("taskUpdate", onTaskUpdate as any);
+      socketClient.off("snapshot", onSnapshot);
+      socketClient.off("yjsUpdate", onYjsUpdate);
+      socketClient.off("mutations", onMutations);
+      socketClient.off("taskUpdate", onTaskUpdate);
       socketClient.off("error", onError);
     };
   }, [applyMutations, setGraph, applyYjsUpdate, updateTask]);
@@ -170,6 +162,21 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
     });
   }, []);
 
+  const updateViewport = useCallback(
+    (x: number, y: number, zoom: number, width: number, height: number) => {
+      void socketClient.send({
+        payload: {
+          case: "viewportUpdate",
+          value: create(ViewportUpdateSchema, {
+            viewport: { x, y, zoom },
+            visibleBounds: { x, y, width, height },
+          }),
+        },
+      });
+    },
+    [],
+  );
+
   return useMemo(
     () => ({
       templates,
@@ -178,6 +185,7 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
       updateNodeData,
       updateWidget,
       streamAction,
+      updateViewport,
     }),
     [
       templates,
@@ -186,7 +194,7 @@ export const useMockSocket = (_config?: { disablePolling?: boolean }) => {
       updateNodeData,
       updateWidget,
       streamAction,
+      updateViewport,
     ],
   );
 };
-

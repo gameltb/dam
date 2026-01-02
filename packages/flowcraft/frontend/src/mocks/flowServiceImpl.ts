@@ -1,15 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 import type { ConnectRouter } from "@connectrpc/connect";
 import { FlowService } from "../generated/core/service_pb";
 import { mockEventBus } from "./mockEventBus";
 import { serverGraph, incrementVersion, serverVersion } from "./db";
 import { actionTemplates } from "./templates";
-import { NodeSchema, TaskUpdateSchema } from "../generated/core/node_pb";
+import { TaskUpdateSchema } from "../generated/core/node_pb";
 import {
   GraphSnapshotSchema,
   MutationListSchema,
+  type MutationList,
   StreamChunkSchema,
   FlowMessageSchema,
   type FlowMessage,
@@ -22,25 +21,57 @@ import {
 import { create } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 import { TaskStatus } from "../types";
+import {
+  fromProtoEdge,
+  fromProtoNode,
+  fromProtoNodeData,
+  toProtoEdge,
+  toProtoNode,
+} from "../utils/protoAdapter";
+
+// Mock Session State (Single User for now)
+let currentViewport = { x: -5000, y: -5000, width: 10000, height: 10000 };
+
+const isNodeInViewport = (
+  node: {
+    position: { x: number; y: number };
+    measured?: { width?: number; height?: number };
+    width?: number;
+    height?: number;
+  },
+  viewport: { x: number; y: number; width: number; height: number },
+) => {
+  const nodeW = node.measured?.width ?? node.width ?? 200;
+  const nodeH = node.measured?.height ?? node.height ?? 200;
+
+  return (
+    node.position.x < viewport.x + viewport.width &&
+    node.position.x + nodeW > viewport.x &&
+    node.position.y < viewport.y + viewport.height &&
+    node.position.y + nodeH > viewport.y
+  );
+};
 
 export const flowServiceImpl = (router: ConnectRouter) => {
   router.service(FlowService, {
     async *watchGraph(_req, ctx) {
-      // 1. Send Initial Snapshot
-      const snapshotNodes = serverGraph.nodes.map((n) => {
-        const width = n.measured?.width ?? (n.style?.width as number);
-        const height = n.measured?.height ?? (n.style?.height as number);
-        return create(NodeSchema, {
-          id: n.id,
-          type: n.type,
-          position: n.position as any,
-          width,
-          height,
-          selected: !!n.selected,
-          parentId: n.parentId,
-          data: n.data as any,
-        });
-      });
+      // 1. Send Initial Snapshot (Only visible nodes to start, or just a safe default area)
+      // For a better "lazy" experience, we start with what's in the default/current viewport
+      const visibleNodes = serverGraph.nodes.filter((n) =>
+        isNodeInViewport(n, currentViewport),
+      );
+      const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
+
+      // Include edges only if both source/target are visible (or maybe just one?)
+      // To prevent "dangling edges", we ideally only show edges if both are there,
+      // OR we allow edges to "unknown" nodes (Ghost Nodes).
+      // For now: Only if both are visible.
+      const visibleEdges = serverGraph.edges.filter(
+        (e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target),
+      );
+
+      const snapshotNodes = visibleNodes.map(toProtoNode);
+      const snapshotEdges = visibleEdges.map(toProtoEdge);
 
       yield create(FlowMessageSchema, {
         messageId: uuidv4(),
@@ -49,7 +80,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
           case: "snapshot",
           value: create(GraphSnapshotSchema, {
             nodes: snapshotNodes,
-            edges: serverGraph.edges as any,
+            edges: snapshotEdges,
             version: BigInt(serverVersion),
           }),
         },
@@ -74,7 +105,47 @@ export const flowServiceImpl = (router: ConnectRouter) => {
 
       const unsubs = [
         mockEventBus.on("mutations", (m) => {
-          handler(wrap(m, "mutations"));
+          // Filter mutations based on visibility
+          const mutationList = m as MutationList;
+          const filteredMutations = mutationList.mutations.filter((mut) => {
+            const op = mut.operation;
+            if (op.case === "updateNode") {
+              // Check if node is in viewport
+              const node = serverGraph.nodes.find((n) => n.id === op.value.id);
+              if (node) return isNodeInViewport(node, currentViewport);
+            }
+            // Always allow adds/removes or handle specifically?
+            // For AddNode, check its position
+            if (op.case === "addNode" && op.value.node) {
+              const n = op.value.node;
+              // Mock check using proto position
+              const posX = n.position ? n.position.x : 0;
+              const posY = n.position ? n.position.y : 0;
+              const nodeW = n.width || 200;
+              const nodeH = n.height || 200;
+
+              return (
+                posX < currentViewport.x + currentViewport.width &&
+                posX + nodeW > currentViewport.x &&
+                posY < currentViewport.y + currentViewport.height &&
+                posY + nodeH > currentViewport.y
+              );
+            }
+            return true; // Allow other mutations (edges, etc) for now
+          });
+
+          if (filteredMutations.length > 0) {
+            // Re-wrap in mutation list
+            handler(
+              wrap(
+                create(MutationListSchema, {
+                  mutations: filteredMutations,
+                  sequenceNumber: mutationList.sequenceNumber,
+                }),
+                "mutations",
+              ),
+            );
+          }
         }),
         mockEventBus.on("taskUpdate", (t) => {
           handler(wrap(t, "taskUpdate"));
@@ -106,12 +177,71 @@ export const flowServiceImpl = (router: ConnectRouter) => {
       }
     },
 
+    updateViewport(req, _ctx) {
+      if (req.visibleBounds) {
+        currentViewport = req.visibleBounds;
+
+        // Find nodes in the new viewport that might be missing on client
+        // In a real impl, we'd diff with client state. Here we just blindly send "AddNode" for everything in view.
+        // The client (Yjs/Zustand) handles the "Upsert" logic naturally.
+
+        const visibleNodes = serverGraph.nodes.filter((n) =>
+          isNodeInViewport(n, currentViewport),
+        );
+        const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
+
+        const visibleEdges = serverGraph.edges.filter(
+          (e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target),
+        );
+
+        const mutations = [
+          ...visibleNodes.map((n) => ({
+            operation: {
+              case: "addNode" as const,
+              value: { node: toProtoNode(n) },
+            },
+          })),
+          ...visibleEdges.map((e) => ({
+            operation: {
+              case: "addEdge" as const,
+              value: { edge: toProtoEdge(e) },
+            },
+          })),
+        ];
+
+        // We broadcast this ONLY to the requesting client usually.
+        // But since we are using a shared EventBus for this mock, this will broadcast to ALL.
+        // To fix this properly, we should push directly to the stream queue of this client.
+        // However, 'ctx' from watchGraph is not available here.
+        // For this Prototype: We emit to global bus, but because of the 'isNodeInViewport' filter in watchGraph,
+        // it acts correctly! (The filter uses global currentViewport, which we just updated).
+        // Wait... if multiple clients exist, global currentViewport is race-condition prone.
+        // Assumption: Single User for this demo.
+
+        if (mutations.length > 0) {
+          mockEventBus.emit(
+            "mutations",
+            create(MutationListSchema, {
+              mutations: mutations,
+              sequenceNumber: BigInt(serverVersion),
+            }),
+          );
+        }
+      }
+      return Promise.resolve({});
+    },
+
     updateNode(req, _ctx) {
       const { nodeId, data } = req;
       const node = serverGraph.nodes.find((n) => n.id === nodeId);
       if (node && data) {
-        node.data = { ...node.data, ...data };
+        // Convert Protobuf partial data to AppNode data
+        const partialAppData = fromProtoNodeData(data);
+        node.data = { ...node.data, ...partialAppData };
         incrementVersion();
+
+        // Convert back to proto for broadcast
+        const protoNode = toProtoNode(node);
 
         const mutationList = create(MutationListSchema, {
           mutations: [
@@ -120,11 +250,11 @@ export const flowServiceImpl = (router: ConnectRouter) => {
                 case: "updateNode",
                 value: {
                   id: nodeId,
-                  data: node.data as any,
-                  position: node.position as any,
-                  width: node.measured?.width ?? 0,
-                  height: node.measured?.height ?? 0,
-                  parentId: node.parentId ?? "",
+                  data: protoNode.data,
+                  position: protoNode.position,
+                  width: protoNode.width,
+                  height: protoNode.height,
+                  parentId: protoNode.parentId,
                 },
               },
             },
@@ -139,13 +269,14 @@ export const flowServiceImpl = (router: ConnectRouter) => {
     updateWidget(req, _ctx) {
       const { nodeId, widgetId, valueJson } = req;
       const node = serverGraph.nodes.find((n) => n.id === nodeId);
-      if (node && node.type === "dynamic" && node.data.widgets && valueJson) {
-        const widget = (node.data.widgets as any[]).find(
-          (w) => w.id === widgetId,
-        );
+      if (node && node.type === "dynamic" && node.data.widgets) {
+        const widget = node.data.widgets.find((w) => w.id === widgetId);
         if (widget) {
-          widget.valueJson = valueJson;
+          widget.value = JSON.parse(valueJson);
           incrementVersion();
+
+          const protoNode = toProtoNode(node);
+
           const mutationList = create(MutationListSchema, {
             mutations: [
               {
@@ -153,10 +284,10 @@ export const flowServiceImpl = (router: ConnectRouter) => {
                   case: "updateNode",
                   value: {
                     id: nodeId,
-                    data: node.data as any,
-                    parentId: node.parentId ?? "",
-                    width: node.measured?.width ?? 0,
-                    height: node.measured?.height ?? 0,
+                    data: protoNode.data,
+                    parentId: protoNode.parentId,
+                    width: protoNode.width,
+                    height: protoNode.height,
                   },
                 },
               },
@@ -206,7 +337,10 @@ export const flowServiceImpl = (router: ConnectRouter) => {
 
     executeAction(req, _ctx) {
       const { actionId, sourceNodeId, paramsJson } = req;
-      const params = paramsJson ? JSON.parse(paramsJson) : {};
+      const params = (paramsJson ? JSON.parse(paramsJson) : {}) as Record<
+        string,
+        unknown
+      >;
       const taskId = (params.taskId as string | undefined) ?? uuidv4();
 
       // Trigger background logic
@@ -255,6 +389,9 @@ export const flowServiceImpl = (router: ConnectRouter) => {
             const node = serverGraph.nodes.find((n) => n.id === sourceNodeId);
             if (node) {
               node.data.label = `Processed by ${actionId}`;
+
+              const protoNode = toProtoNode(node);
+
               mockEventBus.emit(
                 "mutations",
                 create(MutationListSchema, {
@@ -264,10 +401,10 @@ export const flowServiceImpl = (router: ConnectRouter) => {
                         case: "updateNode",
                         value: {
                           id: sourceNodeId,
-                          data: node.data as any,
-                          parentId: node.parentId ?? "",
-                          width: node.measured?.width ?? 0,
-                          height: node.measured?.height ?? 0,
+                          data: protoNode.data,
+                          parentId: protoNode.parentId,
+                          width: protoNode.width,
+                          height: protoNode.height,
                         },
                       },
                     },
@@ -296,7 +433,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
 
     applyMutations(req, _ctx) {
       const { mutations } = req;
-      if (!mutations) return Promise.resolve({});
+      if (mutations.length === 0) return Promise.resolve({});
 
       mutations.forEach((mut) => {
         const op = mut.operation;
@@ -306,19 +443,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
           case "addNode": {
             const protoNode = op.value.node;
             if (protoNode) {
-              serverGraph.nodes.push({
-                id: protoNode.id,
-                type: protoNode.type || "dynamic",
-                position: {
-                  x: protoNode.position?.x ?? 0,
-                  y: protoNode.position?.y ?? 0,
-                },
-                data: protoNode.data as any,
-                measured: { width: protoNode.width, height: protoNode.height },
-                style: { width: protoNode.width, height: protoNode.height },
-                selected: protoNode.selected,
-                parentId: protoNode.parentId || undefined,
-              } as any);
+              serverGraph.nodes.push(fromProtoNode(protoNode));
             }
             break;
           }
@@ -326,8 +451,14 @@ export const flowServiceImpl = (router: ConnectRouter) => {
             const val = op.value;
             const node = serverGraph.nodes.find((n) => n.id === val.id);
             if (node) {
-              if (val.position) node.position = val.position as any;
-              if (val.data) node.data = { ...node.data, ...val.data };
+              if (val.position) {
+                node.position = { x: val.position.x, y: val.position.y };
+              }
+              if (val.data) {
+                const appData = fromProtoNodeData(val.data);
+                // Merge strategies could vary, here we do shallow merge
+                node.data = { ...node.data, ...appData };
+              }
               if (val.width) {
                 node.measured = {
                   width: val.width,
@@ -342,7 +473,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
                 };
                 node.style = { ...node.style, height: val.height };
               }
-              if (val.parentId !== undefined)
+              if (val.parentId !== "")
                 node.parentId = val.parentId || undefined;
             }
             break;
@@ -354,7 +485,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
           }
           case "addEdge": {
             const edge = op.value.edge;
-            if (edge) serverGraph.edges.push(edge as any);
+            if (edge) serverGraph.edges.push(fromProtoEdge(edge));
             break;
           }
           case "removeEdge": {
@@ -371,7 +502,7 @@ export const flowServiceImpl = (router: ConnectRouter) => {
       });
 
       incrementVersion();
-      // Broadcast the mutations to all connected clients (except the sender in a real app, but here we just broadcast)
+      // Broadcast the mutations to all connected clients
       mockEventBus.emit(
         "mutations",
         create(MutationListSchema, {
