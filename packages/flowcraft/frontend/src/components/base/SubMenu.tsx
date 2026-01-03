@@ -83,7 +83,7 @@ export const GenericSubMenu: React.FC<{
               const tpl = node.template;
               return (
                 <div
-                  key={tpl.id}
+                  key={tpl.templateId}
                   style={itemStyle}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.backgroundColor =

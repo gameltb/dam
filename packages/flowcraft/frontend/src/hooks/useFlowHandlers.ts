@@ -1,17 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 import { useCallback } from "react";
 import {
   type OnConnectStartParams,
   type NodeChange,
   type ReactFlowInstance,
   type XYPosition,
+  type Node,
 } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
 import { useUiStore } from "../store/uiStore";
 import { socketClient } from "../utils/SocketClient";
 import { create } from "@bufbuild/protobuf";
-import { ActionDiscoveryRequestSchema } from "../generated/action_pb";
-import { type AppNode, type Port } from "../types";
+import { ActionDiscoveryRequestSchema } from "../generated/flowcraft/v1/action_pb";
+import { PortMainType } from "../generated/flowcraft/v1/base_pb";
+import { type AppNode } from "../types";
+import { type HelperLines } from "./useHelperLines";
+import { findPort } from "../utils/nodeUtils";
 
 interface FlowHandlersProps {
   nodes: AppNode[];
@@ -24,12 +27,12 @@ interface FlowHandlersProps {
     height: number,
   ) => void;
   calculateLines: (
-    node: any,
-    nodes: any[],
+    node: Node,
+    nodes: Node[],
     show: boolean,
     pos: XYPosition,
-  ) => any;
-  setHelperLines: (lines: any) => void;
+  ) => { snappedPosition: XYPosition; helperLines: HelperLines };
+  setHelperLines: (lines: HelperLines) => void;
   onNodeContextMenuHook: (event: React.MouseEvent, node: AppNode) => void;
   contextMenuDragStop: () => void;
 }
@@ -92,21 +95,15 @@ export function useFlowHandlers({
         const store = useFlowStore.getState();
         const node = store.nodes.find((n) => n.id === nodeId);
         let portInfo = {
-          mainType: "any",
+          mainType: PortMainType.ANY as number,
           itemType: "",
         };
 
-        if (node?.type === "dynamic") {
-          const data = node.data;
-          const port = (data.outputPorts?.find((p) => p.id === handleId) ??
-            data.inputPorts?.find((p) => p.id === handleId) ??
-            data.widgets?.find((w) => w.inputPortId === handleId)) as
-            | Port
-            | undefined;
-
+        if (node) {
+          const port = findPort(node, handleId ?? "");
           if (port?.type) {
             portInfo = {
-              mainType: port.type.mainType,
+              mainType: port.type.mainType as number,
               itemType: port.type.itemType,
             };
           }

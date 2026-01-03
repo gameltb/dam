@@ -5,10 +5,10 @@ import type { XYPosition } from "@xyflow/react";
 import {
   GraphMutationSchema,
   type GraphMutation,
-} from "../generated/core/service_pb";
-import { type Node as ProtoNode } from "../generated/core/node_pb";
+} from "../generated/flowcraft/v1/service_pb";
 import { create } from "@bufbuild/protobuf";
 import { type MutationContext } from "../store/flowStore";
+import { toProtoNode } from "../utils/protoAdapter";
 
 export const useNodeOperations = (
   applyMutations: (
@@ -45,7 +45,7 @@ export const useNodeOperations = (
         create(GraphMutationSchema, {
           operation: {
             case: "addNode",
-            value: { node: newNode as unknown as ProtoNode },
+            value: { node: toProtoNode(newNode) },
           },
         }),
       ]);

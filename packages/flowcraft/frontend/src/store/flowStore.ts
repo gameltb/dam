@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { temporal } from "zundo";
+import { temporal, type TemporalState } from "zundo";
 import {
   type Connection,
   type Edge,
@@ -8,16 +8,29 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react";
-import { type AppNode, MutationSource, type DynamicNodeData } from "../types";
-import { type MediaType, type PortType } from "../generated/core/node_pb";
-import { type GraphMutation } from "../generated/core/service_pb";
-import { type WidgetSignal } from "../generated/core/signals_pb";
+import { type AppNode, MutationSource } from "../types";
+import {
+  type MediaType,
+  type PortType,
+} from "../generated/flowcraft/v1/node_pb";
+import {
+  type GraphMutation,
+  GraphMutationSchema,
+} from "../generated/flowcraft/v1/service_pb";
+import { type WidgetSignal } from "../generated/flowcraft/v1/signals_pb";
 import * as Y from "yjs";
 import { ydoc, yNodes, yEdges } from "./yjsInstance";
-import { dehydrateNode } from "../utils/nodeUtils";
+import { dehydrateNode, findPort } from "../utils/nodeUtils";
 import { getValidator } from "../utils/portValidators";
 import { handleGraphMutation } from "./mutationHandlers";
 import { getWidgetSignalListener } from "./signalHandlers";
+import { pipeline } from "./middleware/pipeline";
+import { MutationDirection } from "./middleware/types";
+import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/base_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/base_pb";
+import { create as createProto } from "@bufbuild/protobuf";
+import { toProtoNodeData, toProtoNode } from "../utils/protoAdapter";
+import { type DynamicNodeData } from "../types";
 
 export interface MutationContext {
   taskId?: string;
@@ -161,74 +174,132 @@ const useStore = create(
           // Updates from remote might change parent/child relationships
           set({ isLayoutDirty: true });
           Y.applyUpdate(ydoc, update, "remote");
-          get().syncFromYjs();
+          // syncFromYjs will be called by the observers
         },
 
         updateNodeData: (id, data) => {
-          ydoc.transact(() => {
-            const existing = yNodes.get(id) as AppNode | undefined;
-            if (existing) {
-              const updated = {
-                ...existing,
-                data: { ...existing.data, ...data },
-              } as AppNode;
-              yNodes.set(id, dehydrateNode(updated));
-            }
-          }, "zustand-sync");
-          get().syncFromYjs();
+          const node = get().nodes.find((n) => n.id === id);
+          if (node) {
+            const updatedData: DynamicNodeData = {
+              ...(node.data as DynamicNodeData),
+              ...data,
+            };
+            get().applyMutations([
+              createProto(GraphMutationSchema, {
+                operation: {
+                  case: "updateNode",
+                  value: {
+                    id: id,
+                    data: toProtoNodeData(updatedData),
+                  },
+                },
+              }),
+            ]);
+          }
         },
 
         applyMutations: (mutations, context) => {
-          get().dispatchNodeEvent("mutations-applied", { mutations, context });
+          const source = context?.source ?? MutationSource.SOURCE_USER;
 
-          set({ isLayoutDirty: true });
-          ydoc.transact(() => {
-            mutations.forEach((mutInput) => {
-              handleGraphMutation(mutInput, yNodes, yEdges);
-            });
-          }, "zustand-sync");
+          let direction = MutationDirection.OUTGOING;
+          if (source === ProtoSource.SOURCE_SYNC) {
+            direction = MutationDirection.INCOMING;
+          }
 
-          get().syncFromYjs();
+          pipeline.execute(
+            { mutations, context: context ?? {}, direction },
+            (finalEvent) => {
+              set({ isLayoutDirty: true });
+              ydoc.transact(() => {
+                finalEvent.mutations.forEach((mutInput) => {
+                  handleGraphMutation(mutInput, yNodes, yEdges);
+                });
+              }, "zustand-sync");
+              get().syncFromYjs();
+            },
+          );
         },
         onNodesChange: (changes) => {
           const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
           set({ nodes: nextNodes });
 
+          const mutations: GraphMutation[] = [];
+
+          changes.forEach((c) => {
+            if (c.type === "remove") {
+              mutations.push(
+                createProto(GraphMutationSchema, {
+                  operation: { case: "removeNode", value: { id: c.id } },
+                }),
+              );
+            } else if (
+              c.type === "dimensions" ||
+              (c.type === "position" && !c.dragging)
+            ) {
+              const n = nextNodes.find((node) => node.id === c.id);
+              if (n) {
+                const presentation = createProto(PresentationSchema, {
+                  position: { x: n.position.x, y: n.position.y },
+                  width: n.measured?.width ?? 0,
+                  height: n.measured?.height ?? 0,
+                  parentId: n.parentId ?? "",
+                  isInitialized: true,
+                });
+
+                mutations.push(
+                  createProto(GraphMutationSchema, {
+                    operation: {
+                      case: "updateNode",
+                      value: {
+                        id: n.id,
+                        presentation,
+                        data: toProtoNodeData(n.data as DynamicNodeData),
+                      },
+                    },
+                  }),
+                );
+              }
+            }
+          });
+
+          if (mutations.length > 0) {
+            get().applyMutations(mutations);
+          }
+
+          // Local-only state updates (like selection) that don't need sync
           ydoc.transact(() => {
             changes.forEach((c) => {
-              if (c.type === "remove") {
-                yNodes.delete(c.id);
-              } else if (c.type === "dimensions" || c.type === "select") {
+              if (c.type === "select") {
                 const n = nextNodes.find((node) => node.id === c.id);
                 if (n) {
-                  if (c.type === "dimensions" && c.dimensions) {
-                    n.measured = c.dimensions;
-                    n.style = {
-                      ...n.style,
-                      width: c.dimensions.width,
-                      height: c.dimensions.height,
-                    };
-                  }
                   yNodes.set(n.id, dehydrateNode(n));
                 }
-              } else if (c.type === "position" && !c.dragging) {
-                const n = nextNodes.find((node) => node.id === c.id);
-                if (n) yNodes.set(n.id, dehydrateNode(n));
               }
             });
           }, "zustand-sync");
-
-          if (changes.some((c) => c.type === "remove")) {
-            set({ isLayoutDirty: true });
-          }
         },
         onEdgesChange: (changes) => {
           const nextEdges = applyEdgeChanges(changes, get().edges);
           set({ edges: nextEdges });
+
+          const removals = changes.filter((c) => c.type === "remove") as {
+            id: string;
+            type: "remove";
+          }[];
+          if (removals.length > 0) {
+            get().applyMutations(
+              removals.map((r) =>
+                createProto(GraphMutationSchema, {
+                  operation: { case: "removeEdge", value: { id: r.id } },
+                }),
+              ),
+            );
+            return;
+          }
+
           ydoc.transact(() => {
             changes.forEach((c) => {
-              if (c.type === "remove") yEdges.delete(c.id);
-              else if (c.type === "select") {
+              if (c.type === "select") {
                 const e = nextEdges.find((edge) => edge.id === c.id);
                 if (e) yEdges.set(e.id, e);
               }
@@ -238,44 +309,54 @@ const useStore = create(
         onConnect: (connection) => {
           const { nodes, edges } = get();
           const targetNode = nodes.find((n) => n.id === connection.target);
-          let maxInputs = 999; // Default to multiple
+          let maxInputs = 999;
 
-          if (targetNode?.type === "dynamic") {
-            const data = targetNode.data;
-            const port =
-              data.inputPorts?.find((p) => p.id === connection.targetHandle) ??
-              data.widgets?.find(
-                (w) => w.inputPortId === connection.targetHandle,
-              );
-
+          if (targetNode) {
+            const port = findPort(targetNode, connection.targetHandle ?? "");
             if (port) {
               const validator = getValidator(
-                "type" in port ? (port.type as PortType) : undefined,
+                port.type as unknown as PortType | undefined,
               );
               maxInputs = validator.getMaxInputs();
             }
           }
 
-          const newEdge = {
-            ...connection,
-            id: `e${String(Date.now())}`,
-          } as Edge;
+          const mutations: GraphMutation[] = [];
+          if (maxInputs === 1) {
+            edges.forEach((e) => {
+              if (
+                e.target === connection.target &&
+                e.targetHandle === connection.targetHandle
+              ) {
+                mutations.push(
+                  createProto(GraphMutationSchema, {
+                    operation: { case: "removeEdge", value: { id: e.id } },
+                  }),
+                );
+              }
+            });
+          }
 
-          ydoc.transact(() => {
-            // If it's a single input port, remove existing connections to this handle
-            if (maxInputs === 1) {
-              edges.forEach((e) => {
-                if (
-                  e.target === connection.target &&
-                  e.targetHandle === connection.targetHandle
-                ) {
-                  yEdges.delete(e.id);
-                }
-              });
-            }
-            yEdges.set(newEdge.id, newEdge);
-          }, "zustand-sync");
-          get().syncFromYjs();
+          const edgeId = `e${String(Date.now())}`;
+          mutations.push(
+            createProto(GraphMutationSchema, {
+              operation: {
+                case: "addEdge",
+                value: {
+                  edge: {
+                    edgeId,
+                    sourceNodeId: connection.source,
+                    targetNodeId: connection.target,
+                    sourceHandle: connection.sourceHandle ?? "",
+                    targetHandle: connection.targetHandle ?? "",
+                    metadata: {},
+                  },
+                },
+              },
+            }),
+          );
+
+          get().applyMutations(mutations, { description: "Connect handles" });
         },
         setGraph: (graph, version) => {
           set({ isLayoutDirty: true });
@@ -289,20 +370,24 @@ const useStore = create(
           get().syncFromYjs();
         },
         addNode: (node) => {
-          ydoc.transact(() => {
-            yNodes.set(node.id, dehydrateNode(node));
-          }, "zustand-sync");
-          get().syncFromYjs();
+          get().applyMutations([
+            createProto(GraphMutationSchema, {
+              operation: {
+                case: "addNode",
+                value: { node: toProtoNode(node) },
+              },
+            }),
+          ]);
         },
         resetStore: () => {
-          ydoc.transact(() => {
-            yNodes.clear();
-            yEdges.clear();
-          }, "zustand-sync");
+          get().applyMutations([
+            createProto(GraphMutationSchema, {
+              operation: { case: "clearGraph", value: {} },
+            }),
+          ]);
           lastPastLength = 0;
           lastFutureLength = 0;
           set({ nodes: [], edges: [], version: 0, isLayoutDirty: false });
-          get().syncFromYjs();
         },
 
         sendWidgetSignal: (signal) => {
@@ -368,7 +453,6 @@ useStore.temporal.subscribe((state) => {
 });
 
 import { useStoreWithEqualityFn } from "zustand/traditional";
-import { type TemporalState } from "zundo";
 
 export const useFlowStore = useStore;
 
@@ -377,9 +461,8 @@ export function useTemporalStore<T>(
   equality?: (a: T, b: T) => boolean,
 ): T {
   return useStoreWithEqualityFn(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    useStore.temporal as any,
-    (state) => selector(state as TemporalState<RFState>),
+    useStore.temporal,
+    (state) => selector(state),
     equality,
   );
 }

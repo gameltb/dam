@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { type AppNode, type Edge } from "../types";
+import { PortMainType } from "../generated/flowcraft/v1/base_pb";
 
 export type DragMode = "pan" | "select";
 
@@ -19,6 +20,7 @@ export interface UserSettings {
   theme: "dark" | "light";
   showMinimap: boolean;
   showControls: boolean;
+  serverAddress: string;
 }
 
 interface UIState {
@@ -33,7 +35,7 @@ interface UIState {
     nodeId: string;
     handleId: string;
     type: string;
-    mainType: string;
+    mainType: PortMainType;
     itemType: string;
   } | null;
 
@@ -66,6 +68,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: "dark",
   showMinimap: true,
   showControls: true,
+  serverAddress: "/", // Default to relative path (proxied)
 };
 
 export const useUiStore = create<UIState>()(

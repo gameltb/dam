@@ -1,7 +1,12 @@
+/**
+ * @file useNodeHandlers.test.ts
+ * @problem Node logic (style, mode, handles) was tightly coupled, making it hard to test selection and media-specific behaviors.
+ * @requirement Ensure that node handlers correctly calculate selection styles, mode-specific min-heights, and aspect ratio locking for media nodes.
+ */
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useNodeHandlers } from "../useNodeHandlers";
-import { MediaType, RenderMode } from "../../generated/core/node_pb";
+import { MediaType, RenderMode } from "../../generated/flowcraft/v1/node_pb";
 import { type DynamicNodeData } from "../../types";
 
 describe("useNodeHandlers", () => {

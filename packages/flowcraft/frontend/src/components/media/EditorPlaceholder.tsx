@@ -1,5 +1,5 @@
 import React from "react";
-import { MediaType } from "../../generated/core/node_pb";
+import { MediaType } from "../../generated/flowcraft/v1/node_pb";
 import { type AppNode, isDynamicNode } from "../../types";
 
 interface EditorPlaceholderProps {
@@ -50,7 +50,7 @@ export const EditorPlaceholder: React.FC<EditorPlaceholderProps> = ({
           here.
         </p>
         <div style={{ marginTop: "30px", fontSize: "13px", color: "#646cff" }}>
-          Target Node ID:{" "}
+          Target NODE_ID:{" "}
           <code
             style={{
               background: "rgba(255,255,255,0.1)",

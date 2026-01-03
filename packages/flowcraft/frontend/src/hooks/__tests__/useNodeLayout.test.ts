@@ -4,56 +4,49 @@ import { useNodeLayout } from "../useNodeLayout";
 import {
   RenderMode,
   MediaType,
-  WidgetType,
-  PortStyle,
   PortTypeSchema,
   PortSchema,
-} from "../../generated/core/node_pb";
-import type { DynamicNodeData } from "../../types";
+  PortStyle,
+} from "../../generated/flowcraft/v1/node_pb";
+import { PortMainType } from "../../generated/flowcraft/v1/base_pb";
+import { type DynamicNodeData } from "../../types";
 import { create } from "@bufbuild/protobuf";
 
 describe("useNodeLayout", () => {
-  it("calculates min height for widgets mode correctly", () => {
+  it("should calculate correct minHeight for widget mode based on ports and widgets", () => {
     const data: DynamicNodeData = {
-      label: "Test",
+      label: "Node",
       modes: [RenderMode.MODE_WIDGETS],
       activeMode: RenderMode.MODE_WIDGETS,
       inputPorts: [
         create(PortSchema, {
-          id: "1",
-          label: "in",
-          type: create(PortTypeSchema, { mainType: "string" }),
+          id: "in1",
+          label: "In 1",
+          type: create(PortTypeSchema, { mainType: PortMainType.STRING }),
           style: PortStyle.CIRCLE,
         }),
       ],
       outputPorts: [
         create(PortSchema, {
-          id: "2",
-          label: "out",
-          type: create(PortTypeSchema, { mainType: "string" }),
+          id: "out1",
+          label: "Out 1",
+          type: create(PortTypeSchema, { mainType: PortMainType.STRING }),
           style: PortStyle.CIRCLE,
         }),
       ],
-      widgets: [
-        {
-          id: "w1",
-          type: WidgetType.WIDGET_TEXT,
-          label: "W1",
-          value: "",
-        },
-      ],
+      widgets: [{ id: "w1", type: 1, label: "W1", value: 0 }],
     };
 
     const { result } = renderHook(() => useNodeLayout(data));
 
-    // HEADER(46) + PORTS(1*24) + WIDGETS(1*55) + PADDING(20) = 46 + 24 + 55 + 20 = 145
+    // HEADER(46) + 1*PORT(24) + 1*WIDGET(55) + PADDING(20) = 145
     expect(result.current.minHeight).toBe(145);
     expect(result.current.isMedia).toBe(false);
   });
 
-  it("calculates min height for media mode (default)", () => {
+  it("should return media renderer config for media mode", () => {
     const data: DynamicNodeData = {
-      label: "Test",
+      label: "Image",
       modes: [RenderMode.MODE_MEDIA],
       activeMode: RenderMode.MODE_MEDIA,
       media: { type: MediaType.MEDIA_IMAGE, url: "test.jpg" },
@@ -61,13 +54,14 @@ describe("useNodeLayout", () => {
 
     const { result } = renderHook(() => useNodeLayout(data));
 
-    expect(result.current.minHeight).toBe(50);
     expect(result.current.isMedia).toBe(true);
+    expect(result.current.minHeight).toBe(50);
+    expect(result.current.minWidth).toBe(180);
   });
 
-  it("calculates min height for audio media", () => {
+  it("should handle audio-specific layout", () => {
     const data: DynamicNodeData = {
-      label: "Test",
+      label: "Audio",
       modes: [RenderMode.MODE_MEDIA],
       activeMode: RenderMode.MODE_MEDIA,
       media: { type: MediaType.MEDIA_AUDIO, url: "test.mp3" },
@@ -75,7 +69,8 @@ describe("useNodeLayout", () => {
 
     const { result } = renderHook(() => useNodeLayout(data));
 
-    expect(result.current.minHeight).toBe(110);
     expect(result.current.isAudio).toBe(true);
+    expect(result.current.minHeight).toBe(110);
+    expect(result.current.minWidth).toBe(240);
   });
 });

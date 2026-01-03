@@ -1,22 +1,18 @@
 import React, { memo } from "react";
-import {
-  WidgetType,
-  PortStyle,
-  type PortType,
-} from "../../generated/core/node_pb";
+import { PortStyle, type PortType } from "../../generated/flowcraft/v1/node_pb";
+import { PortMainType } from "../../generated/flowcraft/v1/base_pb";
 import type { WidgetDef, DynamicNodeData } from "../../types";
 import { WidgetWrapper } from "../widgets/WidgetWrapper";
-import { TextField } from "../widgets/TextField";
-import { SelectField } from "../widgets/SelectField";
-import { CheckboxField } from "../widgets/CheckboxField";
-import { SliderField } from "../widgets/SliderField";
 import { PortHandle } from "../base/PortHandle";
-import { useMockSocket } from "../../hooks/useMockSocket";
+import { useFlowSocket } from "../../hooks/useFlowSocket";
 import { NodeLabel } from "./NodeLabel";
 import { PortLabelRow } from "./PortLabelRow";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
+import { FlowcraftRJSF } from "../widgets/FlowcraftRJSF";
 
 import { getPortColor } from "../../utils/themeUtils";
+
+import { WIDGET_COMPONENTS } from "../widgets/widgetConfigs";
 
 interface WidgetRendererProps {
   nodeId: string;
@@ -27,70 +23,27 @@ interface WidgetRendererProps {
 
 const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
   ({ nodeId, widget, onValueChange, onClick }) => {
-    const { updateWidget } = useMockSocket({ disablePolling: true });
+    const { updateWidget } = useFlowSocket({ disablePolling: true });
 
     const handleValueChange = (val: unknown) => {
       onValueChange(val);
       updateWidget(nodeId, widget.id, val);
     };
 
-    let component;
-    switch (widget.type) {
-      case WidgetType.WIDGET_TEXT:
-        component = (
-          <TextField
-            value={widget.value as string}
-            onChange={handleValueChange}
-            label={widget.label}
-          />
-        );
-        break;
-      case WidgetType.WIDGET_SELECT:
-        component = (
-          <SelectField
-            value={widget.value}
-            onChange={handleValueChange}
-            label={widget.label}
-            options={widget.options ?? []}
-            onFetchOptions={() => Promise.resolve([])}
-          />
-        );
-        break;
-      case WidgetType.WIDGET_CHECKBOX:
-        component = (
-          <CheckboxField
-            value={!!widget.value}
-            onChange={handleValueChange}
-            label={widget.label}
-          />
-        );
-        break;
-      case WidgetType.WIDGET_SLIDER:
-        component = (
-          <SliderField
-            value={widget.value as number}
-            onChange={handleValueChange}
-            label={widget.label}
-            min={(widget.config?.min as number | undefined) ?? 0}
-            max={(widget.config?.max as number | undefined) ?? 100}
-          />
-        );
-        break;
-      case WidgetType.WIDGET_BUTTON:
-        component = (
-          <button
-            className="nodrag"
-            onClick={onClick}
-            style={{ width: "100%", padding: "4px" }}
-          >
-            {widget.label}
-          </button>
-        );
-        break;
-      default:
-        return null;
-    }
-    return <div>{component}</div>;
+    const Component = WIDGET_COMPONENTS[widget.type];
+    if (!Component) return null;
+
+    return (
+      <Component
+        nodeId={nodeId}
+        value={widget.value}
+        label={widget.label}
+        options={widget.options}
+        config={widget.config}
+        onChange={handleValueChange}
+        onClick={onClick}
+      />
+    );
   },
 );
 
@@ -162,16 +115,27 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
         <div
           style={{
             display: "flex",
-
             flexDirection: "column",
-
             gap: "8px",
-
             padding: "8px 12px",
-
             position: "relative",
           }}
         >
+          {/* Schema-Driven Widgets (RJSF) */}
+          {data.widgetsSchemaJson && (
+            <div className="nodrag nopan">
+              <FlowcraftRJSF
+                nodeId={id}
+                schema={JSON.parse(data.widgetsSchemaJson)}
+                formData={data.widgetsValues || {}}
+                onChange={(newValues) => {
+                  onChange(id, { widgetsValues: newValues });
+                }}
+              />
+            </div>
+          )}
+
+          {/* Traditional Hardcoded Widgets */}
           {data.widgets?.map((w) => (
             <div key={w.id} style={{ position: "relative", width: "100%" }}>
               <WidgetWrapper
@@ -189,10 +153,10 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                       sideOffset={17}
                       style={PortStyle.CIRCLE}
                       color={getPortColor({
-                        mainType: "string", // 默认假设连接到 widget 的是 string/number 基础类型
+                        mainType: PortMainType.STRING,
                         itemType: "",
                         isGeneric: false,
-                      } as PortType)}
+                      } as unknown as PortType)}
                       isImplicit={true}
                     />
                   )}

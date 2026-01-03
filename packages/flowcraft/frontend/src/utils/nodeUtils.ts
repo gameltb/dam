@@ -1,8 +1,37 @@
-import { type AppNode } from "../types";
+import { type AppNode, isDynamicNode, type Port, PortMainType } from "../types";
+import { type PortType } from "../generated/flowcraft/v1/node_pb";
+
+/**
+ * Finds a port by its ID within a node.
+ */
+export function findPort(node: AppNode, portId: string): Port | undefined {
+  if (!isDynamicNode(node)) return undefined;
+
+  const data = node.data;
+  const explicitPort =
+    data.outputPorts?.find((p) => p.id === portId) ??
+    data.inputPorts?.find((p) => p.id === portId);
+
+  if (explicitPort) return explicitPort;
+
+  const widget = data.widgets?.find((w) => w.inputPortId === portId);
+  if (widget?.inputPortId) {
+    // Implicit widget ports are treated as STRING type by convention
+    return {
+      id: widget.inputPortId,
+      type: {
+        mainType: PortMainType.STRING,
+        itemType: "",
+        isGeneric: false,
+      } as unknown as PortType,
+    } as Port;
+  }
+
+  return undefined;
+}
 
 /**
  * Dehydrates a node by ensuring it only contains serializable data.
- * It recursively removes any functions or non-serializable properties.
  */
 export function dehydrateNode<T>(obj: T): T {
   if (obj === null || typeof obj !== "object") {

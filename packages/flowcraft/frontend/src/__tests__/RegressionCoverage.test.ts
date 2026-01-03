@@ -6,7 +6,11 @@ import { fromProtoNode } from "../utils/protoAdapter";
 import { type AppNode } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
 import { create } from "@bufbuild/protobuf";
-import { NodeSchema } from "../generated/core/node_pb";
+import { NodeSchema } from "../generated/flowcraft/v1/node_pb";
+import {
+  PresentationSchema,
+  NodeKind,
+} from "../generated/flowcraft/v1/base_pb";
 
 /**
  * ARCHITECTURAL REGRESSION TESTS
@@ -67,10 +71,12 @@ describe("Architectural Regressions", () => {
    */
   it("should convert Protobuf empty parentId to undefined", () => {
     const protoNode = create(NodeSchema, {
-      id: "test-node",
-      type: "dynamic",
-      parentId: "", // Protobuf default
-      position: { x: 0, y: 0 },
+      nodeId: "test-node",
+      nodeKind: NodeKind.DYNAMIC,
+      presentation: create(PresentationSchema, {
+        parentId: "", // Protobuf default
+        position: { x: 0, y: 0 },
+      }),
     });
 
     const node = fromProtoNode(protoNode);

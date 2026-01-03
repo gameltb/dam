@@ -10,6 +10,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      "/flowcraft_proto.v1.FlowService": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+  },
   // @ts-expect-error Vitest config is not recognized by Vite's type definitions but works at runtime
   test: {
     globals: true,

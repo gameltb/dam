@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
-import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { createClient, ConnectError, Code } from "@connectrpc/connect";
 import { toast } from "react-hot-toast";
 import {
   FlowService,
@@ -8,12 +9,19 @@ import {
   type GraphSnapshot,
   type GraphMutation,
   type StreamChunk,
-} from "../generated/core/service_pb";
-import { type TaskUpdate } from "../generated/core/node_pb";
-import { type ActionTemplate } from "../generated/action_pb";
+  type TemplateDiscoveryResponse,
+} from "../generated/flowcraft/v1/service_pb";
+import { type TaskUpdate } from "../generated/flowcraft/v1/node_pb";
+import { type ActionTemplate } from "../generated/flowcraft/v1/action_pb";
 import { type TaskDefinition, MutationSource } from "../types";
-import { type WidgetSignal } from "../generated/core/signals_pb";
-import { routerTransport } from "../mocks/routerTransport";
+
+export enum SocketStatus {
+  DISCONNECTED = "disconnected",
+  CONNECTING = "connecting",
+  INITIALIZING = "initializing",
+  CONNECTED = "connected",
+  ERROR = "error",
+}
 
 interface SocketEvents {
   snapshot: (data: GraphSnapshot) => void;
@@ -21,9 +29,11 @@ interface SocketEvents {
   mutations: (data: GraphMutation[]) => void;
   actions: (data: ActionTemplate[]) => void;
   taskUpdate: (data: TaskDefinition) => void;
-  widgetSignal: (data: WidgetSignal) => void;
+  widgetSignal: (data: any) => void; // Using any for simplicity
   streamChunk: (data: StreamChunk) => void;
+  templates: (data: TemplateDiscoveryResponse) => void;
   error: (error: unknown) => void;
+  statusChange: (status: SocketStatus) => void;
 }
 
 type Handler<K extends keyof SocketEvents> = SocketEvents[K];
@@ -33,7 +43,7 @@ function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
     taskId: update.taskId,
     type: "remote-task",
     label: update.message,
-    source: MutationSource.REMOTE_TASK,
+    source: MutationSource.SOURCE_REMOTE_TASK,
     status: update.status,
     progress: update.progress,
     message: update.message,
@@ -46,9 +56,59 @@ function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
 class SocketClientImpl {
   private handlers: { [K in keyof SocketEvents]?: SocketEvents[K][] } = {};
   private streamHandlers: Record<string, (chunk: string) => void> = {};
+  private activeStreamAbort: AbortController | null = null;
+  private currentBaseUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:3000";
+  private currentStatus: SocketStatus = SocketStatus.DISCONNECTED;
 
-  private transport = routerTransport;
+  private transport = createConnectTransport({
+    baseUrl: this.currentBaseUrl,
+  });
+
   private client = createClient(FlowService, this.transport);
+
+  public updateBaseUrl(newUrl: string) {
+    if (!newUrl) return;
+
+    // Resolve relative URL
+    let resolvedUrl = newUrl;
+    if (newUrl.startsWith("/") && typeof window !== "undefined") {
+      resolvedUrl = window.location.origin + (newUrl === "/" ? "" : newUrl);
+    }
+
+    if (this.currentBaseUrl === resolvedUrl) return;
+    console.log(
+      `[SocketClient] Updating Base URL from ${this.currentBaseUrl} to ${resolvedUrl}`,
+    );
+    this.currentBaseUrl = resolvedUrl;
+
+    try {
+      // Create new transport and client
+      this.transport = createConnectTransport({
+        baseUrl: this.currentBaseUrl,
+      });
+      this.client = createClient(FlowService, this.transport);
+
+      // If we have an active stream, restart it
+      if (this.activeStreamAbort) {
+        console.log("[SocketClient] Base URL changed, restarting stream...");
+        this.activeStreamAbort.abort();
+      }
+    } catch (err) {
+      console.error("[SocketClient] Failed to update transport:", err);
+    }
+  }
+
+  public getStatus() {
+    return this.currentStatus;
+  }
+
+  private setStatus(status: SocketStatus) {
+    this.currentStatus = status;
+    this.emit("statusChange", status);
+  }
 
   on<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
     const handlers = (this.handlers[event] ?? []) as Handler<K>[];
@@ -94,29 +154,44 @@ class SocketClientImpl {
           break;
 
         case "nodeUpdate":
-          await this.client.updateNode(value);
+          await this.client.updateNode(value as any);
           break;
 
         case "widgetUpdate":
-          await this.client.updateWidget(value);
+          await this.client.updateWidget(value as any);
           break;
 
         case "widgetSignal":
-          await this.client.sendWidgetSignal(value);
+          await this.client.sendWidgetSignal(value as any);
           break;
 
         case "actionExecute":
-          await this.client.executeAction(value);
+          await this.client.executeAction(value as any);
           break;
 
         case "actionDiscovery": {
-          const res = await this.client.discoverActions(value);
+          const res = await this.client.discoverActions(value as any);
           this.emit("actions", res.actions);
           break;
         }
 
+        case "mutations": {
+          await this.client.applyMutations(value as any);
+          break;
+        }
+
+        case "templateDiscovery": {
+          const res = await this.client.discoverTemplates(value as any);
+          this.emit("templates", res);
+          break;
+        }
+
         case "taskCancel":
-          await this.client.cancelTask(value);
+          await this.client.cancelTask(value as any);
+          break;
+
+        case "viewportUpdate":
+          await this.client.updateViewport(value as any);
           break;
 
         default:
@@ -132,19 +207,59 @@ class SocketClientImpl {
   }
 
   private async startStream(req: SyncRequest) {
+    if (this.activeStreamAbort) {
+      this.activeStreamAbort.abort();
+    }
+    const abortController = new AbortController();
+    this.activeStreamAbort = abortController;
+    const signal = abortController.signal;
+
+    this.setStatus(SocketStatus.CONNECTING);
     const toastId = "socket-stream";
     try {
-      for await (const msg of this.client.watchGraph(req)) {
-        toast.success("Connected to backend", { id: toastId });
+      let isFirstMessage = true;
+      for await (const msg of this.client.watchGraph(req, { signal })) {
+        if (signal.aborted) break;
+
+        if (isFirstMessage) {
+          isFirstMessage = false;
+          this.setStatus(SocketStatus.INITIALIZING);
+          toast.success("Connection established, initializing data...", {
+            id: toastId,
+          });
+        }
+
         this.handleIncomingMessage(msg);
+
+        // After first message (usually snapshot), if we are still initializing, set to connected
+        if (this.currentStatus === SocketStatus.INITIALIZING) {
+          this.setStatus(SocketStatus.CONNECTED);
+          toast.success("Ready", { id: toastId, duration: 2000 });
+        }
       }
     } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") {
+        this.setStatus(SocketStatus.DISCONNECTED);
+        return;
+      }
+      if (e instanceof ConnectError && e.code === Code.Canceled) {
+        this.setStatus(SocketStatus.DISCONNECTED);
+        return;
+      }
       console.error("Stream Error:", e);
+      this.setStatus(SocketStatus.ERROR);
       toast.error(
         `Connection lost: ${e instanceof Error ? e.message : "Unknown error"}`,
         { id: toastId },
       );
       this.emit("error", e);
+    } finally {
+      if (this.activeStreamAbort === abortController) {
+        this.activeStreamAbort = null;
+        if (this.currentStatus === SocketStatus.CONNECTED) {
+          this.setStatus(SocketStatus.DISCONNECTED);
+        }
+      }
     }
   }
 
@@ -165,13 +280,16 @@ class SocketClientImpl {
       case "actions":
         this.emit("actions", payload.value.actions);
         break;
+      case "templates":
+        this.emit("templates", payload.value);
+        break;
       case "taskUpdate":
         this.emit("taskUpdate", mapTaskUpdateToDefinition(payload.value));
         break;
       case "widgetSignal": {
         const signal = payload.value;
         void import("../store/flowStore").then(({ useFlowStore }) => {
-          useFlowStore.getState().handleIncomingWidgetSignal(signal);
+          useFlowStore.getState().handleIncomingWidgetSignal(signal as any);
         });
         this.emit("widgetSignal", signal);
         break;

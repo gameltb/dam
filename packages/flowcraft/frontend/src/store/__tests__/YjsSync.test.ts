@@ -1,3 +1,8 @@
+/**
+ * @file YjsSync.test.ts
+ * @problem Maintaining a synchronized state between local Zustand store and shared Yjs document in a collaborative environment.
+ * @requirement Verify that graph updates correctly propagate between the local store and Yjs, supporting both local mutations and remote updates.
+ */
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../flowStore";
 import * as Y from "yjs";
@@ -28,7 +33,7 @@ describe("Yjs Sync Logic", () => {
     expect(useFlowStore.getState().nodes[0]?.id).toBe("1");
   });
 
-  it("should handle remote Yjs updates", () => {
+  it("should handle remote Yjs updates", async () => {
     const store = useFlowStore.getState();
     const remoteDoc = new Y.Doc();
     const remoteNodes = remoteDoc.getMap("nodes");
@@ -44,7 +49,9 @@ describe("Yjs Sync Logic", () => {
 
     const update = Y.encodeStateAsUpdate(remoteDoc);
     store.applyYjsUpdate(update);
-    store.syncFromYjs();
+
+    // Give observers time to fire and sync
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(useFlowStore.getState().nodes.length).toBe(1);
     expect(useFlowStore.getState().nodes[0]?.id).toBe("1");

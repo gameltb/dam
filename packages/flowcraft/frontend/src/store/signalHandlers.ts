@@ -1,4 +1,4 @@
-import { type WidgetSignal } from "../generated/core/signals_pb";
+import { type WidgetSignal } from "../generated/flowcraft/v1/signals_pb";
 
 const widgetSignalListeners = new Map<string, (signal: WidgetSignal) => void>();
 

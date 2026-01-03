@@ -6,8 +6,12 @@ import {
   GraphMutationSchema,
   AddSubGraphSchema,
   AddNodeSchema,
-} from "../../generated/core/service_pb";
-import { NodeSchema } from "../../generated/core/node_pb";
+} from "../../generated/flowcraft/v1/service_pb";
+import { NodeSchema } from "../../generated/flowcraft/v1/node_pb";
+import {
+  PresentationSchema,
+  NodeKind,
+} from "../../generated/flowcraft/v1/base_pb";
 
 describe("Direct Store Clipboard Logic", () => {
   beforeEach(() => {
@@ -26,13 +30,15 @@ describe("Direct Store Clipboard Logic", () => {
           value: create(AddSubGraphSchema, {
             nodes: [
               create(NodeSchema, {
-                id: "test-node",
-                type: "dynamic",
-                position: { x: 0, y: 0 },
-                width: 0,
-                height: 0,
-                selected: false,
-                parentId: "",
+                nodeId: "test-node",
+                nodeKind: NodeKind.DYNAMIC,
+                presentation: create(PresentationSchema, {
+                  position: { x: 0, y: 0 },
+                  width: 0,
+                  height: 0,
+                  parentId: "",
+                }),
+                isSelected: false,
               }),
             ],
             edges: [],
@@ -61,13 +67,15 @@ describe("Direct Store Clipboard Logic", () => {
           value: create(AddSubGraphSchema, {
             nodes: [
               create(NodeSchema, {
-                id: "undo-node",
-                type: "dynamic",
-                position: { x: 0, y: 0 },
-                width: 0,
-                height: 0,
-                selected: false,
-                parentId: "",
+                nodeId: "undo-node",
+                nodeKind: NodeKind.DYNAMIC,
+                presentation: create(PresentationSchema, {
+                  position: { x: 0, y: 0 },
+                  width: 0,
+                  height: 0,
+                  parentId: "",
+                }),
+                isSelected: false,
               }),
             ],
             edges: [],
@@ -97,13 +105,15 @@ describe("Direct Store Clipboard Logic", () => {
           case: "addNode",
           value: create(AddNodeSchema, {
             node: create(NodeSchema, {
-              id: "node-1",
-              type: "dynamic",
-              position: { x: 100, y: 100 },
-              width: 0,
-              height: 0,
-              selected: false,
-              parentId: "",
+              nodeId: "node-1",
+              nodeKind: NodeKind.DYNAMIC,
+              presentation: create(PresentationSchema, {
+                position: { x: 100, y: 100 },
+                width: 0,
+                height: 0,
+                parentId: "",
+              }),
+              isSelected: false,
             }),
           }),
         },
@@ -134,13 +144,15 @@ describe("Direct Store Clipboard Logic", () => {
           value: create(AddSubGraphSchema, {
             nodes: [
               create(NodeSchema, {
-                id: newNodeId,
-                type: "dynamic",
-                position: { x: 140, y: 140 },
-                width: 0,
-                height: 0,
-                selected: false,
-                parentId: "",
+                nodeId: newNodeId,
+                nodeKind: NodeKind.DYNAMIC,
+                presentation: create(PresentationSchema, {
+                  position: { x: 140, y: 140 },
+                  width: 0,
+                  height: 0,
+                  parentId: "",
+                }),
+                isSelected: false,
               }),
             ],
             edges: [],

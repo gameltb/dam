@@ -1,5 +1,5 @@
 import React from "react";
-import { PortStyle } from "../../generated/core/node_pb";
+import { PortStyle } from "../../generated/flowcraft/v1/node_pb";
 
 export const PortIcon: React.FC<{
   style: PortStyle;

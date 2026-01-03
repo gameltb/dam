@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package flowcraft.v1.actions;
+
+/**
+ * AI 提示词生成动作的参数
+ * 这里的注释将被某些工具转换为 JSON Schema 的 description
+ */
+message PromptGenParams {
+  // 正向提示词
+  string prompt = 1;
+  // 负向提示词
+  string negative_prompt = 2;
+  // 生成步数
+  int32 steps = 3;
+  // 引导系数
+  float cfg_scale = 4;
+}
+
+/**
+ * 图片增强参数
+ */
+message ImageEnhanceParams {
+  // 增强强度 (0.0 - 1.0)
+  float strength = 1;
+  // 选用的模型
+  string model_name = 2;
+}

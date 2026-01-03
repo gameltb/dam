@@ -1,4 +1,5 @@
-import { type PortType, PortStyle } from "../generated/core/node_pb";
+import { type PortType, PortStyle } from "../generated/flowcraft/v1/node_pb";
+import { PROTO_TO_PORT_TYPE } from "./protoAdapter";
 
 /**
  * 核心实践：通过语义化的 PortType 派生 UI 样式，而不是在 Proto 中硬编码颜色。
@@ -19,9 +20,10 @@ export const getPortColor = (type?: PortType): string => {
     exec: "var(--port-color-exec, #ffffff)",
   };
 
+  const mainTypeStr =
+    PROTO_TO_PORT_TYPE[type.mainType as unknown as number] ?? "any";
   const baseColor =
-    typeMap[type.mainType.toLowerCase()] ??
-    "var(--port-color-default, #9e9e9e)";
+    typeMap[mainTypeStr.toLowerCase()] ?? "var(--port-color-default, #9e9e9e)";
 
   // 如果是 generic (泛型) 类型，可以增加一些视觉特征，例如降低透明度
   return type.isGeneric ? `${baseColor}88` : baseColor;
@@ -33,7 +35,9 @@ export const getPortColor = (type?: PortType): string => {
 export const getPortShape = (type?: PortType): PortStyle => {
   if (!type) return PortStyle.CIRCLE;
 
-  if (type.mainType.toLowerCase() === "exec") {
+  const mainTypeStr =
+    PROTO_TO_PORT_TYPE[type.mainType as unknown as number] ?? "any";
+  if (mainTypeStr.toLowerCase() === "exec") {
     return PortStyle.DASH; // 执行流通常使用特殊形状
   }
 

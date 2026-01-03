@@ -1,7 +1,7 @@
 import React, { memo } from "react";
 import { useNodeConnections } from "@xyflow/react";
 import { PortHandle } from "../base/PortHandle";
-import { type Port } from "../../generated/core/node_pb";
+import { type Port } from "../../generated/flowcraft/v1/node_pb";
 import { getPortColor, getPortShape } from "../../utils/themeUtils";
 
 interface PortLabelRowProps {

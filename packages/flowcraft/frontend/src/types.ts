@@ -7,9 +7,11 @@ import {
   PortStyle,
   TaskStatus,
   type Port,
-} from "./generated/core/node_pb";
-import { type GraphMutation } from "./generated/core/service_pb";
-import { ActionExecutionStrategy } from "./generated/action_pb";
+  type NodeTemplate as ProtoNodeTemplate,
+} from "./generated/flowcraft/v1/node_pb";
+import { MutationSource, PortMainType } from "./generated/flowcraft/v1/base_pb";
+import { type GraphMutation } from "./generated/flowcraft/v1/service_pb";
+import { ActionExecutionStrategy } from "./generated/flowcraft/v1/action_pb";
 
 /**
  * SECTION 1: PROTOCOL & CRDT
@@ -24,18 +26,11 @@ export {
   ActionExecutionStrategy,
   PortStyle,
   TaskStatus,
+  MutationSource,
+  PortMainType,
 };
 
 export type { Port };
-
-export const MutationSource = {
-  USER: "USER",
-  REMOTE_TASK: "REMOTE_TASK",
-  SYSTEM: "SYSTEM",
-  SYNC: "SYNC",
-} as const;
-export type MutationSource =
-  (typeof MutationSource)[keyof typeof MutationSource];
 
 export interface MutationLogEntry {
   id: string;
@@ -95,6 +90,8 @@ export interface DynamicNodeData extends Record<string, unknown> {
   activeMode?: RenderMode;
   media?: MediaDef & { aspectRatio?: number };
   widgets?: WidgetDef[];
+  widgetsSchemaJson?: string;
+  widgetsValues?: Record<string, unknown>;
 
   // Port definitions
   inputPorts?: Port[];
@@ -126,14 +123,7 @@ export interface GraphState {
  * SECTION 4: TEMPLATES & PROTOCOL PAYLOADS
  */
 
-export interface NodeTemplate {
-  id: string;
-  label: string;
-  path: string[]; // Menu hierarchy, e.g. ["Basic", "Input"]
-  defaultData: Omit<DynamicNodeData, "onChange" | "onWidgetClick">;
-  defaultWidth?: number;
-  defaultHeight?: number;
-}
+export type NodeTemplate = ProtoNodeTemplate;
 
 export interface WidgetUpdatePayload {
   nodeId: string;

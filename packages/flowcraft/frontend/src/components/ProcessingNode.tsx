@@ -1,8 +1,12 @@
 import { type NodeProps } from "@xyflow/react";
 import { memo } from "react";
 import { useTaskStore } from "../store/taskStore";
-import { TaskStatus, type ProcessingNodeData } from "../types";
-import { useMockSocket } from "../hooks/useMockSocket";
+import {
+  TaskStatus,
+  type ProcessingNodeData,
+  type ProcessingNodeType,
+} from "../types";
+import { useFlowSocket } from "../hooks/useFlowSocket";
 import { BaseNode } from "./base/BaseNode";
 import { Handle } from "./base/Handle";
 import { Position } from "@xyflow/react";
@@ -12,7 +16,7 @@ const ProcessingContent: React.FC<{
   data: ProcessingNodeData;
 }> = ({ data }) => {
   const { taskId, label } = data;
-  const { cancelTask } = useMockSocket({ disablePolling: true });
+  const { cancelTask } = useFlowSocket({ disablePolling: true });
   const taskState = useTaskStore((state) => state.tasks[taskId]);
 
   const progress = taskState?.progress ?? 0;
@@ -103,7 +107,7 @@ const ProcessingContent: React.FC<{
   );
 };
 
-const ProcessingNode: React.FC<NodeProps> = (props) => {
+const ProcessingNode: React.FC<NodeProps<ProcessingNodeType>> = (props) => {
   const { selected, positionAbsoluteX, positionAbsoluteY } = props;
 
   return (
@@ -122,7 +126,7 @@ const ProcessingNode: React.FC<NodeProps> = (props) => {
         transition: "all 0.2s ease",
       }}
     >
-      <BaseNode
+      <BaseNode<ProcessingNodeType>
         {...props}
         renderWidgets={ProcessingContent}
         type="processing"

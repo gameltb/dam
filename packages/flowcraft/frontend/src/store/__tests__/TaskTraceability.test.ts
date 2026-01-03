@@ -1,25 +1,36 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useFlowStore } from "../flowStore";
 import { useTaskStore } from "../taskStore";
-import { MutationSource } from "../../types";
-import { initOrchestrator } from "../orchestrator";
+import { useFlowStore } from "../flowStore";
+import { MutationSource, TaskStatus } from "../../types";
+import { GraphMutationSchema } from "../../generated/flowcraft/v1/service_pb";
 import { create } from "@bufbuild/protobuf";
-import { GraphMutationSchema } from "../../generated/core/service_pb";
 
-/**
- * PROBLEM: Changes to the graph were hard to trace back to their origin (User vs Task).
- * REQUIREMENT: Every mutation should be associated with a taskId and logged in the TaskStore.
- */
-describe("Task-based Mutation Traceability", () => {
-  beforeEach(() => {
-    // Reset stores
-    useTaskStore.setState({ tasks: {}, mutationLogs: [] });
-    useFlowStore.setState({ nodes: [], edges: [], version: 0 });
-    initOrchestrator();
+import { initStoreOrchestrator } from "../orchestrator";
+import { beforeAll } from "vitest";
+
+describe("Task Traceability", () => {
+  beforeAll(() => {
+    initStoreOrchestrator();
   });
 
-  it("should automatically log mutations to the task store when applyMutations is called", () => {
-    const taskId = "test-task-123";
+  beforeEach(() => {
+    useFlowStore.getState().resetStore();
+    useTaskStore.getState().resetStore();
+  });
+
+  it("should correlate mutations with tasks in the log", () => {
+    const taskId = "task-1";
+    const taskStore = useTaskStore.getState();
+    const flowStore = useFlowStore.getState();
+
+    // 1. Register a task
+    taskStore.registerTask({
+      taskId,
+      label: "Background Generation",
+      source: MutationSource.SOURCE_REMOTE_TASK,
+    });
+
+    // 2. Apply mutations with task context
     const mutations = [
       create(GraphMutationSchema, {
         operation: {
@@ -29,41 +40,56 @@ describe("Task-based Mutation Traceability", () => {
       }),
     ];
 
-    // 1. Apply mutations with context
-    useFlowStore.getState().applyMutations(mutations, {
+    flowStore.applyMutations(mutations, {
       taskId,
-      source: MutationSource.REMOTE_TASK,
-      description: "Remote cleanup",
+      source: MutationSource.SOURCE_REMOTE_TASK,
+      description: "AI result applied",
     });
 
-    // 2. Verify task was registered
-    const task = useTaskStore.getState().tasks[taskId];
-    expect(task).toBeDefined();
-    expect(task?.source).toBe(MutationSource.REMOTE_TASK);
-    expect(task?.label).toBe("Remote cleanup");
-
-    // 3. Verify mutation log exists and is linked
+    // 3. Verify correlation
     const logs = useTaskStore.getState().mutationLogs;
     expect(logs.length).toBe(1);
     expect(logs[0]?.taskId).toBe(taskId);
-    expect(logs[0]?.mutations).toEqual(mutations);
-    expect(task?.mutationIds).toContain(logs[0]?.id);
+    expect(logs[0]?.source).toBe(MutationSource.SOURCE_REMOTE_TASK);
+
+    const task = useTaskStore.getState().tasks[taskId];
+    expect(task?.mutationIds.length).toBe(1);
+    expect(task?.mutationIds[0]).toBe(logs[0]?.id);
   });
 
-  it("should use a default task if no context is provided", () => {
-    useFlowStore.getState().applyMutations([
-      create(GraphMutationSchema, {
-        operation: {
-          case: "clearGraph",
-          value: {},
-        },
-      }),
-    ]);
+  it("should record user-initiated actions as anonymous logs if no taskId", () => {
+    const flowStore = useFlowStore.getState();
 
-    const defaultTaskId = "manual-interaction";
-    const task = useTaskStore.getState().tasks[defaultTaskId];
+    flowStore.applyMutations(
+      [
+        create(GraphMutationSchema, {
+          operation: { case: "clearGraph", value: {} },
+        }),
+      ],
+      { description: "User cleared canvas" },
+    );
 
-    expect(task).toBeDefined();
-    expect(task?.source).toBe(MutationSource.USER);
+    const logs = useTaskStore.getState().mutationLogs;
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.taskId).toBe("manual-action");
+    expect(logs[0]?.source).toBe(MutationSource.SOURCE_USER);
+
+    const task = useTaskStore.getState().tasks["manual-action"];
+    expect(task?.label).toContain("Manual");
+  });
+
+  it("should update task status via taskStore", () => {
+    const taskId = "task-status-1";
+    const store = useTaskStore.getState();
+
+    store.registerTask({ taskId, label: "Test" });
+    store.updateTask(taskId, {
+      status: TaskStatus.TASK_COMPLETED,
+      progress: 100,
+    });
+
+    expect(useTaskStore.getState().tasks[taskId]?.status).toBe(
+      TaskStatus.TASK_COMPLETED,
+    );
   });
 });

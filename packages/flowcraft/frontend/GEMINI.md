@@ -27,6 +27,8 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **FlowMessage Envelope**: All communications (snapshots, mutations, task updates, streaming chunks) are wrapped in a unified Protobuf message.
 - **Incremental Mutations**: The graph state is updated via atomic mutations (`addNode`, `updateNode`, `removeNode`, `addEdge`, etc.), ensuring efficient synchronization.
 - **Hydration**: Client-side handlers are re-attached to server-provided node data using a centralized hydration utility.
+- **Client**: `socketClient` (Connect/gRPC) handles all communication with the Node.js backend.
+- **Hooks**: `useFlowSocket` provides the main interface for components to interact with the backend.
 
 ### 3. Task & Job System
 
@@ -35,7 +37,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 ## Building and Running
 
-- **Development:** `npm run dev` (A persistent development server is usually running at `http://localhost:5173/`. You can use Chrome DevTools to inspect the page).
+- **Development:** `npm run dev` (Connects to the Node.js backend configured in Settings).
 - **Build:** `npm run build`
 - **Linting:** `npm run lint`
 - **Formatting:** `npm run format`
@@ -51,7 +53,6 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
   - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).
   - Presentation fields like `position`, `width`, `height`, and `parentId` must be **strictly typed** in Protobuf and handled as "pass-through" by the backend to ensure visual consistency while allowing introspection.
-- **Mocking:** When adding new API features, update the MSW handlers in `src/mocks/` to maintain a consistent local development experience.
 
 ## Quality & Development Workflow
 

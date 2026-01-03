@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { MediaType } from "../../generated/core/node_pb";
+import { MediaType } from "../../generated/flowcraft/v1/node_pb";
 import { type AppNode } from "../../types";
 import { IconButton } from "../base/IconButton";
 import { ChevronLeft, ChevronRight } from "lucide-react";

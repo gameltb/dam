@@ -220,6 +220,48 @@ export const SettingsModal: React.FC = () => {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
+              {/* Server Address */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "13px",
+                    color: "var(--sub-text)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Server Address
+                </label>
+                <input
+                  type="text"
+                  value={settings.serverAddress}
+                  onChange={(e) => {
+                    setSettings({ serverAddress: e.target.value });
+                  }}
+                  placeholder="http://localhost:3000"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--node-border)",
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    color: "var(--text-color)",
+                    fontSize: "13px",
+                    outline: "none",
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--sub-text)",
+                    marginTop: "6px",
+                  }}
+                >
+                  The base URL of the gRPC/Connect backend.
+                </p>
+              </div>
+
               {/* Drag Mode */}
               <div>
                 <label

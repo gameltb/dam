@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+import "flowcraft/v1/base.proto";
+
+message Node {
+  string node_id = 1;           // UUID Instance ID
+  string template_id = 2;       // Reference to NodeTemplate (the "class")
+  NodeKind node_kind = 3;       // Architectural type (how to render)
+  
+  Presentation presentation = 4; // Visuals controlled by client
+  NodeData state = 5;           // Business data inner state
+  
+  VisualHint visual_hint = 6;   // Guidance for uninitialized nodes
+  bool is_selected = 7;
+}
+
+message NodeTemplate {
+  string template_id = 1;
+  string display_name = 2;
+  repeated string menu_path = 3;
+  NodeData default_state = 4;
+  int32 default_width = 5;
+  int32 default_height = 6;
+  string widgets_schema_json = 7; // JSON Schema for all widgets in this node
+}
+
+message NodeData {
+  string display_name = 1;      // Instance-specific name (overrides template)
+  repeated RenderMode available_modes = 2;
+  RenderMode active_mode = 3;
+  MediaContent media = 4;
+  repeated Widget widgets = 5;
+  
+  repeated Port input_ports = 6;
+  repeated Port output_ports = 7;
+  
+  map<string, string> metadata = 8;
+  string task_id = 11;
+  string widgets_values_json = 12; // JSON values for schema-driven widgets
+  string widgets_schema_json = 13; // Optional override schema at node level
+}
+
+enum RenderMode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MEDIA = 1;
+  MODE_WIDGETS = 2;
+  MODE_MARKDOWN = 3;
+}
+
+message MediaContent {
+  MediaType type = 1;
+  string url = 2;
+  string content = 3;
+  double aspect_ratio = 4;
+  repeated string gallery_urls = 5;
+}
+
+enum MediaType {
+  MEDIA_UNSPECIFIED = 0;
+  MEDIA_IMAGE = 1;
+  MEDIA_VIDEO = 2;
+  MEDIA_AUDIO = 3;
+  MEDIA_MARKDOWN = 4;
+}
+
+message Port {
+  string id = 1;
+  string label = 2;
+  PortType type = 3;
+  string color = 4;
+  PortStyle style = 5;
+  string description = 6;
+}
+
+message PortType {
+  PortMainType main_type = 1;
+  string item_type = 2;
+  bool is_generic = 3;
+}
+
+enum PortStyle {
+  CIRCLE = 0;
+  SQUARE = 1;
+  DIAMOND = 2;
+  DASH = 3;
+}
+
+message Widget {
+  string id = 1;
+  WidgetType type = 2;
+  string label = 3;
+  string value_json = 4; 
+  WidgetConfig config = 5;
+  repeated WidgetOption options = 6;
+  bool is_readonly = 7;
+  bool is_loading = 8;
+  string input_port_id = 9; 
+}
+
+enum WidgetType {
+  WIDGET_UNSPECIFIED = 0;
+  WIDGET_TEXT = 1;
+  WIDGET_SELECT = 2;
+  WIDGET_CHECKBOX = 3;
+  WIDGET_SLIDER = 4;
+  WIDGET_BUTTON = 5;
+}
+
+message WidgetOption {
+  string label = 1;
+  string value = 2;
+  string description = 3;
+}
+
+message WidgetConfig {
+  string placeholder = 1;
+  double min = 2;
+  double max = 3;
+  double step = 4;
+  bool dynamic_options = 5;
+  string action_target = 6;
+}
+
+message Edge {
+  string edge_id = 1;
+  string source_node_id = 2;
+  string target_node_id = 3;
+  string source_handle = 4;
+  string target_handle = 5;
+  map<string, string> metadata = 6;
+}
+
+enum TaskStatus {
+  TASK_PENDING = 0;
+  TASK_PROCESSING = 1;
+  TASK_COMPLETED = 2;
+  TASK_FAILED = 3;
+  TASK_CANCELLED = 4;
+}
+
+message TaskUpdate {
+  string task_id = 1;
+  TaskStatus status = 2;
+  double progress = 3;
+  string message = 4;
+  string result_json = 5;
+}

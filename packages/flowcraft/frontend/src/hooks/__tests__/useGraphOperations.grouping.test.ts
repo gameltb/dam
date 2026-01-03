@@ -3,7 +3,8 @@ import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
-import { type GraphMutation } from "../../generated/core/service_pb";
+import { type GraphMutation } from "../../generated/flowcraft/v1/service_pb";
+import { NodeKind } from "../../generated/flowcraft/v1/base_pb";
 
 vi.mock("../../store/flowStore", () => ({
   useFlowStore: vi.fn(),
@@ -37,14 +38,12 @@ describe("useGraphOperations - Grouping", () => {
       applyMutations: mockApplyMutations,
     });
 
-    (
-      useUiStore as unknown as {
-        getState: () => {
-          clipboard: null;
-          setClipboard: Mock;
-        };
-      }
-    ).getState = () => ({
+    (useUiStore as unknown as Mock).mockReturnValue({
+      clipboard: null,
+      setClipboard: vi.fn(),
+    });
+    // For direct access to getState() in useClipboard (if used)
+    (useUiStore as unknown as { getState: () => unknown }).getState = () => ({
       clipboard: null,
       setClipboard: vi.fn(),
     });
@@ -67,7 +66,7 @@ describe("useGraphOperations - Grouping", () => {
     const addGroupMut = mutations.find(
       (m) =>
         m.operation.case === "addNode" &&
-        m.operation.value.node?.type === "groupNode",
+        m.operation.value.node?.nodeKind === NodeKind.GROUP,
     );
     expect(addGroupMut).toBeDefined();
 
@@ -75,7 +74,7 @@ describe("useGraphOperations - Grouping", () => {
     // groupX = 100 - 40 = 60, groupY = 100 - 40 = 60
     const groupPos =
       addGroupMut?.operation.case === "addNode"
-        ? addGroupMut.operation.value.node?.position
+        ? addGroupMut.operation.value.node?.presentation?.position
         : null;
     expect(groupPos).toMatchObject({ x: 60, y: 60 });
 
@@ -84,9 +83,9 @@ describe("useGraphOperations - Grouping", () => {
       (m) => m.operation.case === "updateNode" && m.operation.value.id === "1",
     );
     if (updateNode1?.operation.case === "updateNode") {
-      expect(updateNode1.operation.value.parentId).toBeDefined();
+      expect(updateNode1.operation.value.presentation?.parentId).toBeDefined();
       // relativeX = 100 - 60 = 40, relativeY = 100 - 60 = 40
-      expect(updateNode1.operation.value.position).toMatchObject({
+      expect(updateNode1.operation.value.presentation?.position).toMatchObject({
         x: 40,
         y: 40,
       });
@@ -99,7 +98,7 @@ describe("useGraphOperations - Grouping", () => {
     );
     if (updateNode2?.operation.case === "updateNode") {
       // relativeX = 200 - 60 = 140, relativeY = 200 - 60 = 140
-      expect(updateNode2.operation.value.position).toMatchObject({
+      expect(updateNode2.operation.value.presentation?.position).toMatchObject({
         x: 140,
         y: 140,
       });

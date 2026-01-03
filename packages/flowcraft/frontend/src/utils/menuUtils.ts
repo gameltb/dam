@@ -5,7 +5,7 @@ export const buildNodeTree = (templates: NodeTemplate[]): MenuNode[] => {
   const menuTree: MenuNode[] = [];
   templates.forEach((tpl) => {
     let currentLevel = menuTree;
-    tpl.path.forEach((part) => {
+    tpl.menuPath.forEach((part) => {
       let node = currentLevel.find((n) => n.label === part);
       if (!node) {
         node = { label: part, children: [] };
@@ -13,18 +13,24 @@ export const buildNodeTree = (templates: NodeTemplate[]): MenuNode[] => {
       }
       currentLevel = node.children ?? [];
     });
-    currentLevel.push({ label: tpl.label, template: tpl });
+    currentLevel.push({ label: tpl.displayName, template: tpl });
   });
   return menuTree;
 };
 
 export const buildActionTree = (
-  dynamicActions: { id: string; name: string; onClick: () => void }[],
+  dynamicActions: {
+    id: string;
+    name: string;
+    onClick: () => void;
+    path?: string[];
+  }[],
 ): MenuNode[] => {
   const actionTree: MenuNode[] = [];
   dynamicActions.forEach((action) => {
-    const parts = action.name.split("/");
-    const leafName = parts.pop() ?? "Action";
+    // Use provided path or split name by /
+    const parts = action.path ? [...action.path] : action.name.split("/");
+    const leafName = action.path ? action.name : (parts.pop() ?? "Action");
     let currentLevel = actionTree;
 
     parts.forEach((part) => {

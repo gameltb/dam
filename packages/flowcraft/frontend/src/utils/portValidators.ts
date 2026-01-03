@@ -1,4 +1,6 @@
-import { type Port, type PortType } from "../generated/core/node_pb";
+import { type Port, type PortType } from "../generated/flowcraft/v1/node_pb";
+import { PortMainType } from "../generated/flowcraft/v1/base_pb";
+import { PROTO_TO_PORT_TYPE } from "./protoAdapter";
 import type { Edge } from "@xyflow/react";
 
 export interface ConnectionResult {
@@ -35,7 +37,7 @@ export const CollectionValidator: PortValidator = {
       return src.itemType === tgt.itemType || !src.itemType || !tgt.itemType;
     }
     // 也允许将 单个元素 接入 集合端口 (自动装箱语义)
-    return src.mainType === tgt.itemType;
+    return PROTO_TO_PORT_TYPE[src.mainType] === tgt.itemType;
   },
   getMaxInputs: () => 999, // 允许无限输入
 };
@@ -52,10 +54,11 @@ export const AnyValidator: PortValidator = {
 export const getValidator = (
   portType: PortType | undefined | null,
 ): PortValidator => {
-  const mainType = portType?.mainType ?? "any";
+  const mainType = portType?.mainType ?? PortMainType.ANY;
 
-  if (mainType === "any") return AnyValidator;
-  if (mainType === "list" || mainType === "set") return CollectionValidator;
+  if (mainType === PortMainType.ANY) return AnyValidator;
+  if (mainType === PortMainType.LIST || mainType === PortMainType.SET)
+    return CollectionValidator;
 
   return StandardValidator;
 };
@@ -78,7 +81,7 @@ export const validateConnection = (
   ) {
     return {
       canConnect: false,
-      reason: `Type Mismatch: Cannot connect ${source.type.mainType} to ${target.type.mainType}`,
+      reason: `Type Mismatch: Cannot connect ${PROTO_TO_PORT_TYPE[source.type.mainType] ?? "any"} to ${PROTO_TO_PORT_TYPE[target.type.mainType] ?? "any"}`,
     };
   }
 

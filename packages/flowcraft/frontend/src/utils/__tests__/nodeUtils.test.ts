@@ -1,3 +1,8 @@
+/**
+ * @file nodeUtils.test.ts
+ * @problem Complex node objects with circular references or functions cannot be safely serialized to Protobuf or Yjs.
+ * @requirement Provide a robust dehydrateNode utility that recursively removes functions and undefined values, ensuring serializable node state.
+ */
 import { describe, it, expect } from "vitest";
 import { dehydrateNode } from "../nodeUtils";
 

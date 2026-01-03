@@ -94,7 +94,7 @@ export const DynamicNode = memo(
           }}
         />
 
-        <BaseNode
+        <BaseNode<DynamicNodeType>
           id={id}
           data={data}
           selected={selected}

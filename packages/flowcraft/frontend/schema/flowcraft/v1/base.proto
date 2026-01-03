@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  NODE_KIND_DYNAMIC = 1;   // 标准逻辑节点
+  NODE_KIND_GROUP = 2;     // 容器节点
+  NODE_KIND_PROCESS = 3;   // 长任务状态节点
+  NODE_KIND_NOTE = 4;      // 注释节点
+}
+
+enum MutationSource {
+  SOURCE_UNSPECIFIED = 0;
+  SOURCE_USER = 1;
+  SOURCE_REMOTE_TASK = 2;
+  SOURCE_SYSTEM = 3;
+  SOURCE_SYNC = 4;
+}
+
+enum PortMainType {
+  PORT_MAIN_TYPE_UNSPECIFIED = 0;
+  PORT_MAIN_TYPE_ANY = 1;
+  PORT_MAIN_TYPE_STRING = 2;
+  PORT_MAIN_TYPE_NUMBER = 3;
+  PORT_MAIN_TYPE_BOOLEAN = 4;
+  PORT_MAIN_TYPE_IMAGE = 5;
+  PORT_MAIN_TYPE_VIDEO = 6;
+  PORT_MAIN_TYPE_AUDIO = 7;
+  PORT_MAIN_TYPE_LIST = 8;
+  PORT_MAIN_TYPE_SET = 9;
+  PORT_MAIN_TYPE_SYSTEM = 10;
+}
+
+message Position {
+  double x = 1;
+  double y = 2;
+}
+
+message Presentation {
+  Position position = 1;
+  double width = 2;
+  double height = 3;
+  string parent_id = 4;
+  int32 z_index = 5;
+  bool is_hidden = 6;
+  bool is_locked = 7;
+  // Indicates if the visual properties have been settled by a client
+  bool is_initialized = 8;
+}
+
+message VisualHint {
+  enum Placement {
+    UNSPECIFIED = 0;
+    CENTER_OF_VIEW = 1;
+    NEAR_SOURCE_NODE = 2;
+    BELOW_SELECTED_NODES = 3;
+    MOUSE_CURSOR = 4;
+  }
+  Placement placement = 1;
+  string reference_node_id = 2;
+  Position offset = 3;
+}
+
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message Viewport {
+  double x = 1;
+  double y = 2;
+  double zoom = 3;
+}

@@ -3,18 +3,13 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import ThemeProvider from "./ThemeProvider.tsx";
-import { initOrchestrator } from "./store/orchestrator";
+import { ReactFlowProvider } from "@xyflow/react";
+import { initStoreOrchestrator } from "./store/orchestrator";
 
-// Initialize cross-store side-effects
-initOrchestrator();
+initStoreOrchestrator();
 
+// Disabled MSW mocking in favor of real Node.js backend
 async function enableMocking() {
-  if (import.meta.env.DEV) {
-    const { worker } = await import("./mocks/browser");
-    return worker.start({
-      onUnhandledRequest: "bypass",
-    });
-  }
   return Promise.resolve();
 }
 
@@ -25,7 +20,9 @@ void enableMocking().then(() => {
   createRoot(rootElement).render(
     <StrictMode>
       <ThemeProvider>
-        <App />
+        <ReactFlowProvider>
+          <App />
+        </ReactFlowProvider>
       </ThemeProvider>
     </StrictMode>,
   );

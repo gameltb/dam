@@ -1,11 +1,7 @@
 import { useMemo } from "react";
-import { RenderMode, MediaType } from "../generated/core/node_pb";
+import { RenderMode, MediaType } from "../generated/flowcraft/v1/node_pb";
 import type { DynamicNodeData } from "../types";
-import {
-  AUDIO_RENDERER_CONFIG,
-  IMAGE_RENDERER_CONFIG,
-  VIDEO_RENDERER_CONFIG,
-} from "../components/media/mediaConfigs";
+import { MEDIA_CONFIGS } from "../components/media/mediaConfigs";
 
 const HEADER_HEIGHT = 46;
 const PORT_HEIGHT_PER_ROW = 24;
@@ -30,23 +26,11 @@ export function useNodeLayout(data: DynamicNodeData) {
     let minHeight = 50;
     let minWidth = DEFAULT_NODE_WIDTH;
 
-    if (isMedia) {
-      switch (data.media?.type) {
-        case MediaType.MEDIA_AUDIO:
-          minHeight = AUDIO_RENDERER_CONFIG.minHeight;
-          minWidth = AUDIO_RENDERER_CONFIG.minWidth;
-          break;
-        case MediaType.MEDIA_IMAGE:
-          minHeight = IMAGE_RENDERER_CONFIG.minHeight;
-          minWidth = IMAGE_RENDERER_CONFIG.minWidth;
-          break;
-        case MediaType.MEDIA_VIDEO:
-          minHeight = VIDEO_RENDERER_CONFIG.minHeight;
-          minWidth = VIDEO_RENDERER_CONFIG.minWidth;
-          break;
-        default:
-          minHeight = 50;
-          minWidth = DEFAULT_NODE_WIDTH;
+    if (isMedia && data.media?.type !== undefined) {
+      const config = MEDIA_CONFIGS[data.media.type];
+      if (config) {
+        minHeight = config.minHeight;
+        minWidth = config.minWidth;
       }
     } else {
       const portsHeight = portRows * PORT_HEIGHT_PER_ROW;

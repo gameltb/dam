@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+import "flowcraft/v1/base.proto";
+import "flowcraft/v1/node.proto";
+import "flowcraft/v1/signals.proto";
+import "flowcraft/v1/action.proto";
+
+message FlowMessage {
+  string message_id = 1;
+  int64 timestamp = 2;
+
+  oneof payload {
+    SyncRequest sync_request = 10;
+    bytes yjs_update = 11;
+    UpdateNodeRequest node_update = 12;
+    UpdateWidgetRequest widget_update = 13;
+    ActionExecutionRequest action_execute = 14;
+    ActionDiscoveryRequest action_discovery = 17;
+    TaskCancelRequest task_cancel = 15;
+    ViewportUpdate viewport_update = 16;
+    WidgetSignal widget_signal = 18;
+    TemplateDiscoveryRequest template_discovery = 19;
+
+    GraphSnapshot snapshot = 20;
+    MutationList mutations = 21;
+    ActionDiscoveryResponse actions = 25;
+    TemplateDiscoveryResponse templates = 26;
+    TaskUpdate task_update = 22;
+    StreamChunk stream_chunk = 23;
+    ErrorResponse error = 24;
+  }
+}
+
+message SyncRequest { 
+  string graph_id = 1;
+  oneof filter {
+    Rect target_area = 2;        // Area-based partial sync
+    NodeIdList node_ids = 3;      // ID-based partial sync
+    HierarchyFilter hierarchy = 4; // Hierarchy-based partial sync
+  }
+  bool subscribe_to_updates = 5;
+}
+
+message NodeIdList {
+  repeated string ids = 1;
+}
+
+message HierarchyFilter {
+  string root_node_id = 1;
+  int32 depth = 2; // -1 for infinite
+}
+
+message TemplateDiscoveryRequest {}
+message TemplateDiscoveryResponse {
+  repeated NodeTemplate templates = 1;
+}
+
+message UpdateNodeRequest {
+  string node_id = 1;
+  NodeData data = 2;
+  Presentation presentation = 3;
+}
+
+message UpdateWidgetRequest {
+  string node_id = 1;
+  string widget_id = 2;
+  string value_json = 3;
+}
+
+message ViewportUpdate {
+  Viewport viewport = 1;
+  Rect visible_bounds = 2;
+}
+
+message MutationList {
+  repeated GraphMutation mutations = 1;
+  int64 sequence_number = 2;
+  MutationSource source = 3;
+}
+
+message StreamChunk {
+  string node_id = 1;
+  string widget_id = 2;
+  string chunk_data = 3;
+  bool is_done = 4;
+}
+
+message ErrorResponse {
+  string code = 1;
+  string message = 2;
+}
+
+message GraphSnapshot {
+  repeated Node nodes = 1;
+  repeated Edge edges = 2;
+  int64 version = 3;
+}
+
+message GraphMutation {
+  oneof operation {
+    AddNode add_node = 1;
+    UpdateNode update_node = 2;
+    RemoveNode remove_node = 3;
+    AddEdge add_edge = 4;
+    RemoveEdge remove_edge = 5;
+    AddSubGraph add_subgraph = 6;
+    ClearGraph clear_graph = 7;
+  }
+}
+
+message AddNode { Node node = 1; }
+message UpdateNode {
+  string id = 1;
+  NodeData data = 2;
+  Presentation presentation = 3;
+}
+message RemoveNode { string id = 1; }
+message AddEdge { Edge edge = 1; }
+message RemoveEdge { string id = 1; }
+message AddSubGraph { repeated Node nodes = 1; repeated Edge edges = 2; }
+message ClearGraph {}
+
+message TaskCancelRequest { string task_id = 1; }
+
+service FlowService {
+  // Establish a stream for graph updates
+  rpc WatchGraph(SyncRequest) returns (stream FlowMessage);
+
+  // Apply a list of mutations
+  rpc ApplyMutations(MutationList) returns (ErrorResponse);
+
+  // Simple RPCs for direct updates
+  rpc UpdateNode(UpdateNodeRequest) returns (ErrorResponse);
+  rpc UpdateWidget(UpdateWidgetRequest) returns (ErrorResponse);
+  rpc SendWidgetSignal(WidgetSignal) returns (ErrorResponse);
+
+  // Execution and Discovery
+  rpc ExecuteAction(ActionExecutionRequest) returns (ErrorResponse);
+  rpc DiscoverActions(ActionDiscoveryRequest) returns (ActionDiscoveryResponse);
+  rpc DiscoverTemplates(TemplateDiscoveryRequest) returns (TemplateDiscoveryResponse);
+
+  // Control
+  rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
+  rpc UpdateViewport(ViewportUpdate) returns (ErrorResponse);
+}

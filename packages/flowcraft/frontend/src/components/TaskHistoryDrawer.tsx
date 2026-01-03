@@ -143,7 +143,7 @@ export const TaskHistoryDrawer: React.FC = () => {
                 <span
                   style={{
                     color:
-                      task.source === MutationSource.USER
+                      task.source === MutationSource.SOURCE_USER
                         ? "#4299e1"
                         : "#48bb78",
                     fontWeight: "bold",

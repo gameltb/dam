@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { type Node as RFNode } from "@xyflow/react";
-import { RenderMode } from "../../generated/core/node_pb";
+import { RenderMode } from "../../generated/flowcraft/v1/node_pb";
 import type { DynamicNodeData } from "../../types";
 
 export interface BaseNodeProps<T extends RFNode> {
@@ -15,23 +15,31 @@ export interface BaseNodeProps<T extends RFNode> {
   measured?: { width?: number; height?: number };
   style?: React.CSSProperties;
   initialMode?: RenderMode;
-  renderMedia?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  renderWidgets?: React.ComponentType<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  renderMedia?: React.ComponentType<{
+    id: string;
+    data: T["data"];
+    onOverflowChange: (overflow: "visible" | "hidden") => void;
+  }>;
+  renderWidgets?: React.ComponentType<{
+    id: string;
+    data: T["data"];
+    onToggleMode: () => void;
+  }>;
   handles?: React.ReactNode;
   wrapperStyle?: React.CSSProperties;
   onOverflowChange?: (overflow: "visible" | "hidden") => void;
 }
 
 const NodeInfoPanel = ({
-  id,
-  type,
+  nodeId,
+  templateId,
   width,
   height,
   x,
   y,
 }: {
-  id: string;
-  type: string;
+  nodeId: string;
+  templateId: string;
   width: number;
   height: number;
   x: number;
@@ -72,8 +80,8 @@ const NodeInfoPanel = ({
         `}
     </style>
     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-      <span style={{ opacity: 0.5, fontSize: "9px" }}>ID</span>
-      <span>{id.slice(0, 8)}</span>
+      <span style={{ opacity: 0.5, fontSize: "9px" }}>NODE_ID</span>
+      <span>{nodeId.slice(0, 8)}</span>
     </div>
     <div
       style={{
@@ -82,8 +90,11 @@ const NodeInfoPanel = ({
         backgroundColor: "rgba(255,255,255,0.15)",
       }}
     />
-    <div style={{ color: "var(--primary-color)", letterSpacing: "0.5px" }}>
-      {type.toUpperCase()}
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <span style={{ opacity: 0.5, fontSize: "9px" }}>TEMPLATE_ID</span>
+      <span style={{ color: "var(--primary-color)", letterSpacing: "0.5px" }}>
+        {templateId.toUpperCase()}
+      </span>
     </div>
     <div
       style={{
@@ -172,8 +183,8 @@ export function BaseNode<T extends RFNode>({
     <>
       {selected && (
         <NodeInfoPanel
-          id={id}
-          type={nodeType}
+          nodeId={id}
+          templateId={nodeType}
           width={measured?.width ?? width ?? 0}
           height={measured?.height ?? height ?? 0}
           x={x ?? 0}

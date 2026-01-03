@@ -1,30 +1,30 @@
 import { create } from "zustand";
 import {
-  TaskStatus,
   type TaskDefinition,
   type MutationLogEntry,
   MutationSource,
+  TaskStatus,
 } from "../types";
 
-interface TaskStoreState {
+interface TaskState {
   tasks: Record<string, TaskDefinition>;
   mutationLogs: MutationLogEntry[];
-
-  // Task Management
-  registerTask: (task: Partial<TaskDefinition> & { taskId: string }) => void;
-  updateTask: (taskId: string, update: Partial<TaskDefinition>) => void;
-
-  // Mutation Logging
-  logMutation: (entry: Omit<MutationLogEntry, "id" | "timestamp">) => void;
-
-  // UI State
   isDrawerOpen: boolean;
-  setDrawerOpen: (open: boolean) => void;
   selectedTaskId: string | null;
-  setSelectedTaskId: (id: string | null) => void;
+
+  // Actions
+  registerTask: (
+    task: Partial<TaskDefinition> & { taskId: string; label: string },
+  ) => void;
+  updateTask: (taskId: string, update: Partial<TaskDefinition>) => void;
+  addMutationLog: (log: MutationLogEntry) => void;
+  linkMutationToTask: (taskId: string, logId: string) => void;
+  setDrawerOpen: (open: boolean) => void;
+  setSelectedTaskId: (taskId: string | null) => void;
+  resetStore: () => void;
 }
 
-export const useTaskStore = create<TaskStoreState>((set) => ({
+export const useTaskStore = create<TaskState>((set) => ({
   tasks: {},
   mutationLogs: [],
   isDrawerOpen: false,
@@ -35,16 +35,16 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
       tasks: {
         ...state.tasks,
         [task.taskId]: {
-          type: task.type ?? "generic",
-          label: task.label ?? "New Task",
-          source: task.source ?? MutationSource.SYSTEM,
-          status: TaskStatus.TASK_PENDING,
-          progress: 0,
-          message: "Initialized",
+          taskId: task.taskId,
+          type: task.type ?? "unknown",
+          label: task.label,
+          status: task.status ?? TaskStatus.TASK_PENDING,
+          progress: task.progress ?? 0,
+          message: task.message ?? "Registered",
+          source: task.source ?? MutationSource.SOURCE_SYSTEM,
           createdAt: Date.now(),
           updatedAt: Date.now(),
           mutationIds: [],
-          ...task,
         },
       },
     }));
@@ -52,13 +52,13 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
 
   updateTask: (taskId, update) => {
     set((state) => {
-      const current = state.tasks[taskId];
-      if (!current) return state;
+      const existing = state.tasks[taskId];
+      if (!existing) return state;
       return {
         tasks: {
           ...state.tasks,
           [taskId]: {
-            ...current,
+            ...existing,
             ...update,
             updatedAt: Date.now(),
           },
@@ -67,37 +67,35 @@ export const useTaskStore = create<TaskStoreState>((set) => ({
     });
   },
 
-  logMutation: (entry) => {
-    const logId = Math.random().toString(36).substring(7);
-    const newEntry: MutationLogEntry = {
-      ...entry,
-      id: logId,
-      timestamp: Date.now(),
-    };
+  addMutationLog: (log) => {
+    set((state) => ({
+      mutationLogs: [log, ...state.mutationLogs],
+    }));
+  },
 
+  linkMutationToTask: (taskId, logId) => {
     set((state) => {
-      const task = state.tasks[entry.taskId];
-      const updatedTasks = { ...state.tasks };
-
-      if (task) {
-        updatedTasks[entry.taskId] = {
-          ...task,
-          mutationIds: [...task.mutationIds, logId],
-          updatedAt: Date.now(),
-        };
-      }
-
+      const task = state.tasks[taskId];
+      if (!task) return state;
       return {
-        mutationLogs: [newEntry, ...state.mutationLogs].slice(0, 1000), // Keep last 1000
-        tasks: updatedTasks,
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            mutationIds: [...task.mutationIds, logId],
+          },
+        },
       };
     });
   },
 
-  setDrawerOpen: (isDrawerOpen) => {
-    set({ isDrawerOpen });
+  setDrawerOpen: (open) => {
+    set({ isDrawerOpen: open });
   },
-  setSelectedTaskId: (selectedTaskId) => {
-    set({ selectedTaskId });
+  setSelectedTaskId: (taskId) => {
+    set({ selectedTaskId: taskId });
+  },
+  resetStore: () => {
+    set({ tasks: {}, mutationLogs: [], selectedTaskId: null });
   },
 }));

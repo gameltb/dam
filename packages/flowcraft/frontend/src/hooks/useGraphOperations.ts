@@ -18,11 +18,7 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
   );
 
   const { addNode, deleteNode, deleteEdge } = useNodeOperations(applyMutations);
-  const { copySelected, paste, duplicateSelected } = useClipboard(
-    nodes,
-    edges,
-    applyMutations,
-  );
+  const { copy, paste, duplicate } = useClipboard();
   const { autoLayout, groupSelected } = useLayoutOperations(
     nodes,
     edges,
@@ -33,9 +29,9 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
     addNode,
     deleteNode,
     deleteEdge,
-    copySelected,
+    copySelected: copy,
     paste,
-    duplicateSelected,
+    duplicateSelected: duplicate,
     autoLayout,
     groupSelected,
     clientVersion,

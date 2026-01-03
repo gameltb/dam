@@ -3,8 +3,13 @@ import { useFlowStore } from "../store/flowStore";
 import { useTaskStore } from "../store/taskStore";
 import { socketClient } from "../utils/SocketClient";
 import { v4 as uuidv4 } from "uuid";
-import { type AppNode, MediaType, MutationSource } from "../types";
-import { type ActionTemplate } from "../generated/action_pb";
+import {
+  type AppNode,
+  MediaType,
+  MutationSource,
+  isDynamicNode,
+} from "../types";
+import { type ActionTemplate } from "../generated/flowcraft/v1/action_pb";
 
 interface NodeEventListenerProps {
   nodes: AppNode[];
@@ -73,7 +78,7 @@ export function useNodeEventListener({
         widgetId: string;
       };
       const node = nodes.find((n) => n.id === nodeId);
-      if (node && node.type === "dynamic" && node.data.widgets) {
+      if (node && isDynamicNode(node) && node.data.widgets) {
         const widget = node.data.widgets.find((w) => w.id === widgetId);
         if (widget && typeof widget.value === "string") {
           const val = widget.value;
@@ -90,7 +95,7 @@ export function useNodeEventListener({
                 const currentNode = store.nodes.find((n) => n.id === nodeId);
                 if (
                   currentNode &&
-                  currentNode.type === "dynamic" &&
+                  isDynamicNode(currentNode) &&
                   currentNode.data.widgets
                 ) {
                   const updatedWidgets = currentNode.data.widgets.map((w) =>
@@ -127,7 +132,7 @@ export function useNodeEventListener({
             useTaskStore.getState().registerTask({
               taskId,
               label: `Running ${taskType}...`,
-              source: MutationSource.REMOTE_TASK,
+              source: MutationSource.SOURCE_REMOTE_TASK,
             });
             executeTask(
               {

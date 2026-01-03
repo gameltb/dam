@@ -1,3 +1,8 @@
+/**
+ * @file MediaRenderers.test.tsx
+ * @problem Visual media components (Image, Video, Markdown) require consistent rendering behavior across different node modes.
+ * @requirement Verify that individual media renderer components correctly display their respective content types (images, videos, markdown).
+ */
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { ImageRenderer } from "../media/ImageRenderer";

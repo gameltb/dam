@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { MediaType } from "../generated/core/node_pb";
+import { MediaType } from "../generated/flowcraft/v1/node_pb";
 import type { DynamicNodeData } from "../types";
 import { useNodeLayout } from "./useNodeLayout";
 import { useFlowStore } from "../store/flowStore";

@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
-import { type GraphMutation } from "../../generated/core/service_pb";
+import { type GraphMutation } from "../../generated/flowcraft/v1/service_pb";
 
 // Mock the stores
 vi.mock("../../store/flowStore", () => ({
@@ -69,16 +69,12 @@ describe("useGraphOperations - Auto Layout", () => {
       (m: GraphMutation) =>
         m.operation.case === "updateNode" && m.operation.value.id === "1",
     );
-    expect(
+    const opVal =
       firstUpdate?.operation.case === "updateNode"
         ? firstUpdate.operation.value
-        : null,
-    ).toHaveProperty("width", 200);
-    expect(
-      firstUpdate?.operation.case === "updateNode"
-        ? firstUpdate.operation.value
-        : null,
-    ).toHaveProperty("height", 100);
+        : null;
+    expect(opVal?.presentation).toHaveProperty("width", 200);
+    expect(opVal?.presentation).toHaveProperty("height", 100);
   });
 
   it("should use fallback dimensions if measured is missing", () => {
@@ -98,8 +94,8 @@ describe("useGraphOperations - Auto Layout", () => {
     const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
     const op = mutations[0]?.operation;
     if (op?.case === "updateNode") {
-      expect(op.value.width).toBe(300);
-      expect(op.value.height).toBe(200);
+      expect(op.value.presentation?.width).toBe(300);
+      expect(op.value.presentation?.height).toBe(200);
     } else {
       throw new Error("Expected updateNode mutation");
     }

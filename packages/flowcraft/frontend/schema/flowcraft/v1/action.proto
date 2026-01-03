@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+enum ActionExecutionStrategy {
+  EXECUTION_IMMEDIATE = 0;
+  EXECUTION_BACKGROUND = 1;
+  EXECUTION_STREAMING = 2;
+}
+
+message ActionTemplate {
+  string id = 1;
+  string label = 2;
+  repeated string path = 3;
+  ActionExecutionStrategy strategy = 4;
+  string params_schema_json = 5; // JSON Schema for required inputs
+}
+
+message ActionDiscoveryRequest {
+  string node_id = 1;
+  repeated string selected_node_ids = 2;
+}
+
+message ActionDiscoveryResponse {
+  repeated ActionTemplate actions = 1;
+}
+
+message ActionExecutionRequest {
+  string action_id = 1;
+  string source_node_id = 2;
+  repeated string context_node_ids = 3;
+  string params_json = 4;
+}
