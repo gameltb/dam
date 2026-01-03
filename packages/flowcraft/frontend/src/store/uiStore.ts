@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { type AppNode, type Edge } from "../types";
-import { PortMainType } from "../generated/flowcraft/v1/base_pb";
+import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 
 export type DragMode = "pan" | "select";
 

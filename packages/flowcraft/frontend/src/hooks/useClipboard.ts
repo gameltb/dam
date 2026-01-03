@@ -7,8 +7,8 @@ import type { Edge as RFEdge } from "@xyflow/react";
 import {
   GraphMutationSchema,
   type GraphMutation,
-} from "../generated/flowcraft/v1/service_pb";
-import { EdgeSchema } from "../generated/flowcraft/v1/node_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
+import { EdgeSchema } from "../generated/flowcraft/v1/core/node_pb";
 import { create } from "@bufbuild/protobuf";
 import { toProtoNode } from "../utils/protoAdapter";
 

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { RenderMode, MediaType } from "../generated/flowcraft/v1/node_pb";
+import { RenderMode, MediaType } from "../generated/flowcraft/v1/core/node_pb";
 import type { DynamicNodeData } from "../types";
 import { MEDIA_CONFIGS } from "../components/media/mediaConfigs";
 

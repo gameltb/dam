@@ -7,8 +7,8 @@ import {
   PortTypeSchema,
   PortSchema,
   PortStyle,
-} from "../../generated/flowcraft/v1/node_pb";
-import { PortMainType } from "../../generated/flowcraft/v1/base_pb";
+} from "../../generated/flowcraft/v1/core/node_pb";
+import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
 import { type DynamicNodeData } from "../../types";
 import { create } from "@bufbuild/protobuf";
 

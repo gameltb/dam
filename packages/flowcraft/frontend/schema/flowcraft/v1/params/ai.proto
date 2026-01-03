@@ -1,10 +1,9 @@
 syntax = "proto3";
 
-package flowcraft.v1.actions;
+package flowcraft.v1.params;
 
 /**
  * AI 提示词生成动作的参数
- * 这里的注释将被某些工具转换为 JSON Schema 的 description
  */
 message PromptGenParams {
   // 正向提示词
@@ -15,6 +14,16 @@ message PromptGenParams {
   int32 steps = 3;
   // 引导系数
   float cfg_scale = 4;
+}
+
+/**
+ * 基于选中节点上下文生成内容的参数
+ */
+message NodeTransformParams {
+  // 用户输入的指令或提示词
+  string instruction = 1;
+  // 生成风格
+  string style = 2;
 }
 
 /**

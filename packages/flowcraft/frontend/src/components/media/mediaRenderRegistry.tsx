@@ -1,5 +1,5 @@
 import React from "react";
-import { MediaType } from "../../generated/flowcraft/v1/node_pb";
+import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
 import { ImageRenderer } from "./ImageRenderer";
 import { VideoRenderer } from "./VideoRenderer";
 import { AudioRenderer } from "./AudioRenderer";

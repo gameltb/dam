@@ -2,8 +2,8 @@ import React from "react";
 import Form from "@rjsf/core";
 import type { IChangeEvent } from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
-import type { ActionTemplate } from "../generated/flowcraft/v1/action_pb";
-import type { RJSFSchema } from "@rjsf/utils";
+import type { ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
+import { getSchemaForTemplate } from "../utils/schemaRegistry";
 
 interface ActionParamsModalProps {
   action: ActionTemplate;
@@ -16,11 +16,16 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  let schema: RJSFSchema = {};
-  try {
-    schema = JSON.parse(action.paramsSchemaJson || "{}") as RJSFSchema;
-  } catch (e) {
-    console.error("Failed to parse schema", e);
+  const schema = React.useMemo(() => {
+    return getSchemaForTemplate(action.id, action.paramsSchemaJson);
+  }, [action]);
+
+  if (!schema) {
+    // If no schema found, execute immediately
+    React.useEffect(() => {
+      onConfirm({});
+    }, []);
+    return null;
   }
 
   // Define UI Schema for custom styling
@@ -30,7 +35,7 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
     },
   };
 
-  const handleSubmit = (data: IChangeEvent<any, RJSFSchema, any>) => {
+  const handleSubmit = (data: IChangeEvent) => {
     if (data.formData) {
       onConfirm(data.formData);
     }

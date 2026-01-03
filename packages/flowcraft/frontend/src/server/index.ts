@@ -1,19 +1,20 @@
 import { fastify } from "fastify";
 import { fastifyConnectPlugin } from "@connectrpc/connect-fastify";
-import { FlowService } from "../generated/flowcraft/v1/service_pb";
+import { FlowService } from "../generated/flowcraft/v1/core/service_pb";
 import { create } from "@bufbuild/protobuf";
 import {
   FlowMessageSchema,
   GraphSnapshotSchema,
   MutationListSchema,
   TemplateDiscoveryResponseSchema,
+  StreamChunkSchema,
   type FlowMessage,
-} from "../generated/flowcraft/v1/service_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
 import {
   ActionDiscoveryResponseSchema,
   ActionTemplateSchema,
-} from "../generated/flowcraft/v1/action_pb";
-import { MutationSource } from "../generated/flowcraft/v1/base_pb";
+} from "../generated/flowcraft/v1/core/action_pb";
+import { MutationSource } from "../generated/flowcraft/v1/core/base_pb";
 import { v4 as uuidv4 } from "uuid";
 import {
   serverGraph,
@@ -27,7 +28,7 @@ import "./templates"; // 触发注册
 import {
   NodeSchema,
   TaskUpdateSchema,
-} from "../generated/flowcraft/v1/node_pb";
+} from "../generated/flowcraft/v1/core/node_pb";
 import {
   fromProtoNode,
   fromProtoNodeData,
@@ -36,64 +37,24 @@ import {
 } from "../utils/protoAdapter";
 
 import { isDynamicNode } from "../types";
+import { OpenAI } from "openai";
+
+// --- OpenAI Configuration ---
+const AI_CONFIG = {
+  apiKey: process.env.OPENAI_API_KEY || "your-key-here",
+  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+  model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+};
+
+const openai = new OpenAI({
+  apiKey: AI_CONFIG.apiKey,
+  baseURL: AI_CONFIG.baseURL,
+});
 
 const app = fastify();
 
 // 加载持久化数据
 loadFromDisk();
-
-// Mock Schema Registry (In a real system, this would be auto-generated from .proto files)
-const ACTION_SCHEMAS: Record<string, any> = {
-  "prompt-gen": {
-    title: "Generate from Prompt",
-    type: "object",
-    required: ["prompt"],
-    properties: {
-      prompt: {
-        type: "string",
-        title: "Positive Prompt",
-        description: "What should be in the image",
-        default: "A futuristic cityscape",
-      },
-      negative_prompt: {
-        type: "string",
-        title: "Negative Prompt",
-        description: "What to exclude",
-      },
-      steps: {
-        type: "integer",
-        title: "Steps",
-        minimum: 1,
-        maximum: 100,
-        default: 20,
-      },
-      cfg_scale: {
-        type: "number",
-        title: "CFG Scale",
-        default: 7.5,
-      },
-    },
-  },
-  "ai-enhance": {
-    title: "AI Enhance",
-    type: "object",
-    properties: {
-      strength: {
-        type: "number",
-        title: "Enhance Strength",
-        minimum: 0,
-        maximum: 1,
-        default: 0.5,
-      },
-      model_name: {
-        type: "string",
-        title: "Model",
-        enum: ["Standard", "Realistic", "Anime"],
-        default: "Realistic",
-      },
-    },
-  },
-};
 
 await app.register(fastifyConnectPlugin, {
   routes: (router) => {
@@ -251,21 +212,25 @@ await app.register(fastifyConnectPlugin, {
       async discoverActions(req) {
         const actions: any[] = [];
 
-        // Add hierarchical mock actions with schemas
+        // Add hierarchical mock actions (Frontend will look up schemas by ID)
         actions.push(
           create(ActionTemplateSchema, {
             id: "ai-enhance",
             label: "Enhance",
             path: ["AI Tools"],
             strategy: 1,
-            paramsSchemaJson: JSON.stringify(ACTION_SCHEMAS["ai-enhance"]),
           }),
           create(ActionTemplateSchema, {
             id: "prompt-gen",
             label: "Generate from Prompt",
             path: ["AI Tools"],
             strategy: 1,
-            paramsSchemaJson: JSON.stringify(ACTION_SCHEMAS["prompt-gen"]),
+          }),
+          create(ActionTemplateSchema, {
+            id: "ai-transform",
+            label: "AI Generate (Context Aware)",
+            path: ["AI Tools"],
+            strategy: 1,
           }),
         );
 
@@ -292,72 +257,77 @@ await app.register(fastifyConnectPlugin, {
       async executeAction(req) {
         const { actionId, sourceNodeId, paramsJson: _paramsJson } = req;
         const taskId = uuidv4();
-        // const params = paramsJson ? JSON.parse(paramsJson) : {};
+        const params = _paramsJson ? JSON.parse(_paramsJson) : {};
 
-        // Async execution
         void (async () => {
-          // 1. Initial Update
-          eventBus.emit(
-            "taskUpdate",
-            create(TaskUpdateSchema, {
-              taskId,
-              status: 1, // PROCESSING
-              progress: 10,
-              message: `Initializing action ${actionId}...`,
-            }),
-          );
-
-          await new Promise((r) => setTimeout(r, 1000));
-
-          // 2. Specific Logic for AI-Enhance
-          if (actionId === "ai-enhance" || actionId === "prompt-gen") {
-            const sourceNode = serverGraph.nodes.find(
-              (n) => n.id === sourceNodeId,
+          try {
+            // 1. Context Collection
+            const contextNodeIds = req.contextNodeIds || [];
+            const targetNodes = serverGraph.nodes.filter(
+              (n) => contextNodeIds.includes(n.id) || n.id === sourceNodeId,
             );
-            if (sourceNode) {
-              // Simulate some processing
+            const contextText = targetNodes
+              .map((n) => `[Node ${n.id}]: ${n.data.label}`)
+              .join("\n");
+
+            // 2. Action Routing
+            if (
+              actionId === "ai-transform" ||
+              actionId === "ai-enhance" ||
+              actionId === "prompt-gen"
+            ) {
+              const sourceNode = serverGraph.nodes.find(
+                (n) => n.id === sourceNodeId,
+              );
+              if (!sourceNode) return;
+
+              // Determine placement
+              const maxY = Math.max(
+                ...targetNodes.map(
+                  (n) => n.position.y + (n.measured?.height || 200),
+                ),
+                0,
+              );
+              const avgX =
+                targetNodes.reduce((acc, n) => acc + n.position.x, 0) /
+                (targetNodes.length || 1);
+
+              // Initial Status
               eventBus.emit(
                 "taskUpdate",
                 create(TaskUpdateSchema, {
                   taskId,
                   status: 1,
-                  progress: 50,
-                  message: "Generating result node...",
+                  progress: 10,
+                  message: "Requesting AI...",
                 }),
               );
 
-              await new Promise((r) => setTimeout(r, 1500));
-
-              // CREATE A NEW NODE
-              const newNodeId = `result-${uuidv4().slice(0, 8)}`;
+              // Create placeholder node
+              const newNodeId = `ai-${uuidv4().slice(0, 8)}`;
               const newNode = fromProtoNode(
                 create(NodeSchema, {
                   nodeId: newNodeId,
-                  nodeKind: 1, // DYNAMIC
-                  templateId: "media-img",
+                  nodeKind: 1,
+                  templateId: "tpl-stream-node",
                   presentation: {
-                    position: {
-                      x: sourceNode.position.x + 400,
-                      y: sourceNode.position.y,
-                    },
-                    width: 300,
-                    height: 200,
+                    position: { x: avgX, y: maxY + 50 },
+                    width: 400,
+                    height: 300,
                     isInitialized: true,
                   },
                   state: {
-                    displayName: "AI Result",
-                    media: {
-                      type: 1, // IMAGE
-                      url: "https://picsum.photos/id/10/400/300",
-                    },
+                    displayName: `AI Result (${actionId})`,
+                    widgetsValuesJson: JSON.stringify({
+                      agent_name: "OpenAI",
+                      logs: "",
+                    }),
                   },
                 } as any),
               );
 
               serverGraph.nodes.push(newNode);
               incrementVersion();
-
-              // Send mutation to all clients
               eventBus.emit(
                 "mutations",
                 create(MutationListSchema, {
@@ -370,22 +340,63 @@ await app.register(fastifyConnectPlugin, {
                     },
                   ],
                   sequenceNumber: BigInt(serverVersion),
-                  source: 2, // SOURCE_REMOTE_TASK
+                  source: 2,
+                }),
+              );
+
+              // 3. OpenAI Streaming
+              const stream = await openai.chat.completions.create({
+                model: AI_CONFIG.model,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a Flowcraft assistant. Use the graph context provided to fulfill instructions.",
+                  },
+                  {
+                    role: "user",
+                    content: `Graph Context:\n${contextText}\n\nInstruction: ${params.instruction || params.prompt || "Generate insights"}`,
+                  },
+                ],
+                stream: true,
+              });
+
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) {
+                  eventBus.emit(
+                    "streamChunk",
+                    create(StreamChunkSchema, {
+                      nodeId: newNodeId,
+                      widgetId: "logs",
+                      chunkData: content,
+                      isDone: false,
+                    } as any),
+                  );
+                }
+              }
+
+              eventBus.emit(
+                "taskUpdate",
+                create(TaskUpdateSchema, {
+                  taskId,
+                  status: 2,
+                  progress: 100,
+                  message: "AI complete",
                 }),
               );
             }
+          } catch (err: any) {
+            console.error("[AI Execution Error]", err);
+            eventBus.emit(
+              "taskUpdate",
+              create(TaskUpdateSchema, {
+                taskId,
+                status: 3,
+                message: `Error: ${err.message}`,
+              }),
+            );
           }
-
-          // 3. Completion
-          eventBus.emit(
-            "taskUpdate",
-            create(TaskUpdateSchema, {
-              taskId,
-              status: 2, // COMPLETED
-              progress: 100,
-              message: "Task finished successfully.",
-            }),
-          );
         })();
 
         return {};

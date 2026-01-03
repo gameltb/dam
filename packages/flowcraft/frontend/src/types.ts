@@ -8,10 +8,13 @@ import {
   TaskStatus,
   type Port,
   type NodeTemplate as ProtoNodeTemplate,
-} from "./generated/flowcraft/v1/node_pb";
-import { MutationSource, PortMainType } from "./generated/flowcraft/v1/base_pb";
-import { type GraphMutation } from "./generated/flowcraft/v1/service_pb";
-import { ActionExecutionStrategy } from "./generated/flowcraft/v1/action_pb";
+} from "./generated/flowcraft/v1/core/node_pb";
+import {
+  MutationSource,
+  PortMainType,
+} from "./generated/flowcraft/v1/core/base_pb";
+import { type GraphMutation } from "./generated/flowcraft/v1/core/service_pb";
+import { ActionExecutionStrategy } from "./generated/flowcraft/v1/core/action_pb";
 
 /**
  * SECTION 1: PROTOCOL & CRDT

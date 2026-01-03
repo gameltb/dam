@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { type NodeData } from "../generated/flowcraft/v1/node_pb";
+import { type NodeData } from "../generated/flowcraft/v1/core/node_pb";
 import {
   type GraphSnapshot,
   type GraphMutation,
-} from "../generated/flowcraft/v1/service_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
 import {
   type ActionTemplate,
   ActionExecutionRequestSchema,
-} from "../generated/flowcraft/v1/action_pb";
+} from "../generated/flowcraft/v1/core/action_pb";
 import {
   SyncRequestSchema,
   UpdateNodeRequestSchema,
@@ -16,8 +16,8 @@ import {
   ViewportUpdateSchema,
   TemplateDiscoveryRequestSchema,
   type TemplateDiscoveryResponse,
-} from "../generated/flowcraft/v1/service_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/base_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
 import { create } from "@bufbuild/protobuf";
 import type { NodeTemplate, TaskDefinition } from "../types";
 import { MutationSource, TaskStatus } from "../types";

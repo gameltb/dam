@@ -5,7 +5,7 @@ import type { XYPosition } from "@xyflow/react";
 import {
   GraphMutationSchema,
   type GraphMutation,
-} from "../generated/flowcraft/v1/service_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
 import { create } from "@bufbuild/protobuf";
 import { type MutationContext } from "../store/flowStore";
 import { toProtoNode } from "../utils/protoAdapter";

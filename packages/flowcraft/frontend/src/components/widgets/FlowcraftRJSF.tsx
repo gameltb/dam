@@ -4,7 +4,7 @@ import validator from "@rjsf/validator-ajv8";
 import type { WidgetProps, RegistryWidgetsType } from "@rjsf/utils";
 import { useFlowStore } from "../../store/flowStore";
 import { socketClient } from "../../utils/SocketClient";
-import { WidgetSignalSchema } from "../../generated/flowcraft/v1/signals_pb";
+import { WidgetSignalSchema } from "../../generated/flowcraft/v1/core/signals_pb";
 import { create } from "@bufbuild/protobuf";
 
 /**
@@ -13,7 +13,7 @@ import { create } from "@bufbuild/protobuf";
  */
 const StreamingTextWidget = (props: WidgetProps) => {
   const { value, onChange, label, id, registry } = props;
-  const nodeId = (registry.formContext as any).nodeId;
+  const nodeId = registry.formContext.nodeId;
   const widgetId = id.split("_").pop(); // RJSF internal ID to simple key
 
   const [streamedValue, setStreamedValue] = useState(value || "");
@@ -28,7 +28,9 @@ const StreamingTextWidget = (props: WidgetProps) => {
     };
 
     socketClient.on("streamChunk", handler);
-    return () => socketClient.off("streamChunk", handler);
+    return () => {
+      socketClient.off("streamChunk", handler);
+    };
   }, [nodeId, widgetId]);
 
   // Sync back to RJSF state when stream changes (optional, depends on sync strategy)
@@ -70,7 +72,7 @@ const StreamingTextWidget = (props: WidgetProps) => {
  */
 const SignalButtonWidget = (props: WidgetProps) => {
   const { label, id, registry } = props;
-  const nodeId = (registry.formContext as any).nodeId;
+  const nodeId = registry.formContext.nodeId;
   const widgetId = id.split("_").pop() || id;
   const sendWidgetSignal = useFlowStore((s) => s.sendWidgetSignal);
 
@@ -144,7 +146,9 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
       validator={validator}
       widgets={customWidgets}
       formContext={{ nodeId }}
-      onChange={(e) => onChange(e.formData)}
+      onChange={(e) => {
+        onChange(e.formData);
+      }}
     >
       <div />
     </Form>

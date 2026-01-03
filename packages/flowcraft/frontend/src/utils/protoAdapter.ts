@@ -10,13 +10,13 @@ import {
   type Edge as ProtoEdge,
   type Port,
   type PortType,
-} from "../generated/flowcraft/v1/node_pb";
+} from "../generated/flowcraft/v1/core/node_pb";
 import {
   PresentationSchema,
   PortMainType,
   NodeKind,
-} from "../generated/flowcraft/v1/base_pb";
-import { type GraphSnapshot } from "../generated/flowcraft/v1/service_pb";
+} from "../generated/flowcraft/v1/core/base_pb";
+import { type GraphSnapshot } from "../generated/flowcraft/v1/core/service_pb";
 import type { AppNode, DynamicNodeData, WidgetDef } from "../types";
 import type { Edge } from "@xyflow/react";
 

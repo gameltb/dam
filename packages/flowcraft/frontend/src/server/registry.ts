@@ -1,5 +1,5 @@
-import { type NodeTemplate } from "../generated/flowcraft/v1/node_pb";
-import { type ActionTemplate } from "../generated/flowcraft/v1/action_pb";
+import { type NodeTemplate } from "../generated/flowcraft/v1/core/node_pb";
+import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 import { type AppNode } from "../types";
 
 export interface NodeExecutionContext {

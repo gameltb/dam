@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../store/flowStore";
@@ -6,11 +5,11 @@ import { fromProtoNode } from "../utils/protoAdapter";
 import { type AppNode } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
 import { create } from "@bufbuild/protobuf";
-import { NodeSchema } from "../generated/flowcraft/v1/node_pb";
+import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
 import {
   PresentationSchema,
   NodeKind,
-} from "../generated/flowcraft/v1/base_pb";
+} from "../generated/flowcraft/v1/core/base_pb";
 
 /**
  * ARCHITECTURAL REGRESSION TESTS

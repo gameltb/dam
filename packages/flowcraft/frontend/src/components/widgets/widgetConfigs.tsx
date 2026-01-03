@@ -1,5 +1,5 @@
 import React from "react";
-import { WidgetType } from "../../generated/flowcraft/v1/node_pb";
+import { WidgetType } from "../../generated/flowcraft/v1/core/node_pb";
 import { TextField } from "./TextField";
 import { SelectField } from "./SelectField";
 import { CheckboxField } from "./CheckboxField";

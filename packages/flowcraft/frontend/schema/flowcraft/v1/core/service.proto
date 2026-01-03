@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
-import "flowcraft/v1/base.proto";
-import "flowcraft/v1/node.proto";
-import "flowcraft/v1/signals.proto";
-import "flowcraft/v1/action.proto";
+import "flowcraft/v1/core/base.proto";
+import "flowcraft/v1/core/node.proto";
+import "flowcraft/v1/core/signals.proto";
+import "flowcraft/v1/core/action.proto";
 
 message FlowMessage {
   string message_id = 1;

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient, ConnectError, Code } from "@connectrpc/connect";
 import { toast } from "react-hot-toast";
@@ -10,9 +10,9 @@ import {
   type GraphMutation,
   type StreamChunk,
   type TemplateDiscoveryResponse,
-} from "../generated/flowcraft/v1/service_pb";
-import { type TaskUpdate } from "../generated/flowcraft/v1/node_pb";
-import { type ActionTemplate } from "../generated/flowcraft/v1/action_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
+import { type TaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
+import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 import { type TaskDefinition, MutationSource } from "../types";
 
 export enum SocketStatus {

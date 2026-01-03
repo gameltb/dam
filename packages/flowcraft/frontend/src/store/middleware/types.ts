@@ -1,4 +1,4 @@
-import { type GraphMutation } from "../../generated/flowcraft/v1/service_pb";
+import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
 import { type MutationContext } from "../flowStore";
 
 export enum MutationDirection {

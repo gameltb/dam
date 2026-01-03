@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { MediaType } from "../../generated/flowcraft/v1/node_pb";
+import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
 import type { DynamicNodeData } from "../../types";
 import { GalleryWrapper } from "../media/GalleryWrapper";
 import { PortHandle } from "../base/PortHandle";

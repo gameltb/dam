@@ -1,5 +1,8 @@
-import { type Port, type PortType } from "../generated/flowcraft/v1/node_pb";
-import { PortMainType } from "../generated/flowcraft/v1/base_pb";
+import {
+  type Port,
+  type PortType,
+} from "../generated/flowcraft/v1/core/node_pb";
+import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 import { PROTO_TO_PORT_TYPE } from "./protoAdapter";
 import type { Edge } from "@xyflow/react";
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { type Node as RFNode } from "@xyflow/react";
-import { RenderMode } from "../../generated/flowcraft/v1/node_pb";
+import { RenderMode } from "../../generated/flowcraft/v1/core/node_pb";
 import type { DynamicNodeData } from "../../types";
 
 export interface BaseNodeProps<T extends RFNode> {

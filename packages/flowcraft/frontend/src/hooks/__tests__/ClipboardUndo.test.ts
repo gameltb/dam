@@ -6,12 +6,12 @@ import {
   GraphMutationSchema,
   AddSubGraphSchema,
   AddNodeSchema,
-} from "../../generated/flowcraft/v1/service_pb";
-import { NodeSchema } from "../../generated/flowcraft/v1/node_pb";
+} from "../../generated/flowcraft/v1/core/service_pb";
+import { NodeSchema } from "../../generated/flowcraft/v1/core/node_pb";
 import {
   PresentationSchema,
   NodeKind,
-} from "../../generated/flowcraft/v1/base_pb";
+} from "../../generated/flowcraft/v1/core/base_pb";
 
 describe("Direct Store Clipboard Logic", () => {
   beforeEach(() => {

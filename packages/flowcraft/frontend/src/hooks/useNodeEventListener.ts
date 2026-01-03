@@ -9,7 +9,7 @@ import {
   MutationSource,
   isDynamicNode,
 } from "../types";
-import { type ActionTemplate } from "../generated/flowcraft/v1/action_pb";
+import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 
 interface NodeEventListenerProps {
   nodes: AppNode[];

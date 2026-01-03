@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
-import "flowcraft/v1/base.proto";
+import "flowcraft/v1/core/base.proto";
 
 message Node {
   string node_id = 1;           // UUID Instance ID

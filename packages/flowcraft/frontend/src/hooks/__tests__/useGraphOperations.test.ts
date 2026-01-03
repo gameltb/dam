@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { useGraphOperations } from "../useGraphOperations";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
-import { type GraphMutation } from "../../generated/flowcraft/v1/service_pb";
+import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
 
 // Mock the stores
 vi.mock("../../store/flowStore", () => ({

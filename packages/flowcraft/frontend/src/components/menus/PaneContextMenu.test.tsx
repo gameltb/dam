@@ -5,7 +5,7 @@ import { create } from "@bufbuild/protobuf";
 import {
   NodeTemplateSchema,
   RenderMode,
-} from "../../generated/flowcraft/v1/node_pb";
+} from "../../generated/flowcraft/v1/core/node_pb";
 import { toProtoNodeData } from "../../utils/protoAdapter";
 
 describe("PaneContextMenu", () => {

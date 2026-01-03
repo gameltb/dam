@@ -1,0 +1,44 @@
+{
+  "$id": "flowcraft.v1.params.ImageEnhanceParams.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "*\n 图片增强参数",
+  "patternProperties": {
+    "^(modelName)$": {
+      "default": "",
+      "description": "选用的模型",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "model_name": {
+      "default": "",
+      "description": "选用的模型",
+      "type": "string"
+    },
+    "strength": {
+      "anyOf": [
+        {
+          "maximum": 3.4028234663852886e+38,
+          "minimum": -3.4028234663852886e+38,
+          "type": "number"
+        },
+        {
+          "enum": [
+            "Infinity",
+            "-Infinity",
+            "NaN"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": 0,
+      "description": "增强强度 (0.0 - 1.0)"
+    }
+  },
+  "title": "Image Enhance Params",
+  "type": "object"
+}

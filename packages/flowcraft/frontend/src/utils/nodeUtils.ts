@@ -1,5 +1,5 @@
 import { type AppNode, isDynamicNode, type Port, PortMainType } from "../types";
-import { type PortType } from "../generated/flowcraft/v1/node_pb";
+import { type PortType } from "../generated/flowcraft/v1/core/node_pb";
 
 /**
  * Finds a port by its ID within a node.

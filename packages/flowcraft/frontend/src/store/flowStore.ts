@@ -12,12 +12,12 @@ import { type AppNode, MutationSource } from "../types";
 import {
   type MediaType,
   type PortType,
-} from "../generated/flowcraft/v1/node_pb";
+} from "../generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/service_pb";
-import { type WidgetSignal } from "../generated/flowcraft/v1/signals_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
+import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
 import * as Y from "yjs";
 import { ydoc, yNodes, yEdges } from "./yjsInstance";
 import { dehydrateNode, findPort } from "../utils/nodeUtils";
@@ -26,8 +26,8 @@ import { handleGraphMutation } from "./mutationHandlers";
 import { getWidgetSignalListener } from "./signalHandlers";
 import { pipeline } from "./middleware/pipeline";
 import { MutationDirection } from "./middleware/types";
-import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/base_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/base_pb";
+import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/core/base_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
 import { create as createProto } from "@bufbuild/protobuf";
 import { toProtoNodeData, toProtoNode } from "../utils/protoAdapter";
 import { type DynamicNodeData } from "../types";

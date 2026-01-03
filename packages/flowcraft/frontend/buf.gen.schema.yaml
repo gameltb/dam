@@ -1,0 +1,9 @@
+version: v2
+inputs:
+  - directory: schema/flowcraft/v1/params
+plugins:
+  - remote: buf.build/bufbuild/protoschema-jsonschema
+    out: src/generated/schemas
+    include_imports: false
+    opt:
+      - target=proto

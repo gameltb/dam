@@ -1,6 +1,6 @@
 import { type GraphMiddleware } from "./types";
 import { useTaskStore } from "../taskStore";
-import { MutationSource } from "../../generated/flowcraft/v1/base_pb";
+import { MutationSource } from "../../generated/flowcraft/v1/core/base_pb";
 import { v4 as uuidv4 } from "uuid";
 
 /**

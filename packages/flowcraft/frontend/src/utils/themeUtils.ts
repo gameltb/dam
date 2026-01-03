@@ -1,4 +1,7 @@
-import { type PortType, PortStyle } from "../generated/flowcraft/v1/node_pb";
+import {
+  type PortType,
+  PortStyle,
+} from "../generated/flowcraft/v1/core/node_pb";
 import { PROTO_TO_PORT_TYPE } from "./protoAdapter";
 
 /**

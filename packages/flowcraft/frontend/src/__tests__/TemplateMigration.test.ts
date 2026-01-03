@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { NodeRegistry } from "../server/registry";
 import "../server/templates"; // Trigger registration
 import { create } from "@bufbuild/protobuf";
-import { NodeTemplateSchema } from "../generated/flowcraft/v1/node_pb";
+import { NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
 
 describe("NodeTemplate Migration", () => {
   it("should verify that current templates use the Protobuf schema", () => {

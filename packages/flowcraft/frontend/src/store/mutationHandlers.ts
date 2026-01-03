@@ -3,7 +3,7 @@ import { type AppNode } from "../types";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/service_pb";
+} from "../generated/flowcraft/v1/core/service_pb";
 import { create as createProto } from "@bufbuild/protobuf";
 import * as Y from "yjs";
 import { dehydrateNode } from "../utils/nodeUtils";

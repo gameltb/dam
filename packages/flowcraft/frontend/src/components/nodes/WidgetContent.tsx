@@ -1,6 +1,9 @@
 import React, { memo } from "react";
-import { PortStyle, type PortType } from "../../generated/flowcraft/v1/node_pb";
-import { PortMainType } from "../../generated/flowcraft/v1/base_pb";
+import {
+  PortStyle,
+  type PortType,
+} from "../../generated/flowcraft/v1/core/node_pb";
+import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
 import type { WidgetDef, DynamicNodeData } from "../../types";
 import { WidgetWrapper } from "../widgets/WidgetWrapper";
 import { PortHandle } from "../base/PortHandle";
@@ -9,6 +12,7 @@ import { NodeLabel } from "./NodeLabel";
 import { PortLabelRow } from "./PortLabelRow";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 import { FlowcraftRJSF } from "../widgets/FlowcraftRJSF";
+import { getSchemaForTemplate } from "../../utils/schemaRegistry";
 
 import { getPortColor } from "../../utils/themeUtils";
 
@@ -122,18 +126,26 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
           }}
         >
           {/* Schema-Driven Widgets (RJSF) */}
-          {data.widgetsSchemaJson && (
-            <div className="nodrag nopan">
-              <FlowcraftRJSF
-                nodeId={id}
-                schema={JSON.parse(data.widgetsSchemaJson)}
-                formData={data.widgetsValues || {}}
-                onChange={(newValues) => {
-                  onChange(id, { widgetsValues: newValues });
-                }}
-              />
-            </div>
-          )}
+          {(() => {
+            const schema = getSchemaForTemplate(
+              data.typeId || "",
+              data.widgetsSchemaJson,
+            );
+            if (!schema) return null;
+
+            return (
+              <div className="nodrag nopan">
+                <FlowcraftRJSF
+                  nodeId={id}
+                  schema={schema}
+                  formData={data.widgetsValues || {}}
+                  onChange={(newValues) => {
+                    onChange(id, { widgetsValues: newValues });
+                  }}
+                />
+              </div>
+            );
+          })()}
 
           {/* Traditional Hardcoded Widgets */}
           {data.widgets?.map((w) => (

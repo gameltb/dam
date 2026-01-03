@@ -4,8 +4,8 @@ import {
   PortStyle,
   PortSchema,
   PortTypeSchema,
-} from "../../generated/flowcraft/v1/node_pb";
-import { PortMainType } from "../../generated/flowcraft/v1/base_pb";
+} from "../../generated/flowcraft/v1/core/node_pb";
+import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
 import { getValidator, validateConnection } from "../../utils/portValidators";
 import { useUiStore } from "../../store/uiStore";
 import { create } from "@bufbuild/protobuf";

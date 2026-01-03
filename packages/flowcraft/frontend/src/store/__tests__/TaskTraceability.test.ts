@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { useTaskStore } from "../taskStore";
 import { useFlowStore } from "../flowStore";
 import { MutationSource, TaskStatus } from "../../types";
-import { GraphMutationSchema } from "../../generated/flowcraft/v1/service_pb";
+import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
 import { create } from "@bufbuild/protobuf";
 
 import { initStoreOrchestrator } from "../orchestrator";

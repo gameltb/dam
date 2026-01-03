@@ -24,7 +24,7 @@ import {
   type ActionTemplate,
   ActionExecutionRequestSchema,
   ActionDiscoveryRequestSchema,
-} from "./generated/flowcraft/v1/action_pb";
+} from "./generated/flowcraft/v1/core/action_pb";
 import { create } from "@bufbuild/protobuf";
 import { Toaster } from "react-hot-toast";
 import { Notifications } from "./components/Notifications";

@@ -5,19 +5,19 @@ import {
   RenderMode,
   TaskStatus,
   PortStyle,
-} from "../generated/flowcraft/v1/node_pb";
+} from "../generated/flowcraft/v1/core/node_pb";
 import {
   ActionExecutionStrategy,
   ActionTemplateSchema,
-} from "../generated/flowcraft/v1/action_pb";
+} from "../generated/flowcraft/v1/core/action_pb";
 import {
   MutationSource,
   PortMainType,
-} from "../generated/flowcraft/v1/base_pb";
+} from "../generated/flowcraft/v1/core/base_pb";
 import { toProtoNodeData, toProtoNode } from "../utils/protoAdapter";
 import { NodeRegistry } from "./registry";
-import { TaskUpdateSchema } from "../generated/flowcraft/v1/node_pb";
-import { MutationListSchema } from "../generated/flowcraft/v1/service_pb";
+import { TaskUpdateSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { MutationListSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { isDynamicNode } from "../types";
 import { incrementVersion } from "./db";
 

@@ -1,4 +1,4 @@
-import { MediaType } from "../../generated/flowcraft/v1/node_pb";
+import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
 
 export const AUDIO_RENDERER_CONFIG = {
   minHeight: 110,
