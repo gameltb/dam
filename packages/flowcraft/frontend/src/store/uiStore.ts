@@ -23,6 +23,8 @@ export interface UserSettings {
   serverAddress: string;
 }
 
+export type ChatViewMode = "inline" | "sidebar" | "fullscreen";
+
 interface UIState {
   // Persisted settings
   settings: UserSettings;
@@ -30,6 +32,8 @@ interface UIState {
 
   // Transient state
   isSettingsOpen: boolean;
+  activeChatNodeId: string | null;
+  chatViewMode: ChatViewMode;
   clipboard: { nodes: AppNode[]; edges: Edge[] } | null;
   connectionStartHandle: {
     nodeId: string;
@@ -45,6 +49,7 @@ interface UIState {
 
   // Actions for transient state
   setSettingsOpen: (open: boolean) => void;
+  setActiveChat: (nodeId: string | null, mode?: ChatViewMode) => void;
   setClipboard: (content: { nodes: AppNode[]; edges: Edge[] } | null) => void;
   setConnectionStartHandle: (handle: UIState["connectionStartHandle"]) => void;
 
@@ -78,6 +83,8 @@ export const useUiStore = create<UIState>()(
       shortcuts: DEFAULT_SHORTCUTS, // Keep in sync with settings.hotkeys
       dragMode: "select",
       isSettingsOpen: false,
+      activeChatNodeId: null,
+      chatViewMode: "inline",
       clipboard: null,
       connectionStartHandle: null,
 
@@ -98,6 +105,8 @@ export const useUiStore = create<UIState>()(
 
       setDragMode: (mode) => set({ dragMode: mode }),
       setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+      setActiveChat: (nodeId, mode = "sidebar") =>
+        set({ activeChatNodeId: nodeId, chatViewMode: nodeId ? mode : "inline" }),
       setClipboard: (content) => set({ clipboard: content }),
       setConnectionStartHandle: (handle) =>
         set({ connectionStartHandle: handle }),

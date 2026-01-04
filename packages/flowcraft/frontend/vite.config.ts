@@ -16,6 +16,14 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+      "/uploads": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
     },
   },
   // @ts-expect-error Vitest config is not recognized by Vite's type definitions but works at runtime

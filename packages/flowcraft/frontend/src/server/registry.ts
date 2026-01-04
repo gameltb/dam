@@ -18,11 +18,42 @@ export interface NodeDefinition {
   execute?: (ctx: NodeExecutionContext) => Promise<void>;
 }
 
+export type ActionHandlerContext = {
+  actionId: string;
+  sourceNodeId?: string;
+  contextNodeIds?: string[];
+  selectedNodeIds: string[];
+  params: Record<string, any>;
+  taskId: string;
+  emitTaskUpdate: (update: any) => void;
+  emitMutation: (mutation: any) => void;
+  emitStreamChunk: (chunk: any) => void;
+};
+
+export type ActionHandler = (ctx: ActionHandlerContext) => Promise<void>;
+
 class NodeRegistryImpl {
   private definitions = new Map<string, NodeDefinition>();
+  private globalActions = new Map<string, ActionTemplate>();
+  private actionHandlers = new Map<string, ActionHandler>();
 
+  /**
+   * 注册一个节点定义 (显式注册函数，代替装饰器以获得更好的类型支持)
+   */
   register(def: NodeDefinition) {
     this.definitions.set(def.template.templateId, def);
+    return this;
+  }
+
+  /**
+   * 注册一个全局动作
+   */
+  registerGlobalAction(template: ActionTemplate, handler?: ActionHandler) {
+    this.globalActions.set(template.id, template);
+    if (handler) {
+      this.actionHandlers.set(template.id, handler);
+    }
+    return this;
   }
 
   getTemplates(): NodeTemplate[] {
@@ -33,8 +64,16 @@ class NodeRegistryImpl {
     return this.definitions.get(templateId)?.actions || [];
   }
 
+  getGlobalActions(): ActionTemplate[] {
+    return Array.from(this.globalActions.values());
+  }
+
   getExecutor(templateId: string) {
     return this.definitions.get(templateId)?.execute;
+  }
+
+  getActionHandler(actionId: string) {
+    return this.actionHandlers.get(actionId);
   }
 
   getDefinition(templateId: string) {

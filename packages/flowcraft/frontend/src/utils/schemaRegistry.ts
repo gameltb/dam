@@ -50,8 +50,8 @@ export function getSchemaForTemplate(
     return STATIC_SCHEMAS[templateId] as RJSFSchema;
   }
 
-  // 2. 如果是特定的动态 ID，则解析传入的动态 Schema
-  if (DYNAMIC_TEMPLATE_IDS.includes(templateId) && dynamicSchema) {
+  // 2. 尝试解析动态 Schema (如果存在)
+  if (dynamicSchema) {
     try {
       return JSON.parse(dynamicSchema) as RJSFSchema;
     } catch (e) {

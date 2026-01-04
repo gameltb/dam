@@ -178,7 +178,7 @@ export function fromProtoGraph(protoGraph: GraphSnapshot): {
   return { nodes, edges };
 }
 
-export function fromProtoEdge(e: ProtoEdge): Edge {
+function fromProtoEdge(e: ProtoEdge): Edge {
   return {
     id: e.edgeId,
     source: e.sourceNodeId,

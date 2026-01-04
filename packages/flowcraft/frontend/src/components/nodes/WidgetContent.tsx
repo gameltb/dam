@@ -53,11 +53,8 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
 
 interface WidgetContentProps {
   id: string;
-
   data: DynamicNodeData;
-
   selected?: boolean;
-
   onToggleMode: () => void;
 }
 
@@ -67,11 +64,8 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
     const isSwitchable = data.modes.length > 1;
 
     const inputs = data.inputPorts ?? [];
-
     const outputs = data.outputPorts ?? [];
-
     const rowCount = Math.max(inputs.length, outputs.length);
-
     const portRows = [];
 
     for (let i = 0; i < rowCount; i++) {
@@ -82,11 +76,8 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
       <div
         style={{
           display: "flex",
-
           flexDirection: "column",
-
           minWidth: "150px",
-
           flex: 1,
         }}
       >
@@ -102,7 +93,6 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
         <div
           style={{
             display: "flex",
-
             flexDirection: "column",
           }}
         >
@@ -125,27 +115,36 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
             position: "relative",
           }}
         >
-          {/* Schema-Driven Widgets (RJSF) */}
-          {(() => {
-            const schema = getSchemaForTemplate(
-              data.typeId || "",
-              data.widgetsSchemaJson,
-            );
-            if (!schema) return null;
+          {/* Specialized Chat Widget (Bypass RJSF) */}
+          {data.typeId === "tpl-ai-chat" ? (
+            <ChatbotUI 
+              nodeId={id} 
+              initialData={data.widgetsValues} 
+              label={data.label} 
+            />
+          ) : (
+            /* Schema-Driven Widgets (RJSF) */
+            (() => {
+              const schema = getSchemaForTemplate(
+                data.typeId || "",
+                data.widgetsSchemaJson,
+              );
+              if (!schema) return null;
 
-            return (
-              <div className="nodrag nopan">
-                <FlowcraftRJSF
-                  nodeId={id}
-                  schema={schema}
-                  formData={data.widgetsValues || {}}
-                  onChange={(newValues) => {
-                    onChange(id, { widgetsValues: newValues });
-                  }}
-                />
-              </div>
-            );
-          })()}
+              return (
+                <div className="nodrag nopan">
+                  <FlowcraftRJSF
+                    nodeId={id}
+                    schema={schema}
+                    formData={data.widgetsValues || {}}
+                    onChange={(newValues) => {
+                      onChange(id, { widgetsValues: newValues });
+                    }}
+                  />
+                </div>
+              );
+            })()
+          )}
 
           {/* Traditional Hardcoded Widgets */}
           {data.widgets?.map((w) => (

@@ -232,10 +232,7 @@ const useStore = create(
                   operation: { case: "removeNode", value: { id: c.id } },
                 }),
               );
-            } else if (
-              c.type === "dimensions" ||
-              (c.type === "position" && !c.dragging)
-            ) {
+            } else if (c.type === "position" && !c.dragging) {
               const n = nextNodes.find((node) => node.id === c.id);
               if (n) {
                 const presentation = createProto(PresentationSchema, {

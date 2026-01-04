@@ -57,11 +57,6 @@ export interface TaskDefinition {
   mutationIds: string[]; // Reference to log entries
 }
 
-export interface TaskCancelRequest {
-  taskId: string;
-  reason?: string;
-}
-
 /**
  * SECTION 3: CORE NODE & GRAPH TYPES
  * The main building blocks of the Flowcraft editor.
@@ -111,28 +106,11 @@ export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;
 export type ProcessingNodeType = Node<ProcessingNodeData, "processing">;
 export type AppNode = GroupNodeType | DynamicNodeType | ProcessingNodeType;
 
-export type NodeData = AppNode["data"];
-
-export interface GraphState {
-  graph: {
-    nodes: AppNode[];
-    edges: Edge[];
-    viewport?: Viewport;
-  };
-  version: number;
-}
-
 /**
  * SECTION 4: TEMPLATES & PROTOCOL PAYLOADS
  */
 
 export type NodeTemplate = ProtoNodeTemplate;
-
-export interface WidgetUpdatePayload {
-  nodeId: string;
-  widgetId: string;
-  value: unknown;
-}
 
 /**
  * SECTION 5: TYPE GUARDS & UTILITIES
@@ -140,17 +118,4 @@ export interface WidgetUpdatePayload {
 
 export function isDynamicNode(node: AppNode): node is DynamicNodeType {
   return node.type === "dynamic";
-}
-
-export interface TypedNodeData {
-  inputType?: string;
-  outputType?: string;
-}
-
-export function isTypedNodeData(data: unknown): data is TypedNodeData {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    ("inputType" in data || "outputType" in data)
-  );
 }

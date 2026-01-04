@@ -4,11 +4,15 @@ import fs from "fs";
 import path from "path";
 import { generateGallery } from "./generators";
 
-const STORAGE_FILE = path.join(process.cwd(), "storage.json");
+const STORAGE_DIR = process.env.FLOWCRAFT_STORAGE_DIR || path.join(process.cwd(), "storage");
+if (!fs.existsSync(STORAGE_DIR)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+}
+const STORAGE_FILE = path.join(STORAGE_DIR, "storage.json");
 
 export let serverVersion = 0;
 
-export const setServerVersion = (v: number) => {
+const setServerVersion = (v: number) => {
   serverVersion = v;
 };
 
@@ -27,7 +31,7 @@ export const serverGraph: {
 
 export const eventBus = new EventEmitter();
 
-export function saveToDisk() {
+function saveToDisk() {
   try {
     const data = JSON.stringify(
       {

@@ -18,27 +18,23 @@ export const useNodeOperations = (
 ) => {
   const addNode = useCallback(
     (
-      type: string,
-      data: Partial<AppNode["data"]>,
+      templateId: string,
       position: XYPosition,
-      typeId?: string,
+      initialData?: Partial<DynamicNodeData>,
       initialWidth = 300,
       initialHeight = 200,
     ) => {
-      const dynamicData = data as DynamicNodeData | undefined;
-
       const newNode: AppNode = {
         id: uuidv4(),
-        type,
+        type: "dynamic",
         position,
         measured: { width: initialWidth, height: initialHeight },
         style: { width: initialWidth, height: initialHeight },
         data: {
-          label: "New Node",
-          modes: [],
-          ...data,
-          typeId: typeId ?? dynamicData?.typeId,
-        },
+          label: "Loading...",
+          typeId: templateId,
+          ...initialData,
+        } as any,
       } as AppNode;
 
       applyMutations([

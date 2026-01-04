@@ -1,10 +1,15 @@
-import React, { memo } from "react";
+import React, { memo, useCallback } from "react";
 import { type NodeProps, NodeResizer } from "@xyflow/react";
 import { type DynamicNodeType, type DynamicNodeData } from "../types";
 import { WidgetContent } from "./nodes/WidgetContent";
 import { MediaContent } from "./nodes/MediaContent";
 import { BaseNode } from "./base/BaseNode";
 import { useNodeHandlers } from "../hooks/useNodeHandlers";
+import { useFlowStore } from "../store/flowStore";
+import { create as createProto } from "@bufbuild/protobuf";
+import { GraphMutationSchema } from "../generated/flowcraft/v1/core/service_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
+import { toProtoNodeData } from "../utils/protoAdapter";
 
 interface LayoutProps {
   width?: number;
@@ -68,6 +73,32 @@ export const DynamicNode = memo(
     const { minHeight, minWidth, shouldLockAspectRatio, containerStyle } =
       useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
 
+    const handleResizeEnd = useCallback(
+      (_: any, params: { width: number; height: number }) => {
+        const { applyMutations } = useFlowStore.getState();
+        const presentation = createProto(PresentationSchema, {
+          width: params.width,
+          height: params.height,
+          position: { x: positionAbsoluteX, y: positionAbsoluteY },
+          isInitialized: true,
+        });
+
+        applyMutations([
+          createProto(GraphMutationSchema, {
+            operation: {
+              case: "updateNode",
+              value: {
+                id: id,
+                presentation,
+                data: toProtoNodeData(data as DynamicNodeData),
+              },
+            },
+          }),
+        ]);
+      },
+      [id, data, positionAbsoluteX, positionAbsoluteY],
+    );
+
     return (
       <div
         className="custom-node"
@@ -85,6 +116,7 @@ export const DynamicNode = memo(
           minWidth={minWidth}
           minHeight={minHeight}
           keepAspectRatio={shouldLockAspectRatio}
+          onResizeEnd={handleResizeEnd}
           handleStyle={{
             width: 8,
             height: 8,

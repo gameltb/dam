@@ -51,8 +51,9 @@ import {
 import { useAppHotkeys } from "./hooks/useAppHotkeys";
 import { useNodeEventListener } from "./hooks/useNodeEventListener";
 import { useFlowHandlers } from "./hooks/useFlowHandlers";
-
 import { fromProtoNodeData } from "./utils/protoAdapter";
+import type { DynamicNodeData } from "./types";
+
 
 function App() {
   const {
@@ -85,7 +86,7 @@ function App() {
   const flowSocket = useFlowSocket();
   const { cancelTask, executeTask, streamAction, templates, updateViewport } =
     flowSocket;
-  const { theme } = useTheme();
+  useTheme();
   const { helperLines, setHelperLines, calculateLines } = useHelperLines();
 
   const [connectionStatus, setConnectionStatus] = useState<SocketStatus>(
@@ -205,18 +206,14 @@ function App() {
   const handleAddNode = useCallback(
     (template: NodeTemplate) => {
       if (!contextMenu) return;
-      const defaultData = template.defaultState
-        ? fromProtoNodeData(template.defaultState)
-        : {};
       const flowPosition = screenToFlowPosition({
         x: contextMenu.x,
         y: contextMenu.y,
       });
       addNodeOp(
-        "dynamic",
-        defaultData,
-        flowPosition,
         template.templateId,
+        flowPosition,
+        {}, // initialWidgetsValues
         template.defaultWidth,
         template.defaultHeight,
       );
@@ -266,8 +263,67 @@ function App() {
     [closeContextMenuAndClear, contextNodeId, nodes],
   );
 
+  const onDrop = useCallback(
+    async (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const files = event.dataTransfer.files;
+      if (files.length === 0) return;
+
+      const reactFlowBounds = document.querySelector(".react-flow")?.getBoundingClientRect();
+      if (!reactFlowBounds) return;
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      for (const file of Array.from(files)) {
+        // 1. 上传文件
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const asset = await response.json();
+
+          // 2. 根据 MIME 类型决定模板 ID
+          let templateId = "tpl-media-md";
+          if (asset.mimeType.startsWith("image/")) templateId = "tpl-media-image";
+          else if (asset.mimeType.startsWith("video/")) templateId = "tpl-media-video";
+          else if (asset.mimeType.startsWith("audio/")) templateId = "tpl-media-audio";
+
+          // 3. 获取模板默认值并创建节点
+          const template = templates.find(t => t.templateId === templateId);
+          const defaultData = (template?.defaultState ? fromProtoNodeData(template.defaultState) : {}) as Partial<DynamicNodeData>;
+
+          addNodeOp(templateId, position, {
+            ...defaultData,
+            label: asset.name,
+            widgetsValues: {
+              ...(defaultData.widgetsValues || {}),
+              url: asset.url,
+              mimeType: asset.mimeType,
+            },
+          });
+        } catch (err) {
+          console.error("Upload failed:", err);
+        }
+      }
+    },
+    [screenToFlowPosition, addNodeOp]
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
   return (
-    <div style={{ width: "100vw", height: "100vh" }} className={theme}>
+    <div style={{ width: "100vw", height: "100vh" }} onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

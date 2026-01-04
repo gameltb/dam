@@ -1,5 +1,10 @@
 import React, { memo } from "react";
 import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
+import {
+  GraphMutationSchema,
+} from "../../generated/flowcraft/v1/core/service_pb";
+import { PresentationSchema } from "../../generated/flowcraft/v1/core/base_pb";
+import { create as createProto } from "@bufbuild/protobuf";
 import type { DynamicNodeData } from "../../types";
 import { GalleryWrapper } from "../media/GalleryWrapper";
 import { PortHandle } from "../base/PortHandle";
@@ -23,7 +28,33 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     const { onChange, onGalleryItemContext } = useNodeHandlers(data);
     const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
-    if (!data.media) return null;
+    const getEffectiveMedia = () => {
+      if (data.media?.url) return data.media;
+
+      // Fallback to widgetsValues (e.g. from drag & drop)
+      const url = data.widgetsValues?.url as string | undefined;
+      const mimeType = data.widgetsValues?.mimeType as string | undefined;
+      const content = data.widgetsValues?.content as string | undefined;
+
+      if (!url && !content) return null;
+
+      let type = MediaType.MEDIA_UNSPECIFIED;
+      if (mimeType?.startsWith("image/")) type = MediaType.MEDIA_IMAGE;
+      else if (mimeType?.startsWith("video/")) type = MediaType.MEDIA_VIDEO;
+      else if (mimeType?.startsWith("audio/")) type = MediaType.MEDIA_AUDIO;
+      else if (mimeType === "text/markdown") type = MediaType.MEDIA_MARKDOWN;
+
+      return {
+        url: url || "",
+        type,
+        content: content || "",
+        aspectRatio: data.media?.aspectRatio ?? 0,
+        galleryUrls: [],
+      };
+    };
+
+    const media = getEffectiveMedia();
+    if (!media) return null;
 
     const nodeWidth = width ?? 240;
     const nodeHeight = height ?? 180;
@@ -33,13 +64,36 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     };
 
     const handleDimensionsLoad = (ratio: number) => {
-      if (
-        data.media &&
-        Math.abs((data.media.aspectRatio ?? 0) - ratio) > 0.01
-      ) {
+      // 1. Update internal aspect ratio metadata
+      if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
         onChange(id, {
-          media: { ...data.media, aspectRatio: ratio },
+          media: { ...media, aspectRatio: ratio },
         });
+
+        // 2. Adjust node physical dimensions to match the ratio
+        // We keep the width and adjust the height
+        const currentWidth = width ?? 240;
+        const targetHeight = Math.round(currentWidth / ratio);
+
+        // Only update if the difference is significant to avoid infinite loops
+        if (Math.abs((height ?? 0) - targetHeight) > 5) {
+          const { applyMutations } = useFlowStore.getState();
+          applyMutations([
+            createProto(GraphMutationSchema, {
+              operation: {
+                case: "updateNode",
+                value: {
+                  id: id,
+                  presentation: createProto(PresentationSchema, {
+                    width: currentWidth,
+                    height: targetHeight,
+                    isInitialized: true,
+                  }),
+                },
+              },
+            }),
+          ]);
+        }
       }
     };
 
@@ -53,7 +107,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       if (!Renderer) {
         return (
           <div style={{ padding: "20px", textAlign: "center" }}>
-            Unsupported media: {url}
+            Unsupported media type: {type} for {url}
           </div>
         );
       }
@@ -63,11 +117,10 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           url={url}
           content={content}
           onEdit={(newContent) => {
-            if (data.media) {
-              onChange(id, {
-                media: { ...data.media, content: newContent },
-              });
-            }
+            onChange(id, {
+              widgetsValues: { ...data.widgetsValues, content: newContent },
+              media: { ...media, content: newContent },
+            });
           }}
           index={index}
           onDimensionsLoad={handleDimensionsLoad}
@@ -76,7 +129,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       );
     };
 
-    const gallery = data.media.galleryUrls ?? [];
+    const gallery = media.galleryUrls ?? [];
     const inputs = data.inputPorts ?? [];
     const outputs = data.outputPorts ?? [];
 
@@ -93,12 +146,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           pointerEvents: "auto",
         }}
       >
-        {renderContent(
-          data.media.url ?? "",
-          data.media.type,
-          0,
-          data.media.content,
-        )}
+        {renderContent(media.url || "", media.type, 0, media.content)}
       </div>
     );
 
@@ -131,9 +179,8 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
                 />
               } // Invisible ghost to drive layout
               gallery={gallery}
-              mediaType={data.media.type}
+              mediaType={media.type}
               renderItem={(url) => {
-                if (!data.media) return null;
                 return (
                   <div
                     style={{
@@ -143,11 +190,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
                       overflow: "hidden",
                     }}
                   >
-                    {renderContent(
-                      url,
-                      data.media.type,
-                      gallery.indexOf(url) + 1,
-                    )}
+                    {renderContent(url, media.type, gallery.indexOf(url) + 1)}
                   </div>
                 );
               }}

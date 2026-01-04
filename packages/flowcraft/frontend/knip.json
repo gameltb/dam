@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/main.tsx", "src/server/index.ts"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": [
+    "src/generated/**",
+    "**/__tests__/**",
+    "**/*.test.tsx",
+    "**/*.test.ts",
+    ".gemini/**"
+  ],
+  "ignoreDependencies": [
+    "@bufbuild/protoc-gen-es",
+    "@types/uuid"
+  ]
+}
