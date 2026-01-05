@@ -32,6 +32,9 @@ interface UIState {
 
   // Transient state
   isSettingsOpen: boolean;
+  isSidebarOpen: boolean;
+  isChatFullscreen: boolean;
+  sidebarWidth: number;
   activeChatNodeId: string | null;
   chatViewMode: ChatViewMode;
   clipboard: { nodes: AppNode[]; edges: Edge[] } | null;
@@ -49,6 +52,9 @@ interface UIState {
 
   // Actions for transient state
   setSettingsOpen: (open: boolean) => void;
+  setSidebarOpen: (open: boolean) => void;
+  setChatFullscreen: (fullscreen: boolean) => void;
+  setSidebarWidth: (width: number) => void;
   setActiveChat: (nodeId: string | null, mode?: ChatViewMode) => void;
   setClipboard: (content: { nodes: AppNode[]; edges: Edge[] } | null) => void;
   setConnectionStartHandle: (handle: UIState["connectionStartHandle"]) => void;
@@ -80,9 +86,12 @@ export const useUiStore = create<UIState>()(
   persist(
     (set, get) => ({
       settings: DEFAULT_SETTINGS,
-      shortcuts: DEFAULT_SHORTCUTS, // Keep in sync with settings.hotkeys
+      shortcuts: DEFAULT_SHORTCUTS,
       dragMode: "select",
       isSettingsOpen: false,
+      isSidebarOpen: false,
+      isChatFullscreen: false,
+      sidebarWidth: 400,
       activeChatNodeId: null,
       chatViewMode: "inline",
       clipboard: null,
@@ -105,8 +114,16 @@ export const useUiStore = create<UIState>()(
 
       setDragMode: (mode) => set({ dragMode: mode }),
       setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+      setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+      setChatFullscreen: (fullscreen) => set({ isChatFullscreen: fullscreen }),
+      setSidebarWidth: (width) => set({ sidebarWidth: width }),
       setActiveChat: (nodeId, mode = "sidebar") =>
-        set({ activeChatNodeId: nodeId, chatViewMode: nodeId ? mode : "inline" }),
+        set({
+          activeChatNodeId: nodeId,
+          chatViewMode: nodeId ? mode : "inline",
+          isSidebarOpen: nodeId ? mode === "sidebar" : false,
+          isChatFullscreen: nodeId ? mode === "fullscreen" : false,
+        }),
       setClipboard: (content) => set({ clipboard: content }),
       setConnectionStartHandle: (handle) =>
         set({ connectionStartHandle: handle }),
@@ -119,7 +136,6 @@ export const useUiStore = create<UIState>()(
         dragMode: state.dragMode,
       }),
       onRehydrateStorage: () => (state) => {
-        // Ensure shortcuts helper is synced after rehydration
         if (state) {
           state.shortcuts = state.settings.hotkeys;
         }

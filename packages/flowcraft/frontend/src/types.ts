@@ -35,6 +35,35 @@ export {
 
 export type { Port };
 
+/**
+ * SECTION 2: UI & INTERACTION
+ * Enums and types for frontend-specific logic.
+ */
+
+export enum FlowEvent {
+  WIDGET_CLICK = "widget-click",
+  GALLERY_ITEM_CONTEXT = "gallery-item-context",
+  PANE_CLICK = "pane-click",
+  OPEN_PREVIEW = "open-preview",
+  OPEN_EDITOR = "open-editor",
+}
+
+/**
+ * Client-side representation of a Port, using string types for easier UI handling
+ * while keeping the structure similar to the Protobuf definition.
+ */
+export interface ClientPort {
+  id: string;
+  label: string;
+  description?: string;
+  type?: {
+    mainType: string;
+    itemType: string;
+    isGeneric: boolean;
+  };
+  style: PortStyle;
+}
+
 export interface MutationLogEntry {
   id: string;
   taskId: string;
@@ -81,7 +110,7 @@ export interface MediaDef {
   galleryUrls?: string[];
 }
 
-export interface DynamicNodeData extends Record<string, unknown> {
+export interface DynamicNodeData {
   typeId?: string; // Original backend template ID
   label: string;
   modes: RenderMode[];
@@ -92,14 +121,18 @@ export interface DynamicNodeData extends Record<string, unknown> {
   widgetsValues?: Record<string, unknown>;
 
   // Port definitions
-  inputPorts?: Port[];
-  outputPorts?: Port[];
+  inputPorts?: ClientPort[];
+  outputPorts?: ClientPort[];
+
+  // Custom metadata or transient state
+  [key: string]: unknown;
 }
 
-export interface ProcessingNodeData extends Record<string, unknown> {
+export interface ProcessingNodeData {
   taskId: string;
   label: string;
   onCancel?: (taskId: string) => void;
+  [key: string]: unknown;
 }
 
 export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;

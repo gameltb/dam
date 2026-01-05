@@ -62,7 +62,7 @@ The frontend communicates with the backend via a single unified "Envelope" proto
 - **`flowStore` (Zustand + Yjs)**: The central store that manages both the UI state (React Flow nodes/edges) and the collaborative state (`Y.Doc`).
   - It handles the synchronization between the local Zustand store and the shared Yjs document.
   - It directly applies graph mutations to the Yjs document to ensure consistency.
-- **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. Uses a `timestamp` approach to prevent cascading renders in React 19.
+- **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. **All event names must be defined in a centralized Enum.** Uses a `timestamp` approach to prevent cascading renders in React 19.
 
 ### Task System & Optimistic UI
 

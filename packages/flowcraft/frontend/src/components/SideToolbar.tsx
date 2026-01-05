@@ -48,56 +48,29 @@ export const SideToolbar: React.FC<SideToolbarProps> = ({
   const statusText = getStatusText(connectionStatus);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        left: "12px",
-        top: "50%",
-        transform: "translateY(-50%)",
-        display: "flex",
-        flexDirection: "column",
-        gap: "6px",
-        padding: "6px",
-        backgroundColor: "var(--panel-bg)",
-        border: "1px solid var(--node-border)",
-        borderRadius: "10px",
-        boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
-        zIndex: 5000,
-        backdropFilter: "blur(10px)",
-      }}
-    >
+    <div className="fc-panel fixed left-3 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 p-1.5 z-[5000] shadow-lg backdrop-blur-md">
       <button
         onClick={() => {
           setSettingsOpen(true);
         }}
         title={`Settings (${statusText})`}
+        className="w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-all duration-300 hover:bg-primary/10"
         style={{
-          width: "32px",
-          height: "32px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           background:
             connectionStatus !== SocketStatus.DISCONNECTED
               ? `radial-gradient(circle, ${statusColor} 0%, transparent 80%)`
               : "none",
-          border: "none",
-          borderRadius: "6px",
-          cursor: "pointer",
           color:
             connectionStatus === SocketStatus.CONNECTED
               ? "var(--primary-color)"
               : "var(--sub-text)",
-          transition: "all 0.3s ease",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "rgba(100, 108, 255, 0.1)";
           if (connectionStatus === SocketStatus.DISCONNECTED) {
             e.currentTarget.style.color = "var(--primary-color)";
           }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "transparent";
           if (connectionStatus === SocketStatus.DISCONNECTED) {
             e.currentTarget.style.color = "var(--sub-text)";
           }

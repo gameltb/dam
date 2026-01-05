@@ -9,8 +9,5 @@
     "**/*.test.ts",
     ".gemini/**"
   ],
-  "ignoreDependencies": [
-    "@bufbuild/protoc-gen-es",
-    "@types/uuid"
-  ]
+  "ignoreDependencies": ["@bufbuild/protoc-gen-es", "@types/uuid"]
 }

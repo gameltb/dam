@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { type Node as RFNode } from "@xyflow/react";
 import { RenderMode } from "../../generated/flowcraft/v1/core/node_pb";
 import type { DynamicNodeData } from "../../types";
+import { NodeInfoPanel } from "./NodeInfoPanel";
+import { cn } from "../../lib/utils";
 
 export interface BaseNodeProps<T extends RFNode> {
   id: string;
@@ -25,108 +27,16 @@ export interface BaseNodeProps<T extends RFNode> {
     data: T["data"];
     onToggleMode: () => void;
   }>;
+  renderChat?: React.ComponentType<{
+    id: string;
+    data: T["data"];
+    updateNodeData: (nodeId: string, data: Partial<DynamicNodeData>) => void;
+  }>;
   handles?: React.ReactNode;
   wrapperStyle?: React.CSSProperties;
   onOverflowChange?: (overflow: "visible" | "hidden") => void;
+  updateNodeData?: (nodeId: string, data: Partial<DynamicNodeData>) => void;
 }
-
-const NodeInfoPanel = ({
-  nodeId,
-  templateId,
-  width,
-  height,
-  x,
-  y,
-}: {
-  nodeId: string;
-  templateId: string;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-}) => (
-  <div
-    className="nodrag nopan"
-    style={{
-      position: "absolute",
-      top: "-48px",
-      left: "50%",
-      transform: "translateX(-50%)",
-      backgroundColor: "rgba(30, 30, 30, 0.95)",
-      backdropFilter: "blur(12px)",
-      border: "1px solid var(--primary-color)",
-      borderRadius: "8px",
-      padding: "6px 14px",
-      display: "flex",
-      gap: "14px",
-      alignItems: "center",
-      boxShadow:
-        "0 8px 25px rgba(0,0,0,0.6), 0 0 0 1px rgba(100, 108, 255, 0.2)",
-      zIndex: 9999,
-      pointerEvents: "none",
-      whiteSpace: "nowrap",
-      fontSize: "11px",
-      fontWeight: 600,
-      color: "#fff",
-      animation: "nodeInfoFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-    }}
-  >
-    <style>
-      {`
-          @keyframes nodeInfoFadeIn {
-            from { opacity: 0; transform: translate(-50%, 5px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-          }
-        `}
-    </style>
-    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-      <span style={{ opacity: 0.5, fontSize: "9px" }}>NODE_ID</span>
-      <span>{nodeId.slice(0, 8)}</span>
-    </div>
-    <div
-      style={{
-        width: "1px",
-        height: "12px",
-        backgroundColor: "rgba(255,255,255,0.15)",
-      }}
-    />
-    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-      <span style={{ opacity: 0.5, fontSize: "9px" }}>TEMPLATE_ID</span>
-      <span style={{ color: "var(--primary-color)", letterSpacing: "0.5px" }}>
-        {templateId.toUpperCase()}
-      </span>
-    </div>
-    <div
-      style={{
-        width: "1px",
-        height: "12px",
-        backgroundColor: "rgba(255,255,255,0.15)",
-      }}
-    />
-    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-        <span style={{ opacity: 0.5, fontSize: "9px" }}>POS</span>
-        <span style={{ color: "#4caf50" }}>X:</span>
-        <span style={{ minWidth: "25px" }}>{Math.round(x)}</span>
-        <span style={{ color: "#4caf50" }}>Y:</span>
-        <span style={{ minWidth: "25px" }}>{Math.round(y)}</span>
-      </div>
-      <div
-        style={{
-          width: "1px",
-          height: "10px",
-          backgroundColor: "rgba(255,255,255,0.1)",
-        }}
-      />
-      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-        <span style={{ opacity: 0.5, fontSize: "9px" }}>SIZE</span>
-        <span>
-          {Math.round(width)} × {Math.round(height)}
-        </span>
-      </div>
-    </div>
-  </div>
-);
 
 export function BaseNode<T extends RFNode>({
   id,
@@ -141,9 +51,11 @@ export function BaseNode<T extends RFNode>({
   initialMode = RenderMode.MODE_WIDGETS,
   renderMedia: RenderMedia,
   renderWidgets: RenderWidgets,
+  renderChat: RenderChat,
   handles,
   wrapperStyle,
   onOverflowChange,
+  updateNodeData,
   ...rest
 }: BaseNodeProps<T>) {
   const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
@@ -152,6 +64,7 @@ export function BaseNode<T extends RFNode>({
 
   const mode = (data as DynamicNodeData).activeMode ?? internalMode;
   const isMedia = mode === RenderMode.MODE_MEDIA;
+  const isChat = mode === RenderMode.MODE_CHAT;
   const nodeType = type ?? "node";
 
   const toggleMode = () => {
@@ -192,17 +105,12 @@ export function BaseNode<T extends RFNode>({
         />
       )}
       <div
+        className={cn(
+          "w-full h-full flex flex-col box-border rounded-[inherit]",
+          isMedia ? "p-0" : "p-0"
+        )}
         style={{
-          width: "100%",
-          height: "100%",
-          // Remove horizontal padding from here, move it to sub-components
-          paddingTop: isMedia ? 0 : 0,
-          paddingBottom: isMedia ? 0 : 0,
           overflow: overflow,
-          display: "flex",
-          flexDirection: "column",
-          boxSizing: "border-box",
-          borderRadius: "inherit",
           ...wrapperStyle,
         }}
       >
@@ -214,7 +122,14 @@ export function BaseNode<T extends RFNode>({
             onOverflowChange={handleOverflowChange}
           />
         )}
-        {!isMedia && RenderWidgets && (
+        {isChat && RenderChat && updateNodeData && (
+          <RenderChat
+            id={id}
+            data={data as DynamicNodeData}
+            updateNodeData={updateNodeData}
+          />
+        )}
+        {!isMedia && !isChat && RenderWidgets && (
           <RenderWidgets
             id={id}
             data={data as DynamicNodeData}

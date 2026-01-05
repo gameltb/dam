@@ -1,13 +1,10 @@
-import {
-  type PortType,
-  PortStyle,
-} from "../generated/flowcraft/v1/core/node_pb";
-import { PROTO_TO_PORT_TYPE } from "./protoAdapter";
+import { PortStyle } from "../generated/flowcraft/v1/core/node_pb";
+import { type ClientPort } from "../types";
 
 /**
  * 核心实践：通过语义化的 PortType 派生 UI 样式，而不是在 Proto 中硬编码颜色。
  */
-export const getPortColor = (type?: PortType): string => {
+export const getPortColor = (type?: ClientPort["type"]): string => {
   if (!type) return "var(--port-color-default, #9e9e9e)";
 
   // 使用 mainType 作为主要 Key
@@ -23,8 +20,7 @@ export const getPortColor = (type?: PortType): string => {
     exec: "var(--port-color-exec, #ffffff)",
   };
 
-  const mainTypeStr =
-    PROTO_TO_PORT_TYPE[type.mainType as unknown as number] ?? "any";
+  const mainTypeStr = type.mainType ?? "any";
   const baseColor =
     typeMap[mainTypeStr.toLowerCase()] ?? "var(--port-color-default, #9e9e9e)";
 
@@ -35,11 +31,10 @@ export const getPortColor = (type?: PortType): string => {
 /**
  * 根据插槽类型建议最佳形状
  */
-export const getPortShape = (type?: PortType): PortStyle => {
+export const getPortShape = (type?: ClientPort["type"]): PortStyle => {
   if (!type) return PortStyle.CIRCLE;
 
-  const mainTypeStr =
-    PROTO_TO_PORT_TYPE[type.mainType as unknown as number] ?? "any";
+  const mainTypeStr = type.mainType ?? "any";
   if (mainTypeStr.toLowerCase() === "exec") {
     return PortStyle.DASH; // 执行流通常使用特殊形状
   }

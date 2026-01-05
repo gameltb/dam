@@ -1,15 +1,14 @@
 import React, { memo } from "react";
 import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
-import {
-  GraphMutationSchema,
-} from "../../generated/flowcraft/v1/core/service_pb";
+import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
 import { PresentationSchema } from "../../generated/flowcraft/v1/core/base_pb";
 import { create as createProto } from "@bufbuild/protobuf";
-import type { DynamicNodeData } from "../../types";
+import { type DynamicNodeData, FlowEvent } from "../../types";
 import { GalleryWrapper } from "../media/GalleryWrapper";
 import { PortHandle } from "../base/PortHandle";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 import { useFlowStore } from "../../store/flowStore";
+import { getMediaTypeFromMime } from "../../utils/nodeUtils";
 
 import { getPortColor, getPortShape } from "../../utils/themeUtils";
 
@@ -38,15 +37,9 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
 
       if (!url && !content) return null;
 
-      let type = MediaType.MEDIA_UNSPECIFIED;
-      if (mimeType?.startsWith("image/")) type = MediaType.MEDIA_IMAGE;
-      else if (mimeType?.startsWith("video/")) type = MediaType.MEDIA_VIDEO;
-      else if (mimeType?.startsWith("audio/")) type = MediaType.MEDIA_AUDIO;
-      else if (mimeType === "text/markdown") type = MediaType.MEDIA_MARKDOWN;
-
       return {
         url: url || "",
-        type,
+        type: getMediaTypeFromMime(mimeType),
         content: content || "",
         aspectRatio: data.media?.aspectRatio ?? 0,
         galleryUrls: [],
@@ -60,7 +53,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     const nodeHeight = height ?? 180;
 
     const handleOpenPreview = (index = 0) => {
-      dispatchNodeEvent("open-preview", { nodeId: id, index });
+      dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { nodeId: id, index });
     };
 
     const handleDimensionsLoad = (ratio: number) => {

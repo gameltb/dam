@@ -5,11 +5,12 @@ import {
   NodeSchema,
   NodeDataSchema,
   WidgetSchema,
+  PortSchema,
+  PortTypeSchema,
   type Widget,
   EdgeSchema,
   type Edge as ProtoEdge,
-  type Port,
-  type PortType,
+  type Port as ProtoPort,
 } from "../generated/flowcraft/v1/core/node_pb";
 import {
   PresentationSchema,
@@ -17,7 +18,12 @@ import {
   NodeKind,
 } from "../generated/flowcraft/v1/core/base_pb";
 import { type GraphSnapshot } from "../generated/flowcraft/v1/core/service_pb";
-import type { AppNode, DynamicNodeData, WidgetDef } from "../types";
+import {
+  type AppNode,
+  type DynamicNodeData,
+  type WidgetDef,
+  type ClientPort,
+} from "../types";
 import type { Edge } from "@xyflow/react";
 
 /**
@@ -37,7 +43,7 @@ const KIND_TO_NODE_TYPE: Record<number, string> = {
   [NodeKind.NOTE]: "dynamic",
 };
 
-const PORT_TYPE_TO_PROTO: Record<string, PortMainType> = {
+export const PORT_MAIN_TYPE_TO_PROTO: Record<string, PortMainType> = {
   any: PortMainType.ANY,
   string: PortMainType.STRING,
   number: PortMainType.NUMBER,
@@ -50,7 +56,7 @@ const PORT_TYPE_TO_PROTO: Record<string, PortMainType> = {
   system: PortMainType.SYSTEM,
 };
 
-export const PROTO_TO_PORT_TYPE: Record<number, string> = {
+export const PORT_MAIN_TYPE_FROM_PROTO: Record<number, string> = {
   [PortMainType.UNSPECIFIED]: "any",
   [PortMainType.ANY]: "any",
   [PortMainType.STRING]: "string",
@@ -64,9 +70,10 @@ export const PROTO_TO_PORT_TYPE: Record<number, string> = {
   [PortMainType.SYSTEM]: "system",
 };
 
-function mapToProtoPortMainType(val: string | number): PortMainType {
+function mapToProtoPortMainType(val?: string | number): PortMainType {
+  if (val === undefined || val === null) return PortMainType.ANY;
   if (typeof val === "number") return val as PortMainType;
-  return PORT_TYPE_TO_PROTO[val.toLowerCase()] ?? PortMainType.ANY;
+  return PORT_MAIN_TYPE_TO_PROTO[val.toLowerCase()] ?? PortMainType.ANY;
 }
 
 /**
@@ -74,6 +81,22 @@ function mapToProtoPortMainType(val: string | number): PortMainType {
  */
 
 // --- To Proto ---
+
+function clientPortToProto(p: ClientPort): ProtoPort {
+  return create(PortSchema, {
+    id: p.id,
+    label: p.label,
+    description: p.description ?? "",
+    type: p.type
+      ? create(PortTypeSchema, {
+          mainType: mapToProtoPortMainType(p.type.mainType),
+          itemType: p.type.itemType,
+          isGeneric: p.type.isGeneric,
+        })
+      : undefined,
+    style: p.style,
+  });
+}
 
 export function toProtoNode(node: AppNode): Node {
   const data = node.data;
@@ -92,7 +115,7 @@ export function toProtoNode(node: AppNode): Node {
 
   let taskId = "";
   if (node.type === "processing") {
-    taskId = (data as Record<string, unknown>).taskId as string;
+    taskId = String((data as Record<string, unknown>).taskId || "");
   }
 
   const protoData = create(NodeDataSchema, {
@@ -106,24 +129,8 @@ export function toProtoNode(node: AppNode): Node {
         }
       : undefined,
     widgets,
-    inputPorts: (dynData.inputPorts ?? []).map((p) => ({
-      ...p,
-      type: p.type
-        ? {
-            ...p.type,
-            mainType: mapToProtoPortMainType(p.type.mainType),
-          }
-        : undefined,
-    })),
-    outputPorts: (dynData.outputPorts ?? []).map((p) => ({
-      ...p,
-      type: p.type
-        ? {
-            ...p.type,
-            mainType: mapToProtoPortMainType(p.type.mainType),
-          }
-        : undefined,
-    })),
+    inputPorts: (dynData.inputPorts ?? []).map(clientPortToProto),
+    outputPorts: (dynData.outputPorts ?? []).map(clientPortToProto),
     metadata: {},
     taskId: taskId,
     widgetsValuesJson: JSON.stringify(dynData.widgetsValues || {}),
@@ -150,7 +157,7 @@ export function toProtoNode(node: AppNode): Node {
 
 export function toProtoEdge(edge: Edge): ProtoEdge {
   const metadata: Record<string, string> = {};
-  if (edge.data) {
+  if (edge.data && typeof edge.data === "object") {
     Object.entries(edge.data).forEach(([k, v]) => {
       if (typeof v === "string") metadata[k] = v;
     });
@@ -233,6 +240,23 @@ export function fromProtoNode(n: Node): AppNode {
   return node;
 }
 
+function protoPortToClient(p: ProtoPort): ClientPort {
+  const type = p.type;
+  return {
+    id: p.id,
+    label: p.label,
+    description: p.description,
+    style: p.style,
+    type: type
+      ? {
+          mainType: PORT_MAIN_TYPE_FROM_PROTO[type.mainType] ?? "any",
+          itemType: type.itemType,
+          isGeneric: type.isGeneric,
+        }
+      : undefined,
+  };
+}
+
 export function fromProtoNodeData(protoData: NodeData): DynamicNodeData {
   const widgets: WidgetDef[] = protoData.widgets.map((w) => {
     let value: unknown = null;
@@ -269,30 +293,8 @@ export function fromProtoNodeData(protoData: NodeData): DynamicNodeData {
         }
       : undefined,
     widgets,
-    inputPorts: protoData.inputPorts.map((p) => {
-      const type = p.type;
-      return {
-        ...p,
-        type: type
-          ? ({
-              ...type,
-              mainType: PROTO_TO_PORT_TYPE[type.mainType] ?? "any",
-            } as unknown as PortType)
-          : undefined,
-      } as Port;
-    }),
-    outputPorts: protoData.outputPorts.map((p) => {
-      const type = p.type;
-      return {
-        ...p,
-        type: type
-          ? ({
-              ...type,
-              mainType: PROTO_TO_PORT_TYPE[type.mainType] ?? "any",
-            } as unknown as PortType)
-          : undefined,
-      } as Port;
-    }),
+    inputPorts: protoData.inputPorts.map(protoPortToClient),
+    outputPorts: protoData.outputPorts.map(protoPortToClient),
     taskId: protoData.taskId || undefined,
     widgetsSchemaJson: protoData.widgetsSchemaJson || undefined,
     widgetsValues: protoData.widgetsValuesJson
@@ -338,24 +340,8 @@ export function toProtoNodeData(data?: DynamicNodeData): NodeData {
         }
       : undefined,
     widgets,
-    inputPorts: (data.inputPorts ?? []).map((p) => ({
-      ...p,
-      type: p.type
-        ? {
-            ...p.type,
-            mainType: mapToProtoPortMainType(p.type.mainType),
-          }
-        : undefined,
-    })),
-    outputPorts: (data.outputPorts ?? []).map((p) => ({
-      ...p,
-      type: p.type
-        ? {
-            ...p.type,
-            mainType: mapToProtoPortMainType(p.type.mainType),
-          }
-        : undefined,
-    })),
+    inputPorts: (data.inputPorts ?? []).map(clientPortToProto),
+    outputPorts: (data.outputPorts ?? []).map(clientPortToProto),
     metadata: {},
     taskId: taskId ?? "",
     widgetsValuesJson: JSON.stringify(data.widgetsValues || {}),

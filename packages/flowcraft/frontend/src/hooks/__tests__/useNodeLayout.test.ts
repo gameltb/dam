@@ -4,13 +4,9 @@ import { useNodeLayout } from "../useNodeLayout";
 import {
   RenderMode,
   MediaType,
-  PortTypeSchema,
-  PortSchema,
   PortStyle,
 } from "../../generated/flowcraft/v1/core/node_pb";
-import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
 import { type DynamicNodeData } from "../../types";
-import { create } from "@bufbuild/protobuf";
 
 describe("useNodeLayout", () => {
   it("should calculate correct minHeight for widget mode based on ports and widgets", () => {
@@ -19,20 +15,20 @@ describe("useNodeLayout", () => {
       modes: [RenderMode.MODE_WIDGETS],
       activeMode: RenderMode.MODE_WIDGETS,
       inputPorts: [
-        create(PortSchema, {
+        {
           id: "in1",
           label: "In 1",
-          type: create(PortTypeSchema, { mainType: PortMainType.STRING }),
+          type: { mainType: "string", itemType: "", isGeneric: false },
           style: PortStyle.CIRCLE,
-        }),
+        },
       ],
       outputPorts: [
-        create(PortSchema, {
+        {
           id: "out1",
           label: "Out 1",
-          type: create(PortTypeSchema, { mainType: PortMainType.STRING }),
+          type: { mainType: "string", itemType: "", isGeneric: false },
           style: PortStyle.CIRCLE,
-        }),
+        },
       ],
       widgets: [{ id: "w1", type: 1, label: "W1", value: 0 }],
     };

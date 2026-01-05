@@ -1,0 +1,90 @@
+@layer components {
+  /* Flowcraft Specific Component Base Styles */
+  .fc-node {
+    @apply bg-node-bg border border-node-border rounded-lg shadow-lg transition-shadow duration-200;
+  }
+  
+  .fc-node-selected {
+    @apply ring-2 ring-primary-color shadow-[0_0_15px_rgba(100,108,255,0.4)];
+  }
+  
+  .fc-panel {
+    @apply bg-panel-bg border border-node-border rounded-md shadow-md;
+  }
+
+  /* 
+   * Shadcn Style Bridge 
+   * Apply this to containers where you want ai-elements/shadcn components 
+   * to respect the app's theme variables.
+   */
+  .shadcn-lookup {
+    --background: var(--background);
+    --foreground: var(--foreground);
+    --primary: var(--primary);
+    --card: var(--card);
+    --popover: var(--popover);
+    --muted: var(--muted);
+    --accent: var(--accent);
+    --border: var(--border);
+  }
+
+  /* Specific wrapper for nodes to apply Shadcn look internally */
+  .fc-node-shadcn {
+    @apply bg-node-bg border border-node-border rounded-lg shadow-lg transition-shadow duration-200;
+    --background: var(--background);
+    --foreground: var(--foreground);
+    --primary: var(--primary);
+    --card: var(--card);
+    --popover: var(--popover);
+    --muted: var(--muted);
+    --accent: var(--accent);
+    --border: var(--border);
+  }
+
+  /* AI Elements Theme Container */
+  .ai-theme-container {
+    @apply font-sans text-text-color;
+  }
+
+  /* Typography helpers */
+  .fc-text-main {
+    @apply text-text-color;
+  }
+  
+  .fc-text-sub {
+    @apply text-sub-text;
+  }
+
+  /* Context Menu Styles */
+  .fc-menu-section {
+    @apply border-b border-node-border pb-1 mb-1 last:border-none last:mb-0 last:pb-0;
+  }
+
+  .fc-menu-item {
+    @apply px-3 py-2 cursor-pointer text-xs text-text-color flex items-center gap-2 transition-colors duration-200 hover:bg-primary-color/15;
+  }
+
+  .fc-menu-label {
+    @apply px-3 py-1.5 text-[10px] font-bold tracking-widest text-sub-text uppercase select-none;
+  }
+
+  /* Animations */
+  .animate-menu-in {
+    animation: menuIn 0.1s ease-out;
+  }
+
+  @keyframes menuIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Node Info Panel Animation */
+  .animate-node-info-fade-in {
+    animation: nodeInfoFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes nodeInfoFadeIn {
+    from { opacity: 0; transform: translate(-50%, 5px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+}

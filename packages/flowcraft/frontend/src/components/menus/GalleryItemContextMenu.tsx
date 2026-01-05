@@ -1,11 +1,5 @@
 import React from "react";
 import { MenuContainer } from "./MenuContainer";
-import {
-  itemStyle,
-  sectionStyle,
-  handleMouseEnter,
-  handleMouseLeave,
-} from "./MenuShared";
 
 interface GalleryItemContextMenuProps {
   x: number;
@@ -23,11 +17,9 @@ export const GalleryItemContextMenu: React.FC<GalleryItemContextMenuProps> = ({
   onClose,
 }) => (
   <MenuContainer x={x} y={y}>
-    <div style={sectionStyle}>
+    <div className="fc-menu-section">
       <div
-        style={itemStyle}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        className="fc-menu-item"
         onClick={() => {
           onExtract(url);
           onClose();

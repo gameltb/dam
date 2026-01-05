@@ -10,7 +10,7 @@ import { getValidator, validateConnection } from "../../utils/portValidators";
 import { useUiStore } from "../../store/uiStore";
 import { create } from "@bufbuild/protobuf";
 import { PortIcon } from "./PortIcon";
-import { PROTO_TO_PORT_TYPE } from "../../utils/protoAdapter";
+import { PORT_MAIN_TYPE_FROM_PROTO } from "../../utils/protoAdapter";
 
 interface PortHandleProps {
   nodeId: string;
@@ -109,7 +109,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   const isConnectable =
     !isInvalidTarget && (!isLeft || inputCount < maxInputs || maxInputs === 1);
 
-  const tooltip = `Type: ${PROTO_TO_PORT_TYPE[mainType] ?? "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
+  const tooltip = `Type: ${PORT_MAIN_TYPE_FROM_PROTO[mainType] ?? "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
 
   // --- Presentation Mode Specific Styles ---
   const trianglePath = isLeft
@@ -213,7 +213,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
         >
           <PortIcon
             style={style}
-            mainType={PROTO_TO_PORT_TYPE[mainType]}
+            mainType={PORT_MAIN_TYPE_FROM_PROTO[mainType]}
             color={color}
             isConnected={isConnected}
           />
@@ -242,7 +242,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
           }}
         >
           <div style={{ color: "var(--sub-text)" }}>
-            Connection: {PROTO_TO_PORT_TYPE[activeConnection.mainType]}
+            Connection: {PORT_MAIN_TYPE_FROM_PROTO[activeConnection.mainType]}
           </div>
           <div
             style={{
@@ -250,7 +250,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
               fontWeight: "bold",
             }}
           >
-            This Port: {PROTO_TO_PORT_TYPE[mainType]}
+            This Port: {PORT_MAIN_TYPE_FROM_PROTO[mainType]}
           </div>
           {!validationResult?.canConnect && validationResult?.reason && (
             <div style={{ color: "#f87171", fontSize: "9px" }}>

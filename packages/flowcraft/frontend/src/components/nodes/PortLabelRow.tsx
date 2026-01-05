@@ -1,13 +1,13 @@
 import React, { memo } from "react";
 import { useNodeConnections } from "@xyflow/react";
 import { PortHandle } from "../base/PortHandle";
-import { type Port } from "../../generated/flowcraft/v1/core/node_pb";
+import { type ClientPort } from "../../types";
 import { getPortColor, getPortShape } from "../../utils/themeUtils";
 
 interface PortLabelRowProps {
   nodeId: string;
-  inputPort?: Port;
-  outputPort?: Port;
+  inputPort?: ClientPort;
+  outputPort?: ClientPort;
 }
 
 export const PortLabelRow: React.FC<PortLabelRowProps> = memo(

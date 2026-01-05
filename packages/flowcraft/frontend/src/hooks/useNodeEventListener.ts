@@ -8,13 +8,27 @@ import {
   MediaType,
   MutationSource,
   isDynamicNode,
+  FlowEvent,
 } from "../types";
 import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 
+export interface ContextMenuData {
+  x: number;
+  y: number;
+  nodeId: string;
+  galleryItemUrl?: string;
+  galleryItemType?: MediaType;
+}
+
+export interface PreviewData {
+  nodeId: string;
+  index: number;
+}
+
 interface NodeEventListenerProps {
   nodes: AppNode[];
-  setContextMenu: (menu: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
-  setPreviewData: (data: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  setContextMenu: (menu: ContextMenuData | null) => void;
+  setPreviewData: (data: PreviewData | null) => void;
   setActiveEditorId: (id: string | null) => void;
   streamAction: (nodeId: string, widgetId: string) => void;
   addNodeToStore: (node: AppNode) => void;
@@ -44,7 +58,7 @@ export function useNodeEventListener({
 
     lastProcessedEventTimestamp.current = lastNodeEvent.timestamp;
 
-    if (lastNodeEvent.type === "gallery-context") {
+    if (lastNodeEvent.type === FlowEvent.GALLERY_ITEM_CONTEXT) {
       const payload = lastNodeEvent.payload as {
         x: number;
         y: number;
@@ -59,7 +73,7 @@ export function useNodeEventListener({
         galleryItemUrl: payload.url,
         galleryItemType: payload.mediaType,
       });
-    } else if (lastNodeEvent.type === "open-preview") {
+    } else if (lastNodeEvent.type === FlowEvent.OPEN_PREVIEW) {
       const payload = lastNodeEvent.payload as {
         nodeId: string;
         index: number;
@@ -67,12 +81,12 @@ export function useNodeEventListener({
       setTimeout(() => {
         setPreviewData(payload);
       }, 0);
-    } else if (lastNodeEvent.type === "open-editor") {
+    } else if (lastNodeEvent.type === FlowEvent.OPEN_EDITOR) {
       const payload = lastNodeEvent.payload as { nodeId: string };
       setTimeout(() => {
         setActiveEditorId(payload.nodeId);
       }, 0);
-    } else if (lastNodeEvent.type === "widget-click") {
+    } else if (lastNodeEvent.type === FlowEvent.WIDGET_CLICK) {
       const { nodeId, widgetId } = lastNodeEvent.payload as {
         nodeId: string;
         widgetId: string;

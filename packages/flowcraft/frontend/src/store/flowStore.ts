@@ -8,7 +8,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react";
-import { type AppNode, MutationSource } from "../types";
+import { type AppNode, MutationSource, FlowEvent } from "../types";
 import {
   type MediaType,
   type PortType,
@@ -61,11 +61,14 @@ export interface RFState {
   yEdges: Y.Map<unknown>;
 
   lastNodeEvent: {
-    type: string;
+    type: FlowEvent | string;
     payload: Record<string, unknown>;
     timestamp: number;
   } | null;
-  dispatchNodeEvent: (type: string, payload: Record<string, unknown>) => void;
+  dispatchNodeEvent: (
+    type: FlowEvent | string,
+    payload: Record<string, unknown>,
+  ) => void;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;

@@ -29,6 +29,7 @@ import {
 } from "./db";
 import { NodeRegistry } from "./registry";
 import "./templates"; // 触发注册
+import "./actions/chat";
 import {
   toProtoNode,
   toProtoEdge,
@@ -41,7 +42,8 @@ import { isDynamicNode, type DynamicNodeData } from "../types";
 const app = fastify();
 
 // 1. 注册核心插件
-const storageDir = process.env.FLOWCRAFT_STORAGE_DIR || path.join(process.cwd(), "storage");
+const storageDir =
+  process.env.FLOWCRAFT_STORAGE_DIR || path.join(process.cwd(), "storage");
 const assetsDir = path.join(storageDir, "assets");
 
 await app.register(multipart);
@@ -60,23 +62,32 @@ await app.register(fastifyConnectPlugin, {
       async *watchGraph(_req, ctx) {
         console.log("[Server] Client connected");
 
-        yield create(FlowMessageSchema, {
-          messageId: uuidv4(),
-          timestamp: BigInt(Date.now()),
-          payload: {
-            case: "snapshot",
-            value: create(GraphSnapshotSchema, {
-              nodes: serverGraph.nodes.map(toProtoNode) as any,
-              edges: serverGraph.edges.map(toProtoEdge) as any,
-              version: BigInt(serverVersion),
-            }),
-          },
-        });
+        try {
+          const snapshot = create(FlowMessageSchema, {
+            messageId: uuidv4(),
+            timestamp: BigInt(Date.now()),
+            payload: {
+              case: "snapshot",
+              value: create(GraphSnapshotSchema, {
+                nodes: serverGraph.nodes.map(toProtoNode) as any,
+                edges: serverGraph.edges.map(toProtoEdge) as any,
+                version: BigInt(serverVersion),
+              }),
+            },
+          });
+          yield snapshot;
+        } catch (err) {
+          console.error("[Server] Error generating snapshot:", err);
+          // Don't rethrow, let the loop handle it or send an error if we had an ErrorMessage case
+        }
 
         const queue: FlowMessage[] = [];
-        let resolveQueue: (() => void) | null = null;
+        let waitingPromise: {
+          resolve: () => void;
+          promise: Promise<void>;
+        } | null = null;
 
-        const handler = (type: string, payload: any) => {
+        const pushToQueue = (type: string, payload: any) => {
           queue.push(
             create(FlowMessageSchema, {
               messageId: uuidv4(),
@@ -84,13 +95,16 @@ await app.register(fastifyConnectPlugin, {
               payload: { case: type as any, value: payload },
             }),
           );
-          if (resolveQueue) resolveQueue();
+          if (waitingPromise) {
+            waitingPromise.resolve();
+            waitingPromise = null;
+          }
         };
 
-        const onMutations = (m: any) => handler("mutations", m);
-        const onTaskUpdate = (t: any) => handler("taskUpdate", t);
-        const onStreamChunk = (c: any) => handler("streamChunk", c);
-        const onWidgetSignal = (s: any) => handler("widgetSignal", s);
+        const onMutations = (m: any) => pushToQueue("mutations", m);
+        const onTaskUpdate = (t: any) => pushToQueue("taskUpdate", t);
+        const onStreamChunk = (c: any) => pushToQueue("streamChunk", c);
+        const onWidgetSignal = (s: any) => pushToQueue("widgetSignal", s);
 
         eventBus.on("mutations", onMutations);
         eventBus.on("taskUpdate", onTaskUpdate);
@@ -99,20 +113,30 @@ await app.register(fastifyConnectPlugin, {
 
         try {
           while (!ctx.signal.aborted) {
-            if (queue.length > 0) {
+            while (queue.length > 0) {
               yield queue.shift()!;
-            } else {
-              await new Promise<void>((r) => {
-                resolveQueue = r;
-              });
-              resolveQueue = null;
             }
+
+            if (!waitingPromise) {
+              let resolve: () => void = () => {};
+              const promise = new Promise<void>((r) => {
+                resolve = r;
+              });
+              waitingPromise = { resolve, promise };
+            }
+
+            // Wait for next message or a heartbeat/timeout
+            await Promise.race([
+              waitingPromise.promise,
+              new Promise((r) => setTimeout(r, 10000)), // 10s heartbeat timeout
+            ]);
           }
         } finally {
           eventBus.off("mutations", onMutations);
           eventBus.off("taskUpdate", onTaskUpdate);
           eventBus.off("streamChunk", onStreamChunk);
           eventBus.off("widgetSignal", onWidgetSignal);
+          console.log("[Server] Client disconnected, cleaned up listeners");
         }
       },
 
@@ -127,26 +151,34 @@ await app.register(fastifyConnectPlugin, {
               if (op.value.node) {
                 const node = fromProtoNode(op.value.node);
                 const templateId = (node.data as any).typeId as string;
-                const template = NodeRegistry.getDefinition(templateId || "")?.template;
+                const template = NodeRegistry.getDefinition(
+                  templateId || "",
+                )?.template;
 
                 if (template && template.defaultState) {
                   const defaultData = fromProtoNodeData(template.defaultState);
                   const nodeData = node.data as DynamicNodeData;
-                  const templateData = defaultData as DynamicNodeData;
-                  
+                  const templateData = defaultData;
+
                   // 合并逻辑
                   node.data = {
                     ...templateData,
                     ...nodeData,
                     activeMode: nodeData.activeMode || templateData.activeMode,
-                    modes: (nodeData.modes && nodeData.modes.length > 0) ? nodeData.modes : templateData.modes,
+                    modes:
+                      nodeData.modes && nodeData.modes.length > 0
+                        ? nodeData.modes
+                        : templateData.modes,
                     widgetsValues: {
                       ...(templateData.widgetsValues || {}),
                       ...(nodeData.widgetsValues || {}),
                     },
                   };
 
-                  if (node.data.label === "Loading..." && template.displayName) {
+                  if (
+                    node.data.label === "Loading..." &&
+                    template.displayName
+                  ) {
                     node.data.label = template.displayName;
                   }
                 }
@@ -180,7 +212,9 @@ await app.register(fastifyConnectPlugin, {
               break;
             }
             case "removeNode":
-              serverGraph.nodes = serverGraph.nodes.filter((n) => n.id !== op.value.id);
+              serverGraph.nodes = serverGraph.nodes.filter(
+                (n) => n.id !== op.value.id,
+              );
               break;
             case "addEdge":
               if (op.value.edge) {
@@ -196,7 +230,9 @@ await app.register(fastifyConnectPlugin, {
               }
               break;
             case "removeEdge":
-              serverGraph.edges = serverGraph.edges.filter((e) => e.id !== op.value.id);
+              serverGraph.edges = serverGraph.edges.filter(
+                (e) => e.id !== op.value.id,
+              );
               break;
             case "clearGraph":
               serverGraph.nodes = [];
@@ -295,16 +331,25 @@ await app.register(fastifyConnectPlugin, {
             widget.value = JSON.parse(valueJson);
             incrementVersion();
             const protoNode = toProtoNode(node);
-            eventBus.emit("mutations", create(MutationListSchema, {
-              mutations: [{
-                operation: {
-                  case: "updateNode",
-                  value: { id: nodeId, data: protoNode.state, presentation: protoNode.presentation }
-                }
-              }],
-              sequenceNumber: BigInt(serverVersion),
-              source: MutationSource.SOURCE_USER,
-            }));
+            eventBus.emit(
+              "mutations",
+              create(MutationListSchema, {
+                mutations: [
+                  {
+                    operation: {
+                      case: "updateNode",
+                      value: {
+                        id: nodeId,
+                        data: protoNode.state,
+                        presentation: protoNode.presentation,
+                      },
+                    },
+                  },
+                ],
+                sequenceNumber: BigInt(serverVersion),
+                source: MutationSource.SOURCE_USER,
+              }),
+            );
           }
         }
         return {};
@@ -319,27 +364,41 @@ await app.register(fastifyConnectPlugin, {
             node.data = { ...node.data, ...appData };
           }
           if (presentation) {
-            if (presentation.position) node.position = { x: presentation.position.x, y: presentation.position.y };
+            if (presentation.position)
+              node.position = {
+                x: presentation.position.x,
+                y: presentation.position.y,
+              };
             if (presentation.width || presentation.height) {
               node.measured = {
                 width: presentation.width || node.measured?.width || 0,
                 height: presentation.height || node.measured?.height || 0,
               };
             }
-            node.parentId = presentation.parentId === "" ? undefined : presentation.parentId;
+            node.parentId =
+              presentation.parentId === "" ? undefined : presentation.parentId;
           }
           incrementVersion();
           const protoNode = toProtoNode(node);
-          eventBus.emit("mutations", create(MutationListSchema, {
-            mutations: [{
-              operation: {
-                case: "updateNode",
-                value: { id: nodeId, data: protoNode.state, presentation: protoNode.presentation }
-              }
-            }],
-            sequenceNumber: BigInt(serverVersion),
-            source: MutationSource.SOURCE_USER,
-          }));
+          eventBus.emit(
+            "mutations",
+            create(MutationListSchema, {
+              mutations: [
+                {
+                  operation: {
+                    case: "updateNode",
+                    value: {
+                      id: nodeId,
+                      data: protoNode.state,
+                      presentation: protoNode.presentation,
+                    },
+                  },
+                },
+              ],
+              sequenceNumber: BigInt(serverVersion),
+              source: MutationSource.SOURCE_USER,
+            }),
+          );
         }
         return {};
       },
@@ -349,8 +408,13 @@ await app.register(fastifyConnectPlugin, {
         return {};
       },
 
-      async updateViewport(_req) { return {}; },
-      async cancelTask(req) { console.log(`[Server] Cancel task requested: ${req.taskId}`); return {}; },
+      async updateViewport(_req) {
+        return {};
+      },
+      async cancelTask(req) {
+        console.log(`[Server] Cancel task requested: ${req.taskId}`);
+        return {};
+      },
     });
   },
 });
@@ -365,7 +429,7 @@ app.post("/api/upload", async (req: any, reply) => {
     const asset = await Assets.saveAsset({
       name: data.filename,
       mimeType: data.mimetype,
-      buffer
+      buffer,
     });
 
     return reply.send(asset);

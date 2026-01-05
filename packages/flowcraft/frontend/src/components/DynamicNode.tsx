@@ -1,8 +1,13 @@
 import React, { memo, useCallback } from "react";
-import { type NodeProps, NodeResizer } from "@xyflow/react";
+import {
+  type NodeProps,
+  NodeResizer,
+  type ResizeDragEvent,
+} from "@xyflow/react";
 import { type DynamicNodeType, type DynamicNodeData } from "../types";
 import { WidgetContent } from "./nodes/WidgetContent";
 import { MediaContent } from "./nodes/MediaContent";
+import { ChatRenderer } from "./media/ChatRenderer";
 import { BaseNode } from "./base/BaseNode";
 import { useNodeHandlers } from "../hooks/useNodeHandlers";
 import { useFlowStore } from "../store/flowStore";
@@ -70,11 +75,16 @@ export const DynamicNode = memo(
     positionAbsoluteY,
     ...rest
   }: NodeProps<DynamicNodeType>) => {
-    const { minHeight, minWidth, shouldLockAspectRatio, containerStyle } =
-      useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
+    const {
+      minHeight,
+      minWidth,
+      shouldLockAspectRatio,
+      containerStyle,
+      onChange: updateNodeData,
+    } = useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
 
     const handleResizeEnd = useCallback(
-      (_: any, params: { width: number; height: number }) => {
+      (_event: ResizeDragEvent, params: { width: number; height: number }) => {
         const { applyMutations } = useFlowStore.getState();
         const presentation = createProto(PresentationSchema, {
           width: params.width,
@@ -90,7 +100,7 @@ export const DynamicNode = memo(
               value: {
                 id: id,
                 presentation,
-                data: toProtoNodeData(data as DynamicNodeData),
+                data: toProtoNodeData(data),
               },
             },
           }),
@@ -135,6 +145,8 @@ export const DynamicNode = memo(
           y={positionAbsoluteY}
           renderMedia={RenderMedia}
           renderWidgets={RenderWidgets}
+          renderChat={ChatRenderer}
+          updateNodeData={updateNodeData}
           handles={null}
           {...rest}
         />

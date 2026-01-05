@@ -3,13 +3,6 @@ import { type NodeTemplate } from "../../types";
 import { buildNodeTree } from "../../utils/menuUtils";
 import { NodeSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
-import {
-  itemStyle,
-  sectionStyle,
-  labelStyle,
-  handleMouseEnter,
-  handleMouseLeave,
-} from "./MenuShared";
 
 interface PaneContextMenuProps {
   x: number;
@@ -42,87 +35,39 @@ export const PaneContextMenu: React.FC<PaneContextMenuProps> = ({
 
   return (
     <MenuContainer x={x} y={y}>
-      <div style={sectionStyle}>
+      <div className="fc-menu-section">
         {onCopy && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onCopy();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onCopy(); onClose(); }}>
             📋 Copy (Ctrl+C)
           </div>
         )}
         {onDuplicate && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onDuplicate();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onDuplicate(); onClose(); }}>
             👯 Duplicate (Ctrl+D)
           </div>
         )}
         {onPaste && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onPaste();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onPaste(); onClose(); }}>
             📥 Paste (Ctrl+V)
           </div>
         )}
-        <div
-          style={itemStyle}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => {
-            onAutoLayout();
-            onClose();
-          }}
-        >
+        <div className="fc-menu-item" onClick={() => { onAutoLayout(); onClose(); }}>
           🪄 Auto Layout
         </div>
         {onGroupSelected && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onGroupSelected();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onGroupSelected(); onClose(); }}>
             📦 Group Selected
           </div>
         )}
         {onDeleteSelected && (
-          <div
-            style={{ ...itemStyle, color: "#f87171" }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onDeleteSelected();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item text-red-400" onClick={() => { onDeleteSelected(); onClose(); }}>
             🗑️ Delete Selected
           </div>
         )}
       </div>
 
-      <div style={sectionStyle}>
-        <div style={labelStyle}>ADD NODE</div>
+      <div className="fc-menu-section">
+        <div className="fc-menu-label">Add Node</div>
         {menuTree.map((node, i) => {
           if (node.children && node.children.length > 0) {
             return (
@@ -142,9 +87,7 @@ export const PaneContextMenu: React.FC<PaneContextMenuProps> = ({
             return (
               <div
                 key={tpl.templateId}
-                style={itemStyle}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
+                className="fc-menu-item"
                 onClick={() => {
                   onAddNode(tpl);
                   onClose();

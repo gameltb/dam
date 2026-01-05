@@ -16,20 +16,25 @@ class AssetService {
   private uploadDir: string;
 
   constructor() {
-    const storageDir = process.env.FLOWCRAFT_STORAGE_DIR || path.join(process.cwd(), "storage");
+    const storageDir =
+      process.env.FLOWCRAFT_STORAGE_DIR || path.join(process.cwd(), "storage");
     this.uploadDir = path.join(storageDir, "assets");
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
   }
 
-  async saveAsset(file: { name: string; mimeType: string; buffer: Buffer }): Promise<Asset> {
+  async saveAsset(file: {
+    name: string;
+    mimeType: string;
+    buffer: Buffer;
+  }): Promise<Asset> {
     const id = uuidv4();
     const fileName = `${id}-${file.name}`;
     const filePath = path.join(this.uploadDir, fileName);
-    
+
     fs.writeFileSync(filePath, file.buffer);
-    
+
     const asset: Asset = {
       id,
       name: file.name,
@@ -37,7 +42,7 @@ class AssetService {
       url: `/uploads/${fileName}`,
       path: filePath,
     };
-    
+
     this.assets.set(id, asset);
     return asset;
   }

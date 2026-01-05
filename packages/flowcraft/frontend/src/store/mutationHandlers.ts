@@ -25,17 +25,16 @@ export const handleGraphMutation = (
         const node = fromProtoNode(op.value.node);
         if (node.id) {
           const existing = yNodes.get(node.id) as AppNode | undefined;
-          if (existing) {
-            // 如果节点已存在，合并数据 (主要为了获取后端注入的模板默认值)
+          if (existing && existing.type === node.type) {
+            // Merge data if types match
             const updated = {
               ...existing,
               ...node,
               data: {
-                ...existing.data,
-                ...node.data,
-                // 特别是 activeMode 和 modes，这些是我们需要从服务器同步回来的
-              } as any
-            };
+                ...(existing.data as Record<string, unknown>),
+                ...(node.data as Record<string, unknown>),
+              },
+            } as unknown as AppNode;
             yNodes.set(node.id, dehydrateNode(updated));
           } else {
             yNodes.set(node.id, dehydrateNode(node));

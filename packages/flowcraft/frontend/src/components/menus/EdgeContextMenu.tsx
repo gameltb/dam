@@ -1,11 +1,5 @@
 import React from "react";
 import { MenuContainer } from "./MenuContainer";
-import {
-  itemStyle,
-  sectionStyle,
-  handleMouseEnter,
-  handleMouseLeave,
-} from "./MenuShared";
 
 interface EdgeContextMenuProps {
   x: number;
@@ -22,11 +16,9 @@ export const EdgeContextMenu: React.FC<EdgeContextMenuProps> = ({
   onClose,
 }) => (
   <MenuContainer x={x} y={y}>
-    <div style={sectionStyle}>
+    <div className="fc-menu-section">
       <div
-        style={{ ...itemStyle, color: "#f87171" }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        className="fc-menu-item text-red-400"
         onClick={() => {
           onDelete();
           onClose();

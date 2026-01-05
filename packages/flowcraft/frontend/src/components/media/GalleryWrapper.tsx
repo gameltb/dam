@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFlowStore } from "../../store/flowStore";
-import type { MediaType } from "../../types";
+import { type MediaType, FlowEvent } from "../../types";
 import { IconButton } from "../base/IconButton";
 import { Layers, X } from "lucide-react";
 
@@ -42,7 +42,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
 
     // Only collapse if it's a NEW pane-click event that happened after we opened
     if (
-      lastNodeEvent.type === "pane-click" &&
+      lastNodeEvent.type === FlowEvent.PANE_CLICK &&
       lastNodeEvent.timestamp > lastProcessedTimestamp.current
     ) {
       setIsExpanded(false); // eslint-disable-line react-hooks/set-state-in-effect
@@ -79,7 +79,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   const handleOpenPreview = (index: number) => {
     useFlowStore
       .getState()
-      .dispatchNodeEvent("open-preview", { nodeId: id, index });
+      .dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { nodeId: id, index });
   };
 
   const getGalleryRows = () => {

@@ -47,6 +47,7 @@ enum RenderMode {
   MODE_MEDIA = 1;
   MODE_WIDGETS = 2;
   MODE_MARKDOWN = 3;
+  MODE_CHAT = 4;
 }
 
 message MediaContent {

@@ -7,7 +7,7 @@ import { getSchemaForTemplate } from "../utils/schemaRegistry";
 
 interface ActionParamsModalProps {
   action: ActionTemplate;
-  onConfirm: (params: Record<string, any>) => void;
+  onConfirm: (params: Record<string, unknown>) => void;
   onCancel: () => void;
 }
 

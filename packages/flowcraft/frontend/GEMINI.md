@@ -45,10 +45,16 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 ## Development Conventions
 
-- **Typing:** Strict TypeScript typing is enforced. Avoid `any` in favor of `unknown`, generics, or generated Protobuf types.
-- **Event Bus:** Use the centralized event bus in `flowStore` (`dispatchNodeEvent`) for inter-component signaling (e.g., opening previews or editors).
+- **Typing:** Strict TypeScript typing is enforced. Avoid `any` in favor of `unknown`, generics, or generated Protobuf types. **Prefer Enums over string literals or string unions wherever possible** to ensure type safety, discoverability, and centralized definition.
+- **Event Bus:** Use the centralized event bus in `flowStore` (`dispatchNodeEvent`) for inter-component signaling (e.g., opening previews or editors). **Define event names as Enums.**
 - **Theming:** The application is dark-mode first. Use CSS variables defined in `index.css` (`--node-bg`, `--primary-color`, etc.) for all styling.
-- **Components:** Modularize node renderers and widgets. Prefer Functional Components and Hooks.
+- **Components & Performance:**
+  - Prefer Functional Components and Hooks.
+  - **Memoization:** Proactively wrap node renderers and complex widgets in `React.memo`. Always use `useCallback` for event handlers (especially those passed to handles/resizers) to prevent unnecessary React Flow re-renders during dragging.
+  - **Error Resilience:** Wrap complex node renderers in local Error Boundaries. A failure in a specific node's media or widget renderer must not crash the entire editor canvas.
+- **Data & Synchronization:**
+  - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
+  - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure Yjs and Backend synchronization. Avoid mixing local component state with store state for data that needs to be synchronized.
 - **Polymorphism over Conditionals:**
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
   - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).

@@ -15,6 +15,7 @@ import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 import { type AppNode } from "../types";
 import { type HelperLines } from "./useHelperLines";
 import { findPort } from "../utils/nodeUtils";
+import { PORT_MAIN_TYPE_TO_PROTO } from "../utils/protoAdapter";
 
 interface FlowHandlersProps {
   nodes: AppNode[];
@@ -103,7 +104,8 @@ export function useFlowHandlers({
           const port = findPort(node, handleId ?? "");
           if (port?.type) {
             portInfo = {
-              mainType: port.type.mainType as number,
+              mainType: (PORT_MAIN_TYPE_TO_PROTO[port.type.mainType] ??
+                PortMainType.ANY) as number,
               itemType: port.type.itemType,
             };
           }

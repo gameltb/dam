@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from "react";
 import { MediaType } from "../generated/flowcraft/v1/core/node_pb";
-import type { DynamicNodeData } from "../types";
+import { type DynamicNodeData, FlowEvent } from "../types";
 import { useNodeLayout } from "./useNodeLayout";
 import { useFlowStore } from "../store/flowStore";
 
@@ -53,7 +53,7 @@ export function useNodeHandlers(
       height: "100%",
       display: "flex",
       flexDirection: "column",
-      borderRadius: "8px",
+      borderRadius: "var(--radius-lg)",
       backgroundColor: "var(--node-bg)",
       color: "var(--text-color)",
       border: "1px solid",
@@ -75,7 +75,7 @@ export function useNodeHandlers(
 
   const onWidgetClick = useCallback(
     (nodeId: string, widgetId: string) => {
-      dispatchNodeEvent("widget-click", { nodeId, widgetId });
+      dispatchNodeEvent(FlowEvent.WIDGET_CLICK, { nodeId, widgetId });
     },
     [dispatchNodeEvent],
   );
@@ -88,7 +88,7 @@ export function useNodeHandlers(
       x: number,
       y: number,
     ) => {
-      dispatchNodeEvent("gallery-item-context", {
+      dispatchNodeEvent(FlowEvent.GALLERY_ITEM_CONTEXT, {
         nodeId,
         url,
         mediaType,

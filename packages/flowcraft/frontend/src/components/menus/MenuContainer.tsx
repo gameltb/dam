@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "../../lib/utils";
 
 export interface MenuContainerProps {
   x: number;
@@ -12,25 +13,15 @@ export const MenuContainer: React.FC<MenuContainerProps> = ({
   children,
 }) => (
   <div
-    className="context-menu-container"
+    className={cn(
+      "fc-panel fixed z-[1000] min-w-[160px] py-1 shadow-2xl backdrop-blur-md animate-menu-in",
+      "context-menu-container"
+    )}
     style={{
-      position: "fixed",
       top: y,
       left: x,
-      backgroundColor: "var(--panel-bg)",
-      border: "1px solid var(--node-border)",
-      borderRadius: "8px",
-      boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-      zIndex: 1000,
-      minWidth: "160px",
-      padding: "4px 0",
-      animation: "fade-in 0.1s ease-out",
-      backdropFilter: "blur(10px)",
     }}
   >
-    <style>{`
-      @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-    `}</style>
     {children}
   </div>
 );

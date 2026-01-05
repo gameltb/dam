@@ -2,13 +2,6 @@ import React, { useMemo } from "react";
 import { buildActionTree } from "../../utils/menuUtils";
 import { GenericSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
-import {
-  itemStyle,
-  sectionStyle,
-  labelStyle,
-  handleMouseEnter,
-  handleMouseLeave,
-} from "./MenuShared";
 
 interface NodeContextMenuProps {
   x: number;
@@ -50,101 +43,45 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
 
   return (
     <MenuContainer x={x} y={y}>
-      <div style={sectionStyle}>
+      <div className="fc-menu-section">
         {onFocus && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onFocus();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onFocus(); onClose(); }}>
             🔍 Focus View
           </div>
         )}
         {onOpenEditor && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onOpenEditor();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onOpenEditor(); onClose(); }}>
             🎨 Open Editor
           </div>
         )}
         {onCopy && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onCopy();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onCopy(); onClose(); }}>
             📋 Copy (Ctrl+C)
           </div>
         )}
         {onDuplicate && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onDuplicate();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onDuplicate(); onClose(); }}>
             👯 Duplicate (Ctrl+D)
           </div>
         )}
         {onGroupSelected && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onGroupSelected();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onGroupSelected(); onClose(); }}>
             📦 Group Selected
           </div>
         )}
         {onLayoutGroup && (
-          <div
-            style={itemStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              onLayoutGroup();
-              onClose();
-            }}
-          >
+          <div className="fc-menu-item" onClick={() => { onLayoutGroup(); onClose(); }}>
             📐 Layout Group
           </div>
         )}
-        <div
-          style={{ ...itemStyle, color: "#f87171" }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => {
-            onDelete();
-            onClose();
-          }}
-        >
+        <div className="fc-menu-item text-red-400" onClick={() => { onDelete(); onClose(); }}>
           🗑️ Delete
         </div>
       </div>
 
       {actionTree.length > 0 && (
-        <div style={sectionStyle}>
-          <div style={labelStyle}>SERVER ACTIONS</div>
+        <div className="fc-menu-section">
+          <div className="fc-menu-label">Server Actions</div>
           {actionTree.map((node, i) => {
             if (node.children && node.children.length > 0) {
               return (
@@ -160,9 +97,7 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
               return (
                 <div
                   key={action.id}
-                  style={itemStyle}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
+                  className="fc-menu-item"
                   onClick={() => {
                     action.onClick();
                     onClose();

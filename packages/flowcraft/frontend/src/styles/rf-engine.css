@@ -1,0 +1,48 @@
+/* 
+ * ReactFlow Engine Styles
+ */
+@layer rf-engine {
+  @import "@xyflow/react/dist/style.css";
+}
+
+/* 
+ * The Simple Way: Use Tailwind @apply on ReactFlow classes.
+ * No need to map dozens of --xy- variables manually.
+ */
+.fc-canvas-area {
+  /* Controls (The bottom-left buttons) */
+  .react-flow__controls {
+    @apply !shadow-none border border-border rounded-md overflow-hidden;
+  }
+
+  .react-flow__controls-button {
+    @apply !bg-popover !fill-foreground !text-foreground !border-b !border-border last:!border-none hover:!bg-accent transition-colors;
+    
+    svg {
+      @apply !fill-current;
+    }
+  }
+
+  /* MiniMap (The bottom-right map) */
+  .react-flow__minimap {
+    @apply !bg-popover !border !border-border !shadow-lg !rounded-lg overflow-hidden;
+  }
+
+  /* Nodes and Edges defaults */
+  .react-flow__edge-path {
+    @apply stroke-muted-foreground/50;
+  }
+  
+  .react-flow__edge.selected .react-flow__edge-path {
+    @apply stroke-primary;
+  }
+
+  .react-flow__handle {
+    @apply !bg-primary !border-background;
+  }
+}
+
+/* Dark mode specific tweaks if any */
+.dark .fc-canvas-area {
+  --xy-minimap-mask-background-color: rgba(0, 0, 0, 0.3);
+}

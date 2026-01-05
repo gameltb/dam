@@ -18,7 +18,7 @@ export interface NodeDefinition {
   execute?: (ctx: NodeExecutionContext) => Promise<void>;
 }
 
-export type ActionHandlerContext = {
+export interface ActionHandlerContext {
   actionId: string;
   sourceNodeId?: string;
   contextNodeIds?: string[];
@@ -28,7 +28,7 @@ export type ActionHandlerContext = {
   emitTaskUpdate: (update: any) => void;
   emitMutation: (mutation: any) => void;
   emitStreamChunk: (chunk: any) => void;
-};
+}
 
 export type ActionHandler = (ctx: ActionHandlerContext) => Promise<void>;
 

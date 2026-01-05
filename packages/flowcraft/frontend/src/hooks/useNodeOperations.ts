@@ -33,9 +33,10 @@ export const useNodeOperations = (
         data: {
           label: "Loading...",
           typeId: templateId,
+          modes: [],
           ...initialData,
-        } as any,
-      } as AppNode;
+        } as DynamicNodeData,
+      };
 
       applyMutations([
         create(GraphMutationSchema, {

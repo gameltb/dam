@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient, ConnectError, Code } from "@connectrpc/connect";
 import { toast } from "react-hot-toast";
@@ -12,6 +12,7 @@ import {
   type TemplateDiscoveryResponse,
 } from "../generated/flowcraft/v1/core/service_pb";
 import { type TaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
+import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
 import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 import { type TaskDefinition, MutationSource } from "../types";
 
@@ -29,7 +30,7 @@ interface SocketEvents {
   mutations: (data: GraphMutation[]) => void;
   actions: (data: ActionTemplate[]) => void;
   taskUpdate: (data: TaskDefinition) => void;
-  widgetSignal: (data: any) => void; // Using any for simplicity
+  widgetSignal: (data: WidgetSignal) => void;
   streamChunk: (data: StreamChunk) => void;
   templates: (data: TemplateDiscoveryResponse) => void;
   error: (error: unknown) => void;
@@ -54,7 +55,7 @@ function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
 }
 
 class SocketClientImpl {
-  private handlers: { [K in keyof SocketEvents]?: SocketEvents[K][] } = {};
+  private handlers: Partial<{ [K in keyof SocketEvents]: Handler<K>[] }> = {};
   private streamHandlers: Record<string, (chunk: string) => void> = {};
   private activeStreamAbort: AbortController | null = null;
   private currentBaseUrl =
@@ -111,17 +112,16 @@ class SocketClientImpl {
   }
 
   on<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
-    const handlers = (this.handlers[event] ?? []) as Handler<K>[];
-    handlers.push(handler);
-    this.handlers[event] = handlers as any;
+    if (!this.handlers[event]) {
+      this.handlers[event] = [] as any;
+    }
+    this.handlers[event]!.push(handler);
   }
 
   off<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
     const list = this.handlers[event];
     if (!list) return;
-    this.handlers[event] = (list as Handler<K>[]).filter(
-      (h) => h !== handler,
-    ) as any;
+    this.handlers[event] = list.filter((h) => h !== handler) as any;
   }
 
   private emit<K extends keyof SocketEvents>(
@@ -130,7 +130,7 @@ class SocketClientImpl {
   ) {
     const handlers = this.handlers[event];
     if (handlers) {
-      handlers.forEach((h: any) => {
+      (handlers as ((arg: typeof data) => void)[]).forEach((h) => {
         h(data);
       });
     }
@@ -145,57 +145,60 @@ class SocketClientImpl {
   }
 
   async send(wrapper: { payload: FlowMessage["payload"] }) {
-    const { case: type, value } = wrapper.payload;
+    if (wrapper.payload.case === undefined) return;
 
     try {
-      switch (type) {
+      switch (wrapper.payload.case) {
         case "syncRequest":
-          void this.startStream(value);
+          void this.startStream(wrapper.payload.value);
           break;
 
         case "nodeUpdate":
-          await this.client.updateNode(value as any);
+          await this.client.updateNode(wrapper.payload.value);
           break;
 
         case "widgetUpdate":
-          await this.client.updateWidget(value as any);
+          await this.client.updateWidget(wrapper.payload.value);
           break;
 
         case "widgetSignal":
-          await this.client.sendWidgetSignal(value as any);
+          await this.client.sendWidgetSignal(wrapper.payload.value);
           break;
 
         case "actionExecute":
-          await this.client.executeAction(value as any);
+          await this.client.executeAction(wrapper.payload.value);
           break;
 
         case "actionDiscovery": {
-          const res = await this.client.discoverActions(value as any);
+          const res = await this.client.discoverActions(wrapper.payload.value);
           this.emit("actions", res.actions);
           break;
         }
 
         case "mutations": {
-          await this.client.applyMutations(value as any);
+          await this.client.applyMutations(wrapper.payload.value);
           break;
         }
 
         case "templateDiscovery": {
-          const res = await this.client.discoverTemplates(value as any);
+          const res = await this.client.discoverTemplates(
+            wrapper.payload.value,
+          );
           this.emit("templates", res);
           break;
         }
 
         case "taskCancel":
-          await this.client.cancelTask(value as any);
+          await this.client.cancelTask(wrapper.payload.value);
           break;
 
         case "viewportUpdate":
-          await this.client.updateViewport(value as any);
+          await this.client.updateViewport(wrapper.payload.value);
           break;
 
         default:
-          console.warn("Unknown message type:", type);
+          // Use type narrowing to ensure all cases are handled if possible
+          console.warn("Unknown message type:", (wrapper.payload as any).case);
       }
     } catch (e) {
       console.error("gRPC Error:", e);
@@ -247,6 +250,14 @@ class SocketClientImpl {
         return;
       }
       console.error("Stream Error:", e);
+      if (e instanceof ConnectError) {
+        console.error("ConnectError Details:", {
+          code: e.code,
+          message: e.message,
+          details: e.details,
+          rawMessage: e.rawMessage,
+        });
+      }
       this.setStatus(SocketStatus.ERROR);
       toast.error(
         `Connection lost: ${e instanceof Error ? e.message : "Unknown error"}`,
@@ -289,7 +300,7 @@ class SocketClientImpl {
       case "widgetSignal": {
         const signal = payload.value;
         void import("../store/flowStore").then(({ useFlowStore }) => {
-          useFlowStore.getState().handleIncomingWidgetSignal(signal as any);
+          useFlowStore.getState().handleIncomingWidgetSignal(signal);
         });
         this.emit("widgetSignal", signal);
         break;

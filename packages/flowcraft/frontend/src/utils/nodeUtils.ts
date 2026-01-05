@@ -1,10 +1,27 @@
-import { type AppNode, isDynamicNode, type Port, PortMainType } from "../types";
-import { type PortType } from "../generated/flowcraft/v1/core/node_pb";
+import { type AppNode, isDynamicNode, type ClientPort } from "../types";
+import { MediaType, PortStyle } from "../generated/flowcraft/v1/core/node_pb";
+
+/**
+ * Maps a MIME type string to the appropriate MediaType enum.
+ */
+export function getMediaTypeFromMime(mimeType?: string): MediaType {
+  if (!mimeType) return MediaType.MEDIA_UNSPECIFIED;
+
+  if (mimeType.startsWith("image/")) return MediaType.MEDIA_IMAGE;
+  if (mimeType.startsWith("video/")) return MediaType.MEDIA_VIDEO;
+  if (mimeType.startsWith("audio/")) return MediaType.MEDIA_AUDIO;
+  if (mimeType === "text/markdown") return MediaType.MEDIA_MARKDOWN;
+
+  return MediaType.MEDIA_UNSPECIFIED;
+}
 
 /**
  * Finds a port by its ID within a node.
  */
-export function findPort(node: AppNode, portId: string): Port | undefined {
+export function findPort(
+  node: AppNode,
+  portId: string,
+): ClientPort | undefined {
   if (!isDynamicNode(node)) return undefined;
 
   const data = node.data;
@@ -19,12 +36,14 @@ export function findPort(node: AppNode, portId: string): Port | undefined {
     // Implicit widget ports are treated as STRING type by convention
     return {
       id: widget.inputPortId,
+      label: widget.label,
       type: {
-        mainType: PortMainType.STRING,
+        mainType: "string",
         itemType: "",
         isGeneric: false,
-      } as unknown as PortType,
-    } as Port;
+      },
+      style: PortStyle.CIRCLE,
+    };
   }
 
   return undefined;

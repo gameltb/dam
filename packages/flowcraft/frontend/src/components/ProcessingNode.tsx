@@ -112,18 +112,11 @@ const ProcessingNode: React.FC<NodeProps<ProcessingNodeType>> = (props) => {
 
   return (
     <div
+      className={selected ? "fc-node fc-node-selected" : "fc-node"}
       style={{
-        borderRadius: "12px",
-        background: "var(--node-bg)",
-        color: "white",
-        border: `2px solid ${selected ? "var(--primary-color)" : "rgba(113, 128, 150, 0.4)"}`,
         minWidth: "200px",
         textAlign: "center",
-        boxShadow: selected
-          ? "0 0 20px rgba(100, 108, 255, 0.3)"
-          : "0 4px 15px rgba(0,0,0,0.3)",
         overflow: "visible", // For floating panel
-        transition: "all 0.2s ease",
       }}
     >
       <BaseNode<ProcessingNodeType>

@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { useFlowStore } from "../store/flowStore";
-import type { MediaType } from "../types";
+import { type MediaType, FlowEvent } from "../types";
 
 export const useContextMenu = (): {
   contextMenu: {
@@ -126,7 +126,7 @@ export const useContextMenu = (): {
 
   const onPaneClick = useCallback(() => {
     setContextMenu(null);
-    dispatchNodeEvent("pane-click", {});
+    dispatchNodeEvent(FlowEvent.PANE_CLICK, {});
   }, [dispatchNodeEvent]);
 
   const closeContextMenu = useCallback(() => {

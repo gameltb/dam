@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
 import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
-import type { WidgetProps, RegistryWidgetsType, ObjectFieldTemplateProps } from "@rjsf/utils";
+import type {
+  WidgetProps,
+  RegistryWidgetsType,
+  ObjectFieldTemplateProps,
+  RJSFSchema,
+  UiSchema,
+} from "@rjsf/utils";
 import { useFlowStore } from "../../store/flowStore";
 import { socketClient } from "../../utils/SocketClient";
 import { WidgetSignalSchema } from "../../generated/flowcraft/v1/core/signals_pb";
 import { create } from "@bufbuild/protobuf";
+import type { StreamChunk } from "../../generated/flowcraft/v1/core/service_pb";
 
 /**
  * 自定义对象模板：移除 fieldset 和 legend
@@ -14,7 +21,13 @@ const PlainObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
   return (
     <div style={{ width: "100%" }}>
       {props.properties.map((element) => (
-        <div key={element.name} style={{ width: "100%", marginBottom: element.name === "conversation" ? 0 : "10px" }}>
+        <div
+          key={element.name}
+          style={{
+            width: "100%",
+            marginBottom: element.name === "conversation" ? 0 : "10px",
+          }}
+        >
           {element.content}
         </div>
       ))}
@@ -24,35 +37,51 @@ const PlainObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
 
 const StreamingTextWidget = (props: WidgetProps) => {
   const { value, onChange, label, id, registry } = props;
-  const nodeId = registry.formContext.nodeId;
+  const nodeId = registry.formContext?.nodeId as string | undefined;
   const widgetId = id.split("_").pop();
 
-  const [streamedValue, setStreamedValue] = useState(value || "");
+  const [streamedValue, setStreamedValue] = useState<string>(
+    (value as string) || "",
+  );
 
   useEffect(() => {
     if (!nodeId || !widgetId) return;
-    const handler = (chunk: any) => {
+    const handler = (chunk: StreamChunk) => {
       if (chunk.nodeId === nodeId && chunk.widgetId === widgetId) {
         setStreamedValue((prev: string) => prev + chunk.chunkData);
       }
     };
     socketClient.on("streamChunk", handler);
-    return () => socketClient.off("streamChunk", handler);
+    return () => {
+      socketClient.off("streamChunk", handler);
+    };
   }, [nodeId, widgetId]);
 
   useEffect(() => {
     if (streamedValue !== value) onChange(streamedValue);
-  }, [streamedValue]);
+  }, [streamedValue, value, onChange]);
 
   return (
     <div style={{ marginBottom: "10px" }}>
-      <label style={{ fontSize: "12px", color: "var(--sub-text)" }}>{label}</label>
-      <div style={{
-        minHeight: "60px", padding: "8px", backgroundColor: "rgba(0,0,0,0.3)",
-        border: "1px solid var(--node-border)", borderRadius: "4px",
-        fontFamily: "monospace", fontSize: "13px", whiteSpace: "pre-wrap", color: "var(--primary-color)",
-      }}>
-        {streamedValue || <span style={{ opacity: 0.3 }}>Waiting for stream...</span>}
+      <label style={{ fontSize: "12px", color: "var(--sub-text)" }}>
+        {label}
+      </label>
+      <div
+        style={{
+          minHeight: "60px",
+          padding: "8px",
+          backgroundColor: "rgba(0,0,0,0.3)",
+          border: "1px solid var(--node-border)",
+          borderRadius: "4px",
+          fontFamily: "monospace",
+          fontSize: "13px",
+          whiteSpace: "pre-wrap",
+          color: "var(--primary-color)",
+        }}
+      >
+        {streamedValue || (
+          <span style={{ opacity: 0.3 }}>Waiting for stream...</span>
+        )}
       </div>
     </div>
   );
@@ -60,7 +89,7 @@ const StreamingTextWidget = (props: WidgetProps) => {
 
 const SignalButtonWidget = (props: WidgetProps) => {
   const { label, id, registry } = props;
-  const nodeId = registry.formContext.nodeId;
+  const nodeId = registry.formContext?.nodeId as string;
   const widgetId = id.split("_").pop() || id;
   const sendWidgetSignal = useFlowStore((s) => s.sendWidgetSignal);
 
@@ -68,14 +97,23 @@ const SignalButtonWidget = (props: WidgetProps) => {
     <button
       onClick={(e) => {
         e.preventDefault();
-        sendWidgetSignal(create(WidgetSignalSchema, {
-          nodeId: nodeId, widgetId: widgetId,
-          dataJson: JSON.stringify({ action: "trigger" }),
-        }));
+        sendWidgetSignal(
+          create(WidgetSignalSchema, {
+            nodeId: nodeId,
+            widgetId: widgetId,
+            dataJson: JSON.stringify({ action: "trigger" }),
+          }),
+        );
       }}
       style={{
-        width: "100%", padding: "6px", backgroundColor: "var(--primary-color)",
-        color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", marginTop: "5px",
+        width: "100%",
+        padding: "6px",
+        backgroundColor: "var(--primary-color)",
+        color: "#fff",
+        border: "none",
+        borderRadius: "4px",
+        cursor: "pointer",
+        marginTop: "5px",
       }}
     >
       {label || "Send Signal"}
@@ -89,9 +127,9 @@ const customWidgets: RegistryWidgetsType = {
 };
 
 interface FlowcraftRJSFProps {
-  schema: any;
-  formData: any;
-  onChange: (data: any) => void;
+  schema: RJSFSchema;
+  formData: Record<string, unknown>;
+  onChange: (data: Record<string, unknown>) => void;
   nodeId: string;
 }
 
@@ -103,19 +141,20 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
 }) => {
   const [renderError, setRenderError] = useState<string | null>(null);
 
-  const generateUiSchema = (s: any) => {
-    const ui: any = {};
+  const generateUiSchema = (s: RJSFSchema): UiSchema => {
+    const ui: UiSchema = {};
     if (s.properties) {
-      Object.entries(s.properties).forEach(([key, value]: [string, any]) => {
+      Object.entries(s.properties).forEach(([key, value]) => {
+        const val = value as RJSFSchema;
         // 如果字段定义了 uiWidget，映射到 ui:widget
-        if (value.uiWidget) {
-          ui[key] = { "ui:widget": value.uiWidget };
+        if (val.uiWidget) {
+          ui[key] = { "ui:widget": val.uiWidget };
         }
-        // 如果是嵌套对象，递归处理 (重要修复)
-        if (value.type === "object" && value.properties) {
-          const nestedUi = generateUiSchema(value);
+        // 如果是嵌套对象，递归处理
+        if (val.type === "object" && val.properties) {
+          const nestedUi = generateUiSchema(val);
           if (Object.keys(nestedUi).length > 0) {
-            ui[key] = { ...ui[key], ...nestedUi };
+            ui[key] = { ...(ui[key] as object), ...nestedUi };
           }
         }
       });
@@ -128,10 +167,24 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
 
   if (renderError) {
     return (
-      <div style={{ padding: "10px", color: "#ff4d4f", fontSize: "12px", background: "rgba(255,77,79,0.1)", borderRadius: "4px" }}>
+      <div
+        style={{
+          padding: "10px",
+          color: "#ff4d4f",
+          fontSize: "12px",
+          background: "rgba(255,77,79,0.1)",
+          borderRadius: "4px",
+        }}
+      >
         <strong>RJSF Render Error:</strong>
         <pre style={{ overflow: "auto", marginTop: "5px" }}>{renderError}</pre>
-        <button onClick={() => setRenderError(null)}>Retry</button>
+        <button
+          onClick={() => {
+            setRenderError(null);
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -146,13 +199,15 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
         widgets={customWidgets}
         templates={{ ObjectFieldTemplate: PlainObjectFieldTemplate }}
         formContext={{ nodeId }}
-        onChange={(e) => onChange(e.formData)}
+        onChange={(e) => {
+          onChange(e.formData as Record<string, unknown>);
+        }}
       >
         <div />
       </Form>
     );
-  } catch (err: any) {
-    setRenderError(err.message || String(err));
+  } catch (err) {
+    setRenderError(err instanceof Error ? err.message : String(err));
     return null;
   }
 };
