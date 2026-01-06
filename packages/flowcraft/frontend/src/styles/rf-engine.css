@@ -17,7 +17,7 @@
 
   .react-flow__controls-button {
     @apply !bg-popover !fill-foreground !text-foreground !border-b !border-border last:!border-none hover:!bg-accent transition-colors;
-    
+
     svg {
       @apply !fill-current;
     }
@@ -32,7 +32,7 @@
   .react-flow__edge-path {
     @apply stroke-muted-foreground/50;
   }
-  
+
   .react-flow__edge.selected .react-flow__edge-path {
     @apply stroke-primary;
   }

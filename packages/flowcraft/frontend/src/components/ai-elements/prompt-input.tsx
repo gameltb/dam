@@ -74,22 +74,22 @@ import {
 // Provider Context & Types
 // ============================================================================
 
-export type AttachmentsContext = {
+export interface AttachmentsContext {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
   remove: (id: string) => void;
   clear: () => void;
   openFileDialog: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
-};
+}
 
-export type TextInputContext = {
+export interface TextInputContext {
   value: string;
   setInput: (v: string) => void;
   clear: () => void;
-};
+}
 
-export type PromptInputControllerProps = {
+export interface PromptInputControllerProps {
   textInput: TextInputContext;
   attachments: AttachmentsContext;
   /** INTERNAL: Allows PromptInput to register its file textInput + "open" callback */
@@ -97,7 +97,7 @@ export type PromptInputControllerProps = {
     ref: RefObject<HTMLInputElement | null>,
     open: () => void,
   ) => void;
-};
+}
 
 const PromptInputController = createContext<PromptInputControllerProps | null>(
   null,
@@ -147,7 +147,9 @@ export function PromptInputProvider({
 }: PromptInputProviderProps) {
   // ----- textInput state
   const [textInput, setTextInput] = useState(initialTextInput);
-  const clearInput = useCallback(() => setTextInput(""), []);
+  const clearInput = useCallback(() => {
+    setTextInput("");
+  }, []);
 
   // ----- attachments state (global when wrapped)
   const [attachmentFiles, setAttachmentFiles] = useState<
@@ -198,7 +200,9 @@ export function PromptInputProvider({
 
   // Keep a ref to attachments for cleanup on unmount (avoids stale closure)
   const attachmentsRef = useRef(attachmentFiles);
-  attachmentsRef.current = attachmentFiles;
+  useEffect(() => {
+    attachmentsRef.current = attachmentFiles;
+  }, [attachmentFiles]);
 
   // Cleanup blob URLs on unmount to prevent memory leaks
   useEffect(() => {
@@ -427,10 +431,10 @@ export const PromptInputActionAddAttachments = ({
   );
 };
 
-export type PromptInputMessage = {
+export interface PromptInputMessage {
   text: string;
   files: FileUIPart[];
-};
+}
 
 export type PromptInputProps = Omit<
   HTMLAttributes<HTMLFormElement>,
@@ -482,7 +486,9 @@ export const PromptInput = ({
 
   // Keep a ref to files for cleanup on unmount (avoids stale closure)
   const filesRef = useRef(files);
-  filesRef.current = files;
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
 
   const openFileDialogLocal = useCallback(() => {
     inputRef.current?.click();
@@ -561,30 +567,26 @@ export const PromptInput = ({
     [matchesAccept, maxFiles, maxFileSize, onError],
   );
 
-  const removeLocal = useCallback(
-    (id: string) =>
-      setItems((prev) => {
-        const found = prev.find((file) => file.id === id);
-        if (found?.url) {
-          URL.revokeObjectURL(found.url);
-        }
-        return prev.filter((file) => file.id !== id);
-      }),
-    [],
-  );
+  const removeLocal = useCallback((id: string) => {
+    setItems((prev) => {
+      const found = prev.find((file) => file.id === id);
+      if (found?.url) {
+        URL.revokeObjectURL(found.url);
+      }
+      return prev.filter((file) => file.id !== id);
+    });
+  }, []);
 
-  const clearLocal = useCallback(
-    () =>
-      setItems((prev) => {
-        for (const file of prev) {
-          if (file.url) {
-            URL.revokeObjectURL(file.url);
-          }
+  const clearLocal = useCallback(() => {
+    setItems((prev) => {
+      for (const file of prev) {
+        if (file.url) {
+          URL.revokeObjectURL(file.url);
         }
-        return [];
-      }),
-    [],
-  );
+      }
+      return [];
+    });
+  }, []);
 
   const add = usingProvider ? controller.attachments.add : addLocal;
   const remove = usingProvider ? controller.attachments.remove : removeLocal;
@@ -666,7 +668,7 @@ export const PromptInput = ({
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup only on unmount; filesRef always current
+
     [usingProvider],
   );
 
@@ -684,10 +686,14 @@ export const PromptInput = ({
     try {
       const response = await fetch(url);
       const blob = await response.blob();
-      return new Promise((resolve) => {
+      return await new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(null);
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => {
+          resolve(null);
+        };
         reader.readAsDataURL(blob);
       });
     } catch {
@@ -902,8 +908,12 @@ export const PromptInputTextarea = ({
     <InputGroupTextarea
       className={cn("field-sizing-content max-h-48 min-h-16", className)}
       name="message"
-      onCompositionEnd={() => setIsComposing(false)}
-      onCompositionStart={() => setIsComposing(true)}
+      onCompositionEnd={() => {
+        setIsComposing(false);
+      }}
+      onCompositionStart={() => {
+        setIsComposing(true);
+      }}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       placeholder={placeholder}
@@ -1075,23 +1085,23 @@ interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
 }
 
-type SpeechRecognitionResultList = {
+interface SpeechRecognitionResultList {
   readonly length: number;
   item(index: number): SpeechRecognitionResult;
   [index: number]: SpeechRecognitionResult;
-};
+}
 
-type SpeechRecognitionResult = {
+interface SpeechRecognitionResult {
   readonly length: number;
   item(index: number): SpeechRecognitionAlternative;
   [index: number]: SpeechRecognitionAlternative;
   isFinal: boolean;
-};
+}
 
-type SpeechRecognitionAlternative = {
+interface SpeechRecognitionAlternative {
   transcript: string;
   confidence: number;
-};
+}
 
 interface SpeechRecognitionErrorEvent extends Event {
   error: string;
@@ -1099,12 +1109,8 @@ interface SpeechRecognitionErrorEvent extends Event {
 
 declare global {
   interface Window {
-    SpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-    webkitSpeechRecognition: {
-      new (): SpeechRecognition;
-    };
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
   }
 }
 

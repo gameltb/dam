@@ -45,36 +45,78 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
     <MenuContainer x={x} y={y}>
       <div className="fc-menu-section">
         {onFocus && (
-          <div className="fc-menu-item" onClick={() => { onFocus(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onFocus();
+              onClose();
+            }}
+          >
             🔍 Focus View
           </div>
         )}
         {onOpenEditor && (
-          <div className="fc-menu-item" onClick={() => { onOpenEditor(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onOpenEditor();
+              onClose();
+            }}
+          >
             🎨 Open Editor
           </div>
         )}
         {onCopy && (
-          <div className="fc-menu-item" onClick={() => { onCopy(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onCopy();
+              onClose();
+            }}
+          >
             📋 Copy (Ctrl+C)
           </div>
         )}
         {onDuplicate && (
-          <div className="fc-menu-item" onClick={() => { onDuplicate(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onDuplicate();
+              onClose();
+            }}
+          >
             👯 Duplicate (Ctrl+D)
           </div>
         )}
         {onGroupSelected && (
-          <div className="fc-menu-item" onClick={() => { onGroupSelected(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onGroupSelected();
+              onClose();
+            }}
+          >
             📦 Group Selected
           </div>
         )}
         {onLayoutGroup && (
-          <div className="fc-menu-item" onClick={() => { onLayoutGroup(); onClose(); }}>
+          <div
+            className="fc-menu-item"
+            onClick={() => {
+              onLayoutGroup();
+              onClose();
+            }}
+          >
             📐 Layout Group
           </div>
         )}
-        <div className="fc-menu-item text-red-400" onClick={() => { onDelete(); onClose(); }}>
+        <div
+          className="fc-menu-item text-red-400"
+          onClick={() => {
+            onDelete();
+            onClose();
+          }}
+        >
           🗑️ Delete
         </div>
       </div>

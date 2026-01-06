@@ -144,6 +144,15 @@ class SocketClientImpl {
     this.streamHandlers[`${nodeId}-${widgetId}`] = handler;
   }
 
+  async getChatHistory(headId: string) {
+    try {
+      return await this.client.getChatHistory({ headId });
+    } catch (e) {
+      console.error("[SocketClient] Failed to get chat history:", e);
+      throw e;
+    }
+  }
+
   async send(wrapper: { payload: FlowMessage["payload"] }) {
     if (wrapper.payload.case === undefined) return;
 

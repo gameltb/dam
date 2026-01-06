@@ -13,12 +13,12 @@ import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
 import { Shimmer } from "./shimmer";
 
-type ReasoningContextValue = {
+interface ReasoningContextValue {
   isStreaming: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   duration: number | undefined;
-};
+}
 
 const ReasoningContext = createContext<ReasoningContextValue | null>(null);
 
@@ -86,7 +86,9 @@ export const Reasoning = memo(
           setHasAutoClosed(true);
         }, AUTO_CLOSE_DELAY);
 
-        return () => clearTimeout(timer);
+        return () => {
+          clearTimeout(timer);
+        };
       }
       return undefined;
     }, [isStreaming, isOpen, defaultOpen, setIsOpen, hasAutoClosed]);

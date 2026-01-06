@@ -15,7 +15,7 @@ export const MenuContainer: React.FC<MenuContainerProps> = ({
   <div
     className={cn(
       "fc-panel fixed z-[1000] min-w-[160px] py-1 shadow-2xl backdrop-blur-md animate-menu-in",
-      "context-menu-container"
+      "context-menu-container",
     )}
     style={{
       top: y,

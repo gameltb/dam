@@ -18,9 +18,13 @@ import { isDynamicNode } from "../../types";
 import { incrementVersion } from "../db";
 
 async function executeAiGen(ctx: NodeExecutionContext) {
-  ctx.emitTaskUpdate(
+  const { actionId, taskId, node, emitTaskUpdate, emitMutation } = ctx;
+
+  if (actionId !== "gen") return;
+
+  emitTaskUpdate(
     create(TaskUpdateSchema, {
-      taskId: ctx.taskId,
+      taskId: taskId,
       status: TaskStatus.TASK_PROCESSING,
       progress: 0,
       message: "Initializing AI model...",
@@ -30,19 +34,19 @@ async function executeAiGen(ctx: NodeExecutionContext) {
   await new Promise((r) => setTimeout(r, 1000));
 
   // 更新节点标签作为结果
-  if (isDynamicNode(ctx.node)) {
-    ctx.node.data.label = "AI Generated Result";
-    const protoNode = toProtoNode(ctx.node);
+  if (isDynamicNode(node)) {
+    node.data.label = "AI Generated Result";
+    const protoNode = toProtoNode(node);
 
     incrementVersion();
-    ctx.emitMutation(
+    emitMutation(
       create(MutationListSchema, {
         mutations: [
           {
             operation: {
               case: "updateNode",
               value: {
-                id: ctx.node.id,
+                id: node.id,
                 data: protoNode.state,
                 presentation: protoNode.presentation,
               },
@@ -54,9 +58,9 @@ async function executeAiGen(ctx: NodeExecutionContext) {
     );
   }
 
-  ctx.emitTaskUpdate(
+  emitTaskUpdate(
     create(TaskUpdateSchema, {
-      taskId: ctx.taskId,
+      taskId: taskId,
       status: TaskStatus.TASK_COMPLETED,
       progress: 100,
       message: "Image generated successfully!",

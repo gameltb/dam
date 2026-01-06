@@ -80,6 +80,46 @@ message MutationList {
   MutationSource source = 3;
 }
 
+message GetHistoryRequest {
+  string graph_id = 1;
+  int64 from_seq = 2;
+  int64 to_seq = 3;
+}
+
+message HistoryResponse {
+  repeated MutationLogEntry entries = 1;
+}
+
+message MutationLogEntry {
+  int64 seq = 1;
+  GraphMutation mutation = 2;
+  int64 timestamp = 3;
+  MutationSource source = 4;
+  string description = 5;
+  string user_id = 6;
+}
+
+message RollbackRequest {
+  string graph_id = 1;
+  int64 target_seq = 2; // The sequence number to roll back to
+}
+
+message GetChatHistoryRequest {
+  string head_id = 1;
+}
+
+message ChatHistoryResponse {
+  repeated ChatMessage entries = 1;
+}
+
+message ChatMessage {
+  string id = 1;
+  string role = 2;
+  string content = 3;
+  string metadata_json = 4;
+  int64 timestamp = 5;
+}
+
 message StreamChunk {
   string node_id = 1;
   string widget_id = 2;
@@ -107,6 +147,7 @@ message GraphMutation {
     RemoveEdge remove_edge = 5;
     AddSubGraph add_subgraph = 6;
     ClearGraph clear_graph = 7;
+    PathUpdate path_update = 8;
   }
 }
 
@@ -121,6 +162,18 @@ message AddEdge { Edge edge = 1; }
 message RemoveEdge { string id = 1; }
 message AddSubGraph { repeated Node nodes = 1; repeated Edge edges = 2; }
 message ClearGraph {}
+
+message PathUpdate {
+  string target_id = 1; // Node ID or Edge ID
+  string path = 2;      // e.g., "data.widgets.my_slider.value"
+  string value_json = 3; // The new value serialized as JSON
+  enum UpdateType {
+    REPLACE = 0;
+    MERGE = 1;
+    DELETE = 2;
+  }
+  UpdateType type = 4;
+}
 
 message TaskCancelRequest { string task_id = 1; }
 
@@ -144,4 +197,9 @@ service FlowService {
   // Control
   rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
   rpc UpdateViewport(ViewportUpdate) returns (ErrorResponse);
+
+  // History & Replay
+  rpc GetHistory(GetHistoryRequest) returns (HistoryResponse);
+  rpc Rollback(RollbackRequest) returns (ErrorResponse);
+  rpc GetChatHistory(GetChatHistoryRequest) returns (ChatHistoryResponse);
 }

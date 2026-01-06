@@ -40,6 +40,27 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS mutations (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT,
+    payload BLOB,
+    timestamp INTEGER,
+    source INTEGER,
+    description TEXT,
+    user_id TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    role TEXT,
+    content TEXT,
+    metadata TEXT,
+    timestamp INTEGER,
+    node_id TEXT,
+    FOREIGN KEY(parent_id) REFERENCES conversations(id)
+  );
 `);
 
 export let serverVersion = 0;
@@ -58,6 +79,89 @@ export const serverGraph: {
 };
 
 export const eventBus = new EventEmitter();
+
+export function logMutation(
+  type: string,
+  payloadBinary: Uint8Array,
+  source: number,
+  description?: string,
+) {
+  const stmt = db.prepare(`
+    INSERT INTO mutations (type, payload, timestamp, source, description)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const result = stmt.run(
+    type,
+    Buffer.from(payloadBinary),
+    Date.now(),
+    source,
+    description ?? null,
+  );
+  return result.lastInsertRowid;
+}
+
+export function getMutations(fromSeq: number, toSeq?: number) {
+  let query = "SELECT * FROM mutations WHERE seq >= ?";
+  const params: any[] = [fromSeq];
+  if (toSeq) {
+    query += " AND seq <= ?";
+    params.push(toSeq);
+  }
+  query += " ORDER BY seq ASC";
+  return db.prepare(query).all(...params) as {
+    seq: number;
+    type: string;
+    payload: Buffer;
+    timestamp: number;
+    source: number;
+    description: string | null;
+    user_id: string | null;
+  }[];
+}
+
+export function addChatMessage(params: {
+  id: string;
+  parentId: string | null;
+  role: string;
+  content: string;
+  metadata?: any;
+  nodeId?: string;
+}) {
+  const stmt = db.prepare(`
+    INSERT INTO conversations (id, parent_id, role, content, metadata, timestamp, node_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    params.id,
+    params.parentId,
+    params.role,
+    params.content,
+    JSON.stringify(params.metadata || {}),
+    Date.now(),
+    params.nodeId ?? null,
+  );
+}
+
+export function getChatHistory(headId: string) {
+  const history: any[] = [];
+  let currentId: string | null = headId;
+
+  while (currentId) {
+    const row = db
+      .prepare("SELECT * FROM conversations WHERE id = ?")
+      .get(currentId) as any;
+    if (!row) break;
+    history.unshift({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      metadata: JSON.parse(row.metadata),
+      timestamp: row.timestamp,
+    });
+    currentId = row.parent_id;
+  }
+  return history;
+}
 
 function syncToDB() {
   const transaction = db.transaction(() => {

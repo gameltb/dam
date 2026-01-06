@@ -2,8 +2,8 @@
 // @generated from file flowcraft/v1/core/service.proto (package flowcraft_proto.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { MutationSource, Presentation, Rect, Viewport } from "./base_pb";
 import { file_flowcraft_v1_core_base } from "./base_pb";
 import type { Edge, Node, NodeData, NodeTemplate, TaskUpdate } from "./node_pb";
@@ -18,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flowcraft/v1/core/service.proto.
  */
 export const file_flowcraft_v1_core_service: GenFile = /*@__PURE__*/
-  fileDesc("Ch9mbG93Y3JhZnQvdjEvY29yZS9zZXJ2aWNlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEitggKC0Zsb3dNZXNzYWdlEhIKCm1lc3NhZ2VfaWQYASABKAkSEQoJdGltZXN0YW1wGAIgASgDEjcKDHN5bmNfcmVxdWVzdBgKIAEoCzIfLmZsb3djcmFmdF9wcm90by52MS5TeW5jUmVxdWVzdEgAEhQKCnlqc191cGRhdGUYCyABKAxIABI8Cgtub2RlX3VwZGF0ZRgMIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5VcGRhdGVOb2RlUmVxdWVzdEgAEkAKDXdpZGdldF91cGRhdGUYDSABKAsyJy5mbG93Y3JhZnRfcHJvdG8udjEuVXBkYXRlV2lkZ2V0UmVxdWVzdEgAEkQKDmFjdGlvbl9leGVjdXRlGA4gASgLMiouZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkV4ZWN1dGlvblJlcXVlc3RIABJGChBhY3Rpb25fZGlzY292ZXJ5GBEgASgLMiouZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkRpc2NvdmVyeVJlcXVlc3RIABI8Cgt0YXNrX2NhbmNlbBgPIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5UYXNrQ2FuY2VsUmVxdWVzdEgAEj0KD3ZpZXdwb3J0X3VwZGF0ZRgQIAEoCzIiLmZsb3djcmFmdF9wcm90by52MS5WaWV3cG9ydFVwZGF0ZUgAEjkKDXdpZGdldF9zaWduYWwYEiABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuV2lkZ2V0U2lnbmFsSAASSgoSdGVtcGxhdGVfZGlzY292ZXJ5GBMgASgLMiwuZmxvd2NyYWZ0X3Byb3RvLnYxLlRlbXBsYXRlRGlzY292ZXJ5UmVxdWVzdEgAEjUKCHNuYXBzaG90GBQgASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkdyYXBoU25hcHNob3RIABI1CgltdXRhdGlvbnMYFSABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuTXV0YXRpb25MaXN0SAASPgoHYWN0aW9ucxgZIAEoCzIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25EaXNjb3ZlcnlSZXNwb25zZUgAEkIKCXRlbXBsYXRlcxgaIAEoCzItLmZsb3djcmFmdF9wcm90by52MS5UZW1wbGF0ZURpc2NvdmVyeVJlc3BvbnNlSAASNQoLdGFza191cGRhdGUYFiABKAsyHi5mbG93Y3JhZnRfcHJvdG8udjEuVGFza1VwZGF0ZUgAEjcKDHN0cmVhbV9jaHVuaxgXIAEoCzIfLmZsb3djcmFmdF9wcm90by52MS5TdHJlYW1DaHVua0gAEjIKBWVycm9yGBggASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2VIAEIJCgdwYXlsb2FkIuYBCgtTeW5jUmVxdWVzdBIQCghncmFwaF9pZBgBIAEoCRIvCgt0YXJnZXRfYXJlYRgCIAEoCzIYLmZsb3djcmFmdF9wcm90by52MS5SZWN0SAASMgoIbm9kZV9pZHMYAyABKAsyHi5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZUlkTGlzdEgAEjgKCWhpZXJhcmNoeRgEIAEoCzIjLmZsb3djcmFmdF9wcm90by52MS5IaWVyYXJjaHlGaWx0ZXJIABIcChRzdWJzY3JpYmVfdG9fdXBkYXRlcxgFIAEoCEIICgZmaWx0ZXIiGQoKTm9kZUlkTGlzdBILCgNpZHMYASADKAkiNgoPSGllcmFyY2h5RmlsdGVyEhQKDHJvb3Rfbm9kZV9pZBgBIAEoCRINCgVkZXB0aBgCIAEoBSIaChhUZW1wbGF0ZURpc2NvdmVyeVJlcXVlc3QiUAoZVGVtcGxhdGVEaXNjb3ZlcnlSZXNwb25zZRIzCgl0ZW1wbGF0ZXMYASADKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZVRlbXBsYXRlIogBChFVcGRhdGVOb2RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEioKBGRhdGEYAiABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZURhdGESNgoMcHJlc2VudGF0aW9uGAMgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlByZXNlbnRhdGlvbiJNChNVcGRhdGVXaWRnZXRSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEQoJd2lkZ2V0X2lkGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkicgoOVmlld3BvcnRVcGRhdGUSLgoIdmlld3BvcnQYASABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuVmlld3BvcnQSMAoOdmlzaWJsZV9ib3VuZHMYAiABKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUmVjdCKRAQoMTXV0YXRpb25MaXN0EjQKCW11dGF0aW9ucxgBIAMoCzIhLmZsb3djcmFmdF9wcm90by52MS5HcmFwaE11dGF0aW9uEhcKD3NlcXVlbmNlX251bWJlchgCIAEoAxIyCgZzb3VyY2UYAyABKA4yIi5mbG93Y3JhZnRfcHJvdG8udjEuTXV0YXRpb25Tb3VyY2UiVgoLU3RyZWFtQ2h1bmsSDwoHbm9kZV9pZBgBIAEoCRIRCgl3aWRnZXRfaWQYAiABKAkSEgoKY2h1bmtfZGF0YRgDIAEoCRIPCgdpc19kb25lGAQgASgIIi4KDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJInIKDUdyYXBoU25hcHNob3QSJwoFbm9kZXMYASADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZRInCgVlZGdlcxgCIAMoCzIYLmZsb3djcmFmdF9wcm90by52MS5FZGdlEg8KB3ZlcnNpb24YAyABKAMikwMKDUdyYXBoTXV0YXRpb24SLwoIYWRkX25vZGUYASABKAsyGy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkTm9kZUgAEjUKC3VwZGF0ZV9ub2RlGAIgASgLMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlVwZGF0ZU5vZGVIABI1CgtyZW1vdmVfbm9kZRgDIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5SZW1vdmVOb2RlSAASLwoIYWRkX2VkZ2UYBCABKAsyGy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkRWRnZUgAEjUKC3JlbW92ZV9lZGdlGAUgASgLMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlJlbW92ZUVkZ2VIABI3CgxhZGRfc3ViZ3JhcGgYBiABKAsyHy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkU3ViR3JhcGhIABI1CgtjbGVhcl9ncmFwaBgHIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5DbGVhckdyYXBoSABCCwoJb3BlcmF0aW9uIjEKB0FkZE5vZGUSJgoEbm9kZRgBIAEoCzIYLmZsb3djcmFmdF9wcm90by52MS5Ob2RlInwKClVwZGF0ZU5vZGUSCgoCaWQYASABKAkSKgoEZGF0YRgCIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Ob2RlRGF0YRI2CgxwcmVzZW50YXRpb24YAyABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuUHJlc2VudGF0aW9uIhgKClJlbW92ZU5vZGUSCgoCaWQYASABKAkiMQoHQWRkRWRnZRImCgRlZGdlGAEgASgLMhguZmxvd2NyYWZ0X3Byb3RvLnYxLkVkZ2UiGAoKUmVtb3ZlRWRnZRIKCgJpZBgBIAEoCSJfCgtBZGRTdWJHcmFwaBInCgVub2RlcxgBIAMoCzIYLmZsb3djcmFmdF9wcm90by52MS5Ob2RlEicKBWVkZ2VzGAIgAygLMhguZmxvd2NyYWZ0X3Byb3RvLnYxLkVkZ2UiDAoKQ2xlYXJHcmFwaCIkChFUYXNrQ2FuY2VsUmVxdWVzdBIPCgd0YXNrX2lkGAEgASgJMrIHCgtGbG93U2VydmljZRJQCgpXYXRjaEdyYXBoEh8uZmxvd2NyYWZ0X3Byb3RvLnYxLlN5bmNSZXF1ZXN0Gh8uZmxvd2NyYWZ0X3Byb3RvLnYxLkZsb3dNZXNzYWdlMAESVQoOQXBwbHlNdXRhdGlvbnMSIC5mbG93Y3JhZnRfcHJvdG8udjEuTXV0YXRpb25MaXN0GiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2USVgoKVXBkYXRlTm9kZRIlLmZsb3djcmFmdF9wcm90by52MS5VcGRhdGVOb2RlUmVxdWVzdBohLmZsb3djcmFmdF9wcm90by52MS5FcnJvclJlc3BvbnNlEloKDFVwZGF0ZVdpZGdldBInLmZsb3djcmFmdF9wcm90by52MS5VcGRhdGVXaWRnZXRSZXF1ZXN0GiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2USVwoQU2VuZFdpZGdldFNpZ25hbBIgLmZsb3djcmFmdF9wcm90by52MS5XaWRnZXRTaWduYWwaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZRJeCg1FeGVjdXRlQWN0aW9uEiouZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkV4ZWN1dGlvblJlcXVlc3QaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZRJqCg9EaXNjb3ZlckFjdGlvbnMSKi5mbG93Y3JhZnRfcHJvdG8udjEuQWN0aW9uRGlzY292ZXJ5UmVxdWVzdBorLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25EaXNjb3ZlcnlSZXNwb25zZRJwChFEaXNjb3ZlclRlbXBsYXRlcxIsLmZsb3djcmFmdF9wcm90by52MS5UZW1wbGF0ZURpc2NvdmVyeVJlcXVlc3QaLS5mbG93Y3JhZnRfcHJvdG8udjEuVGVtcGxhdGVEaXNjb3ZlcnlSZXNwb25zZRJWCgpDYW5jZWxUYXNrEiUuZmxvd2NyYWZ0X3Byb3RvLnYxLlRhc2tDYW5jZWxSZXF1ZXN0GiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2USVwoOVXBkYXRlVmlld3BvcnQSIi5mbG93Y3JhZnRfcHJvdG8udjEuVmlld3BvcnRVcGRhdGUaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZWIGcHJvdG8z", [file_flowcraft_v1_core_base, file_flowcraft_v1_core_node, file_flowcraft_v1_core_signals, file_flowcraft_v1_core_action]);
+  fileDesc("Ch9mbG93Y3JhZnQvdjEvY29yZS9zZXJ2aWNlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEitggKC0Zsb3dNZXNzYWdlEhIKCm1lc3NhZ2VfaWQYASABKAkSEQoJdGltZXN0YW1wGAIgASgDEjcKDHN5bmNfcmVxdWVzdBgKIAEoCzIfLmZsb3djcmFmdF9wcm90by52MS5TeW5jUmVxdWVzdEgAEhQKCnlqc191cGRhdGUYCyABKAxIABI8Cgtub2RlX3VwZGF0ZRgMIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5VcGRhdGVOb2RlUmVxdWVzdEgAEkAKDXdpZGdldF91cGRhdGUYDSABKAsyJy5mbG93Y3JhZnRfcHJvdG8udjEuVXBkYXRlV2lkZ2V0UmVxdWVzdEgAEkQKDmFjdGlvbl9leGVjdXRlGA4gASgLMiouZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkV4ZWN1dGlvblJlcXVlc3RIABJGChBhY3Rpb25fZGlzY292ZXJ5GBEgASgLMiouZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkRpc2NvdmVyeVJlcXVlc3RIABI8Cgt0YXNrX2NhbmNlbBgPIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5UYXNrQ2FuY2VsUmVxdWVzdEgAEj0KD3ZpZXdwb3J0X3VwZGF0ZRgQIAEoCzIiLmZsb3djcmFmdF9wcm90by52MS5WaWV3cG9ydFVwZGF0ZUgAEjkKDXdpZGdldF9zaWduYWwYEiABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuV2lkZ2V0U2lnbmFsSAASSgoSdGVtcGxhdGVfZGlzY292ZXJ5GBMgASgLMiwuZmxvd2NyYWZ0X3Byb3RvLnYxLlRlbXBsYXRlRGlzY292ZXJ5UmVxdWVzdEgAEjUKCHNuYXBzaG90GBQgASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkdyYXBoU25hcHNob3RIABI1CgltdXRhdGlvbnMYFSABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuTXV0YXRpb25MaXN0SAASPgoHYWN0aW9ucxgZIAEoCzIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25EaXNjb3ZlcnlSZXNwb25zZUgAEkIKCXRlbXBsYXRlcxgaIAEoCzItLmZsb3djcmFmdF9wcm90by52MS5UZW1wbGF0ZURpc2NvdmVyeVJlc3BvbnNlSAASNQoLdGFza191cGRhdGUYFiABKAsyHi5mbG93Y3JhZnRfcHJvdG8udjEuVGFza1VwZGF0ZUgAEjcKDHN0cmVhbV9jaHVuaxgXIAEoCzIfLmZsb3djcmFmdF9wcm90by52MS5TdHJlYW1DaHVua0gAEjIKBWVycm9yGBggASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2VIAEIJCgdwYXlsb2FkIuYBCgtTeW5jUmVxdWVzdBIQCghncmFwaF9pZBgBIAEoCRIvCgt0YXJnZXRfYXJlYRgCIAEoCzIYLmZsb3djcmFmdF9wcm90by52MS5SZWN0SAASMgoIbm9kZV9pZHMYAyABKAsyHi5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZUlkTGlzdEgAEjgKCWhpZXJhcmNoeRgEIAEoCzIjLmZsb3djcmFmdF9wcm90by52MS5IaWVyYXJjaHlGaWx0ZXJIABIcChRzdWJzY3JpYmVfdG9fdXBkYXRlcxgFIAEoCEIICgZmaWx0ZXIiGQoKTm9kZUlkTGlzdBILCgNpZHMYASADKAkiNgoPSGllcmFyY2h5RmlsdGVyEhQKDHJvb3Rfbm9kZV9pZBgBIAEoCRINCgVkZXB0aBgCIAEoBSIaChhUZW1wbGF0ZURpc2NvdmVyeVJlcXVlc3QiUAoZVGVtcGxhdGVEaXNjb3ZlcnlSZXNwb25zZRIzCgl0ZW1wbGF0ZXMYASADKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZVRlbXBsYXRlIogBChFVcGRhdGVOb2RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEioKBGRhdGEYAiABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZURhdGESNgoMcHJlc2VudGF0aW9uGAMgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlByZXNlbnRhdGlvbiJNChNVcGRhdGVXaWRnZXRSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEQoJd2lkZ2V0X2lkGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkicgoOVmlld3BvcnRVcGRhdGUSLgoIdmlld3BvcnQYASABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuVmlld3BvcnQSMAoOdmlzaWJsZV9ib3VuZHMYAiABKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUmVjdCKRAQoMTXV0YXRpb25MaXN0EjQKCW11dGF0aW9ucxgBIAMoCzIhLmZsb3djcmFmdF9wcm90by52MS5HcmFwaE11dGF0aW9uEhcKD3NlcXVlbmNlX251bWJlchgCIAEoAxIyCgZzb3VyY2UYAyABKA4yIi5mbG93Y3JhZnRfcHJvdG8udjEuTXV0YXRpb25Tb3VyY2UiRwoRR2V0SGlzdG9yeVJlcXVlc3QSEAoIZ3JhcGhfaWQYASABKAkSEAoIZnJvbV9zZXEYAiABKAMSDgoGdG9fc2VxGAMgASgDIkgKD0hpc3RvcnlSZXNwb25zZRI1CgdlbnRyaWVzGAEgAygLMiQuZmxvd2NyYWZ0X3Byb3RvLnYxLk11dGF0aW9uTG9nRW50cnkiwQEKEE11dGF0aW9uTG9nRW50cnkSCwoDc2VxGAEgASgDEjMKCG11dGF0aW9uGAIgASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkdyYXBoTXV0YXRpb24SEQoJdGltZXN0YW1wGAMgASgDEjIKBnNvdXJjZRgEIAEoDjIiLmZsb3djcmFmdF9wcm90by52MS5NdXRhdGlvblNvdXJjZRITCgtkZXNjcmlwdGlvbhgFIAEoCRIPCgd1c2VyX2lkGAYgASgJIjcKD1JvbGxiYWNrUmVxdWVzdBIQCghncmFwaF9pZBgBIAEoCRISCgp0YXJnZXRfc2VxGAIgASgDIigKFUdldENoYXRIaXN0b3J5UmVxdWVzdBIPCgdoZWFkX2lkGAEgASgJIkcKE0NoYXRIaXN0b3J5UmVzcG9uc2USMAoHZW50cmllcxgBIAMoCzIfLmZsb3djcmFmdF9wcm90by52MS5DaGF0TWVzc2FnZSJiCgtDaGF0TWVzc2FnZRIKCgJpZBgBIAEoCRIMCgRyb2xlGAIgASgJEg8KB2NvbnRlbnQYAyABKAkSFQoNbWV0YWRhdGFfanNvbhgEIAEoCRIRCgl0aW1lc3RhbXAYBSABKAMiVgoLU3RyZWFtQ2h1bmsSDwoHbm9kZV9pZBgBIAEoCRIRCgl3aWRnZXRfaWQYAiABKAkSEgoKY2h1bmtfZGF0YRgDIAEoCRIPCgdpc19kb25lGAQgASgIIi4KDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJInIKDUdyYXBoU25hcHNob3QSJwoFbm9kZXMYASADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZRInCgVlZGdlcxgCIAMoCzIYLmZsb3djcmFmdF9wcm90by52MS5FZGdlEg8KB3ZlcnNpb24YAyABKAMiygMKDUdyYXBoTXV0YXRpb24SLwoIYWRkX25vZGUYASABKAsyGy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkTm9kZUgAEjUKC3VwZGF0ZV9ub2RlGAIgASgLMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlVwZGF0ZU5vZGVIABI1CgtyZW1vdmVfbm9kZRgDIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5SZW1vdmVOb2RlSAASLwoIYWRkX2VkZ2UYBCABKAsyGy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkRWRnZUgAEjUKC3JlbW92ZV9lZGdlGAUgASgLMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlJlbW92ZUVkZ2VIABI3CgxhZGRfc3ViZ3JhcGgYBiABKAsyHy5mbG93Y3JhZnRfcHJvdG8udjEuQWRkU3ViR3JhcGhIABI1CgtjbGVhcl9ncmFwaBgHIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5DbGVhckdyYXBoSAASNQoLcGF0aF91cGRhdGUYCCABKAsyHi5mbG93Y3JhZnRfcHJvdG8udjEuUGF0aFVwZGF0ZUgAQgsKCW9wZXJhdGlvbiIxCgdBZGROb2RlEiYKBG5vZGUYASABKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZSJ8CgpVcGRhdGVOb2RlEgoKAmlkGAEgASgJEioKBGRhdGEYAiABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZURhdGESNgoMcHJlc2VudGF0aW9uGAMgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlByZXNlbnRhdGlvbiIYCgpSZW1vdmVOb2RlEgoKAmlkGAEgASgJIjEKB0FkZEVkZ2USJgoEZWRnZRgBIAEoCzIYLmZsb3djcmFmdF9wcm90by52MS5FZGdlIhgKClJlbW92ZUVkZ2USCgoCaWQYASABKAkiXwoLQWRkU3ViR3JhcGgSJwoFbm9kZXMYASADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZRInCgVlZGdlcxgCIAMoCzIYLmZsb3djcmFmdF9wcm90by52MS5FZGdlIgwKCkNsZWFyR3JhcGgirAEKClBhdGhVcGRhdGUSEQoJdGFyZ2V0X2lkGAEgASgJEgwKBHBhdGgYAiABKAkSEgoKdmFsdWVfanNvbhgDIAEoCRI3CgR0eXBlGAQgASgOMikuZmxvd2NyYWZ0X3Byb3RvLnYxLlBhdGhVcGRhdGUuVXBkYXRlVHlwZSIwCgpVcGRhdGVUeXBlEgsKB1JFUExBQ0UQABIJCgVNRVJHRRABEgoKBkRFTEVURRACIiQKEVRhc2tDYW5jZWxSZXF1ZXN0Eg8KB3Rhc2tfaWQYASABKAkyxgkKC0Zsb3dTZXJ2aWNlElAKCldhdGNoR3JhcGgSHy5mbG93Y3JhZnRfcHJvdG8udjEuU3luY1JlcXVlc3QaHy5mbG93Y3JhZnRfcHJvdG8udjEuRmxvd01lc3NhZ2UwARJVCg5BcHBseU11dGF0aW9ucxIgLmZsb3djcmFmdF9wcm90by52MS5NdXRhdGlvbkxpc3QaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZRJWCgpVcGRhdGVOb2RlEiUuZmxvd2NyYWZ0X3Byb3RvLnYxLlVwZGF0ZU5vZGVSZXF1ZXN0GiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkVycm9yUmVzcG9uc2USWgoMVXBkYXRlV2lkZ2V0EicuZmxvd2NyYWZ0X3Byb3RvLnYxLlVwZGF0ZVdpZGdldFJlcXVlc3QaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZRJXChBTZW5kV2lkZ2V0U2lnbmFsEiAuZmxvd2NyYWZ0X3Byb3RvLnYxLldpZGdldFNpZ25hbBohLmZsb3djcmFmdF9wcm90by52MS5FcnJvclJlc3BvbnNlEl4KDUV4ZWN1dGVBY3Rpb24SKi5mbG93Y3JhZnRfcHJvdG8udjEuQWN0aW9uRXhlY3V0aW9uUmVxdWVzdBohLmZsb3djcmFmdF9wcm90by52MS5FcnJvclJlc3BvbnNlEmoKD0Rpc2NvdmVyQWN0aW9ucxIqLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25EaXNjb3ZlcnlSZXF1ZXN0GisuZmxvd2NyYWZ0X3Byb3RvLnYxLkFjdGlvbkRpc2NvdmVyeVJlc3BvbnNlEnAKEURpc2NvdmVyVGVtcGxhdGVzEiwuZmxvd2NyYWZ0X3Byb3RvLnYxLlRlbXBsYXRlRGlzY292ZXJ5UmVxdWVzdBotLmZsb3djcmFmdF9wcm90by52MS5UZW1wbGF0ZURpc2NvdmVyeVJlc3BvbnNlElYKCkNhbmNlbFRhc2sSJS5mbG93Y3JhZnRfcHJvdG8udjEuVGFza0NhbmNlbFJlcXVlc3QaIS5mbG93Y3JhZnRfcHJvdG8udjEuRXJyb3JSZXNwb25zZRJXCg5VcGRhdGVWaWV3cG9ydBIiLmZsb3djcmFmdF9wcm90by52MS5WaWV3cG9ydFVwZGF0ZRohLmZsb3djcmFmdF9wcm90by52MS5FcnJvclJlc3BvbnNlElgKCkdldEhpc3RvcnkSJS5mbG93Y3JhZnRfcHJvdG8udjEuR2V0SGlzdG9yeVJlcXVlc3QaIy5mbG93Y3JhZnRfcHJvdG8udjEuSGlzdG9yeVJlc3BvbnNlElIKCFJvbGxiYWNrEiMuZmxvd2NyYWZ0X3Byb3RvLnYxLlJvbGxiYWNrUmVxdWVzdBohLmZsb3djcmFmdF9wcm90by52MS5FcnJvclJlc3BvbnNlEmQKDkdldENoYXRIaXN0b3J5EikuZmxvd2NyYWZ0X3Byb3RvLnYxLkdldENoYXRIaXN0b3J5UmVxdWVzdBonLmZsb3djcmFmdF9wcm90by52MS5DaGF0SGlzdG9yeVJlc3BvbnNlYgZwcm90bzM", [file_flowcraft_v1_core_base, file_flowcraft_v1_core_node, file_flowcraft_v1_core_signals, file_flowcraft_v1_core_action]);
 
 /**
  * @generated from message flowcraft_proto.v1.FlowMessage
@@ -375,6 +375,187 @@ export const MutationListSchema: GenMessage<MutationList> = /*@__PURE__*/
   messageDesc(file_flowcraft_v1_core_service, 9);
 
 /**
+ * @generated from message flowcraft_proto.v1.GetHistoryRequest
+ */
+export type GetHistoryRequest = Message<"flowcraft_proto.v1.GetHistoryRequest"> & {
+  /**
+   * @generated from field: string graph_id = 1;
+   */
+  graphId: string;
+
+  /**
+   * @generated from field: int64 from_seq = 2;
+   */
+  fromSeq: bigint;
+
+  /**
+   * @generated from field: int64 to_seq = 3;
+   */
+  toSeq: bigint;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.GetHistoryRequest.
+ * Use `create(GetHistoryRequestSchema)` to create a new message.
+ */
+export const GetHistoryRequestSchema: GenMessage<GetHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 10);
+
+/**
+ * @generated from message flowcraft_proto.v1.HistoryResponse
+ */
+export type HistoryResponse = Message<"flowcraft_proto.v1.HistoryResponse"> & {
+  /**
+   * @generated from field: repeated flowcraft_proto.v1.MutationLogEntry entries = 1;
+   */
+  entries: MutationLogEntry[];
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.HistoryResponse.
+ * Use `create(HistoryResponseSchema)` to create a new message.
+ */
+export const HistoryResponseSchema: GenMessage<HistoryResponse> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 11);
+
+/**
+ * @generated from message flowcraft_proto.v1.MutationLogEntry
+ */
+export type MutationLogEntry = Message<"flowcraft_proto.v1.MutationLogEntry"> & {
+  /**
+   * @generated from field: int64 seq = 1;
+   */
+  seq: bigint;
+
+  /**
+   * @generated from field: flowcraft_proto.v1.GraphMutation mutation = 2;
+   */
+  mutation?: GraphMutation;
+
+  /**
+   * @generated from field: int64 timestamp = 3;
+   */
+  timestamp: bigint;
+
+  /**
+   * @generated from field: flowcraft_proto.v1.MutationSource source = 4;
+   */
+  source: MutationSource;
+
+  /**
+   * @generated from field: string description = 5;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string user_id = 6;
+   */
+  userId: string;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.MutationLogEntry.
+ * Use `create(MutationLogEntrySchema)` to create a new message.
+ */
+export const MutationLogEntrySchema: GenMessage<MutationLogEntry> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 12);
+
+/**
+ * @generated from message flowcraft_proto.v1.RollbackRequest
+ */
+export type RollbackRequest = Message<"flowcraft_proto.v1.RollbackRequest"> & {
+  /**
+   * @generated from field: string graph_id = 1;
+   */
+  graphId: string;
+
+  /**
+   * The sequence number to roll back to
+   *
+   * @generated from field: int64 target_seq = 2;
+   */
+  targetSeq: bigint;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.RollbackRequest.
+ * Use `create(RollbackRequestSchema)` to create a new message.
+ */
+export const RollbackRequestSchema: GenMessage<RollbackRequest> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 13);
+
+/**
+ * @generated from message flowcraft_proto.v1.GetChatHistoryRequest
+ */
+export type GetChatHistoryRequest = Message<"flowcraft_proto.v1.GetChatHistoryRequest"> & {
+  /**
+   * @generated from field: string head_id = 1;
+   */
+  headId: string;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.GetChatHistoryRequest.
+ * Use `create(GetChatHistoryRequestSchema)` to create a new message.
+ */
+export const GetChatHistoryRequestSchema: GenMessage<GetChatHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 14);
+
+/**
+ * @generated from message flowcraft_proto.v1.ChatHistoryResponse
+ */
+export type ChatHistoryResponse = Message<"flowcraft_proto.v1.ChatHistoryResponse"> & {
+  /**
+   * @generated from field: repeated flowcraft_proto.v1.ChatMessage entries = 1;
+   */
+  entries: ChatMessage[];
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.ChatHistoryResponse.
+ * Use `create(ChatHistoryResponseSchema)` to create a new message.
+ */
+export const ChatHistoryResponseSchema: GenMessage<ChatHistoryResponse> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 15);
+
+/**
+ * @generated from message flowcraft_proto.v1.ChatMessage
+ */
+export type ChatMessage = Message<"flowcraft_proto.v1.ChatMessage"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string role = 2;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string content = 3;
+   */
+  content: string;
+
+  /**
+   * @generated from field: string metadata_json = 4;
+   */
+  metadataJson: string;
+
+  /**
+   * @generated from field: int64 timestamp = 5;
+   */
+  timestamp: bigint;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.ChatMessage.
+ * Use `create(ChatMessageSchema)` to create a new message.
+ */
+export const ChatMessageSchema: GenMessage<ChatMessage> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 16);
+
+/**
  * @generated from message flowcraft_proto.v1.StreamChunk
  */
 export type StreamChunk = Message<"flowcraft_proto.v1.StreamChunk"> & {
@@ -404,7 +585,7 @@ export type StreamChunk = Message<"flowcraft_proto.v1.StreamChunk"> & {
  * Use `create(StreamChunkSchema)` to create a new message.
  */
 export const StreamChunkSchema: GenMessage<StreamChunk> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 10);
+  messageDesc(file_flowcraft_v1_core_service, 17);
 
 /**
  * @generated from message flowcraft_proto.v1.ErrorResponse
@@ -426,7 +607,7 @@ export type ErrorResponse = Message<"flowcraft_proto.v1.ErrorResponse"> & {
  * Use `create(ErrorResponseSchema)` to create a new message.
  */
 export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 11);
+  messageDesc(file_flowcraft_v1_core_service, 18);
 
 /**
  * @generated from message flowcraft_proto.v1.GraphSnapshot
@@ -453,7 +634,7 @@ export type GraphSnapshot = Message<"flowcraft_proto.v1.GraphSnapshot"> & {
  * Use `create(GraphSnapshotSchema)` to create a new message.
  */
 export const GraphSnapshotSchema: GenMessage<GraphSnapshot> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 12);
+  messageDesc(file_flowcraft_v1_core_service, 19);
 
 /**
  * @generated from message flowcraft_proto.v1.GraphMutation
@@ -504,6 +685,12 @@ export type GraphMutation = Message<"flowcraft_proto.v1.GraphMutation"> & {
      */
     value: ClearGraph;
     case: "clearGraph";
+  } | {
+    /**
+     * @generated from field: flowcraft_proto.v1.PathUpdate path_update = 8;
+     */
+    value: PathUpdate;
+    case: "pathUpdate";
   } | { case: undefined; value?: undefined };
 };
 
@@ -512,7 +699,7 @@ export type GraphMutation = Message<"flowcraft_proto.v1.GraphMutation"> & {
  * Use `create(GraphMutationSchema)` to create a new message.
  */
 export const GraphMutationSchema: GenMessage<GraphMutation> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 13);
+  messageDesc(file_flowcraft_v1_core_service, 20);
 
 /**
  * @generated from message flowcraft_proto.v1.AddNode
@@ -529,7 +716,7 @@ export type AddNode = Message<"flowcraft_proto.v1.AddNode"> & {
  * Use `create(AddNodeSchema)` to create a new message.
  */
 export const AddNodeSchema: GenMessage<AddNode> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 14);
+  messageDesc(file_flowcraft_v1_core_service, 21);
 
 /**
  * @generated from message flowcraft_proto.v1.UpdateNode
@@ -556,7 +743,7 @@ export type UpdateNode = Message<"flowcraft_proto.v1.UpdateNode"> & {
  * Use `create(UpdateNodeSchema)` to create a new message.
  */
 export const UpdateNodeSchema: GenMessage<UpdateNode> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 15);
+  messageDesc(file_flowcraft_v1_core_service, 22);
 
 /**
  * @generated from message flowcraft_proto.v1.RemoveNode
@@ -573,7 +760,7 @@ export type RemoveNode = Message<"flowcraft_proto.v1.RemoveNode"> & {
  * Use `create(RemoveNodeSchema)` to create a new message.
  */
 export const RemoveNodeSchema: GenMessage<RemoveNode> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 16);
+  messageDesc(file_flowcraft_v1_core_service, 23);
 
 /**
  * @generated from message flowcraft_proto.v1.AddEdge
@@ -590,7 +777,7 @@ export type AddEdge = Message<"flowcraft_proto.v1.AddEdge"> & {
  * Use `create(AddEdgeSchema)` to create a new message.
  */
 export const AddEdgeSchema: GenMessage<AddEdge> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 17);
+  messageDesc(file_flowcraft_v1_core_service, 24);
 
 /**
  * @generated from message flowcraft_proto.v1.RemoveEdge
@@ -607,7 +794,7 @@ export type RemoveEdge = Message<"flowcraft_proto.v1.RemoveEdge"> & {
  * Use `create(RemoveEdgeSchema)` to create a new message.
  */
 export const RemoveEdgeSchema: GenMessage<RemoveEdge> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 18);
+  messageDesc(file_flowcraft_v1_core_service, 25);
 
 /**
  * @generated from message flowcraft_proto.v1.AddSubGraph
@@ -629,7 +816,7 @@ export type AddSubGraph = Message<"flowcraft_proto.v1.AddSubGraph"> & {
  * Use `create(AddSubGraphSchema)` to create a new message.
  */
 export const AddSubGraphSchema: GenMessage<AddSubGraph> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 19);
+  messageDesc(file_flowcraft_v1_core_service, 26);
 
 /**
  * @generated from message flowcraft_proto.v1.ClearGraph
@@ -642,7 +829,71 @@ export type ClearGraph = Message<"flowcraft_proto.v1.ClearGraph"> & {
  * Use `create(ClearGraphSchema)` to create a new message.
  */
 export const ClearGraphSchema: GenMessage<ClearGraph> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 20);
+  messageDesc(file_flowcraft_v1_core_service, 27);
+
+/**
+ * @generated from message flowcraft_proto.v1.PathUpdate
+ */
+export type PathUpdate = Message<"flowcraft_proto.v1.PathUpdate"> & {
+  /**
+   * Node ID or Edge ID
+   *
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * e.g., "data.widgets.my_slider.value"
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * The new value serialized as JSON
+   *
+   * @generated from field: string value_json = 3;
+   */
+  valueJson: string;
+
+  /**
+   * @generated from field: flowcraft_proto.v1.PathUpdate.UpdateType type = 4;
+   */
+  type: PathUpdate_UpdateType;
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.PathUpdate.
+ * Use `create(PathUpdateSchema)` to create a new message.
+ */
+export const PathUpdateSchema: GenMessage<PathUpdate> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_service, 28);
+
+/**
+ * @generated from enum flowcraft_proto.v1.PathUpdate.UpdateType
+ */
+export enum PathUpdate_UpdateType {
+  /**
+   * @generated from enum value: REPLACE = 0;
+   */
+  REPLACE = 0,
+
+  /**
+   * @generated from enum value: MERGE = 1;
+   */
+  MERGE = 1,
+
+  /**
+   * @generated from enum value: DELETE = 2;
+   */
+  DELETE = 2,
+}
+
+/**
+ * Describes the enum flowcraft_proto.v1.PathUpdate.UpdateType.
+ */
+export const PathUpdate_UpdateTypeSchema: GenEnum<PathUpdate_UpdateType> = /*@__PURE__*/
+  enumDesc(file_flowcraft_v1_core_service, 28, 0);
 
 /**
  * @generated from message flowcraft_proto.v1.TaskCancelRequest
@@ -659,7 +910,7 @@ export type TaskCancelRequest = Message<"flowcraft_proto.v1.TaskCancelRequest"> 
  * Use `create(TaskCancelRequestSchema)` to create a new message.
  */
 export const TaskCancelRequestSchema: GenMessage<TaskCancelRequest> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_service, 21);
+  messageDesc(file_flowcraft_v1_core_service, 29);
 
 /**
  * @generated from service flowcraft_proto.v1.FlowService
@@ -754,6 +1005,32 @@ export const FlowService: GenService<{
     methodKind: "unary";
     input: typeof ViewportUpdateSchema;
     output: typeof ErrorResponseSchema;
+  },
+  /**
+   * History & Replay
+   *
+   * @generated from rpc flowcraft_proto.v1.FlowService.GetHistory
+   */
+  getHistory: {
+    methodKind: "unary";
+    input: typeof GetHistoryRequestSchema;
+    output: typeof HistoryResponseSchema;
+  },
+  /**
+   * @generated from rpc flowcraft_proto.v1.FlowService.Rollback
+   */
+  rollback: {
+    methodKind: "unary";
+    input: typeof RollbackRequestSchema;
+    output: typeof ErrorResponseSchema;
+  },
+  /**
+   * @generated from rpc flowcraft_proto.v1.FlowService.GetChatHistory
+   */
+  getChatHistory: {
+    methodKind: "unary";
+    input: typeof GetChatHistoryRequestSchema;
+    output: typeof ChatHistoryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_flowcraft_v1_core_service, 0);

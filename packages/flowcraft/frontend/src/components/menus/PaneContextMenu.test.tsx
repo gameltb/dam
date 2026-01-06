@@ -40,7 +40,7 @@ describe("PaneContextMenu", () => {
     );
 
     // Check if sections are rendered
-    expect(screen.getByText("ADD NODE")).toBeDefined();
+    expect(screen.getByText(/Add Node/i)).toBeDefined();
     expect(screen.getByText("🪄 Auto Layout")).toBeDefined();
   });
 });

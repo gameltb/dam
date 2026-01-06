@@ -9,6 +9,7 @@ import {
   MutationSource,
   isDynamicNode,
   FlowEvent,
+  AppNodeType,
 } from "../types";
 import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 
@@ -132,7 +133,7 @@ export function useNodeEventListener({
             };
             const placeholderNode: AppNode = {
               id: `task-${taskId}`,
-              type: "processing",
+              type: AppNodeType.PROCESSING,
               position,
               data: {
                 label: `Running ${taskType}...`,

@@ -10,6 +10,7 @@ import { useFlowSocket } from "../hooks/useFlowSocket";
 import { BaseNode } from "./base/BaseNode";
 import { Handle } from "./base/Handle";
 import { Position } from "@xyflow/react";
+import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
 
 const ProcessingContent: React.FC<{
   id: string;
@@ -108,7 +109,7 @@ const ProcessingContent: React.FC<{
 };
 
 const ProcessingNode: React.FC<NodeProps<ProcessingNodeType>> = (props) => {
-  const { selected, positionAbsoluteX, positionAbsoluteY } = props;
+  const { id, selected, positionAbsoluteX, positionAbsoluteY } = props;
 
   return (
     <div
@@ -119,19 +120,21 @@ const ProcessingNode: React.FC<NodeProps<ProcessingNodeType>> = (props) => {
         overflow: "visible", // For floating panel
       }}
     >
-      <BaseNode<ProcessingNodeType>
-        {...props}
-        renderWidgets={ProcessingContent}
-        type="processing"
-        x={positionAbsoluteX}
-        y={positionAbsoluteY}
-        handles={
-          <>
-            <Handle type="target" position={Position.Top} />
-            <Handle type="source" position={Position.Bottom} />
-          </>
-        }
-      />
+      <NodeErrorBoundary nodeId={id}>
+        <BaseNode<ProcessingNodeType>
+          {...props}
+          renderWidgets={ProcessingContent}
+          type="processing"
+          x={positionAbsoluteX}
+          y={positionAbsoluteY}
+          handles={
+            <>
+              <Handle type="target" position={Position.Top} />
+              <Handle type="source" position={Position.Bottom} />
+            </>
+          }
+        />
+      </NodeErrorBoundary>
     </div>
   );
 };

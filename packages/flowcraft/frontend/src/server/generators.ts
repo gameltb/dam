@@ -9,7 +9,12 @@ import {
   NodeTemplateSchema,
 } from "../generated/flowcraft/v1/core/node_pb";
 import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
-import type { AppNode, Edge, NodeTemplate } from "../types";
+import {
+  type AppNode,
+  type Edge,
+  type NodeTemplate,
+  AppNodeType,
+} from "../types";
 import { toProtoNodeData, fromProtoNodeData } from "../utils/protoAdapter";
 
 export const createNode = (
@@ -35,7 +40,7 @@ export const createNode = (
 
   return {
     id,
-    type: "dynamic",
+    type: AppNodeType.DYNAMIC,
     position: { x, y },
     style: { width, height },
     measured: { width, height },
@@ -322,7 +327,7 @@ export const generateGallery = () => {
   // Large Processing Node (Custom Type)
   const procNode: AppNode = {
     id: uuidv4(),
-    type: "processing",
+    type: AppNodeType.PROCESSING,
     position: { x: startX + colGap, y: currY },
     style: { width: 300, height: 120 },
     measured: { width: 300, height: 120 },
@@ -339,7 +344,7 @@ export const generateGallery = () => {
   const groupId = uuidv4();
   const groupNode: AppNode = {
     id: groupId,
-    type: "groupNode",
+    type: AppNodeType.GROUP,
     position: { x: startX + colGap * 2, y: currY },
     style: { width: 400, height: 300 },
     measured: { width: 400, height: 300 },

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { AppNode, DynamicNodeData } from "../types";
+import { type AppNode, type DynamicNodeData, AppNodeType } from "../types";
 import type { Edge as RFEdge } from "@xyflow/react";
 import dagre from "dagre";
 import {
@@ -76,7 +76,7 @@ export const useLayoutOperations = (
         );
 
         // If this is a group, layout its children
-        if (node.type === "groupNode") {
+        if (node.type === AppNodeType.GROUP) {
           const children = nodes.filter((n) => n.parentId === node.id);
           const childEdges = edges.filter(
             (e) =>

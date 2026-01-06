@@ -15,6 +15,7 @@ import { create as createProto } from "@bufbuild/protobuf";
 import { GraphMutationSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
 import { toProtoNodeData } from "../utils/protoAdapter";
+import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
 
 interface LayoutProps {
   width?: number;
@@ -136,20 +137,22 @@ export const DynamicNode = memo(
           }}
         />
 
-        <BaseNode<DynamicNodeType>
-          id={id}
-          data={data}
-          selected={selected}
-          type={data.typeId ?? type}
-          x={positionAbsoluteX}
-          y={positionAbsoluteY}
-          renderMedia={RenderMedia}
-          renderWidgets={RenderWidgets}
-          renderChat={ChatRenderer}
-          updateNodeData={updateNodeData}
-          handles={null}
-          {...rest}
-        />
+        <NodeErrorBoundary nodeId={id}>
+          <BaseNode<DynamicNodeType>
+            id={id}
+            data={data}
+            selected={selected}
+            type={data.typeId ?? type}
+            x={positionAbsoluteX}
+            y={positionAbsoluteY}
+            renderMedia={RenderMedia}
+            renderWidgets={RenderWidgets}
+            renderChat={ChatRenderer}
+            updateNodeData={updateNodeData}
+            handles={null}
+            {...rest}
+          />
+        </NodeErrorBoundary>
       </div>
     );
   },

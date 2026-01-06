@@ -10,13 +10,13 @@ import {
   useMemo,
 } from "react";
 
-export type TextShimmerProps = {
+export interface TextShimmerProps {
   children: string;
   as?: ElementType;
   className?: string;
   duration?: number;
   spread?: number;
-};
+}
 
 const ShimmerComponent = ({
   children,
@@ -25,8 +25,9 @@ const ShimmerComponent = ({
   duration = 2,
   spread = 2,
 }: TextShimmerProps) => {
-  const MotionComponent = motion.create(
-    Component as keyof JSX.IntrinsicElements,
+  const MotionComponent = useMemo(
+    () => motion.create(Component as keyof JSX.IntrinsicElements),
+    [Component],
   );
 
   const dynamicSpread = useMemo(

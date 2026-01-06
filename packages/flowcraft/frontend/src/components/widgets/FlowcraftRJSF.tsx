@@ -126,6 +126,28 @@ const customWidgets: RegistryWidgetsType = {
   signalButton: SignalButtonWidget,
 };
 
+const generateUiSchema = (s: RJSFSchema): UiSchema => {
+  const ui: UiSchema = {};
+  if (s.properties) {
+    Object.entries(s.properties).forEach(([key, value]) => {
+      const val = value as RJSFSchema;
+      // 如果字段定义了 uiWidget，映射到 ui:widget
+      if (val.uiWidget) {
+        ui[key] = { "ui:widget": val.uiWidget };
+      }
+      // 如果是嵌套对象，递归处理
+      if (val.type === "object" && val.properties) {
+        const nestedUi = generateUiSchema(val);
+        if (Object.keys(nestedUi).length > 0) {
+          ui[key] = { ...(ui[key] as object), ...nestedUi };
+        }
+      }
+    });
+  }
+  ui["ui:submitButtonOptions"] = { norender: true };
+  return ui;
+};
+
 interface FlowcraftRJSFProps {
   schema: RJSFSchema;
   formData: Record<string, unknown>;
@@ -140,28 +162,6 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
   nodeId,
 }) => {
   const [renderError, setRenderError] = useState<string | null>(null);
-
-  const generateUiSchema = (s: RJSFSchema): UiSchema => {
-    const ui: UiSchema = {};
-    if (s.properties) {
-      Object.entries(s.properties).forEach(([key, value]) => {
-        const val = value as RJSFSchema;
-        // 如果字段定义了 uiWidget，映射到 ui:widget
-        if (val.uiWidget) {
-          ui[key] = { "ui:widget": val.uiWidget };
-        }
-        // 如果是嵌套对象，递归处理
-        if (val.type === "object" && val.properties) {
-          const nestedUi = generateUiSchema(val);
-          if (Object.keys(nestedUi).length > 0) {
-            ui[key] = { ...(ui[key] as object), ...nestedUi };
-          }
-        }
-      });
-    }
-    ui["ui:submitButtonOptions"] = { norender: true };
-    return ui;
-  };
 
   const uiSchema = React.useMemo(() => generateUiSchema(schema), [schema]);
 
@@ -189,25 +189,20 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
     );
   }
 
-  try {
-    return (
-      <Form
-        schema={schema}
-        formData={formData}
-        uiSchema={uiSchema}
-        validator={validator}
-        widgets={customWidgets}
-        templates={{ ObjectFieldTemplate: PlainObjectFieldTemplate }}
-        formContext={{ nodeId }}
-        onChange={(e) => {
-          onChange(e.formData as Record<string, unknown>);
-        }}
-      >
-        <div />
-      </Form>
-    );
-  } catch (err) {
-    setRenderError(err instanceof Error ? err.message : String(err));
-    return null;
-  }
+  return (
+    <Form
+      schema={schema}
+      formData={formData}
+      uiSchema={uiSchema}
+      validator={validator}
+      widgets={customWidgets}
+      templates={{ ObjectFieldTemplate: PlainObjectFieldTemplate }}
+      formContext={{ nodeId }}
+      onChange={(e) => {
+        onChange(e.formData as Record<string, unknown>);
+      }}
+    >
+      <div />
+    </Form>
+  );
 };

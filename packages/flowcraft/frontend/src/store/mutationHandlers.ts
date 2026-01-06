@@ -3,11 +3,36 @@ import { type AppNode } from "../types";
 import {
   type GraphMutation,
   GraphMutationSchema,
+  PathUpdate_UpdateType,
 } from "../generated/flowcraft/v1/core/service_pb";
 import { create as createProto } from "@bufbuild/protobuf";
 import * as Y from "yjs";
 import { dehydrateNode } from "../utils/nodeUtils";
 import { fromProtoNode, fromProtoNodeData } from "../utils/protoAdapter";
+
+/**
+ * 极简的路径设置工具，支持 a.b.c 格式
+ */
+function setByPath(obj: any, path: string, value: any, merge = false) {
+  const parts = path.split(".");
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]!;
+    if (!(part in current)) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  const lastPart = parts[parts.length - 1]!;
+  if (merge && typeof value === "object" && value !== null) {
+    current[lastPart] = {
+      ...(current[lastPart] as object),
+      ...(value as object),
+    };
+  } else {
+    current[lastPart] = value;
+  }
+}
 
 export const handleGraphMutation = (
   mutInput: GraphMutation,
@@ -20,6 +45,21 @@ export const handleGraphMutation = (
   if (!op.case) return;
 
   switch (op.case) {
+    case "pathUpdate": {
+      const { targetId, path, valueJson, type } = op.value;
+      const existing = yNodes.get(targetId) as any;
+      if (existing) {
+        try {
+          const val = JSON.parse(valueJson);
+          const updated = JSON.parse(JSON.stringify(existing)); // 深拷贝以确保纯净
+          setByPath(updated, path, val, type === PathUpdate_UpdateType.MERGE);
+          yNodes.set(targetId, updated);
+        } catch (e) {
+          console.error("[Mutation] Failed to apply path update:", e);
+        }
+      }
+      break;
+    }
     case "addNode":
       if (op.value.node) {
         const node = fromProtoNode(op.value.node);

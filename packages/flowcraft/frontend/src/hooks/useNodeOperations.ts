@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { AppNode, DynamicNodeData } from "../types";
+import { type AppNode, type DynamicNodeData, AppNodeType } from "../types";
 import type { XYPosition } from "@xyflow/react";
 import {
   GraphMutationSchema,
@@ -26,7 +26,7 @@ export const useNodeOperations = (
     ) => {
       const newNode: AppNode = {
         id: uuidv4(),
-        type: "dynamic",
+        type: AppNodeType.DYNAMIC,
         position,
         measured: { width: initialWidth, height: initialHeight },
         style: { width: initialWidth, height: initialHeight },

@@ -107,7 +107,7 @@ export function BaseNode<T extends RFNode>({
       <div
         className={cn(
           "w-full h-full flex flex-col box-border rounded-[inherit]",
-          isMedia ? "p-0" : "p-0"
+          isMedia ? "p-0" : "p-0",
         )}
         style={{
           overflow: overflow,

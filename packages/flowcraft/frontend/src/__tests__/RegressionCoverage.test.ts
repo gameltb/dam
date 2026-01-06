@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlowStore } from "../store/flowStore";
 import { fromProtoNode } from "../utils/protoAdapter";
-import { type AppNode } from "../types";
+import { type AppNode, AppNodeType } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
 import { create } from "@bufbuild/protobuf";
 import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
@@ -37,13 +37,13 @@ describe("Architectural Regressions", () => {
       id: "child-1",
       parentId: "parent-1",
       position: { x: 10, y: 10 },
-      type: "dynamic",
+      type: AppNodeType.DYNAMIC,
       data: { label: "C", modes: [] },
     };
     const parent: AppNode = {
       id: "parent-1",
       position: { x: 100, y: 100 },
-      type: "groupNode",
+      type: AppNodeType.GROUP,
       data: { label: "P", modes: [] } as any,
     };
 

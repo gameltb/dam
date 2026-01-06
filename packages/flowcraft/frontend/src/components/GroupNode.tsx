@@ -3,15 +3,16 @@ import { memo, useState } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { useFlowStore } from "../store/flowStore";
 import { useShallow } from "zustand/react/shallow";
+import { AppNodeType } from "../types";
 
 export type GroupNodeData = {
   label?: string;
 } & Record<string, unknown>;
 
-export type GroupNodeType = Node<GroupNodeData, "groupNode">;
+export type GroupNodeType = Node<GroupNodeData, AppNodeType.GROUP>;
 
 const GroupNode = ({ selected, data, id }: NodeProps<GroupNodeType>) => {
-  const { theme } = useNodeTheme();
+  const { theme } = useTheme();
   const isDark = theme === "dark";
   const updateNodeData = useFlowStore(useShallow((s) => s.updateNodeData));
 
@@ -109,13 +110,4 @@ const GroupNode = ({ selected, data, id }: NodeProps<GroupNodeType>) => {
     </div>
   );
 };
-// Helper for consistency since useTheme might be exported differently
-function useNodeTheme() {
-  try {
-    return useTheme();
-  } catch {
-    return { theme: "dark" };
-  }
-}
-
 export default memo(GroupNode);

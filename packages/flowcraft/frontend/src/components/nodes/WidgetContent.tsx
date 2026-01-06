@@ -61,10 +61,11 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
   ({ id, data, selected, onToggleMode }) => {
     const { onChange, onWidgetClick } = useNodeHandlers(data, selected);
     const { activeChatNodeId, chatViewMode, setActiveChat } = useUiStore();
-    
+
     const isChatNode = data.typeId?.toLowerCase().includes("chat");
     const isSidebarMode = activeChatNodeId === id && chatViewMode === "sidebar";
-    const isFullscreenMode = activeChatNodeId === id && chatViewMode === "fullscreen";
+    const isFullscreenMode =
+      activeChatNodeId === id && chatViewMode === "fullscreen";
     const isActiveExternally = isSidebarMode || isFullscreenMode;
 
     const isSwitchable = data.modes.length > 1;
@@ -131,37 +132,54 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                   <MessageSquare size={10} /> AI Session
                 </span>
                 <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-6 w-6"
-                    onClick={() => setActiveChat(id, "fullscreen")}
+                    onClick={() => {
+                      setActiveChat(id, "fullscreen");
+                    }}
                     title="Open Fullscreen"
                   >
                     <Maximize2 size={12} />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn("h-6 w-6", isSidebarMode && "text-primary-color bg-primary-color/10")}
-                    onClick={() => setActiveChat(isActiveExternally ? null : id, "sidebar")}
-                    title={isSidebarMode ? "Dock back to node" : "Open in sidebar"}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-6 w-6",
+                      isSidebarMode && "text-primary-color bg-primary-color/10",
+                    )}
+                    onClick={() => {
+                      setActiveChat(isActiveExternally ? null : id, "sidebar");
+                    }}
+                    title={
+                      isSidebarMode ? "Dock back to node" : "Open in sidebar"
+                    }
                   >
                     <PanelRight size={14} />
                   </Button>
                 </div>
               </div>
-              
+
               {!isActiveExternally ? (
                 <div className="h-[300px] border border-node-border rounded-md overflow-hidden bg-background/50">
                   <ChatBot nodeId={id} />
                 </div>
               ) : (
                 <div className="py-8 flex flex-col items-center justify-center border border-dashed border-border rounded-md bg-muted/10">
-                   <p className="text-[10px] text-muted-foreground">Active in {chatViewMode} mode</p>
-                   <Button variant="link" className="h-auto p-0 text-[10px]" onClick={() => setActiveChat(id, "inline")}>
-                     Restore to node
-                   </Button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Active in {chatViewMode} mode
+                  </p>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-[10px]"
+                    onClick={() => {
+                      setActiveChat(id, "inline");
+                    }}
+                  >
+                    Restore to node
+                  </Button>
                 </div>
               )}
             </div>

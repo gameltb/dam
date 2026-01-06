@@ -20,11 +20,13 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
     return getSchemaForTemplate(action.id, action.paramsSchemaJson);
   }, [action]);
 
-  if (!schema) {
-    // If no schema found, execute immediately
-    React.useEffect(() => {
+  React.useEffect(() => {
+    if (!schema) {
       onConfirm({});
-    }, []);
+    }
+  }, [schema, onConfirm]);
+
+  if (!schema) {
     return null;
   }
 

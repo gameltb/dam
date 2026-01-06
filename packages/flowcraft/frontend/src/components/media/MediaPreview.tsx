@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
-import { type AppNode } from "../../types";
+import { type AppNode, AppNodeType } from "../../types";
 import { IconButton } from "../base/IconButton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMediaTransform } from "../../hooks/useMediaTransform";
@@ -38,7 +38,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   // Video Modes
   const [videoMode, setVideoMode] = useState<"fit" | "original">("fit");
 
-  const media = node.type === "dynamic" ? node.data.media : null;
+  const media = node.type === AppNodeType.DYNAMIC ? node.data.media : null;
   const items = useMemo(() => {
     if (!media) return [];
     return [media.url, ...(media.galleryUrls ?? [])].filter(

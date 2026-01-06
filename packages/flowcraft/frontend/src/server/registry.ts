@@ -1,14 +1,22 @@
-import { type NodeTemplate } from "../generated/flowcraft/v1/core/node_pb";
+import {
+  type NodeTemplate,
+  type TaskUpdate,
+} from "../generated/flowcraft/v1/core/node_pb";
 import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 import { type AppNode } from "../types";
+import {
+  type MutationList,
+  type StreamChunk,
+} from "../generated/flowcraft/v1/core/service_pb";
 
 export interface NodeExecutionContext {
+  actionId: string;
   node: AppNode;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   taskId: string;
-  emitTaskUpdate: (update: any) => void;
-  emitMutation: (mutation: any) => void;
-  emitStreamChunk: (chunk: any) => void;
+  emitTaskUpdate: (update: TaskUpdate) => void;
+  emitMutation: (mutation: MutationList) => void;
+  emitStreamChunk: (chunk: StreamChunk) => void;
 }
 
 export interface NodeDefinition {
@@ -21,13 +29,14 @@ export interface NodeDefinition {
 export interface ActionHandlerContext {
   actionId: string;
   sourceNodeId?: string;
+  node?: AppNode;
   contextNodeIds?: string[];
   selectedNodeIds: string[];
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   taskId: string;
-  emitTaskUpdate: (update: any) => void;
-  emitMutation: (mutation: any) => void;
-  emitStreamChunk: (chunk: any) => void;
+  emitTaskUpdate: (update: TaskUpdate) => void;
+  emitMutation: (mutation: MutationList) => void;
+  emitStreamChunk: (chunk: StreamChunk) => void;
 }
 
 export type ActionHandler = (ctx: ActionHandlerContext) => Promise<void>;

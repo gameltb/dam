@@ -8,7 +8,13 @@ import unusedImports from "eslint-plugin-unused-imports";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", "src/generated", ".gemini"]),
+  globalIgnores([
+    "dist",
+    "src/generated",
+    ".gemini",
+    "src/components/ui",
+    "src/components/ai-elements",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     plugins: {

@@ -3,11 +3,11 @@
   .fc-node {
     @apply bg-node-bg border border-node-border rounded-lg shadow-lg transition-shadow duration-200;
   }
-  
+
   .fc-node-selected {
     @apply ring-2 ring-primary-color shadow-[0_0_15px_rgba(100,108,255,0.4)];
   }
-  
+
   .fc-panel {
     @apply bg-panel-bg border border-node-border rounded-md shadow-md;
   }
@@ -50,7 +50,7 @@
   .fc-text-main {
     @apply text-text-color;
   }
-  
+
   .fc-text-sub {
     @apply text-sub-text;
   }
@@ -74,8 +74,14 @@
   }
 
   @keyframes menuIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   /* Node Info Panel Animation */
@@ -84,7 +90,13 @@
   }
 
   @keyframes nodeInfoFadeIn {
-    from { opacity: 0; transform: translate(-50%, 5px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
+    from {
+      opacity: 0;
+      transform: translate(-50%, 5px);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
   }
 }

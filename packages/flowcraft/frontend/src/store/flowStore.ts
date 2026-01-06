@@ -61,12 +61,12 @@ export interface RFState {
   yEdges: Y.Map<unknown>;
 
   lastNodeEvent: {
-    type: FlowEvent | string;
+    type: FlowEvent;
     payload: Record<string, unknown>;
     timestamp: number;
   } | null;
   dispatchNodeEvent: (
-    type: FlowEvent | string,
+    type: FlowEvent,
     payload: Record<string, unknown>,
   ) => void;
 

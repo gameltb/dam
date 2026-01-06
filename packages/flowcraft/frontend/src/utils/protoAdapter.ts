@@ -23,6 +23,7 @@ import {
   type DynamicNodeData,
   type WidgetDef,
   type ClientPort,
+  AppNodeType,
 } from "../types";
 import type { Edge } from "@xyflow/react";
 
@@ -30,17 +31,17 @@ import type { Edge } from "@xyflow/react";
  * Mappings for NodeKind and PortMainType enums.
  */
 const NODE_TYPE_TO_KIND: Record<string, NodeKind> = {
-  dynamic: NodeKind.DYNAMIC,
-  groupNode: NodeKind.GROUP,
-  processing: NodeKind.PROCESS,
+  [AppNodeType.DYNAMIC]: NodeKind.DYNAMIC,
+  [AppNodeType.GROUP]: NodeKind.GROUP,
+  [AppNodeType.PROCESSING]: NodeKind.PROCESS,
 };
 
-const KIND_TO_NODE_TYPE: Record<number, string> = {
-  [NodeKind.UNSPECIFIED]: "dynamic",
-  [NodeKind.DYNAMIC]: "dynamic",
-  [NodeKind.GROUP]: "groupNode",
-  [NodeKind.PROCESS]: "processing",
-  [NodeKind.NOTE]: "dynamic",
+const KIND_TO_NODE_TYPE: Record<number, AppNodeType> = {
+  [NodeKind.UNSPECIFIED]: AppNodeType.DYNAMIC,
+  [NodeKind.DYNAMIC]: AppNodeType.DYNAMIC,
+  [NodeKind.GROUP]: AppNodeType.GROUP,
+  [NodeKind.PROCESS]: AppNodeType.PROCESSING,
+  [NodeKind.NOTE]: AppNodeType.DYNAMIC,
 };
 
 export const PORT_MAIN_TYPE_TO_PROTO: Record<string, PortMainType> = {
@@ -114,8 +115,9 @@ export function toProtoNode(node: AppNode): Node {
   );
 
   let taskId = "";
-  if (node.type === "processing") {
-    taskId = String((data as Record<string, unknown>).taskId || "");
+  if (node.type === AppNodeType.PROCESSING) {
+    const dataObj = data as Record<string, unknown>;
+    taskId = typeof dataObj.taskId === "string" ? dataObj.taskId : "";
   }
 
   const protoData = create(NodeDataSchema, {

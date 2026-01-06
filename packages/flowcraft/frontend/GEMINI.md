@@ -55,6 +55,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Data & Synchronization:**
   - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
   - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure Yjs and Backend synchronization. Avoid mixing local component state with store state for data that needs to be synchronized.
+- **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.** If a component or utility grows beyond this limit, consider refactoring logic into custom hooks and splitting UI into smaller sub-components.
 - **Polymorphism over Conditionals:**
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
   - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).

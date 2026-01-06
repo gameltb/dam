@@ -6,43 +6,52 @@ import { X, PanelLeftClose } from "lucide-react";
 import { Button } from "./ui/button";
 
 export const Sidebar: React.FC = () => {
-  const { 
-    isSidebarOpen, 
-    sidebarWidth, 
-    activeChatNodeId, 
+  const {
+    isSidebarOpen,
+    sidebarWidth,
+    activeChatNodeId,
     setSidebarWidth,
-    setActiveChat 
+    setActiveChat,
   } = useUiStore();
-  
-  const node = useFlowStore(s => s.nodes.find(n => n.id === activeChatNodeId));
-  
+
+  const node = useFlowStore((s) =>
+    s.nodes.find((n) => n.id === activeChatNodeId),
+  );
+
   const isResizing = useRef(false);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing.current) return;
-    const newWidth = window.innerWidth - e.clientX;
-    if (newWidth > 300 && newWidth < 800) {
-      setSidebarWidth(newWidth);
-    }
-  }, [setSidebarWidth]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 300 && newWidth < 800) {
+        setSidebarWidth(newWidth);
+      }
+    },
+    [setSidebarWidth],
+  );
 
-  const stopResizing = useCallback(() => {
-    isResizing.current = false;
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", stopResizing);
-  }, [handleMouseMove]);
+  const startResizing = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
 
-  const startResizing = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isResizing.current = true;
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", stopResizing);
-  }, [handleMouseMove, stopResizing]);
+      const stopResizing = () => {
+        isResizing.current = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", stopResizing);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", stopResizing);
+    },
+    [handleMouseMove],
+  );
 
   if (!isSidebarOpen) return null;
 
   return (
-    <div 
+    <div
       className="flex h-full border-l border-border bg-background transition-all duration-300 ease-in-out relative shadow-xl z-[4000]"
       style={{ width: sidebarWidth }}
     >
@@ -61,11 +70,13 @@ export const Sidebar: React.FC = () => {
               {node ? `Chat: ${node.data.label || node.id}` : "AI Assistant"}
             </h2>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-8 w-8"
-            onClick={() => setActiveChat(null)}
+            onClick={() => {
+              setActiveChat(null);
+            }}
           >
             <X size={16} />
           </Button>
@@ -77,7 +88,9 @@ export const Sidebar: React.FC = () => {
             <ChatBot nodeId={activeChatNodeId} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-              <p className="text-sm">Select a node with Chat enabled to view conversation here.</p>
+              <p className="text-sm">
+                Select a node with Chat enabled to view conversation here.
+              </p>
             </div>
           )}
         </div>

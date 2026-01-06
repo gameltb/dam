@@ -40,6 +40,12 @@ export type { Port };
  * Enums and types for frontend-specific logic.
  */
 
+export enum AppNodeType {
+  DYNAMIC = "dynamic",
+  PROCESSING = "processing",
+  GROUP = "groupNode",
+}
+
 export enum FlowEvent {
   WIDGET_CLICK = "widget-click",
   GALLERY_ITEM_CONTEXT = "gallery-item-context",
@@ -135,8 +141,11 @@ export interface ProcessingNodeData {
   [key: string]: unknown;
 }
 
-export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;
-export type ProcessingNodeType = Node<ProcessingNodeData, "processing">;
+export type DynamicNodeType = Node<DynamicNodeData, AppNodeType.DYNAMIC>;
+export type ProcessingNodeType = Node<
+  ProcessingNodeData,
+  AppNodeType.PROCESSING
+>;
 export type AppNode = GroupNodeType | DynamicNodeType | ProcessingNodeType;
 
 /**
@@ -150,5 +159,5 @@ export type NodeTemplate = ProtoNodeTemplate;
  */
 
 export function isDynamicNode(node: AppNode): node is DynamicNodeType {
-  return node.type === "dynamic";
+  return node.type === AppNodeType.DYNAMIC;
 }
